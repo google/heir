@@ -3,23 +3,22 @@
 
 include "mlir/Pass/PassBase.td"
 
-def MemrefToArithPass : Pass<"memref-to-arith", "mlir::ModuleOp"> {
-  let summary = "MemrefToArith lowers memrefs to their inline arithmetic values";
+def MemrefGlobalReplacePass : Pass<"memref-global-replace", "mlir::ModuleOp"> {
+  let summary = "MemrefGlobalReplacePass forwards global memrefs accessors "
+  "to arithmetic values";
 
   let description = [{
-    This pass removes MemRef creation and manipulation operations. MemRef global
-     allocations are replaced by MemRefs in the referencing module. All MemRef
-     aliasing operations are also folded and copies are lowered to affine loads
-     and stores. At this point, all MemRef usage are write and load operations,
-     so the final conversion pattern removes all affine scalar accesses by
-     forwarding stores to loads and then removes the unused MemRefs.
+    This pass forwards constant global MemRef values to referencing affine
+    loads. This pass requires that the MemRef global values are initialized as
+    constants and that the affine load access indicies are constants (i.e. not
+    variadic). Unroll affine loops prior to running this pass.
 
      MemRef removal is required to remove any memory allocations from the input
      model (for example, TensorFlow models contain global memory holding model
      weights) to support FHE transpilation.
   }];
 
-  let constructor = "createLowerMemrefToArithPass()";
+  let constructor = "createMemrefGlobalReplacePass()";
 }
 
 #endif  // THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_MEMREFTOARITH_TD_

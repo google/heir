@@ -1,4 +1,4 @@
-// RUN: not heir-opt --memref2arith %s 2>&1 | FileCheck %s
+// RUN: not heir-opt --memref-global-replace %s 2>&1 | FileCheck %s
 
 // This verifies that the memref.global cannot be removed when its accessor uses
 // indices that cannot be resolved (i.e. the input variable).

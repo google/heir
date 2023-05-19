@@ -1,4 +1,4 @@
-// RUN: heir-opt --memref2arith %s | FileCheck %s
+// RUN: heir-opt --memref-global-replace %s | FileCheck %s
 
 // This verifies that the memref.global was removed and that its constant values
 // are forwarded to referencing affine loads when using splats.

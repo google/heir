@@ -8,8 +8,8 @@ package(
 )
 
 cc_library(
-    name = "MemrefToArith",
-    srcs = ["MemrefToArith.cpp"],
+    name = "MemrefGlobalReplace",
+    srcs = ["MemrefGlobalReplace.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
     includes = ["@heir//include"],
     deps = [
@@ -27,7 +27,7 @@ cc_library(
     name = "MemrefToArithRegistration",
     srcs = ["PassRegistration.cpp"],
     deps = [
-        ":MemrefToArith",
+        ":MemrefGlobalReplace",
         "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
     ],
     alwayslink = 1,

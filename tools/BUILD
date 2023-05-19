@@ -13,7 +13,6 @@ cc_binary(
     srcs = ["heir-opt.cpp"],
     includes = ["include"],
     deps = [
-        "@heir//lib/Conversion/MemrefToArith",
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Dialect/EncryptedArith/IR:Dialect",
         "@heir//lib/Dialect/HEIR/IR:Dialect",

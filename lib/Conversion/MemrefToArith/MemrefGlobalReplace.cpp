@@ -1,7 +1,6 @@
-#include "include/Conversion/MemrefToArith/MemrefToArith.h"
-
 #include <numeric>
 
+#include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineMemoryOpInterfaces.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
@@ -15,46 +14,6 @@
 
 namespace mlir {
 namespace heir {
-
-// MemrefAllocRemovalPattern removes any memref allocations that are
-// not accessed.
-// The --affine-scalrep pass only removes unused memrefs after forwarding its
-// stores to loads. If the memref never had any access (or it was unused after
-// a copy), then the pass will not eliminate the memref. This may not be
-// necessary if other passes simplifying memrefs are architected in a way that
-// --affine-scalrep will remove all memrefs.
-class MemrefAllocRemovalPattern final : public mlir::ConversionPattern {
- public:
-  explicit MemrefAllocRemovalPattern(mlir::MLIRContext *context)
-      : mlir::ConversionPattern(mlir::memref::AllocOp::getOperationName(), 1,
-                                context) {}
-
-  mlir::LogicalResult matchAndRewrite(
-      mlir::Operation *op, mlir::ArrayRef<mlir::Value> operands,
-      mlir::ConversionPatternRewriter &rewriter) const override {
-    bool isUsed = false;
-    mlir::SmallVector<Operation *, 8> opsToErase;
-    // If the only users are writes, then there is no potential access
-    // (loads or reshaping).
-    auto allocOp = dyn_cast<mlir::memref::AllocOp>(op);
-    for (Operation *user : allocOp.getMemref().getUsers()) {
-      auto store = dyn_cast<affine::AffineWriteOpInterface>(user);
-      if (!store) {
-        isUsed = true;
-        break;
-      }
-      opsToErase.push_back(user);
-    }
-    if (!isUsed) {
-      // Erase all write operations.
-      for (auto *op : opsToErase) {
-        op->erase();
-      }
-      op->erase();
-    }
-    return mlir::success();
-  }
-};
 
 // MemrefGlobalLoweringPattern lowers global memrefs by looking for its usages
 // in modules and replacing them with in-module memref allocations and stores.
@@ -157,9 +116,10 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
   }
 };
 
-// LowerMemrefToArithPass intends to remove all memref types and operations.
-struct LowerMemrefToArithPass
-    : public mlir::PassWrapper<LowerMemrefToArithPass,
+// MemrefGlobalReplacementPass forwards global memref constants loads to
+// arithmetic constants.
+struct MemrefGlobalReplacementPass
+    : public mlir::PassWrapper<MemrefGlobalReplacementPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
     registry.insert<mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
@@ -169,29 +129,17 @@ struct LowerMemrefToArithPass
   void runOnOperation() override {
     mlir::ConversionTarget target(getContext());
 
-    // TODO(b/281566825): Mark memref dialect as illegal when all passes are
-    // complete. target.addIllegalDialect<mlir::memref>();
-
-    // TODO(b/281566825): Complete MLIR conversion patterns:
-    //   1. fold-memref-alias-ops: Remove expand, subview, and collapse
-    //   2. [custom] lower-copy: Lower memref copies to affine stores and
-    //   loads.
-    //   3. [custom] forward-global: Forward global memref accesses with their
-    //   constant values.
-    //   4. affine-scalrep: Forward stores to loads and remove redundant
-    //   loads.
-    //   5. MemrefAllocRemovalPattern: Removes unused memref allocations.
     mlir::RewritePatternSet patterns(&getContext());
     patterns.add<MemrefGlobalLoweringPattern>(&getContext());
 
     (void)applyPartialConversion(getOperation(), target, std::move(patterns));
   }
 
-  mlir::StringRef getArgument() const final { return "memref2arith"; }
+  mlir::StringRef getArgument() const final { return "memref-global-replace"; }
 };
 
-std::unique_ptr<Pass> createLowerMemrefToArithPass() {
-  return std::make_unique<LowerMemrefToArithPass>();
+std::unique_ptr<Pass> createMemrefGlobalReplacePass() {
+  return std::make_unique<MemrefGlobalReplacementPass>();
 }
 
 }  // namespace heir

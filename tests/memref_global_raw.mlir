@@ -2,10 +2,10 @@
 // are forwarded to referencing affine loads when the global is represented with
 // raw values.
 
-// RUN: heir-opt --memref2arith %s | FileCheck %s
+// RUN: heir-opt --memref-global-replace %s | FileCheck %s
 
 // The following validates correctness of the model before and after the
-// memref2arith pass.
+// memref-global-replace pass.
 
 // RUN: mlir-opt %s -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
@@ -24,7 +24,7 @@
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" | \
 // RUN:   FileCheck %s --check-prefix CHECK_PREPASS --allow-empty
 
-// RUN: heir-opt --memref2arith %s | \
+// RUN: heir-opt --memref-global-replace %s | \
 // RUN:   mlir-opt -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \

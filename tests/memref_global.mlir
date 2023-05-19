@@ -1,7 +1,7 @@
 // This verifies that the memref.global was removed and that its constant values
 // are forwarded to referencing affine loads.
 
-// RUN: heir-opt --memref2arith %s | FileCheck %s
+// RUN: heir-opt --memref-global-replace %s | FileCheck %s
 
 // The following verifies that the memref values were unchanged after the pass.
 
@@ -22,7 +22,7 @@
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" | \
 // RUN:   FileCheck %s --check-prefix CHECK_PREPASS --allow-empty
 
-// RUN: heir-opt --memref2arith %s | \
+// RUN: heir-opt --memref-global-replace %s | \
 // RUN:   mlir-opt -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \

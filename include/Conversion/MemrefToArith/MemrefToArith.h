@@ -7,7 +7,7 @@ namespace mlir {
 
 namespace heir {
 
-std::unique_ptr<Pass> createLowerMemrefToArithPass();
+std::unique_ptr<Pass> createMemrefGlobalReplacePass();
 
 }  // namespace heir
 
