@@ -24,9 +24,27 @@ cc_library(
 )
 
 cc_library(
+    name = "ExpandCopy",
+    srcs = ["ExpandCopy.cpp"],
+    hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
+    includes = ["@heir//include"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
     name = "MemrefToArithRegistration",
     srcs = ["PassRegistration.cpp"],
     deps = [
+        ":ExpandCopy",
         ":MemrefGlobalReplace",
         "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
     ],

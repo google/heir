@@ -9,6 +9,8 @@ namespace heir {
 
 std::unique_ptr<Pass> createMemrefGlobalReplacePass();
 
+std::unique_ptr<Pass> createExpandCopyPass();
+
 }  // namespace heir
 
 }  // namespace mlir

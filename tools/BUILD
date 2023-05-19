@@ -22,7 +22,6 @@ cc_binary(
         "@llvm-project//mlir:LLVMDialect",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:MlirOptLib",
-        "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:SCFDialect",
     ],
 )

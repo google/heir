@@ -21,4 +21,16 @@ def MemrefGlobalReplacePass : Pass<"memref-global-replace", "mlir::ModuleOp"> {
   let constructor = "createMemrefGlobalReplacePass()";
 }
 
+def ExpandCopyPass : Pass<"expand-copy", "mlir::ModuleOp"> {
+  let summary = "Expands memref.copy ops to explicit affine loads and stores";
+
+  let description = [{
+    This pass removes memref copy operations by expanding it to affine loads and
+    stores. This pass introduces affine loops over the dimensions of the MemRef,
+    so must be run prior to any affine loop unrolling in a pipeline.
+  }];
+
+  let constructor = "createExpandCopyPass()";
+}
+
 #endif  // THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_MEMREFTOARITH_TD_
