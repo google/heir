@@ -8,6 +8,27 @@
 namespace mlir {
 namespace heir {
 
+namespace {
+
+// Since a verilog module has only one output value, and the names are scoped
+// to the module, we can safely hard code `_out_` as every function's output
+// wire name.
+static constexpr std::string_view kOutputName = "_out_";
+
+bool shouldMapToSigned(IntegerType::SignednessSemantics val) {
+  switch (val) {
+    case IntegerType::Signless:
+      return true;
+    case IntegerType::Signed:
+      return true;
+    case IntegerType::Unsigned:
+      return false;
+  }
+  llvm_unreachable("Unexpected IntegerType::SignednessSemantics");
+}
+
+}  // namespace
+
 void registerToVerilogTranslation() {
   mlir::TranslateFromMLIRRegistration reg(
       "emit-verilog", "translate from arithmetic to verilog",
@@ -32,17 +53,25 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
       llvm::TypeSwitch<Operation &, LogicalResult>(op)
           // Builtin ops.
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
-          // // Func ops.
-          .Case<mlir::func::FuncOp>([&](auto op) { return printOperation(op); })
+          // Func ops.
+          .Case<mlir::func::FuncOp, mlir::func::ReturnOp>(
+              [&](auto op) { return printOperation(op); })
           // Arithmetic ops.
-          .Case<mlir::arith::ConstantOp>(
+          .Case<mlir::arith::ConstantOp, mlir::arith::ConstantOp,
+                mlir::arith::AddIOp, mlir::arith::CmpIOp,
+                mlir::arith::ConstantOp, mlir::arith::ExtSIOp,
+                mlir::arith::MulIOp, mlir::arith::SelectOp, mlir::arith::ShLIOp,
+                mlir::arith::ShRSIOp, mlir::arith::ShRUIOp, mlir::arith::SubIOp,
+                mlir::arith::TruncIOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
-            assert(0 && "unimplemented");
             return op.emitOpError("unable to find printer for op");
           });
 
-  if (failed(status)) return failure();
+  if (failed(status)) {
+    op.emitOpError(llvm::formatv("Failed to translate op {0}", op.getName()));
+    return failure();
+  }
   os_ << "\n";
   return success();
 }
@@ -98,10 +127,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
   if (failed(emitType(funcOp.getLoc(), result_types.front()))) {
     return failure();
   }
-  // Since a verilog module has only one output type, and the names are scoped
-  // to the module, we can safely hard code `_out_` as every functions output
-  // write name.
-  os_ << " _out_";
+  os_ << " " << kOutputName;
 
   // End of module header
   os_.unindent();
@@ -127,53 +153,140 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
 
   os_ << "\n";
   // ops
-  os_ << "\n";
-  // return
+  for (mlir::Block &block : funcOp.getBlocks()) {
+    for (Operation &op : block.getOperations()) {
+      if (failed(translate(op))) {
+        return failure();
+      }
+    }
+  }
   os_.unindent();
-  os_ << "endmodule\n";
+  os_ << "endmodule";
+  return success();
+}
 
+LogicalResult VerilogEmitter::printOperation(mlir::func::ReturnOp op) {
+  // Return is an assignment to the output wire
+  // e.g., assign out = x1200;
+
+  // Only support one return value.
+  auto retval = op.getOperands()[0];
+  os_ << "assign " << kOutputName << " = " << getName(retval) << ";";
+  return success();
+}
+
+LogicalResult VerilogEmitter::printBinaryOp(Value result, Value lhs, Value rhs,
+                                            std::string_view op) {
+  emitAssignPrefix(result);
+  os_ << getName(lhs) << " " << op << " " << getName(rhs) << ";";
   return success();
 }
 
 LogicalResult VerilogEmitter::printOperation(mlir::arith::AddIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "+");
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::CmpIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  switch (op.getPredicate()) {
+    // For eq and ne, verilog has multiple operators. == and === are equivalent,
+    // except for the special values X (unknown default initial state) and Z
+    // (high impedance state), which are irrelevant for our purposes. Ditto for
+    // != and !==.
+    case arith::CmpIPredicate::eq:
+      return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "==");
+    case arith::CmpIPredicate::ne:
+      return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "!=");
+    // For comparison ops, signedness is important, but the semnatics of the
+    // verilog operation are, in our case, determined by whether the operands
+    // have a `signed` modifier on their declarations. See `emitType`.
+    case arith::CmpIPredicate::slt:
+    case arith::CmpIPredicate::ult:
+      return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "<");
+    case arith::CmpIPredicate::sle:
+    case arith::CmpIPredicate::ule:
+      return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "<=");
+    case arith::CmpIPredicate::sgt:
+    case arith::CmpIPredicate::ugt:
+      return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), ">");
+    case arith::CmpIPredicate::sge:
+    case arith::CmpIPredicate::uge:
+      return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), ">=");
+  }
+  llvm_unreachable("unknown cmpi predicate kind");
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::ConstantOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  Attribute attr = op.getValue();
+
+  APInt value;
+  bool isSigned = true;
+  if (auto iAttr = dyn_cast<IntegerAttr>(attr)) {
+    if (auto iType = dyn_cast<IntegerType>(iAttr.getType())) {
+      value = iAttr.getValue();
+      isSigned = shouldMapToSigned(iType.getSignedness());
+    } else if (auto iType = dyn_cast<IndexType>(iAttr.getType())) {
+      value = iAttr.getValue();
+      isSigned = false;
+    }
+  }
+
+  SmallString<128> strValue;
+  value.toString(strValue, 10, isSigned, false);
+
+  emitAssignPrefix(op.getResult());
+  os_ << strValue << ";";
+  return success();
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtSIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  // E.g., assign x0 = {{24{arg0[7]}}, arg0};
+  Value input = op.getIn();
+  auto srcType = dyn_cast<IntegerType>(input.getType());
+  auto dstType = dyn_cast<IntegerType>(op.getOut().getType());
+
+  int extensionAmount = dstType.getWidth() - srcType.getWidth();
+  StringRef arg = getOrCreateName(input);
+
+  emitAssignPrefix(op.getResult());
+  os_ << "{{" << extensionAmount << "{" << arg << "[" << srcType.getWidth() - 1
+      << "]}}, " << arg << "};";
+
+  return success();
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::MulIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "*");
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::SelectOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  emitAssignPrefix(op.getResult());
+  os_ << getName(op.getCondition()) << " ? " << getName(op.getTrueValue())
+      << " : " << getName(op.getFalseValue()) << ";";
+  return success();
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::ShLIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "<<");
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::ShRSIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), ">>>");
 }
+
+LogicalResult VerilogEmitter::printOperation(mlir::arith::ShRUIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), ">>");
+}
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::SubIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "-");
 }
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::TruncIOp op) {
-  assert(0 && "unimplemented");
-  return failure();
+  // E.g., assign x0 = arg[7:0];
+  auto dstType = dyn_cast<IntegerType>(op.getOut().getType());
+  emitAssignPrefix(op.getResult());
+  os_ << getOrCreateName(op.getIn()) << "[" << dstType.getWidth() - 1 << ":0];";
+  return success();
 }
 
 LogicalResult VerilogEmitter::emitType(Location loc, Type type) {
@@ -182,10 +295,24 @@ LogicalResult VerilogEmitter::emitType(Location loc, Type type) {
     if (width == 1) {
       return (os_ << "wire"), success();
     }
-    return (os_ << "wire [" << width - 1 << ":0]"), success();
+    // By default, all verilog operations are unsigned. However, comparison
+    // operators might be comparing two signed values. There are two ways to
+    // tell verilog to do a signed comparison: one is to use the builtin
+    // $signed() function around both operands when executing the comparison op,
+    // otherwise both operands need to be defined as wires/registers with the
+    // signed keyword. Thankfully, MLIR requires a signed cmpi to have both its
+    // operands have the same type, so if we encounter a signed cmpi MLIR op, we
+    // are guaranteed that both its wire declarations have this signed modifier.
+    std::string_view signedModifier =
+        shouldMapToSigned(iType.getSignedness()) ? "signed " : "";
+    return (os_ << "wire " << signedModifier << "[" << width - 1 << ":0]"),
+           success();
   }
-  assert(0 && "unimplemented");
   return failure();
+}
+
+void VerilogEmitter::emitAssignPrefix(Value result) {
+  os_ << "assign " << getOrCreateName(result) << " = ";
 }
 
 LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
@@ -198,7 +325,7 @@ LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
 
 StringRef VerilogEmitter::getOrCreateName(Value value,
                                           std::string_view prefix) {
-  if (!value_to_wire_name_.count(value)) {
+  if (!value_to_wire_name_.contains(value)) {
     value_to_wire_name_.insert(std::make_pair(
         value, llvm::formatv("{0}{1}", prefix, ++value_count_).str()));
   }
@@ -211,6 +338,16 @@ StringRef VerilogEmitter::getOrCreateName(BlockArgument arg) {
 
 StringRef VerilogEmitter::getOrCreateName(Value value) {
   return getOrCreateName(value, "v");
+}
+
+// This is safe to call after an initial walk is performed over a function body
+// to find each op result and call getOrCreateName on it. If this function is
+// called and fails due to a missing key assertion, the bug is almost certainly
+// in this file: MLIR ensures the input to this pass is in SSA form, and this
+// file is responsible for populating value_to_wire_name_ in a block before
+// processing any operations in that block.
+StringRef VerilogEmitter::getName(Value value) {
+  return value_to_wire_name_.at(value);
 }
 
 }  // namespace heir

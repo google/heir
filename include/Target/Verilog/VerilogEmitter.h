@@ -36,7 +36,7 @@ class VerilogEmitter {
   int64_t value_count_;
 
   // Functions for printing individual ops
-  LogicalResult printOperation(mlir::ModuleOp moduleOp);
+  LogicalResult printOperation(mlir::ModuleOp op);
   LogicalResult printOperation(mlir::arith::AddIOp op);
   LogicalResult printOperation(mlir::arith::CmpIOp op);
   LogicalResult printOperation(mlir::arith::ConstantOp op);
@@ -45,9 +45,15 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::arith::SelectOp op);
   LogicalResult printOperation(mlir::arith::ShLIOp op);
   LogicalResult printOperation(mlir::arith::ShRSIOp op);
+  LogicalResult printOperation(mlir::arith::ShRUIOp op);
   LogicalResult printOperation(mlir::arith::SubIOp op);
   LogicalResult printOperation(mlir::arith::TruncIOp op);
-  LogicalResult printOperation(mlir::func::FuncOp funcOp);
+  LogicalResult printOperation(mlir::func::FuncOp op);
+  LogicalResult printOperation(mlir::func::ReturnOp op);
+
+  // Helpers for above
+  LogicalResult printBinaryOp(mlir::Value result, mlir::Value lhs,
+                              mlir::Value rhs, std::string_view op);
 
   // Emit a Verilog type of the form `wire [width-1:0]`
   LogicalResult emitType(Location loc, Type type);
@@ -55,10 +61,15 @@ class VerilogEmitter {
   // Emit a wire declaration in the verilog module body
   LogicalResult emitWireDeclaration(OpResult result);
 
+  // Emit `assign var_name = ` as a common prefix to
+  // many printOperation functions above.
+  void emitAssignPrefix(mlir::Value result);
+
   // Get or create a variable name
   StringRef getOrCreateName(BlockArgument arg);
   StringRef getOrCreateName(Value value);
   StringRef getOrCreateName(Value value, std::string_view prefix);
+  StringRef getName(Value value);
 };
 
 }  // namespace heir
