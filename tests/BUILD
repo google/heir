@@ -4,9 +4,7 @@ load("//bazel:glob_lit_test.bzl", "glob_lit_tests")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
-    default_visibility = [
-        "@heir//:internal",
-    ],
+    default_visibility = ["//visibility:public"],
 )
 
 # Bundle together all of the test utilities that are used by tests.

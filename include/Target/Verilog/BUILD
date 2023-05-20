@@ -1,14 +1,11 @@
 # Verilog Emitter
 package(
     default_applicable_licenses = ["@heir//:license"],
-    default_visibility = [
-        "@heir//:internal",
-    ],
+    default_visibility = ["//visibility:public"],
 )
 
 exports_files(
     srcs = ["VerilogEmitter.h"],
-    visibility = ["@heir//:internal"],
 )
 
 cc_library(

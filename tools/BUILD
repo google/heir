@@ -2,9 +2,7 @@
 
 package(
     default_applicable_licenses = ["@heir//:license"],
-    default_visibility = [
-        "@heir//:internal",
-    ],
+    default_visibility = ["//visibility:public"],
 )
 
 # Custom `mlir-opt` replacement that links our dialect and passes

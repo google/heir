@@ -2,9 +2,7 @@
 
 package(
     default_applicable_licenses = ["@heir//:license"],
-    default_visibility = [
-        "@heir//:internal",
-    ],
+    default_visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -28,7 +26,6 @@ cc_library(
     srcs = ["ExpandCopy.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
     includes = ["@heir//include"],
-    visibility = ["//visibility:public"],
     deps = [
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",

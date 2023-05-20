@@ -1,6 +1,15 @@
 # HEIR, an MLIR project for homomorphic encryption
 
-# copybara: insert license declarations
+load("@rules_license//rules:license.bzl", "license")
+
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+license(name = "license")
+
+licenses(["notice"])
 
 exports_files([
     "LICENSE",
@@ -8,7 +17,5 @@ exports_files([
 
 package_group(
     name = "internal",
-    packages = [
-        "@heir//...",
-    ],
+    packages = [],
 )
