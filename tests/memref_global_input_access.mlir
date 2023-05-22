@@ -1,9 +1,9 @@
-// RUN: not heir-opt --memref-global-replace %s 2>&1 | FileCheck %s
+// RUN: heir-opt --memref-global-replace %s 2>&1 | FileCheck %s
 
 // This verifies that the memref.global cannot be removed when its accessor uses
 // indices that cannot be resolved (i.e. the input variable).
 
-// CHECK: requires constant memref accessors
+// CHECK: MemrefGlobalLoweringPattern requires constant memref accessors
 module {
   memref.global "private" constant @__constant_10x8x1x8xi8 : memref<10x8x1x8xi8> = dense<2>
   func.func @main(%arg0: i2) -> i8 {
