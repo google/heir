@@ -30,5 +30,8 @@ glob_lit_tests(
     # macro
     driver = "@heir//tests:run_lit.sh",
     exclude = [],
+    size_override = {
+        "hello_world.tosa.mlir": "medium",
+    },
     test_file_exts = ["mlir"],
 )

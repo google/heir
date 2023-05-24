@@ -56,7 +56,7 @@ class MemrefGlobalAsFuncPattern final : public mlir::ConversionPattern {
         if (!isa<affine::AffineReadOpInterface>(user)) {
           getGlobal.emitError()
               << "MemrefGlobalLoweringPattern requires all global memref "
-                 "readers to be affine reads, but got "
+                 "users to be affine reads, but got "
               << user;
           return mlir::failure();
         }
@@ -105,6 +105,28 @@ class MemrefGlobalAsFuncPattern final : public mlir::ConversionPattern {
   }
 };
 
+// getAccessIndices gets the access indices for an affine read operation. It
+// returns a std::nullopt if the indices are not constants (e.g. derived from
+// inputs).
+std::optional<mlir::SmallVector<uint64_t, 4>> getAccessIndices(
+    affine::AffineReadOpInterface readOp) {
+  affine::MemRefAccess readAccess(readOp);
+  affine::AffineValueMap thisMap;
+  readAccess.getAccessMap(&thisMap);
+  mlir::SmallVector<uint64_t, 4> accessIndices;
+  for (auto i = 0; i < readAccess.getRank(); ++i) {
+    // The access indices of the global memref *must* be constant,
+    // meaning that they cannot be a variable access (for example, a
+    // loop index) or symbolic, for example, an input symbol.
+    if (thisMap.getResult(i).getKind() != AffineExprKind::Constant) {
+      return std::nullopt;
+    }
+    accessIndices.push_back(
+        (thisMap.getResult(i).dyn_cast<mlir::AffineConstantExpr>()).getValue());
+  }
+  return accessIndices;
+}
+
 // MemrefGlobalLoweringPattern lowers global memrefs by looking for its usages
 // in modules and replacing them with in-module memref allocations and stores.
 // In order for all memref.globals to be lowered, this pattern requires that
@@ -138,6 +160,7 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
     // Traverse the parent region for uses of the global memref.
     auto blockUse = SymbolTable::getSymbolUses(global.getSymNameAttr(),
                                                global->getParentRegion());
+    bool getGlobalRemoveable = true;
     for (const auto &use : *blockUse) {
       auto getGlobal = mlir::cast<mlir::memref::GetGlobalOp>(use.getUser());
       assert(getGlobal);
@@ -150,53 +173,52 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
         // are unrolled) are sufficient to ensure we can statically
         // compute the load's input index.
         if (!isa<affine::AffineReadOpInterface>(user)) {
-          getGlobal.emitError()
+          getGlobal.emitRemark()
               << "MemrefGlobalLoweringPattern requires all global memref "
                  "readers to be affine reads, but got "
               << user;
-          return mlir::failure();
+          getGlobalRemoveable = false;
+          continue;
         }
 
         // Get the affine load operations access indices.
         auto readOp = mlir::cast<affine::AffineReadOpInterface>(user);
 
         // Expand affine map from 'affineLoadOp'.
-        affine::MemRefAccess readAccess(readOp);
-        affine::AffineValueMap thisMap;
-        readAccess.getAccessMap(&thisMap);
-        mlir::SmallVector<uint64_t, 4> accessIndices;
-        for (auto i = 0; i < readAccess.getRank(); ++i) {
-          // The access indices of the global memref *must* be constant,
-          // meaning that they cannot be a variable access (for example, a
-          // loop index) or symbolic, for example, an input symbol.
-          if (thisMap.getResult(i).getKind() != AffineExprKind::Constant) {
-            readOp.emitError() << "MemrefGlobalLoweringPattern requires "
-                                  "constant memref accessors";
-            return mlir::failure();
-          }
-          accessIndices.push_back(
-              (thisMap.getResult(i).dyn_cast<mlir::AffineConstantExpr>())
-                  .getValue());
+        auto accessIndices = getAccessIndices(readOp);
+        if (!accessIndices.has_value()) {
+          readOp->emitRemark() << "MemrefGlobalLoweringPattern requires "
+                                   "constant memref accessors";
+          getGlobalRemoveable = false;
+          continue;
         }
 
         // Create an arithmetic constant from the global memref and
         // forward the load to this value.
         OpBuilder builder(readOp);
-        auto val = *(constantAttrIt +
-                     mlir::ElementsAttr::getFlattenedIndex(
-                         cstAttr, llvm::ArrayRef<uint64_t>(accessIndices)));
+        auto val =
+            *(constantAttrIt +
+              mlir::ElementsAttr::getFlattenedIndex(
+                  cstAttr, llvm::ArrayRef<uint64_t>(accessIndices.value())));
         auto cst = builder.create<mlir::arith::ConstantOp>(
             user->getLoc(), resultElementType,
             mlir::cast<mlir::TypedAttr>(val));
         rewriter.replaceOp(readOp, {cst});
       }
+
       // Erase the get_global now that all its uses are replaced with
       // inline constants.
-      rewriter.eraseOp(getGlobal);
+      if (getGlobalRemoveable) {
+        rewriter.eraseOp(getGlobal);
+      }
     }
 
     // Erase the global after removing all of its users.
-    rewriter.eraseOp(global);
+    if (getGlobalRemoveable) {
+      rewriter.eraseOp(global);
+    } else {
+      return rewriter.notifyMatchFailure(op, "could not replace global");
+    }
     return mlir::success();
   }
 };
