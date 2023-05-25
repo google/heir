@@ -1,6 +1,6 @@
 # Tests for HEIR
 
-load("//bazel:glob_lit_test.bzl", "glob_lit_tests")
+load("//bazel:lit.bzl", "glob_lit_tests")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -12,24 +12,26 @@ filegroup(
     name = "test_utilities",
     testonly = True,
     data = [
+        "@heir//tests:lit.cfg.py",
         "@heir//tools:heir-opt",
         "@heir//tools:heir-translate",
         "@llvm-project//llvm:FileCheck",
+        "@llvm-project//llvm:count",
         "@llvm-project//llvm:not",
         "@llvm-project//mlir:libmlir_c_runner_utils.so",
         "@llvm-project//mlir:libmlir_runner_utils.so",
         "@llvm-project//mlir:mlir-cpu-runner",
         "@llvm-project//mlir:mlir-opt",
-        "@llvm-project//mlir:run_lit.sh",
+        # copybara: run_lit.sh
     ],
 )
 
 glob_lit_tests(
     data = [":test_utilities"],
     # Note: the driver argument is silently ignored for the OSS version of this
-    # macro
+    # macro, replacing it with a standard invocation of lit whose config is in
+    # lit.cfg.py
     driver = "@heir//tests:run_lit.sh",
-    exclude = [],
     size_override = {
         "hello_world.tosa.mlir": "medium",
     },
