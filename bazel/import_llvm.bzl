@@ -7,7 +7,7 @@ load(
 
 def import_llvm(name):
     """Imports LLVM."""
-    LLVM_COMMIT = "b3c9150062dc4264afb4a3d2790f071c1ebe0743"
+    LLVM_COMMIT = "16fe2b37365c00b0c6d0ed22c2e6521f2d5de01a"
 
     new_git_repository(
         name = name,
