@@ -2,6 +2,10 @@
 
 workspace(name = "heir")
 
+load(
+    "@bazel_tools//tools/build_defs/repo:git.bzl",
+    "new_git_repository",
+)
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
@@ -65,4 +69,27 @@ maybe(
     urls = [
         "https://github.com/zlib-ng/zlib-ng/archive/refs/tags/2.0.7.zip",
     ],
+)
+
+# rules_foreign_cc provides access to a `make` bazel rule, which is needed
+# to build yosys
+http_archive(
+    name = "rules_foreign_cc",
+    sha256 = "bcd0c5f46a49b85b384906daae41d277b3dc0ff27c7c752cc51e43048a58ec83",
+    strip_prefix = "rules_foreign_cc-0.7.1",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.7.1.tar.gz",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+# Add a yosys dependency for circuit optimization and simulation
+# in the heir-translate --export_verilog path
+new_git_repository(
+    name = "yosys",
+    build_file = "//bazel:yosys.BUILD",
+    # As of 2023-04-24
+    commit = "cee3cb31b98e3b67af3165969c8cfc0616c37e19",
+    remote = "https://github.com/YosysHQ/yosys.git",
 )

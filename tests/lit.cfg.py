@@ -19,7 +19,7 @@ config.suffixes = [".mlir", ".v"]
 #   import subprocess
 #
 #   print(subprocess.run(["pwd",]).stdout)
-#   print(subprocess.run(["ls", "-l", "."]).stdout)
+#   print(subprocess.run(["ls", "-l", os.environ["RUNFILES_DIR"]]).stdout)
 #   print(subprocess.run([ "env", ]).stdout)
 #
 # Hence, to get lit to see tools like `heir-opt`, we need to add the tools/
@@ -28,18 +28,22 @@ config.suffixes = [".mlir", ".v"]
 # Bazel defines RUNFILES_DIR which includes heir/ and third party dependencies
 # as their own directory. Generally, it seems that $PWD == $RUNFILES_DIR/heir/
 
-heir_tools_relpath = Path("heir/tools")
-mlir_tools_relpath = Path("llvm-project/mlir")
-llvm_tools_relpath = Path("llvm-project/llvm")
 runfiles_dir = Path(os.environ["RUNFILES_DIR"])
 
-heir_tools_path = runfiles_dir.joinpath(heir_tools_relpath)
-mlir_tools_path = runfiles_dir.joinpath(mlir_tools_relpath)
-llvm_tools_path = runfiles_dir.joinpath(llvm_tools_relpath)
-tool_paths = [heir_tools_path, mlir_tools_path, llvm_tools_path]
+mlir_tools_relpath = "llvm-project/mlir"
+mlir_tools_path = runfiles_dir.joinpath(Path(mlir_tools_relpath))
+tool_relpaths = [
+    mlir_tools_relpath,
+    "heir/tools",
+    "heir/tests/verilog",
+    "llvm-project/llvm",
+    "yosys/yosys_make/bin",
+]
 
 config.environment["PATH"] = (
-    ":".join(str(x) for x in tool_paths) + ":" + os.environ["PATH"]
+    ":".join(str(runfiles_dir.joinpath(Path(path))) for path in tool_relpaths)
+    + ":"
+    + os.environ["PATH"]
 )
 
 # Some tests that use mlir-cpu-runner need access to additional shared libs to

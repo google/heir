@@ -13,6 +13,7 @@ filegroup(
     testonly = True,
     data = [
         "@heir//tests:lit.cfg.py",
+        "@heir//tests/verilog:run_verilog",
         "@heir//tools:heir-opt",
         "@heir//tools:heir-translate",
         "@llvm-project//llvm:FileCheck",
@@ -23,6 +24,7 @@ filegroup(
         "@llvm-project//mlir:mlir-cpu-runner",
         "@llvm-project//mlir:mlir-opt",
         # copybara: run_lit.sh
+        "@yosys//:yosys",
     ],
 )
 
@@ -35,5 +37,8 @@ glob_lit_tests(
     size_override = {
         "hello_world.tosa.mlir": "medium",
     },
-    test_file_exts = ["mlir"],
+    test_file_exts = [
+        "mlir",
+        "v",
+    ],
 )
