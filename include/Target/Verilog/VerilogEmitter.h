@@ -5,6 +5,7 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h" // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h" // from @llvm-project
 #include "mlir/include/mlir/Support/IndentedOstream.h" // from @llvm-project
@@ -41,6 +42,7 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::arith::CmpIOp op);
   LogicalResult printOperation(mlir::arith::ConstantOp op);
   LogicalResult printOperation(mlir::arith::ExtSIOp op);
+  LogicalResult printOperation(mlir::arith::IndexCastOp op);
   LogicalResult printOperation(mlir::arith::MulIOp op);
   LogicalResult printOperation(mlir::arith::SelectOp op);
   LogicalResult printOperation(mlir::arith::ShLIOp op);
@@ -48,6 +50,7 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::arith::ShRUIOp op);
   LogicalResult printOperation(mlir::arith::SubIOp op);
   LogicalResult printOperation(mlir::arith::TruncIOp op);
+  LogicalResult printOperation(mlir::affine::AffineLoadOp op);
   LogicalResult printOperation(mlir::func::FuncOp op);
   LogicalResult printOperation(mlir::func::ReturnOp op);
 
@@ -57,6 +60,9 @@ class VerilogEmitter {
 
   // Emit a Verilog type of the form `wire [width-1:0]`
   LogicalResult emitType(Location loc, Type type);
+
+  // Emit a Verilog array shape specifier of the form `[width]`
+  LogicalResult emitArrayShapeSuffix(Type type);
 
   // Emit a wire declaration in the verilog module body
   LogicalResult emitWireDeclaration(OpResult result);

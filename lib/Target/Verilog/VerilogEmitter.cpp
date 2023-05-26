@@ -1,7 +1,12 @@
 #include "include/Target/Verilog/VerilogEmitter.h"
 
 #include "llvm/include/llvm/Support/FormatVariadic.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h" // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h" // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h" // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h" // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h" // from @llvm-project
 
@@ -27,6 +32,13 @@ bool shouldMapToSigned(IntegerType::SignednessSemantics val) {
   llvm_unreachable("Unexpected IntegerType::SignednessSemantics");
 }
 
+bool isArrayType(Type type) {
+  if (auto memRefType = dyn_cast<mlir::MemRefType>(type)) {
+    return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 void registerToVerilogTranslation() {
@@ -36,7 +48,9 @@ void registerToVerilogTranslation() {
         return translateToVerilog(op, output);
       },
       [](mlir::DialectRegistry &registry) {
-        registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect>();
+        registry
+            .insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
+                    mlir::memref::MemRefDialect, mlir::affine::AffineDialect>();
       });
 }
 
@@ -60,9 +74,25 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
           .Case<mlir::arith::ConstantOp, mlir::arith::ConstantOp,
                 mlir::arith::AddIOp, mlir::arith::CmpIOp,
                 mlir::arith::ConstantOp, mlir::arith::ExtSIOp,
-                mlir::arith::MulIOp, mlir::arith::SelectOp, mlir::arith::ShLIOp,
+                mlir::arith::IndexCastOp, mlir::arith::MulIOp,
+                mlir::arith::SelectOp, mlir::arith::ShLIOp,
                 mlir::arith::ShRSIOp, mlir::arith::ShRUIOp, mlir::arith::SubIOp,
                 mlir::arith::TruncIOp>(
+              [&](auto op) { return printOperation(op); })
+          // Memref ops.
+          .Case<mlir::memref::GlobalOp>([&](auto op) {
+            // This is a no-op: Globals are not translated inherently, rather
+            // their users get_globals are translated at the function level.
+            return mlir::success();
+          })
+          .Case<mlir::memref::GetGlobalOp>([&](auto op) {
+            // This is a no-op: GetGlobals are translated to array
+            // initialization in a Verilog initial block during FuncOp
+            // translation, before operations are translated.
+            return mlir::success();
+          })
+          // Affine load ops.
+          .Case<mlir::affine::AffineLoadOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -138,9 +168,25 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
 
   // Wire declarations.
   // Look for any op outputs, which are interleaved throughout the function
-  // body.
+  // body. Collect any globals used.
+  llvm::SmallVector<mlir::memref::GetGlobalOp> get_globals;
   WalkResult result =
       funcOp.walk<WalkOrder::PreOrder>([&](Operation *op) -> WalkResult {
+        if (auto globalOp = dyn_cast<mlir::memref::GetGlobalOp>(op)) {
+          get_globals.push_back(globalOp);
+        }
+        if (auto indexCastOp = dyn_cast<mlir::arith::IndexCastOp>(op)) {
+          // IndexCastOp's are a layer of indirection in the arithmetic dialect
+          // that is unneeded in Verilog. A wire declaration is not needed.
+          // Simply remove the indirection by adding a map from the index-casted
+          // result value to the input integer value.
+          auto retVal = indexCastOp.getResult();
+          if (!value_to_wire_name_.contains(retVal)) {
+            value_to_wire_name_.insert(std::make_pair(
+                retVal, getOrCreateName(indexCastOp.getIn()).str()));
+          }
+          return WalkResult::advance();
+        }
         for (OpResult result : op->getResults()) {
           if (failed(emitWireDeclaration(result))) {
             return WalkResult(
@@ -150,6 +196,32 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
         return WalkResult::advance();
       });
   if (result.wasInterrupted()) return failure();
+
+  // Initial block with constant assignments.
+  auto module = funcOp->getParentOfType<mlir::ModuleOp>();
+  assert(module);
+
+  if (!get_globals.empty()) {
+    os_ << "initial begin\n";
+    os_.indent();
+    for (mlir::memref::GetGlobalOp getGlobalOp : get_globals) {
+      auto global = mlir::cast<mlir::memref::GlobalOp>(
+          module.lookupSymbol(getGlobalOp.getNameAttr()));
+      auto cstAttr =
+          global.getConstantInitValue().dyn_cast_or_null<DenseElementsAttr>();
+      if (!cstAttr) {
+        return mlir::failure();
+      }
+      auto constantAttrIt = cstAttr.value_begin<mlir::IntegerAttr>();
+      // TODO(284323495): This assumes the global memref is 1-D.
+      for (uint64_t i = 0; i < global.getType().getShape()[0]; ++i) {
+        os_ << getOrCreateName(getGlobalOp.getResult()) << "[" << i
+            << "] <= " << (*constantAttrIt++).getValue() << ";\n";
+      }
+    }
+    os_.unindent();
+    os_ << "end";
+  }
 
   os_ << "\n";
   // ops
@@ -254,6 +326,12 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtSIOp op) {
   return success();
 }
 
+LogicalResult VerilogEmitter::printOperation(mlir::arith::IndexCastOp op) {
+  // Verilog does not require casting integers to index types before use in an
+  // array access index.
+  return mlir::success();
+}
+
 LogicalResult VerilogEmitter::printOperation(mlir::arith::MulIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "*");
 }
@@ -289,6 +367,14 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::TruncIOp op) {
   return success();
 }
 
+LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineLoadOp op) {
+  // E.g., assign x0 = arg[v1];
+  emitAssignPrefix(op.getResult());
+  os_ << getOrCreateName(op.getMemref()) << "["
+      << getOrCreateName(op.getIndices()[0]) << "];";
+  return success();
+}
+
 LogicalResult VerilogEmitter::emitType(Location loc, Type type) {
   if (auto iType = dyn_cast<IntegerType>(type)) {
     int32_t width = iType.getWidth();
@@ -307,6 +393,9 @@ LogicalResult VerilogEmitter::emitType(Location loc, Type type) {
         shouldMapToSigned(iType.getSignedness()) ? "signed " : "";
     return (os_ << "wire " << signedModifier << "[" << width - 1 << ":0]"),
            success();
+  } else if (auto memRefType = dyn_cast<mlir::MemRefType>(type)) {
+    auto elementType = memRefType.getElementType();
+    return emitType(loc, elementType);
   }
   return failure();
 }
@@ -315,11 +404,28 @@ void VerilogEmitter::emitAssignPrefix(Value result) {
   os_ << "assign " << getOrCreateName(result) << " = ";
 }
 
+LogicalResult VerilogEmitter::emitArrayShapeSuffix(Type type) {
+  int arrayLen = 0;
+  if (auto memRefType = dyn_cast<mlir::MemRefType>(type)) {
+    if (memRefType.getRank() != 1) {
+      // TODO(b/284323495): This assumes the global memref is 1-D.
+      return failure();
+    }
+    arrayLen = memRefType.getShape()[0];
+  }
+  os_ << (isArrayType(type) ? llvm::formatv(" [{0}]", arrayLen).str() : "")
+      << ";\n";
+  return success();
+}
+
 LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
   if (failed(emitType(result.getLoc(), result.getType()))) {
     return failure();
   }
-  os_ << " " << getOrCreateName(result) << ";\n";
+  os_ << " " << getOrCreateName(result);
+  if (failed(emitArrayShapeSuffix(result.getType()))) {
+    return failure();
+  }
   return success();
 }
 
