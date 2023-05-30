@@ -1,7 +1,7 @@
 name: Build and Test
 on: [push]
 jobs:
-  Build And Test:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - run: echo "This job was triggered by a ${{ github.event_name }} event."
