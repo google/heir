@@ -10,6 +10,7 @@ package(
 exports_files(
     [
         "MemrefToArith.h",
+        "Utils.h",
     ],
 )
 

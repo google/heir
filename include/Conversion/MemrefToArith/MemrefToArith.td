@@ -33,4 +33,14 @@ def ExpandCopyPass : Pass<"expand-copy", "mlir::ModuleOp"> {
   let constructor = "createExpandCopyPass()";
 }
 
+def UnrollAndForwardPass : Pass<"unroll-and-forward", "mlir::ModuleOp"> {
+  let summary = "Loop unrolls and forwards affine scalars";
+
+  let description = [{
+    FIXME
+  }];
+
+  let constructor = "createUnrollAndForwardStores()";
+}
+
 #endif  // THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_MEMREFTOARITH_TD_
