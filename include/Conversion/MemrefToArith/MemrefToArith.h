@@ -11,6 +11,8 @@ std::unique_ptr<Pass> createMemrefGlobalReplacePass();
 
 std::unique_ptr<Pass> createExpandCopyPass();
 
+std::unique_ptr<Pass> createUnrollAndForwardStores();
+
 }  // namespace heir
 
 }  // namespace mlir
