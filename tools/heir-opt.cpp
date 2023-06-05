@@ -74,6 +74,7 @@ void tosaPipelineBuilder(mlir::OpPassManager &manager) {
   manager.addPass(mlir::heir::createMemrefGlobalReplacePass());
   manager.addNestedPass<mlir::func::FuncOp>(
       mlir::affine::createAffineScalarReplacementPass());
+  manager.addPass(mlir::createCanonicalizerPass());
   manager.addPass(mlir::createSCCPPass());
   manager.addPass(mlir::createCSEPass());
   manager.addPass(mlir::createSymbolDCEPass());
