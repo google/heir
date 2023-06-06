@@ -6,11 +6,37 @@ package(
 )
 
 cc_library(
+    name = "Utils",
+    srcs = ["Utils.cpp"],
+    hdrs = ["@heir//include/Conversion/MemrefToArith:Utils.h"],
+    includes = ["@heir//include"],
+    deps = [
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+    ],
+)
+
+cc_test(
+    name = "UtilsTest",
+    srcs = ["UtilsTest.cpp"],
+    includes = ["@heir//include"],
+    deps = [
+        ":Utils",
+        "@googletest//:gtest_main",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+    ],
+)
+
+cc_library(
     name = "MemrefGlobalReplace",
     srcs = ["MemrefGlobalReplace.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
     includes = ["@heir//include"],
     deps = [
+        ":Utils",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",

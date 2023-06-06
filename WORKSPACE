@@ -93,3 +93,19 @@ new_git_repository(
     commit = "cee3cb31b98e3b67af3165969c8cfc0616c37e19",
     remote = "https://github.com/YosysHQ/yosys.git",
 )
+
+# For non-LIT unit testing
+http_archive(
+    name = "googletest",
+    sha256 = "730215d76eace9dd49bf74ce044e8daa065d175f1ac891cc1d6bb184ef94e565",
+    strip_prefix = "googletest-f53219cdcb7b084ef57414efea92ee5b71989558",
+    urls = [
+        "https://github.com/google/googletest/archive/f53219cdcb7b084ef57414efea92ee5b71989558.tar.gz",  # 2023-03-16
+    ],
+)
+
+# googletest comes with abseil as @com_google_absl, see
+# https://github.com/google/googletest/blob/23f642ab2317c632d93326c65efd44671c1d9985/googletest_deps.bzl
+load("@googletest//:googletest_deps.bzl", "googletest_deps")
+
+googletest_deps()
