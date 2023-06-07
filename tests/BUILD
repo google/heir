@@ -29,6 +29,7 @@ filegroup(
 )
 
 glob_lit_tests(
+    name = "all_tests",
     data = [":test_utilities"],
     # Note: the driver argument is silently ignored for the OSS version of this
     # macro, replacing it with a standard invocation of lit whose config is in
