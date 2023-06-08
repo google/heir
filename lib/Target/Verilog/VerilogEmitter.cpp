@@ -1,11 +1,14 @@
 #include "include/Target/Verilog/VerilogEmitter.h"
 
+#include "include/Conversion/MemrefToArith/Utils.h"
 #include "llvm/include/llvm/Support/FormatVariadic.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h" // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h" // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h" // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h" // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h" // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h" // from @llvm-project
@@ -32,11 +35,39 @@ bool shouldMapToSigned(IntegerType::SignednessSemantics val) {
   llvm_unreachable("Unexpected IntegerType::SignednessSemantics");
 }
 
-bool isArrayType(Type type) {
-  if (auto memRefType = dyn_cast<mlir::MemRefType>(type)) {
-    return true;
+// wireDeclaration returns a string declaring a verilog wire, for e.g.
+//   wire [signed] <NAME> [<SIZE> - 1: 0];
+std::string wireDeclaration(IntegerType iType, int32_t width) {
+  if (width == 1) {
+    return "wire";
   }
-  return false;
+  // Ensure that we add a signed modifier to wire declarations holding signed
+  // integers in order to signal to verilog to use signed operations. All
+  // verilog operations are unsigned by default, and verilog requires either
+  // defining both wires of an operation with the signed modifier, or else use
+  // the builtin $signed() function around both operands to use a signed
+  // operations. Fortunately, MLIR requires that both operands of a signed
+  // operations, like comparisons (cmpi), are the same type, so if we encounter
+  // a cmpi, both its wire declarations will have this signed modifier.
+  std::string_view signedModifier =
+      shouldMapToSigned(iType.getSignedness()) ? "signed" : "";
+  return llvm::formatv("wire {0} [{1}:0]", signedModifier, width - 1);
+}
+
+// printRawDataFromAttr prints a string of the form <BIT_SIZE>'h<HEX_DATA>
+// representing the dense element attribute.
+void printRawDataFromAttr(mlir::DenseElementsAttr attr, raw_ostream &os) {
+  auto iType = dyn_cast<IntegerType>(attr.getElementType());
+  assert(iType);
+
+  int32_t hexWidth = iType.getWidth() / 4;
+  os << iType.getWidth() * attr.size() << "'h";
+  auto attrIt = attr.value_end<mlir::APInt>();
+  for (uint64_t i = 0; i < attr.size(); ++i) {
+    llvm::SmallString<40> s;
+    (*--attrIt).toStringSigned(s, 16);
+    os << std::string(hexWidth - s.str().size(), '0') << s;
+  }
 }
 
 }  // namespace
@@ -71,9 +102,21 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
           .Case<mlir::func::FuncOp, mlir::func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Arithmetic ops.
-          .Case<mlir::arith::ConstantOp, mlir::arith::ConstantOp,
-                mlir::arith::AddIOp, mlir::arith::CmpIOp,
-                mlir::arith::ConstantOp, mlir::arith::ExtSIOp,
+          .Case<mlir::arith::ConstantOp>([&](auto op) {
+            if (auto iAttr = dyn_cast<IndexType>(op.getValue().getType())) {
+              // We can skip translating declarations of index constants. If the
+              // index is used in a subsequent load, e.g.
+              //   %1 = arith.constant 1 : index
+              //   %2 = arith.load %foo[%1] : memref<3xi8>
+              // then the load's constant index value can be inferred directly
+              // when translating the load operation, and we do not need to
+              // declare the constant. For example, this would translate to
+              //   v2 = vFoo[15:8];
+              return success();
+            }
+            return printOperation(op);
+          })
+          .Case<mlir::arith::AddIOp, mlir::arith::CmpIOp, mlir::arith::ExtSIOp,
                 mlir::arith::IndexCastOp, mlir::arith::MulIOp,
                 mlir::arith::SelectOp, mlir::arith::ShLIOp,
                 mlir::arith::ShRSIOp, mlir::arith::ShRUIOp, mlir::arith::SubIOp,
@@ -86,9 +129,9 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
             return mlir::success();
           })
           .Case<mlir::memref::GetGlobalOp>([&](auto op) {
-            // This is a no-op: GetGlobals are translated to array
-            // initialization in a Verilog initial block during FuncOp
-            // translation, before operations are translated.
+            // This is a no-op: GetGlobals are translated to a wire assignment
+            // of their underlying constant global value during FuncOp
+            // translation, when the MLIR module is known.
             return mlir::success();
           })
           // Affine load ops.
@@ -102,7 +145,6 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
     op.emitOpError(llvm::formatv("Failed to translate op {0}", op.getName()));
     return failure();
   }
-  os_ << "\n";
   return success();
 }
 
@@ -187,6 +229,13 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
           }
           return WalkResult::advance();
         }
+        if (auto constantOp = dyn_cast<mlir::arith::ConstantOp>(op)) {
+          if (auto indexType =
+                  dyn_cast<IndexType>(constantOp.getResult().getType())) {
+            // Skip index constants: Verilog can use the value inline.
+            return WalkResult::advance();
+          }
+        }
         for (OpResult result : op->getResults()) {
           if (failed(emitWireDeclaration(result))) {
             return WalkResult(
@@ -197,13 +246,11 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
       });
   if (result.wasInterrupted()) return failure();
 
-  // Initial block with constant assignments.
   auto module = funcOp->getParentOfType<mlir::ModuleOp>();
   assert(module);
 
+  // Assign global values while we have access to the top-level module.
   if (!get_globals.empty()) {
-    os_ << "initial begin\n";
-    os_.indent();
     for (mlir::memref::GetGlobalOp getGlobalOp : get_globals) {
       auto global = mlir::cast<mlir::memref::GlobalOp>(
           module.lookupSymbol(getGlobalOp.getNameAttr()));
@@ -212,15 +259,11 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
       if (!cstAttr) {
         return mlir::failure();
       }
-      auto constantAttrIt = cstAttr.value_begin<mlir::IntegerAttr>();
-      // TODO(284323495): This assumes the global memref is 1-D.
-      for (uint64_t i = 0; i < global.getType().getShape()[0]; ++i) {
-        os_ << getOrCreateName(getGlobalOp.getResult()) << "[" << i
-            << "] <= " << (*constantAttrIt++).getValue() << ";\n";
-      }
+
+      os_ << "assign " << getOrCreateName(getGlobalOp.getResult()) << " = ";
+      printRawDataFromAttr(cstAttr, os_);
+      os_ << ";\n";
     }
-    os_.unindent();
-    os_ << "end";
   }
 
   os_ << "\n";
@@ -233,7 +276,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
     }
   }
   os_.unindent();
-  os_ << "endmodule";
+  os_ << "endmodule\n";
   return success();
 }
 
@@ -243,14 +286,14 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::ReturnOp op) {
 
   // Only support one return value.
   auto retval = op.getOperands()[0];
-  os_ << "assign " << kOutputName << " = " << getName(retval) << ";";
+  os_ << "assign " << kOutputName << " = " << getName(retval) << ";\n";
   return success();
 }
 
 LogicalResult VerilogEmitter::printBinaryOp(Value result, Value lhs, Value rhs,
                                             std::string_view op) {
   emitAssignPrefix(result);
-  os_ << getName(lhs) << " " << op << " " << getName(rhs) << ";";
+  os_ << getName(lhs) << " " << op << " " << getName(rhs) << ";\n";
   return success();
 }
 
@@ -297,8 +340,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ConstantOp op) {
       value = iAttr.getValue();
       isSigned = shouldMapToSigned(iType.getSignedness());
     } else if (auto iType = dyn_cast<IndexType>(iAttr.getType())) {
-      value = iAttr.getValue();
-      isSigned = false;
+      return success();
     }
   }
 
@@ -306,7 +348,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ConstantOp op) {
   value.toString(strValue, 10, isSigned, false);
 
   emitAssignPrefix(op.getResult());
-  os_ << strValue << ";";
+  os_ << strValue << ";\n";
   return success();
 }
 
@@ -321,7 +363,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtSIOp op) {
 
   emitAssignPrefix(op.getResult());
   os_ << "{{" << extensionAmount << "{" << arg << "[" << srcType.getWidth() - 1
-      << "]}}, " << arg << "};";
+      << "]}}, " << arg << "};\n";
 
   return success();
 }
@@ -339,7 +381,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::MulIOp op) {
 LogicalResult VerilogEmitter::printOperation(mlir::arith::SelectOp op) {
   emitAssignPrefix(op.getResult());
   os_ << getName(op.getCondition()) << " ? " << getName(op.getTrueValue())
-      << " : " << getName(op.getFalseValue()) << ";";
+      << " : " << getName(op.getFalseValue()) << ";\n";
   return success();
 }
 
@@ -363,39 +405,53 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::TruncIOp op) {
   // E.g., assign x0 = arg[7:0];
   auto dstType = dyn_cast<IntegerType>(op.getOut().getType());
   emitAssignPrefix(op.getResult());
-  os_ << getOrCreateName(op.getIn()) << "[" << dstType.getWidth() - 1 << ":0];";
+  os_ << getOrCreateName(op.getIn()) << "[" << dstType.getWidth() - 1
+      << ":0];\n";
   return success();
 }
 
 LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineLoadOp op) {
-  // E.g., assign x0 = arg[v1];
-  emitAssignPrefix(op.getResult());
-  os_ << getOrCreateName(op.getMemref()) << "["
-      << getOrCreateName(op.getIndices()[0]) << "];";
+  // This extracts the indexed bits from the flattened memref.
+  auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
+  if (!iType) {
+    return failure();
+  }
+
+  auto width = iType.getWidth();
+  affine::MemRefAccess access(op);
+  auto optionalAccessIndex =
+      getFlattenedAccessIndex(access, op.getMemRefType());
+  if (optionalAccessIndex) {
+    // This is a constant index accessor.
+    emitAssignPrefix(op.getResult());
+    auto flattenedBitIndex = optionalAccessIndex.value() * width;
+    os_ << getOrCreateName(op.getMemref()) << "["
+        << flattenedBitIndex + width - 1 << " : " << flattenedBitIndex
+        << "];\n";
+  } else {
+    if (op.getMemRefType().getRank() > 1) {
+      // TODO(b/284323495): Handle multi-dim variable access.
+      return failure();
+    }
+    emitAssignPrefix(op.getResult());
+    os_ << getOrCreateName(op.getMemref()) << "[" << width - 1 << " + " << width
+        << " * " << getOrCreateName(op.getIndices()[0]) << " : " << width
+        << " * " << getOrCreateName(op.getIndices()[0]) << "];\n";
+  }
+
   return success();
 }
 
 LogicalResult VerilogEmitter::emitType(Location loc, Type type) {
   if (auto iType = dyn_cast<IntegerType>(type)) {
     int32_t width = iType.getWidth();
-    if (width == 1) {
-      return (os_ << "wire"), success();
-    }
-    // By default, all verilog operations are unsigned. However, comparison
-    // operators might be comparing two signed values. There are two ways to
-    // tell verilog to do a signed comparison: one is to use the builtin
-    // $signed() function around both operands when executing the comparison op,
-    // otherwise both operands need to be defined as wires/registers with the
-    // signed keyword. Thankfully, MLIR requires a signed cmpi to have both its
-    // operands have the same type, so if we encounter a signed cmpi MLIR op, we
-    // are guaranteed that both its wire declarations have this signed modifier.
-    std::string_view signedModifier =
-        shouldMapToSigned(iType.getSignedness()) ? "signed " : "";
-    return (os_ << "wire " << signedModifier << "[" << width - 1 << ":0]"),
-           success();
+    return (os_ << wireDeclaration(iType, width)), success();
   } else if (auto memRefType = dyn_cast<mlir::MemRefType>(type)) {
     auto elementType = memRefType.getElementType();
-    return emitType(loc, elementType);
+    if (auto iType = dyn_cast<IntegerType>(elementType)) {
+      int32_t flattenedWidth = memRefType.getNumElements() * iType.getWidth();
+      return (os_ << wireDeclaration(iType, flattenedWidth)), success();
+    }
   }
   return failure();
 }
@@ -404,28 +460,11 @@ void VerilogEmitter::emitAssignPrefix(Value result) {
   os_ << "assign " << getOrCreateName(result) << " = ";
 }
 
-LogicalResult VerilogEmitter::emitArrayShapeSuffix(Type type) {
-  int arrayLen = 0;
-  if (auto memRefType = dyn_cast<mlir::MemRefType>(type)) {
-    if (memRefType.getRank() != 1) {
-      // TODO(b/284323495): This assumes the global memref is 1-D.
-      return failure();
-    }
-    arrayLen = memRefType.getShape()[0];
-  }
-  os_ << (isArrayType(type) ? llvm::formatv(" [{0}]", arrayLen).str() : "")
-      << ";\n";
-  return success();
-}
-
 LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
   if (failed(emitType(result.getLoc(), result.getType()))) {
     return failure();
   }
-  os_ << " " << getOrCreateName(result);
-  if (failed(emitArrayShapeSuffix(result.getType()))) {
-    return failure();
-  }
+  os_ << " " << getOrCreateName(result) << ";\n";
   return success();
 }
 

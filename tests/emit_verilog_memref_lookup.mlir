@@ -18,14 +18,11 @@ module {
 // CHECK-NEXT:   input wire signed [8:0] [[ARG:.*]],
 // CHECK-NEXT:   output wire signed [15:0] [[OUT:.*]]
 // CHECK-NEXT: );
-// CHECK-NEXT: wire signed [15:0] [[V2:.*]] [513];
+// CHECK-NEXT: wire signed [8207:0] [[V2:.*]];
 // CHECK-NEXT: wire signed [15:0] [[V3:.*]];
-// CHECK-NEXT: initial begin
-// CHECK-NEXT-513:   [[V2]][{{[0-9]+}}] <= {{[0-9]+}};
-// CHECK: end
+// CHECK-NEXT: assign [[V2]] = 8208'h{{[A-Z0-9]+}};
 // CHECK-EMPTY:
-// CHECK-EMPTY:
-// CHECK-NEXT:  assign [[V3]] = [[V2]][[[ARG]]];
+// CHECK-NEXT:  assign [[V3]] = [[V2]][15 + 16 * [[ARG]] : 16 * [[ARG]]];
 // CHECK-NEXT:  assign [[OUT]] = [[V3]];
 // CHECK:      endmodule
 
