@@ -1,4 +1,5 @@
-// RUN: heir-opt --heir-tosa-to-arith %s | FileCheck %s
+// RUN: heir-opt --heir-tosa-to-arith %s > %t
+// RUN: FileCheck %s < %t
 
 // This model was produced by flatbuffer_translate --tflite-flatbuffer-to-mlir \
 // tensorflow/lite/micro/examples/hello_world/models/hello_world_int8.tflite | \

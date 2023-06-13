@@ -8,7 +8,6 @@
 // RUN: mlir-opt %s -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \
-// RUN:     normalize-memrefs, \
 // RUN:     finalize-memref-to-llvm, \
 // RUN:     func.func( \
 // RUN:       convert-scf-to-cf, \
@@ -26,7 +25,6 @@
 // RUN:   mlir-opt -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \
-// RUN:     normalize-memrefs, \
 // RUN:     finalize-memref-to-llvm, \
 // RUN:     func.func( \
 // RUN:       convert-scf-to-cf, \

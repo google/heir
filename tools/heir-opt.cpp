@@ -56,8 +56,7 @@ void tosaPipelineBuilder(mlir::OpPassManager &manager) {
   manager.addPass(mlir::createConvertMathToFuncs(mathToFuncsOptions));
   manager.addPass(mlir::memref::createFoldMemRefAliasOpsPass());
   manager.addPass(mlir::heir::createExpandCopyPass());
-  // Loop unroll
-  // FIXME: Develop a custom pass that can greedily unroll affine loops.
+  // TODO(b/281566825): Replace loop unrolling with UnrollAndForwardStores
   manager.addNestedPass<mlir::func::FuncOp>(
       mlir::affine::createLoopUnrollPass(-1, false, true));
   manager.addNestedPass<mlir::func::FuncOp>(

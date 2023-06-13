@@ -17,11 +17,6 @@ std::optional<std::vector<uint64_t>> materialize(affine::MemRefAccess access);
 std::optional<uint64_t> getFlattenedAccessIndex(affine::MemRefAccess access,
                                                 mlir::Type memRefType);
 
-// Cache computations of getFlattenedAccessIndex
-std::optional<uint64_t> getOrPopulateAccessIndex(
-    mlir::Operation *op,
-    llvm::DenseMap<mlir::Operation *, uint64_t> &accessMap);
-
 // Unflatten a flattened index for a memref with strided and offset metadata.
 llvm::SmallVector<int64_t> unflattenIndex(int64_t index,
                                           const llvm::ArrayRef<int64_t> strides,

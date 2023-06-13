@@ -35,10 +35,19 @@ glob_lit_tests(
     # lit.cfg.py
     driver = "@heir//tests:run_lit.sh",
     size_override = {
-        "hello_world.tosa.mlir": "medium",
+        "hello_world.tosa.mlir": "large",
+    },
+    tags_override = {
+        "hello_world.tosa.mlir": ["nofastbuild"],
     },
     test_file_exts = [
         "mlir",
         "v",
+    ],
+)
+
+exports_files(
+    [
+        "run_lit.sh",
     ],
 )

@@ -41,28 +41,6 @@ std::optional<uint64_t> getFlattenedAccessIndex(affine::MemRefAccess access,
       memRefType, llvm::ArrayRef<uint64_t>(accessIndices.value()));
 }
 
-std::optional<int64_t> getOrPopulateAccessIndex(
-    mlir::Operation *op,
-    llvm::DenseMap<mlir::Operation *, uint64_t> &accessMap) {
-  if (!accessMap.contains(op)) {
-    mlir::Type memRefType;
-    if (auto storeOp = dyn_cast<mlir::affine::AffineWriteOpInterface>(op)) {
-      memRefType = storeOp.getMemRef().getType();
-    } else if (auto loadOp =
-                   dyn_cast<mlir::affine::AffineReadOpInterface>(op)) {
-      memRefType = loadOp.getMemRef().getType();
-    }
-
-    affine::MemRefAccess access(op);
-    auto optionalAccessIndex = getFlattenedAccessIndex(access, memRefType);
-    if (!optionalAccessIndex) {
-      return std::nullopt;
-    }
-    accessMap.insert(std::make_pair(op, optionalAccessIndex.value()));
-  }
-  return accessMap[op];
-}
-
 llvm::SmallVector<int64_t> unflattenIndex(int64_t index,
                                           const llvm::ArrayRef<int64_t> strides,
                                           int64_t offset) {

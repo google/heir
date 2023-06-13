@@ -33,4 +33,34 @@ def ExpandCopyPass : Pass<"expand-copy", "mlir::ModuleOp"> {
   let constructor = "createExpandCopyPass()";
 }
 
+def UnrollAndForwardPass : Pass<"unroll-and-forward", "mlir::ModuleOp"> {
+  let summary = "Loop unrolls and forwards stores to loads.";
+
+  let description = [{
+    This pass proceses the first function in a given module, and, starting from
+    the first loop, iteratively does the following:
+
+    1. Fully unroll the loop.
+    2. Scan for load ops. For each load op with a statically-inferrable access
+    index:
+      1. Backtrack to the original memref alloc
+      2. Find all store ops at the corresponding index (possibly transitively
+      through renames/subviews of the underlying alloc).
+      3. Find the last store that occurs and forward it to the load.
+      4. If the original memref is an input memref, then forward through any
+      renames to make the target load load directly from the argument memref
+      (instead of any subviews, say)
+    3. Apply the same logic to any remaining loads not inside any for loop.
+
+    This pass requires that tensors are lowered to memref, and only supports
+    affine loops with affine.load/store ops.
+
+    Memrefs that result from memref.get_global ops are excluded from
+    forwarding, even if they are loaded with a static index, and are instead
+    handled by memref-global-replace, which should be run after this pass.
+  }];
+
+  let constructor = "createUnrollAndForwardStoresPass()";
+}
+
 #endif  // THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_MEMREFTOARITH_TD_
