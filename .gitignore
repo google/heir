@@ -2,3 +2,12 @@ bazel-bin
 bazel-heir
 bazel-out
 bazel-testlogs
+
+# Generated files by hugo
+docs/public/
+docs/resources/_gen/
+docs/assets/jsconfig.json
+docs/node_modules
+hugo_stats.json
+# Temporary lock file while building
+.hugo_build.lock

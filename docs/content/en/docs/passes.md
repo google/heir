@@ -1,4 +1,7 @@
-# Passes
+---
+title: Passes
+weight: 2
+---
 
 ## Memref Global Replace
 
