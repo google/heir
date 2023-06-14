@@ -1,4 +1,7 @@
-# Pipelines
+---
+title: Pipelines
+weight: 3
+---
 
 The `--heir-tosa-to-arith` pipeline lowers a TOSA MLIR model to one that only
 contains arithmetic operations via a TOSA to `linalg` lowering path. As part of
