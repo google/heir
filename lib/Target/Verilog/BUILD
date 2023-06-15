@@ -10,7 +10,6 @@ cc_library(
     srcs = ["VerilogEmitter.cpp"],
     hdrs = ["@heir//include/Target/Verilog:VerilogEmitter.h"],
     deps = [
-        "//third_party/absl/strings:str_format",
         "@heir//include/Target/Verilog:verilog_emitter",
         "@heir//lib/Conversion/MemrefToArith:Utils",
         "@llvm-project//llvm:Support",
