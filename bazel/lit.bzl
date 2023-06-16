@@ -1,7 +1,7 @@
 """Macros for defining lit tests."""
 
-# TODO: try replacing this with a lit.cfg.py config (test_exec_root? test_src_root?)
-_TESTS_DIR = "tests"
+load("@bazel_skylib//lib:paths.bzl", "paths")
+
 _DEFAULT_FILE_EXTS = ["mlir"]
 
 def lit_test(name = None, src = None, size = "small", tags = None):
@@ -35,14 +35,19 @@ def lit_test(name = None, src = None, size = "small", tags = None):
     if not src:
         fail("src must be specified")
     name = name or src + ".test"
-    rel_target = ":" + src
+
+    filegroup_name = name + ".filegroup"
+    native.filegroup(
+        name = filegroup_name,
+        srcs = [src],
+    )
 
     native.py_test(
         name = name,
         size = size,
         # -v ensures lit outputs useful info during test failures
-        args = ["-v", _TESTS_DIR + "/" + src],
-        data = ["@heir//tests:test_utilities", rel_target],
+        args = ["-v", paths.join(native.package_name(), src)],
+        data = ["@heir//tests:test_utilities", filegroup_name],
         srcs = ["@llvm-project//llvm:lit"],
         main = "lit.py",
         tags = tags,
