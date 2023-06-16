@@ -30,6 +30,7 @@ HEIR is built in the [MLIR](https://mlir.llvm.org/) framework.
     wide variety of FHE programs, optimizations, and parameter choices can be
     compared across accelerators.
 -   Provide a platform for research into novel FHE optimizations.
+-   Provide a platform for benchmarking.
 -   Provide integrations with multiple front-end languages, such as ClangIR and
     TensorFlow.
 
