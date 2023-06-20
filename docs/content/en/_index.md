@@ -1,12 +1,21 @@
---------------------------------------------------------------------------------
+<!-- mdformat off(yaml frontmatter) -->
+---
+title: "HEIR: Homomorphic Encryption Intermediate Representation"
+linkTitle: Home
+menu: {main: {weight: 1}}
+weight: 1
 
-title: "HEIR: Homomorphic Encryption Intermediate Representation" linkTitle:
-Home menu: {main: {weight: 1}} weight: 1
-
-cascade: - type: "blog" # uncomment this to make blog disappear from the
-sidebar # toc_root: true _target: path: "/blog/**" - type: "docs" _target:
-
-## path: "/**"
+cascade:
+  - type: "blog"
+    # uncomment this to make blog disappear from the sidebar
+    # toc_root: true
+    _target:
+      path: "/blog/**"
+  - type: "docs"
+    _target:
+      path: "/**"
+---
+<!-- mdformat on -->
 
 ## What is HEIR?
 

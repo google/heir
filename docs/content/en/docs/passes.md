@@ -1,7 +1,9 @@
+<!-- mdformat off(yaml frontmatter) -->
 ---
 title: Passes
 weight: 2
 ---
+<!-- mdformat on -->
 
 ## Memref Global Replace
 
@@ -11,6 +13,7 @@ It also requires that the affine load access indices are constants (i.e. not
 variadic or symbolic), so loops must be unrolled prior to this pass.
 
 Input
+
 ```
 module {
   memref.global "private" constant @__constant_8xi16 : memref<2x4xi16> = dense<[[-10, 20, 3, 4], [5, 6, 7, 8]]>
@@ -25,6 +28,7 @@ module {
 ```
 
 Output
+
 ```
 module {
   func.func @main() -> i16 {
