@@ -70,7 +70,7 @@ class MemrefGlobalAsFuncPattern final : public mlir::ConversionPattern {
         affine::AffineValueMap thisMap;
         readAccess.getAccessMap(&thisMap);
         mlir::SmallVector<uint64_t, 4> accessIndices;
-        for (auto i = 0; i < readAccess.getRank(); ++i) {
+        for (unsigned int i = 0; i < readAccess.getRank(); ++i) {
           // The access indices of the global memref *must* be constant,
           // meaning that they cannot be a variable access (for example, a
           // loop index) or symbolic, for example, an input symbol.
@@ -93,7 +93,7 @@ class MemrefGlobalAsFuncPattern final : public mlir::ConversionPattern {
         auto cst = builder.create<mlir::arith::ConstantOp>(
             user->getLoc(), resultElementType,
             mlir::cast<mlir::TypedAttr>(val));
-        rewriter.replaceOp(readOp, {cst});
+        rewriter.replaceOp(readOp, cst);
       }
       // Erase the get_global now that all its uses are replaced with
       // inline constants.
@@ -181,7 +181,7 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
         auto cst = builder.create<mlir::arith::ConstantOp>(
             user->getLoc(), resultElementType,
             mlir::cast<mlir::TypedAttr>(val));
-        rewriter.replaceOp(readOp, {cst});
+        rewriter.replaceOp(readOp, cst);
       }
 
       // Erase the get_global now that all its uses are replaced with
