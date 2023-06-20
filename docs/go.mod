@@ -1,4 +1,4 @@
-module github.com/google/docsy-example
+module github.com/google/heir
 
 go 1.12
 
