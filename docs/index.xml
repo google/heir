@@ -1,0 +1,75 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Documentation</title><link>https://google.github.io/heir/docs/</link><description>Recent content in Documentation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://google.github.io/heir/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Getting Started</title><link>https://google.github.io/heir/docs/getting_started/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/getting_started/</guid><description>
+&lt;h2 id="prerequisites">Prerequisites&lt;/h2>
+&lt;ul>
+&lt;li>Git&lt;/li>
+&lt;li>Bazel&lt;/li>
+&lt;li>A C compiler (like gcc or clang)&lt;/li>
+&lt;/ul>
+&lt;h2 id="clone-and-build-the-project">Clone and build the project&lt;/h2>
+&lt;h2 id="optional-run-the-tests">Optional: Run the tests&lt;/h2>
+&lt;h2 id="first-example">First example&lt;/h2>
+&lt;h2 id="next-steps">Next steps&lt;/h2></description></item><item><title>Docs: Passes</title><link>https://google.github.io/heir/docs/passes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/passes/</guid><description>
+&lt;h2 id="memref-global-replace">Memref Global Replace&lt;/h2>
+&lt;p>This pass forwards constant global MemRef values to referencing affine loads.
+This pass requires that the MemRef global values are initialized as constants.
+It also requires that the affine load access indices are constants (i.e. not
+variadic or symbolic), so loops must be unrolled prior to this pass.&lt;/p>
+&lt;p>Input&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+memref.global &amp;#34;private&amp;#34; constant @__constant_8xi16 : memref&amp;lt;2x4xi16&amp;gt; = dense&amp;lt;[[-10, 20, 3, 4], [5, 6, 7, 8]]&amp;gt;
+func.func @main() -&amp;gt; i16 {
+%c1 = arith.constant 1 : index
+%c2 = arith.constant 2 : index
+%0 = memref.get_global @__constant_8xi16 : memref&amp;lt;2x4xi16&amp;gt;
+%1 = affine.load %0[%c1, %c1 + %c2] : memref&amp;lt;2x4xi16&amp;gt;
+return %1 : i16
+}
+}
+&lt;/code>&lt;/pre>&lt;p>Output&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @main() -&amp;gt; i16 {
+%c1 = arith.constant 1 : index
+%c2 = arith.constant 2 : index
+%c8_i16 = arith.constant 8 : i16
+return %c8_i16 : i16
+}
+}
+&lt;/code>&lt;/pre>&lt;h2 id="expand-copy">Expand Copy&lt;/h2>
+&lt;p>This pass rewrites memref copy operations by expanding them to affine loads and
+stores. This pass introduces affine loops over the dimensions of the memref.&lt;/p>
+&lt;p>Input&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @memref_copy() {
+%alloc = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%alloc_0 = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+memref.copy %alloc, %alloc_0 : memref&amp;lt;1x1xi32&amp;gt; to memref&amp;lt;1x1xi32&amp;gt;
+}
+}
+&lt;/code>&lt;/pre>&lt;p>Output&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @memref_copy() {
+%alloc = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%alloc_0 = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+affine.for %arg0 = 0 to 2 {
+affine.for %arg1 = 0 to 3 {
+%1 = affine.load %alloc[%arg0, %arg1] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %1, %alloc_0[%arg0, %arg1] : memref&amp;lt;2x3xi32&amp;gt;
+}
+}
+}
+}
+&lt;/code>&lt;/pre></description></item><item><title>Docs: Pipelines</title><link>https://google.github.io/heir/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/pipelines/</guid><description>
+&lt;p>The &lt;code>--heir-tosa-to-arith&lt;/code> pipeline lowers a TOSA MLIR model to one that only
+contains arithmetic operations via a TOSA to &lt;code>linalg&lt;/code> lowering path. As part of
+this lowering, &lt;code>tensor&lt;/code> values are lowered to &lt;code>memref&lt;/code>s. This introduces
+&lt;code>memref&lt;/code>s that hold intermediate computation. To simplify the model, we can
+inline global constant &lt;code>memref&lt;/code>s, expand &lt;code>memref&lt;/code> aliasing and copy operations
+and then forward values through the model using the &lt;code>AffineScalarReplacement&lt;/code>
+passes.&lt;/p>
+&lt;p>The pass pipeline assumes that the model is a valid TOSA MLIR model with
+stripped quantized types. The
+&lt;a href="https://openxla.github.io/iree/getting-started/tflite/">iree-import-tflite&lt;/a>
+tool can lower a TFLite FlatBuffer to textual MLIR with
+&lt;code>--output-format=mlir-ir&lt;/code>. See
+&lt;a href="../tests/hello_world.tosa.mlir">hello_world.tosa.mlir&lt;/a> for an example.&lt;/p></description></item><item><title>Docs: Tutorials</title><link>https://google.github.io/heir/docs/tutorials/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/tutorials/</guid><description>
+&lt;p>A list of tutorials by the HEIR community.&lt;/p></description></item><item><title>: Search Results</title><link>https://google.github.io/heir/search/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/search/</guid><description/></item></channel></rss>
