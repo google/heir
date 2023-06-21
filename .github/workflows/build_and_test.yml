@@ -1,6 +1,12 @@
 name: Build and Test
 permissions: read-all
-on: [ push ]
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
