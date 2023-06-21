@@ -4,6 +4,7 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/MemrefToArith/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h" // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineMemoryOpInterfaces.h" // from @llvm-project
@@ -52,10 +53,19 @@ using ::mlir::memref::SubViewOp;
 // (evaluating any affine maps), used in caches for the pass.
 typedef std::pair<Value, uint64_t> NormalizedMemrefAccess;
 
-// For each normalized input key, this contains the most recent store op
+class NormalizedMemrefAccessHash {
+ public:
+  size_t operator()(const NormalizedMemrefAccess &pair) const {
+    return mlir::hash_value(pair.first) ^ std::hash<uint64_t>()(pair.second);
+  }
+};
+
+// For each normalized input key, this contains the store ops
 // that writes to the corresponding underlying memory location, even if the
 // memref being written to has a different name/metadata.
-typedef llvm::DenseMap<NormalizedMemrefAccess, Operation *> StoreMap;
+typedef std::unordered_multimap<NormalizedMemrefAccess, Operation *,
+                                NormalizedMemrefAccessHash>
+    StoreMap;
 
 // Scan all operations that could store a value to the given memref at any
 // index, possibly transitively through renaming the memref via subview,
@@ -167,25 +177,31 @@ static Value findSourceMemRef(Value memRef) {
   return sourceMemRef;
 }
 
-// Update the StoreMap cache if the value in the cache comes before the current
-// value in the context block. Note that this logic is only valid because of the
-// very particular way we traverse the loads in the IR, from the top down,
-// unrolling each loop and forwarding stores eagerly as we go. Without that
-// traversal, this map would need to store all store ops for a given
-// memref+access index, and determine which one to forward for each load.
-static void updateStoreMap(AffineWriteOpInterface &storeOp,
-                           NormalizedMemrefAccess &storeIndexKey,
-                           StoreMap &storeMap) {
-  if (storeMap.contains(storeIndexKey)) {
-    Operation *existingOp = storeMap[storeIndexKey];
-    // This function only works for storeOps which are not in any for loops,
-    // ensuring the existingOp and storeOp have the same parent block.
-    if (existingOp->isBeforeInBlock(storeOp)) {
-      storeMap.insert(std::make_pair(storeIndexKey, storeOp));
+// Go through all ops between from and to and add all stores to the storeMap.
+static LogicalResult updateStoreMap(Operation *from, Operation *to,
+                                    StoreMap &storeMap) {
+  for (Operation *op = from; op != to; op = op->getNextNode()) {
+    auto storeOp = dyn_cast<AffineStoreOp>(op);
+    if (!storeOp) {
+      continue;
     }
-  } else {
+
+    auto res = materializeAndFlattenAccessIndex(storeOp);
+    if (failed(res)) {
+      storeOp.emitWarning()
+          << "Found storeOp with unmaterializable access index= " << storeOp;
+      return failure();
+    }
+    int64_t storeAccessIndex = res.value();
+
+    // b/(288313091): Consider a small cache to avoid recomputing this.
+    Value storeSourceMemref = findSourceMemRef(storeOp.getMemRef());
+
+    NormalizedMemrefAccess storeIndexKey =
+        std::make_pair(storeSourceMemref, storeAccessIndex);
     storeMap.insert(std::make_pair(storeIndexKey, storeOp));
   }
+  return success();
 }
 
 // For a given load op that is not contained in any loop, and whose access
@@ -199,8 +215,9 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
     StoreMap &storeMap) {
   std::optional<Operation *> storeOpOrNull;
   auto loadMemRef = loadOp.getMemRef();
+  Operation *loadDefiningOp = loadMemRef.getDefiningOp();
 
-  if (auto castOp = dyn_cast<GetGlobalOp>(loadMemRef.getDefiningOp())) {
+  if (loadDefiningOp && dyn_cast<GetGlobalOp>(loadDefiningOp)) {
     // A later pass handles forwarding from getglobal.
     return failure();
   }
@@ -212,61 +229,24 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
   }
   int64_t loadAccessIndex = res.value();
 
-  Value loadSourceMemref = findSourceMemRef(loadOp.getMemRef());
+  Value loadSourceMemref = findSourceMemRef(loadMemRef);
   bool isBlockArgument = isa<BlockArgument>(loadSourceMemref);
   NormalizedMemrefAccess loadIndexKey =
       std::make_pair(loadSourceMemref, loadAccessIndex);
 
-  // Check if a corresponding storeOp already exists in the storeMap.
-  if (storeMap.contains(loadIndexKey)) {
-    storeOpOrNull = storeMap[loadIndexKey];
-  } else {
-    // Look for an AffineWriteOp in all other users of the memref.
-    // This should only happen on the first load statement that uses a memref
-    // that hasn't been processed already, otherwise it will pull from the
-    // storeMap cache.
-    std::deque<AffineWriteOpInterface> storesToMemref;
-    collectAllTransitiveStoreOps(storesToMemref, loadSourceMemref);
+  if (isBlockArgument && loadSourceMemref == loadMemRef) {
+    // This is a loadOp that loads directly from the function argument.
+    return success();
+  }
 
-    for (auto storeOp : storesToMemref) {
-      // We're not entirely sure what is the right ordering of these early
-      // continue/returns. The test
-      // tests/micro_speech/before_unroll_and_forward.mlir seems to have no
-      // difference when they are swapped, (and no warnings in either case),
-      // though it seems like the materialize step should fail if we're
-      // processing a store op that occurs later than the load, if that store op
-      // ends up in a loop that has yet to be unrolled.
-      if (loadOp->isBeforeInBlock(storeOp)) {
-        continue;
-      }
-
-      auto res = materializeAndFlattenAccessIndex(storeOp);
-      if (failed(res)) {
-        storeOp.emitWarning()
-            << "Found storeOp with unmaterializable access index, "
-            << "while attempting to forward from loadOp=" << loadOp;
-        return failure();
-      }
-      int64_t storeAccessIndex = res.value();
-      // The original memref for the store is the same as the original memref
-      // for the load, because the store was found by searching for all users of
-      // loadSourceMemref.
-      NormalizedMemrefAccess storeIndexKey =
-          std::make_pair(loadSourceMemref, storeAccessIndex);
-
-      if (loadAccessIndex != storeAccessIndex) {
-        updateStoreMap(storeOp, storeIndexKey, storeMap);
-        continue;
-      }
-
-      // We found a match, but it might be made obsolete by a future store to
-      // the same location. The fact that future stores to process are
-      // guaranteed to occur after this storeOp (because we fully unrolled and
-      // because of the check to isBeforeInBlock above), we can omit a call to
-      // hasNoInterveningEffect and always take the last storeOp we find that is
-      // before the loadOp.
-      storeOpOrNull = storeOp;
-      updateStoreMap(storeOp, storeIndexKey, storeMap);
+  // storeMap is an index of all stores that impact the given index.
+  auto storeRes = storeMap.equal_range(loadIndexKey);
+  for (auto it = storeRes.first; it != storeRes.second; ++it) {
+    // Retrieve the latest store operation that's before the load operation.
+    if (!storeOpOrNull.has_value() ||
+        (storeOpOrNull.value()->isBeforeInBlock(it->second) &&
+         (it->second)->isBeforeInBlock(loadOp))) {
+      storeOpOrNull = it->second;
     }
   }
 
@@ -330,19 +310,27 @@ class UnrollAndForwardPattern final : public RewritePattern {
       mlir::Operation *op, mlir::PatternRewriter &rewriter) const override {
     auto func = mlir::cast<FuncOp>(op);
 
-    // Hold an intermediate result map from [Value and flat index] to storeOp.
-    StoreMap storeMap;
     // Hold an intermediate computation of getFlattenedAccessIndex to avoid
     // repeated computations of MemRefAccess::getAccessMap
     std::vector<Operation *> opsToErase;
 
+    // Hold a multi-map indexing all fully unrolled store operations by their
+    // [Memref Value and flat index].
+    StoreMap storeMap;
+    // Add any stores to the store map that are not contained in any for loops.
+    Operation &start = *func->getRegion(0).getOps().begin();
+    auto end = *func.getOps<func::ReturnOp>().begin();
+    if (failed(updateStoreMap(&start, end.getOperation(), storeMap))) {
+      return failure();
+    }
+
     rewriter.startRootUpdate(func);
     auto outerLoops = func.getOps<AffineForOp>();
     for (auto root : llvm::make_early_inc_range(outerLoops)) {
-      // Keep track of the position of the next operation after the outer for
+      // Update the positions of the operations before and after the outer for
       // loop.
-      auto nextOp = root->getNextNode();
-      auto prevOp = root->getPrevNode();
+      auto prevNode = root->getPrevNode();
+      auto nextNode = root->getNextNode();
 
       SmallVector<AffineForOp> nestedLoops;
       mlir::affine::getPerfectlyNestedLoops(nestedLoops, root);
@@ -361,17 +349,22 @@ class UnrollAndForwardPattern final : public RewritePattern {
           std::numeric_limits<int>::max());
       if (failed(loopUnrollUpToFactor(root, unrollFactor))) return failure();
 
+      // Update the storeMap indexing all newly unrolled stores from the end of
+      // the last loop to the end of the current loop.
+      if (failed(updateStoreMap(prevNode, nextNode, storeMap)))
+        return failure();
+
       //  Walk all load's and perform store to load forwarding.
       func.walk<WalkOrder::PreOrder>([&](AffineReadOpInterface loadOp) {
-        if (loadOp->getParentOp() != nextOp->getParentOp() ||
-            nextOp->isBeforeInBlock(loadOp)) {
+        if (loadOp->getParentOp() != nextNode->getParentOp() ||
+            nextNode->isBeforeInBlock(loadOp)) {
           // Only iterate on the loads we just unravelled. Because we walk
           // in pre-order, we can interrupt the walk at this point.
           return WalkResult::interrupt();
         }
 
-        if (loadOp->getParentOp() != prevOp->getParentOp() ||
-            loadOp->isBeforeInBlock(prevOp)) {
+        if (loadOp->getParentOp() != prevNode->getParentOp() ||
+            loadOp->isBeforeInBlock(prevNode)) {
           // Don't process any loads prev to the currently inspected block
           // that failed to forward, though ideally there should be none.
           return WalkResult::skip();
