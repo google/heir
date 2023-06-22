@@ -134,8 +134,15 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
             // translation, when the MLIR module is known.
             return mlir::success();
           })
-          // Affine load ops.
+          .Case<mlir::memref::AllocOp>([&](auto op) {
+            // This is a no-op. Memref allocations are translated to a wire
+            // declaration during FuncOp translation.
+            return mlir::success();
+          })
+          // Affine ops.
           .Case<mlir::affine::AffineLoadOp>(
+              [&](auto op) { return printOperation(op); })
+          .Case<mlir::affine::AffineStoreOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -437,6 +444,37 @@ LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineLoadOp op) {
     os_ << getOrCreateName(op.getMemref()) << "[" << width - 1 << " + " << width
         << " * " << getOrCreateName(op.getIndices()[0]) << " : " << width
         << " * " << getOrCreateName(op.getIndices()[0]) << "];\n";
+  }
+
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineStoreOp op) {
+  // This extracts the indexed bits from the flattened memref.
+  auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
+  if (!iType) {
+    return failure();
+  }
+
+  auto width = iType.getWidth();
+  affine::MemRefAccess access(op);
+  auto optionalAccessIndex =
+      getFlattenedAccessIndex(access, op.getMemRefType());
+  if (optionalAccessIndex) {
+    // This is a constant index accessor.
+    auto flattenedBitIndex = optionalAccessIndex.value() * width;
+    os_ << "assign " << getOrCreateName(op.getMemref()) << "["
+        << flattenedBitIndex + width - 1 << " : " << flattenedBitIndex
+        << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
+  } else {
+    if (op.getMemRefType().getRank() > 1) {
+      // TODO(b/284323495): Handle multi-dim variable access.
+      return failure();
+    }
+    os_ << "assign " << getOrCreateName(op.getMemref()) << "[" << width - 1
+        << " + " << width << " * " << getOrCreateName(op.getIndices()[0])
+        << " : " << width << " * " << getOrCreateName(op.getIndices()[0])
+        << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
   }
 
   return success();
