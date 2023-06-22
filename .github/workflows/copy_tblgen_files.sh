@@ -10,17 +10,32 @@ SRC_BASE="bazel-bin/include"
 DEST_BASE="docs/content/en/docs"
 
 echo "Processing Passes"
-for FILE in $SRC_BASE/Conversion/**/*.md
+mkdir -p "$DEST_BASE/Passes/"
+for SRC_PATH in $SRC_BASE/Conversion/**/*.md
 do
-  chmod 664 "$FILE"
-  mkdir -p "$DEST_BASE/Passes/"
-  cp "$FILE" "$DEST_BASE/Passes/"
+  FILENAME=$(basename "$SRC_PATH")
+  FILENAME_BASE=$(basename "$SRC_PATH" .md)
+  DEST_PATH="$DEST_BASE/Passes/$FILENAME"
+  cat <<EOF > "$DEST_PATH"
+---
+title: $FILENAME_BASE Passes
+---
+EOF
+  cat "$SRC_PATH" >> "$DEST_PATH"
 done
 
 echo "Processing Dialects"
-for FILE in $SRC_BASE/Dialect/**/*.md
+mkdir -p "$DEST_BASE/Dialects/"
+for SRC_PATH in $SRC_BASE/Dialect/**/*.md
 do
-  chmod 664 "$FILE"
-  mkdir -p "$DEST_BASE/Dialects/"
-  cp "$FILE" "$DEST_BASE/Dialects/"
+  FILENAME=$(basename "$SRC_PATH")
+  FILENAME_BASE=$(basename "$SRC_PATH" .md)
+  DEST_PATH="$DEST_BASE/Dialects/$FILENAME"
+  cat <<EOF > "$DEST_PATH"
+---
+title: $FILENAME_BASE Dialect
+---
+EOF
+  cat "$SRC_PATH" >> "$DEST_PATH"
 done
+

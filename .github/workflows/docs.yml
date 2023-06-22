@@ -29,8 +29,8 @@ jobs:
         bazel build $(bazel query 'siblings(kind("gentbl_rule", @heir//...))' | grep "_filegroup$")
 
     - name: "Copy markdown files to docs/"
-      shell: bash
-      run: .github/workflows/copy_tblgen_files.sh
+      run: |
+        bash .github/workflows/copy_tblgen_files.sh
 
     - name: Setup Hugo
       uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # pin@v2.6.0

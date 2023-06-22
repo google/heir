@@ -2,6 +2,8 @@ name: Build and Test
 permissions: read-all
 on:
   push:
+    branches:
+      - main
     paths-ignore:
       - 'docs/**'
   pull_request:
