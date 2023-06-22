@@ -58,7 +58,7 @@ gentbl_cc_library(
         ),
         (
             ["-gen-typedef-doc"],
-            "g3doc/EncryptedArithTypes.md",
+            "EncryptedArithTypes.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",

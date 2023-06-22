@@ -24,6 +24,10 @@ gentbl_cc_library(
             ],
             "MemrefToArith.h.inc",
         ),
+        (
+            ["-gen-pass-doc"],
+            "MemrefToArith.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "MemrefToArith.td",
