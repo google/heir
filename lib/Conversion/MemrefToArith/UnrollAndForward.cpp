@@ -106,6 +106,62 @@ static void collectAllTransitiveStoreOps(
   }
 }
 
+// eraseUnusedMemrefOps erases an alloc operation and all of its users if the
+// alloc and all of its users are unused. For example, a memref that only has
+// store operations and is never read from is unused. If this memref is aliased
+// and the alias is never read from, then the memref is unused.
+static LogicalResult eraseUnusedMemrefOps(AllocOp allocOp) {
+  std::vector<Operation *> storeOps;
+  std::vector<Operation *> memrefAliasOps;
+
+  auto memref = allocOp.getMemref();
+  std::queue<Operation *> users;
+  for (auto user : memref.getUsers()) {
+    users.push(user);
+  }
+
+  for (; !users.empty(); users.pop()) {
+    Operation *user = users.front();
+    if (auto storeOp = dyn_cast<AffineStoreOp>(user)) {
+      storeOps.push_back(storeOp);
+      continue;
+    }
+
+    bool read =
+        llvm::TypeSwitch<Operation &, bool>(*user)
+            .Case<CollapseShapeOp, ExpandShapeOp, ReinterpretCastOp, SubViewOp>(
+                [&](auto op) {
+                  for (auto user : op.getResult().getUsers()) {
+                    users.push(user);
+                  }
+                  memrefAliasOps.push_back(op);
+                  return false;
+                })
+            .Case<ExtractStridedMetadataOp>([&](auto op) {
+              for (auto user : op.getResults()[0].getUsers()) {
+                users.push(user);
+              }
+              memrefAliasOps.push_back(op);
+              return false;
+            })
+            .Default([&](Operation &) { return true; });
+
+    if (read) {
+      // This is not a read-only memref.
+      return failure();
+    }
+  }
+  for (auto op : storeOps) {
+    op->erase();
+  }
+  for (auto op : memrefAliasOps) {
+    op->erase();
+  }
+  allocOp->erase();
+
+  return success();
+}
+
 // Extract a static access index from the MemRefAccess, and flatten it to a 1-d
 // index of the underlying address space.
 static FailureOr<int64_t> materializeAndFlatten(MemRefAccess access,
@@ -185,7 +241,6 @@ static LogicalResult updateStoreMap(Operation *from, Operation *to,
     if (!storeOp) {
       continue;
     }
-
     auto res = materializeAndFlattenAccessIndex(storeOp);
     if (failed(res)) {
       storeOp.emitWarning()
@@ -403,6 +458,19 @@ class UnrollAndForwardPattern final : public RewritePattern {
       op->erase();
     }
     opsToErase.clear();
+
+    // Now clear any unused memrefs. This clears memrefs that are allocated
+    // during the program and their users when the memref (and any aliases of
+    // it) are no longer used. This targets the memrefs whos stores were all
+    // successfully forwarded from this pass. If there are any remaining loads
+    // or function returns from the memref or any of its aliases, then none of
+    // the users are erased.
+    auto remainingAllocs = func.getOps<AllocOp>();
+    for (auto allocOp : llvm::make_early_inc_range(remainingAllocs)) {
+      if (failed(eraseUnusedMemrefOps(allocOp))) {
+        continue;
+      }
+    }
 
     rewriter.finalizeRootUpdate(func);
     return success();

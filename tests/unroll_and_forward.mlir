@@ -3,7 +3,7 @@
 // CHECK: module
 module {
   // CHECK: func.func @main
-  func.func @main(%arg0: memref<1x80xi8>) -> () {
+  func.func @main(%arg0: memref<1x80xi8>) -> memref<1x3x2x1xi8> {
     // CHECK: [[CONST:%[a-z0-9_-]+]] = arith.constant -128
     %c-128_i8 = arith.constant -128 : i8
     %c0 = arith.constant 0 : index
@@ -24,6 +24,6 @@ module {
             affine.store %12, %alloc_0[%c0, %arg1, %arg2, %c0] : memref<1x3x2x1xi8>
         }
       }
-    return
+    return %alloc_0 : memref<1x3x2x1xi8>
   }
 }
