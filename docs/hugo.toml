@@ -101,15 +101,14 @@ privacy_policy = "https://policies.google.com/privacy"
 
 # Repository configuration (URLs for in-page links to opening issues and suggesting changes)
 github_repo = "https://github.com/google/heir"
-# An optional link to a related project repo. For example, the sibling repository where your product code lives.
-github_project_repo = "https://github.com/google/heir"
-
-# Specify a value here if your content directory is not in your repo's root directory
-# github_subdir = ""
-
-# Uncomment this if your GitHub repo does not have "main" as the default branch,
-# or specify a new value if you want to reference another branch in your GitHub links
+github_subdir = "docs"
 github_branch = "main"
+
+# Puts a link to GitHub on the site's top banner.
+[[menu.main]]
+    name = "GitHub"
+    weight = 100
+    url = "https://github.com/google/heir/"
 
 # Google Custom Search Engine ID.
 gcs_engine_id = "30b03294cf8584a5e"
@@ -167,11 +166,6 @@ enable = false
   url = "https://github.com/google/heir"
   icon = "fab fa-github"
   desc = "Development takes place here!"
-[[params.links.developer]]
-  name = "Developer mailing list"
-  url = "https://groups.google.com/g/heir-dev"
-  icon = "fa fa-envelope"
-  desc = "Discuss development issues around the project"
 
 # hugo module configuration
 

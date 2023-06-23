@@ -7,14 +7,23 @@ weight: 1
 
 ## Prerequisites
 
--   Git
--   Bazel
--   A C compiler (like gcc or clang)
+-   [Git](https://git-scm.com/)
+-   [Bazel](https://github.com/bazelbuild/bazelisk)
+-   A C compiler (like [gcc](https://gcc.gnu.org/) or
+    [clang](https://clang.llvm.org/))
+-   [Python](https://www.python.org/) (optional, for some tests)
 
 ## Clone and build the project
 
+```bash
+git clone git@github.com:google/heir.git && cd heir
+bazel build @heir//...
+```
+
 ## Optional: Run the tests
 
-## First example
+```bash
+bazel test @heir//...
+```
 
-## Next steps
+Note some tests require Python to run.
