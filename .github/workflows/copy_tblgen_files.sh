@@ -16,13 +16,7 @@ do
   FILENAME=$(basename "$SRC_PATH")
   FILENAME_BASE=$(basename "$SRC_PATH" .md)
   DEST_PATH="$DEST_BASE/Passes/$FILENAME"
-  cat <<EOF > "$DEST_PATH"
----
-title: $FILENAME_BASE
-github_url: https://github.com/google/heir/edit/main/$SRC_PATH
----
-EOF
-  cat "$SRC_PATH" >> "$DEST_PATH"
+  cat "$SRC_PATH" > "$DEST_PATH"
 done
 
 echo "Processing Dialects"
