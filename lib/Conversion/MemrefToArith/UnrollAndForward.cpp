@@ -233,9 +233,20 @@ static Value findSourceMemRef(Value memRef) {
   return sourceMemRef;
 }
 
+namespace {
+struct ValueHash {
+  size_t operator()(const Value &val) const {
+    return mlir::hash_value(val);
+  }
+};
+}  // namespace
+
 // Go through all ops between from and to and add all stores to the storeMap.
 static LogicalResult updateStoreMap(Operation *from, Operation *to,
                                     StoreMap &storeMap) {
+  // The cache for `findSourceMemRef` results
+  std::unordered_map<Value, Value, ValueHash> sourceCache;
+
   for (Operation *op = from; op != to; op = op->getNextNode()) {
     auto storeOp = dyn_cast<AffineStoreOp>(op);
     if (!storeOp) {
@@ -249,8 +260,14 @@ static LogicalResult updateStoreMap(Operation *from, Operation *to,
     }
     int64_t storeAccessIndex = res.value();
 
-    // b/(288313091): Consider a small cache to avoid recomputing this.
-    Value storeSourceMemref = findSourceMemRef(storeOp.getMemRef());
+    Value memRef = storeOp.getMemRef();
+    Value storeSourceMemref;
+    if (auto it = sourceCache.find(memRef); it != sourceCache.end()) {
+      storeSourceMemref = it->second;
+    } else {
+      storeSourceMemref = findSourceMemRef(memRef);
+      sourceCache[memRef] = storeSourceMemref;
+    }
 
     NormalizedMemrefAccess storeIndexKey =
         std::make_pair(storeSourceMemref, storeAccessIndex);
