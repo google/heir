@@ -58,10 +58,14 @@ def parse_inout_pair(inout_pair: str) -> VerilogArg:
   return (name, value)
 
 
+def intstring_to_bytes(s):
+  byte_length = max(1, (int(s).bit_length() + 7) // 8)
+  return int(s).to_bytes(byte_length, byteorder='big')
+
+
 def bitstring_to_bytes(s):
-  # There is a chance that the byteorder here is incorrect, depending
-  # on how yosys packs the output bits...
-  return int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big')
+  byte_length = max(1, (len(s) + 7) // 8)
+  return int(s, 2).to_bytes(byte_length, byteorder='big')
 
 
 def parse_result(line: str) -> bytes:
@@ -70,9 +74,13 @@ def parse_result(line: str) -> bytes:
   #   Eval result: \_out_ = 8'00000100.
   rhs = line.split('=')[-1].strip()
 
-  # rhs is
+  # rhs is either
   #   8'00000100.
-  width, bin_num = rhs.rstrip('.').split("'")
+  # or
+  #   112.
+  split_bin = rhs.rstrip('.').split("'")
+  if len(split_bin) != 2:
+    return intstring_to_bytes(split_bin[0])
 
   # bin_num is
   #   00000100
@@ -80,7 +88,7 @@ def parse_result(line: str) -> bytes:
   # This method just returns bytes since we aren't in a position
   # to determine if those bytes should be interpreted as signed
   # or unsigned integers.
-  return bitstring_to_bytes(bin_num)
+  return bitstring_to_bytes(split_bin[1])
 
 
 def run_verilog(

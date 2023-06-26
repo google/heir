@@ -6,6 +6,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h" // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h" // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h" // from @llvm-project
 #include "mlir/include/mlir/Support/IndentedOstream.h" // from @llvm-project
@@ -39,9 +40,11 @@ class VerilogEmitter {
   // Functions for printing individual ops
   LogicalResult printOperation(mlir::ModuleOp op);
   LogicalResult printOperation(mlir::arith::AddIOp op);
+  LogicalResult printOperation(mlir::arith::AndIOp op);
   LogicalResult printOperation(mlir::arith::CmpIOp op);
   LogicalResult printOperation(mlir::arith::ConstantOp op);
   LogicalResult printOperation(mlir::arith::ExtSIOp op);
+  LogicalResult printOperation(mlir::arith::ExtUIOp op);
   LogicalResult printOperation(mlir::arith::IndexCastOp op);
   LogicalResult printOperation(mlir::arith::MulIOp op);
   LogicalResult printOperation(mlir::arith::SelectOp op);
@@ -54,6 +57,7 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::affine::AffineStoreOp op);
   LogicalResult printOperation(mlir::func::FuncOp op);
   LogicalResult printOperation(mlir::func::ReturnOp op);
+  LogicalResult printOperation(mlir::math::CountLeadingZerosOp op);
 
   // Helpers for above
   LogicalResult printBinaryOp(mlir::Value result, mlir::Value lhs,

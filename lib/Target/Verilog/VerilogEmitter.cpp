@@ -6,6 +6,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h" // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h" // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h" // from @llvm-project
@@ -70,6 +71,24 @@ void printRawDataFromAttr(mlir::DenseElementsAttr attr, raw_ostream &os) {
   }
 }
 
+struct CtlzValueStruct {
+  std::string temp32;
+  std::string temp16;
+  std::string temp8;
+  std::string temp4;
+};
+
+// ctlzStructForResult constructs a struct that holds the values needed to
+// compute the count leading zeros operation on i32.
+// TODO(b/288881554): Support arbitrary bit widths.
+CtlzValueStruct ctlzStructForResult(StringRef result) {
+  return CtlzValueStruct{
+      .temp32 = llvm::formatv("{0}_{1}", result, "temp32"),
+      .temp16 = llvm::formatv("{0}_{1}", result, "temp16"),
+      .temp8 = llvm::formatv("{0}_{1}", result, "temp8"),
+      .temp4 = llvm::formatv("{0}_{1}", result, "temp4")};
+}
+
 }  // namespace
 
 void registerToVerilogTranslation() {
@@ -79,9 +98,9 @@ void registerToVerilogTranslation() {
         return translateToVerilog(op, output);
       },
       [](mlir::DialectRegistry &registry) {
-        registry
-            .insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
-                    mlir::memref::MemRefDialect, mlir::affine::AffineDialect>();
+        registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
+                        mlir::memref::MemRefDialect,
+                        mlir::affine::AffineDialect, mlir::math::MathDialect>();
       });
 }
 
@@ -117,10 +136,13 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
             return printOperation(op);
           })
           .Case<mlir::arith::AddIOp, mlir::arith::CmpIOp, mlir::arith::ExtSIOp,
-                mlir::arith::IndexCastOp, mlir::arith::MulIOp,
-                mlir::arith::SelectOp, mlir::arith::ShLIOp,
+                mlir::arith::ExtUIOp, mlir::arith::IndexCastOp,
+                mlir::arith::MulIOp, mlir::arith::SelectOp, mlir::arith::ShLIOp,
                 mlir::arith::ShRSIOp, mlir::arith::ShRUIOp, mlir::arith::SubIOp,
-                mlir::arith::TruncIOp>(
+                mlir::arith::TruncIOp, mlir::arith::AndIOp>(
+              [&](auto op) { return printOperation(op); })
+          // Custom math ops.
+          .Case<mlir::math::CountLeadingZerosOp>(
               [&](auto op) { return printOperation(op); })
           // Memref ops.
           .Case<mlir::memref::GlobalOp>([&](auto op) {
@@ -249,6 +271,24 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
                 op->emitError("unable to declare result variable for op"));
           }
         }
+        // Also generate intermediate result values the CTLZ computation.
+        if (auto ctlzOp = dyn_cast<mlir::math::CountLeadingZerosOp>(op)) {
+          auto ctx = op->getContext();
+          auto ctlzStruct =
+              ctlzStructForResult(getOrCreateName(ctlzOp.getResult()));
+          llvm::SmallVector<std::pair<StringRef, int>, 4> tempWires = {
+              {ctlzStruct.temp32, 32},
+              {ctlzStruct.temp16, 16},
+              {ctlzStruct.temp8, 8},
+              {ctlzStruct.temp4, 4}};
+          for (auto tempWire : tempWires) {
+            if (failed(emitType(op->getLoc(),
+                                IntegerType::get(ctx, tempWire.second)))) {
+              return failure();
+            }
+            os_ << " " << tempWire.first << ";\n";
+          }
+        }
         return WalkResult::advance();
       });
   if (result.wasInterrupted()) return failure();
@@ -306,6 +346,10 @@ LogicalResult VerilogEmitter::printBinaryOp(Value result, Value lhs, Value rhs,
 
 LogicalResult VerilogEmitter::printOperation(mlir::arith::AddIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "+");
+}
+
+LogicalResult VerilogEmitter::printOperation(mlir::arith::AndIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "&");
 }
 
 LogicalResult VerilogEmitter::printOperation(mlir::arith::CmpIOp op) {
@@ -371,6 +415,21 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtSIOp op) {
   emitAssignPrefix(op.getResult());
   os_ << "{{" << extensionAmount << "{" << arg << "[" << srcType.getWidth() - 1
       << "]}}, " << arg << "};\n";
+
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtUIOp op) {
+  // E.g., assign x0 = {{24{1'b0}, arg0};
+  Value input = op.getIn();
+  auto srcType = dyn_cast<IntegerType>(input.getType());
+  auto dstType = dyn_cast<IntegerType>(op.getOut().getType());
+
+  int extensionAmount = dstType.getWidth() - srcType.getWidth();
+  StringRef arg = getOrCreateName(input);
+
+  emitAssignPrefix(op.getResult());
+  os_ << "{{" << extensionAmount << "{1'b0}}, " << arg << "};\n";
 
   return success();
 }
@@ -477,6 +536,39 @@ LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineStoreOp op) {
         << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
   }
 
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(
+    mlir::math::CountLeadingZerosOp op) {
+  // This adds a custom Verilog implementation of a count leading zeros op.
+  auto resultStr = getOrCreateName(op.getResult());
+  auto ctlzStruct = ctlzStructForResult(resultStr);
+  auto opStr = getOrCreateName(op.getOperand());
+  // We assign each bit of the temp32 result depending on the number of leading
+  // zeros.
+  os_ << "assign " << ctlzStruct.temp32 << "[31:5] = 27'b0;\n";
+  os_ << "assign " << ctlzStruct.temp32 << "[4] = (" << opStr
+      << "[31:16] == 16'b0);\n";
+  os_ << "assign " << ctlzStruct.temp16 << " = " << ctlzStruct.temp32 << "[4]"
+      << " ? " << opStr << "[15:0] : " << opStr << "[31:16];\n";
+  os_ << "assign " << ctlzStruct.temp32 << "[3] = (" << opStr
+      << "[15:8] == 8'b0);\n";
+  os_ << "assign " << ctlzStruct.temp8 << " = " << ctlzStruct.temp32 << "[3]"
+      << " ? " << ctlzStruct.temp16 << "[7:0] : " << ctlzStruct.temp16
+      << "[15:8];\n";
+  os_ << "assign " << ctlzStruct.temp32 << "[2] = (" << opStr
+      << "[7:4] == 4'b0);\n";
+  os_ << "assign " << ctlzStruct.temp4 << " = " << ctlzStruct.temp32 << "[2]"
+      << " ? " << ctlzStruct.temp8 << "[3:0] : " << ctlzStruct.temp8
+      << "[7:4];\n";
+  os_ << "assign " << ctlzStruct.temp32 << "[1] = (" << opStr
+      << "[3:2] == 2'b0);\n";
+  os_ << "assign " << ctlzStruct.temp32 << "[0] = " << ctlzStruct.temp32
+      << "[1] ? ~" << opStr << "[1] : ~" << opStr << "[3];\n";
+  // If the input was zero, we add one to the result.
+  os_ << "assign " << resultStr << " = (" << opStr << " == 32'b0) ? "
+      << ctlzStruct.temp32 << " + 1 : " << ctlzStruct.temp32 << ";\n";
   return success();
 }
 

@@ -18,6 +18,8 @@ module {
     %5 = arith.select %4, %c1, %c2 : i32
     %6 = arith.shrsi %3, %c1 : i32
     %7 = arith.shrui %3, %c1 : i32
+    %8 = arith.extui %arg0 : i8 to i32
+    %9 = arith.andi %7, %c1 : i32
     %out = arith.trunci %6 : i32 to i8
     return %out : i8
   }
@@ -39,7 +41,9 @@ module {
 // CHECK-NEXT:   wire signed [31:0] [[V11:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V12:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V13:.*]];
-// CHECK-NEXT:   wire signed [7:0] [[V14:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[V14:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[V15:.*]];
+// CHECK-NEXT:   wire signed [7:0] [[V16:.*]];
 // CHECK-EMPTY:
 // CHECK-NEXT:   assign [[V2]] = 0;
 // CHECK-NEXT:   assign [[V3]] = 1;
@@ -60,6 +64,8 @@ module {
 // CHECK-NEXT:   assign [[V11]] = [[V10]] ? [[V3]] : [[V4]];
 // CHECK-NEXT:   assign [[V12]] = [[V9]] >>> [[V3]];
 // CHECK-NEXT:   assign [[V13]] = [[V9]] >> [[V3]];
-// CHECK-NEXT:   assign [[V14]] = [[V12]][7:0];
-// CHECK-NEXT:   assign [[OUT]] = [[V14]];
+// CHECK-NEXT:   assign [[V14]] = {{[{][{]}}24{1'b0}}, [[ARG]]};
+// CHECK-NEXT:   assign [[V15]] = [[V13]] & [[V3]];
+// CHECK-NEXT:   assign [[V16]] = [[V12]][7:0];
+// CHECK-NEXT:   assign [[OUT]] = [[V16]];
 // CHECK-NEXT: endmodule
