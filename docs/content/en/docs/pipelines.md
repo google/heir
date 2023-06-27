@@ -15,8 +15,8 @@ Lowers from TOSA through `linalg` and `affine`, and converts all tensors to
 memrefs. Fully unrolls all loops, and forwards stores to subsequent loads
 whenever possible. The output is suitable as an input to `heir-translate
 --emit-verilog`. Retains `affine.load` and `affine.store` ops that cannot be
-removed (e.g., reading from the input and writing to the output, or loading
-from a memref with a variable index).
+removed (e.g., reading from the input and writing to the output, or loading from
+a memref with a variable index).
 
 The pass pipeline assumes that the input is a valid TOSA MLIR model with
 stripped quantized types. The
@@ -93,4 +93,59 @@ module main(
   assign v14 = v12[7:0];
   assign _out_ = v14;
 endmodule
+```
+
+### `--emit-metadata`
+
+Prints a json object describing the function signatures. Used for code
+generation after `--emit-verilog`.
+
+Example input:
+
+```mlir
+module {
+  func.func @main(%arg0: memref<80xi8>) -> memref<1x3x2x1xi8> {
+    %alloc_0 = memref.alloc() {alignment = 64 : i64} : memref<1x3x2x1xi8>
+    return %alloc_0 : memref<1x3x2x1xi8>
+  }
+}
+```
+
+Example output:
+
+```json
+{
+  "functions": [
+    {
+      "name": "main",
+      "params": [
+        {
+          "index": 0,
+          "type": {
+            "memref": {
+              "element_type": {
+                "integer": {
+                  "is_signed": false,
+                  "width": 8
+                }
+              },
+              "shape": [80]
+            }
+          }
+        }
+      ],
+      "return_type": {
+        "memref": {
+          "element_type": {
+            "integer": {
+              "is_signed": false,
+              "width": 8
+            }
+          },
+          "shape": [1, 3, 2, 1]
+        }
+      }
+    }
+  ]
+}
 ```
