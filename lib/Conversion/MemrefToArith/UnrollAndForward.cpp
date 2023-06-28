@@ -248,8 +248,6 @@ static LogicalResult updateStoreMap(Operation *from, Operation *to,
       return failure();
     }
     int64_t storeAccessIndex = res.value();
-
-    // b/(288313091): Consider a small cache to avoid recomputing this.
     Value storeSourceMemref = findSourceMemRef(storeOp.getMemRef());
 
     NormalizedMemrefAccess storeIndexKey =
