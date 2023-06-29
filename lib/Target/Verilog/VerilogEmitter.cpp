@@ -9,6 +9,7 @@
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h" // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h" // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h" // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h" // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h" // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h" // from @llvm-project
@@ -82,11 +83,10 @@ struct CtlzValueStruct {
 // compute the count leading zeros operation on i32.
 // TODO(b/288881554): Support arbitrary bit widths.
 CtlzValueStruct ctlzStructForResult(StringRef result) {
-  return CtlzValueStruct{
-      .temp32 = llvm::formatv("{0}_{1}", result, "temp32"),
-      .temp16 = llvm::formatv("{0}_{1}", result, "temp16"),
-      .temp8 = llvm::formatv("{0}_{1}", result, "temp8"),
-      .temp4 = llvm::formatv("{0}_{1}", result, "temp4")};
+  return CtlzValueStruct{.temp32 = llvm::formatv("{0}_{1}", result, "temp32"),
+                         .temp16 = llvm::formatv("{0}_{1}", result, "temp16"),
+                         .temp8 = llvm::formatv("{0}_{1}", result, "temp8"),
+                         .temp4 = llvm::formatv("{0}_{1}", result, "temp4")};
 }
 
 }  // namespace
@@ -165,6 +165,8 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
           .Case<mlir::affine::AffineLoadOp>(
               [&](auto op) { return printOperation(op); })
           .Case<mlir::affine::AffineStoreOp>(
+              [&](auto op) { return printOperation(op); })
+          .Case<mlir::UnrealizedConversionCastOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -263,6 +265,16 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
                   dyn_cast<IndexType>(constantOp.getResult().getType())) {
             // Skip index constants: Verilog can use the value inline.
             return WalkResult::advance();
+          }
+        }
+        if (auto castOp = dyn_cast<mlir::UnrealizedConversionCastOp>(op)) {
+          // TODO(b/289379503): Support other types of casts.
+          if (!(*castOp.getInputs().begin()).getType().isUnsignedInteger() ||
+              !(castOp.getResult(0).getType().isSignedInteger() ||
+                castOp.getResult(0).getType().isSignlessInteger())) {
+            return WalkResult(
+                op->emitError("unable to support unrealized conversion cast "
+                              "op, expected unsigned to signed conversion"));
           }
         }
         for (OpResult result : op->getResults()) {
@@ -400,6 +412,17 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ConstantOp op) {
 
   emitAssignPrefix(op.getResult());
   os_ << strValue << ";\n";
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(
+    mlir::UnrealizedConversionCastOp op) {
+  // e.g. assign x0 = $signed(v100);
+  auto inputIt = op.getInputs().begin();
+  for (auto res : op.getResults()) {
+    emitAssignPrefix(res);
+    os_ << "$signed(" << getOrCreateName(*inputIt++) << ");\n";
+  }
   return success();
 }
 
