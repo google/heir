@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <deque>
 #include <queue>
 
@@ -266,7 +267,6 @@ static LogicalResult updateStoreMap(Operation *from, Operation *to,
 static LogicalResult forwardFullyUnrolledStoreToLoad(
     AffineReadOpInterface loadOp, std::vector<Operation *> &opsToErase,
     StoreMap &storeMap) {
-  std::optional<Operation *> storeOpOrNull;
   auto loadMemRef = loadOp.getMemRef();
   Operation *loadDefiningOp = loadMemRef.getDefiningOp();
 
@@ -283,15 +283,9 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
   int64_t loadAccessIndex = res.value();
 
   Value loadSourceMemref = findSourceMemRef(loadMemRef);
-  bool isBlockArgument = isa<BlockArgument>(loadSourceMemref);
-  NormalizedMemrefAccess loadIndexKey =
-      std::make_pair(loadSourceMemref, loadAccessIndex);
+  NormalizedMemrefAccess loadIndexKey = {loadSourceMemref, loadAccessIndex};
 
-  if (isBlockArgument && loadSourceMemref == loadMemRef) {
-    // This is a loadOp that loads directly from the function argument.
-    return success();
-  }
-
+  std::optional<Operation *> storeOpOrNull;
   // storeMap is an index of all stores that impact the given index.
   auto storeRes = storeMap.equal_range(loadIndexKey);
   for (auto it = storeRes.first; it != storeRes.second; ++it) {
@@ -303,25 +297,26 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
     }
   }
 
-  if (!isBlockArgument && !storeOpOrNull.has_value()) {
-    loadOp.emitWarning() << "Store op is null!"
+  if (!storeOpOrNull.has_value()) {
+    if (!isa<BlockArgument>(loadSourceMemref)) {
+      loadOp.emitWarning() << "Store op is null!"
                          << "; loadOp=" << loadOp
                          << "; loadAccessIndex=" << loadAccessIndex;
-    llvm_unreachable("Should always be able to find a store op. File a bug.");
-    return failure();
-  }
-
-  if (isBlockArgument) {
+      llvm_unreachable("Should always be able to find a store op. File a bug.");
+      return failure();
+    }
+    if (loadSourceMemref == loadMemRef) {
+      return success();  // nothing to do
+    }
     // In this case, the load cannot be completely removed, but instead can be
-    // replaced with a load from the original argument memref at the appropriate
-    // index.
+    // replaced with a load from the original memref at the appropriate index.
     const auto [endingStrides, endingOffset] =
         getStridesAndOffset(llvm::cast<MemRefType>(loadSourceMemref.getType()));
 
     ImplicitLocOpBuilder b(loadOp->getLoc(), loadOp);
     llvm::SmallVector<Value> indexValues;
     for (auto ndx :
-         unflattenIndex(loadAccessIndex, endingStrides, endingOffset)) {
+        unflattenIndex(loadAccessIndex, endingStrides, endingOffset)) {
       Value ndxValue = b.create<ConstantOp>(b.getIndexAttr(ndx));
       indexValues.push_back(ndxValue);
     }
@@ -330,26 +325,26 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
     loadOp.getValue().replaceAllUsesWith(newLoadOp.getValue());
     opsToErase.push_back(loadOp);
     return success();
-  } else {
-    // In this case, the stored value can be forwarded directly to the load.
-    Value storeVal =
-        cast<AffineWriteOpInterface>(storeOpOrNull.value()).getValueToStore();
-    // Check if 2 values have the same shape. This is needed for affine
-    // vector loads and stores.
-    if (storeVal.getType() != loadOp.getValue().getType()) {
-      return failure();
-    }
-    // Replace the load value with the store value.
-    loadOp.getValue().replaceAllUsesWith(storeVal);
-
-    // We can't delete the StoreOp at this point (or any point), because we may
-    // not fully remove all the places that load from it. Leave it to a future
-    // pass to delete all stores to memory locations that have no corresponding
-    // loads.
-
-    opsToErase.push_back(loadOp);
-    return success();
   }
+
+  // In this case, the stored value can be forwarded directly to the load.
+  Value storeVal =
+      cast<AffineWriteOpInterface>(storeOpOrNull.value()).getValueToStore();
+  // Check if 2 values have the same shape. This is needed for affine
+  // vector loads and stores.
+  if (storeVal.getType() != loadOp.getValue().getType()) {
+    return failure();
+  }
+  // Replace the load value with the store value.
+  loadOp.getValue().replaceAllUsesWith(storeVal);
+
+  // We can't delete the StoreOp at this point (or any point), because we may
+  // not fully remove all the places that load from it. Leave it to a future
+  // pass to delete all stores to memory locations that have no corresponding
+  // loads.
+
+  opsToErase.push_back(loadOp);
+  return success();
 }
 
 }  // namespace
