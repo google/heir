@@ -3,7 +3,8 @@
 <a href=https://clang.llvm.org/>clang</a>)</li><li><a href=https://www.python.org/>Python</a> (optional, for some tests)</li></ul><h2 id=clone-and-build-the-project>Clone and build the project</h2><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git clone git@github.com:google/heir.git <span style=color:#ce5c00;font-weight:700>&amp;&amp;</span> <span style=color:#204a87>cd</span> heir
 </span></span><span style=display:flex><span>bazel build @heir//...
 </span></span></code></pre></div><h2 id=optional-run-the-tests>Optional: Run the tests</h2><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> @heir//...
-</span></span></code></pre></div><p>Note some tests require Python to run.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-590f1588f601079eeacfc7cb11dc5115>2 - Dialects</h1><p>This section contains the reference documentation for all of the dialects
+</span></span></code></pre></div><p>Note some tests require Python to run. You may also need to install
+<a href=https://pypi.org/project/lit/>lit</a>.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-590f1588f601079eeacfc7cb11dc5115>2 - Dialects</h1><p>This section contains the reference documentation for all of the dialects
 defined in HEIR.</p></div><div class=td-content><h1 id=pg-38369f4fffc815152c17bf9ce58ce51d>2.1 - EncryptedArithTypes</h1><h3 id=encinttype>EncIntType</h3><p>Encrypted integer type with arbitrary width</p><p>Syntax:</p><pre tabindex=0><code>!enc_arith.enc_int&lt;
   unsigned   # width
 &gt;
