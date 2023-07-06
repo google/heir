@@ -26,4 +26,5 @@ bazel build @heir//...
 bazel test @heir//...
 ```
 
-Note some tests require Python to run.
+Note some tests require Python to run. You may also need to install
+[lit](https://pypi.org/project/lit/).
