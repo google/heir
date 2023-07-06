@@ -300,8 +300,8 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
   if (!storeOpOrNull.has_value()) {
     if (!isa<BlockArgument>(loadSourceMemref)) {
       loadOp.emitWarning() << "Store op is null!"
-                         << "; loadOp=" << loadOp
-                         << "; loadAccessIndex=" << loadAccessIndex;
+                           << "; loadOp=" << loadOp
+                           << "; loadAccessIndex=" << loadAccessIndex;
       llvm_unreachable("Should always be able to find a store op. File a bug.");
       return failure();
     }
@@ -316,7 +316,7 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
     ImplicitLocOpBuilder b(loadOp->getLoc(), loadOp);
     llvm::SmallVector<Value> indexValues;
     for (auto ndx :
-        unflattenIndex(loadAccessIndex, endingStrides, endingOffset)) {
+         unflattenIndex(loadAccessIndex, endingStrides, endingOffset)) {
       Value ndxValue = b.create<ConstantOp>(b.getIndexAttr(ndx));
       indexValues.push_back(ndxValue);
     }
@@ -349,164 +349,134 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
 
 }  // namespace
 
-class UnrollAndForwardPattern final : public RewritePattern {
- public:
-  explicit UnrollAndForwardPattern(MLIRContext *context)
-      : RewritePattern(FuncOp::getOperationName(), 1, context) {}
-
-  mlir::LogicalResult matchAndRewrite(
-      mlir::Operation *op, mlir::PatternRewriter &rewriter) const override {
-    auto func = mlir::cast<FuncOp>(op);
-
-    // Hold an intermediate computation of getFlattenedAccessIndex to avoid
-    // repeated computations of MemRefAccess::getAccessMap
-    std::vector<Operation *> opsToErase;
-
-    // Hold a multi-map indexing all fully unrolled store operations by their
-    // [Memref Value and flat index].
-    StoreMap storeMap;
-    // Add any stores to the store map that are not contained in any for loops.
-    Operation &start = *func->getRegion(0).getOps().begin();
-    auto end = *func.getOps<func::ReturnOp>().begin();
-    if (failed(updateStoreMap(&start, end.getOperation(), storeMap))) {
-      return failure();
-    }
-
-    rewriter.startRootUpdate(func);
-    auto outerLoops = func.getOps<AffineForOp>();
-    for (auto root : llvm::make_early_inc_range(outerLoops)) {
-      // Update the positions of the operations before and after the outer for
-      // loop.
-      auto prevNode = root->getPrevNode();
-      auto nextNode = root->getNextNode();
-
-      SmallVector<AffineForOp> nestedLoops;
-      mlir::affine::getPerfectlyNestedLoops(nestedLoops, root);
-      nestedLoops[0].getBody(0)->walk<WalkOrder::PostOrder>(
-          [&](AffineForOp forOp) {
-            auto unrollFactor =
-                mlir::affine::getConstantTripCount(forOp).value_or(
-                    std::numeric_limits<int>::max());
-            if (failed(loopUnrollUpToFactor(forOp, unrollFactor))) {
-              return WalkResult::skip();
-            }
-            return WalkResult::advance();
-          });
-
-      auto unrollFactor = mlir::affine::getConstantTripCount(root).value_or(
-          std::numeric_limits<int>::max());
-      if (failed(loopUnrollUpToFactor(root, unrollFactor))) return failure();
-
-      // Update the storeMap indexing all newly unrolled stores from the end of
-      // the last loop to the end of the current loop.
-      if (failed(updateStoreMap(prevNode, nextNode, storeMap)))
-        return failure();
-
-      //  Walk all load's and perform store to load forwarding.
-      func.walk<WalkOrder::PreOrder>([&](AffineReadOpInterface loadOp) {
-        if (loadOp->getParentOp() != nextNode->getParentOp() ||
-            nextNode->isBeforeInBlock(loadOp)) {
-          // Only iterate on the loads we just unravelled. Because we walk
-          // in pre-order, we can interrupt the walk at this point.
-          return WalkResult::interrupt();
-        }
-
-        if (loadOp->getParentOp() != prevNode->getParentOp() ||
-            loadOp->isBeforeInBlock(prevNode)) {
-          // Don't process any loads prev to the currently inspected block
-          // that failed to forward, though ideally there should be none.
-          return WalkResult::skip();
-        }
-
-        if (failed(forwardFullyUnrolledStoreToLoad(loadOp, opsToErase,
-                                                   storeMap))) {
-          return WalkResult::skip();
-        }
-        return WalkResult::advance();
-      });
-
-      // Erase all load op's whose results were replaced with store fwd'ed
-      // ones.
-      for (auto *op : opsToErase) {
-        op->erase();
-      }
-      opsToErase.clear();
-    }
-
-    // At this point, all the loops are unrolled, and all the load ops
-    // that were within those loops, that could have been forwarded,
-    // have been forwarded. However, there may still be load ops that
-    // originated outside of any for loop that can still be forwarded.
-    // So we need another pass over those load ops. However, this will also
-    // re-process any load ops from get_globals, as well as loads from block
-    // arguments. So those will report failure and be skipped.
-    auto remainingLoads = func.getOps<AffineLoadOp>();
-    for (auto loadOp : llvm::make_early_inc_range(remainingLoads)) {
-      if (failed(
-              forwardFullyUnrolledStoreToLoad(loadOp, opsToErase, storeMap))) {
-        continue;
-      }
-    }
-    for (auto *op : opsToErase) {
-      op->erase();
-    }
-    opsToErase.clear();
-
-    // Now clear any unused memrefs. This clears memrefs that are allocated
-    // during the program and their users when the memref (and any aliases of
-    // it) are no longer used. This targets the memrefs whos stores were all
-    // successfully forwarded from this pass. If there are any remaining loads
-    // or function returns from the memref or any of its aliases, then none of
-    // the users are erased.
-    auto remainingAllocs = func.getOps<AllocOp>();
-    for (auto allocOp : llvm::make_early_inc_range(remainingAllocs)) {
-      if (failed(eraseUnusedMemrefOps(allocOp))) {
-        continue;
-      }
-    }
-
-    rewriter.finalizeRootUpdate(func);
-    return success();
-  };
-};
-
 // UnrollAndForwardPass intends to forward scalars.
 struct UnrollAndForwardPass
-    : public PassWrapper<UnrollAndForwardPass, OperationPass<ModuleOp>> {
+    : public PassWrapper<UnrollAndForwardPass, OperationPass<FuncOp>> {
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
                     mlir::arith::ArithDialect, mlir::scf::SCFDialect>();
   }
 
-  void runOnOperation() {
-    ConversionTarget target(getContext());
-
-    RewritePatternSet patterns(&getContext());
-    patterns.add<UnrollAndForwardPattern>(&getContext());
-
-    // The pattern matches the func operations and rewrites the func by
-    // unrolling affine loop blocks sequentially and forwarding scalars after
-    // each unroll.
-    // Because the root operation of the pattern is not replaced, we limit the
-    // number of rewrites and iterations to one.
-    GreedyRewriteConfig config;
-    config.maxIterations = 1;
-    config.maxNumRewrites = 1;
-    // TODO(b/286582589): This was needed to target the first function. The
-    // maxIterations and maxNumRewriters restriction means only one function can
-    // be iterated on. If these values are >1, then only a single func is
-    // iterated on.
-    config.useTopDownTraversal = true;
-
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns),
-                                       config);
-  }
+  void runOnOperation();
 
   StringRef getArgument() const final { return "unroll-and-forward"; }
 
  private:
   LogicalResult unrollAndForwardStores();
 };
+
+void UnrollAndForwardPass::runOnOperation() {
+  func::FuncOp func = getOperation();
+
+  // Hold an intermediate computation of getFlattenedAccessIndex to avoid
+  // repeated computations of MemRefAccess::getAccessMap
+  std::vector<Operation *> opsToErase;
+
+  // Hold a multi-map indexing all fully unrolled store operations by their
+  // [Memref Value and flat index].
+  StoreMap storeMap;
+  // Add any stores to the store map that are not contained in any for loops.
+  Operation &start = *func->getRegion(0).getOps().begin();
+  auto end = *func.getOps<func::ReturnOp>().begin();
+  if (failed(updateStoreMap(&start, end.getOperation(), storeMap))) {
+    func.emitError() << "Failed to update store map";
+    return signalPassFailure();
+  }
+
+  auto outerLoops = func.getOps<AffineForOp>();
+  for (auto root : llvm::make_early_inc_range(outerLoops)) {
+    // Update the positions of the operations before and after the outer for
+    // loop.
+    auto prevNode = root->getPrevNode();
+    auto nextNode = root->getNextNode();
+
+    SmallVector<AffineForOp> nestedLoops;
+    mlir::affine::getPerfectlyNestedLoops(nestedLoops, root);
+    nestedLoops[0].getBody(0)->walk<WalkOrder::PostOrder>(
+        [&](AffineForOp forOp) {
+          auto unrollFactor =
+              mlir::affine::getConstantTripCount(forOp).value_or(
+                  std::numeric_limits<int>::max());
+          if (failed(loopUnrollUpToFactor(forOp, unrollFactor))) {
+            return WalkResult::skip();
+          }
+          return WalkResult::advance();
+        });
+
+    auto unrollFactor = mlir::affine::getConstantTripCount(root).value_or(
+        std::numeric_limits<int>::max());
+    if (failed(loopUnrollUpToFactor(root, unrollFactor))) {
+      return signalPassFailure();
+    }
+
+    // Update the storeMap indexing all newly unrolled stores from the end of
+    // the last loop to the end of the current loop.
+    if (failed(updateStoreMap(prevNode, nextNode, storeMap))) {
+      return signalPassFailure();
+    }
+
+    //  Walk all load's and perform store to load forwarding.
+    func.walk<WalkOrder::PreOrder>([&](AffineReadOpInterface loadOp) {
+      if (loadOp->getParentOp() != nextNode->getParentOp() ||
+          nextNode->isBeforeInBlock(loadOp)) {
+        // Only iterate on the loads we just unravelled. Because we walk
+        // in pre-order, we can interrupt the walk at this point.
+        return WalkResult::interrupt();
+      }
+
+      if (loadOp->getParentOp() != prevNode->getParentOp() ||
+          loadOp->isBeforeInBlock(prevNode)) {
+        // Don't process any loads prev to the currently inspected block
+        // that failed to forward, though ideally there should be none.
+        return WalkResult::skip();
+      }
+
+      if (failed(
+              forwardFullyUnrolledStoreToLoad(loadOp, opsToErase, storeMap))) {
+        return WalkResult::skip();
+      }
+      return WalkResult::advance();
+    });
+
+    // Erase all load op's whose results were replaced with store fwd'ed
+    // ones.
+    for (auto *op : opsToErase) {
+      op->erase();
+    }
+    opsToErase.clear();
+  }
+
+  // At this point, all the loops are unrolled, and all the load ops
+  // that were within those loops, that could have been forwarded,
+  // have been forwarded. However, there may still be load ops that
+  // originated outside of any for loop that can still be forwarded.
+  // So we need another pass over those load ops. However, this will also
+  // re-process any load ops from get_globals, as well as loads from block
+  // arguments. So those will report failure and be skipped.
+  auto remainingLoads = func.getOps<AffineLoadOp>();
+  for (auto loadOp : llvm::make_early_inc_range(remainingLoads)) {
+    if (failed(forwardFullyUnrolledStoreToLoad(loadOp, opsToErase, storeMap))) {
+      continue;
+    }
+  }
+  for (auto *op : opsToErase) {
+    op->erase();
+  }
+  opsToErase.clear();
+
+  // Now clear any unused memrefs. This clears memrefs that are allocated
+  // during the program and their users when the memref (and any aliases of
+  // it) are no longer used. This targets the memrefs whos stores were all
+  // successfully forwarded from this pass. If there are any remaining loads
+  // or function returns from the memref or any of its aliases, then none of
+  // the users are erased.
+  auto remainingAllocs = func.getOps<AllocOp>();
+  for (auto allocOp : llvm::make_early_inc_range(remainingAllocs)) {
+    if (failed(eraseUnusedMemrefOps(allocOp))) {
+      continue;
+    }
+  }
+}
 
 std::unique_ptr<Pass> createUnrollAndForwardStoresPass() {
   return std::make_unique<UnrollAndForwardPass>();
