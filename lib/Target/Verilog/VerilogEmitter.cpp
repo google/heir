@@ -124,7 +124,7 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
           // Builtin ops.
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops.
-          .Case<mlir::func::FuncOp, mlir::func::ReturnOp>(
+          .Case<mlir::func::FuncOp, mlir::func::ReturnOp, mlir::func::CallOp>(
               [&](auto op) { return printOperation(op); })
           // Arithmetic ops.
           .Case<mlir::arith::ConstantOp>([&](auto op) {
@@ -354,6 +354,23 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::ReturnOp op) {
   // Only support one return value.
   auto retval = op.getOperands()[0];
   os_ << "assign " << kOutputName << " = " << getName(retval) << ";\n";
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(mlir::func::CallOp op) {
+  // e.g., submodule submod_call(xInput0, xInput1, xOutput);
+  auto opName = getOrCreateName(op.getResult(0)) + "_call";
+
+  // Verilog only supports functions with a single return value.
+  if (op.getResults().size() != 1) {
+    return failure();
+  }
+  std::string funcArgs;
+  for (auto arg : op.getArgOperands()) {
+    funcArgs += getOrCreateName(arg).str() + ", ";
+  }
+  funcArgs += getOrCreateName(op.getResult(0));
+  os_ << op.getCallee() << " " << opName << "(" << funcArgs << ");\n";
   return success();
 }
 
