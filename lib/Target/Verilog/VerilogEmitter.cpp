@@ -72,6 +72,12 @@ void printRawDataFromAttr(mlir::DenseElementsAttr attr, raw_ostream &os) {
   }
 }
 
+llvm::SmallString<128> variableLoadStr(StringRef memref, StringRef index,
+                                       unsigned int width) {
+  return llvm::formatv("{0}[{1} + {2} * {3} : {2} * {3}]", memref, width - 1,
+                       width, index);
+}
+
 struct CtlzValueStruct {
   std::string temp32;
   std::string temp16;
@@ -161,6 +167,8 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
             // declaration during FuncOp translation.
             return mlir::success();
           })
+          .Case<mlir::memref::LoadOp>(
+              [&](auto op) { return printOperation(op); })
           // Affine ops.
           .Case<mlir::affine::AffineLoadOp>(
               [&](auto op) { return printOperation(op); })
@@ -510,23 +518,46 @@ LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineLoadOp op) {
   affine::MemRefAccess access(op);
   auto optionalAccessIndex =
       getFlattenedAccessIndex(access, op.getMemRefType());
+
+  auto memrefStr = getOrCreateName(op.getMemref());
   if (optionalAccessIndex) {
     // This is a constant index accessor.
     emitAssignPrefix(op.getResult());
     auto flattenedBitIndex = optionalAccessIndex.value() * width;
-    os_ << getOrCreateName(op.getMemref()) << "["
-        << flattenedBitIndex + width - 1 << " : " << flattenedBitIndex
-        << "];\n";
+    os_ << memrefStr << "[" << flattenedBitIndex + width - 1 << " : "
+        << flattenedBitIndex << "];\n";
   } else {
     if (op.getMemRefType().getRank() > 1) {
       // TODO(b/284323495): Handle multi-dim variable access.
       return failure();
     }
     emitAssignPrefix(op.getResult());
-    os_ << getOrCreateName(op.getMemref()) << "[" << width - 1 << " + " << width
-        << " * " << getOrCreateName(op.getIndices()[0]) << " : " << width
-        << " * " << getOrCreateName(op.getIndices()[0]) << "];\n";
+    os_ << variableLoadStr(memrefStr, getOrCreateName(op.getIndices()[0]),
+                           width)
+        << ";\n";
   }
+
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(mlir::memref::LoadOp op) {
+  // This extracts the indexed bits from the flattened memref.
+  auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
+  if (!iType) {
+    return failure();
+  }
+
+  auto memrefStr = getOrCreateName(op.getMemref());
+  auto indexStr = getOrCreateName(op.getIndices()[0]);
+  auto width = iType.getWidth();
+
+  if (op.getMemRefType().getRank() > 1) {
+    // TODO(b/284323495): Handle multi-dim variable access.
+    return failure();
+  }
+
+  emitAssignPrefix(op.getResult());
+  os_ << variableLoadStr(memrefStr, indexStr, width) << ";\n";
 
   return success();
 }
