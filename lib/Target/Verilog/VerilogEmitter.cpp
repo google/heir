@@ -276,13 +276,13 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
           }
         }
         if (auto castOp = dyn_cast<mlir::UnrealizedConversionCastOp>(op)) {
-          // TODO(b/289379503): Support other types of casts.
-          if (!(*castOp.getInputs().begin()).getType().isUnsignedInteger() ||
-              !(castOp.getResult(0).getType().isSignedInteger() ||
-                castOp.getResult(0).getType().isSignlessInteger())) {
-            return WalkResult(
-                op->emitError("unable to support unrealized conversion cast "
-                              "op, expected unsigned to signed conversion"));
+          auto inputType = (*castOp.getInputs().begin()).getType();
+          auto returnType = (*castOp.getResults().begin()).getType();
+          if (!inputType.isa<mlir::IntegerType>() ||
+              !returnType.isa<mlir::IntegerType>()) {
+            return WalkResult(op->emitError(
+                "unable to support unrealized conversion cast "
+                "op, expected conversion between integer types."));
           }
         }
         for (OpResult result : op->getResults()) {
@@ -443,10 +443,15 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ConstantOp op) {
 LogicalResult VerilogEmitter::printOperation(
     mlir::UnrealizedConversionCastOp op) {
   // e.g. assign x0 = $signed(v100);
+  // or   assign x0 = $unsigned(v100);
   auto inputIt = op.getInputs().begin();
+  mlir::IntegerType outputType =
+      dyn_cast<mlir::IntegerType>(*op.getResultTypes().begin());
+  bool isSigned = shouldMapToSigned(outputType.getSignedness());
   for (auto res : op.getResults()) {
     emitAssignPrefix(res);
-    os_ << "$signed(" << getOrCreateName(*inputIt++) << ");\n";
+    os_ << (isSigned ? "$" : "$un") << "signed(" << getOrCreateName(*inputIt++)
+        << ");\n";
   }
   return success();
 }

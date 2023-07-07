@@ -72,3 +72,29 @@ module {
 // CHECK-NEXT:   assign [[V17]] = [[V13]][7:0];
 // CHECK-NEXT:   assign [[OUT]] = [[V17]];
 // CHECK-NEXT: endmodule
+
+module {
+  func.func @test_unrealized_conversion_cast(%arg0: ui8) -> (ui8) {
+    %c1 = arith.constant 1 : i8
+    %0 = builtin.unrealized_conversion_cast %arg0 : ui8 to i8
+    %1 = arith.addi %0, %c1 : i8
+    %2 = builtin.unrealized_conversion_cast %1 : i8 to ui8
+    return %2 : ui8
+  }
+}
+
+// CHECK:      module test_unrealized_conversion_cast(
+// CHECK-NEXT:   input wire [7:0] [[ARG:.*]],
+// CHECK-NEXT:   output wire [7:0] [[OUT:.*]]
+// CHECK-NEXT: );
+// CHECK-NEXT:   wire signed [7:0] [[C1:.*]];
+// CHECK-NEXT:   wire signed [7:0] [[V0:.*]];
+// CHECK-NEXT:   wire signed [7:0] [[V1:.*]];
+// CHECK-NEXT:   wire [7:0] [[V2:.*]];
+// CHECK-EMPTY:
+// CHECK-NEXT:   assign [[C1]] = 1;
+// CHECK-NEXT:   assign [[V0]] = $signed([[ARG]]);
+// CHECK-NEXT:   assign [[V1]] = [[V0]] + [[C1]];
+// CHECK-NEXT:   assign [[V2]] = $unsigned([[V1]]);
+// CHECK-NEXT:   assign [[OUT]] = [[V2]];
+// CHECK-NEXT: endmodule
