@@ -58,13 +58,13 @@ std::string wireDeclaration(IntegerType iType, int32_t width) {
 
 // printRawDataFromAttr prints a string of the form <BIT_SIZE>'h<HEX_DATA>
 // representing the dense element attribute.
-void printRawDataFromAttr(mlir::DenseElementsAttr attr, raw_ostream &os) {
+void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
   auto iType = dyn_cast<IntegerType>(attr.getElementType());
   assert(iType);
 
   int32_t hexWidth = iType.getWidth() / 4;
   os << iType.getWidth() * attr.size() << "'h";
-  auto attrIt = attr.value_end<mlir::APInt>();
+  auto attrIt = attr.value_end<APInt>();
   for (uint64_t i = 0; i < attr.size(); ++i) {
     llvm::SmallString<40> s;
     (*--attrIt).toStringSigned(s, 16);
@@ -98,15 +98,15 @@ CtlzValueStruct ctlzStructForResult(StringRef result) {
 }  // namespace
 
 void registerToVerilogTranslation() {
-  mlir::TranslateFromMLIRRegistration reg(
+  TranslateFromMLIRRegistration reg(
       "emit-verilog", "translate from arithmetic to verilog",
       [](Operation *op, llvm::raw_ostream &output) {
         return translateToVerilog(op, output);
       },
-      [](mlir::DialectRegistry &registry) {
-        registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
-                        mlir::memref::MemRefDialect,
-                        mlir::affine::AffineDialect, mlir::math::MathDialect>();
+      [](DialectRegistry &registry) {
+        registry.insert<arith::ArithDialect, func::FuncDialect,
+                        memref::MemRefDialect, affine::AffineDialect,
+                        math::MathDialect>();
       });
 }
 
@@ -124,10 +124,10 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
           // Builtin ops.
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops.
-          .Case<mlir::func::FuncOp, mlir::func::ReturnOp, mlir::func::CallOp>(
+          .Case<func::FuncOp, func::ReturnOp, func::CallOp>(
               [&](auto op) { return printOperation(op); })
           // Arithmetic ops.
-          .Case<mlir::arith::ConstantOp>([&](auto op) {
+          .Case<arith::ConstantOp>([&](auto op) {
             if (auto iAttr = dyn_cast<IndexType>(op.getValue().getType())) {
               // We can skip translating declarations of index constants. If the
               // index is used in a subsequent load, e.g.
@@ -147,33 +147,32 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
                 arith::SubIOp, arith::TruncIOp, arith::AndIOp>(
               [&](auto op) { return printOperation(op); })
           // Custom math ops.
-          .Case<mlir::math::CountLeadingZerosOp>(
+          .Case<math::CountLeadingZerosOp>(
               [&](auto op) { return printOperation(op); })
           // Memref ops.
-          .Case<mlir::memref::GlobalOp>([&](auto op) {
+          .Case<memref::GlobalOp>([&](auto op) {
             // This is a no-op: Globals are not translated inherently, rather
             // their users get_globals are translated at the function level.
-            return mlir::success();
+            return success();
           })
-          .Case<mlir::memref::GetGlobalOp>([&](auto op) {
+          .Case<memref::GetGlobalOp>([&](auto op) {
             // This is a no-op: GetGlobals are translated to a wire assignment
             // of their underlying constant global value during FuncOp
             // translation, when the MLIR module is known.
-            return mlir::success();
+            return success();
           })
           .Case<memref::AllocOp>([&](auto op) {
             // This is a no-op. Memref allocations are translated to a wire
             // declaration during FuncOp translation.
             return success();
           })
-          .Case<mlir::memref::LoadOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<memref::LoadOp>([&](auto op) { return printOperation(op); })
           // Affine ops.
-          .Case<mlir::affine::AffineLoadOp>(
+          .Case<affine::AffineLoadOp>(
               [&](auto op) { return printOperation(op); })
-          .Case<mlir::affine::AffineStoreOp>(
+          .Case<affine::AffineStoreOp>(
               [&](auto op) { return printOperation(op); })
-          .Case<mlir::UnrealizedConversionCastOp>(
+          .Case<UnrealizedConversionCastOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -186,7 +185,7 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::ModuleOp moduleOp) {
+LogicalResult VerilogEmitter::printOperation(ModuleOp moduleOp) {
   // We have no use in separating things by modules, so just descend
   // to the underlying ops and continue.
   for (Operation &op : moduleOp) {
@@ -198,7 +197,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::ModuleOp moduleOp) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
+LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
   /*
    *  A func op translates as follows, noting the internal variable wires
    *  need to be defined at the beginning of the module.
@@ -249,13 +248,13 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
   // Wire declarations.
   // Look for any op outputs, which are interleaved throughout the function
   // body. Collect any globals used.
-  llvm::SmallVector<mlir::memref::GetGlobalOp> get_globals;
+  llvm::SmallVector<memref::GetGlobalOp> get_globals;
   WalkResult result =
       funcOp.walk<WalkOrder::PreOrder>([&](Operation *op) -> WalkResult {
-        if (auto globalOp = dyn_cast<mlir::memref::GetGlobalOp>(op)) {
+        if (auto globalOp = dyn_cast<memref::GetGlobalOp>(op)) {
           get_globals.push_back(globalOp);
         }
-        if (auto indexCastOp = dyn_cast<mlir::arith::IndexCastOp>(op)) {
+        if (auto indexCastOp = dyn_cast<arith::IndexCastOp>(op)) {
           // IndexCastOp's are a layer of indirection in the arithmetic dialect
           // that is unneeded in Verilog. A wire declaration is not needed.
           // Simply remove the indirection by adding a map from the index-casted
@@ -267,18 +266,17 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
           }
           return WalkResult::advance();
         }
-        if (auto constantOp = dyn_cast<mlir::arith::ConstantOp>(op)) {
+        if (auto constantOp = dyn_cast<arith::ConstantOp>(op)) {
           if (auto indexType =
                   dyn_cast<IndexType>(constantOp.getResult().getType())) {
             // Skip index constants: Verilog can use the value inline.
             return WalkResult::advance();
           }
         }
-        if (auto castOp = dyn_cast<mlir::UnrealizedConversionCastOp>(op)) {
+        if (auto castOp = dyn_cast<UnrealizedConversionCastOp>(op)) {
           auto inputType = (*castOp.getInputs().begin()).getType();
           auto returnType = (*castOp.getResults().begin()).getType();
-          if (!inputType.isa<mlir::IntegerType>() ||
-              !returnType.isa<mlir::IntegerType>()) {
+          if (!inputType.isa<IntegerType>() || !returnType.isa<IntegerType>()) {
             return WalkResult(op->emitError(
                 "unable to support unrealized conversion cast "
                 "op, expected conversion between integer types."));
@@ -291,7 +289,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
           }
         }
         // Also generate intermediate result values the CTLZ computation.
-        if (auto ctlzOp = dyn_cast<mlir::math::CountLeadingZerosOp>(op)) {
+        if (auto ctlzOp = dyn_cast<math::CountLeadingZerosOp>(op)) {
           auto ctx = op->getContext();
           auto ctlzStruct =
               ctlzStructForResult(getOrCreateName(ctlzOp.getResult()));
@@ -312,18 +310,18 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
       });
   if (result.wasInterrupted()) return failure();
 
-  auto module = funcOp->getParentOfType<mlir::ModuleOp>();
+  auto module = funcOp->getParentOfType<ModuleOp>();
   assert(module);
 
   // Assign global values while we have access to the top-level module.
   if (!get_globals.empty()) {
-    for (mlir::memref::GetGlobalOp getGlobalOp : get_globals) {
-      auto global = mlir::cast<mlir::memref::GlobalOp>(
+    for (memref::GetGlobalOp getGlobalOp : get_globals) {
+      auto global = cast<memref::GlobalOp>(
           module.lookupSymbol(getGlobalOp.getNameAttr()));
       auto cstAttr =
           global.getConstantInitValue().dyn_cast_or_null<DenseElementsAttr>();
       if (!cstAttr) {
-        return mlir::failure();
+        return failure();
       }
 
       os_ << "assign " << getOrCreateName(getGlobalOp.getResult()) << " = ";
@@ -334,7 +332,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
 
   os_ << "\n";
   // ops
-  for (mlir::Block &block : funcOp.getBlocks()) {
+  for (Block &block : funcOp.getBlocks()) {
     for (Operation &op : block.getOperations()) {
       if (failed(translate(op))) {
         return failure();
@@ -346,7 +344,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::FuncOp funcOp) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::func::ReturnOp op) {
+LogicalResult VerilogEmitter::printOperation(func::ReturnOp op) {
   // Return is an assignment to the output wire
   // e.g., assign out = x1200;
 
@@ -356,7 +354,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::func::ReturnOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::func::CallOp op) {
+LogicalResult VerilogEmitter::printOperation(func::CallOp op) {
   // e.g., submodule submod_call(xInput0, xInput1, xOutput);
   auto opName = getOrCreateName(op.getResult(0)) + "_call";
 
@@ -380,15 +378,15 @@ LogicalResult VerilogEmitter::printBinaryOp(Value result, Value lhs, Value rhs,
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::AddIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::AddIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "+");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::AndIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::AndIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "&");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::CmpIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::CmpIOp op) {
   switch (op.getPredicate()) {
     // For eq and ne, verilog has multiple operators. == and === are equivalent,
     // except for the special values X (unknown default initial state) and Z
@@ -417,7 +415,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::CmpIOp op) {
   llvm_unreachable("unknown cmpi predicate kind");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::ConstantOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::ConstantOp op) {
   Attribute attr = op.getValue();
 
   APInt value;
@@ -439,13 +437,11 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ConstantOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(
-    mlir::UnrealizedConversionCastOp op) {
+LogicalResult VerilogEmitter::printOperation(UnrealizedConversionCastOp op) {
   // e.g. assign x0 = $signed(v100);
   // or   assign x0 = $unsigned(v100);
   auto inputIt = op.getInputs().begin();
-  mlir::IntegerType outputType =
-      dyn_cast<mlir::IntegerType>(*op.getResultTypes().begin());
+  IntegerType outputType = dyn_cast<IntegerType>(*op.getResultTypes().begin());
   bool isSigned = shouldMapToSigned(outputType.getSignedness());
   for (auto res : op.getResults()) {
     emitAssignPrefix(res);
@@ -455,7 +451,7 @@ LogicalResult VerilogEmitter::printOperation(
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtSIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::ExtSIOp op) {
   // E.g., assign x0 = {{24{arg0[7]}}, arg0};
   Value input = op.getIn();
   auto srcType = dyn_cast<IntegerType>(input.getType());
@@ -471,7 +467,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtSIOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtUIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::ExtUIOp op) {
   // E.g., assign x0 = {{24{1'b0}, arg0};
   Value input = op.getIn();
   auto srcType = dyn_cast<IntegerType>(input.getType());
@@ -486,17 +482,17 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::ExtUIOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::IndexCastOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::IndexCastOp op) {
   // Verilog does not require casting integers to index types before use in an
   // array access index.
-  return mlir::success();
+  return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::MulIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::MulIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "*");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::SelectOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::SelectOp op) {
   emitAssignPrefix(op.getResult());
   os_ << getName(op.getCondition()) << " ? " << getName(op.getTrueValue())
       << " : " << getName(op.getFalseValue()) << ";\n";
@@ -511,23 +507,23 @@ LogicalResult VerilogEmitter::printOperation(arith::MaxSIOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::ShLIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::ShLIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "<<");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::ShRSIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::ShRSIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), ">>>");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::ShRUIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::ShRUIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), ">>");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::SubIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::SubIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "-");
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::arith::TruncIOp op) {
+LogicalResult VerilogEmitter::printOperation(arith::TruncIOp op) {
   // E.g., assign x0 = arg[7:0];
   auto dstType = dyn_cast<IntegerType>(op.getOut().getType());
   emitAssignPrefix(op.getResult());
@@ -536,7 +532,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::TruncIOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineLoadOp op) {
+LogicalResult VerilogEmitter::printOperation(affine::AffineLoadOp op) {
   // This extracts the indexed bits from the flattened memref.
   auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
   if (!iType) {
@@ -569,7 +565,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineLoadOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::memref::LoadOp op) {
+LogicalResult VerilogEmitter::printOperation(memref::LoadOp op) {
   // This extracts the indexed bits from the flattened memref.
   auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
   if (!iType) {
@@ -591,7 +587,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::memref::LoadOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineStoreOp op) {
+LogicalResult VerilogEmitter::printOperation(affine::AffineStoreOp op) {
   // This extracts the indexed bits from the flattened memref.
   auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
   if (!iType) {
@@ -622,8 +618,7 @@ LogicalResult VerilogEmitter::printOperation(mlir::affine::AffineStoreOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(
-    mlir::math::CountLeadingZerosOp op) {
+LogicalResult VerilogEmitter::printOperation(math::CountLeadingZerosOp op) {
   // This adds a custom Verilog implementation of a count leading zeros op.
   auto resultStr = getOrCreateName(op.getResult());
   auto ctlzStruct = ctlzStructForResult(resultStr);
@@ -659,7 +654,7 @@ LogicalResult VerilogEmitter::emitType(Location loc, Type type) {
   if (auto iType = dyn_cast<IntegerType>(type)) {
     int32_t width = iType.getWidth();
     return (os_ << wireDeclaration(iType, width)), success();
-  } else if (auto memRefType = dyn_cast<mlir::MemRefType>(type)) {
+  } else if (auto memRefType = dyn_cast<MemRefType>(type)) {
     auto elementType = memRefType.getElementType();
     if (auto iType = dyn_cast<IntegerType>(elementType)) {
       int32_t flattenedWidth = memRefType.getNumElements() * iType.getWidth();
