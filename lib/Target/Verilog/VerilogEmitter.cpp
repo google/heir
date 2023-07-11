@@ -141,11 +141,10 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
             }
             return printOperation(op);
           })
-          .Case<mlir::arith::AddIOp, mlir::arith::CmpIOp, mlir::arith::ExtSIOp,
-                mlir::arith::ExtUIOp, mlir::arith::IndexCastOp,
-                mlir::arith::MulIOp, mlir::arith::SelectOp, mlir::arith::ShLIOp,
-                mlir::arith::ShRSIOp, mlir::arith::ShRUIOp, mlir::arith::SubIOp,
-                mlir::arith::TruncIOp, mlir::arith::AndIOp>(
+          .Case<arith::AddIOp, arith::CmpIOp, arith::ExtSIOp, arith::ExtUIOp,
+                arith::IndexCastOp, arith::MaxSIOp, arith::MulIOp,
+                arith::SelectOp, arith::ShLIOp, arith::ShRSIOp, arith::ShRUIOp,
+                arith::SubIOp, arith::TruncIOp, arith::AndIOp>(
               [&](auto op) { return printOperation(op); })
           // Custom math ops.
           .Case<mlir::math::CountLeadingZerosOp>(
@@ -162,10 +161,10 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
             // translation, when the MLIR module is known.
             return mlir::success();
           })
-          .Case<mlir::memref::AllocOp>([&](auto op) {
+          .Case<memref::AllocOp>([&](auto op) {
             // This is a no-op. Memref allocations are translated to a wire
             // declaration during FuncOp translation.
-            return mlir::success();
+            return success();
           })
           .Case<mlir::memref::LoadOp>(
               [&](auto op) { return printOperation(op); })
@@ -501,6 +500,14 @@ LogicalResult VerilogEmitter::printOperation(mlir::arith::SelectOp op) {
   emitAssignPrefix(op.getResult());
   os_ << getName(op.getCondition()) << " ? " << getName(op.getTrueValue())
       << " : " << getName(op.getFalseValue()) << ";\n";
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(arith::MaxSIOp op) {
+  emitAssignPrefix(op.getResult());
+  auto lhs = getName(op.getLhs());
+  auto rhs = getName(op.getRhs());
+  os_ << lhs << " > " << rhs << " ? " << lhs << " : " << rhs << ";\n";
   return success();
 }
 

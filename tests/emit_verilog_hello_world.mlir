@@ -21,6 +21,7 @@ module {
     %8 = arith.shrui %4, %c1 : i32
     %9 = arith.extui %0 : i8 to i32
     %10 = arith.andi %8, %c1 : i32
+    %11 = arith.maxsi %8, %7 : i32
     %out = arith.trunci %7 : i32 to i8
     return %out : i8
   }
@@ -30,47 +31,49 @@ module {
 // CHECK-NEXT:   input wire [7:0] [[ARG:.*]],
 // CHECK-NEXT:   output wire signed [7:0] [[OUT:.*]]
 // CHECK-NEXT: );
+// CHECK-NEXT:   wire signed [31:0] [[C0:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[C1:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[C2:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[C3:.*]];
+// CHECK-NEXT:   wire signed [7:0] [[V0:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[V1:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V2:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V3:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V4:.*]];
-// CHECK-NEXT:   wire signed [31:0] [[V5:.*]];
-// CHECK-NEXT:   wire signed [7:0] [[V6:.*]];
+// CHECK-NEXT:   wire [[V5:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[V6:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V7:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V8:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V9:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V10:.*]];
-// CHECK-NEXT:   wire [[V11:.*]];
-// CHECK-NEXT:   wire signed [31:0] [[V12:.*]];
-// CHECK-NEXT:   wire signed [31:0] [[V13:.*]];
-// CHECK-NEXT:   wire signed [31:0] [[V14:.*]];
-// CHECK-NEXT:   wire signed [31:0] [[V15:.*]];
-// CHECK-NEXT:   wire signed [31:0] [[V16:.*]];
-// CHECK-NEXT:   wire signed [7:0] [[V17:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[V11:.*]];
+// CHECK-NEXT:   wire signed [7:0] [[_OUT:.*]];
 // CHECK-EMPTY:
-// CHECK-NEXT:   assign [[V2]] = 0;
-// CHECK-NEXT:   assign [[V3]] = 1;
-// CHECK-NEXT:   assign [[V4]] = 2;
-// CHECK-NEXT:   assign [[V5]] = 3;
+// CHECK-NEXT:   assign [[C0]] = 0;
+// CHECK-NEXT:   assign [[C1]] = 1;
+// CHECK-NEXT:   assign [[C2]] = 2;
+// CHECK-NEXT:   assign [[C3]] = 3;
 
 // Double-braces means "regular expression" in FileCheck, so to match the
 // leading double braces required for the sign extension syntax in verilog, we
 // need this disgusting regular expression that matches two character classes
 // [{] each consisting of a single opening brace: {{[{][{]}}
 //
-// CHECK-NEXT:   assign [[V6]] = $signed([[ARG]]);
-// CHECK-NEXT:   assign [[V7]] = {{[{][{]}}24{[[V6]][7]}}, [[V6]]};
+// CHECK-NEXT:   assign [[V0]] = $signed([[ARG]]);
+// CHECK-NEXT:   assign [[V1]] = {{[{][{]}}24{[[V0]][7]}}, [[V0]]};
 
-// CHECK-NEXT:   assign [[V8]] = [[V7]] - [[V3]];
-// CHECK-NEXT:   assign [[V9]] = [[V8]] * [[V4]];
-// CHECK-NEXT:   assign [[V10]] = [[V9]] + [[V5]];
-// CHECK-NEXT:   assign [[V11]] = [[V9]] >= [[V2]];
-// CHECK-NEXT:   assign [[V12]] = [[V11]] ? [[V3]] : [[V4]];
-// CHECK-NEXT:   assign [[V13]] = [[V10]] >>> [[V3]];
-// CHECK-NEXT:   assign [[V14]] = [[V10]] >> [[V3]];
-// CHECK-NEXT:   assign [[V15]] = {{[{][{]}}24{1'b0}}, [[V6]]};
-// CHECK-NEXT:   assign [[V16]] = [[V14]] & [[V3]];
-// CHECK-NEXT:   assign [[V17]] = [[V13]][7:0];
-// CHECK-NEXT:   assign [[OUT]] = [[V17]];
+// CHECK-NEXT:   assign [[V2]] = [[V1]] - [[C1]];
+// CHECK-NEXT:   assign [[V3]] = [[V2]] * [[C2]];
+// CHECK-NEXT:   assign [[V4]] = [[V3]] + [[C3]];
+// CHECK-NEXT:   assign [[V5]] = [[V3]] >= [[C0]];
+// CHECK-NEXT:   assign [[V6]] = [[V5]] ? [[C1]] : [[C2]];
+// CHECK-NEXT:   assign [[V7]] = [[V4]] >>> [[C1]];
+// CHECK-NEXT:   assign [[V8]] = [[V4]] >> [[C1]];
+// CHECK-NEXT:   assign [[V9]] = {{[{][{]}}24{1'b0}}, [[V0]]};
+// CHECK-NEXT:   assign [[V10]] = [[V8]] & [[C1]];
+// CHECK-NEXT:   assign [[V11]] = [[V8]] > [[V7]] ? [[V8]] : [[V7]];
+// CHECK-NEXT:   assign [[_OUT]] = [[V7]][7:0];
+// CHECK-NEXT:   assign [[OUT]] = [[_OUT]];
 // CHECK-NEXT: endmodule
 
 module {
