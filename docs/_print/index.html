@@ -29,6 +29,53 @@ MemRef, so must be run prior to any affine loop unrolling in a pipeline.</p><p>I
     }
   }
 }
+</code></pre><h3 id=-extract-loop-body><code>-extract-loop-body</code></h3><p><em>Extracts logic of a loop bodies into functions.</em></p><p>This pass extracts logic in the inner body of for loops into functions.</p><p>This pass requires that tensors are lowered to memref. It expects that a
+loop body contains a number of affine.load statements used as inputs to the
+extracted function, and a single affine.store used as the extracted
+function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
+  func.func @loop_body() {
+    %c-128_i8 = arith.constant -128 : i8
+    %c127_i8 = arith.constant 127 : i8
+    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    affine.for %arg1 = 0 to 25 {
+      affine.for %arg2 = 0 to 20 {
+        affine.for %arg3 = 0 to 8 {
+          %98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+          %99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+          %100 = arith.select %99, %c-128_i8, %arg0 : i8
+          %101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+          %102 = arith.select %101, %c127_i8, %100 : i8
+          affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+        }
+      }
+    }
+  }
+}
+</code></pre><p>Output</p><pre tabindex=0><code>module {
+  func.func @loop_body() {
+    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    affine.for %arg1 = 0 to 25 {
+      affine.for %arg2 = 0 to 20 {
+        affine.for %arg3 = 0 to 8 {
+          %98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+          %102 = func.call @__for_loop(%98) : (i8) -&gt; i8
+          affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+        }
+      }
+    }
+  }
+  func.func private @__for_loop(%arg0: i8) -&gt; i8 {
+    %c-128_i8 = arith.constant -128 : i8
+    %c127_i8 = arith.constant 127 : i8
+    %99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+    %100 = arith.select %99, %c-128_i8, %arg0 : i8
+    %101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+    %102 = arith.select %101, %c127_i8, %100 : i8
+    return %102 : i8
+  }
+}
+</code></pre><h4 id=options>Options</h4><pre tabindex=0><code>-min-loop-size : Use this to control the minimum loop size to apply this pass
+-min-body-size : Use this to control the minimum loop body size to apply this pass
 </code></pre><h3 id=-memref-global-replace><code>-memref-global-replace</code></h3><p><em>MemrefGlobalReplacePass forwards global memrefs accessors to arithmetic values</em></p><p>This pass forwards constant global MemRef values to referencing affine
 loads. This pass requires that the MemRef global values are initialized as
 constants and that the affine load access indices are constants (i.e. not
