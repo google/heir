@@ -64,6 +64,25 @@ cc_library(
 )
 
 cc_library(
+    name = "ExtractLoopBody",
+    srcs = ["ExtractLoopBody.cpp"],
+    hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
+    includes = ["@heir//include"],
+    deps = [
+        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
     name = "UnrollAndForward",
     srcs = ["UnrollAndForward.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
@@ -89,6 +108,7 @@ cc_library(
     srcs = ["PassRegistration.cpp"],
     deps = [
         ":ExpandCopy",
+        ":ExtractLoopBody",
         ":MemrefGlobalReplace",
         ":UnrollAndForward",
         "@heir//include/Conversion/MemrefToArith:pass_inc_gen",

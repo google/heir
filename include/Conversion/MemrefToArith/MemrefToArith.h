@@ -13,6 +13,8 @@ std::unique_ptr<Pass> createExpandCopyPass();
 
 std::unique_ptr<Pass> createUnrollAndForwardStoresPass();
 
+std::unique_ptr<Pass> createExtractLoopBodyPass();
+
 }  // namespace heir
 
 }  // namespace mlir

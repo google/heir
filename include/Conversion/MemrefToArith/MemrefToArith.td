@@ -123,4 +123,78 @@ def UnrollAndForwardPass : Pass<"unroll-and-forward", "mlir::ModuleOp"> {
   let constructor = "createUnrollAndForwardStoresPass()";
 }
 
+def ExtractLoopBodyPass : Pass<"extract-loop-body", "mlir::ModuleOp"> {
+  let summary = "Extracts logic of a loop bodies into functions.";
+
+  let description = [{
+    This pass extracts logic in the inner body of for loops into functions.
+
+    This pass requires that tensors are lowered to memref. It expects that a
+    loop body contains a number of affine.load statements used as inputs to the
+    extracted function, and a single affine.store used as the extracted
+    function's output.
+
+    Input
+
+    ```
+    module {
+      func.func @loop_body() {
+        %c-128_i8 = arith.constant -128 : i8
+        %c127_i8 = arith.constant 127 : i8
+        %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+        affine.for %arg1 = 0 to 25 {
+          affine.for %arg2 = 0 to 20 {
+            affine.for %arg3 = 0 to 8 {
+              %98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref<25x20x8xi8>
+              %99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+              %100 = arith.select %99, %c-128_i8, %arg0 : i8
+              %101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+              %102 = arith.select %101, %c127_i8, %100 : i8
+              affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref<25x20x8xi8>
+            }
+          }
+        }
+      }
+    }
+    ```
+
+    Output
+
+    ```
+    module {
+      func.func @loop_body() {
+        %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref<25x20x8xi8>
+        affine.for %arg1 = 0 to 25 {
+          affine.for %arg2 = 0 to 20 {
+            affine.for %arg3 = 0 to 8 {
+              %98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref<25x20x8xi8>
+              %102 = func.call @__for_loop(%98) : (i8) -> i8
+              affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref<25x20x8xi8>
+            }
+          }
+        }
+      }
+      func.func private @__for_loop(%arg0: i8) -> i8 {
+        %c-128_i8 = arith.constant -128 : i8
+        %c127_i8 = arith.constant 127 : i8
+        %99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+        %100 = arith.select %99, %c-128_i8, %arg0 : i8
+        %101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+        %102 = arith.select %101, %c127_i8, %100 : i8
+        return %102 : i8
+      }
+    }
+    ```
+  }];
+
+  let options = [
+    Option<"minimumLoopSize", "min-loop-size", "unsigned", /*default=*/"4",
+           "Use this to control the minimum loop size to apply this pass">,
+    Option<"minimumBodySize", "min-body-size", "unsigned", /*default=*/"4",
+           "Use this to control the minimum loop body size to apply this pass">,
+  ];
+
+  let constructor = "createExtractLoopBodyPass()";
+}
+
 #endif  // THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_MEMREFTOARITH_TD_
