@@ -540,11 +540,12 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineLoadOp op) {
   }
 
   auto width = iType.getWidth();
+  auto memrefStr = getOrCreateName(op.getMemref());
+
   affine::MemRefAccess access(op);
   auto optionalAccessIndex =
       getFlattenedAccessIndex(access, op.getMemRefType());
 
-  auto memrefStr = getOrCreateName(op.getMemref());
   if (optionalAccessIndex) {
     // This is a constant index accessor.
     emitAssignPrefix(op.getResult());
@@ -623,8 +624,8 @@ LogicalResult VerilogEmitter::printOperation(math::CountLeadingZerosOp op) {
   auto resultStr = getOrCreateName(op.getResult());
   auto ctlzStruct = ctlzStructForResult(resultStr);
   auto opStr = getOrCreateName(op.getOperand());
-  // We assign each bit of the temp32 result depending on the number of leading
-  // zeros.
+  // We assign each bit of the temp32 result depending on the number of
+  // leading zeros.
   os_ << "assign " << ctlzStruct.temp32 << "[31:5] = 27'b0;\n";
   os_ << "assign " << ctlzStruct.temp32 << "[4] = (" << opStr
       << "[31:16] == 16'b0);\n";
@@ -693,12 +694,12 @@ StringRef VerilogEmitter::getOrCreateName(Value value) {
   return getOrCreateName(value, "v");
 }
 
-// This is safe to call after an initial walk is performed over a function body
-// to find each op result and call getOrCreateName on it. If this function is
-// called and fails due to a missing key assertion, the bug is almost certainly
-// in this file: MLIR ensures the input to this pass is in SSA form, and this
-// file is responsible for populating value_to_wire_name_ in a block before
-// processing any operations in that block.
+// This is safe to call after an initial walk is performed over a function
+// body to find each op result and call getOrCreateName on it. If this
+// function is called and fails due to a missing key assertion, the bug is
+// almost certainly in this file: MLIR ensures the input to this pass is in
+// SSA form, and this file is responsible for populating value_to_wire_name_
+// in a block before processing any operations in that block.
 StringRef VerilogEmitter::getName(Value value) {
   return value_to_wire_name_.at(value);
 }

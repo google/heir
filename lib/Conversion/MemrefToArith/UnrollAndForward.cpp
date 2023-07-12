@@ -290,9 +290,9 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
   auto storeRes = storeMap.equal_range(loadIndexKey);
   for (auto it = storeRes.first; it != storeRes.second; ++it) {
     // Retrieve the latest store operation that's before the load operation.
-    if (!storeOpOrNull.has_value() ||
-        (storeOpOrNull.value()->isBeforeInBlock(it->second) &&
-         (it->second)->isBeforeInBlock(loadOp))) {
+    if ((it->second)->isBeforeInBlock(loadOp) &&
+        (!storeOpOrNull.has_value() ||
+         (storeOpOrNull.value()->isBeforeInBlock(it->second)))) {
       storeOpOrNull = it->second;
     }
   }

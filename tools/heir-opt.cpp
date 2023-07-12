@@ -5,6 +5,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h" // from @llvm-project
@@ -51,28 +52,12 @@ void tosaPipelineBuilder(mlir::OpPassManager &manager) {
       mlir::memref::createExpandOpsPass());
   manager.addNestedPass<mlir::func::FuncOp>(
       mlir::affine::createSimplifyAffineStructuresPass());
-  mlir::ConvertMathToFuncsOptions mathToFuncsOptions{};
-  mathToFuncsOptions.convertCtlz = true;
-  manager.addPass(mlir::createConvertMathToFuncs(mathToFuncsOptions));
   manager.addPass(mlir::memref::createFoldMemRefAliasOpsPass());
   manager.addPass(mlir::heir::createExpandCopyPass());
-  // TODO(b/281566825): Replace loop unrolling with UnrollAndForwardStores
-  manager.addNestedPass<mlir::func::FuncOp>(
-      mlir::affine::createLoopUnrollPass(-1, false, true));
-  manager.addNestedPass<mlir::func::FuncOp>(
-      mlir::affine::createLoopUnrollPass(-1, false, true));
-  manager.addNestedPass<mlir::func::FuncOp>(
-      mlir::affine::createLoopUnrollPass(-1, false, true));
-  manager.addNestedPass<mlir::func::FuncOp>(
-      mlir::affine::createLoopUnrollPass(-1, false, true));
-  manager.addNestedPass<mlir::func::FuncOp>(
-      mlir::affine::createLoopUnrollPass(-1, false, true));
-  manager.addNestedPass<mlir::func::FuncOp>(
-      mlir::affine::createLoopUnrollPass(-1, false, true));
+  manager.addPass(mlir::heir::createExtractLoopBodyPass());
+  manager.addPass(mlir::heir::createUnrollAndForwardStoresPass());
   // Cleanup
   manager.addPass(mlir::heir::createMemrefGlobalReplacePass());
-  manager.addNestedPass<mlir::func::FuncOp>(
-      mlir::affine::createAffineScalarReplacementPass());
   manager.addPass(mlir::createCanonicalizerPass());
   manager.addPass(mlir::createSCCPPass());
   manager.addPass(mlir::createCSEPass());
