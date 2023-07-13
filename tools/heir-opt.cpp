@@ -58,6 +58,9 @@ void tosaPipelineBuilder(mlir::OpPassManager &manager) {
   manager.addPass(mlir::heir::createUnrollAndForwardStoresPass());
   // Cleanup
   manager.addPass(mlir::heir::createMemrefGlobalReplacePass());
+  mlir::arith::ArithIntNarrowingOptions options;
+  options.bitwidthsSupported = {4, 8, 16};
+  manager.addPass(mlir::arith::createArithIntNarrowing(options));
   manager.addPass(mlir::createCanonicalizerPass());
   manager.addPass(mlir::createSCCPPass());
   manager.addPass(mlir::createCSEPass());
