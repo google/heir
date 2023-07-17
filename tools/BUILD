@@ -15,6 +15,7 @@ cc_binary(
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Dialect/EncryptedArith/IR:Dialect",
         "@heir//lib/Dialect/HEIR/IR:Dialect",
+        "@heir//lib/Dialect/Poly/IR:Dialect",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineTransforms",
         "@llvm-project//mlir:AllPassesAndDialects",

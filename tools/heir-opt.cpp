@@ -1,6 +1,7 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/HEIR/IR/HEIRDialect.h"
+#include "include/Dialect/Poly/IR/PolyDialect.h"
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h" // from @llvm-project
@@ -69,6 +70,7 @@ void tosaPipelineBuilder(mlir::OpPassManager &manager) {
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
+  registry.insert<mlir::heir::poly::PolyDialect>();
   registry.insert<mlir::heir::HEIRDialect>();
   registry.insert<mlir::heir::EncryptedArithDialect>();
 
