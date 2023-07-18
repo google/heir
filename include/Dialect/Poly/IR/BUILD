@@ -9,15 +9,19 @@ package(
 
 exports_files(
     [
+        "PolyAttributes.h",
         "PolyDialect.h",
         "PolyOps.h",
         "PolyTypes.h",
+        "Polynomial.h",
+        "PolynomialDetail.h",
     ],
 )
 
 td_library(
     name = "td_files",
     srcs = [
+        "PolyAttributes.td",
         "PolyDialect.td",
         "PolyOps.td",
         "PolyTypes.td",
@@ -48,6 +52,34 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "PolyDialect.td",
     deps = [
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "attributes_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-attrdef-decls",
+            ],
+            "PolyAttributes.h.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-defs",
+            ],
+            "PolyAttributes.cpp.inc",
+        ),
+        (
+            ["-gen-attrdef-doc"],
+            "PolyAttributes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolyAttributes.td",
+    deps = [
+        ":dialect_inc_gen",
         ":td_files",
     ],
 )

@@ -33,6 +33,7 @@ def Poly_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::poly";
 
   let useDefaultTypePrinterParser = 1;
+  let useDefaultAttributePrinterParser = 1;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_POLY_IR_POLYDIALECT_TD_
