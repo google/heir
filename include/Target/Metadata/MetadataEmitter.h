@@ -1,5 +1,5 @@
-#ifndef THIRD_PARTY_HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_
-#define THIRD_PARTY_HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_
+#ifndef HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_
+#define HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_
 
 #include "llvm/include/llvm/Support/JSON.h" // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
@@ -36,4 +36,4 @@ class MetadataEmitter {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // THIRD_PARTY_HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_
+#endif  // HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_

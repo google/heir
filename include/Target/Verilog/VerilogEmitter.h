@@ -1,5 +1,5 @@
-#ifndef THIRD_PARTY_HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_
-#define THIRD_PARTY_HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_
+#ifndef HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_
+#define HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_
 
 #include "llvm/include/llvm/ADT/DenseMap.h" // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h" // from @llvm-project
@@ -91,4 +91,4 @@ class VerilogEmitter {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // THIRD_PARTY_HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_
+#endif  // HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_

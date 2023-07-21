@@ -1,5 +1,5 @@
-#ifndef THIRD_PARTY_HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_
-#define THIRD_PARTY_HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_
+#ifndef HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_
+#define HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_
 
 #include "mlir/include/mlir/IR/BuiltinTypes.h" // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h" // from @llvm-project
@@ -26,4 +26,4 @@ class CiphertextType
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // THIRD_PARTY_HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_
+#endif  // HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_

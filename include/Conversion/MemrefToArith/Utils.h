@@ -1,5 +1,5 @@
-#ifndef THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
-#define THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
+#ifndef HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
+#define HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
 
 #include "mlir/include/mlir/Dialect/Affine/Utils.h" // from @llvm-project
 
@@ -29,4 +29,4 @@ int64_t flattenIndex(const llvm::ArrayRef<int64_t> indices,
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // THIRD_PARTY_HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
+#endif  // HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
