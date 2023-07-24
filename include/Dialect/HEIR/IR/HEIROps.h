@@ -1,5 +1,5 @@
-#ifndef THIRD_PARTY_HEIR_INCLUDE_DIALECT_HEIR_IR_HEIROPS_H_
-#define THIRD_PARTY_HEIR_INCLUDE_DIALECT_HEIR_IR_HEIROPS_H_
+#ifndef HEIR_INCLUDE_DIALECT_HEIR_IR_HEIROPS_H_
+#define HEIR_INCLUDE_DIALECT_HEIR_IR_HEIROPS_H_
 
 #include "mlir/include/mlir/IR/Attributes.h" // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h" // from @llvm-project
@@ -16,4 +16,4 @@
 #define GET_OP_CLASSES
 #include "include/Dialect/HEIR/IR/HEIROps.h.inc"
 
-#endif  // THIRD_PARTY_HEIR_INCLUDE_DIALECT_HEIR_IR_HEIROPS_H_
+#endif  // HEIR_INCLUDE_DIALECT_HEIR_IR_HEIROPS_H_
