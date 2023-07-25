@@ -1,5 +1,7 @@
 # Test utilities related to Verilog
 
+load("//third_party/bazel_rules/rules_python/python:py_binary.bzl", "py_binary")
+
 py_binary(
     name = "run_verilog",
     srcs = [
