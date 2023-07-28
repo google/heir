@@ -1,7 +1,7 @@
 #ifndef HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
 #define HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_UTILS_H_
 
-#include "mlir/include/mlir/Dialect/Affine/Utils.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Utils.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
