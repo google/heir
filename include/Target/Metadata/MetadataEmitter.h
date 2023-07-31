@@ -1,14 +1,14 @@
 #ifndef HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_
 #define HEIR_INCLUDE_TARGET_METADATA_METADATAEMITTER_H_
 
-#include "llvm/include/llvm/Support/JSON.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h" // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h" // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h" // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h" // from @llvm-project
-#include "mlir/include/mlir/Support/IndentedOstream.h" // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h" // from @llvm-project
+#include "llvm/include/llvm/Support/JSON.h"              // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {

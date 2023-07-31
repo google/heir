@@ -1,8 +1,8 @@
 #ifndef HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_
 #define HEIR_INCLUDE_DIALECT_HEIR_IR_HEIRDIALECT_H_
 
-#include "mlir/include/mlir/IR/BuiltinTypes.h" // from @llvm-project
-#include "mlir/include/mlir/IR/Dialect.h" // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"       // from @llvm-project
 
 // Dialect main class is defined in ODS, we include it here. The
 // constructor and the printing/parsing of dialect types are manually
