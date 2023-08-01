@@ -109,3 +109,32 @@ http_archive(
 load("@googletest//:googletest_deps.bzl", "googletest_deps")
 
 googletest_deps()
+
+# Depend on a hermetic python version
+new_git_repository(
+    name = "rules_python",
+    commit = "9ffb1ecd9b4e46d2a0bca838ac80d7128a352f9f",  # v0.23.1
+    remote = "https://github.com/bazelbuild/rules_python.git",
+)
+
+load("@rules_python//python:repositories.bzl", "python_register_toolchains")
+
+python_register_toolchains(
+    name = "python3_10",
+    # Available versions are listed at
+    # https://github.com/bazelbuild/rules_python/blob/main/python/versions.bzl
+    python_version = "3.10",
+)
+
+load("@python3_10//:defs.bzl", "interpreter")
+load("@rules_python//python:pip.bzl", "pip_parse")
+
+pip_parse(
+    name = "heir_pip_deps",
+    python_interpreter_target = interpreter,
+    requirements_lock = "//:requirements.txt",
+)
+
+load("@heir_pip_deps//:requirements.bzl", "install_deps")
+
+install_deps()

@@ -16,6 +16,7 @@ filegroup(
         "@heir//tests/verilog:run_verilog",
         "@heir//tools:heir-opt",
         "@heir//tools:heir-translate",
+        "@heir_pip_deps_lit//:pkg",
         "@llvm-project//llvm:FileCheck",
         "@llvm-project//llvm:count",
         "@llvm-project//llvm:not",
