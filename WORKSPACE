@@ -138,3 +138,25 @@ pip_parse(
 load("@heir_pip_deps//:requirements.bzl", "install_deps")
 
 install_deps()
+
+# compile_commands extracts the relevant compile data from bazel into
+# `compile_commands.json` so that clangd, clang-tidy, etc., can use it.
+# Whenever a build file changes, you must re-run
+#
+#   bazel run @hedron_compile_commands//:refresh_all
+#
+# to ingest new data into these tools.
+#
+# See the project repo for more details and configuration options
+# https://github.com/hedronvision/bazel-compile-commands-extractor
+http_archive(
+    name = "hedron_compile_commands",
+    sha256 = "3cd0e49f0f4a6d406c1d74b53b7616f5e24f5fd319eafc1bf8eee6e14124d115",
+    strip_prefix = "bazel-compile-commands-extractor-3dddf205a1f5cde20faf2444c1757abe0564ff4c",
+    # 2023-05-12
+    url = "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/3dddf205a1f5cde20faf2444c1757abe0564ff4c.tar.gz",
+)
+
+load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
+
+hedron_compile_commands_setup()
