@@ -13,7 +13,36 @@
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="optional-run-the-tests">Optional: Run the tests&lt;/h2>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note some tests require Python to run. You may also need to install
-&lt;a href="https://pypi.org/project/lit/">lit&lt;/a>.&lt;/p></description></item><item><title>Docs: Pipelines</title><link>https://google.github.io/heir/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/pipelines/</guid><description>
+&lt;a href="https://pypi.org/project/lit/">lit&lt;/a>.&lt;/p></description></item><item><title>Docs: IDE Configuration</title><link>https://google.github.io/heir/docs/ide_configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/ide_configuration/</guid><description>
+&lt;h2 id="vs-code">VS Code&lt;/h2>
+&lt;p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
+extensions:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>llvm-vs-code-extensions.vscode-mlir&lt;/strong>: Adds language support for MLIR, PDLL,
+and TableGen.&lt;/li>
+&lt;li>&lt;strong>llvm-vs-code-extensions.vscode-clangd&lt;/strong>: Adds clangd code completion using a
+generated
+&lt;a href="https://clang.llvm.org/docs/JSONCompilationDatabase.html">compile_commands.json&lt;/a>
+file.&lt;/li>
+&lt;li>&lt;strong>bazelbuild.vscode-bazel&lt;/strong>: Support for Bazel.&lt;/li>
+&lt;/ul>
+&lt;p>You will also need to disable &lt;strong>ms-vscode.cpptools&lt;/strong> to avoid a conflict with
+clangd.&lt;/p>
+&lt;p>Add the following snippet to your VS Code user settings found in
+&lt;code>.vscode/settings.json&lt;/code> to enable autocomplete based on the
+&lt;code>compile_commands.json&lt;/code> file.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;clangd.arguments&amp;#34;&lt;/span>&lt;span style="color:#a40000">:&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--compile-commands-dir=${workspaceFolder}/&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--completion-style=detailed&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--query-driver=**&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#a40000">,&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To generate the &lt;code>compile_commands.json&lt;/code> file, run&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-shell" data-lang="shell">&lt;span style="display:flex;">&lt;span>bazel run @hedron_compile_commands//:refresh_all
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This will need to be regenerated everytime you want tooling to see new &lt;code>BUILD&lt;/code>
+file changes.&lt;/p>
+&lt;p>If you encounter errors like &lt;code>*.h.inc&lt;/code> not found, or syntax errors inside these
+files, you may need to build those targets and then re-run the &lt;code>refresh_all&lt;/code>
+command above.&lt;/p></description></item><item><title>Docs: Pipelines</title><link>https://google.github.io/heir/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/pipelines/</guid><description>
 &lt;h2 id="heir-opt">&lt;code>heir-opt&lt;/code>&lt;/h2>
 &lt;h3 id="--heir-tosa-to-arith">&lt;code>--heir-tosa-to-arith&lt;/code>&lt;/h3>
 &lt;p>Lowers a TOSA MLIR model to &lt;code>func&lt;/code>, &lt;code>arith&lt;/code>, and &lt;code>memref&lt;/code>.&lt;/p>
