@@ -26,7 +26,8 @@ jobs:
     # disk.
     - name: "Build markdown files from tblgen sources"
       run: |
-        bazel build $(bazel query 'siblings(kind("gentbl_rule", @heir//...))' | grep "_filegroup$")
+        bazel query "filter('_filegroup$', siblings(kind('gentbl_rule', @heir//...)))" | \
+          xargs bazel build "$@"
 
     - name: "Copy markdown files to docs/"
       run: |

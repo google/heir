@@ -9,7 +9,7 @@ module {
   memref.global "private" constant @__constant_10x8x1x8xi8 : memref<10x8x1x8xi8> = dense<2>
   // CHECK: memref.global "private" constant  [[MEM2:@[a-z0-9_]+]]
   memref.global "private" constant @__constant_2x2xi8 : memref<2x2xi8> = dense<[[11, 12], [13, 14]]>
-  // __constant_3xi8 can be removed because it only has accessors with constant indicies.
+  // __constant_3xi8 can be removed because it only has accessors with constant indices.
   // CHECK-NOT: memref.global
   memref.global "private" constant @__constant_3xi8 : memref<3xi8> = dense<[22, 23, 24]>
   // CHECK: func.func @main

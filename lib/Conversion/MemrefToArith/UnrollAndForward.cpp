@@ -466,7 +466,7 @@ void UnrollAndForwardPass::runOnOperation() {
 
   // Now clear any unused memrefs. This clears memrefs that are allocated
   // during the program and their users when the memref (and any aliases of
-  // it) are no longer used. This targets the memrefs whos stores were all
+  // it) are no longer used. This targets the memrefs whose stores were all
   // successfully forwarded from this pass. If there are any remaining loads
   // or function returns from the memref or any of its aliases, then none of
   // the users are erased.

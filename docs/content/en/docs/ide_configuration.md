@@ -39,7 +39,7 @@ To generate the `compile_commands.json` file, run
 bazel run @hedron_compile_commands//:refresh_all
 ```
 
-This will need to be regenerated everytime you want tooling to see new `BUILD`
+This will need to be regenerated every time you want tooling to see new `BUILD`
 file changes.
 
 If you encounter errors like `*.h.inc` not found, or syntax errors inside these

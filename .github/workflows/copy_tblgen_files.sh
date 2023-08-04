@@ -40,4 +40,3 @@ github_url: https://github.com/google/heir/edit/main/$SRC_PATH
 EOF
   cat "$SRC_PATH" >> "$DEST_PATH"
 done
-

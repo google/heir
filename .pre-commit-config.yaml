@@ -1,0 +1,46 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+
+# Built-in hooks
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: "v4.4.0"
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+        args: ['--maxkb=500000'] # 500MB
+
+# clang-format
+-   repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: "v16.0.6"
+    hooks:
+    -   id: clang-format
+        args: ["--style=Google"]
+
+# Starlark
+-   repo: https://github.com/keith/pre-commit-buildifier
+    rev: "6.1.0"
+    hooks:
+      - id: buildifier
+      - id: buildifier-lint
+
+# Check for spelling
+-   repo: https://github.com/codespell-project/codespell
+    rev: "v2.2.5"
+    hooks:
+      - id: codespell
+
+# Changes tabs to spaces
+-   repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: "v1.5.1"
+    hooks:
+      - id: remove-tabs
+
+# Github workflow actionlint
+-   repo: https://github.com/Mateusz-Grzelinski/actionlint-py
+    rev: "v1.6.25.9"
+    hooks:
+      - id: actionlint
+        additional_dependencies: [ pyflakes>=3.0.1, shellcheck-py>=0.9.0.5 ]
