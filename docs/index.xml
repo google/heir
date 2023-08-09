@@ -13,7 +13,20 @@
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="optional-run-the-tests">Optional: Run the tests&lt;/h2>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note some tests require Python to run. You may also need to install
-&lt;a href="https://pypi.org/project/lit/">lit&lt;/a>.&lt;/p></description></item><item><title>Docs: IDE Configuration</title><link>https://google.github.io/heir/docs/ide_configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/ide_configuration/</guid><description>
+&lt;a href="https://pypi.org/project/lit/">lit&lt;/a>.&lt;/p>
+&lt;h2 id="developing-in-heir">Developing in HEIR&lt;/h2>
+&lt;p>We use &lt;a href="https://pre-commit.com/">pre-commit&lt;/a> to manage a series of git
+pre-commit hooks for the project; for example, each time you commit code, the
+hooks will make sure that your C++ is formatted properly. If your code isn&amp;rsquo;t,
+the hook will format it, so when you try to commit the second time you&amp;rsquo;ll get
+past the hook.&lt;/p>
+&lt;p>All hooks are defined in &lt;code>.pre-commit-config.yaml&lt;/code>. To install these hooks, run&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pip install -r requirements-dev.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then install the hooks to run automatically on &lt;code>git commit&lt;/code>:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit install
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To run them manually, run&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit run --all-files
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: IDE Configuration</title><link>https://google.github.io/heir/docs/ide_configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/ide_configuration/</guid><description>
 &lt;h2 id="vs-code">VS Code&lt;/h2>
 &lt;p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
 extensions:&lt;/p>
@@ -38,7 +51,7 @@ clangd.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#a40000">,&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To generate the &lt;code>compile_commands.json&lt;/code> file, run&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-shell" data-lang="shell">&lt;span style="display:flex;">&lt;span>bazel run @hedron_compile_commands//:refresh_all
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This will need to be regenerated everytime you want tooling to see new &lt;code>BUILD&lt;/code>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This will need to be regenerated every time you want tooling to see new &lt;code>BUILD&lt;/code>
 file changes.&lt;/p>
 &lt;p>If you encounter errors like &lt;code>*.h.inc&lt;/code> not found, or syntax errors inside these
 files, you may need to build those targets and then re-run the &lt;code>refresh_all&lt;/code>
@@ -300,7 +313,7 @@ return %c8_i16 : i16
 }
 &lt;/code>&lt;/pre>&lt;h3 id="-unroll-and-forward">&lt;code>-unroll-and-forward&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Loop unrolls and forwards stores to loads.&lt;/em>&lt;/p>
-&lt;p>This pass proceses the first function in a given module, and, starting from
+&lt;p>This pass processes the first function in a given module, and, starting from
 the first loop, iteratively does the following:&lt;/p>
 &lt;ol>
 &lt;li>Fully unroll the loop.&lt;/li>

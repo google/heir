@@ -111,7 +111,7 @@ return %c8_i16 : i16
 }
 &lt;/code>&lt;/pre>&lt;h3 id="-unroll-and-forward">&lt;code>-unroll-and-forward&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Loop unrolls and forwards stores to loads.&lt;/em>&lt;/p>
-&lt;p>This pass proceses the first function in a given module, and, starting from
+&lt;p>This pass processes the first function in a given module, and, starting from
 the first loop, iteratively does the following:&lt;/p>
 &lt;ol>
 &lt;li>Fully unroll the loop.&lt;/li>

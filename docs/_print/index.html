@@ -4,7 +4,14 @@
 </span></span><span style=display:flex><span>bazel build @heir//...
 </span></span></code></pre></div><h2 id=optional-run-the-tests>Optional: Run the tests</h2><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> @heir//...
 </span></span></code></pre></div><p>Note some tests require Python to run. You may also need to install
-<a href=https://pypi.org/project/lit/>lit</a>.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-b53b4ed2389ea7b400cfd891e785a6ad>2 - IDE Configuration</h1><h2 id=vs-code>VS Code</h2><p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
+<a href=https://pypi.org/project/lit/>lit</a>.</p><h2 id=developing-in-heir>Developing in HEIR</h2><p>We use <a href=https://pre-commit.com/>pre-commit</a> to manage a series of git
+pre-commit hooks for the project; for example, each time you commit code, the
+hooks will make sure that your C++ is formatted properly. If your code isn&rsquo;t,
+the hook will format it, so when you try to commit the second time you&rsquo;ll get
+past the hook.</p><p>All hooks are defined in <code>.pre-commit-config.yaml</code>. To install these hooks, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pip install -r requirements-dev.txt
+</span></span></code></pre></div><p>Then install the hooks to run automatically on <code>git commit</code>:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit install
+</span></span></code></pre></div><p>To run them manually, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit run --all-files
+</span></span></code></pre></div></div><div class=td-content style=page-break-before:always><h1 id=pg-b53b4ed2389ea7b400cfd891e785a6ad>2 - IDE Configuration</h1><h2 id=vs-code>VS Code</h2><p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
 extensions:</p><ul><li><strong>llvm-vs-code-extensions.vscode-mlir</strong>: Adds language support for MLIR, PDLL,
 and TableGen.</li><li><strong>llvm-vs-code-extensions.vscode-clangd</strong>: Adds clangd code completion using a
 generated
@@ -18,7 +25,7 @@ clangd.</p><p>Add the following snippet to your VS Code user settings found in
 </span></span><span style=display:flex><span>        <span style=color:#4e9a06>&#34;--query-driver=**&#34;</span>
 </span></span><span style=display:flex><span>      <span style=color:#000;font-weight:700>]</span><span style=color:#a40000>,</span>
 </span></span></code></pre></div><p>To generate the <code>compile_commands.json</code> file, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>bazel run @hedron_compile_commands//:refresh_all
-</span></span></code></pre></div><p>This will need to be regenerated everytime you want tooling to see new <code>BUILD</code>
+</span></span></code></pre></div><p>This will need to be regenerated every time you want tooling to see new <code>BUILD</code>
 file changes.</p><p>If you encounter errors like <code>*.h.inc</code> not found, or syntax errors inside these
 files, you may need to build those targets and then re-run the <code>refresh_all</code>
 command above.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-590f1588f601079eeacfc7cb11dc5115>3 - Dialects</h1><p>This section contains the reference documentation for all of the dialects
@@ -116,7 +123,7 @@ weights) to support FHE transpilation.</p><p>Input</p><pre tabindex=0><code>modu
     return %c8_i16 : i16
   }
 }
-</code></pre><h3 id=-unroll-and-forward><code>-unroll-and-forward</code></h3><p><em>Loop unrolls and forwards stores to loads.</em></p><p>This pass proceses the first function in a given module, and, starting from
+</code></pre><h3 id=-unroll-and-forward><code>-unroll-and-forward</code></h3><p><em>Loop unrolls and forwards stores to loads.</em></p><p>This pass processes the first function in a given module, and, starting from
 the first loop, iteratively does the following:</p><ol><li>Fully unroll the loop.</li><li>Scan for load ops. For each load op with a statically-inferrable access
 index:</li><li>Backtrack to the original memref alloc</li><li>Find all store ops at the corresponding index (possibly transitively
 through renames/subviews of the underlying alloc).</li><li>Find the last store that occurs and forward it to the load.</li><li>If the original memref is an input memref, then forward through any

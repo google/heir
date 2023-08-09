@@ -90,7 +90,7 @@ weights) to support FHE transpilation.</p><p>Input</p><pre tabindex=0><code>modu
     return %c8_i16 : i16
   }
 }
-</code></pre><h3 id=-unroll-and-forward><code>-unroll-and-forward</code></h3><p><em>Loop unrolls and forwards stores to loads.</em></p><p>This pass proceses the first function in a given module, and, starting from
+</code></pre><h3 id=-unroll-and-forward><code>-unroll-and-forward</code></h3><p><em>Loop unrolls and forwards stores to loads.</em></p><p>This pass processes the first function in a given module, and, starting from
 the first loop, iteratively does the following:</p><ol><li>Fully unroll the loop.</li><li>Scan for load ops. For each load op with a statically-inferrable access
 index:</li><li>Backtrack to the original memref alloc</li><li>Find all store ops at the corresponding index (possibly transitively
 through renames/subviews of the underlying alloc).</li><li>Find the last store that occurs and forward it to the load.</li><li>If the original memref is an input memref, then forward through any
