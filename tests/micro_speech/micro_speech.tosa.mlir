@@ -76,4 +76,3 @@ module attributes {tfl.description = "TOCO Converted.", tfl.schema_version = 3 :
     return %65 : tensor<1x4xi8>
   }
 }
-

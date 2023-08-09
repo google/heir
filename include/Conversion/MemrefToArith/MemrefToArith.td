@@ -96,7 +96,7 @@ def UnrollAndForwardPass : Pass<"unroll-and-forward", "mlir::ModuleOp"> {
   let summary = "Loop unrolls and forwards stores to loads.";
 
   let description = [{
-    This pass proceses the first function in a given module, and, starting from
+    This pass processes the first function in a given module, and, starting from
     the first loop, iteratively does the following:
 
     1. Fully unroll the loop.

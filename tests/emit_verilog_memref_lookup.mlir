@@ -25,4 +25,3 @@ module {
 // CHECK-NEXT:  assign [[V3]] = [[V2]][15 + 16 * [[ARG]] : 16 * [[ARG]]];
 // CHECK-NEXT:  assign [[OUT]] = [[V3]];
 // CHECK:      endmodule
-

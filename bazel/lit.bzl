@@ -55,7 +55,7 @@ def lit_test(name = None, src = None, size = "small", tags = None):
     )
 
 def glob_lit_tests(
-        # these unused args are kept for API compability with the corresponding
+        # these unused args are kept for API compatibility with the corresponding
         # google-internal macro
         name = None,  # buildifier: disable=unused-variable
         data = None,  # buildifier: disable=unused-variable
