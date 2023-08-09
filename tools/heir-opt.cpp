@@ -1,24 +1,24 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
-#include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/Passes.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/Passes.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/Transforms/Passes.h" // from @llvm-project
-#include "mlir/include/mlir/InitAllDialects.h" // from @llvm-project
-#include "mlir/include/mlir/InitAllPasses.h" // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h" // from @llvm-project
-#include "mlir/include/mlir/Pass/PassRegistry.h" // from @llvm-project
-#include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h" // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h" // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Passes.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/InitAllDialects.h"             // from @llvm-project
+#include "mlir/include/mlir/InitAllPasses.h"               // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
+#include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
+#include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 
 void tosaPipelineBuilder(mlir::OpPassManager &manager) {
   // TOSA to linalg

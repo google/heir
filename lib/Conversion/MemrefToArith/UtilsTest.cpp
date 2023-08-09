@@ -1,5 +1,5 @@
-#include "gmock/gmock.h" // from @googletest
-#include "gtest/gtest.h" // from @googletest
+#include "gmock/gmock.h"  // from @googletest
+#include "gtest/gtest.h"  // from @googletest
 #include "include/Conversion/MemrefToArith/Utils.h"
 
 namespace mlir {

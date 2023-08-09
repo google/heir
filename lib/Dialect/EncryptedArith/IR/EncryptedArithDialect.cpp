@@ -1,9 +1,9 @@
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithTypes.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h" // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h" // from @llvm-project
-#include "mlir/include/mlir/IR/DialectImplementation.h" // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
 // Generated definitions.
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.cpp.inc"

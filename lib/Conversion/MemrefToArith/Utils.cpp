@@ -1,8 +1,8 @@
 #include <utility>
 
-#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h" // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {

@@ -1,12 +1,15 @@
 #include "include/Dialect/Poly/IR/PolyDialect.h"
-#include "include/Dialect/Poly/IR/PolyTypes.h"
+
+// NOLINTNEXTLINE(misc-include-cleaner): Required to define PolyOps
 #include "include/Dialect/Poly/IR/PolyOps.h"
+#include "include/Dialect/Poly/IR/PolyTypes.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
-#include "llvm/include/llvm/ADT/TypeSwitch.h" // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h" // from @llvm-project
-#include "mlir/include/mlir/IR/DialectImplementation.h" // from @llvm-project
-
+// Generated definitions
 #include "include/Dialect/Poly/IR/PolyDialect.cpp.inc"
+
 #define GET_TYPEDEF_CLASSES
 #include "include/Dialect/Poly/IR/PolyTypes.cpp.inc"
 #define GET_OP_CLASSES
@@ -23,11 +26,11 @@ namespace poly {
 // Dialect construction: there is one instance per context and it registers its
 // operations, types, and interfaces here.
 void PolyDialect::initialize() {
-    addTypes<
+  addTypes<
 #define GET_TYPEDEF_LIST
 #include "include/Dialect/Poly/IR/PolyTypes.cpp.inc"
       >();
-    addOperations<
+  addOperations<
 #define GET_OP_LIST
 #include "include/Dialect/Poly/IR/PolyOps.cpp.inc"
       >();
@@ -36,4 +39,3 @@ void PolyDialect::initialize() {
 }  // namespace poly
 }  // namespace heir
 }  // namespace mlir
-

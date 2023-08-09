@@ -1,19 +1,19 @@
 #include "include/Target/Verilog/VerilogEmitter.h"
 
 #include "include/Conversion/MemrefToArith/Utils.h"
-#include "llvm/include/llvm/Support/FormatVariadic.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/Math/IR/Math.h" // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h" // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h" // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h" // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h" // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h" // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h" // from @llvm-project
-#include "mlir/include/mlir/Tools/mlir-translate/Translation.h" // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
