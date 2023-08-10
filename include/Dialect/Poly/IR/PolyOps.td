@@ -1,6 +1,7 @@
 #ifndef HEIR_INCLUDE_DIALECT_POLY_IR_POLYOPS_TD_
 #define HEIR_INCLUDE_DIALECT_POLY_IR_POLYOPS_TD_
 
+include "PolyAttributes.td"
 include "PolyDialect.td"
 include "PolyTypes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -56,7 +57,9 @@ def Poly_MulOp : Poly_Op<"mul", [SameOperandsAndResultType]> {
   let summary = "Multiplication operation between polynomials.";
 
   let arguments = (ins
-    Variadic<Poly>:$x
+    Poly:$lhs,
+    Poly:$rhs,
+    Ring_Attr:$ring
   );
 
   let results = (outs
