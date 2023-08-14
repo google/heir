@@ -19,6 +19,7 @@ cc_library(
     includes = ["@heir//include"],
     deps = [
         ":PolyAttributes",
+        ":PolyOps",
         ":Polynomial",
         "@heir//include/Dialect/Poly/IR:attributes_inc_gen",
         "@heir//include/Dialect/Poly/IR:dialect_inc_gen",
@@ -47,6 +48,27 @@ cc_library(
         "@llvm-project//mlir:AsmParser",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "PolyOps",
+    srcs = [
+        "PolyOps.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Poly/IR:PolyDialect.h",
+        "@heir//include/Dialect/Poly/IR:PolyOps.h",
+        "@heir//include/Dialect/Poly/IR:PolyTypes.h",
+    ],
+    includes = ["@heir//include"],
+    deps = [
+        ":PolyAttributes",
+        "@heir//include/Dialect/Poly/IR:dialect_inc_gen",
+        "@heir//include/Dialect/Poly/IR:ops_inc_gen",
+        "@heir//include/Dialect/Poly/IR:types_inc_gen",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
     ],
 )
 

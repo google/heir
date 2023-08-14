@@ -1,4 +1,5 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
+#include "include/Conversion/PolyToStandard/PolyToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
@@ -86,6 +87,9 @@ int main(int argc, char **argv) {
 
   // Register MLIR core passes to build pipeline.
   mlir::registerAllPasses();
+
+  // Custom passes in HEIR
+  mlir::heir::poly::registerPolyToStandardPasses();
 
   mlir::PassPipelineRegistration<>(
       "heir-tosa-to-arith",

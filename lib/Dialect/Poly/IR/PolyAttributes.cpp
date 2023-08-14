@@ -126,6 +126,7 @@ mlir::Attribute mlir::heir::poly::PolynomialAttr::parse(AsmParser &parser,
     }
   }
 
+  // insert necessary constant ops to give as input to extract_slice.
   if (variables.size() > 1) {
     std::string vars = llvm::join(variables.begin(), variables.end(), ", ");
     parser.emitError(
