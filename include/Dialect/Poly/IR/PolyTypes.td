@@ -13,13 +13,15 @@ class Poly_Type<string name, string typeMnemonic>
   let mnemonic = typeMnemonic;
 }
 
-def Poly : Poly_Type<"Polynomial", "poly"> {
-  let summary = "Polynomial represents an element of a polynomial quotient ring";
+def Polynomial : Poly_Type<"Polynomial", "poly"> {
+  let summary = "An element of a polynomial quotient ring";
 
   let description = [{
     A type for polynomials in a polynomial quotient ring.
   }];
 
+  let parameters = (ins Ring_Attr:$ring);
+  let assemblyFormat = "`<` $ring `>`";
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_POLY_IR_POLYTYPES_TD_

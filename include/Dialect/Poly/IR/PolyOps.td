@@ -5,6 +5,7 @@ include "PolyAttributes.td"
 include "PolyDialect.td"
 include "PolyTypes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 // Poly Operation definitions.
@@ -12,7 +13,6 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 
 class Poly_Op<string mnemonic, list<Trait> traits = []> :
         Op<Poly_Dialect, mnemonic, traits> {
-
   // See https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-format
   // TODO(b/291601096): Simplify this format by adding type constraints.
   let assemblyFormat = [{
@@ -25,60 +25,35 @@ class Poly_Op<string mnemonic, list<Trait> traits = []> :
 // Ring operations.
 //===----------------------------------------------------------------------===//
 
-def Poly_AddOp : Poly_Op<"add", [SameOperandsAndResultType]> {
+class Poly_BinOp<string mnemonic, list<Trait> traits = [Pure, SameOperandsAndResultType, Commutative]> :
+        Poly_Op<mnemonic, traits> {
+  let arguments = (ins Polynomial:$lhs, Polynomial:$rhs);
+  let results = (outs Polynomial:$output);
+  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
+}
+
+def Poly_AddOp : Poly_BinOp<"add"> {
   let summary = "Addition operation between polynomials.";
-
-  let arguments = (ins
-    Variadic<Poly>:$x
-  );
-
-  let results = (outs
-    Poly:$output
-  );
-
-   let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
 }
 
-def Poly_SubOp : Poly_Op<"sub", [SameOperandsAndResultType]> {
+def Poly_SubOp : Poly_BinOp<"sub"> {
   let summary = "Subtraction operation between polynomials.";
-
-  let arguments = (ins
-    Variadic<Poly>:$x
-  );
-
-  let results = (outs
-    Poly:$output
-  );
-
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
 }
 
-def Poly_MulOp : Poly_Op<"mul", [SameOperandsAndResultType]> {
+def Poly_MulOp : Poly_BinOp<"mul"> {
   let summary = "Multiplication operation between polynomials.";
-
-  let arguments = (ins
-    Poly:$lhs,
-    Poly:$rhs,
-    Ring_Attr:$ring
-  );
-
-  let results = (outs
-    Poly:$output
-  );
-
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
 }
 
 def Poly_MulConstantOp : Poly_Op<"mul_constant"> {
   let summary = "Multiplication by a constant of the field.";
 
   let arguments = (ins
-    Poly:$x,
+    Polynomial:$x,
     AnyInteger:$constant
   );
 
   let results = (outs
-    Poly:$output
+    Polynomial:$output
   );
 }
 
@@ -90,7 +65,7 @@ def Poly_GetCoeffOp : Poly_Op<"get_coeff"> {
   let summary = "Gets the coefficient of X^{index} from a polynomial.";
 
   let arguments = (ins
-    Poly:$x,
+    Polynomial:$x,
     Index:$index
   );
 
@@ -100,34 +75,37 @@ def Poly_GetCoeffOp : Poly_Op<"get_coeff"> {
   );
 }
 
-def Poly_ExtractSliceOp : Poly_Op<"extract_slice"> {
-  let summary = "Extracts a slice of coefficients from X^i to X^j inclusive.";
+def Poly_ExtractSliceOp : Poly_Op<"extract_slice", [Pure, InferTypeOpAdaptor]> {
+  let summary = "Extracts a slice of coefficients from X^i to X^j.";
 
-  let arguments = (ins
-    Poly:$x,
-    Index:$i,
-    Index:$j
-  );
+  let description = [{
+    Extracts a slice of coefficients from X^i to X^j.
 
-  let results = (outs
-    TensorOf<[AnyInteger]>:$output
-  );
+    The included range includes `i`, but excludes `j`, similar to array slice
+    semantics.
+
+    The coefficients are returned in the order they appear in the polynomial,
+    from smallest degree to largest degree
+
+  }];
+  let arguments = (ins Polynomial:$input, Index:$i, Index:$j);
+  let results = (outs TensorOf<[AnyInteger]>:$output);
 }
 
 //===----------------------------------------------------------------------===//
 // Poly generation operations.
 //===----------------------------------------------------------------------===//
 
-def Poly_PolyFromCoeffsOp : Poly_Op<"from_coeffs"> {
-  let summary = "Creates a Polynomial from integer coeffs.";
+def Poly_PolyFromCoeffsOp : Poly_Op<"from_coeffs", [Pure]> {
+  let summary = "Creates a Polynomial from integer coefficients stored in a tensor.";
+  let arguments = (ins TensorOf<[AnyInteger]>:$input);
+  let results = (outs Polynomial:$output);
 
-  let arguments = (ins
-    TensorOf<[AnyInteger]>:$x
-  );
-
-  let results = (outs
-    Poly:$output
-  );
+  let builders = [
+    // Builder that infers coefficient modulus from tensor bit width,
+    // and uses whatever input ring is provided by the caller.
+    OpBuilder<(ins "::mlir::Value":$input, "RingAttr":$ring)>
+  ];
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_POLY_IR_POLYOPS_TD_

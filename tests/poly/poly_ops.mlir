@@ -16,12 +16,12 @@ module {
     %coeffs1 = tensor.from_elements %two, %two, %five : tensor<3xi32>
     %coeffs2 = tensor.from_elements %five, %five, %two : tensor<3xi32>
 
-    %poly1 = poly.from_coeffs(%coeffs1) : (tensor<3xi32>) -> !poly.poly
-    %poly2 = poly.from_coeffs(%coeffs2) : (tensor<3xi32>) -> !poly.poly
+    %poly1 = poly.from_coeffs(%coeffs1) : (tensor<3xi32>) -> !poly.poly<#ring1>
+    %poly2 = poly.from_coeffs(%coeffs2) : (tensor<3xi32>) -> !poly.poly<#ring1>
 
     // CHECK: #poly.ring<cmod=2837465, ideal=#poly.polynomial<1 + x**1024>>
-    %3 = poly.mul(%poly1, %poly2) {ring = #ring1} : !poly.poly
-    %4 = poly.get_coeff(%3, %c0) : (!poly.poly, index) -> i32
+    %3 = poly.mul(%poly1, %poly2) {ring = #ring1} : !poly.poly<#ring1>
+    %4 = poly.get_coeff(%3, %c0) : (!poly.poly<#ring1>, index) -> i32
 
     return %4 : i32
   }
