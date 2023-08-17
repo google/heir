@@ -1,4 +1,5 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
+#include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
@@ -71,6 +72,7 @@ int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
   registry.insert<mlir::heir::poly::PolyDialect>();
   registry.insert<mlir::heir::EncryptedArithDialect>();
+  registry.insert<mlir::heir::bgv::BGVDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<mlir::func::FuncDialect>();
