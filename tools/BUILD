@@ -11,6 +11,7 @@ cc_binary(
     srcs = ["heir-opt.cpp"],
     includes = ["include"],
     deps = [
+        "@heir//lib/Conversion/BGVToPoly",
         "@heir//lib/Conversion/MemrefToArith:ExpandCopy",
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Conversion/PolyToStandard",
