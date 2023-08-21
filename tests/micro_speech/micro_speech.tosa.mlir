@@ -1,4 +1,5 @@
-// RUN: heir-opt --heir-tosa-to-arith %s 2>&1 | FileCheck %s
+// RUN: heir-opt --heir-tosa-to-arith %s > %t
+// RUN: FileCheck %s < %t
 
 // The model should be converted into one that only contains affine and math
 // operations, with no loops and no intermediate memref allocations.
@@ -33,7 +34,7 @@ module attributes {tfl.description = "TOCO Converted.", tfl.schema_version = 3 :
     %23 = "tosa.fully_connected"(%22, %16, %15) <{quantization_info = #tosa.conv_quant<input_zp = -128, weight_zp = 0>}> : (tensor<1x4000xi8>, tensor<4x4000xi8>, tensor<4xi32>) -> tensor<1x4xi32>
     %24 = "tosa.rescale"(%23) <{double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1932201080>, output_zp = 14 : i32, per_channel = false, scale32 = true, shift = array<i32: 42>}> : (tensor<1x4xi32>) -> tensor<1x4xi8>
     %25 = "tosa.rescale"(%24) <{double_round = false, input_zp = 14 : i32, multiplier = array<i32: 1073741824>, output_zp = 0 : i32, per_channel = false, scale32 = true, shift = array<i32: 30>}> : (tensor<1x4xi8>) -> tensor<1x4xi32>
-    %26 = "tosa.reduce_max"(%25) <{axis = 1 : i64}> : (tensor<1x4xi32>) -> tensor<1x1xi32>
+    %26 = "tosa.reduce_max"(%25) <{axis = 1 : i32}> : (tensor<1x4xi32>) -> tensor<1x1xi32>
     %27 = "tosa.sub"(%25, %26) : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
     %28 = "tosa.rescale"(%27) <{double_round = false, input_zp = 0 : i32, multiplier = array<i32: 1073741824>, output_zp = 0 : i32, per_channel = false, scale32 = true, shift = array<i32: 23>}> : (tensor<1x4xi32>) -> tensor<1x4xi16>
     %29 = "tosa.table"(%28, %11) : (tensor<1x4xi16>, tensor<513xi16>) -> tensor<1x4xi32>
@@ -48,7 +49,7 @@ module attributes {tfl.description = "TOCO Converted.", tfl.schema_version = 3 :
     %38 = "tosa.add"(%37, %35) : (tensor<1x4xi32>, tensor<1x4xi32>) -> tensor<1x4xi32>
     %39 = "tosa.add"(%38, %36) : (tensor<1x4xi32>, tensor<1x4xi32>) -> tensor<1x4xi32>
     %40 = "tosa.arithmetic_right_shift"(%39, %5) <{round = true}> : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
-    %41 = "tosa.reduce_sum"(%40) <{axis = 1 : i64}> : (tensor<1x4xi32>) -> tensor<1x1xi32>
+    %41 = "tosa.reduce_sum"(%40) <{axis = 1 : i32}> : (tensor<1x4xi32>) -> tensor<1x1xi32>
     %42 = "tosa.clz"(%41) : (tensor<1x1xi32>) -> tensor<1x1xi32>
     %43 = "tosa.sub"(%42, %3) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %44 = "tosa.logical_left_shift"(%41, %43) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
