@@ -3,6 +3,8 @@
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
+#include "include/Dialect/Secret/IR/SecretDialect.h"
+#include "include/Dialect/Secret/Transforms/Passes.h"
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"   // from @llvm-project
@@ -71,22 +73,24 @@ void tosaPipelineBuilder(mlir::OpPassManager &manager) {
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
-  registry.insert<mlir::heir::poly::PolyDialect>();
   registry.insert<mlir::heir::EncryptedArithDialect>();
   registry.insert<mlir::heir::bgv::BGVDialect>();
+  registry.insert<mlir::heir::poly::PolyDialect>();
+  registry.insert<mlir::heir::secret::SecretDialect>();
 
   // Add expected MLIR dialects to the registry.
+  registry.insert<mlir::affine::AffineDialect>();
+  registry.insert<mlir::arith::ArithDialect>();
   registry.insert<mlir::func::FuncDialect>();
   registry.insert<mlir::memref::MemRefDialect>();
-  registry.insert<mlir::arith::ArithDialect>();
-  registry.insert<mlir::affine::AffineDialect>();
   registry.insert<mlir::scf::SCFDialect>();
-  mlir::registerAllDialects(registry);
   registry.insert<mlir::tensor::TensorDialect>();
   registry.insert<mlir::tosa::TosaDialect>();
+  mlir::registerAllDialects(registry);
 
   // Register MLIR core passes to build pipeline.
   mlir::registerAllPasses();
+  mlir::heir::secret::registerSecretPasses();
 
   // Custom passes in HEIR
   mlir::heir::poly::registerPolyToStandardPasses();

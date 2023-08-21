@@ -17,6 +17,8 @@ cc_binary(
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/EncryptedArith/IR:Dialect",
         "@heir//lib/Dialect/Poly/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/Secret/Transforms",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineTransforms",
         "@llvm-project//mlir:AllPassesAndDialects",
