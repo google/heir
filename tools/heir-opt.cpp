@@ -4,6 +4,7 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "include/Dialect/CGGI/IR/CGGIDialect.h"
 #include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
@@ -152,6 +153,7 @@ int main(int argc, char **argv) {
   registry.insert<bgv::BGVDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();
+  registry.insert<cggi::CGGIDialect>();
   registry.insert<poly_ext::PolyExtDialect>();
   registry.insert<polynomial::PolynomialDialect>();
   registry.insert<secret::SecretDialect>();

@@ -1,6 +1,8 @@
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
+#include "include/Dialect/LWE/IR/LWEOps.h"
+#include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
@@ -9,6 +11,10 @@
 #include "include/Dialect/LWE/IR/LWEDialect.cpp.inc"
 #define GET_ATTRDEF_CLASSES
 #include "include/Dialect/LWE/IR/LWEAttributes.cpp.inc"
+#define GET_TYPEDEF_CLASSES
+#include "include/Dialect/LWE/IR/LWETypes.cpp.inc"
+#define GET_OP_CLASSES
+#include "include/Dialect/LWE/IR/LWEOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -18,6 +24,14 @@ void LWEDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
 #include "include/Dialect/LWE/IR/LWEAttributes.cpp.inc"
+      >();
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "include/Dialect/LWE/IR/LWETypes.cpp.inc"
+      >();
+  addOperations<
+#define GET_OP_LIST
+#include "include/Dialect/LWE/IR/LWEOps.cpp.inc"
       >();
 }
 
@@ -102,6 +116,48 @@ LogicalResult InverseCanonicalEmbeddingEncodingAttr::verifyEncoding(
   return requirePolynomialElementTypeFits(
       elementType, "inverse_canonical_embedding_encoding",
       getCleartextBitwidth(), getCleartextStart(), emitError);
+}
+
+void LWEParamsAttr::print(AsmPrinter &p) const {
+  p << '<cmod=';
+  getCmod().print(p.getStream(), /*isSigned=*/false);
+  p << ", dimension=";
+  p << getDimension();
+  p << '>';
+}
+
+mlir::Attribute mlir::heir::lwe::LWEParamsAttr::parse(AsmParser &parser,
+                                                      Type type) {
+  if (failed(parser.parseLess())) return {};
+
+  if (failed(parser.parseKeyword("cmod"))) return {};
+
+  if (failed(parser.parseEqual())) return {};
+
+  APInt cmod(polynomial::APINT_BIT_WIDTH, 0);
+  auto result = parser.parseInteger(cmod);
+  if (failed(result)) {
+    parser.emitError(parser.getCurrentLocation(),
+                     "Invalid coefficient modulus.");
+    return {};
+  }
+
+  if (failed(parser.parseComma())) return {};
+
+  if (failed(parser.parseKeyword("dimension"))) return {};
+
+  if (failed(parser.parseEqual())) return {};
+
+  int dimension;
+  auto dimensionResult = parser.parseInteger(dimension);
+  if (failed(dimensionResult)) {
+    parser.emitError(parser.getCurrentLocation(), "Invalid dimension modulus.");
+    return {};
+  }
+
+  if (failed(parser.parseGreater())) return {};
+
+  return LWEParamsAttr::get(parser.getContext(), cmod, dimension);
 }
 
 }  // namespace lwe
