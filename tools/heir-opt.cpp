@@ -2,6 +2,7 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolyToStandard/PolyToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "include/Dialect/CGGI/IR/CGGIDialect.h"
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
@@ -77,6 +78,7 @@ int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
   registry.insert<mlir::heir::EncryptedArithDialect>();
   registry.insert<mlir::heir::bgv::BGVDialect>();
+  registry.insert<mlir::heir::cggi::CGGIDialect>();
   registry.insert<mlir::heir::lwe::LWEDialect>();
   registry.insert<mlir::heir::poly::PolyDialect>();
   registry.insert<mlir::heir::secret::SecretDialect>();
