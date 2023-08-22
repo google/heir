@@ -8,10 +8,14 @@ weight: 1
 ## Prerequisites
 
 -   [Git](https://git-scm.com/)
--   [Bazel](https://github.com/bazelbuild/bazelisk)
+-   Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk), or version
+    `>=5.5`
 -   A C compiler (like [gcc](https://gcc.gnu.org/) or
     [clang](https://clang.llvm.org/))
 -   [Python](https://www.python.org/) (optional, for some tests)
+-   GNU [flex](https://github.com/westes/flex) and
+    [bison](https://www.gnu.org/software/bison/), for the Yosys dependency
+    (optional)
 
 ## Clone and build the project
 
