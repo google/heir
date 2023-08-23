@@ -17,6 +17,7 @@ cc_binary(
         "@heir//lib/Conversion/PolyToStandard",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/EncryptedArith/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Poly/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/Transforms",
