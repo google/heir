@@ -1,0 +1,5 @@
+# Force all C++ mlir include paths to be prefixed with "mlir/include/mlir",
+# instead of just "mlir/", as the latter is incompatible with Google's internal
+# filesystem.
+- search: '/^#include "mlir\/(?!include\/mlir\/)/'
+  replacement: '#include "mlir/include/mlir/'
