@@ -108,4 +108,20 @@ def Poly_PolyFromCoeffsOp : Poly_Op<"from_coeffs", [Pure]> {
   ];
 }
 
+def Poly_PolyFromConst : Poly_Op<"constant"> {
+  let summary = "Creates a Polynomial directly from coefficients without tensor storing.";
+  let arguments = (ins DenseI32ArrayAttr:$coefficients);
+  let results = (outs Polynomial:$output);
+
+  // let properties = (ins
+  //   DenseI32ArrayAttr:$coefficients
+  // );
+  let builders = [
+    // Builder that infers coefficient modulus from tensor bit width,
+    // and uses whatever input ring is provided by the caller.
+    OpBuilder<(ins "::mlir::Value":$coefficients, "RingAttr":$ring)>
+  ];
+
+}
+
 #endif  // HEIR_INCLUDE_DIALECT_POLY_IR_POLYOPS_TD_

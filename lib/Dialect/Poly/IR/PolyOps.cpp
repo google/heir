@@ -28,6 +28,17 @@ void PolyFromCoeffsOp::build(OpBuilder &builder, OperationState &result,
   build(builder, result, resultType, input);
 }
 
+void PolyFromConst::build(OpBuilder &builder, OperationState &result,
+                            Value coefficients, RingAttr ring) {
+  //PolyFromConst coeffsOp = dyn_cast<PolyFromConst>(coefficients);
+  TensorType tensorType = dyn_cast<TensorType>(coefficients.getType());
+  APInt cmod(APINT_BIT_WIDTH, 1);
+  cmod = cmod << tensorType.getElementTypeBitWidth();
+  Type resultType = PolynomialType::get(builder.getContext(), ring);
+  build(builder, result, resultType, coefficients);
+                            
+}
+
 }  // namespace poly
 }  // namespace heir
 }  // namespace mlir
