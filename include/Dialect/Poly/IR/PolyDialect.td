@@ -34,6 +34,7 @@ def Poly_Dialect : Dialect {
 
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
+  let usePropertiesForAttributes = 0;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_POLY_IR_POLYDIALECT_TD_
