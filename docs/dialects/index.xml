@@ -28,7 +28,8 @@
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>!bgv.ciphertext&amp;lt;
 ::mlir::heir::bgv::BGVRingsAttr, # rings
-unsigned # dim
+unsigned, # dim
+std::optional&amp;lt;uint64_t&amp;gt; # level
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A type for BGV Ciphertexts.&lt;/p>
 &lt;p>This type tracks the BGV ciphertext parameters, including the ciphertext
@@ -38,6 +39,7 @@ a ciphertext that is canonically encrypted against the key basis &lt;code>(1, s)
 &lt;p>The type also includes a ring parameter specification.&lt;/p>
 &lt;p>For example, &lt;code>bgv.ciphertext&amp;lt;rings=#rings, dim=3&amp;gt;&lt;/code> is a ciphertext with 3
 polynomials (c_0, c_1, c_2).&lt;/p>
+&lt;p>The optional attribute &lt;code>level&lt;/code> specifies the &amp;ldquo;current ring&amp;rdquo;.&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -56,6 +58,11 @@ polynomials (c_0, c_1, c_2).&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">dim&lt;/td>
 &lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">level&lt;/td>
+&lt;td style="text-align:center">&lt;code>std::optional&amp;lt;uint64_t&amp;gt;&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
