@@ -25,4 +25,18 @@ module {
 
     return %4 : i32
   }
+
+  func.func @test_elementwise(%p0 : !poly.poly<#ring1>, %p1: !poly.poly<#ring1>) {
+    %tp0 = tensor.from_elements %p0, %p1 : tensor<2x!poly.poly<#ring1>>
+    %tp1 = tensor.from_elements %p1, %p0 : tensor<2x!poly.poly<#ring1>>
+
+    %c = arith.constant 2 : i32
+    %mul_const_sclr = poly.mul_constant(%tp0, %c) : (tensor<2x!poly.poly<#ring1>>, i32) -> tensor<2x!poly.poly<#ring1>>
+
+    %add = poly.add(%tp0, %tp1) : tensor<2x!poly.poly<#ring1>>
+    %sub = poly.sub(%tp0, %tp1) : tensor<2x!poly.poly<#ring1>>
+    %mul = poly.mul(%tp0, %tp1) : tensor<2x!poly.poly<#ring1>>
+
+    return
+  }
 }

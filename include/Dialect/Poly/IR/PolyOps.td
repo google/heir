@@ -25,10 +25,10 @@ class Poly_Op<string mnemonic, list<Trait> traits = []> :
 // Ring operations.
 //===----------------------------------------------------------------------===//
 
-class Poly_BinOp<string mnemonic, list<Trait> traits = [Pure, SameOperandsAndResultType, Commutative]> :
+class Poly_BinOp<string mnemonic, list<Trait> traits = [Pure, SameOperandsAndResultType, Commutative, ElementwiseMappable]> :
         Poly_Op<mnemonic, traits> {
-  let arguments = (ins Polynomial:$lhs, Polynomial:$rhs);
-  let results = (outs Polynomial:$output);
+  let arguments = (ins PolynomialLike:$lhs, PolynomialLike:$rhs);
+  let results = (outs PolynomialLike:$output);
   let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
 }
 
@@ -44,16 +44,16 @@ def Poly_MulOp : Poly_BinOp<"mul"> {
   let summary = "Multiplication operation between polynomials.";
 }
 
-def Poly_MulConstantOp : Poly_Op<"mul_constant"> {
+def Poly_MulConstantOp : Poly_Op<"mul_constant", [ElementwiseMappable]> {
   let summary = "Multiplication by a constant of the field.";
 
   let arguments = (ins
-    Polynomial:$x,
+    PolynomialLike:$x,
     AnyInteger:$constant
   );
 
   let results = (outs
-    Polynomial:$output
+    PolynomialLike:$output
   );
 }
 

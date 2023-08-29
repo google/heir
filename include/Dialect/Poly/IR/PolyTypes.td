@@ -24,4 +24,6 @@ def Polynomial : Poly_Type<"Polynomial", "poly"> {
   let assemblyFormat = "`<` $ring `>`";
 }
 
+def PolynomialLike: TypeOrContainer<Polynomial, "polynomial-like">;
+
 #endif  // HEIR_INCLUDE_DIALECT_POLY_IR_POLYTYPES_TD_
