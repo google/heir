@@ -116,7 +116,7 @@ def BGV_Relinearize : BGV_Op<"relinearize"> {
   );
 }
 
-def BGV_ModulusSwitch : BGV_Op<"modulus_switch", [SameOperandsAndResultType]> {
+def BGV_ModulusSwitch : BGV_Op<"modulus_switch"> {
   // This must be validated against the BGV ring parameter.
   let summary = "Lower the modulus level of the ciphertext.";
 
@@ -129,8 +129,6 @@ def BGV_ModulusSwitch : BGV_Op<"modulus_switch", [SameOperandsAndResultType]> {
   let results = (outs
     Ciphertext:$output
   );
-
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_BGV_IR_BGVOPS_TD_

@@ -32,15 +32,18 @@ def Ciphertext : BGV_Type<"Ciphertext", "ciphertext"> {
 
     For example, `bgv.ciphertext<rings=#rings, dim=3>` is a ciphertext with 3
     polynomials (c_0, c_1, c_2).
+
+    The optional attribute `level` specifies the "current ring".
   }];
 
   // TODO(https://github.com/google/heir/issues/99): Add # of plaintext bits.
   let parameters = (ins
     BGVRingArrayAttr:$rings,
-    DefaultValuedParameter<"unsigned", "2">:$dim
+    DefaultValuedParameter<"unsigned", "2">:$dim,
+    OptionalParameter<"std::optional<uint64_t>">:$level
   );
 
-  let assemblyFormat = "`<` `rings` `=` $rings (`,` `dim` `=` $dim^ )? `>`";
+  let assemblyFormat = "`<` `rings` `=` $rings (`,` `dim` `=` $dim^ )? (`,` `level` `=` $level^ )? `>`";
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_BGV_IR_BGVTYPES_TD_

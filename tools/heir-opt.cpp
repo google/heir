@@ -1,3 +1,4 @@
+#include "include/Conversion/BGVToPoly/BGVToPoly.h"
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolyToStandard/PolyToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
@@ -94,6 +95,7 @@ int main(int argc, char **argv) {
 
   // Custom passes in HEIR
   mlir::heir::poly::registerPolyToStandardPasses();
+  mlir::heir::bgv::registerBGVToPolyPasses();
 
   mlir::PassPipelineRegistration<>(
       "heir-tosa-to-arith",
