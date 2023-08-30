@@ -58,5 +58,21 @@ module {
   func.func @test_lower_fn_and_call(%arg: !poly.poly<#ring>) {
     func.call @f0(%arg) : (!poly.poly<#ring>) -> !poly.poly<#ring>
     return
+
+  func.func @test_lower_from_coeffs() -> !poly.poly<#ring> {
+    // 2 + 2x + 2x^2 + ... + 2x^{1023}
+    // CHECK: [[X:%.+]] = arith.constant dense<2> : [[T:tensor<1024.*]]
+    %coeffs1 = arith.constant dense<2> : tensor<1024xi64>
+    // CHECK: [[Y:%.+]] = arith.constant dense<3> : [[T]]
+    %coeffs2 = arith.constant dense<3> : tensor<1024xi64>
+    // CHECK-NOT: poly.from_coeffs
+    %poly0 = poly.from_coeffs(%coeffs1) : (tensor<1024xi64>) -> !poly.poly<#ring>
+    %poly1 = poly.from_coeffs(%coeffs2) : (tensor<1024xi64>) -> !poly.poly<#ring>
+    // CHECK: [[Z:%.+]] = arith.addi [[X]], [[Y]] : [[T]]
+    // CHECK-NEXT:  [[M:%.+]] = arith.constant dense<4294967296> : [[T]]
+    // CHECK-NEXT:  [[ZMOD:%.+]] = arith.remui [[Z]], [[M]] : [[T]]
+    %poly2 = poly.add(%poly0, %poly1) {ring = #ring} : !poly.poly<#ring>
+    // CHECK: return  [[ZMOD]] : [[T]]
+    return %poly2 : !poly.poly<#ring>
   }
 }
