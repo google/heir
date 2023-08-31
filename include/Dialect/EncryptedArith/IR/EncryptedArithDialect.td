@@ -23,7 +23,6 @@ def EncryptedArith_Dialect : Dialect {
   let cppNamespace = "::mlir::heir";
 
   let useDefaultTypePrinterParser = 1;
-  let usePropertiesForAttributes = 0;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_ENCRYPTEDARITH_IR_ENCRYPTEDARITHDIALECT_TD_

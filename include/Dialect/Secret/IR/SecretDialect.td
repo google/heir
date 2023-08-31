@@ -15,7 +15,6 @@ def Secret_Dialect : Dialect {
 
   let cppNamespace = "::mlir::heir::secret";
   let useDefaultTypePrinterParser = 1;
-  let usePropertiesForAttributes = 0;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_SECRET_IR_SECRETDIALECT_TD_
