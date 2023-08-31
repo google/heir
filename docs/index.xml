@@ -214,7 +214,11 @@ or
 &lt;a href="https://github.com/google/heir/discussions">discussion&lt;/a> for feedback.&lt;/p>
 &lt;h2 id="contributing-to-code-using-pull-requests">Contributing to code using pull requests&lt;/h2>
 &lt;h3 id="preparing-a-pull-request">Preparing a pull request&lt;/h3>
-&lt;p>Pre-requisites:&lt;/p>
+&lt;p>The following steps should look familiar to typical workflows for pull request
+contributions. Feel free to consult
+&lt;a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests">GitHub Help&lt;/a>
+if you need more information using pull requests. HEIR-specific processes begin
+at the &lt;a href="#pull-request-review-flow">pull request review stage&lt;/a>.&lt;/p>
 &lt;ol>
 &lt;li>
 &lt;p>Sign the
@@ -232,34 +236,34 @@ HEIR repository on your own GitHub account.&lt;/p>
 install developer dependencies to build and run tests.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Add the HEIR repository as an upstream remote, so you can use sync your
-changes against it.&lt;/p>
-&lt;/li>
-&lt;/ol>
+&lt;p>Add the HEIR repository as an upstream remote, so you can sync your changes
+against it.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git remote add upstream https://www.github.com/google/heir
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ol start="5">
-&lt;li>Create a development branch for your change:&lt;/li>
-&lt;/ol>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git checkout -b name-of-change
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Create a development branch for your change:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> git checkout -b name-of-change
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>And implement your changes using your favorite IDE. See
-&lt;a href="https://google.github.io/heir/docs/ide_configuration/">IDE Configuration&lt;/a> for
-more.&lt;/p>
-&lt;ol start="6">
-&lt;li>Check HEIR&amp;rsquo;s lint and style checks by running the following from the top of
-the repository:&lt;/li>
-&lt;/ol>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit run --all
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ol start="7">
-&lt;li>Make sure tests are passing with the following:&lt;/li>
-&lt;/ol>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ol start="8">
-&lt;li>Once you are ready with your change, create a commit as follows.&lt;/li>
-&lt;/ol>
+&lt;a href="https://google.github.io/heir/docs/ide_configuration/">IDE Configuration&lt;/a>
+for more.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Check HEIR&amp;rsquo;s lint and style checks by running the following from the top of
+the repository:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> pre-commit run --all
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Make sure tests are passing with the following:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Once you are ready with your change, create a commit as follows.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git add change.cpp
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git commit -m &lt;span style="color:#4e9a06">&amp;#34;Detailed commit message&amp;#34;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git push --set-upstream origin name-of-change
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="pull-request-review-flow">Pull request review flow&lt;/h3>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ol>
+&lt;h3 id="pull-request-review-flow">Pull request review flow&lt;/h3>
 &lt;ol>
 &lt;li>&lt;strong>New PR&lt;/strong>:&lt;/li>
 &lt;/ol>

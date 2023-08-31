@@ -274,24 +274,28 @@ submit a pull request
 or
 <a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22">contributions welcome</a>.</p><p>For new proposals, please open a GitHub
 <a href=https://github.com/google/heir/issues>issue</a> or start a
-<a href=https://github.com/google/heir/discussions>discussion</a> for feedback.</p><h2 id=contributing-to-code-using-pull-requests>Contributing to code using pull requests</h2><h3 id=preparing-a-pull-request>Preparing a pull request</h3><p>Pre-requisites:</p><ol><li><p>Sign the
+<a href=https://github.com/google/heir/discussions>discussion</a> for feedback.</p><h2 id=contributing-to-code-using-pull-requests>Contributing to code using pull requests</h2><h3 id=preparing-a-pull-request>Preparing a pull request</h3><p>The following steps should look familiar to typical workflows for pull request
+contributions. Feel free to consult
+<a href=https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests>GitHub Help</a>
+if you need more information using pull requests. HEIR-specific processes begin
+at the <a href=#pull-request-review-flow>pull request review stage</a>.</p><ol><li><p>Sign the
 <a href=https://cla.developers.google.com/about>Contributor License Agreement</a>
 (CLA). See more
 <a href=https://github.com/google/heir/blob/main/CONTRIBUTING.md#sign-our-contributor-license-agreement>here</a>.</p></li><li><p>Fork the HEIR repository by clicking the <strong>Fork</strong> button on the
 <a href=https://github.com/google/heir>repository page</a>. This creates a copy of the
 HEIR repository on your own GitHub account.</p></li><li><p>See <a href=https://google.github.io/heir/docs/getting_started/>Getting Started</a> to
-install developer dependencies to build and run tests.</p></li><li><p>Add the HEIR repository as an upstream remote, so you can use sync your
-changes against it.</p></li></ol><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git remote add upstream https://www.github.com/google/heir
-</span></span></code></pre></div><ol start=5><li>Create a development branch for your change:</li></ol><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git checkout -b name-of-change
+install developer dependencies to build and run tests.</p></li><li><p>Add the HEIR repository as an upstream remote, so you can sync your changes
+against it.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git remote add upstream https://www.github.com/google/heir
+</span></span></code></pre></div></li><li><p>Create a development branch for your change:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span> git checkout -b name-of-change
 </span></span></code></pre></div><p>And implement your changes using your favorite IDE. See
-<a href=https://google.github.io/heir/docs/ide_configuration/>IDE Configuration</a> for
-more.</p><ol start=6><li>Check HEIR&rsquo;s lint and style checks by running the following from the top of
-the repository:</li></ol><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit run --all
-</span></span></code></pre></div><ol start=7><li>Make sure tests are passing with the following:</li></ol><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> @heir//...
-</span></span></code></pre></div><ol start=8><li>Once you are ready with your change, create a commit as follows.</li></ol><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git add change.cpp
+<a href=https://google.github.io/heir/docs/ide_configuration/>IDE Configuration</a>
+for more.</p></li><li><p>Check HEIR&rsquo;s lint and style checks by running the following from the top of
+the repository:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span> pre-commit run --all
+</span></span></code></pre></div></li><li><p>Make sure tests are passing with the following:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span> bazel <span style=color:#204a87>test</span> @heir//...
+</span></span></code></pre></div></li><li><p>Once you are ready with your change, create a commit as follows.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git add change.cpp
 </span></span><span style=display:flex><span>git commit -m <span style=color:#4e9a06>&#34;Detailed commit message&#34;</span>
 </span></span><span style=display:flex><span>git push --set-upstream origin name-of-change
-</span></span></code></pre></div><h3 id=pull-request-review-flow>Pull request review flow</h3><ol><li><strong>New PR</strong>:</li></ol><ul><li>When a new PR is submitted, it is inspected for quality requirements, such as
+</span></span></code></pre></div></li></ol><h3 id=pull-request-review-flow>Pull request review flow</h3><ol><li><strong>New PR</strong>:</li></ol><ul><li>When a new PR is submitted, it is inspected for quality requirements, such as
 the CLA requirement, and a sufficient PR description.</li><li>If the PR passes checks, we assign a reviewer. If not, we request additional
 changes to ensure the PR passes CI checks.</li></ul><ol start=2><li><strong>Review</strong></li></ol><ul><li>A reviewer will check the PR and potentially request additional changes.</li><li>If a change is needed, the contributor is requested to make a suggested
 change. Please make changes with additional commits to your PR, to ensure that
