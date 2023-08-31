@@ -140,7 +140,8 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     auto addOp = rewriter.create<arith::AddIOp>(op.getLoc(), extShapeType,
                                                 extLhsOp, extRhsOp);
 
-    APInt mod = op.getType().getRing().coefficientModulus();
+    APInt mod =
+        op.getType().cast<PolynomialType>().getRing().coefficientModulus();
     assert(mod != 0 && "coefficient modulus must not be zero");
     auto modConstOp = rewriter.create<arith::ConstantOp>(
         op.getLoc(), DenseElementsAttr::get(extShapeType, {mod}));
