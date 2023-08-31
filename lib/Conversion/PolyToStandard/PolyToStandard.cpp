@@ -117,21 +117,44 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   // operation is defined within the polynomial ring. Coefficients are added
   // element-wise as elements of the ring, so they are performed modulo the
   // coefficient modulus.
+  //
+  // Modular addition is performed by sign extending both arguments and
+  // performing (N+1)-bit addition. Then, if z = (x + y) is the (N+1)-bit sum,
+  // we return
+  //   truncate(z >= mod ? z - mod : z)
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     auto type = adaptor.getLhs().getType();
-    auto addOp = rewriter.create<arith::AddIOp>(
-        op.getLoc(), type, adaptor.getLhs(), adaptor.getRhs());
+    auto elementTy =
+        type.cast<RankedTensorType>().getElementType().cast<IntegerType>();
+    auto extType = IntegerType::get(getContext(), elementTy.getWidth() + 1,
+                                    elementTy.getSignedness());
+    auto extShapeType = type.cast<ShapedType>().clone(extType);
+
+    mlir::Value extLhsOp = rewriter.create<arith::ExtUIOp>(
+        op.getLoc(), extShapeType, adaptor.getLhs());
+    mlir::Value extRhsOp = rewriter.create<arith::ExtUIOp>(
+        op.getLoc(), extShapeType, adaptor.getRhs());
+
+    auto addOp = rewriter.create<arith::AddIOp>(op.getLoc(), extShapeType,
+                                                extLhsOp, extRhsOp);
 
     APInt mod = op.getType().getRing().coefficientModulus();
     assert(mod != 0 && "coefficient modulus must not be zero");
     auto modConstOp = rewriter.create<arith::ConstantOp>(
-        addOp.getLoc(), DenseElementsAttr::get(type.cast<ShapedType>(), {mod}));
+        op.getLoc(), DenseElementsAttr::get(extShapeType, {mod}));
 
-    auto modOp = rewriter.create<arith::RemUIOp>(
-        modConstOp.getLoc(), addOp.getResult(), modConstOp.getResult());
-    rewriter.replaceOp(op, modOp.getResult());
+    auto geCmp = rewriter.create<arith::CmpIOp>(
+        addOp.getLoc(), arith::CmpIPredicate::uge, addOp, modConstOp);
+    auto selectOp = rewriter.create<arith::SelectOp>(
+        geCmp->getLoc(), geCmp,
+        rewriter.create<arith::SubIOp>(geCmp->getLoc(), addOp, modConstOp),
+        addOp);
+
+    auto truncOp = rewriter.create<arith::TruncIOp>(
+        selectOp.getLoc(), type.cast<ShapedType>(), selectOp);
+    rewriter.replaceOp(op, truncOp.getResult());
 
     return success();
   }

@@ -68,11 +68,16 @@ module {
     // CHECK-NOT: poly.from_coeffs
     %poly0 = poly.from_coeffs(%coeffs1) : (tensor<1024xi64>) -> !poly.poly<#ring>
     %poly1 = poly.from_coeffs(%coeffs2) : (tensor<1024xi64>) -> !poly.poly<#ring>
-    // CHECK: [[Z:%.+]] = arith.addi [[X]], [[Y]] : [[T]]
-    // CHECK-NEXT:  [[M:%.+]] = arith.constant dense<4294967296> : [[T]]
-    // CHECK-NEXT:  [[ZMOD:%.+]] = arith.remui [[Z]], [[M]] : [[T]]
+    // CHECK: [[XEXT:%.+]] = arith.extui [[X]] : [[T]] to [[TEXT:tensor<1024.*]]
+    // CHECK-NEXT: [[YEXT:%.+]] = arith.extui [[Y]] : [[T]] to [[TEXT:tensor<1024.*]]
+    // CHECK-NEXT: [[ZEXT:%.+]] = arith.addi [[XEXT]], [[YEXT]] : [[TEXT]]
+    // CHECK-NEXT:  [[MOD:%.+]] = arith.constant dense<4294967296> : [[TEXT]]
+    // CHECK-NEXT: [[CMP:%.+]] = arith.cmpi uge, [[ZEXT]], [[MOD]] : [[TEXT]]
+    // CHECK-NEXT: [[SUB:%.+]] = arith.subi [[ZEXT]], [[MOD]] : [[TEXT]]
+    // CHECK-NEXT: [[SEL:%.+]] = arith.select [[CMP]], [[SUB]], [[ZEXT]] : tensor<1024xi1>, [[TEXT]]
+    // CHECK-NEXT:  [[Z:%.+]] = arith.trunci [[SEL]] : [[TEXT]] to [[T]]
     %poly2 = poly.add(%poly0, %poly1) {ring = #ring} : !poly.poly<#ring>
-    // CHECK: return  [[ZMOD]] : [[T]]
+    // CHECK: return  [[Z]] : [[T]]
     return %poly2 : !poly.poly<#ring>
   }
 }
