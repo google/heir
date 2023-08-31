@@ -30,7 +30,11 @@ For new proposals, please open a GitHub
 
 ### Preparing a pull request
 
-Pre-requisites:
+The following steps should look familiar to typical workflows for pull request
+contributions. Feel free to consult
+[GitHub Help](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests)
+if you need more information using pull requests. HEIR-specific processes begin
+at the [pull request review stage](#pull-request-review-flow).
 
 1. Sign the
    [Contributor License Agreement](https://cla.developers.google.com/about)
@@ -44,43 +48,43 @@ Pre-requisites:
 1. See [Getting Started](https://google.github.io/heir/docs/getting_started/) to
    install developer dependencies to build and run tests.
 
-1. Add the HEIR repository as an upstream remote, so you can use sync your
-   changes against it.
+1. Add the HEIR repository as an upstream remote, so you can sync your changes
+   against it.
 
-```bash
-git remote add upstream https://www.github.com/google/heir
-```
+   ```bash
+   git remote add upstream https://www.github.com/google/heir
+   ```
 
-5. Create a development branch for your change:
+1. Create a development branch for your change:
 
-```bash
-git checkout -b name-of-change
-```
+   ```bash
+    git checkout -b name-of-change
+   ```
 
-And implement your changes using your favorite IDE. See
-[IDE Configuration](https://google.github.io/heir/docs/ide_configuration/) for
-more.
+   And implement your changes using your favorite IDE. See
+   [IDE Configuration](https://google.github.io/heir/docs/ide_configuration/)
+   for more.
 
-6. Check HEIR's lint and style checks by running the following from the top of
+1. Check HEIR's lint and style checks by running the following from the top of
    the repository:
 
-```bash
-pre-commit run --all
-```
+   ```bash
+    pre-commit run --all
+   ```
 
-7. Make sure tests are passing with the following:
+1. Make sure tests are passing with the following:
 
-```bash
-bazel test @heir//...
-```
+   ```bash
+    bazel test @heir//...
+   ```
 
-8. Once you are ready with your change, create a commit as follows.
+1. Once you are ready with your change, create a commit as follows.
 
-```bash
-git add change.cpp
-git commit -m "Detailed commit message"
-git push --set-upstream origin name-of-change
-```
+   ```bash
+   git add change.cpp
+   git commit -m "Detailed commit message"
+   git push --set-upstream origin name-of-change
+   ```
 
 ### Pull request review flow
 
