@@ -4,10 +4,13 @@
 #include <optional>
 
 #include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "include/Dialect/BGV/IR/BGVOps.h"
 #include "include/Dialect/BGV/IR/BGVTypes.h"
 #include "include/Dialect/Poly/IR/PolyAttributes.h"
+#include "include/Dialect/Poly/IR/PolyOps.h"
 #include "include/Dialect/Poly/IR/PolyTypes.h"
 #include "include/Dialect/Poly/IR/Polynomial.h"
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/OneToNFuncConversions.h"  // from @llvm-project
@@ -44,6 +47,56 @@ class CiphertextTypeConverter : public TypeConverter {
   // across multiple passes.
 };
 
+struct ConvertAdd : public OpConversionPattern<AddOp> {
+  ConvertAdd(mlir::MLIRContext *context)
+      : OpConversionPattern<AddOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      AddOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(
+        op, rewriter.create<poly::AddOp>(op.getLoc(), adaptor.getOperands()[0],
+                                         adaptor.getOperands()[1]));
+    return success();
+  }
+};
+
+struct ConvertSub : public OpConversionPattern<SubOp> {
+  ConvertSub(mlir::MLIRContext *context)
+      : OpConversionPattern<SubOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SubOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(
+        op, rewriter.create<poly::SubOp>(op.getLoc(), adaptor.getOperands()[0],
+                                         adaptor.getOperands()[1]));
+    return success();
+  }
+};
+
+struct ConvertNegate : public OpConversionPattern<Negate> {
+  ConvertNegate(mlir::MLIRContext *context)
+      : OpConversionPattern<Negate>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      Negate op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto arg = adaptor.getOperands()[0];
+    auto neg = rewriter.create<arith::ConstantIntOp>(loc, -1, /*width=*/8);
+    rewriter.replaceOp(
+        op, rewriter.create<poly::MulConstantOp>(loc, arg.getType(), arg, neg));
+    return success();
+  }
+};
+
 struct BGVToPoly : public impl::BGVToPolyBase<BGVToPoly> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -54,6 +107,9 @@ struct BGVToPoly : public impl::BGVToPolyBase<BGVToPoly> {
     target.addLegalOp<ModuleOp>();
 
     RewritePatternSet patterns(context);
+
+    patterns.add<ConvertAdd, ConvertSub, ConvertNegate>(typeConverter, context);
+    target.addIllegalOp<AddOp, SubOp, Negate>();
 
     // Add "standard" set of conversions and constraints for full dialect
     // conversion. See Dialect/Func/Transforms/FuncBufferize.cpp for example.

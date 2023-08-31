@@ -14,6 +14,7 @@ cc_library(
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/Poly/IR:Dialect",
         "@heir//lib/Dialect/Poly/IR:Polynomial",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FuncTransforms",
