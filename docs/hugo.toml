@@ -167,6 +167,11 @@ enable = false
   icon = "fab fa-github"
   desc = "Development takes place here!"
 
+
+[params.katex]
+  # Disable KaTeX in favor of MathJax
+  enable = false
+
 # hugo module configuration
 
 [module]
