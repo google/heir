@@ -37,7 +37,7 @@ class Monomial {
 
   /// Monomials are ordered by exponent.
   bool operator<(const Monomial &other) const {
-    return (exponent.ule(other.exponent));
+    return (exponent.ult(other.exponent));
   }
 
   // Prints polynomial to 'os'.
