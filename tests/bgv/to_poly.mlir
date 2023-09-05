@@ -27,6 +27,20 @@ module {
     // CHECK: [[C:%.+]] = arith.constant -1 : [[I:.+]]
     // CHECK: poly.mul_constant([[X]], [[C]]) : ([[T]], [[I]]) -> [[T]]
     %negate = bgv.negate(%x) : (!ct1) -> !ct1
+
+    // CHECK: [[I0:%.+]] = arith.constant 0 : index
+    // CHECK: [[I1:%.+]] = arith.constant 1 : index
+    // CHECK: [[X0:%.+]] = tensor.extract [[X]][[[I0]]] : [[T]]
+    // CHECK: [[X1:%.+]] = tensor.extract [[X]][[[I1]]] : [[T]]
+    // CHECK: [[Y0:%.+]] = tensor.extract [[Y]][[[I0]]] : [[T]]
+    // CHECK: [[Y1:%.+]] = tensor.extract [[Y]][[[I1]]] : [[T]]
+    // CHECK: [[Z0:%.+]] = poly.mul([[X0]], [[Y0]]) : [[P:!poly.*33538049.*]]
+    // CHECK: [[X0Y1:%.+]] = poly.mul([[X0]], [[Y1]]) : [[P]]
+    // CHECK: [[X1Y0:%.+]] = poly.mul([[X1]], [[Y0]]) : [[P]]
+    // CHECK: [[Z1:%.+]] = poly.add([[X0Y1]], [[X1Y0]]) : [[P]]
+    // CHECK: [[Z2:%.+]] = poly.mul([[X1]], [[Y1]]) : [[P]]
+    // CHECK: [[Z:%.+]] = tensor.from_elements [[Z0]], [[Z1]], [[Z2]] : tensor<3x[[P]]>
+    %mul = bgv.mul(%x, %y) : !ct1, !ct1 -> !bgv.ciphertext<rings=#rings, dim=3, level=1>
     return
   }
 }
