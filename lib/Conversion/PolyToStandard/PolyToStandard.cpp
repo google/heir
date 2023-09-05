@@ -221,6 +221,7 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
              isLegalForReturnOpTypeConversionPattern(op, typeConverter);
     });
 
+    // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
     }

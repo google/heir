@@ -59,7 +59,7 @@ module {
     func.call @f0(%arg) : (!poly.poly<#ring>) -> !poly.poly<#ring>
     return
 
-  func.func @test_lower_from_coeffs() -> !poly.poly<#ring> {
+  func.func @test_lower_add() -> !poly.poly<#ring> {
     // 2 + 2x + 2x^2 + ... + 2x^{1023}
     // CHECK: [[X:%.+]] = arith.constant dense<2> : [[T:tensor<1024.*]]
     %coeffs1 = arith.constant dense<2> : tensor<1024xi64>
