@@ -1,4 +1,119 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Documentation</title><link>https://google.github.io/heir/docs/</link><description>Recent content in Documentation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://google.github.io/heir/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Getting Started</title><link>https://google.github.io/heir/docs/getting_started/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/getting_started/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Documentation</title><link>https://google.github.io/heir/docs/</link><description>Recent content in Documentation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://google.github.io/heir/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Contributing to HEIR</title><link>https://google.github.io/heir/docs/contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/contributing/</guid><description>
+&lt;p>There are several ways to contribute to HEIR, including:&lt;/p>
+&lt;ul>
+&lt;li>Discussing high-level designs and questions on HEIR&amp;rsquo;s
+&lt;a href="https://github.com/google/heir/discussions">discussions page&lt;/a>&lt;/li>
+&lt;li>Improving or expanding HEIR&amp;rsquo;s documentation&lt;/li>
+&lt;li>Contributing to HEIR&amp;rsquo;s &lt;a href="https://github.com/google/heir">code-base&lt;/a>&lt;/li>
+&lt;li>Discuss project direction at HEIR&amp;rsquo;s
+&lt;a href="https://google.github.io/heir/community/">Working Group meetings&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="ways-to-contribute">Ways to contribute&lt;/h2>
+&lt;p>We welcome pull requests. Please take a look at issues marked with
+&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22">good first issue&lt;/a>
+or
+&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22">contributions welcome&lt;/a>.&lt;/p>
+&lt;p>For new proposals, please open a GitHub
+&lt;a href="https://github.com/google/heir/issues">issue&lt;/a> or start a
+&lt;a href="https://github.com/google/heir/discussions">discussion&lt;/a> for feedback.&lt;/p>
+&lt;h2 id="contributing-to-code-using-pull-requests">Contributing to code using pull requests&lt;/h2>
+&lt;h3 id="preparing-a-pull-request">Preparing a pull request&lt;/h3>
+&lt;p>The following steps should look familiar to typical workflows for pull request
+contributions. Feel free to consult
+&lt;a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests">GitHub Help&lt;/a>
+if you need more information using pull requests. HEIR-specific processes begin
+at the &lt;a href="#pull-request-review-flow">pull request review stage&lt;/a>.&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Sign the
+&lt;a href="https://cla.developers.google.com/about">Contributor License Agreement&lt;/a>
+(CLA). See more
+&lt;a href="https://github.com/google/heir/blob/main/CONTRIBUTING.md#sign-our-contributor-license-agreement">here&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Fork the HEIR repository by clicking the &lt;strong>Fork&lt;/strong> button on the
+&lt;a href="https://github.com/google/heir">repository page&lt;/a>. This creates a copy of the
+HEIR repository on your own GitHub account.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>See &lt;a href="https://google.github.io/heir/docs/getting_started/">Getting Started&lt;/a> to
+install developer dependencies to build and run tests.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Add the HEIR repository as an upstream remote, so you can sync your changes
+against it.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git remote add upstream https://www.github.com/google/heir
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Create a development branch for your change:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> git checkout -b name-of-change
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>And implement your changes using your favorite IDE. See
+&lt;a href="https://google.github.io/heir/docs/ide_configuration/">IDE Configuration&lt;/a>
+for more.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Check HEIR&amp;rsquo;s lint and style checks by running the following from the top of
+the repository:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> pre-commit run --all
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Make sure tests are passing with the following:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Once you are ready with your change, create a commit as follows.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git add change.cpp
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git commit -m &lt;span style="color:#4e9a06">&amp;#34;Detailed commit message&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git push --set-upstream origin name-of-change
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ol>
+&lt;h3 id="pull-request-review-flow">Pull request review flow&lt;/h3>
+&lt;ol>
+&lt;li>&lt;strong>New PR&lt;/strong>:&lt;/li>
+&lt;/ol>
+&lt;ul>
+&lt;li>When a new PR is submitted, it is inspected for quality requirements, such as
+the CLA requirement, and a sufficient PR description.&lt;/li>
+&lt;li>If the PR passes checks, we assign a reviewer. If not, we request additional
+changes to ensure the PR passes CI checks.&lt;/li>
+&lt;/ul>
+&lt;ol start="2">
+&lt;li>&lt;strong>Review&lt;/strong>&lt;/li>
+&lt;/ol>
+&lt;ul>
+&lt;li>A reviewer will check the PR and potentially request additional changes.&lt;/li>
+&lt;li>If a change is needed, the contributor is requested to make a suggested
+change. Please make changes with additional commits to your PR, to ensure that
+the reviewer can easily see the diff.&lt;/li>
+&lt;li>If all looks good, the reviewer will approve the PR.&lt;/li>
+&lt;li>This cycle repeats itself until the PR is approved.&lt;/li>
+&lt;/ul>
+&lt;ol start="3">
+&lt;li>&lt;strong>Approved&lt;/strong>&lt;/li>
+&lt;/ol>
+&lt;ul>
+&lt;li>&lt;strong>At this stage, you must squash your commits into a single commit.&lt;/strong>&lt;/li>
+&lt;li>Once the PR is approved, you will see a &lt;code>squash ready&lt;/code> label applied if your
+PR requires you to squash together multiple commits. You may use the
+&lt;code>git rebase -i&lt;/code>. Pull requests must comprise of a single git commit before
+merging.&lt;/li>
+&lt;/ul>
+&lt;ol start="4">
+&lt;li>&lt;strong>Pull Ready&lt;/strong>&lt;/li>
+&lt;/ol>
+&lt;ul>
+&lt;li>Once the PR is squashed into a single git commit, the &lt;code>pull ready&lt;/code> label is
+applied.&lt;/li>
+&lt;li>This initiates the internal code migration and presubmits.&lt;/li>
+&lt;li>If needed, we may come to you to make some minor changes in case tests fail at
+this stage. If so, we will request changes from the GitHub UI and the PR must
+be approved again.&lt;/li>
+&lt;li>At times, it may not be your change, but it may be additional internal lints
+and layering checks that are not integrated with &lt;code>bazel&lt;/code> or open-source
+tooling. We will go ahead and fix this.&lt;/li>
+&lt;li>Once the internal tests pass, we merge the code internally and externally. You
+will see &lt;code>copybara-bot&lt;/code> close the PR and merge your commit directly into main.&lt;/li>
+&lt;/ul></description></item><item><title>Docs: Getting Started</title><link>https://google.github.io/heir/docs/getting_started/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/getting_started/</guid><description>
 &lt;h2 id="prerequisites">Prerequisites&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="https://git-scm.com/">Git&lt;/a>&lt;/li>
@@ -194,18 +309,7 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://google.github.io/heir/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://google.github.io/heir/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the
-&lt;a href="https://google.github.io/heir/community/">meeting calendar&lt;/a> to join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
 &lt;p>The second HEIR meeting was 2023-05-30
 (&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
 and
@@ -217,121 +321,6 @@ design rolling.&lt;/p>
 &lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Docs:</title><link>https://google.github.io/heir/docs/contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/contributing/</guid><description>
-&lt;p>There are several ways to contribute to HEIR, including:&lt;/p>
-&lt;ul>
-&lt;li>Discussing high-level designs and questions on HEIR&amp;rsquo;s
-&lt;a href="https://github.com/google/heir/discussions">discussions page&lt;/a>&lt;/li>
-&lt;li>Improving or expanding HEIR&amp;rsquo;s documentation&lt;/li>
-&lt;li>Contributing to HEIR&amp;rsquo;s &lt;a href="https://github.com/google/heir">code-base&lt;/a>&lt;/li>
-&lt;li>Discuss project direction at HEIR&amp;rsquo;s
-&lt;a href="https://google.github.io/heir/community/">Working Group meetings&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="ways-to-contribute">Ways to contribute&lt;/h2>
-&lt;p>We welcome pull requests. Please take a look at issues marked with
-&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22">good first issue&lt;/a>
-or
-&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22">contributions welcome&lt;/a>.&lt;/p>
-&lt;p>For new proposals, please open a GitHub
-&lt;a href="https://github.com/google/heir/issues">issue&lt;/a> or start a
-&lt;a href="https://github.com/google/heir/discussions">discussion&lt;/a> for feedback.&lt;/p>
-&lt;h2 id="contributing-to-code-using-pull-requests">Contributing to code using pull requests&lt;/h2>
-&lt;h3 id="preparing-a-pull-request">Preparing a pull request&lt;/h3>
-&lt;p>The following steps should look familiar to typical workflows for pull request
-contributions. Feel free to consult
-&lt;a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests">GitHub Help&lt;/a>
-if you need more information using pull requests. HEIR-specific processes begin
-at the &lt;a href="#pull-request-review-flow">pull request review stage&lt;/a>.&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>Sign the
-&lt;a href="https://cla.developers.google.com/about">Contributor License Agreement&lt;/a>
-(CLA). See more
-&lt;a href="https://github.com/google/heir/blob/main/CONTRIBUTING.md#sign-our-contributor-license-agreement">here&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Fork the HEIR repository by clicking the &lt;strong>Fork&lt;/strong> button on the
-&lt;a href="https://github.com/google/heir">repository page&lt;/a>. This creates a copy of the
-HEIR repository on your own GitHub account.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>See &lt;a href="https://google.github.io/heir/docs/getting_started/">Getting Started&lt;/a> to
-install developer dependencies to build and run tests.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Add the HEIR repository as an upstream remote, so you can sync your changes
-against it.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git remote add upstream https://www.github.com/google/heir
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;li>
-&lt;p>Create a development branch for your change:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> git checkout -b name-of-change
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>And implement your changes using your favorite IDE. See
-&lt;a href="https://google.github.io/heir/docs/ide_configuration/">IDE Configuration&lt;/a>
-for more.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Check HEIR&amp;rsquo;s lint and style checks by running the following from the top of
-the repository:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> pre-commit run --all
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;li>
-&lt;p>Make sure tests are passing with the following:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;li>
-&lt;p>Once you are ready with your change, create a commit as follows.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git add change.cpp
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git commit -m &lt;span style="color:#4e9a06">&amp;#34;Detailed commit message&amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git push --set-upstream origin name-of-change
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;/ol>
-&lt;h3 id="pull-request-review-flow">Pull request review flow&lt;/h3>
-&lt;ol>
-&lt;li>&lt;strong>New PR&lt;/strong>:&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>When a new PR is submitted, it is inspected for quality requirements, such as
-the CLA requirement, and a sufficient PR description.&lt;/li>
-&lt;li>If the PR passes checks, we assign a reviewer. If not, we request additional
-changes to ensure the PR passes CI checks.&lt;/li>
-&lt;/ul>
-&lt;ol start="2">
-&lt;li>&lt;strong>Review&lt;/strong>&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>A reviewer will check the PR and potentially request additional changes.&lt;/li>
-&lt;li>If a change is needed, the contributor is requested to make a suggested
-change. Please make changes with additional commits to your PR, to ensure that
-the reviewer can easily see the diff.&lt;/li>
-&lt;li>If all looks good, the reviewer will approve the PR.&lt;/li>
-&lt;li>This cycle repeats itself until the PR is approved.&lt;/li>
-&lt;/ul>
-&lt;ol start="3">
-&lt;li>&lt;strong>Approved&lt;/strong>&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>&lt;strong>At this stage, you must squash your commits into a single commit.&lt;/strong>&lt;/li>
-&lt;li>Once the PR is approved, you will see a &lt;code>squash ready&lt;/code> label applied if your
-PR requires you to squash together multiple commits. You may use the
-&lt;code>git rebase -i&lt;/code>. Pull requests must comprise of a single git commit before
-merging.&lt;/li>
-&lt;/ul>
-&lt;ol start="4">
-&lt;li>&lt;strong>Pull Ready&lt;/strong>&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>Once the PR is squashed into a single git commit, the &lt;code>pull ready&lt;/code> label is
-applied.&lt;/li>
-&lt;li>This initiates the internal code migration and presubmits.&lt;/li>
-&lt;li>If needed, we may come to you to make some minor changes in case tests fail at
-this stage. If so, we will request changes from the GitHub UI and the PR must
-be approved again.&lt;/li>
-&lt;li>At times, it may not be your change, but it may be additional internal lints
-and layering checks that are not integrated with &lt;code>bazel&lt;/code> or open-source
-tooling. We will go ahead and fix this.&lt;/li>
-&lt;li>Once the internal tests pass, we merge the code internally and externally. You
-will see &lt;code>copybara-bot&lt;/code> close the PR and merge your commit directly into main.&lt;/li>
 &lt;/ul></description></item><item><title>Docs: BGVAttributes</title><link>https://google.github.io/heir/docs/dialects/bgvattributes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/bgvattributes/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="bgvringsattr">BGVRingsAttr&lt;/h3>
