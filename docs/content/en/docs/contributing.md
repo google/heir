@@ -1,9 +1,8 @@
 <!-- mdformat off(yaml frontmatter) -->
-
-______________________________________________________________________
-
-## title: Contributing to HEIR weight: 1
-
+---
+title: Contributing to HEIR
+weight: 1
+---
 <!-- mdformat on -->
 
 There are several ways to contribute to HEIR, including:
