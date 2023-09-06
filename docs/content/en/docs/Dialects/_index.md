@@ -1,7 +1,7 @@
 <!-- mdformat off(yaml frontmatter) -->
 ---
 title: Dialects
-weight: 2
+weight: 7
 ---
 <!-- mdformat on -->
 

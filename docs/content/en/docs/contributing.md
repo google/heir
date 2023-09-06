@@ -1,7 +1,7 @@
 <!-- mdformat off(yaml frontmatter) -->
 ---
 title: Contributing to HEIR
-weight: 1
+weight: 2
 ---
 <!-- mdformat on -->
 
