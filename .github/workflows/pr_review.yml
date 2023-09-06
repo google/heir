@@ -34,3 +34,5 @@ jobs:
     steps:
       - name: Apply `pull ready` label
         uses: actions/labeler@ac9175f8a1f3625fd0d4fb234536d26811351594 # pin@v4
+        with:
+          dot: true

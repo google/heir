@@ -1,4 +1,4 @@
 # This is used by .github/workflows/pr_review.yml to apply the `pull_ready`
 # label to any root change when it has approval.
 pull_ready:
-- '*'
+- '**'
