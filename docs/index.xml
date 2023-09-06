@@ -1,4 +1,36 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Documentation</title><link>https://google.github.io/heir/docs/</link><description>Recent content in Documentation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://google.github.io/heir/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Contributing to HEIR</title><link>https://google.github.io/heir/docs/contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/contributing/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Documentation</title><link>https://google.github.io/heir/docs/</link><description>Recent content in Documentation on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://google.github.io/heir/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Getting Started</title><link>https://google.github.io/heir/docs/getting_started/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/getting_started/</guid><description>
+&lt;h2 id="prerequisites">Prerequisites&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://git-scm.com/">Git&lt;/a>&lt;/li>
+&lt;li>Bazel via &lt;a href="https://github.com/bazelbuild/bazelisk">bazelisk&lt;/a>, or version
+&lt;code>&amp;gt;=5.5&lt;/code>&lt;/li>
+&lt;li>A C compiler (like &lt;a href="https://gcc.gnu.org/">gcc&lt;/a> or
+&lt;a href="https://clang.llvm.org/">clang&lt;/a>)&lt;/li>
+&lt;li>&lt;a href="https://www.python.org/">Python&lt;/a> (optional, for some tests)&lt;/li>
+&lt;li>GNU &lt;a href="https://github.com/westes/flex">flex&lt;/a> and
+&lt;a href="https://www.gnu.org/software/bison/">bison&lt;/a>, for the Yosys dependency
+(optional)&lt;/li>
+&lt;/ul>
+&lt;h2 id="clone-and-build-the-project">Clone and build the project&lt;/h2>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git clone git@github.com:google/heir.git &lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&amp;amp;&lt;/span> &lt;span style="color:#204a87">cd&lt;/span> heir
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>bazel build @heir//...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="optional-run-the-tests">Optional: Run the tests&lt;/h2>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note some tests require Python to run. You may also need to install
+&lt;a href="https://pypi.org/project/lit/">lit&lt;/a>.&lt;/p>
+&lt;h2 id="developing-in-heir">Developing in HEIR&lt;/h2>
+&lt;p>We use &lt;a href="https://pre-commit.com/">pre-commit&lt;/a> to manage a series of git
+pre-commit hooks for the project; for example, each time you commit code, the
+hooks will make sure that your C++ is formatted properly. If your code isn&amp;rsquo;t,
+the hook will format it, so when you try to commit the second time you&amp;rsquo;ll get
+past the hook.&lt;/p>
+&lt;p>All hooks are defined in &lt;code>.pre-commit-config.yaml&lt;/code>. To install these hooks, run&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pip install -r requirements-dev.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then install the hooks to run automatically on &lt;code>git commit&lt;/code>:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit install
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To run them manually, run&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit run --all-files
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: Contributing to HEIR</title><link>https://google.github.io/heir/docs/contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/contributing/</guid><description>
 &lt;p>There are several ways to contribute to HEIR, including:&lt;/p>
 &lt;ul>
 &lt;li>Discussing high-level designs and questions on HEIR&amp;rsquo;s
@@ -113,39 +145,7 @@ and layering checks that are not integrated with &lt;code>bazel&lt;/code> or ope
 tooling. We will go ahead and fix this.&lt;/li>
 &lt;li>Once the internal tests pass, we merge the code internally and externally. You
 will see &lt;code>copybara-bot&lt;/code> close the PR and merge your commit directly into main.&lt;/li>
-&lt;/ul></description></item><item><title>Docs: Getting Started</title><link>https://google.github.io/heir/docs/getting_started/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/getting_started/</guid><description>
-&lt;h2 id="prerequisites">Prerequisites&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://git-scm.com/">Git&lt;/a>&lt;/li>
-&lt;li>Bazel via &lt;a href="https://github.com/bazelbuild/bazelisk">bazelisk&lt;/a>, or version
-&lt;code>&amp;gt;=5.5&lt;/code>&lt;/li>
-&lt;li>A C compiler (like &lt;a href="https://gcc.gnu.org/">gcc&lt;/a> or
-&lt;a href="https://clang.llvm.org/">clang&lt;/a>)&lt;/li>
-&lt;li>&lt;a href="https://www.python.org/">Python&lt;/a> (optional, for some tests)&lt;/li>
-&lt;li>GNU &lt;a href="https://github.com/westes/flex">flex&lt;/a> and
-&lt;a href="https://www.gnu.org/software/bison/">bison&lt;/a>, for the Yosys dependency
-(optional)&lt;/li>
-&lt;/ul>
-&lt;h2 id="clone-and-build-the-project">Clone and build the project&lt;/h2>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git clone git@github.com:google/heir.git &lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&amp;amp;&lt;/span> &lt;span style="color:#204a87">cd&lt;/span> heir
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>bazel build @heir//...
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="optional-run-the-tests">Optional: Run the tests&lt;/h2>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note some tests require Python to run. You may also need to install
-&lt;a href="https://pypi.org/project/lit/">lit&lt;/a>.&lt;/p>
-&lt;h2 id="developing-in-heir">Developing in HEIR&lt;/h2>
-&lt;p>We use &lt;a href="https://pre-commit.com/">pre-commit&lt;/a> to manage a series of git
-pre-commit hooks for the project; for example, each time you commit code, the
-hooks will make sure that your C++ is formatted properly. If your code isn&amp;rsquo;t,
-the hook will format it, so when you try to commit the second time you&amp;rsquo;ll get
-past the hook.&lt;/p>
-&lt;p>All hooks are defined in &lt;code>.pre-commit-config.yaml&lt;/code>. To install these hooks, run&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pip install -r requirements-dev.txt
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then install the hooks to run automatically on &lt;code>git commit&lt;/code>:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit install
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To run them manually, run&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit run --all-files
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: IDE Configuration</title><link>https://google.github.io/heir/docs/ide_configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/ide_configuration/</guid><description>
+&lt;/ul></description></item><item><title>Docs: IDE Configuration</title><link>https://google.github.io/heir/docs/ide_configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/ide_configuration/</guid><description>
 &lt;h2 id="vs-code">VS Code&lt;/h2>
 &lt;p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
 extensions:&lt;/p>
@@ -309,30 +309,7 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://google.github.io/heir/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
-from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
-there is no video recording this week.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://google.github.io/heir/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://google.github.io/heir/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://google.github.io/heir/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
-&lt;p>The fourth HEIR meeting was 2023-08-01
-(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
-&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
-&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
-fun!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the
-&lt;a href="https://google.github.io/heir/community/">meeting calendar&lt;/a> to join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
 &lt;p>The second HEIR meeting was 2023-05-30
 (&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
 and
