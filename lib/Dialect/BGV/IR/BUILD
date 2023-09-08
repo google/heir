@@ -14,6 +14,7 @@ cc_library(
         "@heir//include/Dialect/BGV/IR:BGVAttributes.h",
         "@heir//include/Dialect/BGV/IR:BGVDialect.h",
         "@heir//include/Dialect/BGV/IR:BGVOps.h",
+        "@heir//include/Dialect/BGV/IR:BGVTraits.h",
         "@heir//include/Dialect/BGV/IR:BGVTypes.h",
     ],
     includes = ["@heir//include"],

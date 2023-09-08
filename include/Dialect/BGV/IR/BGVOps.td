@@ -8,6 +8,9 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 
 // TODO(https://github.com/google/heir/issues/101): Add verifiers for BGV ops.
+def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
+  let cppNamespace = "::mlir::heir::bgv";
+}
 
 class BGV_Op<string mnemonic, list<Trait> traits = []> :
         Op<BGV_Dialect, mnemonic, traits> {
@@ -52,7 +55,7 @@ def BGV_SubOp : BGV_Op<"sub", [SameOperandsAndResultType]> {
   let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
 }
 
-def BGV_MulOp : BGV_Op<"mul", [Commutative]> {
+def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, SameTypeOperands]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
@@ -64,10 +67,10 @@ def BGV_MulOp : BGV_Op<"mul", [Commutative]> {
     Ciphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($x)`,` type($y) `->` type($output)" ;
+  let assemblyFormat = "`(` operands `)` attr-dict `:` type($x) `->` type($output)" ;
 }
 
-def BGV_Rotate : BGV_Op<"rotate"> {
+def BGV_Rotate : BGV_Op<"rotate", [SameOperandsAndResultRings]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
@@ -90,9 +93,11 @@ def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {
   let results = (outs
     Ciphertext:$output
   );
+
+  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
 }
 
-def BGV_Relinearize : BGV_Op<"relinearize"> {
+def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings]> {
   let summary = "Relinearize the ciphertext.";
 
   let description = [{
@@ -116,7 +121,7 @@ def BGV_Relinearize : BGV_Op<"relinearize"> {
   );
 }
 
-def BGV_ModulusSwitch : BGV_Op<"modulus_switch"> {
+def BGV_ModulusSwitch : BGV_Op<"modulus_switch", [SameOperandsAndResultRings]> {
   // This must be validated against the BGV ring parameter.
   let summary = "Lower the modulus level of the ciphertext.";
 

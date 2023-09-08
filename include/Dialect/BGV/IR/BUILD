@@ -13,6 +13,7 @@ exports_files(
         "BGVOps.h",
         "BGVTypes.h",
         "BGVAttributes.h",
+        "BGVTraits.h",
     ],
 )
 

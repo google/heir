@@ -26,7 +26,7 @@ module {
     %sub = bgv.sub(%x, %y) : !ct1
     // CHECK: [[C:%.+]] = arith.constant -1 : [[I:.+]]
     // CHECK: poly.mul_constant([[X]], [[C]]) : ([[T]], [[I]]) -> [[T]]
-    %negate = bgv.negate(%x) : (!ct1) -> !ct1
+    %negate = bgv.negate(%x) : !ct1
 
     // CHECK: [[I0:%.+]] = arith.constant 0 : index
     // CHECK: [[I1:%.+]] = arith.constant 1 : index
@@ -40,7 +40,7 @@ module {
     // CHECK: [[Z1:%.+]] = poly.add([[X0Y1]], [[X1Y0]]) : [[P]]
     // CHECK: [[Z2:%.+]] = poly.mul([[X1]], [[Y1]]) : [[P]]
     // CHECK: [[Z:%.+]] = tensor.from_elements [[Z0]], [[Z1]], [[Z2]] : tensor<3x[[P]]>
-    %mul = bgv.mul(%x, %y) : !ct1, !ct1 -> !bgv.ciphertext<rings=#rings, dim=3, level=1>
+    %mul = bgv.mul(%x, %y) : !ct1 -> !bgv.ciphertext<rings=#rings, dim=3, level=1>
     return
   }
 }
