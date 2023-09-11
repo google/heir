@@ -106,15 +106,15 @@ at the [pull request review stage](#pull-request-review-flow).
 3. **Approved**
 
 - **At this stage, you must squash your commits into a single commit.**
-- Once the PR is approved, you will see a `squash ready` label applied if your
-  PR requires you to squash together multiple commits. You may use the
-  `git rebase -i`. Pull requests must comprise of a single git commit before
-  merging.
+- Once the PR is approved, a GitHub workflow will
+  [check](https://github.com/google/heir/blob/main/.github/workflows/pr_review.yml)
+  your PR for multiple commits. You may use the `git rebase -i` to squash the
+  commits. Pull requests must comprise of a single git commit before merging.
 
 4. **Pull Ready**
 
-- Once the PR is squashed into a single git commit, the `pull ready` label is
-  applied.
+- Once the PR is squashed into a single git commit, a maintainer will apply the
+  `pull ready` label.
 - This initiates the internal code migration and presubmits.
 - If needed, we may come to you to make some minor changes in case tests fail at
   this stage. If so, we will request changes from the GitHub UI and the PR must
