@@ -3,6 +3,7 @@
 
 #include "include/Dialect/BGV/IR/BGVAttributes.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "include/Dialect/BGV/IR/BGVTraits.h"
 #include "include/Dialect/BGV/IR/BGVTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
