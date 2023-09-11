@@ -48,11 +48,11 @@ the repository:</p><div class=highlight><pre tabindex=0 style=background-color:#
 the CLA requirement, and a sufficient PR description.</li><li>If the PR passes checks, we assign a reviewer. If not, we request additional
 changes to ensure the PR passes CI checks.</li></ul><ol start=2><li><strong>Review</strong></li></ol><ul><li>A reviewer will check the PR and potentially request additional changes.</li><li>If a change is needed, the contributor is requested to make a suggested
 change. Please make changes with additional commits to your PR, to ensure that
-the reviewer can easily see the diff.</li><li>If all looks good, the reviewer will approve the PR.</li><li>This cycle repeats itself until the PR is approved.</li></ul><ol start=3><li><strong>Approved</strong></li></ol><ul><li><strong>At this stage, you must squash your commits into a single commit.</strong></li><li>Once the PR is approved, you will see a <code>squash ready</code> label applied if your
-PR requires you to squash together multiple commits. You may use the
-<code>git rebase -i</code>. Pull requests must comprise of a single git commit before
-merging.</li></ul><ol start=4><li><strong>Pull Ready</strong></li></ol><ul><li>Once the PR is squashed into a single git commit, the <code>pull ready</code> label is
-applied.</li><li>This initiates the internal code migration and presubmits.</li><li>If needed, we may come to you to make some minor changes in case tests fail at
+the reviewer can easily see the diff.</li><li>If all looks good, the reviewer will approve the PR.</li><li>This cycle repeats itself until the PR is approved.</li></ul><ol start=3><li><strong>Approved</strong></li></ol><ul><li><strong>At this stage, you must squash your commits into a single commit.</strong></li><li>Once the PR is approved, a GitHub workflow will
+<a href=https://github.com/google/heir/blob/main/.github/workflows/pr_review.yml>check</a>
+your PR for multiple commits. You may use the <code>git rebase -i</code> to squash the
+commits. Pull requests must comprise of a single git commit before merging.</li></ul><ol start=4><li><strong>Pull Ready</strong></li></ol><ul><li>Once the PR is squashed into a single git commit, a maintainer will apply the
+<code>pull ready</code> label.</li><li>This initiates the internal code migration and presubmits.</li><li>If needed, we may come to you to make some minor changes in case tests fail at
 this stage. If so, we will request changes from the GitHub UI and the PR must
 be approved again.</li><li>At times, it may not be your change, but it may be additional internal lints
 and layering checks that are not integrated with <code>bazel</code> or open-source
