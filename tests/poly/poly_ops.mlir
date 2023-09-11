@@ -18,6 +18,8 @@ module {
 
     %poly1 = poly.from_coeffs(%coeffs1) : (tensor<3xi32>) -> !poly.poly<#ring1>
     %poly2 = poly.from_coeffs(%coeffs2) : (tensor<3xi32>) -> !poly.poly<#ring1>
+    //%poly3 = "poly.constant"() <{ coefficients = dense<[2, 2, 5]> : tensor<3xi32> }> : () -> !poly.poly<#ring1>
+    %poly3 = "poly.constant"() <{ coefficients = dense<[2, 2, 5]> : tensor<3xi32> }> : !poly.poly<#ring1> : () -> !poly.poly<#ring1>
 
     // CHECK: #poly.ring<cmod=2837465, ideal=#poly.polynomial<1 + x**1024>>
     %3 = poly.mul(%poly1, %poly2) {ring = #ring1} : !poly.poly<#ring1>

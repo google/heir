@@ -54,6 +54,20 @@ struct ConvertPolyFromCoeffs : public OpConversionPattern<PolyFromCoeffsOp> {
   }
 };
 
+struct ConvertPolyFromConst : public OpConversionPattern<PolyFromConst> {
+  ConvertPolyFromConst(mlir::MLIRContext *context)
+      : OpConversionPattern<PolyFromConst>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      PolyFromConst op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getOperands()[0]);
+    return success();
+  }
+};
+
 struct ConvertAdd : public OpConversionPattern<AddOp> {
   ConvertAdd(mlir::MLIRContext *context)
       : OpConversionPattern<AddOp>(context) {}
@@ -93,6 +107,7 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
 
     // target.addIllegalDialect<PolyDialect>();
     target.addIllegalOp<PolyFromCoeffsOp>();
+    target.addIllegalOp<PolyFromConst>();
     // target.addIllegalOp<AddOp>();
     // target.addIllegalOp<MulOp>();
 
@@ -101,6 +116,7 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
 
     RewritePatternSet patterns(context);
     patterns.add<ConvertPolyFromCoeffs>(typeConverter, context);
+    patterns.add<ConvertPolyFromConst> (typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
