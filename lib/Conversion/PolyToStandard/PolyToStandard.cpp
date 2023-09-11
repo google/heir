@@ -21,7 +21,7 @@ class PolyToStandardTypeConverter : public TypeConverter {
  public:
   PolyToStandardTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](PolynomialType type) -> Type {
+    addConversion([ctx](PolyType type) -> Type {
       RingAttr attr = type.getRing();
       uint32_t idealDegree = attr.ideal().getDegree();
       IntegerType elementTy =
@@ -40,14 +40,14 @@ class PolyToStandardTypeConverter : public TypeConverter {
   }
 };
 
-struct ConvertPolyFromCoeffs : public OpConversionPattern<PolyFromCoeffsOp> {
-  ConvertPolyFromCoeffs(mlir::MLIRContext *context)
-      : OpConversionPattern<PolyFromCoeffsOp>(context) {}
+struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
+  ConvertFromTensor(mlir::MLIRContext *context)
+      : OpConversionPattern<FromTensorOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      PolyFromCoeffsOp op, OpAdaptor adaptor,
+      FromTensorOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOp(op, adaptor.getOperands()[0]);
     return success();
@@ -92,7 +92,7 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     PolyToStandardTypeConverter typeConverter(context);
 
     // target.addIllegalDialect<PolyDialect>();
-    target.addIllegalOp<PolyFromCoeffsOp>();
+    target.addIllegalOp<FromTensorOp>();
     // target.addIllegalOp<AddOp>();
     // target.addIllegalOp<MulOp>();
 
@@ -100,7 +100,7 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     // converters for func/call/return
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertPolyFromCoeffs>(typeConverter, context);
+    patterns.add<ConvertFromTensor>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
