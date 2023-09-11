@@ -10,10 +10,8 @@
 #include "include/Dialect/Poly/IR/PolyOps.h"
 #include "include/Dialect/Poly/IR/PolyTypes.h"
 #include "include/Dialect/Poly/IR/Polynomial.h"
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/Transforms/OneToNFuncConversions.h"  // from @llvm-project
+#include "lib/Conversion/Utils.h"
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
@@ -166,26 +164,7 @@ struct BGVToPoly : public impl::BGVToPolyBase<BGVToPoly> {
         typeConverter, context);
     target.addIllegalOp<AddOp, SubOp, Negate, MulOp>();
 
-    // Add "standard" set of conversions and constraints for full dialect
-    // conversion. See Dialect/Func/Transforms/FuncBufferize.cpp for example.
-    populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
-        patterns, typeConverter);
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isSignatureLegal(op.getFunctionType()) &&
-             typeConverter.isLegal(&op.getBody());
-    });
-    populateCallOpTypeConversionPattern(patterns, typeConverter);
-    target.addDynamicallyLegalOp<func::CallOp>(
-        [&](func::CallOp op) { return typeConverter.isLegal(op); });
-
-    populateBranchOpInterfaceTypeConversionPattern(patterns, typeConverter);
-    populateReturnOpTypeConversionPattern(patterns, typeConverter);
-    target.markUnknownOpDynamicallyLegal([&](Operation *op) {
-      return isNotBranchOpInterfaceOrReturnLikeOp(op) ||
-             isLegalForBranchOpInterfaceTypeConversionPattern(op,
-                                                              typeConverter) ||
-             isLegalForReturnOpTypeConversionPattern(op, typeConverter);
-    });
+    addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // Run full conversion, if any BGV ops were missed out the pass will fail.
     if (failed(applyFullConversion(module, target, std::move(patterns)))) {
