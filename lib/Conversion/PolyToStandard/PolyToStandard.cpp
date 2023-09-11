@@ -2,6 +2,7 @@
 
 #include "include/Dialect/Poly/IR/PolyOps.h"
 #include "include/Dialect/Poly/IR/PolyTypes.h"
+#include "lib/Conversion/Utils.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -96,11 +97,10 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     // target.addIllegalOp<AddOp>();
     // target.addIllegalOp<MulOp>();
 
-    // TODO(https://github.com/google/heir/issues/105): add upstream type
-    // converters for func/call/return
-
     RewritePatternSet patterns(context);
     patterns.add<ConvertPolyFromCoeffs>(typeConverter, context);
+
+    addStructuralConversionPatterns(typeConverter, patterns, target);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
