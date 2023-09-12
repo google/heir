@@ -118,44 +118,50 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   // element-wise as elements of the ring, so they are performed modulo the
   // coefficient modulus.
   //
-  // Modular addition is performed by sign extending both arguments and
-  // performing (N+1)-bit addition. Then, if z = (x + y) is the (N+1)-bit sum,
-  // we return
-  //   truncate(z >= mod ? z - mod : z)
+  // To perform modular addition, assume that `cmod` is the coefficient modulus
+  // of the ring, and that `N` is the bitwidth used to store the ring elements.
+  // This may be much larger than `log_2(cmod)`.
+  //
+  // Let `x` and `y` be the inputs to modular addition, then:
+  //    c1, n1 = addui_extended(x, y)
+  // If the coefficient modulus divides `2^N`, then return
+  //    c0 = c1 % cmod
+  // Otherwise, compute the adjusted result:
+  //    c0 = ((c1 % cmod) + (n1 * 2^N % cmod)) % cmod
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     auto type = adaptor.getLhs().getType();
-    auto elementTy =
-        type.cast<RankedTensorType>().getElementType().cast<IntegerType>();
-    auto extType = IntegerType::get(getContext(), elementTy.getWidth() + 1,
-                                    elementTy.getSignedness());
-    auto extShapeType = type.cast<ShapedType>().clone(extType);
+    APInt mod = op.getType().cast<PolyType>().getRing().coefficientModulus();
+    auto cmod = rewriter.create<arith::ConstantOp>(
+        op.getLoc(), DenseElementsAttr::get(cast<ShapedType>(type), {mod}));
 
-    mlir::Value extLhsOp = rewriter.create<arith::ExtUIOp>(
-        op.getLoc(), extShapeType, adaptor.getLhs());
-    mlir::Value extRhsOp = rewriter.create<arith::ExtUIOp>(
-        op.getLoc(), extShapeType, adaptor.getRhs());
+    auto addExtendedOp = rewriter.create<arith::AddUIExtendedOp>(
+        op.getLoc(), adaptor.getLhs(), adaptor.getRhs());
+    auto c1ModOp = rewriter.create<arith::RemUIOp>(
+        op.getLoc(), addExtendedOp->getResult(0), cmod);
+    // If mod divides 2^N, c1modOp is our result.
+    if (mod.isPowerOf2()) {
+      rewriter.replaceOp(op, c1ModOp.getResult());
+      return success();
+    }
+    // Otherwise, add (n1 * 2^N % cmod)
+    APInt quotient, remainder;
+    APInt bigMod = APInt(mod.getBitWidth() + 1, 2) << (mod.getBitWidth() - 1);
+    APInt::udivrem(bigMod, mod.zext(bigMod.getBitWidth()), quotient, remainder);
+    remainder = remainder.trunc(mod.getBitWidth());
 
-    auto addOp = rewriter.create<arith::AddIOp>(op.getLoc(), extShapeType,
-                                                extLhsOp, extRhsOp);
+    auto bitwidth = rewriter.create<arith::ConstantOp>(
+        op.getLoc(),
+        DenseElementsAttr::get(cast<ShapedType>(type), {remainder}));
+    auto adjustOp =
+        rewriter.create<arith::AddIOp>(op.getLoc(), c1ModOp, bitwidth);
 
-    APInt mod =
-        op.getType().cast<PolynomialType>().getRing().coefficientModulus();
-    assert(mod != 0 && "coefficient modulus must not be zero");
-    auto modConstOp = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), DenseElementsAttr::get(extShapeType, {mod}));
-
-    auto geCmp = rewriter.create<arith::CmpIOp>(
-        addOp.getLoc(), arith::CmpIPredicate::uge, addOp, modConstOp);
     auto selectOp = rewriter.create<arith::SelectOp>(
-        geCmp->getLoc(), geCmp,
-        rewriter.create<arith::SubIOp>(geCmp->getLoc(), addOp, modConstOp),
-        addOp);
-
-    auto truncOp = rewriter.create<arith::TruncIOp>(
-        selectOp.getLoc(), type.cast<ShapedType>(), selectOp);
-    rewriter.replaceOp(op, truncOp.getResult());
+        op.getLoc(), addExtendedOp.getResult(1), c1ModOp, adjustOp);
+    // Mod the final result.
+    rewriter.replaceOp(
+        op, rewriter.create<arith::RemUIOp>(op.getLoc(), selectOp, cmod));
 
     return success();
   }
@@ -187,39 +193,13 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     target.addLegalDialect<arith::ArithDialect>();
 
     // target.addIllegalDialect<PolyDialect>();
-    target.addIllegalOp<FromTensorOp, ToTensorOp>();
+    target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp>();
     // target.addIllegalOp<AddOp>();
     // target.addIllegalOp<MulOp>();
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor, ConvertToTensor>(typeConverter, context);
-
+    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd>(typeConverter, context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
-    target.addIllegalOp<PolyFromCoeffsOp, AddOp>();
-    // target.addIllegalOp<MulOp>();
-
-    RewritePatternSet patterns(context);
-    patterns.add<ConvertPolyFromCoeffs, ConvertAdd>(typeConverter, context);
-
-    populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
-        patterns, typeConverter);
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isSignatureLegal(op.getFunctionType()) &&
-             typeConverter.isLegal(&op.getBody());
-    });
-    populateCallOpTypeConversionPattern(patterns, typeConverter);
-    target.addDynamicallyLegalOp<func::CallOp>(
-        [&](func::CallOp op) { return typeConverter.isLegal(op); });
-    populateReturnOpTypeConversionPattern(patterns, typeConverter);
-    target.addDynamicallyLegalOp<func::ReturnOp>(
-        [&](func::ReturnOp op) { return typeConverter.isLegal(op); });
-    populateBranchOpInterfaceTypeConversionPattern(patterns, typeConverter);
-    target.markUnknownOpDynamicallyLegal([&](Operation *op) {
-      return isNotBranchOpInterfaceOrReturnLikeOp(op) ||
-             isLegalForBranchOpInterfaceTypeConversionPattern(op,
-                                                              typeConverter) ||
-             isLegalForReturnOpTypeConversionPattern(op, typeConverter);
-    });
 
     // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

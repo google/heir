@@ -3,6 +3,7 @@
 
 #cycl_2048 = #poly.polynomial<1 + x**1024>
 #ring = #poly.ring<cmod=4294967296, ideal=#cycl_2048>
+#ring_prime = #poly.ring<cmod=4294967291, ideal=#cycl_2048>
 module {
   // CHECK-label: test_lower_from_tensor
   func.func @test_lower_from_tensor() {
@@ -58,26 +59,42 @@ module {
   func.func @test_lower_fn_and_call(%arg: !poly.poly<#ring>) {
     func.call @f0(%arg) : (!poly.poly<#ring>) -> !poly.poly<#ring>
     return
+  }
 
-  func.func @test_lower_add() -> !poly.poly<#ring> {
+  func.func @test_lower_add_power_of_two_cmod() -> !poly.poly<#ring> {
     // 2 + 2x + 2x^2 + ... + 2x^{1023}
-    // CHECK: [[X:%.+]] = arith.constant dense<2> : [[T:tensor<1024.*]]
+    // CHECK: [[X:%.+]] = arith.constant dense<2> : [[T:tensor<1024xi64>]]
     %coeffs1 = arith.constant dense<2> : tensor<1024xi64>
     // CHECK: [[Y:%.+]] = arith.constant dense<3> : [[T]]
     %coeffs2 = arith.constant dense<3> : tensor<1024xi64>
-    // CHECK-NOT: poly.from_coeffs
-    %poly0 = poly.from_coeffs(%coeffs1) : (tensor<1024xi64>) -> !poly.poly<#ring>
-    %poly1 = poly.from_coeffs(%coeffs2) : (tensor<1024xi64>) -> !poly.poly<#ring>
-    // CHECK: [[XEXT:%.+]] = arith.extui [[X]] : [[T]] to [[TEXT:tensor<1024.*]]
-    // CHECK-NEXT: [[YEXT:%.+]] = arith.extui [[Y]] : [[T]] to [[TEXT:tensor<1024.*]]
-    // CHECK-NEXT: [[ZEXT:%.+]] = arith.addi [[XEXT]], [[YEXT]] : [[TEXT]]
-    // CHECK-NEXT:  [[MOD:%.+]] = arith.constant dense<4294967296> : [[TEXT]]
-    // CHECK-NEXT: [[CMP:%.+]] = arith.cmpi uge, [[ZEXT]], [[MOD]] : [[TEXT]]
-    // CHECK-NEXT: [[SUB:%.+]] = arith.subi [[ZEXT]], [[MOD]] : [[TEXT]]
-    // CHECK-NEXT: [[SEL:%.+]] = arith.select [[CMP]], [[SUB]], [[ZEXT]] : tensor<1024xi1>, [[TEXT]]
-    // CHECK-NEXT:  [[Z:%.+]] = arith.trunci [[SEL]] : [[TEXT]] to [[T]]
+    // CHECK-NOT: poly.from_tensor
+    %poly0 = poly.from_tensor %coeffs1 : tensor<1024xi64> -> !poly.poly<#ring>
+    %poly1 = poly.from_tensor %coeffs2 : tensor<1024xi64> -> !poly.poly<#ring>
+    // CHECK:  [[MOD:%.+]] = arith.constant dense<4294967296> : [[T]]
+    // CHECK-NEXT: [[ADD:%.+]], [[OVERFLOW:%.+]] = arith.addui_extended [[X]], [[Y]] : [[T]], tensor<1024xi1>
+    // CHECK-NEXT: [[REM:%.+]] = arith.remui [[ADD]], [[MOD]] : [[T]]
     %poly2 = poly.add(%poly0, %poly1) {ring = #ring} : !poly.poly<#ring>
-    // CHECK: return  [[Z]] : [[T]]
+    // CHECK: return  [[REM]] : [[T]]
     return %poly2 : !poly.poly<#ring>
+  }
+
+  func.func @test_lower_add_prime_cmod() -> !poly.poly<#ring_prime> {
+    // CHECK: [[X:%.+]] = arith.constant dense<2> : [[T:tensor<1024xi64>]]
+    %coeffs1 = arith.constant dense<2> : tensor<1024xi64>
+    // CHECK: [[Y:%.+]] = arith.constant dense<3> : [[T]]
+    %coeffs2 = arith.constant dense<3> : tensor<1024xi64>
+    // CHECK-NOT: poly.from_tensor
+    %poly0 = poly.from_tensor %coeffs1 : tensor<1024xi64> -> !poly.poly<#ring_prime>
+    %poly1 = poly.from_tensor %coeffs2 : tensor<1024xi64> -> !poly.poly<#ring_prime>
+    // CHECK:  [[MOD:%.+]] = arith.constant dense<4294967291> : [[T]]
+    // CHECK-NEXT: [[ADD:%.+]], [[OVERFLOW:%.+]] = arith.addui_extended [[X]], [[Y]] : [[T]], tensor<1024xi1>
+    // CHECK-NEXT: [[REM:%.+]] = arith.remui [[ADD]], [[MOD]] : [[T]]
+    // CHECK-NEXT: [[NMOD:%.+]] = arith.constant dense<25> : [[T]]
+    // CHECK-NEXT: [[REMPLUS2N:%.+]] = arith.addi [[REM]], [[NMOD]] : [[T]]
+    // CHECK-NEXT: [[RES:%.+]] = arith.select [[OVERFLOW]], [[REM]], [[REMPLUS2N]] : tensor<1024xi1>, [[T]]
+    // CHECK-NEXT: [[RESMOD:%.+]] = arith.remui [[RES]], [[MOD]] : [[T]]
+    %poly2 = poly.add(%poly0, %poly1) {ring = #ring_prime} : !poly.poly<#ring_prime>
+    // CHECK: return  [[RESMOD]] : [[T]]
+    return %poly2 : !poly.poly<#ring_prime>
   }
 }
