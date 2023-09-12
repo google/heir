@@ -2,11 +2,13 @@
 #define HEIR_INCLUDE_DIALECT_SECRET_IR_SECRETDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def Secret_Dialect : Dialect {
   let name = "secret";
-  let summary = "A dialect for computations that operate on encrypted secrets.";
   let description = [{
+    Secret is a dialect for computations that operate on encrypted data.
+
     Secret is intended to serve as a scheme-agnostic front-end for the HEIR
     ecosystem of dialects. It is supposed to be fully interoperable with the
     rest of MLIR via secret.generic, while lower-level HEIR dialects would have
