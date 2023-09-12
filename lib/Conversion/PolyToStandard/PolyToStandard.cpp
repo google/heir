@@ -27,8 +27,8 @@ class PolyToStandardTypeConverter : public TypeConverter {
       uint32_t idealDegree = attr.ideal().getDegree();
       IntegerType elementTy =
           IntegerType::get(ctx, attr.coefficientModulus().getBitWidth(),
-                           IntegerType::SignednessSemantics::Unsigned);
-      return RankedTensorType::get({idealDegree}, elementTy, attr);
+                           IntegerType::SignednessSemantics::Signless);
+      return RankedTensorType::get({idealDegree}, elementTy);
     });
 
     // We don't include any custom materialization ops because this lowering is
@@ -50,7 +50,55 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
   LogicalResult matchAndRewrite(
       FromTensorOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getOperands()[0]);
+    auto resultTy = typeConverter->convertType(op->getResultTypes()[0]);
+    auto resultTensorTy = cast<RankedTensorType>(resultTy);
+    auto resultShape = resultTensorTy.getShape()[0];
+    auto resultEltTy = resultTensorTy.getElementType();
+
+    auto inputTensorTy = op.getInput().getType();
+    auto inputShape = inputTensorTy.getShape()[0];
+    auto inputEltTy = inputTensorTy.getElementType();
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto coeffValue = adaptor.getOperands()[0];
+    // Extend element type if needed.
+    if (inputEltTy != resultEltTy) {
+      // FromTensorOp verifies that the coefficient tensor's elements fit into
+      // the polynomial.
+      assert(inputEltTy.getIntOrFloatBitWidth() <
+             resultEltTy.getIntOrFloatBitWidth());
+
+      coeffValue = b.create<arith::ExtUIOp>(
+          RankedTensorType::get(inputShape, resultEltTy), coeffValue);
+    }
+
+    // Zero pad the tensor if the coefficients' size is less than the polynomial
+    // degree.
+    if (inputShape < resultShape) {
+      SmallVector<OpFoldResult, 1> low, high;
+      low.push_back(rewriter.getIndexAttr(0));
+      high.push_back(rewriter.getIndexAttr(resultShape - inputShape));
+      coeffValue = b.create<tensor::PadOp>(
+          resultTy, coeffValue, low, high,
+          b.create<arith::ConstantOp>(rewriter.getIntegerAttr(resultEltTy, 0)),
+          /*nofold=*/false);
+    }
+
+    rewriter.replaceOp(op, coeffValue);
+    return success();
+  }
+};
+
+struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
+  ConvertToTensor(mlir::MLIRContext *context)
+      : OpConversionPattern<ToTensorOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ToTensorOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
     return success();
   }
 };
@@ -93,12 +141,12 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     PolyToStandardTypeConverter typeConverter(context);
 
     // target.addIllegalDialect<PolyDialect>();
-    target.addIllegalOp<FromTensorOp>();
+    target.addIllegalOp<FromTensorOp, ToTensorOp>();
     // target.addIllegalOp<AddOp>();
     // target.addIllegalOp<MulOp>();
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor>(typeConverter, context);
+    patterns.add<ConvertFromTensor, ConvertToTensor>(typeConverter, context);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
