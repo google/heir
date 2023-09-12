@@ -12,6 +12,7 @@ cc_library(
     includes = ["@heir//include"],
     deps = [
         "@heir//include/Conversion/PolyToStandard:pass_inc_gen",
+        "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/Poly/IR:PolyOps",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DialectUtils",

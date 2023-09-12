@@ -11,6 +11,7 @@ cc_library(
     ],
     deps = [
         "@heir//include/Conversion/BGVToPoly:pass_inc_gen",
+        "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/Poly/IR:Dialect",
         "@heir//lib/Dialect/Poly/IR:Polynomial",
