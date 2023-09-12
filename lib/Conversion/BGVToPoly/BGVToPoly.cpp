@@ -32,7 +32,7 @@ class CiphertextTypeConverter : public TypeConverter {
       assert(level < type.getRings().getRings().size());
 
       auto ring = type.getRings().getRings()[level];
-      auto polyTy = poly::PolynomialType::get(ctx, ring);
+      auto polyTy = poly::PolyType::get(ctx, ring);
 
       return RankedTensorType::get({type.getDim()}, polyTy);
     });

@@ -13,7 +13,7 @@ class Poly_Type<string name, string typeMnemonic>
   let mnemonic = typeMnemonic;
 }
 
-def Polynomial : Poly_Type<"Polynomial", "poly"> {
+def Polynomial : Poly_Type<"Poly", "poly"> {
   let summary = "An element of a polynomial quotient ring";
 
   let description = [{
