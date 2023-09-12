@@ -7,7 +7,6 @@ include "BGVTypes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 
-// TODO(https://github.com/google/heir/issues/101): Add verifiers for BGV ops.
 def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
   let cppNamespace = "::mlir::heir::bgv";
 }
@@ -68,6 +67,8 @@ def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, SameType
   );
 
   let assemblyFormat = "`(` operands `)` attr-dict `:` type($x) `->` type($output)" ;
+
+  let hasVerifier = 1;
 }
 
 def BGV_Rotate : BGV_Op<"rotate", [SameOperandsAndResultRings]> {
@@ -119,6 +120,8 @@ def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings]> {
   let results = (outs
     Ciphertext:$output
   );
+
+  let hasVerifier = 1;
 }
 
 def BGV_ModulusSwitch : BGV_Op<"modulus_switch", [SameOperandsAndResultRings]> {
@@ -134,6 +137,8 @@ def BGV_ModulusSwitch : BGV_Op<"modulus_switch", [SameOperandsAndResultRings]> {
   let results = (outs
     Ciphertext:$output
   );
+
+  let hasVerifier = 1;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_BGV_IR_BGVOPS_TD_

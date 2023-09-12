@@ -41,6 +41,51 @@ void BGVDialect::initialize() {
       >();
 }
 
+LogicalResult MulOp::verify() {
+  auto x = this->getX().getType();
+  auto y = this->getY().getType();
+  if (x.getDim() != y.getDim()) {
+    return this->emitOpError() << "input dimensions do not match";
+  }
+  auto out = this->getOutput().getType();
+  if (out.getDim() != 1 + x.getDim()) {
+    return this->emitOpError() << "output.dim == x.dim + 1 does not hold";
+  }
+  return success();
+}
+
+LogicalResult Relinearize::verify() {
+  auto x = this->getX().getType();
+  auto out = this->getOutput().getType();
+  if (x.getDim() != this->getFromBasis().size()) {
+    return this->emitOpError() << "input dimension does not match from_basis";
+  }
+  if (out.getDim() != this->getToBasis().size()) {
+    return this->emitOpError() << "output dimension does not match to_basis";
+  }
+  return success();
+}
+
+LogicalResult ModulusSwitch::verify() {
+  auto x = this->getX().getType();
+  auto rings = x.getRings().getRings().size();
+  auto to = this->getToLevel();
+  auto from = this->getFromLevel();
+  if (to < 0 || to >= from || from >= rings) {
+    return this->emitOpError() << "invalid levels, should be true: 0 <= " << to
+                               << " < " << from << " < " << rings;
+  }
+  if (x.getLevel().has_value() && x.getLevel().value() != from) {
+    return this->emitOpError() << "input level does not match from_level";
+  }
+  auto outLvl = this->getOutput().getType().getLevel();
+  if (!outLvl.has_value() || outLvl.value() != to) {
+    return this->emitOpError()
+           << "output level should be specified and match to_level";
+  }
+  return success();
+}
+
 }  // namespace bgv
 }  // namespace heir
 }  // namespace mlir
