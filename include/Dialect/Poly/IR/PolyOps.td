@@ -36,7 +36,7 @@ def Poly_MulOp : Poly_BinOp<"mul"> {
   let summary = "Multiplication operation between polynomials.";
 }
 
-def Poly_MulConstantOp : Poly_Op<"mul_constant", [ElementwiseMappable]> {
+def Poly_MulConstantOp : Poly_Op<"mul_constant", [ElementwiseMappable, AllTypesMatch<["x", "output"]>]> {
   let summary = "Multiplication by a constant of the field.";
 
   let arguments = (ins
@@ -47,6 +47,8 @@ def Poly_MulConstantOp : Poly_Op<"mul_constant", [ElementwiseMappable]> {
   let results = (outs
     PolynomialLike:$output
   );
+
+  let assemblyFormat = "`(` operands `)` attr-dict `:` type($x) `,` type($constant)" ;
 }
 
 def Poly_FromTensorOp : Poly_Op<"from_tensor", [Pure]> {

@@ -30,7 +30,7 @@ module {
     %tp1 = tensor.from_elements %p1, %p0 : tensor<2x!poly.poly<#ring1>>
 
     %c = arith.constant 2 : i32
-    %mul_const_sclr = poly.mul_constant(%tp0, %c) : (tensor<2x!poly.poly<#ring1>>, i32) -> tensor<2x!poly.poly<#ring1>>
+    %mul_const_sclr = poly.mul_constant(%tp0, %c) : tensor<2x!poly.poly<#ring1>>, i32
 
     %add = poly.add(%tp0, %tp1) : tensor<2x!poly.poly<#ring1>>
     %sub = poly.sub(%tp0, %tp1) : tensor<2x!poly.poly<#ring1>>
