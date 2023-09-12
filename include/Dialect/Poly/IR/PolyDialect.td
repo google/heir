@@ -14,7 +14,6 @@ def Poly_Dialect : Dialect {
   // This corresponds to the string provided in `getDialectNamespace`.
   let name = "poly";
 
-  let summary = "A dialect for types and operations in quotient polynomial rings";
   let description = [{
     The Poly dialect defines single-variable polynomial types and operations.
 

@@ -37,6 +37,10 @@ gentbl_cc_library(
             ["-gen-dialect-defs"],
             "EncryptedArithDialect.cpp.inc",
         ),
+        (
+            ["-gen-dialect-doc"],
+            "EncryptedArithDialect.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "EncryptedArithDialect.td",

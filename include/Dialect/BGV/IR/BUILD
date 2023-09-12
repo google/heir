@@ -47,6 +47,12 @@ gentbl_cc_library(
             ],
             "BGVDialect.cpp.inc",
         ),
+        (
+            [
+                "-gen-dialect-doc",
+            ],
+            "BGVDialect.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "BGVDialect.td",
@@ -94,6 +100,10 @@ gentbl_cc_library(
         (
             ["-gen-op-defs"],
             "BGVOps.cpp.inc",
+        ),
+        (
+            ["-gen-op-doc"],
+            "SecretOps.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",

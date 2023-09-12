@@ -43,6 +43,10 @@ gentbl_cc_library(
             ["-gen-dialect-defs"],
             "SecretDialect.cpp.inc",
         ),
+        (
+            ["-gen-dialect-doc"],
+            "SecretDialect.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "SecretDialect.td",

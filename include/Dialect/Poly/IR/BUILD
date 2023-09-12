@@ -38,16 +38,16 @@ gentbl_cc_library(
     name = "dialect_inc_gen",
     tbl_outs = [
         (
-            [
-                "-gen-dialect-decls",
-            ],
+            ["-gen-dialect-decls"],
             "PolyDialect.h.inc",
         ),
         (
-            [
-                "-gen-dialect-defs",
-            ],
+            ["-gen-dialect-defs"],
             "PolyDialect.cpp.inc",
+        ),
+        (
+            ["-gen-dialect-doc"],
+            "PolyDialect.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
@@ -61,15 +61,11 @@ gentbl_cc_library(
     name = "attributes_inc_gen",
     tbl_outs = [
         (
-            [
-                "-gen-attrdef-decls",
-            ],
+            ["-gen-attrdef-decls"],
             "PolyAttributes.h.inc",
         ),
         (
-            [
-                "-gen-attrdef-defs",
-            ],
+            ["-gen-attrdef-defs"],
             "PolyAttributes.cpp.inc",
         ),
         (
@@ -89,15 +85,11 @@ gentbl_cc_library(
     name = "types_inc_gen",
     tbl_outs = [
         (
-            [
-                "-gen-typedef-decls",
-            ],
+            ["-gen-typedef-decls"],
             "PolyTypes.h.inc",
         ),
         (
-            [
-                "-gen-typedef-defs",
-            ],
+            ["-gen-typedef-defs"],
             "PolyTypes.cpp.inc",
         ),
         (
@@ -123,6 +115,10 @@ gentbl_cc_library(
         (
             ["-gen-op-defs"],
             "PolyOps.cpp.inc",
+        ),
+        (
+            ["-gen-op-doc"],
+            "PolyOps.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
