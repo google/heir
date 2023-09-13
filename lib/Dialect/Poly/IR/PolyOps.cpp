@@ -32,7 +32,7 @@ LogicalResult FromTensorOp::verify() {
   }
 
   APInt coefficientModulus = ring.coefficientModulus();
-  unsigned cmodBitWidth = coefficientModulus.logBase2();
+  unsigned cmodBitWidth = coefficientModulus.ceilLogBase2();
   unsigned inputBitWidth = getInput().getType().getElementTypeBitWidth();
 
   if (inputBitWidth > cmodBitWidth) {

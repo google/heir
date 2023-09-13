@@ -128,7 +128,15 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   //    c0 = c1 % cmod
   // Otherwise, compute the adjusted result:
   //    c0 = ((c1 % cmod) + (n1 * 2^N % cmod)) % cmod
-  // TODO(https://github.com/google/heir/issues/159): Add proof to docs.
+  //
+  // Note that `(c1 % cmod) + (n1 * 2^N % cmod)` will not overflow mod `2^N`.
+  // If it did, then it would require that `cmod > (2^N) / 2`.
+  // This would imply that `2^N % cmod = 2^N - cmod`.
+  // If the sum overflowed, then we would have
+  //    ((c1 % cmod) + (2^N % cmod)) > 2^N
+  //    ((c1 % cmod) + (2^N - cmod)) > 2^N
+  //    ((c1 % cmod) > cmod
+  // Which is a contradiction.
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
@@ -199,7 +207,8 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     // target.addIllegalOp<MulOp>();
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd>(typeConverter, context);
+    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd>(typeConverter,
+                                                                 context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
