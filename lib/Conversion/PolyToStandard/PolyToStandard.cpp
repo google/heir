@@ -128,18 +128,22 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   //    c0 = c1 % cmod
   // Otherwise, compute the adjusted result:
   //    c0 = ((c1 % cmod) + (n1 * 2^N % cmod)) % cmod
+  // TODO(https://github.com/google/heir/issues/159): Add proof to docs.
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    auto type = adaptor.getLhs().getType();
-    APInt mod = op.getType().cast<PolyType>().getRing().coefficientModulus();
-    auto cmod = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), DenseElementsAttr::get(cast<ShapedType>(type), {mod}));
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto addExtendedOp = rewriter.create<arith::AddUIExtendedOp>(
-        op.getLoc(), adaptor.getLhs(), adaptor.getRhs());
-    auto c1ModOp = rewriter.create<arith::RemUIOp>(
-        op.getLoc(), addExtendedOp->getResult(0), cmod);
+    auto type = adaptor.getLhs().getType();
+
+    APInt mod =
+        cast<PolyType>(op.getResult().getType()).getRing().coefficientModulus();
+    auto cmod = b.create<arith::ConstantOp>(
+        DenseElementsAttr::get(cast<ShapedType>(type), {mod}));
+
+    auto addExtendedOp =
+        b.create<arith::AddUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
+    auto c1ModOp = b.create<arith::RemUIOp>(addExtendedOp->getResult(0), cmod);
     // If mod divides 2^N, c1modOp is our result.
     if (mod.isPowerOf2()) {
       rewriter.replaceOp(op, c1ModOp.getResult());
@@ -151,17 +155,14 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     APInt::udivrem(bigMod, mod.zext(bigMod.getBitWidth()), quotient, remainder);
     remainder = remainder.trunc(mod.getBitWidth());
 
-    auto bitwidth = rewriter.create<arith::ConstantOp>(
-        op.getLoc(),
+    auto bitwidth = b.create<arith::ConstantOp>(
         DenseElementsAttr::get(cast<ShapedType>(type), {remainder}));
-    auto adjustOp =
-        rewriter.create<arith::AddIOp>(op.getLoc(), c1ModOp, bitwidth);
+    auto adjustOp = b.create<arith::AddIOp>(c1ModOp, bitwidth);
 
-    auto selectOp = rewriter.create<arith::SelectOp>(
-        op.getLoc(), addExtendedOp.getResult(1), c1ModOp, adjustOp);
+    auto selectOp = b.create<arith::SelectOp>(addExtendedOp.getResult(1),
+                                              c1ModOp, adjustOp);
     // Mod the final result.
-    rewriter.replaceOp(
-        op, rewriter.create<arith::RemUIOp>(op.getLoc(), selectOp, cmod));
+    rewriter.replaceOp(op, b.create<arith::RemUIOp>(selectOp, cmod));
 
     return success();
   }
