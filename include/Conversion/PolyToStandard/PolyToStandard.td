@@ -13,6 +13,7 @@ def PolyToStandard : Pass<"lower-poly"> {
   let dependentDialects = [
     "mlir::arith::ArithDialect",
     "mlir::heir::poly::PolyDialect",
+    "mlir::tensor::TensorDialect",
   ];
 }
 
