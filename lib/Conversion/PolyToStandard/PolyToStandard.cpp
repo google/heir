@@ -18,17 +18,34 @@ namespace poly {
 #define GEN_PASS_DEF_POLYTOSTANDARD
 #include "include/Conversion/PolyToStandard/PolyToStandard.h.inc"
 
+namespace {
+
+static RankedTensorType convertElementType(PolyType type, MLIRContext *ctx) {
+  RingAttr attr = type.getRing();
+  uint32_t idealDegree = attr.ideal().getDegree();
+  IntegerType elementTy =
+      IntegerType::get(ctx, attr.coefficientModulus().getBitWidth(),
+                       IntegerType::SignednessSemantics::Signless);
+  return RankedTensorType::get({idealDegree}, elementTy);
+}
+
+}  // namespace
+
 class PolyToStandardTypeConverter : public TypeConverter {
  public:
   PolyToStandardTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](PolyType type) -> Type {
-      RingAttr attr = type.getRing();
-      uint32_t idealDegree = attr.ideal().getDegree();
-      IntegerType elementTy =
-          IntegerType::get(ctx, attr.coefficientModulus().getBitWidth(),
-                           IntegerType::SignednessSemantics::Signless);
-      return RankedTensorType::get({idealDegree}, elementTy);
+    addConversion(
+        [ctx](PolyType type) -> Type { return convertElementType(type, ctx); });
+    addConversion([ctx](TensorType type) -> TensorType {
+      if (auto polyTy = dyn_cast<PolyType>(type.getElementType())) {
+        auto elementTy = convertElementType(polyTy, ctx);
+        SmallVector<int64_t> shape = {type.getShape().begin(),
+                                      type.getShape().end()};
+        shape.push_back(elementTy.getShape()[0]);
+        return RankedTensorType::get({shape}, elementTy.getElementType());
+      }
+      return type;
     });
 
     // We don't include any custom materialization ops because this lowering is
