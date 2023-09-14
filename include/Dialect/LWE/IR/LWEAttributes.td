@@ -19,7 +19,7 @@ class LWE_EncodingAttr<string attrName, string attrMnemonic, list<Trait> traits 
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def LWE_BitFieldEncoding: LWE_EncodingAttr<"BitFieldEncoding", "bit_field_encoding"> {
+def LWE_BitFieldEncoding : LWE_EncodingAttr<"BitFieldEncoding", "bit_field_encoding"> {
   let summary = "An attribute describing encoded LWE plaintexts using bit fields.";
   let description = [{
     A bit field encoding of an integer describes which contiguous region
@@ -61,4 +61,35 @@ def LWE_BitFieldEncoding: LWE_EncodingAttr<"BitFieldEncoding", "bit_field_encodi
     "unsigned":$cleartext_bitwidth
   );
 }
+
+def RLWE_PolyCoefficientEncoding : LWE_EncodingAttr<"PolyCoefficientEncoding", "poly_coefficient_encoding"> {
+  let summary = "An attribute describing encoded RLWE plaintexts via coefficients.";
+  let description = [{
+    A coefficient encoding of a list of integers asserts that the coefficients
+    of the polynomials contain the cleartexts, with the same semantics as
+    `bit_field_encoding` for per-coefficient encodings.
+
+    The presence of this attribute as the `encoding` attribute of a tensor of
+    `poly.poly` indicates that the tensor is an RLWE ciphertext for some RLWE
+    scheme that supports the coefficient encoding.
+
+    Example:
+
+    ```
+    #generator = #poly.polynomial<1 + x**1024>
+    #ring = #poly.ring<cmod=65536, ideal=#generator>
+    #coeff_encoding = #lwe.poly_coefficient_encoding<cleartext_start=15, cleartext_bitwidth=4>
+
+    %poly1 = poly.from_tensor %coeffs1 : tensor<10xi16> -> !poly.poly<#ring>
+    %poly2 = poly.from_tensor %coeffs2 : tensor<10xi16> -> !poly.poly<#ring>
+    %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring>, #coeff_encoding>
+    ```
+  }];
+
+  let parameters = (ins
+    "unsigned":$cleartext_start,
+    "unsigned":$cleartext_bitwidth
+  );
+}
+
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEATTRIBUTES_TD_
