@@ -3,7 +3,8 @@
 #include "include/Dialect/Poly/IR/PolyOps.h"
 #include "include/Dialect/Poly/IR/PolyTypes.h"
 #include "lib/Conversion/Utils.h"
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -28,6 +29,9 @@ class PolyToStandardTypeConverter : public TypeConverter {
       IntegerType elementTy =
           IntegerType::get(ctx, attr.coefficientModulus().getBitWidth(),
                            IntegerType::SignednessSemantics::Signless);
+      // We must remove the ring attribute on the tensor, since the
+      // unrealized_conversion_casts cannot carry the poly.ring attribute
+      // through.
       return RankedTensorType::get({idealDegree}, elementTy);
     });
 
@@ -109,11 +113,66 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 
   using OpConversionPattern::OpConversionPattern;
 
+  // Convert add lowers a poly.add operation to arith operations. A poly.add
+  // operation is defined within the polynomial ring. Coefficients are added
+  // element-wise as elements of the ring, so they are performed modulo the
+  // coefficient modulus.
+  //
+  // To perform modular addition, assume that `cmod` is the coefficient modulus
+  // of the ring, and that `N` is the bitwidth used to store the ring elements.
+  // This may be much larger than `log_2(cmod)`.
+  //
+  // Let `x` and `y` be the inputs to modular addition, then:
+  //    c1, n1 = addui_extended(x, y)
+  // If the coefficient modulus divides `2^N`, then return
+  //    c0 = c1 % cmod
+  // Otherwise, compute the adjusted result:
+  //    c0 = ((c1 % cmod) + (n1 * 2^N % cmod)) % cmod
+  //
+  // Note that `(c1 % cmod) + (n1 * 2^N % cmod)` will not overflow mod `2^N`.
+  // If it did, then it would require that `cmod > (2^N) / 2`.
+  // This would imply that `2^N % cmod = 2^N - cmod`.
+  // If the sum overflowed, then we would have
+  //    ((c1 % cmod) + (2^N % cmod)) > 2^N
+  //    ((c1 % cmod) + (2^N - cmod)) > 2^N
+  //    ((c1 % cmod) > cmod
+  // Which is a contradiction.
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    // TODO(https://github.com/google/heir/issues/104): implement
-    return failure();
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto type = adaptor.getLhs().getType();
+
+    APInt mod =
+        cast<PolyType>(op.getResult().getType()).getRing().coefficientModulus();
+    auto cmod = b.create<arith::ConstantOp>(
+        DenseElementsAttr::get(cast<ShapedType>(type), {mod}));
+
+    auto addExtendedOp =
+        b.create<arith::AddUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
+    auto c1ModOp = b.create<arith::RemUIOp>(addExtendedOp->getResult(0), cmod);
+    // If mod divides 2^N, c1modOp is our result.
+    if (mod.isPowerOf2()) {
+      rewriter.replaceOp(op, c1ModOp.getResult());
+      return success();
+    }
+    // Otherwise, add (n1 * 2^N % cmod)
+    APInt quotient, remainder;
+    APInt bigMod = APInt(mod.getBitWidth() + 1, 2) << (mod.getBitWidth() - 1);
+    APInt::udivrem(bigMod, mod.zext(bigMod.getBitWidth()), quotient, remainder);
+    remainder = remainder.trunc(mod.getBitWidth());
+
+    auto bitwidth = b.create<arith::ConstantOp>(
+        DenseElementsAttr::get(cast<ShapedType>(type), {remainder}));
+    auto adjustOp = b.create<arith::AddIOp>(c1ModOp, bitwidth);
+
+    auto selectOp = b.create<arith::SelectOp>(addExtendedOp.getResult(1),
+                                              c1ModOp, adjustOp);
+    // Mod the final result.
+    rewriter.replaceOp(op, b.create<arith::RemUIOp>(selectOp, cmod));
+
+    return success();
   }
 };
 
@@ -140,16 +199,19 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
     ConversionTarget target(*context);
     PolyToStandardTypeConverter typeConverter(context);
 
+    target.addLegalDialect<arith::ArithDialect>();
+
     // target.addIllegalDialect<PolyDialect>();
-    target.addIllegalOp<FromTensorOp, ToTensorOp>();
+    target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp>();
     // target.addIllegalOp<AddOp>();
     // target.addIllegalOp<MulOp>();
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor, ConvertToTensor>(typeConverter, context);
-
+    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd>(typeConverter,
+                                                                 context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
+    // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
     }
