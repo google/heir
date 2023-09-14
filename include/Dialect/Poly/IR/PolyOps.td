@@ -51,6 +51,24 @@ def Poly_MulConstantOp : Poly_Op<"mul_constant", [ElementwiseMappable, AllTypesM
   let assemblyFormat = "`(` operands `)` attr-dict `:` type($x) `,` type($constant)" ;
 }
 
+def Poly_DegreeOp: Poly_Op<"degree"> {
+  let summary = "Compute the degree of the polynomial.";
+  let description = [{
+    The degree of a polynomial is the largest `k` for which the coefficient of
+    `x^k` is nonzero.
+  }];
+  let arguments = (ins PolynomialLike:$input);
+  let results = (outs Index:$degree);
+  let assemblyFormat = "operands attr-dict `:` type($input)";
+}
+
+def Poly_MonomialOp: Poly_Op<"monomial"> {
+  let summary = "Create a polynomial that consists of a single monomial.";
+  let arguments = (ins AnyInteger:$coefficient, Index:$degree);
+  let results = (outs Polynomial:$output);
+  let assemblyFormat = "operands attr-dict `:` `(` type($coefficient) `,` type($degree) `)` `->` qualified(type($output))";
+}
+
 def Poly_FromTensorOp : Poly_Op<"from_tensor", [Pure]> {
   let summary = "Creates a polynomial from integer coefficients stored in a tensor.";
   let description = [{

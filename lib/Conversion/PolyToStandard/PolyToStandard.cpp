@@ -7,6 +7,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
@@ -19,21 +20,26 @@ namespace poly {
 #define GEN_PASS_DEF_POLYTOSTANDARD
 #include "include/Conversion/PolyToStandard/PolyToStandard.h.inc"
 
+RankedTensorType convertPolyType(PolyType type) {
+  RingAttr attr = type.getRing();
+  uint32_t idealDegree = attr.ideal().getDegree();
+  // We subtract one because the maximum value of a coefficient is one less
+  // than the modulus. When the modulus is an exact power of 2 this matters.
+  unsigned eltBitWidth = (attr.coefficientModulus() - 1).getActiveBits();
+  IntegerType elementTy =
+      IntegerType::get(type.getContext(), eltBitWidth,
+                       IntegerType::SignednessSemantics::Signless);
+  // We must remove the ring attribute on the tensor, since the
+  // unrealized_conversion_casts cannot carry the poly.ring attribute
+  // through.
+  return RankedTensorType::get({idealDegree}, elementTy);
+}
+
 class PolyToStandardTypeConverter : public TypeConverter {
  public:
   PolyToStandardTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](PolyType type) -> Type {
-      RingAttr attr = type.getRing();
-      uint32_t idealDegree = attr.ideal().getDegree();
-      IntegerType elementTy =
-          IntegerType::get(ctx, attr.coefficientModulus().getBitWidth(),
-                           IntegerType::SignednessSemantics::Signless);
-      // We must remove the ring attribute on the tensor, since the
-      // unrealized_conversion_casts cannot carry the poly.ring attribute
-      // through.
-      return RankedTensorType::get({idealDegree}, elementTy);
-    });
+    addConversion([](PolyType type) -> Type { return convertPolyType(type); });
 
     // We don't include any custom materialization ops because this lowering is
     // all done in a single pass. The dialect conversion framework works by
@@ -107,6 +113,71 @@ struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
   }
 };
 
+struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
+  ConvertMonomial(mlir::MLIRContext *context)
+      : OpConversionPattern<MonomialOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MonomialOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto polyType = cast<PolyType>(op.getResult().getType());
+    auto tensorType =
+        cast<RankedTensorType>(typeConverter->convertType(polyType));
+    auto tensor = b.create<arith::ConstantOp>(DenseElementsAttr::get(
+        tensorType, b.getIntegerAttr(tensorType.getElementType(), 0)));
+    rewriter.replaceOpWithNewOp<tensor::InsertOp>(op, adaptor.getCoefficient(),
+                                                  tensor, adaptor.getDegree());
+    return success();
+  }
+};
+
+struct ConvertDegree : public OpConversionPattern<DegreeOp> {
+  ConvertDegree(mlir::MLIRContext *context)
+      : OpConversionPattern<DegreeOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  // FIXME: Is it worth implementing this as a function call as well?
+  LogicalResult matchAndRewrite(
+      DegreeOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto coeffs = adaptor.getInput();
+    auto tensorType = cast<RankedTensorType>(coeffs.getType());
+    auto c0 = b.create<arith::ConstantOp>(
+        b.getIntegerAttr(tensorType.getElementType(), 0));
+    auto c1 = b.create<arith::ConstantOp>(b.getIndexAttr(1));
+    auto initIndex = b.create<arith::ConstantOp>(
+        b.getIndexAttr(tensorType.getShape()[0] - 1));
+
+    rewriter.replaceOpWithNewOp<scf::WhileOp>(
+        op,
+        /*resultTypes=*/TypeRange{b.getIndexType()},
+        /*operands=*/ValueRange{initIndex.getResult()},
+        /*beforeBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          Value index = args[0];
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          auto coeff = b.create<tensor::ExtractOp>(coeffs, ValueRange{index});
+          auto cmpOp =
+              b.create<arith::CmpIOp>(arith::CmpIPredicate::ne, coeff, c0);
+          b.create<scf::ConditionOp>(cmpOp.getResult(), index);
+        },
+        /*afterBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          Value currentIndex = args[0];
+          auto nextIndex =
+              b.create<arith::SubIOp>(currentIndex, c1.getResult());
+          b.create<scf::YieldOp>(nextIndex.getResult());
+        });
+    return success();
+  }
+};
+
 struct ConvertAdd : public OpConversionPattern<AddOp> {
   ConvertAdd(mlir::MLIRContext *context)
       : OpConversionPattern<AddOp>(context) {}
@@ -118,59 +189,49 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   // element-wise as elements of the ring, so they are performed modulo the
   // coefficient modulus.
   //
-  // To perform modular addition, assume that `cmod` is the coefficient modulus
-  // of the ring, and that `N` is the bitwidth used to store the ring elements.
-  // This may be much larger than `log_2(cmod)`.
-  //
-  // Let `x` and `y` be the inputs to modular addition, then:
-  //    c1, n1 = addui_extended(x, y)
-  // If the coefficient modulus divides `2^N`, then return
-  //    c0 = c1 % cmod
-  // Otherwise, compute the adjusted result:
-  //    c0 = ((c1 % cmod) + (n1 * 2^N % cmod)) % cmod
-  //
-  // Note that `(c1 % cmod) + (n1 * 2^N % cmod)` will not overflow mod `2^N`.
-  // If it did, then it would require that `cmod > (2^N) / 2`.
-  // This would imply that `2^N % cmod = 2^N - cmod`.
-  // If the sum overflowed, then we would have
-  //    ((c1 % cmod) + (2^N % cmod)) > 2^N
-  //    ((c1 % cmod) + (2^N - cmod)) > 2^N
-  //    ((c1 % cmod) > cmod
-  // Which is a contradiction.
+  // This lowering detects when the ring's coefficient modulus is a power of 2,
+  // and hence the natural overflow semantics can be relied upon to implement
+  // modular arithmetic. In other cases, explicit modular arithmetic operations
+  // are inserted, which requires representing the modulus as a constant, and
+  // hence may require extending the intermediate arithmetic to higher bit
+  // widths.
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto type = adaptor.getLhs().getType();
+    auto type = cast<ShapedType>(adaptor.getLhs().getType());
 
     APInt mod =
         cast<PolyType>(op.getResult().getType()).getRing().coefficientModulus();
-    auto cmod = b.create<arith::ConstantOp>(
-        DenseElementsAttr::get(cast<ShapedType>(type), {mod}));
+    bool needToExtend = !mod.isPowerOf2();
 
-    auto addExtendedOp =
-        b.create<arith::AddUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
-    auto c1ModOp = b.create<arith::RemUIOp>(addExtendedOp->getResult(0), cmod);
-    // If mod divides 2^N, c1modOp is our result.
-    if (mod.isPowerOf2()) {
-      rewriter.replaceOp(op, c1ModOp.getResult());
+    if (!needToExtend) {
+      auto result = b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs());
+      rewriter.replaceOp(op, result);
       return success();
     }
-    // Otherwise, add (n1 * 2^N % cmod)
-    APInt quotient, remainder;
-    APInt bigMod = APInt(mod.getBitWidth() + 1, 2) << (mod.getBitWidth() - 1);
-    APInt::udivrem(bigMod, mod.zext(bigMod.getBitWidth()), quotient, remainder);
-    remainder = remainder.trunc(mod.getBitWidth());
 
-    auto bitwidth = b.create<arith::ConstantOp>(
-        DenseElementsAttr::get(cast<ShapedType>(type), {remainder}));
-    auto adjustOp = b.create<arith::AddIOp>(c1ModOp, bitwidth);
+    // The arithmetic may spill into higher bit width, so start by extending
+    // all the types to the smallest bit width that can contain them all.
+    unsigned nextHigherBitWidth = (mod - 1).getActiveBits() + 1;
+    auto modIntType = rewriter.getIntegerType(nextHigherBitWidth);
+    auto modIntTensorType = RankedTensorType::get(type.getShape(), modIntType);
 
-    auto selectOp = b.create<arith::SelectOp>(addExtendedOp.getResult(1),
-                                              c1ModOp, adjustOp);
-    // Mod the final result.
-    rewriter.replaceOp(op, b.create<arith::RemUIOp>(selectOp, cmod));
+    auto cmod = b.create<arith::ConstantOp>(DenseIntElementsAttr::get(
+        modIntTensorType, {mod.trunc(nextHigherBitWidth)}));
+
+    auto signExtensionLhs =
+        b.create<arith::ExtUIOp>(modIntTensorType, adaptor.getLhs());
+    auto signExtensionRhs =
+        b.create<arith::ExtUIOp>(modIntTensorType, adaptor.getRhs());
+
+    auto higherBitwidthAdd =
+        b.create<arith::AddIOp>(signExtensionLhs, signExtensionRhs);
+    auto remOp = b.create<arith::RemUIOp>(higherBitwidthAdd, cmod);
+    auto truncOp = b.create<arith::TruncIOp>(type, remOp);
+
+    rewriter.replaceOp(op, truncOp);
 
     return success();
   }
@@ -195,20 +256,19 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
-    auto *module = getOperation();
+    auto module = getOperation();
     ConversionTarget target(*context);
     PolyToStandardTypeConverter typeConverter(context);
 
     target.addLegalDialect<arith::ArithDialect>();
 
     // target.addIllegalDialect<PolyDialect>();
-    target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp>();
-    // target.addIllegalOp<AddOp>();
-    // target.addIllegalOp<MulOp>();
+    target
+        .addIllegalOp<FromTensorOp, ToTensorOp, AddOp, DegreeOp, MonomialOp>();
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd>(typeConverter,
-                                                                 context);
+    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd, ConvertDegree,
+                 ConvertMonomial>(typeConverter, context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.

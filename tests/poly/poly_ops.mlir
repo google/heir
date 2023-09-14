@@ -50,4 +50,16 @@ module {
 
     return
   }
+
+  func.func @test_degree(%p0 : !poly.poly<#ring1>) {
+    %0 = poly.degree %p0 : !poly.poly<#ring1>
+    return
+  }
+
+  func.func @test_monomial() {
+    %deg = arith.constant 1023 : index
+    %five = arith.constant 5 : i16
+    %0 = poly.monomial %five, %deg : (i16, index) -> !poly.poly<#ring1>
+    return
+  }
 }
