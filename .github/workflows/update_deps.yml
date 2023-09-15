@@ -1,0 +1,45 @@
+name: Update vendored dependencies
+permissions: read-all
+on:
+  workflow_dispatch:
+  schedule:
+    # Once a week
+    - cron: '0 0 * * 0'
+
+jobs:
+  # Copy Support, Dialect/HW, and Dialect/Comb.
+  circt:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+        with:
+          path: HEIR
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+        with:
+          repository: llvm/circt
+          path: CIRCT
+
+      - name: Update files from CIRCT to HEIR
+        run: |
+          cd CIRCT
+          for f in Support Dialect/HW Dialect/Comb
+          do
+            # First delete all non-BUILD files in HEIR (to handle deleted files)
+            find "../HEIR/third_party/circt/include/circt/$f" ! -name 'BUILD' -type f -exec rm -f {} +
+            find "../HEIR/third_party/circt/lib/$f" ! -name 'BUILD' -type f -exec rm -f {} +
+
+            # Copy files from CIRCT
+            cp --parents -r "include/circt/$f" ../HEIR/third_party/circt/
+            cp --parents -r "lib/$f" ../HEIR/third_party/circt/
+          done
+
+      - name: Create a PR with the diff for HEIR
+        uses: peter-evans/create-pull-request@153407881ec5c347639a548ade7d8ad1d6740e38 # v5.0.2
+        with:
+          commit-message: update CIRCT dependency
+          title: 'chore: Update CIRCT dependency'
+          branch: update-circt
+          path: HEIR
