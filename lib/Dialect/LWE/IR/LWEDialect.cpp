@@ -80,6 +80,18 @@ LogicalResult PolyCoefficientEncodingAttr::verifyEncoding(
   return success();
 }
 
+LogicalResult PolyEvaluationEncodingAttr::verifyEncoding(
+    ArrayRef<int64_t> shape, Type elementType,
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
+  if (!elementType.isa<poly::PolyType>()) {
+    return emitError() << "Tensors with a poly_evaluation_encoding must have "
+                       << "`poly.poly` element type, but found " << elementType
+                       << "\n";
+  }
+
+  return success();
+}
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

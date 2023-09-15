@@ -92,4 +92,46 @@ def RLWE_PolyCoefficientEncoding : LWE_EncodingAttr<"PolyCoefficientEncoding", "
   );
 }
 
+def RLWE_PolyEvaluationEncoding : LWE_EncodingAttr<"PolyEvaluationEncoding", "poly_evaluation_encoding"> {
+  let summary = "An attribute describing encoded RLWE plaintexts via evaluations at fixed points.";
+  let description = [{
+    A "evaluation encoding" of a list of integers $(v_1, \dots, v_n)$ asserts
+    that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed
+    and distinct choice of inputs $x_i$.
+
+    This attribute can be used in multiple ways:
+
+    - On a `poly.poly`, it asserts that the polynomial has been transformed
+      from an evaluation tensor.
+    - On a tensor of `poly.poly`, it asserts that the tensor is an RLWE
+      ciphertext for some RLWE scheme that supports the evaluation encoding.
+
+    A typical workflow for the BFV/BGV schemes using this encoding would be
+    to apply a INTT operation to the input list of cleartexts to convert from
+    evaluation form to coefficient form, then encrypt the resulting polynomial
+    in coefficient form, then apply NTT back to the evaluation form for faster
+    multiplication of ciphertexts.
+
+    The points chosen are fixed to be the powers of a primitive root of unity
+    in the relevant coefficient domain, which allows one to use NTT/INTT to
+    tansform quickly between the coefficient and evaluation forms.
+
+    Example:
+
+    ```
+    #generator = #poly.polynomial<1 + x**1024>
+    #ring = #poly.ring<cmod=65536, ideal=#generator>
+    #eval_encoding = #lwe.poly_evaluation_encoding
+
+    %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
+    // Note no `intt` operation exists in poly yet.
+    %poly1 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
+    %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
+    %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
+    ```
+  }];
+
+  // No parameters
+}
+
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEATTRIBUTES_TD_

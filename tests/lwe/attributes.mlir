@@ -64,3 +64,24 @@ func.func @test_invalid_coefficient_encoding_width(%coeffs1 : tensor<10xi16>, %c
   %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring2>, #coeff_encoding2>
   return
 }
+
+// -----
+
+#generator3 = #poly.polynomial<1 + x**1024>
+#ring3 = #poly.ring<cmod=65536, ideal=#generator>
+#eval_enc = #lwe.poly_evaluation_encoding
+func.func @test_valid_evaluation_encoding(%coeffs1 : tensor<10xi16>, %coeffs2 : tensor<10xi16>) {
+  %poly1 = poly.from_tensor %coeffs1 : tensor<10xi16> -> !poly.poly<#ring3, #eval_enc>
+  %poly2 = poly.from_tensor %coeffs2 : tensor<10xi16> -> !poly.poly<#ring3, #eval_enc>
+  %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring3>, #eval_enc>
+  return
+}
+
+// -----
+
+#eval_enc2 = #lwe.poly_evaluation_encoding
+// expected-error@below {{must have `poly.poly` element type}}
+func.func @test_valid_evaluation_encoding() {
+  %a = arith.constant dense<[2, 2, 5]> : tensor<3xi32, #eval_enc2>
+  return
+}
