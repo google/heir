@@ -19,7 +19,19 @@ class LWE_EncodingAttr<string attrName, string attrMnemonic, list<Trait> traits 
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def LWE_BitFieldEncoding : LWE_EncodingAttr<"BitFieldEncoding", "bit_field_encoding"> {
+class LWE_EncodingAttrWithScalingFactor<string attrName, string attrMnemonic, list<Trait> traits = []>
+    : LWE_EncodingAttr<attrName, attrMnemonic, traits> {
+  let parameters = (ins
+    // These two parameters identify a scaling factor to scale cleartexts in
+    // preparation for noise growth of FHE schemes. In this format they are
+    // restricted to being powers of two.
+    "unsigned":$cleartext_start,
+    "unsigned":$cleartext_bitwidth
+  );
+}
+
+def LWE_BitFieldEncoding
+  : LWE_EncodingAttrWithScalingFactor<"BitFieldEncoding", "bit_field_encoding"> {
   let summary = "An attribute describing encoded LWE plaintexts using bit fields.";
   let description = [{
     A bit field encoding of an integer describes which contiguous region
@@ -55,14 +67,10 @@ def LWE_BitFieldEncoding : LWE_EncodingAttr<"BitFieldEncoding", "bit_field_encod
     %lwe_ciphertext = arith.constant <[1,2,3,4]> : tensor<4xi32, #lwe_encoding>
     ```
   }];
-
-  let parameters = (ins
-    "unsigned":$cleartext_start,
-    "unsigned":$cleartext_bitwidth
-  );
 }
 
-def RLWE_PolyCoefficientEncoding : LWE_EncodingAttr<"PolyCoefficientEncoding", "poly_coefficient_encoding"> {
+def RLWE_PolyCoefficientEncoding
+  : LWE_EncodingAttrWithScalingFactor<"PolyCoefficientEncoding", "poly_coefficient_encoding"> {
   let summary = "An attribute describing encoded RLWE plaintexts via coefficients.";
   let description = [{
     A coefficient encoding of a list of integers asserts that the coefficients
@@ -85,19 +93,17 @@ def RLWE_PolyCoefficientEncoding : LWE_EncodingAttr<"PolyCoefficientEncoding", "
     %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring>, #coeff_encoding>
     ```
   }];
-
-  let parameters = (ins
-    "unsigned":$cleartext_start,
-    "unsigned":$cleartext_bitwidth
-  );
 }
 
-def RLWE_PolyEvaluationEncoding : LWE_EncodingAttr<"PolyEvaluationEncoding", "poly_evaluation_encoding"> {
+def RLWE_PolyEvaluationEncoding
+  : LWE_EncodingAttrWithScalingFactor<"PolyEvaluationEncoding", "poly_evaluation_encoding"> {
   let summary = "An attribute describing encoded RLWE plaintexts via evaluations at fixed points.";
   let description = [{
     A "evaluation encoding" of a list of integers $(v_1, \dots, v_n)$ asserts
-    that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed
-    and distinct choice of inputs $x_i$.
+    that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
+    distinct choice of inputs $x_i$. The encoded values are also scaled by a
+    scale factor, having the same semantics as `bit_field_encoding`, but
+    applied entry-wise (to either the coefficient or evaluation representation).
 
     This attribute can be used in multiple ways:
 
@@ -121,7 +127,7 @@ def RLWE_PolyEvaluationEncoding : LWE_EncodingAttr<"PolyEvaluationEncoding", "po
     ```
     #generator = #poly.polynomial<1 + x**1024>
     #ring = #poly.ring<cmod=65536, ideal=#generator>
-    #eval_encoding = #lwe.poly_evaluation_encoding
+    #lwe_encoding = #lwe.poly_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
     %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
     // Note no `intt` operation exists in poly yet.
@@ -130,8 +136,74 @@ def RLWE_PolyEvaluationEncoding : LWE_EncodingAttr<"PolyEvaluationEncoding", "po
     %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
     ```
   }];
+}
 
-  // No parameters
+def RLWE_PolyRoundedEmbeddingEncoding
+  : LWE_EncodingAttrWithScalingFactor<"PolyRoundedEmbeddingEncoding", "poly_rounded_embedding_encoding"> {
+  let summary = "An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.";
+  let description = [{
+    Let $n$ be the degree of the polynomials in the plaintext space.
+    A "rounded embedding encoding" of a list of real or complex values $v_1,
+    \dots, v_{n/2}$ is (almost) the inverse of the following decoding map.
+
+    Map a polynomial $p \in \mathbb{Z}[x] / (x^N + 1) \to \mathbb{C}^{N/2}$
+    by evaluating it at the following $N/2$ points, where
+    $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:
+
+    \[
+      \omega, \omega^3, \omega^5, \dots, \omega^{N-1}
+    \]
+
+    This map is called the "canonical embedding" $\tau$, though conjugates are
+    discarded for efficiency because $p(\overline{z}) = \overline{p(z)}$.
+
+    Then the complete decoding operation is
+    $\textup{Decode}(p) = (1/\Delta)\tau(p)$, where $\Delta$ is a scaling
+    parameter.
+
+    The encoding operation is the inverse of the decoding operation, but
+    because inputs may be any complex numbers, a rounding step is required
+    to invert $\tau$. There are multiple rounding mechanisms, and this
+    attribute does not specify which is used, because in theory two ciphertexts
+    that have used different roundings are still compatible, though they may
+    have different noise growth patterns.
+
+    // TODO: does it make sense to use the bit-field parameters here? It may
+    // not work sensibly because the rounding happens after scaling-post-INTT,
+    // though you can still use the parameters in this attribute to infer the
+    // right power of two to use.
+    The scaling parameter $\Delta$ is specified by the `cleartext_start` and
+    `cleartext_bitwidth` parameters, which are applied coefficient-wise using
+    the same semantics as the `bit_field_encoding`.
+
+    This attribute can be used in multiple ways:
+
+    - On a `poly.poly`, it asserts that the polynomial has been transformed
+      from a coefficient list using the canonical embedding.
+    - On a tensor of `poly.poly`, it asserts that the tensor is an RLWE
+      ciphertext for some RLWE scheme that supports the approximate embedding
+      encoding.
+
+    A typical flow for the CKKS scheme using this encoding would be to apply an
+    INTT operation to invert the canonical embedding to be a polynomial with
+    real coefficients, then encrypt scale the resulting polynomial's
+    coefficients according to the scaling parameters, then round to get integer
+    coefficients.
+
+    Example:
+
+    ```
+    #generator = #poly.polynomial<1 + x**1024>
+    #ring = #poly.ring<cmod=65536, ideal=#generator>
+    #lwe_encoding = #lwe.poly_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
+
+    %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
+    // Note no `intt` operation exists in poly yet.
+    %poly1 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
+    %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
+    %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
+    ```
+  }];
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEATTRIBUTES_TD_

@@ -20,8 +20,24 @@ def Polynomial : Poly_Type<"Poly", "poly"> {
     A type for polynomials in a polynomial quotient ring.
   }];
 
-  let parameters = (ins Ring_Attr:$ring);
-  let assemblyFormat = "`<` $ring `>`";
+  let parameters = (ins
+    Ring_Attr:$ring,
+    OptionalParameter<"Attribute">:$encoding
+  );
+
+  // Skip the default builder since the custom builder enables the default
+  // value for the encoding parameter, And I couldn't get DefaultValueParameter
+  // to auto-generate a builder with the appropriate default value.
+  let skipDefaultBuilders = 1;
+  let builders = [
+    TypeBuilder<(ins
+      "RingAttr":$ring, CArg<"Attribute", "{}">:$encoding
+    ), [{
+      return $_get($_ctxt, ring, encoding);
+    }]>
+  ];
+
+  let assemblyFormat = "`<` $ring (`,` $encoding^ )? `>`";
 }
 
 def PolynomialLike: TypeOrContainer<Polynomial, "polynomial-like">;

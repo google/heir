@@ -50,28 +50,27 @@ LogicalResult BitFieldEncodingAttr::verifyEncoding(
   return success();
 }
 
-LogicalResult PolyCoefficientEncodingAttr::verifyEncoding(
-    ArrayRef<int64_t> shape, Type elementType,
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
+LogicalResult requirePolyElementTypeFits(
+    Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
+    unsigned cleartextStart,
+    llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
   if (!elementType.isa<poly::PolyType>()) {
-    return emitError() << "Tensors with a poly_coefficient_encoding must have "
-                       << "`poly.poly` element type, but found " << elementType
-                       << "\n";
+    return emitError() << "Tensors with encoding " << encodingName
+                       << " must have `poly.poly` element type, but found "
+                       << elementType << "\n";
   }
-
   poly::PolyType polyType = llvm::cast<poly::PolyType>(elementType);
   // The coefficient modulus takes the place of the plaintext bitwidth for
   // RLWE.
   unsigned plaintextBitwidth =
       polyType.getRing().coefficientModulus().getBitWidth();
-  unsigned cleartextBitwidth = getCleartextBitwidth();
+
   if (plaintextBitwidth < cleartextBitwidth)
     return emitError() << "The polys in this tensor have a coefficient "
                        << "modulus with bitwidth " << plaintextBitwidth
                        << ", which too small to store the cleartext, "
                        << "which has bit width " << cleartextBitwidth << "";
 
-  auto cleartextStart = getCleartextStart();
   if (cleartextStart < 0 || cleartextStart >= plaintextBitwidth)
     return emitError() << "Attribute's cleartext starting bit index ("
                        << cleartextStart << ") is outside the legal range [0, "
@@ -80,16 +79,28 @@ LogicalResult PolyCoefficientEncodingAttr::verifyEncoding(
   return success();
 }
 
+LogicalResult PolyCoefficientEncodingAttr::verifyEncoding(
+    ArrayRef<int64_t> shape, Type elementType,
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
+  return requirePolyElementTypeFits(elementType, "poly_coefficient_encoding",
+                                    getCleartextBitwidth(), getCleartextStart(),
+                                    emitError);
+}
+
 LogicalResult PolyEvaluationEncodingAttr::verifyEncoding(
     ArrayRef<int64_t> shape, Type elementType,
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
-  if (!elementType.isa<poly::PolyType>()) {
-    return emitError() << "Tensors with a poly_evaluation_encoding must have "
-                       << "`poly.poly` element type, but found " << elementType
-                       << "\n";
-  }
+  return requirePolyElementTypeFits(elementType, "poly_evaluation_encoding",
+                                    getCleartextBitwidth(), getCleartextStart(),
+                                    emitError);
+}
 
-  return success();
+LogicalResult PolyRoundedEmbeddingEncodingAttr::verifyEncoding(
+    ArrayRef<int64_t> shape, Type elementType,
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
+  return requirePolyElementTypeFits(
+      elementType, "poly_rounded_embedding_encoding", getCleartextBitwidth(),
+      getCleartextStart(), emitError);
 }
 
 }  // namespace lwe
