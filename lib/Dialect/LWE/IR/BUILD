@@ -12,7 +12,6 @@ cc_library(
         "@heir//include/Dialect/LWE/IR:LWEAttributes.h",
         "@heir//include/Dialect/LWE/IR:LWEDialect.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@heir//include/Dialect/LWE/IR:attributes_inc_gen",
         "@heir//include/Dialect/LWE/IR:dialect_inc_gen",

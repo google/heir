@@ -9,7 +9,6 @@ cc_library(
     name = "Utils",
     srcs = ["Utils.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:Utils.h"],
-    includes = ["@heir//include"],
     deps = [
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
@@ -20,7 +19,6 @@ cc_library(
 cc_test(
     name = "UtilsTest",
     srcs = ["UtilsTest.cpp"],
-    includes = ["@heir//include"],
     deps = [
         ":Utils",
         "@googletest//:gtest_main",
@@ -34,7 +32,6 @@ cc_library(
     name = "MemrefGlobalReplace",
     srcs = ["MemrefGlobalReplace.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
-    includes = ["@heir//include"],
     deps = [
         ":Utils",
         "@llvm-project//mlir:AffineAnalysis",
@@ -51,7 +48,6 @@ cc_library(
     name = "ExpandCopy",
     srcs = ["ExpandCopy.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
-    includes = ["@heir//include"],
     deps = [
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
@@ -67,7 +63,6 @@ cc_library(
     name = "ExtractLoopBody",
     srcs = ["ExtractLoopBody.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
-    includes = ["@heir//include"],
     deps = [
         "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
         "@llvm-project//llvm:Support",
@@ -86,7 +81,6 @@ cc_library(
     name = "UnrollAndForward",
     srcs = ["UnrollAndForward.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
-    includes = ["@heir//include"],
     deps = [
         ":Utils",
         "@llvm-project//llvm:Support",

@@ -17,7 +17,6 @@ cc_library(
         "@heir//include/Dialect/BGV/IR:BGVTraits.h",
         "@heir//include/Dialect/BGV/IR:BGVTypes.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@heir//include/Dialect/BGV/IR:attributes_inc_gen",
         "@heir//include/Dialect/BGV/IR:dialect_inc_gen",

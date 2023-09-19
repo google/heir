@@ -11,7 +11,6 @@ cc_library(
     hdrs = [
         "@heir//include/Dialect/Secret/IR:SecretDialect.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         ":SecretOps",
         "@heir//include/Dialect/Secret/IR:dialect_inc_gen",
@@ -32,7 +31,6 @@ cc_library(
         "@heir//include/Dialect/Secret/IR:SecretOps.h",
         "@heir//include/Dialect/Secret/IR:SecretTypes.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@heir//include/Dialect/Secret/IR:dialect_inc_gen",
         "@heir//include/Dialect/Secret/IR:ops_inc_gen",

@@ -22,7 +22,6 @@ cc_library(
     hdrs = [
         "@heir//include/Dialect/Secret/Transforms:ForgetSecrets.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
