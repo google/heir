@@ -14,7 +14,6 @@ cc_library(
         "@heir//include/Dialect/EncryptedArith/IR:EncryptedArithDialect.h",
         "@heir//include/Dialect/EncryptedArith/IR:EncryptedArithTypes.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@heir//include/Dialect/EncryptedArith/IR:dialect_inc_gen",
         "@heir//include/Dialect/EncryptedArith/IR:types_inc_gen",

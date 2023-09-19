@@ -16,7 +16,6 @@ cc_library(
         "@heir//include/Dialect/Poly/IR:PolyOps.h",
         "@heir//include/Dialect/Poly/IR:PolyTypes.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         ":PolyAttributes",
         ":PolyOps",
@@ -61,7 +60,6 @@ cc_library(
         "@heir//include/Dialect/Poly/IR:PolyOps.h",
         "@heir//include/Dialect/Poly/IR:PolyTypes.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         ":PolyAttributes",
         "@heir//include/Dialect/Poly/IR:dialect_inc_gen",

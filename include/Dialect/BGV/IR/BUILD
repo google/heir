@@ -25,7 +25,6 @@ td_library(
         "BGVOps.td",
         "BGVTypes.td",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",

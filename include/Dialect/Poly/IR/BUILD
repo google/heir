@@ -26,7 +26,6 @@ td_library(
         "PolyOps.td",
         "PolyTypes.td",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",

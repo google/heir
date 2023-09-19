@@ -22,7 +22,6 @@ td_library(
         "SecretOps.td",
         "SecretTypes.td",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:ControlFlowInterfacesTdFiles",

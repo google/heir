@@ -9,7 +9,6 @@ cc_library(
     hdrs = [
         "@heir//include/Conversion/PolyToStandard:PolyToStandard.h",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@heir//include/Conversion/PolyToStandard:pass_inc_gen",
         "@heir//lib/Conversion:Utils",

@@ -20,7 +20,6 @@ td_library(
         "LWEAttributes.td",
         "LWEDialect.td",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",

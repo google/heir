@@ -20,7 +20,6 @@ td_library(
         "EncryptedArithDialect.td",
         "EncryptedArithTypes.td",
     ],
-    includes = ["@heir//include"],
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
     ],
