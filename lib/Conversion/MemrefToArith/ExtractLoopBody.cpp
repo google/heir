@@ -94,8 +94,7 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
   SmallVector<Operation *, 10> opsToCopy;
   SmallPtrSet<Operation *, 4> constantOps;
 
-  mlir::Region &innerLoopBody =
-      nestedLoops[nestedLoops.size() - 1].getLoopBody();
+  mlir::Region &innerLoopBody = nestedLoops[nestedLoops.size() - 1].getRegion();
   innerLoopBody.walk<WalkOrder::PreOrder>([&](Operation *op) {
     return llvm::TypeSwitch<Operation &, WalkResult>(*op)
         .Case<affine::AffineLoadOp, memref::LoadOp>([&](auto op) {
