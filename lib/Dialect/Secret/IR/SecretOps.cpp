@@ -107,6 +107,27 @@ void RevealOp::build(OpBuilder &builder, OperationState &result,
   build(builder, result, resultType, secretValue);
 }
 
+/// 'bodyBuilder' is used to build the body of secret.generic.
+void GenericOp::build(OpBuilder &builder, OperationState &result,
+                      ValueRange inputs, TypeRange outputTypes,
+                      GenericOp::BodyBuilderFn bodyBuilder) {
+  for (Type ty : outputTypes) result.addTypes(ty);
+  result.addOperands(inputs);
+
+  Region *bodyRegion = result.addRegion();
+  bodyRegion->push_back(new Block);
+  Block &bodyBlock = bodyRegion->front();
+  for (Value val : inputs) {
+    SecretType secretType = dyn_cast<SecretType>(val.getType());
+    Type blockType = secretType ? secretType.getValueType() : val.getType();
+    bodyBlock.addArgument(blockType, val.getLoc());
+  }
+
+  OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(&bodyBlock);
+  bodyBuilder(builder, result.location, bodyBlock.getArguments());
+}
+
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir

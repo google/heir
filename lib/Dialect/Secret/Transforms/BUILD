@@ -9,6 +9,7 @@ cc_library(
         "@heir//include/Dialect/Secret/Transforms:Passes.h",
     ],
     deps = [
+        ":DistributeGeneric",
         ":ForgetSecrets",
         "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -28,6 +29,22 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:SecretOps",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FuncTransforms",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "DistributeGeneric",
+    srcs = ["DistributeGeneric.cpp"],
+    hdrs = [
+        "@heir//include/Dialect/Secret/Transforms:DistributeGeneric.h",
+    ],
+    deps = [
+        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:SecretOps",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Transforms",

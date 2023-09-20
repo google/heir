@@ -31,4 +31,5 @@ gentbl_cc_library(
 exports_files([
     "Passes.h",
     "ForgetSecrets.h",
+    "DistributeGeneric.h",
 ])
