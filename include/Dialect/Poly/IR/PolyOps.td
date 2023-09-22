@@ -1,19 +1,14 @@
 #ifndef HEIR_INCLUDE_DIALECT_POLY_IR_POLYOPS_TD_
 #define HEIR_INCLUDE_DIALECT_POLY_IR_POLYOPS_TD_
 
-include "PolyAttributes.td"
-include "PolyDialect.td"
-include "PolyTypes.td"
+include "include/Dialect/Poly/IR/PolyAttributes.td"
+include "include/Dialect/Poly/IR/PolyDialect.td"
+include "include/Dialect/Poly/IR/PolyTypes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class Poly_Op<string mnemonic, list<Trait> traits = []> :
         Op<Poly_Dialect, mnemonic, traits> {
-  // See https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-format
-  // TODO(b/291601096): Simplify this format by adding type constraints.
-  let assemblyFormat = [{
-    `(` operands `)` attr-dict `:`  `(` type(operands) `)` `->` type(results)
-  }];
   let cppNamespace = "::mlir::heir::poly";
 }
 

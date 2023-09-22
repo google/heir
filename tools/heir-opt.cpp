@@ -6,6 +6,7 @@
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
+#include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
@@ -80,6 +81,7 @@ int main(int argc, char **argv) {
   registry.insert<mlir::heir::bgv::BGVDialect>();
   registry.insert<mlir::heir::lwe::LWEDialect>();
   registry.insert<mlir::heir::poly::PolyDialect>();
+  registry.insert<mlir::heir::poly_ext::PolyExtDialect>();
   registry.insert<mlir::heir::secret::SecretDialect>();
   registry.insert<mlir::heir::comb::CombDialect>();
 
