@@ -1,7 +1,1 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Blog</title><link>https://google.github.io/heir/blog/</link><description>Recent content in Blog on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://google.github.io/heir/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the
-&lt;a href="https://google.github.io/heir/community/">meeting calendar&lt;/a> to join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item></channel></rss>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HEIR – Blog</title><link>https://google.github.io/heir/blog/</link><description>Recent content in Blog on HEIR</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="https://google.github.io/heir/blog/index.xml" rel="self" type="application/rss+xml"/></channel></rss>
