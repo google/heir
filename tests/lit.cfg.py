@@ -37,7 +37,7 @@ tool_relpaths = [
     "heir/tools",
     "heir/tests/verilog",
     "llvm-project/llvm",
-    "yosys/yosys_make/bin",
+    "at_clifford_yosys",
 ]
 
 config.environment["PATH"] = (

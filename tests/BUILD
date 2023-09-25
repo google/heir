@@ -25,7 +25,7 @@ filegroup(
         "@llvm-project//mlir:mlir-cpu-runner",
         "@llvm-project//mlir:mlir-opt",
         # copybara: run_lit.sh
-        "@yosys",
+        "@at_clifford_yosys//:yosys",
     ],
 )
 

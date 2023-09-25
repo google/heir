@@ -84,16 +84,6 @@ load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_depende
 
 rules_foreign_cc_dependencies()
 
-# Add a yosys dependency for circuit optimization and simulation
-# in the heir-translate --export_verilog path
-new_git_repository(
-    name = "yosys",
-    build_file = "//bazel:yosys.BUILD",
-    # As of 2023-04-24
-    commit = "cee3cb31b98e3b67af3165969c8cfc0616c37e19",
-    remote = "https://github.com/YosysHQ/yosys.git",
-)
-
 # For non-LIT unit testing
 http_archive(
     name = "googletest",
@@ -160,3 +150,46 @@ http_archive(
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 
 hedron_compile_commands_setup()
+
+# install dependencies for yosys/ABC circuit optimizers
+http_archive(
+    name = "rules_hdl",
+    # Commit on 2023-06-13, current as of 2023-06-13.
+    sha256 = "21307b0c14a036f1b4879c8f1d4d50a115053eb87c428307d4d6569c3e7ba859",
+    strip_prefix = "bazel_rules_hdl-e6540a5bccbfb124aec0b19deaa9cf855781b3a5",
+    url = "https://github.com/hdl/bazel_rules_hdl/archive/e6540a5bccbfb124aec0b19deaa9cf855781b3a5.tar.gz",
+)
+
+load("@rules_hdl//dependency_support/at_clifford_yosys:at_clifford_yosys.bzl", "at_clifford_yosys")
+load("@rules_hdl//dependency_support/com_github_westes_flex:com_github_westes_flex.bzl", "com_github_westes_flex")
+load("@rules_hdl//dependency_support/edu_berkeley_abc:edu_berkeley_abc.bzl", "edu_berkeley_abc")
+load("@rules_hdl//dependency_support/net_invisible_island_ncurses:net_invisible_island_ncurses.bzl", "net_invisible_island_ncurses")
+load("@rules_hdl//dependency_support/net_zlib:net_zlib.bzl", "net_zlib")
+load("@rules_hdl//dependency_support/org_gnu_bison:org_gnu_bison.bzl", "org_gnu_bison")
+load("@rules_hdl//dependency_support/org_gnu_gnulib:org_gnu_gnulib.bzl", "org_gnu_gnulib")
+load("@rules_hdl//dependency_support/org_gnu_m4:org_gnu_m4.bzl", "org_gnu_m4")
+load("@rules_hdl//dependency_support/org_gnu_readline:org_gnu_readline.bzl", "org_gnu_readline")
+load("@rules_hdl//dependency_support/org_sourceware_libffi:org_sourceware_libffi.bzl", "org_sourceware_libffi")
+load("@rules_hdl//dependency_support/tk_tcl:tk_tcl.bzl", "tk_tcl")
+
+net_invisible_island_ncurses()
+
+org_gnu_readline()
+
+edu_berkeley_abc()
+
+org_gnu_m4()
+
+com_github_westes_flex()
+
+org_gnu_bison()
+
+tk_tcl()
+
+net_zlib()
+
+org_gnu_gnulib()
+
+org_sourceware_libffi()
+
+at_clifford_yosys()

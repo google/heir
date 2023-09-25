@@ -7,8 +7,10 @@ py_binary(
     srcs = [
         "run_verilog.py",
     ],
+    data = [
+        "@at_clifford_yosys//:yosys",
+    ],
     python_version = "PY3",
     srcs_version = "PY3",
     visibility = ["//visibility:public"],
-    deps = [],
 )
