@@ -25,7 +25,6 @@ filegroup(
         "@llvm-project//mlir:mlir-cpu-runner",
         "@llvm-project//mlir:mlir-opt",
         # copybara: run_lit.sh
-        "@at_clifford_yosys//:yosys",
     ],
 )
 
@@ -36,16 +35,7 @@ glob_lit_tests(
     # macro, replacing it with a standard invocation of lit whose config is in
     # lit.cfg.py
     driver = "@heir//tests:run_lit.sh",
-    size_override = {
-        "hello_world.tosa.mlir": "large",
-    },
-    tags_override = {
-        "hello_world.tosa.mlir": ["nofastbuild"],
-    },
-    test_file_exts = [
-        "mlir",
-        "v",
-    ],
+    test_file_exts = ["mlir"],
 )
 
 exports_files(
