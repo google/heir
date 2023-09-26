@@ -30,6 +30,7 @@ cc_binary(
         "@llvm-project//mlir:ArithTransforms",
         "@llvm-project//mlir:BufferizationTransforms",
         "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:LLVMDialect",
         "@llvm-project//mlir:LinalgTransforms",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:MemRefTransforms",

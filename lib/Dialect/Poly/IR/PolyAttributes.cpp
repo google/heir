@@ -142,7 +142,7 @@ mlir::Attribute mlir::heir::poly::PolynomialAttr::parse(AsmParser &parser,
 
 void RingAttr::print(AsmPrinter &p) const {
   p << "<cmod=";
-  p << coefficientModulus();
+  coefficientModulus().print(p.getStream(), /*isSigned=*/false);
   p << ", ideal=";
   p << PolynomialAttr::get(ideal());
   p << '>';

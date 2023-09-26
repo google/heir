@@ -5,7 +5,7 @@
 #ring_prime = #poly.ring<cmod=4294967291, ideal=#cycl_2048>
 module {
   // CHECK-label: test_lower_from_tensor
-  func.func @test_lower_from_tensor() {
+  func.func @test_lower_from_tensor() -> !poly.poly<#ring> {
     %c0 = arith.constant 0 : index
     // 2 + 2x + 5x^2
     %coeffs = arith.constant dense<[2, 2, 5]> : tensor<3xi32>
@@ -15,7 +15,7 @@ module {
     // CHECK: tensor<3xi32> to tensor<1024xi32>
     %poly = poly.from_tensor %coeffs : tensor<3xi32> -> !poly.poly<#ring>
     // CHECK: return
-    return
+    return %poly : !poly.poly<#ring>
   }
 
   // CHECK-label: f0
@@ -26,20 +26,20 @@ module {
 
   // CHECK-label: test_lower_fn_and_call
   // CHECK-NOT: poly.poly<#ring>
-  func.func @test_lower_fn_and_call(%arg: !poly.poly<#ring>) {
-    func.call @f0(%arg) : (!poly.poly<#ring>) -> !poly.poly<#ring>
-    return
+  func.func @test_lower_fn_and_call(%arg: !poly.poly<#ring>) -> !poly.poly<#ring>
+ {
+    %0 = func.call @f0(%arg) : (!poly.poly<#ring>) -> !poly.poly<#ring>
+    return %0 : !poly.poly<#ring>
   }
 
-  func.func @test_i32_coeff_with_i32_mod() -> () {
+  func.func @test_i32_coeff_with_i32_mod() -> !poly.poly<#ring_prime>
+ {
     // CHECK: [[X:%.+]] = arith.constant dense<2> : [[TCOEFF:tensor<1024xi32>]]
     %coeffs1 = arith.constant dense<2> : tensor<1024xi32>
-    // CHECK: [[Y:%.+]] = arith.constant dense<3> : [[TCOEFF]]
-    %coeffs2 = arith.constant dense<3> : tensor<1024xi32>
     // CHECK-NOT: poly.from_tensor
     %poly0 = poly.from_tensor %coeffs1 : tensor<1024xi32> -> !poly.poly<#ring_prime>
-    %poly1 = poly.from_tensor %coeffs2 : tensor<1024xi32> -> !poly.poly<#ring_prime>
     // CHECK: return
-    return
+    return %poly0 : !poly.poly<#ring_prime>
+
   }
 }

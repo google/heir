@@ -3,15 +3,18 @@
 #include "include/Dialect/Poly/IR/PolyOps.h"
 #include "include/Dialect/Poly/IR/PolyTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -19,6 +22,10 @@ namespace poly {
 
 #define GEN_PASS_DEF_POLYTOSTANDARD
 #include "include/Conversion/PolyToStandard/PolyToStandard.h.inc"
+
+// Callback type for getting pre-generated FuncOp implementing
+// helper functions for various lowerings.
+using GetFuncCallbackTy = function_ref<func::FuncOp(FunctionType, RingAttr)>;
 
 RankedTensorType convertPolyType(PolyType type) {
   RingAttr attr = type.getRing();
@@ -70,7 +77,7 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
     auto inputEltTy = inputTensorTy.getElementType();
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    auto coeffValue = adaptor.getOperands()[0];
+    auto coeffValue = adaptor.getInput();
     // Extend element type if needed.
     if (inputEltTy != resultEltTy) {
       // FromTensorOp verifies that the coefficient tensor's elements fit into
@@ -131,7 +138,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
     coeffs.reserve(numTerms);
     // This is inefficient for large-degree polys, but as of this writing we
     // don't have a lowering that uses a sparse representation.
-    for (int i = 0; i < numTerms; ++i) {
+    for (size_t i = 0; i < numTerms; ++i) {
       coeffs.push_back(rewriter.getIntegerAttr(eltTy, 0));
     }
     for (const auto &term : attr.getPolynomial().getTerms()) {
@@ -189,7 +196,6 @@ struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
 };
 
 // Implement rotation via tensor.insert_slice
-// TODO: I could implement this with a linalg.generic... would that be better?
 struct ConvertMonomialMul : public OpConversionPattern<MonomialMulOp> {
   ConvertMonomialMul(mlir::MLIRContext *context)
       : OpConversionPattern<MonomialMulOp>(context) {}
@@ -289,7 +295,7 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           auto coeff = b.create<tensor::ExtractOp>(coeffs, ValueRange{index});
           auto cmpOp =
-              b.create<arith::CmpIOp>(arith::CmpIPredicate::ne, coeff, c0);
+              b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, coeff, c0);
           b.create<scf::ConditionOp>(cmpOp.getResult(), index);
         },
         /*afterBuilder=*/
@@ -367,47 +373,379 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   }
 };
 
+unsigned nextPow2(unsigned x) {
+  return x == 1 ? 1 : 1 << (32 - APInt(32, x - 1).countLeadingZeros());
+}
+
+RankedTensorType naivePolymulOutputTensorType(PolyType type) {
+  auto convNumBits =
+      (type.getRing().coefficientModulus() - 1).getActiveBits() * 2;
+  auto convNumBitsRounded = nextPow2(convNumBits);
+  auto eltType = IntegerType::get(type.getContext(), convNumBitsRounded);
+  auto convDegree = 2 * type.getRing().getIdeal().getDegree() - 1;
+  return RankedTensorType::get({convDegree}, eltType);
+}
+
+// Lower polynomial multiplication to a 1D convolution, followed by with a
+// modulus reduction in the ring.
 struct ConvertMul : public OpConversionPattern<MulOp> {
-  ConvertMul(mlir::MLIRContext *context)
-      : OpConversionPattern<MulOp>(context) {}
+  ConvertMul(const TypeConverter &typeConverter, mlir::MLIRContext *context,
+             GetFuncCallbackTy cb)
+      : OpConversionPattern<MulOp>(typeConverter, context),
+        getFuncOpCallback(cb) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       MulOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    // TODO(https://github.com/google/heir/issues/104): implement
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
+    auto polyTy = dyn_cast<PolyType>(op.getResult().getType());
+    if (!polyTy) {
+      return failure();
+    }
+
+    // Implementing a naive polymul operation which is a loop
+    //
+    // for i = 0, ..., N-1
+    //   for j = 0, ..., N-1
+    //     c[i+j] += a[i] * b[j]
+    //
+    RankedTensorType polymulTensorType = naivePolymulOutputTensorType(polyTy);
+    auto inputOutputHaveSameBitwidth =
+        polymulTensorType.getElementType().getIntOrFloatBitWidth() ==
+        dyn_cast<RankedTensorType>(adaptor.getLhs().getType())
+            .getElementType()
+            .getIntOrFloatBitWidth();
+    SmallVector<utils::IteratorType> iteratorTypes(
+        2, utils::IteratorType::parallel);
+    AffineExpr d0, d1;
+    bindDims(getContext(), d0, d1);
+    SmallVector<AffineMap> indexingMaps = {
+        AffineMap::get(2, 0, {d0}),      // i
+        AffineMap::get(2, 0, {d1}),      // j
+        AffineMap::get(2, 0, {d0 + d1})  // i+j
+    };
+
+    // TODO(https://github.com/google/heir/issues/200): test this for the proper
+    // setting of the DenseElementsAttr. Note that this fails an MLIR internal
+    // assertion if 0L (64 bit) is replaced with 0 (32 bit). Probably it is best
+    // to inspect the element type of poylmulTensorType and figure out how to
+    // set the dense elements attr properly based on that (i.e., what if it's an
+    // i16 or i128?)
+    auto polymulOutput = b.create<arith::ConstantOp>(
+        polymulTensorType, DenseElementsAttr::get(polymulTensorType, 0L));
+    auto polyMul = b.create<linalg::GenericOp>(
+        /*resultTypes=*/polymulTensorType,
+        /*inputs=*/adaptor.getOperands(),
+        /*outputs=*/polymulOutput.getResult(),
+        /*indexingMaps=*/indexingMaps,
+        /*iteratorTypes=*/iteratorTypes,
+        /*bodyBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          auto lhs = args[0];
+          auto rhs = args[1];
+          auto accum = args[2];
+          if (!inputOutputHaveSameBitwidth) {
+            lhs = b.create<arith::ExtUIOp>(polymulTensorType.getElementType(),
+                                           lhs);
+            rhs = b.create<arith::ExtUIOp>(polymulTensorType.getElementType(),
+                                           rhs);
+          }
+          auto mulOp = b.create<arith::MulIOp>(lhs, rhs);
+          auto result = b.create<arith::AddIOp>(mulOp, accum);
+          // TODO(https://github.com/google/heir/issues/201): need a modular
+          // reduction op here to keep all the arithmetic mod cmod.
+          // And simplify the code here and in the poly mod func to use smaller
+          // bit widths.
+          b.create<linalg::YieldOp>(result.getResult());
+        });
+
+    auto postReductionType = convertPolyType(polyTy);
+    FunctionType funcType = FunctionType::get(
+        op.getContext(), {polymulTensorType}, {postReductionType});
+
+    // 2N - 1 sized result tensor -> reduce modulo ideal to get a N sized tensor
+    func::FuncOp divMod = getFuncOpCallback(funcType, polyTy.getRing());
+    if (!divMod)
+      return rewriter.notifyMatchFailure(op, [&](::mlir::Diagnostic &diag) {
+        diag << "Missing software implementation for polynomial mod op of type"
+             << funcType << " and for ring " << polyTy.getRing();
+      });
+
+    rewriter.replaceOpWithNewOp<func::CallOp>(op, divMod, polyMul.getResult(0));
     return success();
   }
+
+ private:
+  GetFuncCallbackTy getFuncOpCallback;
 };
 
 struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
   using PolyToStandardBase::PolyToStandardBase;
 
-  void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    auto *module = getOperation();
-    ConversionTarget target(*context);
-    PolyToStandardTypeConverter typeConverter(context);
+  void runOnOperation() override;
 
-    target.addLegalDialect<arith::ArithDialect>();
+ private:
+  // Generate implementations for operations
+  void generateOpImplementations();
 
-    // target.addIllegalDialect<PolyDialect>();
-    target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp, LeadingTermOp,
-                        MonomialOp, MulScalarOp, MonomialMulOp, ConstantOp>();
+  func::FuncOp buildPolyModFunc(FunctionType funcType, RingAttr ringAttr);
 
-    RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd,
-                 ConvertLeadingTerm, ConvertMonomial, ConvertMulScalar,
-                 ConvertMonomialMul, ConvertConstant>(typeConverter, context);
-    addStructuralConversionPatterns(typeConverter, patterns, target);
-
-    // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
-    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
-      signalPassFailure();
-    }
-  }
+  // A map containing modular reduction function implementations, generated once
+  // at the beginning of this pass based on the ops to be converted, intended to
+  // be retrieved by ConvertMul to construct CallOps so that later optimization
+  // passes can determine when to inline the implementation.
+  DenseMap<std::pair<Type, RingAttr>, func::FuncOp> modImpls;
 };
+
+void PolyToStandard::generateOpImplementations() {
+  ModuleOp module = getOperation();
+  module.walk([&](MulOp op) {
+    auto polyTy = dyn_cast<PolyType>(op.getResult().getType());
+    if (!polyTy) {
+      // TODO(https://github.com/google/heir/issues/143): Handle tensor of
+      // polys.
+      return WalkResult::interrupt();
+    }
+    auto convType = naivePolymulOutputTensorType(polyTy);
+    auto postReductionType = convertPolyType(polyTy);
+    FunctionType funcType =
+        FunctionType::get(op.getContext(), {convType}, {postReductionType});
+
+    // Generate the software implementation of modular reduction if it has not
+    // been generated yet.
+    auto key = std::pair(funcType, polyTy.getRing());
+    if (!modImpls.count(key)) {
+      func::FuncOp modOp = buildPolyModFunc(funcType, polyTy.getRing());
+      modImpls.insert(std::pair(key, modOp));
+    }
+    return WalkResult::advance();
+  });
+}
+
+// Create a software implementation that reduces a polynomial
+// modulo a statically known divisor polynomial.
+func::FuncOp PolyToStandard::buildPolyModFunc(FunctionType funcType,
+                                              RingAttr ring) {
+  ModuleOp module = getOperation();
+  Location loc = module->getLoc();
+  ImplicitLocOpBuilder builder =
+      ImplicitLocOpBuilder::atBlockEnd(loc, module.getBody());
+
+  // These tensor types are used in the implementation
+  //
+  //  - The input tensor<2047xi64>, e.g., the output of a naive polymul of two
+  //    tensor<1024xi32>
+  //  - The result tensor<1024xi32>, e.g., the result after modular reduction is
+  //    complete
+  //  - An intermediate tensor<1024xi64>, representing the remainder being
+  //    accumulated, before a final remui op is applied to its coefficients.
+  RankedTensorType inputType =
+      llvm::cast<RankedTensorType>(funcType.getInput(0));
+  RankedTensorType resultType =
+      llvm::cast<RankedTensorType>(funcType.getResult(0));
+
+  // TODO(https://github.com/google/heir/issues/202): this function name
+  // probably also needs the input tensor type in the name, or it could conflict
+  // with other implementations that have the same cmod+ideal.
+  std::string funcName =
+      llvm::formatv("__heir_poly_mod_{0}_{1}", ring.coefficientModulus(),
+                    ring.getIdeal().toIdentifier());
+
+  auto funcOp = builder.create<func::FuncOp>(funcName, funcType);
+  LLVM::linkage::Linkage inlineLinkage = LLVM::linkage::Linkage::LinkonceODR;
+  Attribute linkage =
+      LLVM::LinkageAttr::get(builder.getContext(), inlineLinkage);
+  funcOp->setAttr("llvm.linkage", linkage);
+  funcOp.setPrivate();
+
+  Block *funcBody = funcOp.addEntryBlock();
+  Value coeffsArg = funcOp.getArgument(0);
+
+  builder.setInsertionPointToStart(funcBody);
+
+  // Implementing the textbook division algorithm
+  //
+  // def divmod(poly, divisor):
+  //   divisorLC = divisor.leadingCoefficient()
+  //   divisorDeg = divisor.degree()
+  //   remainder = poly
+  //   quotient = Zero()
+  //
+  //   while remainder.degree() >= divisorDeg:
+  //      monomialExponent = remainder.degree() - divisorDeg
+  //      monomialDivisor = monomial(
+  //        monomialExponent,
+  //        remainder.leadingCoefficient() / divisorLC
+  //      )
+  //      quotient += monomialDivisor
+  //      remainder -= monomialDivisor * divisor
+  //
+  //   return quotient, remainder
+  //
+
+  // Implementing the algorithm using poly ops, but the function signature
+  // input is in terms of the lowered tensor types, so we need a from_tensor.
+  // We also need to pick an appropriate ring, which in our case will be the
+  // ring of polynomials mod (x^n - 1) with sufficiently large coefficient
+  // modulus to encapsulate the input element type.
+
+  std::vector<Monomial> monomials;
+  // If the input has size N as a tensor, then as a polynomial its max degree is
+  // N-1, and we want the ring to be mod (x^N - 1).
+  unsigned remRingDegree = inputType.getShape()[0];
+  monomials.emplace_back(1, remRingDegree);
+  monomials.emplace_back(Monomial(-1, 0));
+  Polynomial xnMinusOne = Polynomial::fromMonomials(monomials, &getContext());
+  // e.g., need to represent 2^64, which requires 65 bits, the highest one set.
+  unsigned remCmodWidth =
+      1 + inputType.getElementType().getIntOrFloatBitWidth();
+  APInt remCmod = APInt::getOneBitSet(remCmodWidth, remCmodWidth - 1);
+  auto remRing = RingAttr::get(remCmod, xnMinusOne);
+  auto remRingPolyType = PolyType::get(&getContext(), remRing);
+
+  // Start by converting the input tensor back to a poly.
+  auto fromTensorOp = builder.create<FromTensorOp>(coeffsArg, remRing);
+
+  // If the leading coefficient of the divisor has no inverse, we can't do
+  // division. The lowering must fail:
+  auto divisor = ring.getIdeal();
+  auto leadingCoef = divisor.getTerms().back().coefficient;
+  auto leadingCoefInverse = leadingCoef.multiplicativeInverse(ring.getCmod());
+  // APInt signals no inverse by returning zero.
+  if (leadingCoefInverse.isZero()) {
+    signalPassFailure();
+  }
+  auto divisorLcInverse = builder.create<arith::ConstantOp>(
+      inputType.getElementType(),
+      builder.getIntegerAttr(inputType.getElementType(),
+                             leadingCoefInverse.getZExtValue()));
+
+  auto divisorDeg = builder.create<arith::ConstantOp>(
+      builder.getIndexType(), builder.getIndexAttr(divisor.getDegree()));
+
+  auto remainder = fromTensorOp.getResult();
+
+  // while remainder.degree() >= divisorDeg:
+  auto whileOp = builder.create<scf::WhileOp>(
+      /*resultTypes=*/
+      remainder.getType(),
+      /*operands=*/remainder,
+      /*beforeBuilder=*/
+      [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+        Value remainder = args[0];
+        ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+        // remainder.degree() >= divisorDeg
+        auto remainderLt = b.create<LeadingTermOp>(
+            b.getIndexType(), inputType.getElementType(), remainder);
+        auto cmpOp = b.create<arith::CmpIOp>(
+            arith::CmpIPredicate::sge, remainderLt.getDegree(), divisorDeg);
+        b.create<scf::ConditionOp>(cmpOp, remainder);
+      },
+      /*afterBuilder=*/
+      [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+        ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+        Value remainder = args[0];
+        // TODO(https://github.com/google/heir/issues/97): move this out of the
+        // loop when it has ConstantLike trait
+        auto divisorOp = builder.create<ConstantOp>(
+            remRingPolyType, PolynomialAttr::get(divisor));
+
+        // monomialExponent = remainder.degree() - divisorDeg
+        auto ltOp = b.create<LeadingTermOp>(
+            b.getIndexType(), inputType.getElementType(), remainder);
+        auto monomialExponentOp =
+            b.create<arith::SubIOp>(ltOp.getDegree(), divisorDeg);
+
+        // monomialDivisor = monomial(
+        //   monomialExponent, remainder.leadingCoefficient() / divisorLC)
+        auto monomialLc =
+            b.create<arith::MulIOp>(ltOp.getCoefficient(), divisorLcInverse);
+
+        // remainder -= monomialDivisor * divisor
+        auto scaledDivisor = b.create<MulScalarOp>(divisorOp, monomialLc);
+        auto remainderIncrement = b.create<MonomialMulOp>(
+            scaledDivisor, monomialExponentOp.getResult());
+        auto nextRemainder = b.create<SubOp>(remainder, remainderIncrement);
+
+        b.create<scf::YieldOp>(nextRemainder.getResult());
+      });
+
+  // The result remainder is still in the larger ring, but needs to have its
+  // coefficients modded and then converted to the smaller ring.
+  auto toTensorOp = builder.create<ToTensorOp>(inputType, whileOp.getResult(0));
+  auto remainderModOp = builder.create<arith::ConstantOp>(
+      inputType,
+      DenseElementsAttr::get(inputType, ring.getCmod().getZExtValue()));
+  auto remainderCoeffsModded = builder.create<arith::RemUIOp>(
+      toTensorOp.getResult(), remainderModOp.getResult());
+
+  // Now the remainder has values mod the result modulus, so it just needs
+  // to be reinterpreted in the result ring via truncating the tensor type
+  // and changing the element type.
+  auto remainderIntegerTrunced = builder.create<arith::TruncIOp>(
+      RankedTensorType::get(inputType.getShape(), resultType.getElementType()),
+      remainderCoeffsModded);
+
+  SmallVector<OpFoldResult> offsets{builder.getIndexAttr(0)};
+  SmallVector<OpFoldResult> sizes{
+      builder.getIndexAttr(resultType.getShape()[0])};
+  SmallVector<OpFoldResult> strides{builder.getIndexAttr(1)};
+  auto remainderTensorTrunced = builder.create<tensor::ExtractSliceOp>(
+      resultType, remainderIntegerTrunced.getResult(), offsets, sizes, strides);
+
+  builder.create<func::ReturnOp>(remainderTensorTrunced.getResult());
+  return funcOp;
+}
+
+void PolyToStandard::runOnOperation() {
+  MLIRContext *context = &getContext();
+  // generateOpImplementations must be called before the conversion begins to
+  // apply rewrite patterns, because adding function implementations makes
+  // changes at the module level, while the conversion patterns are supposed to
+  // be local to the op being converted. This design is borrowed from the MLIR
+  // --math-to-funcs pass implementation.
+  generateOpImplementations();
+  auto getDivmodOp = [&](FunctionType funcType, RingAttr ring) -> func::FuncOp {
+    auto it = modImpls.find(std::pair(funcType, ring));
+    if (it == modImpls.end()) return nullptr;
+    return it->second;
+  };
+
+  ModuleOp module = getOperation();
+  ConversionTarget target(*context);
+  PolyToStandardTypeConverter typeConverter(context);
+
+  target.addLegalDialect<arith::ArithDialect>();
+
+  // target.addIllegalDialect<PolyDialect>();
+  target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp, SubOp, LeadingTermOp,
+                      MonomialOp, MulScalarOp, MonomialMulOp, ConstantOp,
+                      MulOp>();
+
+  RewritePatternSet patterns(context);
+
+  // Rewrite Sub as Add, to avoid lowering both
+  RewritePatternSet canonicalizationPatterns(context);
+  SubOp::getCanonicalizationPatterns(canonicalizationPatterns, context);
+  (void)applyPatternsAndFoldGreedily(module,
+                                     std::move(canonicalizationPatterns));
+
+  patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd,
+               ConvertLeadingTerm, ConvertMonomial, ConvertMonomialMul,
+               ConvertConstant, ConvertMulScalar>(typeConverter, context);
+  patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
+  addStructuralConversionPatterns(typeConverter, patterns, target);
+
+  // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
+  if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+    signalPassFailure();
+  }
+}
 
 }  // namespace poly
 }  // namespace heir
