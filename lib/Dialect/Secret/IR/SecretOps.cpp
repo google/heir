@@ -1,5 +1,22 @@
 #include "include/Dialect/Secret/IR/SecretOps.h"
 
+#include <memory>
+#include <utility>
+
+#include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Region.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+
 namespace mlir {
 namespace heir {
 namespace secret {
@@ -105,6 +122,27 @@ void RevealOp::build(OpBuilder &builder, OperationState &result,
   Type resultType =
       llvm::dyn_cast<SecretType>(secretValue.getType()).getValueType();
   build(builder, result, resultType, secretValue);
+}
+
+/// 'bodyBuilder' is used to build the body of secret.generic.
+void GenericOp::build(OpBuilder &builder, OperationState &result,
+                      ValueRange inputs, TypeRange outputTypes,
+                      GenericOp::BodyBuilderFn bodyBuilder) {
+  for (Type ty : outputTypes) result.addTypes(ty);
+  result.addOperands(inputs);
+
+  Region *bodyRegion = result.addRegion();
+  bodyRegion->push_back(new Block);
+  Block &bodyBlock = bodyRegion->front();
+  for (Value val : inputs) {
+    SecretType secretType = dyn_cast<SecretType>(val.getType());
+    Type blockType = secretType ? secretType.getValueType() : val.getType();
+    bodyBlock.addArgument(blockType, val.getLoc());
+  }
+
+  OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(&bodyBlock);
+  bodyBuilder(builder, result.location, bodyBlock.getArguments());
 }
 
 }  // namespace secret

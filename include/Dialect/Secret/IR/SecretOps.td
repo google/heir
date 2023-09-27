@@ -93,7 +93,10 @@ def Secret_YieldOp : Secret_Op<"yield", [Pure, ReturnLike, Terminator]>,
 }
 
 def Secret_GenericOp : Secret_Op<"generic", [
-       SingleBlockImplicitTerminator<"YieldOp">]> {
+  IsolatedFromAbove,
+  SingleBlock,
+  SingleBlockImplicitTerminator<"YieldOp">
+]> {
   let summary = "Lift a plaintext computation to operate on secrets.";
   let description = [{
     `secret.generic` lifts a plaintext computation to operate on one or more
@@ -130,12 +133,18 @@ def Secret_GenericOp : Secret_Op<"generic", [
   let results = (outs Variadic<AnyType>:$results);
   let regions = (region AnyRegion:$region);
 
+  let skipDefaultBuilders = 1;
+  let builders = [
+    OpBuilder<(ins
+      CArg<"ValueRange">:$inputs,
+      CArg<"TypeRange">:$outputTypes,
+      CArg<"function_ref<void(OpBuilder &, Location, ValueRange)>">:$bodyBuilder
+    )>
+  ];
+
   let extraClassDeclaration = [{
-    static std::function<void(ImplicitLocOpBuilder &,
-                              Block &, ArrayRef<NamedAttribute>)>
-    getRegionBuilder() {
-      return nullptr;
-    }
+    /// Defining the function type we use for building the body of affine.for.
+    using BodyBuilderFn = function_ref<void(OpBuilder &, Location, ValueRange)>;
   }];
 
   // let hasCanonicalizer = 1;
