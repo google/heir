@@ -5,7 +5,7 @@ load("@rules_python//python:py_test.bzl", "py_test")
 
 _DEFAULT_FILE_EXTS = ["mlir"]
 
-def lit_test(name = None, src = None, size = "small", tags = None):
+def lit_test(name = None, src = None, size = "small", tags = None, data = None):
     """Define a lit test.
 
     In its simplest form, a manually defined lit test would look like this:
@@ -32,6 +32,7 @@ def lit_test(name = None, src = None, size = "small", tags = None):
       src: the source file for the test.
       size: the size of the test.
       tags: tags to pass to the target.
+      data: the data to pass to the target.
     """
     if not src:
         fail("src must be specified")
@@ -43,12 +44,16 @@ def lit_test(name = None, src = None, size = "small", tags = None):
         srcs = [src],
     )
 
+    if not data:
+        data = []
+    data = data + [filegroup_name]
+
     py_test(
         name = name,
         size = size,
         # -v ensures lit outputs useful info during test failures
         args = ["-v", paths.join(native.package_name(), src)],
-        data = ["@heir//tests:test_utilities", filegroup_name],
+        data = data,
         srcs = ["@llvm-project//llvm:lit"],
         main = "lit.py",
         tags = tags,
@@ -58,7 +63,7 @@ def glob_lit_tests(
         # these unused args are kept for API compatibility with the corresponding
         # google-internal macro
         name = None,  # buildifier: disable=unused-variable
-        data = None,  # buildifier: disable=unused-variable
+        data = None,
         driver = None,  # buildifier: disable=unused-variable
         size_override = None,
         test_file_exts = None,
@@ -67,7 +72,8 @@ def glob_lit_tests(
 
     Args:
       name: unused
-      data: unused
+      data: the data to pass to the test, e.g., targets containing binaries
+        used by the lit test in a RUN command.
       driver: unused
       size_override: a dictionary giving per-source-file test size overrides
       test_file_exts: a list of file extensions to use for globbing for files
@@ -84,4 +90,5 @@ def glob_lit_tests(
             src = curr_test,
             size = size_override.get(curr_test, "small"),
             tags = tags_override.get(curr_test, []),
+            data = data,
         )

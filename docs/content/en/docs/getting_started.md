@@ -12,16 +12,12 @@ weight: 1
     `>=5.5`
 -   A C compiler (like [gcc](https://gcc.gnu.org/) or
     [clang](https://clang.llvm.org/))
--   [Python](https://www.python.org/) (optional, for some tests)
--   GNU [flex](https://github.com/westes/flex) and
-    [bison](https://www.gnu.org/software/bison/), for the Yosys dependency
-    (optional)
 
 ## Clone and build the project
 
 ```bash
 git clone git@github.com:google/heir.git && cd heir
-bazel build @heir//...
+bazel build @heir//tools:heir-opt
 ```
 
 ## Optional: Run the tests
@@ -29,9 +25,6 @@ bazel build @heir//...
 ```bash
 bazel test @heir//...
 ```
-
-Note some tests require Python to run. You may also need to install
-[lit](https://pypi.org/project/lit/).
 
 ## Developing in HEIR
 
