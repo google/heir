@@ -2,6 +2,7 @@
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolyToStandard/PolyToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
@@ -80,6 +81,7 @@ int main(int argc, char **argv) {
   registry.insert<mlir::heir::lwe::LWEDialect>();
   registry.insert<mlir::heir::poly::PolyDialect>();
   registry.insert<mlir::heir::secret::SecretDialect>();
+  registry.insert<mlir::heir::comb::CombDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<mlir::affine::AffineDialect>();
