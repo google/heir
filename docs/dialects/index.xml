@@ -84,21 +84,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -137,21 +125,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -229,21 +205,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lowBit&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::IntegerAttr&lt;/td>
-&lt;td>32-bit signless integer attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>lowBit&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>32-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -287,26 +251,27 @@ bit wide result.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>predicate&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::heir::comb::ICmpPredicateAttr&lt;/td>
-&lt;td>hw.icmp comparison predicate&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>predicate&lt;/code>&lt;/td>&lt;td>::mlir::heir::comb::ICmpPredicateAttr&lt;/td>&lt;td>&lt;details>&lt;summary>hw.icmp comparison predicate&lt;/summary>&lt;p>Enum cases:&lt;/p>
+&lt;ul>
+&lt;li>eq (&lt;code>eq&lt;/code>)&lt;/li>
+&lt;li>ne (&lt;code>ne&lt;/code>)&lt;/li>
+&lt;li>slt (&lt;code>slt&lt;/code>)&lt;/li>
+&lt;li>sle (&lt;code>sle&lt;/code>)&lt;/li>
+&lt;li>sgt (&lt;code>sgt&lt;/code>)&lt;/li>
+&lt;li>sge (&lt;code>sge&lt;/code>)&lt;/li>
+&lt;li>ult (&lt;code>ult&lt;/code>)&lt;/li>
+&lt;li>ule (&lt;code>ule&lt;/code>)&lt;/li>
+&lt;li>ugt (&lt;code>ugt&lt;/code>)&lt;/li>
+&lt;li>uge (&lt;code>uge&lt;/code>)&lt;/li>
+&lt;li>ceq (&lt;code>ceq&lt;/code>)&lt;/li>
+&lt;li>cne (&lt;code>cne&lt;/code>)&lt;/li>
+&lt;li>weq (&lt;code>weq&lt;/code>)&lt;/li>
+&lt;li>wne (&lt;code>wne&lt;/code>)&lt;/li>
+&lt;/ul>
+&lt;/details>&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -349,21 +314,9 @@ bit wide result.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -404,21 +357,9 @@ bit wide result.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -465,21 +406,9 @@ bit wide result.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -518,21 +447,9 @@ bit wide result.&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-7">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -620,21 +537,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lookupTable&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::ArrayAttr&lt;/td>
-&lt;td>1-bit boolean array attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>lookupTable&lt;/code>&lt;/td>&lt;td>::mlir::ArrayAttr&lt;/td>&lt;td>1-bit boolean array attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -673,21 +578,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Attribute&lt;/th>
-&lt;th style="text-align:center">MLIR Type&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>twoState&lt;/code>&lt;/td>
-&lt;td style="text-align:center">::mlir::UnitAttr&lt;/td>
-&lt;td>unit attribute&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
+&lt;table>
 &lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -802,6 +695,205 @@ indicates that the tensor is an LWE ciphertext.&lt;/p>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
+&lt;/table>
+&lt;h3 id="inversecanonicalembeddingencodingattr">InverseCanonicalEmbeddingEncodingAttr&lt;/h3>
+&lt;p>An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.inverse_canonical_embedding_encoding&amp;lt;
+unsigned, # cleartext_start
+unsigned # cleartext_bitwidth
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Let $n$ be the degree of the polynomials in the plaintext space. An
+&amp;ldquo;inverse canonical embedding encoding&amp;rdquo; of a list of real or complex values
+$v_1, \dots, v_{n/2}$ is (almost) the inverse of the following decoding
+map.&lt;/p>
+&lt;p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N +&lt;/p>
+&lt;ol>
+&lt;li>\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
+where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:&lt;/li>
+&lt;/ol>
+&lt;p>[
+\omega, \omega^3, \omega^5, \dots, \omega^{N-1}
+]&lt;/p>
+&lt;p>Then the complete decoding operation is $\textup{Decode}(p) =
+(1/\Delta)\tau_N(p)$, where $\Delta$ is a scaling parameter and $\tau_N$ is
+the truncated canonical embedding above. The encoding operation is the
+inverse of the decoding operation, with some caveats explained below.&lt;/p>
+&lt;p>The map $\tau_N$ is derived from the so-called &lt;em>canonical embedding&lt;/em>
+$\tau$, though in the standard canonical embedding, we evaluate at all odd
+powers of the root of unity, $\omega, \omega^3, \dots, \omega^{2N-1}$. For
+polynomials in the slightly larger space $\mathbb{R}[x] / (x^N + 1)$, the
+image of the canonical embedding is the subspace $H \subset \mathbb{C}^N$
+defined by tuples $(z_1, \dots, z_N)$ such that $\overline{z_i} =
+\overline{z_{N-i+1}}$. Note that this property holds because polynomial
+evaluation commutes with complex conjugates, and the second half of the
+roots of unity evaluate are complex conjugates of the first half. The
+converse, that any such tuple with complex conjugate symmetry has an
+inverse under $\tau$ with all real coefficients, makes $\tau$ is a
+bijection onto $H$. $\tau$ and its inverse are explicitly computable as
+discrete Fourier Transforms.&lt;/p>
+&lt;p>Because of the symmetry in canonical embedding for real polynomials, inputs
+to this encoding can be represented as a list of $N/2$ complex points, with
+the extra symmetric structure left implicit. $\tau_N$ and its inverse can
+also be explicitly computed without need to expand the vectors to length
+$N$.&lt;/p>
+&lt;p>The rounding step is required to invert the decoding because, while
+cleartexts must be (implicitly) in the subspace $H$, they need not be the
+output of $\tau_N$ for an &lt;em>integer&lt;/em> polynomial. The rounding step ensures
+we can use integer polynomial plaintexts for the FHE operations. There are
+multiple rounding mechanisms, and this attribute does not specify which is
+used, because in theory two ciphertexts that have used different roundings
+are still compatible, though they may have different noise growth patterns.&lt;/p>
+&lt;p>The scaling parameter $\Delta$ is specified by the &lt;code>cleartext_start&lt;/code> and
+&lt;code>cleartext_bitwidth&lt;/code> parameters, which are applied coefficient-wise using
+the same semantics as the &lt;code>bit_field_encoding&lt;/code>.&lt;/p>
+&lt;p>This attribute can be used in multiple ways:&lt;/p>
+&lt;ul>
+&lt;li>On a &lt;code>poly.poly&lt;/code>, it asserts that the polynomial has been transformed
+from a coefficient list using the canonical embedding.&lt;/li>
+&lt;li>On a tensor of &lt;code>poly.poly&lt;/code>, it asserts that the tensor is an RLWE
+ciphertext for some RLWE scheme that supports the approximate embedding
+encoding.&lt;/li>
+&lt;/ul>
+&lt;p>A typical flow for the CKKS scheme using this encoding would be to apply an
+inverse FFT operation to invert the canonical embedding to be a polynomial
+with real coefficients, then encrypt scale the resulting polynomial&amp;rsquo;s
+coefficients according to the scaling parameters, then round to get integer
+coefficients.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#generator = #poly.polynomial&amp;lt;1 + x**1024&amp;gt;
+#ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
+#lwe_encoding = #lwe.poly_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
+%evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
+// TODO(https://github.com/google/heir/issues/182): fix docs
+// Note no `intt` operation exists in poly yet.
+%poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">cleartext_start&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">cleartext_bitwidth&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="polycoefficientencodingattr">PolyCoefficientEncodingAttr&lt;/h3>
+&lt;p>An attribute describing encoded RLWE plaintexts via coefficients.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.poly_coefficient_encoding&amp;lt;
+unsigned, # cleartext_start
+unsigned # cleartext_bitwidth
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>A coefficient encoding of a list of integers asserts that the coefficients
+of the polynomials contain the cleartexts, with the same semantics as
+&lt;code>bit_field_encoding&lt;/code> for per-coefficient encodings.&lt;/p>
+&lt;p>The presence of this attribute as the &lt;code>encoding&lt;/code> attribute of a tensor of
+&lt;code>poly.poly&lt;/code> indicates that the tensor is an RLWE ciphertext for some RLWE
+scheme that supports the coefficient encoding.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#generator = #poly.polynomial&amp;lt;1 + x**1024&amp;gt;
+#ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
+#coeff_encoding = #lwe.poly_coefficient_encoding&amp;lt;cleartext_start=15, cleartext_bitwidth=4&amp;gt;
+%poly1 = poly.from_tensor %coeffs1 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
+%poly2 = poly.from_tensor %coeffs2 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
+%rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring&amp;gt;, #coeff_encoding&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">cleartext_start&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">cleartext_bitwidth&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="polyevaluationencodingattr">PolyEvaluationEncodingAttr&lt;/h3>
+&lt;p>An attribute describing encoded RLWE plaintexts via evaluations at fixed points.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.poly_evaluation_encoding&amp;lt;
+unsigned, # cleartext_start
+unsigned # cleartext_bitwidth
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>A &amp;ldquo;evaluation encoding&amp;rdquo; of a list of integers $(v_1, \dots, v_n)$ asserts
+that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
+distinct choice of inputs $x_i$. The encoded values are also scaled by a
+scale factor, having the same semantics as &lt;code>bit_field_encoding&lt;/code>, but
+applied entry-wise (to either the coefficient or evaluation representation).&lt;/p>
+&lt;p>This attribute can be used in multiple ways:&lt;/p>
+&lt;ul>
+&lt;li>On a &lt;code>poly.poly&lt;/code>, it asserts that the polynomial has been transformed
+from an evaluation tensor.&lt;/li>
+&lt;li>On a tensor of &lt;code>poly.poly&lt;/code>, it asserts that the tensor is an RLWE
+ciphertext for some RLWE scheme that supports the evaluation encoding.&lt;/li>
+&lt;/ul>
+&lt;p>A typical workflow for the BFV/BGV schemes using this encoding would be
+to apply a INTT operation to the input list of cleartexts to convert from
+evaluation form to coefficient form, then encrypt the resulting polynomial
+in coefficient form, then apply NTT back to the evaluation form for faster
+multiplication of ciphertexts.&lt;/p>
+&lt;p>The points chosen are fixed to be the powers of a primitive root of unity
+of the coefficient ring of the plaintext space, which allows one to use
+NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#generator = #poly.polynomial&amp;lt;1 + x**1024&amp;gt;
+// note that the cmod should be chosen so as to ensure a primitive root of
+// unity exists in the multiplicative group (Z / cmod Z)^*
+#ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
+#lwe_encoding = #lwe.poly_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
+%evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
+// TODO(https://github.com/google/heir/issues/182): fix docs
+// Note no `intt` operation exists in poly yet.
+%poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">cleartext_start&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">cleartext_bitwidth&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Poly</title><link>https://google.github.io/heir/docs/dialects/poly/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/poly/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>The Poly dialect defines single-variable polynomial types and operations.&lt;/p>
@@ -872,7 +964,8 @@ principal, the ideal is defined by a single polynomial.&lt;/p>
 &lt;p>An element of a polynomial quotient ring&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>!poly.poly&amp;lt;
-::mlir::heir::poly::RingAttr # ring
+::mlir::heir::poly::RingAttr, # ring
+Attribute # encoding
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A type for polynomials in a polynomial quotient ring.&lt;/p>
 &lt;h4 id="parameters-2">Parameters:&lt;/h4>
@@ -889,6 +982,11 @@ principal, the ideal is defined by a single polynomial.&lt;/p>
 &lt;td style="text-align:center">ring&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::poly::RingAttr&lt;/code>&lt;/td>
 &lt;td>An attribute specifying a ring.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encoding&lt;/td>
+&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Secret</title><link>https://google.github.io/heir/docs/dialects/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/secret/</guid><description>
