@@ -19,3 +19,11 @@ package_group(
     name = "internal",
     packages = [],
 )
+
+# Disables Yosys deps for CLI tools and tests.
+config_setting(
+    name = "disable_yosys",
+    values = {
+        "define": "HEIR_NO_YOSYS=1",
+    },
+)

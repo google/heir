@@ -27,6 +27,7 @@ glob_lit_tests(
         "@at_clifford_yosys//:yosys",
         "@heir//tests:test_utilities",
     ],
+    default_tags = ["yosys"],
     driver = "@heir//tests:run_lit.sh",
     size_override = {
         "hello_world.tosa.mlir": "large",

@@ -14,6 +14,20 @@
 namespace mlir {
 namespace heir {
 
+// Returns a list of cell names that are topologically ordered using the Yosys
+// toder output. This is extracted from the lines containing cells in the
+// output:
+// -- Running command `torder -stop * P*;' --
+
+// 14. Executing TORDER pass (print cells in topological order).
+// module test_add
+//   cell $abc$167$auto$blifparse.cc:525:parse_blif$168
+//   cell $abc$167$auto$blifparse.cc:525:parse_blif$170
+//   cell $abc$167$auto$blifparse.cc:525:parse_blif$169
+//   cell $abc$167$auto$blifparse.cc:525:parse_blif$171
+llvm::SmallVector<std::string, 10> getTopologicalOrder(
+    std::stringstream &torderOutput);
+
 class RTLILImporter {
  public:
   RTLILImporter(MLIRContext *context) : context(context) {}
@@ -46,7 +60,9 @@ class RTLILImporter {
 
   // getBit gets the MLIR Value corresponding to the given connection. This
   // assumes that the connection is a single bit.
-  Value getBit(const Yosys::RTLIL::SigSpec &conn, ImplicitLocOpBuilder &b);
+  Value getBit(
+      const Yosys::RTLIL::SigSpec &conn, ImplicitLocOpBuilder &b,
+      llvm::MapVector<Yosys::RTLIL::Wire *, SmallVector<Value>> &retBitValues);
 
   // addResultBit assigns an mlir result to the result connection.
   void addResultBit(

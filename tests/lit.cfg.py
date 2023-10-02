@@ -46,6 +46,15 @@ config.environment["PATH"] = (
     + os.environ["PATH"]
 )
 
+abc_relpath = "edu_berkeley_abc/abc"
+config.environment["HEIR_ABC_BINARY"] = (
+    str(runfiles_dir.joinpath(Path(abc_relpath)))
+)
+yosys_libs = "heir/lib/Transforms/YosysOptimizer/yosys"
+config.environment["HEIR_YOSYS_SCRIPTS_DIR"] = (
+    str(runfiles_dir.joinpath(Path(yosys_libs)))
+)
+
 # Some tests that use mlir-cpu-runner need access to additional shared libs to
 # link against functions like print. Substitutions replace magic strings in the
 # test files with the needed paths.

@@ -20,10 +20,23 @@ git clone git@github.com:google/heir.git && cd heir
 bazel build @heir//tools:heir-opt
 ```
 
+Some passes in this repository require Yosys as a dependency (`--yosys-optimizer`). If you would like to skip Yosys and ABC compilation to speed up builds, use the following build setting:
+
+```bash
+bazel build --define=HEIR_NO_YOSYS=1 @heir//tools:heir-opt
+```
+
 ## Optional: Run the tests
 
 ```bash
 bazel test @heir//...
+```
+
+Like above, run the following to skip tests that depend on Yosys:
+
+
+```bash
+bazel test --define=HEIR_NO_YOSYS=1 --test_tag_filters=-yosys @heir//...
 ```
 
 ## Developing in HEIR
