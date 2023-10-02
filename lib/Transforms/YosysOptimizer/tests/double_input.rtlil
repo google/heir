@@ -1,0 +1,8 @@
+module \double_in
+
+  wire width 8 input 1 \x
+
+  wire width 8 output 2 \out
+
+  connect \out { \x [6:0] 1'0 }
+end
