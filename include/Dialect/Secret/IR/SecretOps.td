@@ -71,7 +71,9 @@ def Secret_RevealOp : Secret_Op<"reveal", [Pure]> {
 }
 
 
-def Secret_YieldOp : Secret_Op<"yield", [Pure, ReturnLike, Terminator]>,
+def Secret_YieldOp : Secret_Op<"yield", [
+    Pure, ReturnLike, Terminator, HasParent<"GenericOp">
+]>,
   Arguments<(ins Variadic<AnyType>:$values)> {
   let summary = "Secret yield operation";
   let description = [{
@@ -82,14 +84,7 @@ def Secret_YieldOp : Secret_Op<"yield", [Pure, ReturnLike, Terminator]>,
   }];
   let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>];
   let hasCustomAssemblyFormat = 1;
-
-  // TODO(https://github.com/google/heir/issues/108): add a verifier that
-  // ensures the yield op is inside a generic op, that the return type of the
-  // yield op matches the enclosing generic, and any other similar
-  // verifications that linalg.generic has that would be applicable here. Maybe
-  // there are some generic interfaces that produce these verifiers for free,
-  // like SingleBlockImplicitTerminator?
-  // let hasVerifier = 1;
+  let hasVerifier = 1;
 }
 
 def Secret_GenericOp : Secret_Op<"generic", [
@@ -156,7 +151,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
   // TODO(https://github.com/google/heir/issues/108): add a verifier that
   // ensures the arguments to the op match the arguments of the block.
-  // let hasVerifier = 1;
+  let hasVerifier = 1;
 }
 
 

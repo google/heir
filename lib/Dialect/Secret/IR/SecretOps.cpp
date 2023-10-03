@@ -37,6 +37,25 @@ ParseResult YieldOp::parse(OpAsmParser &parser, OperationState &result) {
                  parser.resolveOperands(opInfo, types, loc, result.operands));
 }
 
+LogicalResult YieldOp::verify() {
+  // Trait verifier ensures parent is a GenericOp
+  auto parent = llvm::cast<GenericOp>(getParentOp());
+
+  for (int i = 0; i < getValues().size(); ++i) {
+    auto yieldSecretType = SecretType::get(getValues().getTypes()[i]);
+    if (yieldSecretType != parent.getResultTypes()[i]) {
+      return emitOpError()
+             << "If a yield op returns types T, S, ..., then the enclosing "
+                "generic op must have result types secret.secret<T>, "
+                "secret.secret<S>, ... But this yield op has operand types: "
+             << getValues().getTypes()
+             << "; while the enclosing generic op has result types: "
+             << parent.getResultTypes();
+    }
+  }
+  return success();
+}
+
 void GenericOp::print(OpAsmPrinter &p) {
   ValueRange inputs = getInputs();
   if (!inputs.empty())
@@ -107,6 +126,76 @@ ParseResult GenericOp::parse(OpAsmParser &parser, OperationState &result) {
   SmallVector<Type, 1> outputTypes;
   if (parser.parseOptionalArrowTypeList(outputTypes)) return failure();
   result.addTypes(outputTypes);
+
+  return success();
+}
+
+LogicalResult GenericOp::verify() {
+  Block *body = getBody();
+
+  // Verify that the operands of the body's basic block are the non-secret
+  // analogues of the generic's operands.
+  for (BlockArgument arg : body->getArguments()) {
+    auto operand = getOperands()[arg.getArgNumber()];
+    auto operandType = dyn_cast<SecretType>(operand.getType());
+
+    // An error for the case where the generic operand and block arguments
+    // are both non-secrets, but they are not the same type
+    //
+    // secret.generic (ins %x: i32) {
+    //  ^bb0(%x_clear: i64):
+    //   ...
+    // }
+    //
+    if (!operandType && arg.getType() != operand.getType()) {
+      return emitOpError()
+             << "Type mismatch between block argument " << arg.getArgNumber()
+             << " of type " << arg.getType() << " and generic operand of type "
+             << operand.getType()
+             << ". If the operand is not secret, it must be the same type as "
+                "the block argument";
+    }
+
+    // An error for the case where the generic operand is secret,
+    // but the corresponding block argument doesn't unwrap the secret.
+    //
+    // secret.generic (ins %x: !secret.secret<i32>) {
+    //  ^bb0(%x_clear: i64):
+    //   ...
+    // }
+    //
+    if (operandType && arg.getType() != operandType.getValueType()) {
+      return emitOpError()
+             << "Type mismatch between block argument " << arg.getArgNumber()
+             << " of type " << arg.getType() << " and generic operand of type "
+             << operand.getType()
+             << ". For a secret.secret<T> input to secret.generic, the "
+                "corresponding block argument must have type T";
+    }
+  }
+
+  // Verify that all ops in the body only use values defined in the block
+  // arguments.
+  for (auto &op : body->getOperations()) {
+    for (auto operand : op.getOperands()) {
+      // For a block argument (e.g., func argument), the defining op is
+      // nullptr. Still need to check that the parent block of the value is the
+      // containing block
+      auto *definer = operand.getDefiningOp();
+      if (definer == nullptr) {
+        if (operand.getParentBlock() != body) {
+          return emitOpError()
+                 << "Operation " << op.getName()
+                 << " uses a block argument defined outside the block. Op was "
+                 << op;
+        }
+      } else if (definer->getBlock() != body) {
+        return emitOpError()
+               << "Operation " << op.getName()
+               << " uses a value defined outside the block. Op was " << op;
+      }
+    }
+  }
 
   return success();
 }
