@@ -14,7 +14,7 @@ py_binary(
         "run_verilog.py",
     ],
     data = [
-        "@at_clifford_yosys//:yosys",
+        "@at_clifford_yosys////:yosys",
     ],
     python_version = "PY3",
     srcs_version = "PY3",
@@ -24,7 +24,7 @@ glob_lit_tests(
     name = "all_tests",
     data = [
         ":run_verilog",
-        "@at_clifford_yosys//:yosys",
+        "@at_clifford_yosys////:yosys",
         "@heir//tests:test_utilities",
     ],
     driver = "@heir//tests:run_lit.sh",
