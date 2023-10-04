@@ -8,6 +8,7 @@
 #my_poly_3 = #poly.polynomial<3x>
 #my_poly_4 = #poly.polynomial<t**3 + 4t + 2>
 #ring1 = #poly.ring<cmod=2837465, ideal=#my_poly>
+#one_plus_x_squared = #poly.polynomial<1 + x**2>
 module {
   func.func @test_multiply() -> !poly.poly<#ring1> {
     %c0 = arith.constant 0 : index
@@ -30,7 +31,7 @@ module {
     %tp1 = tensor.from_elements %p1, %p0 : tensor<2x!poly.poly<#ring1>>
 
     %c = arith.constant 2 : i32
-    %mul_const_sclr = poly.mul_constant(%tp0, %c) : tensor<2x!poly.poly<#ring1>>, i32
+    %mul_const_sclr = poly.mul_constant %tp0, %c : tensor<2x!poly.poly<#ring1>>, i32
 
     %add = poly.add(%tp0, %tp1) : tensor<2x!poly.poly<#ring1>>
     %sub = poly.sub(%tp0, %tp1) : tensor<2x!poly.poly<#ring1>>
@@ -52,7 +53,7 @@ module {
   }
 
   func.func @test_degree(%p0 : !poly.poly<#ring1>) {
-    %0 = poly.degree %p0 : !poly.poly<#ring1>
+    %0, %1 = poly.leading_term %p0 : !poly.poly<#ring1> -> (index, i32)
     return
   }
 
@@ -60,6 +61,12 @@ module {
     %deg = arith.constant 1023 : index
     %five = arith.constant 5 : i16
     %0 = poly.monomial %five, %deg : (i16, index) -> !poly.poly<#ring1>
+    return
+  }
+
+  func.func @test_constant() {
+    %0 = poly.constant #one_plus_x_squared : !poly.poly<#ring1>
+    %1 = poly.constant <1 + x**2> : !poly.poly<#ring1>
     return
   }
 }
