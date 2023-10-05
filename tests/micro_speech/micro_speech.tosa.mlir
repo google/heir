@@ -56,24 +56,24 @@ module attributes {tfl.description = "TOCO Converted.", tfl.schema_version = 3 :
     %42 = "tosa.clz"(%41) : (tensor<1x1xi32>) -> tensor<1x1xi32>
     %43 = "tosa.sub"(%42, %3) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %44 = "tosa.logical_left_shift"(%41, %43) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %45 = "tosa.mul"(%44, %6) <{shift = 31 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %45 = "tosa.mul"(%44, %6) <{shift = 31 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %46 = "tosa.add"(%45, %7) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %47 = "tosa.mul"(%46, %44) <{shift = 31 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %47 = "tosa.mul"(%46, %44) <{shift = 31 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %48 = "tosa.sub"(%8, %47) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %49 = "tosa.mul"(%46, %48) <{shift = 31 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %50 = "tosa.mul"(%49, %9) <{shift = 0 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %49 = "tosa.mul"(%46, %48) <{shift = 31 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %50 = "tosa.mul"(%49, %9) <{shift = 0 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %51 = "tosa.add"(%46, %50) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %52 = "tosa.mul"(%51, %44) <{shift = 31 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %52 = "tosa.mul"(%51, %44) <{shift = 31 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %53 = "tosa.sub"(%8, %52) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %54 = "tosa.mul"(%51, %53) <{shift = 31 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %55 = "tosa.mul"(%54, %9) <{shift = 0 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %54 = "tosa.mul"(%51, %53) <{shift = 31 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %55 = "tosa.mul"(%54, %9) <{shift = 0 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %56 = "tosa.add"(%51, %55) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %57 = "tosa.mul"(%56, %44) <{shift = 31 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %57 = "tosa.mul"(%56, %44) <{shift = 31 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %58 = "tosa.sub"(%8, %57) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %59 = "tosa.mul"(%56, %58) <{shift = 31 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %60 = "tosa.mul"(%59, %9) <{shift = 0 : i32}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %59 = "tosa.mul"(%56, %58) <{shift = 31 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
+    %60 = "tosa.mul"(%59, %9) <{shift = 0 : i8}> : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %61 = "tosa.add"(%56, %60) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
-    %62 = "tosa.mul"(%39, %61) <{shift = 30 : i32}> : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
+    %62 = "tosa.mul"(%39, %61) <{shift = 30 : i8}> : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
     %63 = "tosa.sub"(%10, %42) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %64 = "tosa.arithmetic_right_shift"(%62, %63) <{round = true}> : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
     %65 = "tosa.rescale"(%64) <{double_round = false, input_zp = 0 : i32, multiplier = array<i32: 1073741824>, output_zp = -128 : i32, per_channel = false, scale32 = true, shift = array<i32: 30>}> : (tensor<1x4xi32>) -> tensor<1x4xi8>
