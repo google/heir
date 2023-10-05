@@ -3,7 +3,7 @@
 
 include "mlir/Pass/PassBase.td"
 
-def PolyToStandard : Pass<"lower-poly"> {
+def PolyToStandard : Pass<"poly-to-standard"> {
   let summary = "Lower `poly` to standard MLIR dialects.";
 
   let description = [{
@@ -14,6 +14,7 @@ def PolyToStandard : Pass<"lower-poly"> {
     "mlir::arith::ArithDialect",
     "mlir::heir::poly::PolyDialect",
     "mlir::tensor::TensorDialect",
+    "mlir::scf::SCFDialect",
   ];
 }
 
