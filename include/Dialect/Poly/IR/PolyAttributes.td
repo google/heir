@@ -1,7 +1,7 @@
 #ifndef HEIR_INCLUDE_DIALECT_POLY_IR_POLYATTRIBUTES_TD_
 #define HEIR_INCLUDE_DIALECT_POLY_IR_POLYATTRIBUTES_TD_
 
-include "PolyDialect.td"
+include "include/Dialect/Poly/IR/PolyDialect.td"
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"

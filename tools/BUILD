@@ -20,6 +20,7 @@ cc_binary(
         "@heir//lib/Dialect/EncryptedArith/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Poly/IR:Dialect",
+        "@heir//lib/Dialect/PolyExt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/Transforms",
         "@llvm-project//mlir:AffineDialect",
