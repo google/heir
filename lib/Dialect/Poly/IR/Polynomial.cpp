@@ -67,7 +67,7 @@ void Polynomial::print(raw_ostream &os) const {
 }
 
 unsigned Polynomial::getDegree() const {
-  return terms->terms().back().exponent.getSExtValue();
+  return terms->terms().back().exponent.getZExtValue();
 }
 
 }  // end namespace poly

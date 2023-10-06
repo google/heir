@@ -113,6 +113,37 @@ struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
   }
 };
 
+struct ConvertConstant : public OpConversionPattern<ConstantOp> {
+  ConvertConstant(mlir::MLIRContext *context)
+      : OpConversionPattern<ConstantOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ConstantOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    RankedTensorType tensorType = cast<RankedTensorType>(
+        typeConverter->convertType(op.getResult().getType()));
+    PolynomialAttr attr = op.getInput();
+    SmallVector<Attribute> coeffs;
+    auto eltTy = tensorType.getElementType();
+    unsigned numTerms = tensorType.getShape()[0];
+    coeffs.reserve(numTerms);
+    // This is inefficient for large-degree polys, but as of this writing we
+    // don't have a lowering that uses a sparse representation.
+    for (int i = 0; i < numTerms; ++i) {
+      coeffs.push_back(rewriter.getIntegerAttr(eltTy, 0));
+    }
+    for (const auto &term : attr.getPolynomial().getTerms()) {
+      coeffs[term.exponent.getZExtValue()] = rewriter.getIntegerAttr(
+          eltTy, term.coefficient.trunc(eltTy.getIntOrFloatBitWidth()));
+    }
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+        op, DenseElementsAttr::get(tensorType, coeffs));
+    return success();
+  }
+};
+
 struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
   ConvertMonomial(mlir::MLIRContext *context)
       : OpConversionPattern<MonomialOp>(context) {}
@@ -134,15 +165,87 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
   }
 };
 
-struct ConvertDegree : public OpConversionPattern<DegreeOp> {
-  ConvertDegree(mlir::MLIRContext *context)
-      : OpConversionPattern<DegreeOp>(context) {}
+// Implement rotation via tensor.insert_slice
+// TODO: I could implement this with a linalg.generic... would that be better?
+struct ConvertRotate : public OpConversionPattern<MonomialMulOp> {
+  ConvertRotate(mlir::MLIRContext *context)
+      : OpConversionPattern<MonomialMulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
-  // FIXME: Is it worth implementing this as a function call as well?
   LogicalResult matchAndRewrite(
-      DegreeOp op, OpAdaptor adaptor,
+      MonomialMulOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    // In general, a rotation would correspond to multiplication by x^n,
+    // which requires a modular reduction step. But because the verifier
+    // requires the ring to have a specific structure (x^n - 1), this op
+    // can be implemented as a cyclic shift with wraparound.
+    auto tensorType = cast<RankedTensorType>(adaptor.getInput().getType());
+    auto outputTensorContainer = b.create<tensor::EmptyOp>(
+        tensorType.getShape(), tensorType.getElementType());
+
+    RankedTensorType dynamicSliceType = RankedTensorType::get(
+        ShapedType::kDynamic, tensorType.getElementType());
+
+    // split the tensor into two pieces at index N - rotation_amount
+    // e.g., if rotation_amount is 2,
+    //
+    //   [0, 1, 2, 3, 4 | 5, 6]
+    //
+    // the resulting output is
+    //
+    //   [5, 6 | 0, 1, 2, 3, 4]
+    auto constTensorDim = b.create<arith::ConstantOp>(
+        b.getIndexType(), b.getIndexAttr(tensorType.getShape()[0]));
+    auto splitPoint =
+        b.create<arith::SubIOp>(constTensorDim, adaptor.getMonomialDegree());
+
+    SmallVector<OpFoldResult> firstHalfExtractOffsets{b.getIndexAttr(0)};
+    SmallVector<OpFoldResult> firstHalfExtractSizes{splitPoint.getResult()};
+    SmallVector<OpFoldResult> strides{b.getIndexAttr(1)};
+    auto firstHalfExtractOp = b.create<tensor::ExtractSliceOp>(
+        /*resultType=*/dynamicSliceType,
+        /*source=*/adaptor.getInput(), firstHalfExtractOffsets,
+        firstHalfExtractSizes, strides);
+
+    SmallVector<OpFoldResult> secondHalfExtractOffsets{splitPoint.getResult()};
+    SmallVector<OpFoldResult> secondHalfExtractSizes{
+        adaptor.getMonomialDegree()};
+    auto secondHalfExtractOp = b.create<tensor::ExtractSliceOp>(
+        /*resultType=*/dynamicSliceType,
+        /*source=*/adaptor.getInput(), secondHalfExtractOffsets,
+        secondHalfExtractSizes, strides);
+
+    SmallVector<OpFoldResult> firstHalfInsertOffsets{
+        adaptor.getMonomialDegree()};
+    SmallVector<OpFoldResult> firstHalfInsertSizes{splitPoint.getResult()};
+    auto firstHalfInsertOp = b.create<tensor::InsertSliceOp>(
+        /*source=*/firstHalfExtractOp.getResult(),
+        /*dest=*/outputTensorContainer.getResult(), firstHalfInsertOffsets,
+        firstHalfInsertSizes, strides);
+
+    SmallVector<OpFoldResult> secondHalfInsertOffsets{b.getIndexAttr(0)};
+    SmallVector<OpFoldResult> secondHalfInsertSizes{
+        adaptor.getMonomialDegree()};
+    auto secondHalfInsertOp = b.create<tensor::InsertSliceOp>(
+        /*source=*/secondHalfExtractOp.getResult(),
+        /*dest=*/firstHalfInsertOp.getResult(), secondHalfInsertOffsets,
+        secondHalfInsertSizes, strides);
+
+    rewriter.replaceOp(op, secondHalfInsertOp.getResult());
+    return success();
+  }
+};
+
+struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
+  ConvertLeadingTerm(mlir::MLIRContext *context)
+      : OpConversionPattern<LeadingTermOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      LeadingTermOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto coeffs = adaptor.getInput();
@@ -153,9 +256,9 @@ struct ConvertDegree : public OpConversionPattern<DegreeOp> {
     auto initIndex = b.create<arith::ConstantOp>(
         b.getIndexAttr(tensorType.getShape()[0] - 1));
 
-    rewriter.replaceOpWithNewOp<scf::WhileOp>(
-        op,
-        /*resultTypes=*/TypeRange{b.getIndexType()},
+    auto degreeOp = b.create<scf::WhileOp>(
+        /*resultTypes=*/
+        TypeRange{b.getIndexType()},
         /*operands=*/ValueRange{initIndex.getResult()},
         /*beforeBuilder=*/
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
@@ -174,6 +277,10 @@ struct ConvertDegree : public OpConversionPattern<DegreeOp> {
               b.create<arith::SubIOp>(currentIndex, c1.getResult());
           b.create<scf::YieldOp>(nextIndex.getResult());
         });
+    auto degree = degreeOp.getResult(0);
+    auto leadingCoefficient =
+        b.create<tensor::ExtractOp>(coeffs, ValueRange{degree});
+    rewriter.replaceOp(op, ValueRange{degree, leadingCoefficient.getResult()});
     return success();
   }
 };
@@ -256,19 +363,21 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
-    auto module = getOperation();
+    auto *module = getOperation();
     ConversionTarget target(*context);
     PolyToStandardTypeConverter typeConverter(context);
 
     target.addLegalDialect<arith::ArithDialect>();
 
     // target.addIllegalDialect<PolyDialect>();
-    target
-        .addIllegalOp<FromTensorOp, ToTensorOp, AddOp, DegreeOp, MonomialOp>();
+    target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp, LeadingTermOp,
+                        MonomialOp, MonomialMulOp, ConstantOp>();
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd, ConvertDegree,
-                 ConvertMonomial>(typeConverter, context);
+    patterns
+        .add<ConvertFromTensor, ConvertToTensor, ConvertAdd, ConvertLeadingTerm,
+             ConvertMonomial, ConvertRotate, ConvertConstant>(typeConverter,
+                                                              context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.

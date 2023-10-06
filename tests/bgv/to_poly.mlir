@@ -25,7 +25,7 @@ module {
     // CHECK: poly.sub([[X]], [[Y]]) : [[T]]
     %sub = bgv.sub(%x, %y) : !ct1
     // CHECK: [[C:%.+]] = arith.constant -1 : [[I:.+]]
-    // CHECK: poly.mul_constant([[X]], [[C]]) : [[T]], [[I]]
+    // CHECK: poly.mul_constant [[X]], [[C]] : [[T]], [[I]]
     %negate = bgv.negate(%x) : !ct1
 
     // CHECK: [[I0:%.+]] = arith.constant 0 : index

@@ -62,6 +62,21 @@ LogicalResult ToTensorOp::verify() {
                       "the output ring's ideal.";
 }
 
+LogicalResult MonomialMulOp::verify() {
+  auto ring = getInput().getType().getRing();
+  auto idealTerms = ring.getIdeal().getTerms();
+  bool compatible =
+      idealTerms.size() == 2 &&
+      (idealTerms[0].coefficient == -1 && idealTerms[0].exponent == 0) &&
+      (idealTerms[1].coefficient == 1);
+
+  return compatible ? success()
+                    : emitOpError()
+                          << "ring type " << ring
+                          << " is not supported yet. The ring "
+                             "must be of the form (x^n - 1) for some n";
+}
+
 }  // namespace poly
 }  // namespace heir
 }  // namespace mlir
