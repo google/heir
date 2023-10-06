@@ -24,7 +24,7 @@ def getPolyCoefficientIntAttribute
 def SubAsAdd : Pat<
   (Poly_SubOp $f, $g),
   (Poly_AddOp $f,
-    (Poly_MulConstantOp $g,
+    (Poly_MulScalarOp $g,
       (Arith_ConstantOp
         ConstantAttr<I32Attr, "-1">)))>;
         // FIXME: get this to work
