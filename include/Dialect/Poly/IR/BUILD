@@ -24,6 +24,7 @@ td_library(
         "PolyAttributes.td",
         "PolyDialect.td",
         "PolyOps.td",
+        "PolyPatterns.td",
         "PolyTypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
@@ -128,5 +129,22 @@ gentbl_cc_library(
         ":dialect_inc_gen",
         ":td_files",
         ":types_inc_gen",
+    ],
+)
+
+gentbl_cc_library(
+    name = "canonicalize_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "PolyCanonicalize.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolyPatterns.td",
+    deps = [
+        ":td_files",
+        ":types_inc_gen",
+        "@llvm-project//mlir:ArithOpsTdFiles",
     ],
 )

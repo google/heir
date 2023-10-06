@@ -28,6 +28,7 @@ def Poly_AddOp : Poly_BinOp<"add"> {
 
 def Poly_SubOp : Poly_BinOp<"sub"> {
   let summary = "Subtraction operation between polynomials.";
+  let hasCanonicalizer = 1;
 }
 
 def Poly_MulOp : Poly_BinOp<"mul"> {
@@ -125,7 +126,7 @@ def Poly_ToTensorOp : Poly_Op<"to_tensor", [Pure]> {
   let hasVerifier = 1;
 }
 
-def Poly_ConstantOp : Poly_Op<"constant", [Pure, ConstantLike]> {
+def Poly_ConstantOp : Poly_Op<"constant", [Pure]> {
   let summary = "Define a constant polynomial via an attribute.";
   let arguments = (ins Polynomial_Attr:$input);
   let results = (outs Polynomial:$output);
