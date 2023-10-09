@@ -1,8 +1,13 @@
 #include "include/Dialect/Poly/IR/PolyOps.h"
 
-#include "llvm/include/llvm/ADT/APInt.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/APInt.h"               // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
+
+// Required after PatternMatch.h
+#include "include/Dialect/Poly/IR/PolyCanonicalize.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -75,6 +80,11 @@ LogicalResult MonomialMulOp::verify() {
                           << "ring type " << ring
                           << " is not supported yet. The ring "
                              "must be of the form (x^n - 1) for some n";
+}
+
+void SubOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                        MLIRContext *context) {
+  populateWithGenerated(results);
 }
 
 }  // namespace poly

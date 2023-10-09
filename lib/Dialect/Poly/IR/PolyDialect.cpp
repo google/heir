@@ -46,6 +46,9 @@ void PolyDialect::initialize() {
   getContext()
       ->getAttributeUniquer()
       .registerParametricStorageType<detail::PolynomialStorage>();
+
+  // Needed for canonicalization patterns that create new arith ops
+  getContext()->getOrLoadDialect("arith");
 }
 
 }  // namespace poly
