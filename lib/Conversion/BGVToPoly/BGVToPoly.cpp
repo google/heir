@@ -91,7 +91,7 @@ struct ConvertNegate : public OpConversionPattern<Negate> {
     auto arg = adaptor.getOperands()[0];
     auto neg = rewriter.create<arith::ConstantIntOp>(loc, -1, /*width=*/8);
     rewriter.replaceOp(
-        op, rewriter.create<poly::MulConstantOp>(loc, arg.getType(), arg, neg));
+        op, rewriter.create<poly::MulScalarOp>(loc, arg.getType(), arg, neg));
     return success();
   }
 };

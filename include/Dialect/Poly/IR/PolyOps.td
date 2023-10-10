@@ -35,7 +35,7 @@ def Poly_MulOp : Poly_BinOp<"mul"> {
   let summary = "Multiplication operation between polynomials.";
 }
 
-def Poly_MulConstantOp : Poly_Op<"mul_constant", [ElementwiseMappable, AllTypesMatch<["x", "output"]>]> {
+def Poly_MulScalarOp : Poly_Op<"mul_scalar", [ElementwiseMappable, AllTypesMatch<["x", "output"]>]> {
   let summary = "Multiplication by a constant of the field.";
 
   let arguments = (ins
