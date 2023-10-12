@@ -86,7 +86,7 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -127,7 +127,7 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -207,7 +207,7 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lowBit&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>32-bit signless integer attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -252,26 +252,9 @@ bit wide result.&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>predicate&lt;/code>&lt;/td>&lt;td>::mlir::heir::comb::ICmpPredicateAttr&lt;/td>&lt;td>&lt;details>&lt;summary>hw.icmp comparison predicate&lt;/summary>&lt;p>Enum cases:&lt;/p>
-&lt;ul>
-&lt;li>eq (&lt;code>eq&lt;/code>)&lt;/li>
-&lt;li>ne (&lt;code>ne&lt;/code>)&lt;/li>
-&lt;li>slt (&lt;code>slt&lt;/code>)&lt;/li>
-&lt;li>sle (&lt;code>sle&lt;/code>)&lt;/li>
-&lt;li>sgt (&lt;code>sgt&lt;/code>)&lt;/li>
-&lt;li>sge (&lt;code>sge&lt;/code>)&lt;/li>
-&lt;li>ult (&lt;code>ult&lt;/code>)&lt;/li>
-&lt;li>ule (&lt;code>ule&lt;/code>)&lt;/li>
-&lt;li>ugt (&lt;code>ugt&lt;/code>)&lt;/li>
-&lt;li>uge (&lt;code>uge&lt;/code>)&lt;/li>
-&lt;li>ceq (&lt;code>ceq&lt;/code>)&lt;/li>
-&lt;li>cne (&lt;code>cne&lt;/code>)&lt;/li>
-&lt;li>weq (&lt;code>weq&lt;/code>)&lt;/li>
-&lt;li>wne (&lt;code>wne&lt;/code>)&lt;/li>
-&lt;/ul>
-&lt;/details>&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>predicate&lt;/code>&lt;/td>&lt;td>::mlir::heir::comb::ICmpPredicateAttr&lt;/td>&lt;td>hw.icmp comparison predicate&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -316,7 +299,7 @@ bit wide result.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -359,7 +342,7 @@ bit wide result.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -408,7 +391,7 @@ bit wide result.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -449,7 +432,7 @@ bit wide result.&lt;/p>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -539,7 +522,7 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>lookupTable&lt;/code>&lt;/td>&lt;td>::mlir::ArrayAttr&lt;/td>&lt;td>1-bit boolean array attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -580,7 +563,7 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>twoState&lt;/code>&lt;/td>&lt;td>::mlir::UnitAttr&lt;/td>&lt;td>unit attribute&lt;/td>&lt;/tr>
-&lt;table>
+&lt;/table>
 &lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
