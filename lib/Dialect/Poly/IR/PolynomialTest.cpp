@@ -59,5 +59,23 @@ TEST(PolynomialTest, TestSortedDegree) {
   EXPECT_THAT(actualDegrees, ElementsAre(0, 1, 3, 9));
 }
 
+TEST(PolynomialTest, TestToIdentifier) {
+  mlir::MLIRContext context;
+  context.getAttributeUniquer()
+      .registerParametricStorageType<detail::PolynomialStorage>();
+  auto poly = Polynomial::fromCoefficients({1, 2, 3}, &context);
+  std::string result = poly.toIdentifier();
+  EXPECT_EQ(result, "1_2x_3x2");
+}
+
+TEST(PolynomialTest, TestToIdentifier_WithMinus) {
+  mlir::MLIRContext context;
+  context.getAttributeUniquer()
+      .registerParametricStorageType<detail::PolynomialStorage>();
+  auto poly = Polynomial::fromCoefficients({1, -2, 3}, &context);
+  std::string result = poly.toIdentifier();
+  EXPECT_EQ(result, "1_-2x_3x2");
+}
+
 }  // namespace
 }  // namespace mlir::heir::poly

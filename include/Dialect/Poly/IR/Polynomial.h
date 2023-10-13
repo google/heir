@@ -80,8 +80,14 @@ class Polynomial {
 
   // Prints polynomial to 'os'.
   void print(raw_ostream &os) const;
+  void print(raw_ostream &os, const std::string &separator,
+             const std::string &exponentiation) const;
   void dump() const;
 
+  // Prints polynomial so that it can be used as a valid identifier
+  std::string toIdentifier() const;
+
+  // A polynomial's terms are canonically stored in order of increasing degree.
   ArrayRef<Monomial> getTerms() const;
 
   unsigned getDegree() const;

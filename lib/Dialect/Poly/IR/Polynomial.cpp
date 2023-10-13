@@ -3,6 +3,7 @@
 #include "include/Dialect/Poly/IR/PolynomialDetail.h"
 #include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"      // from @llvm-project
+#include "llvm/include/llvm/ADT/Twine.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"       // from @llvm-project
 
@@ -39,13 +40,14 @@ Polynomial Polynomial::fromCoefficients(ArrayRef<int64_t> coeffs,
   return Polynomial::fromMonomials(monomials, context);
 }
 
-void Polynomial::print(raw_ostream &os) const {
+void Polynomial::print(raw_ostream &os, const std::string &separator,
+                       const std::string &exponentiation) const {
   bool first = true;
   for (const auto &term : terms->terms()) {
     if (first) {
       first = false;
     } else {
-      os << " + ";
+      os << separator;
     }
     std::string coeffToPrint;
     if (term.coefficient == 1 && term.exponent.uge(1)) {
@@ -61,9 +63,20 @@ void Polynomial::print(raw_ostream &os) const {
     } else if (term.exponent == 1) {
       os << coeffToPrint << "x";
     } else {
-      os << coeffToPrint << "x**" << term.exponent;
+      llvm::SmallString<512> expString;
+      term.exponent.toStringSigned(expString);
+      os << coeffToPrint << "x" << exponentiation << expString;
     }
   }
+}
+
+void Polynomial::print(raw_ostream &os) const { print(os, " + ", "**"); }
+
+std::string Polynomial::toIdentifier() const {
+  std::string result;
+  llvm::raw_string_ostream os(result);
+  print(os, "_", "");
+  return os.str();
 }
 
 unsigned Polynomial::getDegree() const {
