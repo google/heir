@@ -10,6 +10,7 @@ cc_library(
     deps = [
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FuncTransforms",
+        "@llvm-project//mlir:SCFTransforms",
         "@llvm-project//mlir:Transforms",
     ],
 )

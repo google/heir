@@ -2,6 +2,7 @@
 
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -36,6 +37,9 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
                                                             typeConverter) ||
            isLegalForReturnOpTypeConversionPattern(op, typeConverter);
   });
+
+  scf::populateSCFStructuralTypeConversionsAndLegality(typeConverter, patterns,
+                                                       target);
 }
 
 }  // namespace heir

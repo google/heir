@@ -4,6 +4,7 @@
 include "include/Dialect/Poly/IR/PolyAttributes.td"
 include "include/Dialect/Poly/IR/PolyDialect.td"
 include "include/Dialect/Poly/IR/PolyTypes.td"
+include "mlir/IR/BuiltinAttributes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -35,19 +36,20 @@ def Poly_MulOp : Poly_BinOp<"mul"> {
   let summary = "Multiplication operation between polynomials.";
 }
 
-def Poly_MulScalarOp : Poly_Op<"mul_scalar", [ElementwiseMappable, AllTypesMatch<["x", "output"]>]> {
-  let summary = "Multiplication by a constant of the field.";
+def Poly_MulScalarOp : Poly_Op<"mul_scalar", [
+      ElementwiseMappable, AllTypesMatch<["polynomial", "output"]>]> {
+  let summary = "Multiplication by a scalar of the field.";
 
   let arguments = (ins
-    PolynomialLike:$x,
-    AnyInteger:$constant
+    PolynomialLike:$polynomial,
+    AnyInteger:$scalar
   );
 
   let results = (outs
     PolynomialLike:$output
   );
 
-  let assemblyFormat = "operands attr-dict `:` type($x) `,` type($constant)" ;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($polynomial)) `,` type($scalar)";
 }
 
 def Poly_LeadingTermOp: Poly_Op<"leading_term"> {
@@ -121,7 +123,7 @@ def Poly_ToTensorOp : Poly_Op<"to_tensor", [Pure]> {
   }];
   let arguments = (ins Polynomial:$input);
   let results = (outs RankedTensorOf<[AnyInteger]>:$output);
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` qualified(type($output))";
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
 
   let hasVerifier = 1;
 }
