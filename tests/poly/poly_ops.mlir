@@ -1,5 +1,4 @@
-// RUN: heir-opt %s > %t
-// RUN: FileCheck %s < %t
+// RUN: heir-opt %s | FileCheck %s
 
 // This simply tests for syntax.
 

@@ -165,10 +165,33 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
   }
 };
 
+struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
+  ConvertMulScalar(mlir::MLIRContext *context)
+      : OpConversionPattern<MulScalarOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MulScalarOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto tensorType = cast<RankedTensorType>(adaptor.getPolynomial().getType());
+    Value scalar = adaptor.getScalar();
+    if (scalar.getType() != tensorType.getElementType()) {
+      scalar = b.create<arith::ExtUIOp>(tensorType.getElementType(), scalar)
+                   .getResult();
+    }
+    auto tensor = b.create<tensor::SplatOp>(tensorType, scalar);
+    rewriter.replaceOpWithNewOp<arith::MulIOp>(op, adaptor.getPolynomial(),
+                                               tensor);
+    return success();
+  }
+};
+
 // Implement rotation via tensor.insert_slice
 // TODO: I could implement this with a linalg.generic... would that be better?
-struct ConvertRotate : public OpConversionPattern<MonomialMulOp> {
-  ConvertRotate(mlir::MLIRContext *context)
+struct ConvertMonomialMul : public OpConversionPattern<MonomialMulOp> {
+  ConvertMonomialMul(mlir::MLIRContext *context)
       : OpConversionPattern<MonomialMulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -371,13 +394,12 @@ struct PolyToStandard : impl::PolyToStandardBase<PolyToStandard> {
 
     // target.addIllegalDialect<PolyDialect>();
     target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp, LeadingTermOp,
-                        MonomialOp, MonomialMulOp, ConstantOp>();
+                        MonomialOp, MulScalarOp, MonomialMulOp, ConstantOp>();
 
     RewritePatternSet patterns(context);
-    patterns
-        .add<ConvertFromTensor, ConvertToTensor, ConvertAdd, ConvertLeadingTerm,
-             ConvertMonomial, ConvertRotate, ConvertConstant>(typeConverter,
-                                                              context);
+    patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd,
+                 ConvertLeadingTerm, ConvertMonomial, ConvertMulScalar,
+                 ConvertMonomialMul, ConvertConstant>(typeConverter, context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
     // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
