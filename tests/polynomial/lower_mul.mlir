@@ -16,8 +16,8 @@
 // CHECK-SAME:     ins(%[[generic_arg0:.*]], %[[generic_arg1:.*]] : [[INPUT_TENSOR_TY]], [[INPUT_TENSOR_TY]])
 // CHECK-SAME:     outs(%[[NAIVE_POLYMUL_OUTPUT]] : [[NAIVE_POLYMUL_TENSOR_TY]])
 // CHECK:     ^[[BB0:.*]](%[[LHS_IN:.*]]: i32, %[[RHS_IN:.*]]: i32, %[[OUT:.*]]: i64):
-// CHECK:       %[[LHS_EXT:.*]] = arith.extui %[[LHS_IN]] : i32 to i64
-// CHECK:       %[[RHS_EXT:.*]] = arith.extui %[[RHS_IN]] : i32 to i64
+// CHECK:       %[[LHS_EXT:.*]] = arith.extsi %[[LHS_IN]] : i32 to i64
+// CHECK:       %[[RHS_EXT:.*]] = arith.extsi %[[RHS_IN]] : i32 to i64
 // CHECK:       %[[MULTED:.*]] = arith.muli %[[LHS_EXT]], %[[RHS_EXT]] : i64
 // CHECK:       %[[SUMMED:.*]] = arith.addi %[[MULTED]], %[[OUT]] : i64
 // CHECK:       linalg.yield %[[SUMMED]] : i64
@@ -74,13 +74,13 @@
 // CHECK:      %extracted_slice_2 = tensor.extract_slice %5[%7] [%4] [1] : tensor<2047xi64> to tensor<?xi64>
 // CHECK:      %inserted_slice = tensor.insert_slice %extracted_slice_1 into %6[%4] [%7] [1] : tensor<?xi64> into tensor<2047xi64>
 // CHECK:      %inserted_slice_3 = tensor.insert_slice %extracted_slice_2 into %inserted_slice[0] [%4] [1] : tensor<?xi64> into tensor<2047xi64>
-// CHECK:      %8 = arith.extui %c-1_i32 : i32 to i64
+// CHECK:      %8 = arith.extsi %c-1_i32 : i32 to i64
 // CHECK:      %splat_4 = tensor.splat %8 : tensor<2047xi64>
 // CHECK:      %9 = arith.muli %inserted_slice_3, %splat_4 : tensor<2047xi64>
 // CHECK:      %10 = arith.addi %arg1, %9 : tensor<2047xi64>
 // CHECK:      scf.yield %10 : tensor<2047xi64>
 // CHECK:    }
-// CHECK:    %1 = arith.remui %0, %cst : tensor<2047xi64>
+// CHECK:    %1 = arith.remsi %0, %cst : tensor<2047xi64>
 // CHECK:    %2 = arith.trunci %1 : tensor<2047xi64> to tensor<2047xi32>
 // CHECK:    %extracted_slice = tensor.extract_slice %2[0] [1024] [1] : tensor<2047xi32> to tensor<1024xi32>
 // CHECK:    return %extracted_slice : tensor<1024xi32>

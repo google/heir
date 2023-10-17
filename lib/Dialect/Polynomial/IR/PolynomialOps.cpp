@@ -16,8 +16,9 @@ namespace polynomial {
 void FromTensorOp::build(OpBuilder &builder, OperationState &result,
                          Value input, RingAttr ring) {
   TensorType tensorType = dyn_cast<TensorType>(input.getType());
-  APInt cmod(APINT_BIT_WIDTH, 1);
-  cmod = cmod << tensorType.getElementTypeBitWidth();
+  auto bitWidth = tensorType.getElementTypeBitWidth();
+  APInt cmod(1 + bitWidth, 1);
+  cmod = cmod << bitWidth;
   Type resultType = PolynomialType::get(builder.getContext(), ring);
   build(builder, result, resultType, input);
 }
