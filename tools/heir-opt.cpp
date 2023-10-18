@@ -3,7 +3,6 @@
 #include "include/Conversion/PolyToStandard/PolyToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/Comb/IR/CombDialect.h"
-#include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/Poly/IR/PolyDialect.h"
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
@@ -77,7 +76,6 @@ void tosaPipelineBuilder(mlir::OpPassManager &manager) {
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
-  registry.insert<mlir::heir::EncryptedArithDialect>();
   registry.insert<mlir::heir::bgv::BGVDialect>();
   registry.insert<mlir::heir::lwe::LWEDialect>();
   registry.insert<mlir::heir::poly::PolyDialect>();

@@ -1,9 +1,0 @@
-#ifndef HEIR_INCLUDE_DIALECT_ENCRYPTEDARITH_IR_ENCRYPTEDARITHTYPES_H_
-#define HEIR_INCLUDE_DIALECT_ENCRYPTEDARITH_IR_ENCRYPTEDARITHTYPES_H_
-
-#include "include/Dialect/EncryptedArith/IR/EncryptedArithDialect.h"
-
-#define GET_TYPEDEF_CLASSES
-#include "include/Dialect/EncryptedArith/IR/EncryptedArithTypes.h.inc"
-
-#endif  // HEIR_INCLUDE_DIALECT_ENCRYPTEDARITH_IR_ENCRYPTEDARITHTYPES_H_
