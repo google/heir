@@ -98,7 +98,7 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>signless integer&lt;/td>
+&lt;td>variadic of signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -139,7 +139,7 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>signless integer&lt;/td>
+&lt;td>variadic of signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -177,7 +177,7 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>signless integer&lt;/td>
+&lt;td>variadic of signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -311,7 +311,7 @@ bit wide result.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>signless integer&lt;/td>
+&lt;td>variadic of signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -403,7 +403,7 @@ bit wide result.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>signless integer&lt;/td>
+&lt;td>variadic of signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -534,7 +534,7 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>1-bit signless integer&lt;/td>
+&lt;td>variadic of 1-bit signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -575,7 +575,7 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>signless integer&lt;/td>
+&lt;td>variadic of signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
