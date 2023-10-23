@@ -14,9 +14,10 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/Passes.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Passes.h"  // from @llvm-project
@@ -91,6 +92,7 @@ int main(int argc, char **argv) {
   registry.insert<mlir::scf::SCFDialect>();
   registry.insert<mlir::tensor::TensorDialect>();
   registry.insert<mlir::tosa::TosaDialect>();
+  registry.insert<mlir::LLVM::LLVMDialect>();
   mlir::registerAllDialects(registry);
 
   // Register MLIR core passes to build pipeline.

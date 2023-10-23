@@ -3,7 +3,7 @@
 #cycl_2048 = #poly.polynomial<1 + x**1024>
 #ring = #poly.ring<cmod=4294967296, ideal=#cycl_2048>
 
-func.func @test_monomial() {
+func.func @test_monomial() -> !poly.poly<#ring> {
   // CHECK: %[[deg:.*]] = arith.constant 1023
   %deg = arith.constant 1023 : index
   // CHECK: %[[five:.*]] = arith.constant 5
@@ -11,5 +11,5 @@ func.func @test_monomial() {
   // CHECK: %[[container:.*]] = arith.constant dense<0>
   // CHECK: tensor.insert %[[five]] into %[[container]][%[[deg]]]
   %0 = poly.monomial %five, %deg : (i32, index) -> !poly.poly<#ring>
-  return
+  return %0 : !poly.poly<#ring>
 }

@@ -3,7 +3,7 @@
 
 include "mlir/Pass/PassBase.td"
 
-def PolyToStandard : Pass<"poly-to-standard"> {
+def PolyToStandard : Pass<"poly-to-standard", "ModuleOp"> {
   let summary = "Lower `poly` to standard MLIR dialects.";
 
   let description = [{
@@ -11,10 +11,13 @@ def PolyToStandard : Pass<"poly-to-standard"> {
     tensor, and arith.
   }];
   let dependentDialects = [
+    "mlir::LLVM::LLVMDialect",
     "mlir::arith::ArithDialect",
+    "mlir::func::FuncDialect",
     "mlir::heir::poly::PolyDialect",
-    "mlir::tensor::TensorDialect",
+    "mlir::linalg::LinalgDialect",
     "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
   ];
 }
 
