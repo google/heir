@@ -100,7 +100,7 @@ def RLWE_PolyEvaluationEncoding
   let summary = "An attribute describing encoded RLWE plaintexts via evaluations at fixed points.";
   let description = [{
     A "evaluation encoding" of a list of integers $(v_1, \dots, v_n)$ asserts
-    that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
+    that $f(x_1 ) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
     distinct choice of inputs $x_i$. The encoded values are also scaled by a
     scale factor, having the same semantics as `bit_field_encoding`, but
     applied entry-wise (to either the coefficient or evaluation representation).
@@ -154,8 +154,8 @@ def RLWE_InverseCanonicalEmbeddingEncoding
     $v_1, \dots, v_{n/2}$ is (almost) the inverse of the following decoding
     map.
 
-    Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N +
-    1) \to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
+    Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N + 1)
+    \to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
     where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:
 
     \[
