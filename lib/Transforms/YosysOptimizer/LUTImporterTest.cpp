@@ -37,30 +37,6 @@ using ::testing::Test;
 
 static constexpr std::string_view kWorkspaceDir = "heir";
 
-// Returns a list of cell names that are topologically ordered using the Yosys
-// toder output. This is extracted from the lines containing cells in the
-// output:
-// -- Running command `torder -stop * P*;' --
-
-// 14. Executing TORDER pass (print cells in topological order).
-// module test_add
-//   cell $abc$167$auto$blifparse.cc:525:parse_blif$168
-//   cell $abc$167$auto$blifparse.cc:525:parse_blif$170
-//   cell $abc$167$auto$blifparse.cc:525:parse_blif$169
-//   cell $abc$167$auto$blifparse.cc:525:parse_blif$171
-llvm::SmallVector<std::string, 10> getTopologicalOrder(
-    std::stringstream &torderOutput) {
-  llvm::SmallVector<std::string, 10> cells;
-  std::string line;
-  while (std::getline(torderOutput, line)) {
-    auto lineCell = line.find("cell ");
-    if (lineCell != std::string::npos) {
-      cells.push_back(line.substr(lineCell + 5, std::string::npos));
-    }
-  }
-  return cells;
-}
-
 class LUTImporterTestFixture : public Test {
  protected:
   void SetUp() override {

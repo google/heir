@@ -1,3 +1,5 @@
+#include <cstdlib>
+
 #include "include/Conversion/BGVToPoly/BGVToPoly.h"
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolyToStandard/PolyToStandard.h"
@@ -8,6 +10,8 @@
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"   // from @llvm-project
@@ -27,6 +31,10 @@
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
+
+#ifndef HEIR_NO_YOSYS
+#include "include/Transforms/YosysOptimizer/YosysOptimizer.h"
+#endif
 
 void tosaPipelineBuilder(mlir::OpPassManager &manager) {
   // TOSA to linalg
@@ -102,6 +110,18 @@ int main(int argc, char **argv) {
   // Custom passes in HEIR
   mlir::heir::poly::registerPolyToStandardPasses();
   mlir::heir::bgv::registerBGVToPolyPasses();
+  // Register yosys optimizer pipeline if configured.
+#ifndef HEIR_NO_YOSYS
+  const char *abcEnvPath = std::getenv("HEIR_ABC_BINARY");
+  const char *yosysRunfilesEnvPath = std::getenv("HEIR_YOSYS_SCRIPTS_DIR");
+  if (abcEnvPath == nullptr || yosysRunfilesEnvPath == nullptr) {
+    llvm::errs() << "yosys optimizer deps not found, please set "
+                    "HEIR_ABC_PATH and HEIR_YOSYS_LIBS; otherwise, set "
+                    "HEIR_NO_YOSYS=1\n";
+    return EXIT_FAILURE;
+  }
+  mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
+#endif
 
   mlir::PassPipelineRegistration<>(
       "heir-tosa-to-arith",

@@ -217,3 +217,28 @@ conflicts with the conditions of the GPLv2, you may retroactively and
 prospectively choose to deem waived or otherwise exclude such Section(s) of
 the License, but only in their entirety and only with respect to the Combined
 Software.
+
+Copyright (C) 2012 - 2018  Clifford Wolf <clifford@clifford.at>, <dave@ds0.me>
+
+Copyright (C) 2012 Martin SchmÃ¶lzer <martin@schmoelzer.at>
+Copyright (C) 2012 Eddie Hung <eddie@fpgeh.com>
+Copyright (C) 2014 Johann Glaser <Johann.Glaser@gmx.at>
+Copyright (C) 2017 Robert Ou <rqou@robertou.com>
+Copyright (C) 2018 David Shah <dave@ds0.me>, <david@symbioticeda.com>
+Copyright (C) 2018 Miodrag Milanovic <miodrag@symbioticeda.com>
+Copyright (C) 2018 Ruben Undheim <ruben.undheim@gmail.com>
+Copyright (C) 2018 Serge Bazanski <q3k@symbioticeda.com>
+Copyright (C) 2018 whitequark <whitequark@whitequark.org>
+Copyright (C) 2018 Icenowy Zheng <icenowy@aosc.io>
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
