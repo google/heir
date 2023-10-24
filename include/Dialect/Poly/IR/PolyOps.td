@@ -16,14 +16,14 @@ class Poly_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::poly";
 }
 
-class Poly_BinOp<string mnemonic, list<Trait> traits = [Pure, SameOperandsAndResultType, Commutative, ElementwiseMappable]> :
-        Poly_Op<mnemonic, traits> {
+class Poly_BinOp<string mnemonic, list<Trait> traits = []> :
+        Poly_Op<mnemonic, !listconcat(traits, [Pure, SameOperandsAndResultType, ElementwiseMappable])> {
   let arguments = (ins PolynomialLike:$lhs, PolynomialLike:$rhs);
   let results = (outs PolynomialLike:$output);
   let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 }
 
-def Poly_AddOp : Poly_BinOp<"add"> {
+def Poly_AddOp : Poly_BinOp<"add", [Commutative]> {
   let summary = "Addition operation between polynomials.";
 }
 
@@ -32,7 +32,7 @@ def Poly_SubOp : Poly_BinOp<"sub"> {
   let hasCanonicalizer = 1;
 }
 
-def Poly_MulOp : Poly_BinOp<"mul"> {
+def Poly_MulOp : Poly_BinOp<"mul", [Commutative]> {
   let summary = "Multiplication operation between polynomials.";
 }
 
