@@ -68,8 +68,9 @@ indicates that the tensor is an LWE ciphertext.</p><p>Example:</p><pre tabindex=
 </code></pre><p>Let $n$ be the degree of the polynomials in the plaintext space. An
 &ldquo;inverse canonical embedding encoding&rdquo; of a list of real or complex values
 $v_1, \dots, v_{n/2}$ is (almost) the inverse of the following decoding
-map.</p><p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N +</p><ol><li>\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
-where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:</li></ol><p>[
+map.</p><p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N + 1)
+\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
+where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:</p><p>[
 \omega, \omega^3, \omega^5, \dots, \omega^{N-1}
 ]</p><p>Then the complete decoding operation is $\textup{Decode}(p) =
 (1/\Delta)\tau_N(p)$, where $\Delta$ is a scaling parameter and $\tau_N$ is
@@ -135,7 +136,7 @@ scheme that supports the coefficient encoding.</p><p>Example:</p><pre tabindex=0
   unsigned   # cleartext_bitwidth
 &gt;
 </code></pre><p>A &ldquo;evaluation encoding&rdquo; of a list of integers $(v_1, \dots, v_n)$ asserts
-that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
+that $f(x_1 ) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
 distinct choice of inputs $x_i$. The encoded values are also scaled by a
 scale factor, having the same semantics as <code>bit_field_encoding</code>, but
 applied entry-wise (to either the coefficient or evaluation representation).</p><p>This attribute can be used in multiple ways:</p><ul><li>On a <code>poly.poly</code>, it asserts that the polynomial has been transformed

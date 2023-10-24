@@ -7,7 +7,7 @@ Syntax:
 In LWE the plaintexts are integers of a given bit width, and the cleartext messages are integers of a smaller bit width. A common example might be 3-bit cleartexts inside a 32-bit plaintext."><meta property="og:type" content="article"><meta property="og:url" content="https://google.github.io/heir/docs/dialects/lwe/"><meta property="article:section" content="docs"><meta itemprop=name content="LWE"><meta itemprop=description content="LWE attributes BitFieldEncodingAttr An attribute describing encoded LWE plaintexts using bit fields.
 Syntax:
 #lwe.bit_field_encoding< unsigned, # cleartext_start unsigned # cleartext_bitwidth > A bit field encoding of an integer describes which contiguous region of bits a small integer occupies within a larger integer.
-In LWE the plaintexts are integers of a given bit width, and the cleartext messages are integers of a smaller bit width. A common example might be 3-bit cleartexts inside a 32-bit plaintext."><meta itemprop=wordCount content="1270"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="LWE"><meta name=twitter:description content="LWE attributes BitFieldEncodingAttr An attribute describing encoded LWE plaintexts using bit fields.
+In LWE the plaintexts are integers of a given bit width, and the cleartext messages are integers of a smaller bit width. A common example might be 3-bit cleartexts inside a 32-bit plaintext."><meta itemprop=wordCount content="1272"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="LWE"><meta name=twitter:description content="LWE attributes BitFieldEncodingAttr An attribute describing encoded LWE plaintexts using bit fields.
 Syntax:
 #lwe.bit_field_encoding< unsigned, # cleartext_start unsigned # cleartext_bitwidth > A bit field encoding of an integer describes which contiguous region of bits a small integer occupies within a larger integer.
 In LWE the plaintexts are integers of a given bit width, and the cleartext messages are integers of a smaller bit width. A common example might be 3-bit cleartexts inside a 32-bit plaintext."><link rel=preload href=/heir/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/heir/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
@@ -40,8 +40,9 @@ indicates that the tensor is an LWE ciphertext.</p><p>Example:</p><pre tabindex=
 </code></pre><p>Let $n$ be the degree of the polynomials in the plaintext space. An
 &ldquo;inverse canonical embedding encoding&rdquo; of a list of real or complex values
 $v_1, \dots, v_{n/2}$ is (almost) the inverse of the following decoding
-map.</p><p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N +</p><ol><li>\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
-where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:</li></ol><p>[
+map.</p><p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N + 1)
+\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
+where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:</p><p>[
 \omega, \omega^3, \omega^5, \dots, \omega^{N-1}
 ]</p><p>Then the complete decoding operation is $\textup{Decode}(p) =
 (1/\Delta)\tau_N(p)$, where $\Delta$ is a scaling parameter and $\tau_N$ is
@@ -107,7 +108,7 @@ scheme that supports the coefficient encoding.</p><p>Example:</p><pre tabindex=0
   unsigned   # cleartext_bitwidth
 &gt;
 </code></pre><p>A &ldquo;evaluation encoding&rdquo; of a list of integers $(v_1, \dots, v_n)$ asserts
-that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
+that $f(x_1 ) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
 distinct choice of inputs $x_i$. The encoded values are also scaled by a
 scale factor, having the same semantics as <code>bit_field_encoding</code>, but
 applied entry-wise (to either the coefficient or evaluation representation).</p><p>This attribute can be used in multiple ways:</p><ul><li>On a <code>poly.poly</code>, it asserts that the polynomial has been transformed

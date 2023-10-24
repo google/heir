@@ -659,11 +659,9 @@ unsigned # cleartext_bitwidth
 &amp;ldquo;inverse canonical embedding encoding&amp;rdquo; of a list of real or complex values
 $v_1, \dots, v_{n/2}$ is (almost) the inverse of the following decoding
 map.&lt;/p>
-&lt;p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N +&lt;/p>
-&lt;ol>
-&lt;li>\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
-where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:&lt;/li>
-&lt;/ol>
+&lt;p>Define a map $\tau_N$ that maps a polynomial $p \in \mathbb{Z}[x] / (x^N + 1)
+\to \mathbb{C}^{N/2}$ by evaluating it at the following $N/2$ points,
+where $\omega = e^{2 \pi i / 2N}$ is the primitive $2N$th root of unity:&lt;/p>
 &lt;p>[
 \omega, \omega^3, \omega^5, \dots, \omega^{N-1}
 ]&lt;/p>
@@ -794,7 +792,7 @@ unsigned, # cleartext_start
 unsigned # cleartext_bitwidth
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A &amp;ldquo;evaluation encoding&amp;rdquo; of a list of integers $(v_1, \dots, v_n)$ asserts
-that $f(\x_1) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
+that $f(x_1 ) = v_1, \dots, f(x_n) = v_n$ for some implicit, but fixed and
 distinct choice of inputs $x_i$. The encoded values are also scaled by a
 scale factor, having the same semantics as &lt;code>bit_field_encoding&lt;/code>, but
 applied entry-wise (to either the coefficient or evaluation representation).&lt;/p>
