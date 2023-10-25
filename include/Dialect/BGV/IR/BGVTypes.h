@@ -5,7 +5,7 @@
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 
 // Required to pull in poly's Ring_Attr
-#include "include/Dialect/Poly/IR/PolyAttributes.h"
+#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "include/Dialect/BGV/IR/BGVTypes.h.inc"

@@ -2,8 +2,8 @@
 #define HEIR_INCLUDE_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_
 
 include "PolyExtDialect.td"
-include "include/Dialect/Poly/IR/PolyDialect.td"
-include "include/Dialect/Poly/IR/PolyTypes.td"
+include "include/Dialect/Polynomial/IR/PolynomialDialect.td"
+include "include/Dialect/Polynomial/IR/PolynomialTypes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"

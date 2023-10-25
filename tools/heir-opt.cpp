@@ -1,11 +1,11 @@
-#include "include/Conversion/BGVToPoly/BGVToPoly.h"
+#include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
-#include "include/Conversion/PolyToStandard/PolyToStandard.h"
+#include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
-#include "include/Dialect/Poly/IR/PolyDialect.h"
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
+#include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
@@ -83,9 +83,9 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createSymbolDCEPass());
 }
 
-void polyToLLVMPipelineBuilder(OpPassManager &manager) {
+void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
-  manager.addPass(poly::createPolyToStandard());
+  manager.addPass(polynomial::createPolynomialToStandard());
   manager.addPass(createCanonicalizerPass());
 
   // Linalg
@@ -145,8 +145,8 @@ int main(int argc, char **argv) {
   registry.insert<bgv::BGVDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();
-  registry.insert<poly::PolyDialect>();
   registry.insert<poly_ext::PolyExtDialect>();
+  registry.insert<polynomial::PolynomialDialect>();
   registry.insert<secret::SecretDialect>();
 
   // Add expected MLIR dialects to the registry.
@@ -165,8 +165,8 @@ int main(int argc, char **argv) {
   secret::registerSecretPasses();
 
   // Custom passes in HEIR
-  poly::registerPolyToStandardPasses();
-  bgv::registerBGVToPolyPasses();
+  polynomial::registerPolynomialToStandardPasses();
+  bgv::registerBGVToPolynomialPasses();
 
   PassPipelineRegistration<>(
       "heir-tosa-to-arith",
@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",
       "Run passes to lower the polynomial dialect to LLVM",
-      polyToLLVMPipelineBuilder);
+      polynomialToLLVMPipelineBuilder);
 
   return asMainReturnCode(
       MlirOptMain(argc, argv, "HEIR Pass Driver", registry));

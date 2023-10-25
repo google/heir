@@ -21,7 +21,7 @@ td_library(
         "PolyExtOps.td",
     ],
     deps = [
-        "@heir//include/Dialect/Poly/IR:td_files",
+        "@heir//include/Dialect/Polynomial/IR:td_files",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",

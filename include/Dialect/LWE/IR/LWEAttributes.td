@@ -63,14 +63,14 @@ def LWE_BitFieldEncoding
     Example:
 
     ```
-    #lwe_encoding = #lwe.poly_coefficient_encoding<cleartext_start=30, cleartext_bitwidth=3>
+    #lwe_encoding = #lwe.polynomial_coefficient_encoding<cleartext_start=30, cleartext_bitwidth=3>
     %lwe_ciphertext = arith.constant <[1,2,3,4]> : tensor<4xi32, #lwe_encoding>
     ```
   }];
 }
 
-def RLWE_PolyCoefficientEncoding
-  : LWE_EncodingAttrWithScalingFactor<"PolyCoefficientEncoding", "poly_coefficient_encoding"> {
+def RLWE_PolynomialCoefficientEncoding
+  : LWE_EncodingAttrWithScalingFactor<"PolynomialCoefficientEncoding", "polynomial_coefficient_encoding"> {
   let summary = "An attribute describing encoded RLWE plaintexts via coefficients.";
   let description = [{
     A coefficient encoding of a list of integers asserts that the coefficients
@@ -86,7 +86,7 @@ def RLWE_PolyCoefficientEncoding
     ```
     #generator = #poly.polynomial<1 + x**1024>
     #ring = #poly.ring<cmod=65536, ideal=#generator>
-    #coeff_encoding = #lwe.poly_coefficient_encoding<cleartext_start=15, cleartext_bitwidth=4>
+    #coeff_encoding = #lwe.polynomial_coefficient_encoding<cleartext_start=15, cleartext_bitwidth=4>
 
     %poly1 = poly.from_tensor %coeffs1 : tensor<10xi16> -> !poly.poly<#ring>
     %poly2 = poly.from_tensor %coeffs2 : tensor<10xi16> -> !poly.poly<#ring>
@@ -95,8 +95,8 @@ def RLWE_PolyCoefficientEncoding
   }];
 }
 
-def RLWE_PolyEvaluationEncoding
-  : LWE_EncodingAttrWithScalingFactor<"PolyEvaluationEncoding", "poly_evaluation_encoding"> {
+def RLWE_PolynomialEvaluationEncoding
+  : LWE_EncodingAttrWithScalingFactor<"PolynomialEvaluationEncoding", "polynomial_evaluation_encoding"> {
   let summary = "An attribute describing encoded RLWE plaintexts via evaluations at fixed points.";
   let description = [{
     A "evaluation encoding" of a list of integers $(v_1, \dots, v_n)$ asserts
@@ -129,7 +129,7 @@ def RLWE_PolyEvaluationEncoding
     // note that the cmod should be chosen so as to ensure a primitive root of
     // unity exists in the multiplicative group (Z / cmod Z)^*
     #ring = #poly.ring<cmod=65536, ideal=#generator>
-    #lwe_encoding = #lwe.poly_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
+    #lwe_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
     %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
     // TODO(https://github.com/google/heir/issues/182): fix docs
@@ -218,7 +218,7 @@ def RLWE_InverseCanonicalEmbeddingEncoding
     ```
     #generator = #poly.polynomial<1 + x**1024>
     #ring = #poly.ring<cmod=65536, ideal=#generator>
-    #lwe_encoding = #lwe.poly_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
+    #lwe_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
     %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
     // TODO(https://github.com/google/heir/issues/182): fix docs
