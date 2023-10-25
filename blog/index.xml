@@ -28,13 +28,7 @@ and
 &lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
 &lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
 &lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
-fun!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the
-&lt;a href="https://google.github.io/heir/community/">meeting calendar&lt;/a> to join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
+fun!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://google.github.io/heir/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
 &lt;p>The second HEIR meeting was 2023-05-30
 (&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
 and
