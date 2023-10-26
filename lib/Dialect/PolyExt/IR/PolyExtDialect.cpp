@@ -1,8 +1,8 @@
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
 
-#include "include/Dialect/Poly/IR/PolyTypes.h"
-#include "include/Dialect/Poly/IR/Polynomial.h"
 #include "include/Dialect/PolyExt/IR/PolyExtOps.h"
+#include "include/Dialect/Polynomial/IR/Polynomial.h"
+#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
@@ -23,16 +23,16 @@ void PolyExtDialect::initialize() {
       >();
 }
 
-poly::PolyType getPolyType(Type t) {
+polynomial::PolynomialType getPolynomialType(Type t) {
   if (auto tTnsr = t.dyn_cast<RankedTensorType>()) {
-    return tTnsr.getElementType().cast<poly::PolyType>();
+    return tTnsr.getElementType().cast<polynomial::PolynomialType>();
   }
-  return t.cast<poly::PolyType>();
+  return t.cast<polynomial::PolynomialType>();
 }
 
 LogicalResult CModSwitchOp::verify() {
-  auto xRing = getPolyType(getX().getType()).getRing();
-  auto outRing = getPolyType(getOutput().getType()).getRing();
+  auto xRing = getPolynomialType(getX().getType()).getRing();
+  auto outRing = getPolynomialType(getOutput().getType()).getRing();
 
   if (xRing.getIdeal() != outRing.getIdeal()) {
     return emitOpError("input and output rings ideals must be the same");

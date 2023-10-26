@@ -10,7 +10,7 @@ include "mlir/IR/OpBase.td"
 
 def BGVRingArrayAttr : AttrDef<BGV_Dialect, "BGVRings"> {
   let mnemonic = "rings";
-  let parameters = (ins ArrayRefParameter<"::mlir::heir::poly::RingAttr">:$rings);
+  let parameters = (ins ArrayRefParameter<"::mlir::heir::polynomial::RingAttr">:$rings);
   let assemblyFormat = "`<` $rings `>`";
 }
 

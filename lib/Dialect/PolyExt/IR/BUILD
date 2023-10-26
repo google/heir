@@ -17,8 +17,8 @@ cc_library(
     deps = [
         "@heir//include/Dialect/PolyExt/IR:dialect_inc_gen",
         "@heir//include/Dialect/PolyExt/IR:ops_inc_gen",
-        "@heir//lib/Dialect/Poly/IR:Dialect",
-        "@heir//lib/Dialect/Poly/IR:Polynomial",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",

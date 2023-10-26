@@ -1,7 +1,7 @@
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/Poly/IR/PolyTypes.h"
+#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
@@ -50,16 +50,17 @@ LogicalResult BitFieldEncodingAttr::verifyEncoding(
   return success();
 }
 
-LogicalResult requirePolyElementTypeFits(
+LogicalResult requirePolynomialElementTypeFits(
     Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
     unsigned cleartextStart,
     llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
-  if (!elementType.isa<poly::PolyType>()) {
+  if (!elementType.isa<polynomial::PolynomialType>()) {
     return emitError() << "Tensors with encoding " << encodingName
                        << " must have `poly.poly` element type, but found "
                        << elementType << "\n";
   }
-  poly::PolyType polyType = llvm::cast<poly::PolyType>(elementType);
+  polynomial::PolynomialType polyType =
+      llvm::cast<polynomial::PolynomialType>(elementType);
   // The coefficient modulus takes the place of the plaintext bitwidth for
   // RLWE.
   unsigned plaintextBitwidth =
@@ -79,26 +80,26 @@ LogicalResult requirePolyElementTypeFits(
   return success();
 }
 
-LogicalResult PolyCoefficientEncodingAttr::verifyEncoding(
+LogicalResult PolynomialCoefficientEncodingAttr::verifyEncoding(
     ArrayRef<int64_t> shape, Type elementType,
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
-  return requirePolyElementTypeFits(elementType, "poly_coefficient_encoding",
-                                    getCleartextBitwidth(), getCleartextStart(),
-                                    emitError);
+  return requirePolynomialElementTypeFits(
+      elementType, "poly_coefficient_encoding", getCleartextBitwidth(),
+      getCleartextStart(), emitError);
 }
 
-LogicalResult PolyEvaluationEncodingAttr::verifyEncoding(
+LogicalResult PolynomialEvaluationEncodingAttr::verifyEncoding(
     ArrayRef<int64_t> shape, Type elementType,
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
-  return requirePolyElementTypeFits(elementType, "poly_evaluation_encoding",
-                                    getCleartextBitwidth(), getCleartextStart(),
-                                    emitError);
+  return requirePolynomialElementTypeFits(
+      elementType, "poly_evaluation_encoding", getCleartextBitwidth(),
+      getCleartextStart(), emitError);
 }
 
 LogicalResult InverseCanonicalEmbeddingEncodingAttr::verifyEncoding(
     ArrayRef<int64_t> shape, Type elementType,
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
-  return requirePolyElementTypeFits(
+  return requirePolynomialElementTypeFits(
       elementType, "inverse_canonical_embedding_encoding",
       getCleartextBitwidth(), getCleartextStart(), emitError);
 }
