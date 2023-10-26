@@ -6,7 +6,7 @@
 &lt;h3 id="bgvringsattr">BGVRingsAttr&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#bgv.rings&amp;lt;
-::llvm::ArrayRef&amp;lt;::mlir::heir::poly::RingAttr&amp;gt; # rings
+::llvm::ArrayRef&amp;lt;::mlir::heir::polynomial::RingAttr&amp;gt; # rings
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
@@ -20,7 +20,7 @@
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">rings&lt;/td>
-&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;::mlir::heir::poly::RingAttr&amp;gt;&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;::mlir::heir::polynomial::RingAttr&amp;gt;&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -624,7 +624,7 @@ ending bit are reserved for noise.&lt;/p>
 &lt;p>The presence of this attribute as the &lt;code>encoding&lt;/code> attribute of a tensor
 indicates that the tensor is an LWE ciphertext.&lt;/p>
 &lt;p>Example:&lt;/p>
-&lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.poly_coefficient_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
+&lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.polynomial_coefficient_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %lwe_ciphertext = arith.constant &amp;lt;[1,2,3,4]&amp;gt; : tensor&amp;lt;4xi32, #lwe_encoding&amp;gt;
 &lt;/code>&lt;/pre>&lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
@@ -713,7 +713,7 @@ coefficients.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#generator = #poly.polynomial&amp;lt;1 + x**1024&amp;gt;
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
-#lwe_encoding = #lwe.poly_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
+#lwe_encoding = #lwe.polynomial_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
 // TODO(https://github.com/google/heir/issues/182): fix docs
 // Note no `intt` operation exists in poly yet.
@@ -742,10 +742,10 @@ coefficients.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polycoefficientencodingattr">PolyCoefficientEncodingAttr&lt;/h3>
+&lt;h3 id="polynomialcoefficientencodingattr">PolynomialCoefficientEncodingAttr&lt;/h3>
 &lt;p>An attribute describing encoded RLWE plaintexts via coefficients.&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>#lwe.poly_coefficient_encoding&amp;lt;
+&lt;pre tabindex="0">&lt;code>#lwe.polynomial_coefficient_encoding&amp;lt;
 unsigned, # cleartext_start
 unsigned # cleartext_bitwidth
 &amp;gt;
@@ -758,7 +758,7 @@ scheme that supports the coefficient encoding.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#generator = #poly.polynomial&amp;lt;1 + x**1024&amp;gt;
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
-#coeff_encoding = #lwe.poly_coefficient_encoding&amp;lt;cleartext_start=15, cleartext_bitwidth=4&amp;gt;
+#coeff_encoding = #lwe.polynomial_coefficient_encoding&amp;lt;cleartext_start=15, cleartext_bitwidth=4&amp;gt;
 %poly1 = poly.from_tensor %coeffs1 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %poly2 = poly.from_tensor %coeffs2 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring&amp;gt;, #coeff_encoding&amp;gt;
@@ -784,10 +784,10 @@ scheme that supports the coefficient encoding.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="polyevaluationencodingattr">PolyEvaluationEncodingAttr&lt;/h3>
+&lt;h3 id="polynomialevaluationencodingattr">PolynomialEvaluationEncodingAttr&lt;/h3>
 &lt;p>An attribute describing encoded RLWE plaintexts via evaluations at fixed points.&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>#lwe.poly_evaluation_encoding&amp;lt;
+&lt;pre tabindex="0">&lt;code>#lwe.polynomial_evaluation_encoding&amp;lt;
 unsigned, # cleartext_start
 unsigned # cleartext_bitwidth
 &amp;gt;
@@ -816,7 +816,7 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 // note that the cmod should be chosen so as to ensure a primitive root of
 // unity exists in the multiplicative group (Z / cmod Z)^*
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
-#lwe_encoding = #lwe.poly_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
+#lwe_encoding = #lwe.polynomial_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
 // TODO(https://github.com/google/heir/issues/182): fix docs
 // Note no `intt` operation exists in poly yet.
@@ -844,9 +844,13 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table></description></item><item><title>Docs: Poly</title><link>https://google.github.io/heir/docs/dialects/poly/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/poly/</guid><description>
+&lt;/table></description></item><item><title>Docs: PolyExt</title><link>https://google.github.io/heir/docs/dialects/polyext/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/polyext/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;p>The Poly dialect defines single-variable polynomial types and operations.&lt;/p>
+&lt;p>The PolyExt dialect is a place for &amp;ldquo;external&amp;rdquo; operations on
+&lt;code>mlir::heir::polynomial::Polynomial&lt;/code>.&lt;/p></description></item><item><title>Docs: Polynomial</title><link>https://google.github.io/heir/docs/dialects/polynomial/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/polynomial/</guid><description>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;p>The Polynomial dialect defines single-variable polynomial types and
+operations.&lt;/p>
 &lt;p>The simplest use of this dialect is to do math in a polynomial ring &lt;code>R[x]&lt;/code>,
 where &lt;code>R&lt;/code> is another MLIR integer type like &lt;code>u32&lt;/code>, and lower to &lt;code>arith&lt;/code>.&lt;/p>
 &lt;p>More generally, this dialect represent polynomial operations in a quotient
@@ -856,11 +860,11 @@ when dividing by &lt;code>f(x)&lt;/code>. The canonical representative for a pol
 is has degree less than &lt;code>deg(f(x))&lt;/code>. When a modulus is given, ring operations
 are polynomial addition and multiplication performed with reductions modulo
 &lt;code>f(x)&lt;/code> and &lt;code>q&lt;/code>.&lt;/p>
-&lt;h2 id="poly-attributes">Poly attributes&lt;/h2>
+&lt;h2 id="polynomial-attributes">Polynomial attributes&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="polynomialattr">PolynomialAttr&lt;/h3>
 &lt;p>An attribute containing a single-variable polynomial.&lt;/p>
-&lt;p>#poly = #poly.poly&amp;lt;x**1024 + 1&amp;gt;&lt;/p>
+&lt;p>#poly = #polynomial.poly&amp;lt;x**1024 + 1&amp;gt;&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -885,7 +889,7 @@ coefficients, $\mathbb{Z}/n\mathbb{Z}[x] / (p(x))$.&lt;/p>
 &lt;p>&lt;code>cmod&lt;/code> is the coefficient modulus $n$, and &lt;code>ideal&lt;/code> is the ring ideal
 $(p(x))$. Because all ideals in a single-variable polynomial ring are
 principal, the ideal is defined by a single polynomial.&lt;/p>
-&lt;p>#ring = #poly.ring&amp;lt;cmod=1234, ideal=#poly.polynomial&amp;lt;x**1024 + 1&amp;raquo;&lt;/p>
+&lt;p>#ring = #polynomial.ring&amp;lt;cmod=1234, ideal=#polynomial.polynomial&amp;lt;x**1024 + 1&amp;raquo;&lt;/p>
 &lt;h4 id="parameters-1">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -908,13 +912,13 @@ principal, the ideal is defined by a single polynomial.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h2 id="poly-types">Poly types&lt;/h2>
+&lt;h2 id="polynomial-types">Polynomial types&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="polytype">PolyType&lt;/h3>
+&lt;h3 id="polynomialtype">PolynomialType&lt;/h3>
 &lt;p>An element of a polynomial quotient ring&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!poly.poly&amp;lt;
-::mlir::heir::poly::RingAttr, # ring
+&lt;pre tabindex="0">&lt;code>!polynomial.polynomial&amp;lt;
+::mlir::heir::polynomial::RingAttr, # ring
 Attribute # encoding
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A type for polynomials in a polynomial quotient ring.&lt;/p>
@@ -930,7 +934,7 @@ Attribute # encoding
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">ring&lt;/td>
-&lt;td style="text-align:center">&lt;code>::mlir::heir::poly::RingAttr&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::RingAttr&lt;/code>&lt;/td>
 &lt;td>An attribute specifying a ring.&lt;/td>
 &lt;/tr>
 &lt;tr>
@@ -939,10 +943,7 @@ Attribute # encoding
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table></description></item><item><title>Docs: PolyExt</title><link>https://google.github.io/heir/docs/dialects/polyext/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/polyext/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;p>The PolyExt dialect is a place for &amp;ldquo;external&amp;rdquo; operations on
-&lt;code>mlir::heir::poly::Polynomial&lt;/code>.&lt;/p></description></item><item><title>Docs: Secret</title><link>https://google.github.io/heir/docs/dialects/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/secret/</guid><description>
+&lt;/table></description></item><item><title>Docs: Secret</title><link>https://google.github.io/heir/docs/dialects/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/secret/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>Secret is a dialect for computations that operate on encrypted data.&lt;/p>
 &lt;p>Secret is intended to serve as a scheme-agnostic front-end for the HEIR
