@@ -102,7 +102,7 @@ gentbl_cc_library(
         ),
         (
             ["-gen-op-doc"],
-            "SecretOps.md",
+            "BGVOps.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
