@@ -4,9 +4,10 @@
 include "TfheRustDialect.td"
 
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 
 // A base class for all types in this dialect
 class TfheRust_Type<string name, string typeMnemonic>
@@ -33,5 +34,30 @@ foreach i = [8, 16, 32, 64, 128, 256] in {
   def TfheRust_EncryptedInt # i : TfheRust_EncryptedInt<i>;
 }
 
+def ServerKey : TfheRust_Type<"ServerKey", "server_key"> {
+  let summary = "The server key required to perform homomorphic operations.";
+}
+
+def TfheRust_CiphertextType :
+  AnyTypeOf<[
+    EncryptedUInt2,
+    EncryptedUInt3,
+    EncryptedUInt4,
+    EncryptedUInt8,
+    EncryptedUInt10,
+    EncryptedUInt12,
+    EncryptedUInt14,
+    EncryptedUInt16,
+    EncryptedUInt32,
+    EncryptedUInt64,
+    EncryptedUInt128,
+    EncryptedUInt256,
+    EncryptedInt8,
+    EncryptedInt16,
+    EncryptedInt32,
+    EncryptedInt64,
+    EncryptedInt128,
+    EncryptedInt256,
+  ]>;
 
 #endif  // INCLUDE_DIALECT_TFHERUST_IR_TFHERUSTTYPES_TD_
