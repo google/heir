@@ -1,6 +1,7 @@
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 
 #include <cassert>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -23,6 +24,19 @@ using ::Yosys::RTLIL::Module;
 using ::Yosys::RTLIL::SigSpec;
 using ::Yosys::RTLIL::Wire;
 
+llvm::SmallVector<std::string, 10> getTopologicalOrder(
+    std::stringstream &torderOutput) {
+  llvm::SmallVector<std::string, 10> cells;
+  std::string line;
+  while (std::getline(torderOutput, line)) {
+    auto lineCell = line.find("cell ");
+    if (lineCell != std::string::npos) {
+      cells.push_back(line.substr(lineCell + 5, std::string::npos));
+    }
+  }
+  return cells;
+}
+
 void RTLILImporter::addWireValue(Wire *wire, Value value) {
   wireNameToValue.insert(std::make_pair(wire->name.str(), value));
 }
@@ -33,7 +47,9 @@ Value RTLILImporter::getWireValue(Wire *wire) {
   return wireNameToValue.at(wireName);
 }
 
-Value RTLILImporter::getBit(const SigSpec &conn, ImplicitLocOpBuilder &b) {
+Value RTLILImporter::getBit(
+    const SigSpec &conn, ImplicitLocOpBuilder &b,
+    llvm::MapVector<Wire *, SmallVector<Value>> &retBitValues) {
   // Because the cells are in topological order, and Yosys should have
   // removed redundant wire-wire mappings, the cell's inputs must be a bit
   // of an input wire, in the map of already defined wires (which are
@@ -50,9 +66,13 @@ Value RTLILImporter::getBit(const SigSpec &conn, ImplicitLocOpBuilder &b) {
         b.getIntegerAttr(b.getIntegerType(1), bit.as_int()));
     return constantOp;
   }
-  // Extract the bit of the multi-bit input wire.
+  // Extract the bit of the multi-bit input or output wire.
   assert(conn.as_bit().is_wire());
   auto bit = conn.as_bit();
+  if (retBitValues.contains(bit.wire)) {
+    auto offset = retBitValues[bit.wire].size() - bit.offset - 1;
+    return retBitValues[bit.wire][offset];
+  }
   auto argA = getWireValue(bit.wire);
   auto extractOp =
       b.createOrFold<comb::ExtractOp>(b.getI1Type(), argA, bit.offset);
@@ -124,7 +144,7 @@ func::FuncOp RTLILImporter::importModule(
 
     SmallVector<Value, 4> inputValues;
     for (const auto &conn : getInputs(cell)) {
-      inputValues.push_back(getBit(conn, b));
+      inputValues.push_back(getBit(conn, b, retBitValues));
     }
     auto *op = createOp(cell, inputValues, b);
     auto resultConn = getOutput(cell);
@@ -140,12 +160,13 @@ func::FuncOp RTLILImporter::importModule(
     assert(retBitValues.contains(output.as_wire()) ||
            retBitValues.contains(output.as_bit().wire));
     if (conn.second.chunks().size() == 1) {
-      Value connValue = getBit(conn.second, b);
+      // This may be a single bit, or it may be a whole wire.
+      Value connValue = getBit(conn.second, b, retBitValues);
       addResultBit(output, connValue, retBitValues);
     } else {
       auto chunks = conn.second.chunks();
       for (auto i = 0; i < output.size(); i++) {
-        Value connValue = getBit(conn.second.bits().at(i), b);
+        Value connValue = getBit(conn.second.bits().at(i), b, retBitValues);
         addResultBit(output.bits().at(i), connValue, retBitValues);
       }
     }
@@ -154,11 +175,15 @@ func::FuncOp RTLILImporter::importModule(
   // Concatenate result bits if needed, and return result.
   SmallVector<Value, 4> returnValues;
   for (const auto &[resultWire, retBits] : retBitValues) {
-    if (retBits.size() > 1) {
+    // If we are returning a whole wire as is (e.g. the input wire) or a single
+    // bit, we do not need to concat any return bits.
+    if (wireNameToValue.contains(resultWire->name.str())) {
+      returnValues.push_back(getWireValue(resultWire));
+    } else {
+      // We are in a multi-bit scenario.
+      assert(retBits.size() > 1);
       auto concatOp = b.create<comb::ConcatOp>(retBits);
       returnValues.push_back(concatOp.getResult());
-    } else {
-      returnValues.push_back(getWireValue(resultWire));
     }
   }
   b.create<func::ReturnOp>(returnValues);

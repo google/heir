@@ -5,10 +5,32 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+WORKSPACE_PATH = ""
+
 # Custom `mlir-opt` replacement that links our dialect and passes
 cc_binary(
     name = "heir-opt",
     srcs = ["heir-opt.cpp"],
+    data = select({
+        "@heir//:disable_yosys": [],
+        "//conditions:default": [
+            "@edu_berkeley_abc//:abc",
+            "@heir//lib/Transforms/YosysOptimizer/yosys:share_files",
+        ],
+    }),
+    defines = select({
+        "@heir//:disable_yosys": ["HEIR_NO_YOSYS=1"],
+        "//conditions:default": [],
+    }),
+    # Using the location directive to find share files results in multiple expanded paths.
+    env = select({
+        "@heir//:disable_yosys": {
+        },
+        "//conditions:default": {
+            "HEIR_ABC_BINARY": "$(location @edu_berkeley_abc//:abc)",
+            "HEIR_YOSYS_SCRIPTS_DIR": WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys",
+        },
+    }),
     includes = ["include"],
     deps = [
         "@heir//lib/Conversion/BGVToPolynomial",
@@ -22,6 +44,7 @@ cc_binary(
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/Transforms",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineToStandard",
         "@llvm-project//mlir:AffineTransforms",
@@ -52,7 +75,12 @@ cc_binary(
         "@llvm-project//mlir:TosaToLinalg",
         "@llvm-project//mlir:TosaToTensor",
         "@llvm-project//mlir:Transforms",
-    ],
+    ] + select({
+        "@heir//:disable_yosys": [],
+        "//conditions:default": [
+            "@heir//lib/Transforms/YosysOptimizer",
+        ],
+    }),
 )
 
 # Custom `mlir-translate` replacement that adds our custom translations

@@ -26,6 +26,23 @@ tool can lower a TFLite FlatBuffer to textual MLIR with
 [hello_world.tosa.mlir](https://github.com/google/heir/blob/main/tests/hello_world.tosa.mlir)
 for an example.
 
+### `--yosys-optimizer`
+
+Uses Yosys to booleanize and optimize MLIR functions.
+
+This pass pipeline requires inputs to be in standard MLIR (`arith`, `affine`,
+`func`, `memref`). The pass imports the model to Yosys and runs passes to
+booleanize the circuit and then uses ABC to perform optimizations. We use
+standard LUT 3 cells. THe output of this pass includes `arith` constants and
+`comb.truth_table` ops.
+
+The pass requires that the environment variable `HEIR_ABC_BINARY` contains the
+location of the ABC binary and that `HEIR_YOSYS_SCRIPTS_DIR` contains the
+location of the Yosys' techlib files that are needed to execute the path.
+
+This pass can be disabled by defining `HEIR_NO_YOSYS`; this will avoid Yosys
+library and ABC binary compilation, and avoid registration of this pass.
+
 ## `heir-translate`
 
 ### `--emit-verilog`

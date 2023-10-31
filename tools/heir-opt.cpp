@@ -1,3 +1,5 @@
+#include <cstdlib>
+
 #include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
@@ -8,6 +10,7 @@
 #include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"  // from @llvm-project
@@ -40,6 +43,10 @@
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
+
+#ifndef HEIR_NO_YOSYS
+#include "include/Transforms/YosysOptimizer/YosysOptimizer.h"
+#endif
 
 using namespace mlir;
 using namespace tosa;
@@ -167,6 +174,18 @@ int main(int argc, char **argv) {
   // Custom passes in HEIR
   polynomial::registerPolynomialToStandardPasses();
   bgv::registerBGVToPolynomialPasses();
+  // Register yosys optimizer pipeline if configured.
+#ifndef HEIR_NO_YOSYS
+  const char *abcEnvPath = std::getenv("HEIR_ABC_BINARY");
+  const char *yosysRunfilesEnvPath = std::getenv("HEIR_YOSYS_SCRIPTS_DIR");
+  if (abcEnvPath == nullptr || yosysRunfilesEnvPath == nullptr) {
+    llvm::errs() << "yosys optimizer deps not found, please set "
+                    "HEIR_ABC_PATH and HEIR_YOSYS_LIBS; otherwise, set "
+                    "HEIR_NO_YOSYS=1\n";
+    return EXIT_FAILURE;
+  }
+  mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
+#endif
 
   PassPipelineRegistration<>(
       "heir-tosa-to-arith",
