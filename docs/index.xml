@@ -10,8 +10,12 @@
 &lt;h2 id="clone-and-build-the-project">Clone and build the project&lt;/h2>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git clone git@github.com:google/heir.git &lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&amp;amp;&lt;/span> &lt;span style="color:#204a87">cd&lt;/span> heir
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>bazel build @heir//tools:heir-opt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Some passes in this repository require Yosys as a dependency (&lt;code>--yosys-optimizer&lt;/code>). If you would like to skip Yosys and ABC compilation to speed up builds, use the following build setting:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel build --define&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#000">HEIR_NO_YOSYS&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> @heir//tools:heir-opt
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="optional-run-the-tests">Optional: Run the tests&lt;/h2>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Like above, run the following to skip tests that depend on Yosys:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> --define&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#000">HEIR_NO_YOSYS&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> --test_tag_filters&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>-yosys @heir//...
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="developing-in-heir">Developing in HEIR&lt;/h2>
 &lt;p>We use &lt;a href="https://pre-commit.com/">pre-commit&lt;/a> to manage a series of git
 pre-commit hooks for the project; for example, each time you commit code, the
@@ -184,6 +188,18 @@ tool can lower a TFLite FlatBuffer to textual MLIR with
 &lt;code>--output-format=mlir-ir&lt;/code>. See
 &lt;a href="https://github.com/google/heir/blob/main/tests/hello_world.tosa.mlir">hello_world.tosa.mlir&lt;/a>
 for an example.&lt;/p>
+&lt;h3 id="--yosys-optimizer">&lt;code>--yosys-optimizer&lt;/code>&lt;/h3>
+&lt;p>Uses Yosys to booleanize and optimize MLIR functions.&lt;/p>
+&lt;p>This pass pipeline requires inputs to be in standard MLIR (&lt;code>arith&lt;/code>, &lt;code>affine&lt;/code>,
+&lt;code>func&lt;/code>, &lt;code>memref&lt;/code>). The pass imports the model to Yosys and runs passes to
+booleanize the circuit and then uses ABC to perform optimizations. We use
+standard LUT 3 cells. THe output of this pass includes &lt;code>arith&lt;/code> constants and
+&lt;code>comb.truth_table&lt;/code> ops.&lt;/p>
+&lt;p>The pass requires that the environment variable &lt;code>HEIR_ABC_BINARY&lt;/code> contains the
+location of the ABC binary and that &lt;code>HEIR_YOSYS_SCRIPTS_DIR&lt;/code> contains the
+location of the Yosys&amp;rsquo; techlib files that are needed to execute the path.&lt;/p>
+&lt;p>This pass can be disabled by defining &lt;code>HEIR_NO_YOSYS&lt;/code>; this will avoid Yosys
+library and ABC binary compilation, and avoid registration of this pass.&lt;/p>
 &lt;h2 id="heir-translate">&lt;code>heir-translate&lt;/code>&lt;/h2>
 &lt;h3 id="--emit-verilog">&lt;code>--emit-verilog&lt;/code>&lt;/h3>
 &lt;p>Code generation for verilog from &lt;code>arith&lt;/code> and &lt;code>memref&lt;/code>. Expects a single top
@@ -303,7 +319,17 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Docs: BGV</title><link>https://google.github.io/heir/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/bgv/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://google.github.io/heir/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video
+recording&lt;/a>
+from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://google.github.io/heir/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://google.github.io/heir/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://google.github.io/heir/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://google.github.io/heir/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
 &lt;h2 id="bgv-attributes">BGV attributes&lt;/h2>
