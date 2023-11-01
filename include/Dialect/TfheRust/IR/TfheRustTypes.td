@@ -34,30 +34,35 @@ foreach i = [8, 16, 32, 64, 128, 256] in {
   def TfheRust_EncryptedInt # i : TfheRust_EncryptedInt<i>;
 }
 
-def ServerKey : TfheRust_Type<"ServerKey", "server_key"> {
+def TfheRust_CiphertextType :
+  AnyTypeOf<[
+    TfheRust_EncryptedUInt2,
+    TfheRust_EncryptedUInt3,
+    TfheRust_EncryptedUInt4,
+    TfheRust_EncryptedUInt8,
+    TfheRust_EncryptedUInt10,
+    TfheRust_EncryptedUInt12,
+    TfheRust_EncryptedUInt14,
+    TfheRust_EncryptedUInt16,
+    TfheRust_EncryptedUInt32,
+    TfheRust_EncryptedUInt64,
+    TfheRust_EncryptedUInt128,
+    TfheRust_EncryptedUInt256,
+    TfheRust_EncryptedInt8,
+    TfheRust_EncryptedInt16,
+    TfheRust_EncryptedInt32,
+    TfheRust_EncryptedInt64,
+    TfheRust_EncryptedInt128,
+    TfheRust_EncryptedInt256,
+  ]>;
+
+
+def TfheRust_ServerKey : TfheRust_Type<"ServerKey", "server_key"> {
   let summary = "The server key required to perform homomorphic operations.";
 }
 
-def TfheRust_CiphertextType :
-  AnyTypeOf<[
-    EncryptedUInt2,
-    EncryptedUInt3,
-    EncryptedUInt4,
-    EncryptedUInt8,
-    EncryptedUInt10,
-    EncryptedUInt12,
-    EncryptedUInt14,
-    EncryptedUInt16,
-    EncryptedUInt32,
-    EncryptedUInt64,
-    EncryptedUInt128,
-    EncryptedUInt256,
-    EncryptedInt8,
-    EncryptedInt16,
-    EncryptedInt32,
-    EncryptedInt64,
-    EncryptedInt128,
-    EncryptedInt256,
-  ]>;
+def TfheRust_LookupTable : TfheRust_Type<"LookupTable", "lookup_table"> {
+  let summary = "A univariate lookup table used for programmable bootstrapping.";
+}
 
 #endif  // INCLUDE_DIALECT_TFHERUST_IR_TFHERUSTTYPES_TD_

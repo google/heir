@@ -13,7 +13,7 @@
 
 namespace mlir {
 namespace heir {
-namespace tfhe_rs {
+namespace tfhe_rust {
 
 //===----------------------------------------------------------------------===//
 // TfheRust dialect.
@@ -32,6 +32,6 @@ void TfheRustDialect::initialize() {
       >();
 }
 
-}  // namespace tfhe_rs
+}  // namespace tfhe_rust
 }  // namespace heir
 }  // namespace mlir

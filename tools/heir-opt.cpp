@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
   registry.insert<poly_ext::PolyExtDialect>();
   registry.insert<polynomial::PolynomialDialect>();
   registry.insert<secret::SecretDialect>();
-  registry.insert<tfhe_rs::TfheRustDialect>();
+  registry.insert<tfhe_rust::TfheRustDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<affine::AffineDialect>();
