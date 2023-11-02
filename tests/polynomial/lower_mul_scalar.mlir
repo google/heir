@@ -18,7 +18,7 @@ func.func @test_lower_mul_scalar(%arg0: !poly_ty) -> !poly_ty {
 func.func @test_lower_mul_scalar_lift_i32(%arg0: !poly_ty) -> !poly_ty {
   // CHECK: %[[C2:.*]] = arith.constant 2 : i32
   %c2 = arith.constant 2 : i32
-  // CHECK: %[[C2_EXT:.*]] = arith.extui %[[C2]] : i32 to i64
+  // CHECK: %[[C2_EXT:.*]] = arith.extsi %[[C2]] : i32 to i64
   // CHECK: %[[SPLAT:.*]] = tensor.splat %[[C2_EXT]] : [[T]]
   // CHECK: arith.muli %[[ARG]], %[[SPLAT]] : [[T]]
   %8 = polynomial.mul_scalar %arg0, %c2 : !poly_ty, i32

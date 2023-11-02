@@ -87,7 +87,7 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
       assert(inputEltTy.getIntOrFloatBitWidth() <
              resultEltTy.getIntOrFloatBitWidth());
 
-      coeffValue = b.create<arith::ExtUIOp>(
+      coeffValue = b.create<arith::ExtSIOp>(
           RankedTensorType::get(inputShape, resultEltTy), coeffValue);
     }
 
@@ -144,8 +144,8 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       coeffs.push_back(rewriter.getIntegerAttr(eltTy, 0));
     }
     for (const auto &term : attr.getPolynomial().getTerms()) {
-      coeffs[term.exponent.getZExtValue()] = rewriter.getIntegerAttr(
-          eltTy, term.coefficient.trunc(eltTy.getIntOrFloatBitWidth()));
+      coeffs[term.exponent.getSExtValue()] = rewriter.getIntegerAttr(
+          eltTy, term.coefficient.sextOrTrunc(eltTy.getIntOrFloatBitWidth()));
     }
     rewriter.replaceOpWithNewOp<arith::ConstantOp>(
         op, DenseElementsAttr::get(tensorType, coeffs));
@@ -186,8 +186,13 @@ struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto tensorType = cast<RankedTensorType>(adaptor.getPolynomial().getType());
     Value scalar = adaptor.getScalar();
-    if (scalar.getType() != tensorType.getElementType()) {
-      scalar = b.create<arith::ExtUIOp>(tensorType.getElementType(), scalar)
+    if (scalar.getType().getIntOrFloatBitWidth() <
+        tensorType.getElementTypeBitWidth()) {
+      scalar = b.create<arith::ExtSIOp>(tensorType.getElementType(), scalar)
+                   .getResult();
+    } else if (scalar.getType().getIntOrFloatBitWidth() >
+               tensorType.getElementTypeBitWidth()) {
+      scalar = b.create<arith::TruncIOp>(tensorType.getElementType(), scalar)
                    .getResult();
     }
     auto tensor = b.create<tensor::SplatOp>(tensorType, scalar);
@@ -361,13 +366,13 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
         modIntTensorType, {mod.trunc(nextHigherBitWidth)}));
 
     auto signExtensionLhs =
-        b.create<arith::ExtUIOp>(modIntTensorType, adaptor.getLhs());
+        b.create<arith::ExtSIOp>(modIntTensorType, adaptor.getLhs());
     auto signExtensionRhs =
-        b.create<arith::ExtUIOp>(modIntTensorType, adaptor.getRhs());
+        b.create<arith::ExtSIOp>(modIntTensorType, adaptor.getRhs());
 
     auto higherBitwidthAdd =
         b.create<arith::AddIOp>(signExtensionLhs, signExtensionRhs);
-    auto remOp = b.create<arith::RemUIOp>(higherBitwidthAdd, cmod);
+    auto remOp = b.create<arith::RemSIOp>(higherBitwidthAdd, cmod);
     auto truncOp = b.create<arith::TruncIOp>(type, remOp);
 
     rewriter.replaceOp(op, truncOp);
@@ -432,14 +437,11 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
         AffineMap::get(2, 0, {d0 + d1})  // i+j
     };
 
-    // TODO(https://github.com/google/heir/issues/200): test this for the proper
-    // setting of the DenseElementsAttr. Note that this fails an MLIR internal
-    // assertion if 0L (64 bit) is replaced with 0 (32 bit). Probably it is best
-    // to inspect the element type of poylmulTensorType and figure out how to
-    // set the dense elements attr properly based on that (i.e., what if it's an
-    // i16 or i128?)
     auto polymulOutput = b.create<arith::ConstantOp>(
-        polymulTensorType, DenseElementsAttr::get(polymulTensorType, 0L));
+        polymulTensorType,
+        DenseElementsAttr::get(
+            polymulTensorType,
+            APInt(polymulTensorType.getElementTypeBitWidth(), 0L)));
     auto polyMul = b.create<linalg::GenericOp>(
         /*resultTypes=*/polymulTensorType,
         /*inputs=*/adaptor.getOperands(),
@@ -453,9 +455,9 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
           auto rhs = args[1];
           auto accum = args[2];
           if (!inputOutputHaveSameBitwidth) {
-            lhs = b.create<arith::ExtUIOp>(polymulTensorType.getElementType(),
+            lhs = b.create<arith::ExtSIOp>(polymulTensorType.getElementType(),
                                            lhs);
-            rhs = b.create<arith::ExtUIOp>(polymulTensorType.getElementType(),
+            rhs = b.create<arith::ExtSIOp>(polymulTensorType.getElementType(),
                                            rhs);
           }
           auto mulOp = b.create<arith::MulIOp>(lhs, rhs);
@@ -627,7 +629,7 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   auto divisorLcInverse = builder.create<arith::ConstantOp>(
       inputType.getElementType(),
       builder.getIntegerAttr(inputType.getElementType(),
-                             leadingCoefInverse.getZExtValue()));
+                             leadingCoefInverse.getSExtValue()));
 
   auto divisorDeg = builder.create<arith::ConstantOp>(
       builder.getIndexType(), builder.getIndexAttr(divisor.getDegree()));
@@ -682,18 +684,19 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   // The result remainder is still in the larger ring, but needs to have its
   // coefficients modded and then converted to the smaller ring.
   auto toTensorOp = builder.create<ToTensorOp>(inputType, whileOp.getResult(0));
-  auto remainderModOp = builder.create<arith::ConstantOp>(
-      inputType,
-      DenseElementsAttr::get(inputType, ring.getCmod().getZExtValue()));
-  auto remainderCoeffsModded = builder.create<arith::RemUIOp>(
-      toTensorOp.getResult(), remainderModOp.getResult());
+  auto remainderModArg = builder.create<arith::ConstantOp>(
+      inputType, DenseElementsAttr::get(
+                     inputType, APInt(inputType.getElementTypeBitWidth(),
+                                      ring.getCmod().getSExtValue())));
+  auto remainderCoeffsRemOp = builder.create<arith::RemSIOp>(
+      toTensorOp.getResult(), remainderModArg.getResult());
 
   // Now the remainder has values mod the result modulus, so it just needs
   // to be reinterpreted in the result ring via truncating the tensor type
   // and changing the element type.
   auto remainderIntegerTrunced = builder.create<arith::TruncIOp>(
       RankedTensorType::get(inputType.getShape(), resultType.getElementType()),
-      remainderCoeffsModded);
+      remainderCoeffsRemOp);
 
   SmallVector<OpFoldResult> offsets{builder.getIndexAttr(0)};
   SmallVector<OpFoldResult> sizes{
@@ -724,13 +727,7 @@ void PolynomialToStandard::runOnOperation() {
   ConversionTarget target(*context);
   PolynomialToStandardTypeConverter typeConverter(context);
 
-  target.addLegalDialect<arith::ArithDialect>();
-
-  // target.addIllegalDialect<PolynomialDialect>();
-  target.addIllegalOp<FromTensorOp, ToTensorOp, AddOp, SubOp, LeadingTermOp,
-                      MonomialOp, MulScalarOp, MonomialMulOp, ConstantOp,
-                      MulOp>();
-
+  target.addIllegalDialect<PolynomialDialect>();
   RewritePatternSet patterns(context);
 
   // Rewrite Sub as Add, to avoid lowering both
