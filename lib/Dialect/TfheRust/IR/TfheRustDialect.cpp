@@ -15,12 +15,6 @@ namespace mlir {
 namespace heir {
 namespace tfhe_rust {
 
-//===----------------------------------------------------------------------===//
-// TfheRust dialect.
-//===----------------------------------------------------------------------===//
-
-// Dialect construction: there is one instance per context and it registers its
-// operations, types, and interfaces here.
 void TfheRustDialect::initialize() {
   addTypes<
 #define GET_TYPEDEF_LIST

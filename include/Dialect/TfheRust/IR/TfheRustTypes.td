@@ -9,12 +9,10 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 
-// A base class for all types in this dialect
 class TfheRust_Type<string name, string typeMnemonic>
     : TypeDef<TfheRust_Dialect, name> {
   let mnemonic = typeMnemonic;
 }
-
 
 class TfheRust_EncryptedUInt<int width> : TfheRust_Type<"TfheRust_EncryptedUInt" # width, "eui" # width> {
   let summary = "An encrypted unsigned integer corresponding to tfhe-rs's FHEUint" # width # " type.";
