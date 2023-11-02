@@ -901,6 +901,11 @@ principal, the ideal is defined by a single polynomial.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
+&lt;td style="text-align:center">cwidth&lt;/td>
+&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
 &lt;td style="text-align:center">cmod&lt;/td>
 &lt;td style="text-align:center">&lt;code>APInt&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
