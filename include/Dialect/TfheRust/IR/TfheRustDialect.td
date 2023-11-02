@@ -16,7 +16,6 @@ def TfheRust_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::tfhe_rs";
 
   let useDefaultTypePrinterParser = 1;
-  let useDefaultAttributePrinterParser = 1;
 }
 
 #endif  // INCLUDE_DIALECT_TFHERUST_IR_TFHERUSTDIALECT_TD_
