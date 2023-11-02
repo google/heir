@@ -8,7 +8,7 @@
 
 module {
   func.func @test_ops(%p0 : !polynomial.polynomial<#ring1>) {
-    %cmod_switch = poly_ext.cmod_switch %p0 {congruence_modulus=117} : !polynomial.polynomial<#ring1> -> !polynomial.polynomial<#ring2>
+    %cmod_switch = poly_ext.cmod_switch %p0 {congruence_modulus=117 : i16} : !polynomial.polynomial<#ring1> -> !polynomial.polynomial<#ring2>
     return
   }
 

@@ -4,6 +4,7 @@
 include "PolyExtDialect.td"
 include "include/Dialect/Polynomial/IR/PolynomialDialect.td"
 include "include/Dialect/Polynomial/IR/PolynomialTypes.td"
+include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -25,7 +26,7 @@ def PolyExt_CModSwitchOp : PolyExt_Op<"cmod_switch", traits = [Pure, Elementwise
   let arguments = (ins
     PolynomialLike:$x,
     // TODO: make congruence_modulus optional with default value 1
-    APIntAttr:$congruence_modulus
+    Builtin_IntegerAttr:$congruence_modulus
   );
 
   let results = (outs

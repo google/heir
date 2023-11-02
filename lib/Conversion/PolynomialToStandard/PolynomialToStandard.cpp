@@ -621,7 +621,8 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   // division. The lowering must fail:
   auto divisor = ring.getIdeal();
   auto leadingCoef = divisor.getTerms().back().coefficient;
-  auto leadingCoefInverse = leadingCoef.multiplicativeInverse(ring.getCmod());
+  auto leadingCoefInverse =
+      leadingCoef.multiplicativeInverse(ring.coefficientModulus());
   // APInt signals no inverse by returning zero.
   if (leadingCoefInverse.isZero()) {
     signalPassFailure();
@@ -686,8 +687,8 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   auto toTensorOp = builder.create<ToTensorOp>(inputType, whileOp.getResult(0));
   auto remainderModArg = builder.create<arith::ConstantOp>(
       inputType, DenseElementsAttr::get(
-                     inputType, APInt(inputType.getElementTypeBitWidth(),
-                                      ring.getCmod().getSExtValue())));
+                     inputType, ring.coefficientModulus().sextOrTrunc(
+                                    inputType.getElementTypeBitWidth())));
   auto remainderCoeffsRemOp = builder.create<arith::RemSIOp>(
       toTensorOp.getResult(), remainderModArg.getResult());
 
