@@ -91,6 +91,3 @@ func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
   %poly2 = polynomial.mul(%poly0, %poly1) {ring = #ring} : !poly_ty
   return %poly2 : !poly_ty
 }
-
-// TODO(https://github.com/google/heir/issues/199): add proper tests for a
-// non-1 divisor leading coefficient

@@ -1,4 +1,5 @@
 """Generate mlir-cpu-runner tests for lowering polynomial.mul ops from a config."""
+
 import argparse
 import sys
 
@@ -126,6 +127,7 @@ def parse_polynomial(poly_str: str) -> list[tuple[int, int]]:
   terms = [x.strip().split('x**') for x in poly_str.split('+')]
   term_dict = dict()
   for term in terms:
+    term = [x.strip() for x in term]
     if term[0]:
       term_coeff = int(term[0])
     else:
@@ -179,6 +181,7 @@ def main(args: argparse.Namespace) -> None:
     parsed_ideal = parse_to_sympy(ideal, x, cmod)
     parsed_p0 = parse_to_sympy(p0, x, cmod)
     parsed_p1 = parse_to_sympy(p1, x, cmod)
+    domain = parsed_p0.domain
 
     expected_remainder = sympy.rem(parsed_p0 * parsed_p1, parsed_ideal, x)
     print(
@@ -187,6 +190,17 @@ def main(args: argparse.Namespace) -> None:
     )
     coeff_list_len = parsed_ideal.degree()
     expected_coeffs = list(reversed(expected_remainder.all_coeffs()))
+
+    # For whatever reason, sympy won't preserve the domain of the coefficients
+    # after `rem`, so I have to manually convert any fractional coefficients to
+    # their modular inverse equivalents.
+    for j, exp_coeff in enumerate(expected_coeffs):
+      if exp_coeff.is_rational and not exp_coeff.is_integer:
+        domain_p = domain.convert(exp_coeff.p)
+        domain_q = domain.convert(sympy.mod_inverse(exp_coeff.q, cmod))
+        result = (domain_p * domain_q) % cmod
+        expected_coeffs[j] = result
+
     if len(expected_coeffs) < coeff_list_len:
       expected_coeffs = expected_coeffs + [0] * (
           coeff_list_len - len(expected_coeffs)
