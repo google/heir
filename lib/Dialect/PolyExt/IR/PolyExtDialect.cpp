@@ -33,20 +33,30 @@ polynomial::PolynomialType getPolynomialType(Type t) {
 LogicalResult CModSwitchOp::verify() {
   auto xRing = getPolynomialType(getX().getType()).getRing();
   auto outRing = getPolynomialType(getOutput().getType()).getRing();
+  auto outRingCmod = outRing.getCmod().getValue();
+  auto xRingCmod = xRing.getCmod().getValue();
 
   if (xRing.getIdeal() != outRing.getIdeal()) {
     return emitOpError("input and output rings ideals must be the same");
   }
 
-  if (xRing.getCmod().ule(outRing.getCmod())) {
+  if (xRingCmod.getBitWidth() != outRingCmod.getBitWidth()) {
+    return emitOpError(
+        "input ring cmod and output ring cmod's have different bit widths; "
+        "consider annotating the types with `: i64` or similar, or using "
+        "the relevant builder on Ring_Attr");
+  }
+
+  if (xRingCmod.ule(outRingCmod)) {
     return emitOpError("input ring cmod must be larger than output ring cmod");
   }
 
-  if (getCongruenceModulus().ule(0)) {
+  APInt congMod = getCongruenceModulus().getValue();
+  if (congMod.ule(APInt::getZero(congMod.getBitWidth()))) {
     return emitOpError("congruence modulus must be positive");
   }
 
-  if (outRing.getCmod().ule(getCongruenceModulus())) {
+  if (outRingCmod.ule(congMod.zextOrTrunc(outRingCmod.getBitWidth()))) {
     return emitOpError(
         "output ring cmod must be larger than congruence modulus");
   }

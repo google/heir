@@ -3,8 +3,9 @@
 
 include "include/Dialect/Polynomial/IR/PolynomialDialect.td"
 
-include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/DialectBase.td"
 
 class Polynomial_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<Polynomial_Dialect, name, traits> {
@@ -46,26 +47,21 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
       #ring = #polynomial.ring<cmod=1234, ideal=#polynomial.polynomial<x**1024 + 1>>
   }];
 
-  // The extra cwidth parameter is required because, when the MLIR framework's
-  // StorageUniquer is determining whether to build a new instance of this
-  // attribute or reuse an existing one, it does an == comparison on the
-  // parameters, and comparing two APInts with different underlying bit widths
-  // leads to an assertion failure. By adding the container bit width as a
-  // parameter, that bit width is compared first and the rest of the check is
-  // skipped if the bit widths disagree. The custom builder and custom
-  // parser/printer ensures that cwidth is automatically inferred from cmod, and
-  // not printed or parsed, so that the cwidth parameter need not be known to the
-  // user.
-  let parameters = (ins "int64_t": $cwidth, "APInt": $cmod, "Polynomial":$ideal);
+  let parameters = (ins "IntegerAttr": $cmod, "Polynomial":$ideal);
 
   let builders = [
-    AttrBuilderWithInferredContext<(ins "APInt": $cmod, "Polynomial":$ideal), [{
-      return $_get(ideal.getContext(), cmod.getBitWidth(), cmod, ideal);
+    AttrBuilderWithInferredContext<
+        (ins "const APInt &": $cmod, "Polynomial":$ideal), [{
+      return $_get(
+        ideal.getContext(),
+        IntegerAttr::get(IntegerType::get(ideal.getContext(), cmod.getBitWidth()), cmod),
+        ideal
+      );
     }]>
   ];
   let extraClassDeclaration = [{
     Polynomial ideal() const { return getIdeal(); }
-    APInt coefficientModulus() const { return getCmod(); }
+    APInt coefficientModulus() const { return getCmod().getValue(); }
   }];
 
   let skipDefaultBuilders = 1;

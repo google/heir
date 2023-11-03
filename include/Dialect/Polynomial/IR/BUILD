@@ -64,11 +64,17 @@ gentbl_cc_library(
     name = "attributes_inc_gen",
     tbl_outs = [
         (
-            ["-gen-attrdef-decls"],
+            [
+                "-gen-attrdef-decls",
+                "-attrdefs-dialect=polynomial",
+            ],
             "PolynomialAttributes.h.inc",
         ),
         (
-            ["-gen-attrdef-defs"],
+            [
+                "-gen-attrdef-defs",
+                "-attrdefs-dialect=polynomial",
+            ],
             "PolynomialAttributes.cpp.inc",
         ),
         (
