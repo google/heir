@@ -92,6 +92,7 @@ cc_binary(
     includes = ["include"],
     deps = [
         "@heir//lib/Target/Metadata:MetadataEmitter",
+        "@heir//lib/Target/TfheRust:TfheRustEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//mlir:TranslateLib",
     ],

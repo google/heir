@@ -14,7 +14,7 @@ class TfheRust_Type<string name, string typeMnemonic>
   let mnemonic = typeMnemonic;
 }
 
-class TfheRust_EncryptedUInt<int width> : TfheRust_Type<"TfheRust_EncryptedUInt" # width, "eui" # width> {
+class TfheRust_EncryptedUInt<int width> : TfheRust_Type<"EncryptedUInt" # width, "eui" # width> {
   let summary = "An encrypted unsigned integer corresponding to tfhe-rs's FHEUint" # width # " type.";
 }
 
@@ -23,7 +23,7 @@ foreach i = [2, 3, 4, 8, 10, 12, 14, 16, 32, 64, 128, 256] in {
   def TfheRust_EncryptedUInt # i : TfheRust_EncryptedUInt<i>;
 }
 
-class TfheRust_EncryptedInt<int width> : TfheRust_Type<"TfheRust_EncryptedInt" # width, "ei" # width> {
+class TfheRust_EncryptedInt<int width> : TfheRust_Type<"EncryptedInt" # width, "ei" # width> {
   let summary = "An encrypted signed integer corresponding to tfhe-rs's FHEInt" # width # " type.";
 }
 
