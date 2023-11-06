@@ -38,6 +38,7 @@ cc_binary(
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Conversion/PolynomialToStandard",
         "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/PolyExt/IR:Dialect",

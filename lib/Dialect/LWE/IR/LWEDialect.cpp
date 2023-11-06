@@ -1,14 +1,25 @@
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
+#include "include/Dialect/LWE/IR/LWETypes.h"
+#include "include/Dialect/Polynomial/IR/Polynomial.h"
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+
+// NOLINTNEXTLINE(misc-include-cleaner): Required to define LWEOps
+#include "include/Dialect/LWE/IR/LWEOps.h"
 
 // Generated definitions
 #include "include/Dialect/LWE/IR/LWEDialect.cpp.inc"
 #define GET_ATTRDEF_CLASSES
 #include "include/Dialect/LWE/IR/LWEAttributes.cpp.inc"
+#define GET_TYPEDEF_CLASSES
+#include "include/Dialect/LWE/IR/LWETypes.cpp.inc"
+#define GET_OP_CLASSES
+#include "include/Dialect/LWE/IR/LWEOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -18,6 +29,14 @@ void LWEDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
 #include "include/Dialect/LWE/IR/LWEAttributes.cpp.inc"
+      >();
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "include/Dialect/LWE/IR/LWETypes.cpp.inc"
+      >();
+  addOperations<
+#define GET_OP_LIST
+#include "include/Dialect/LWE/IR/LWEOps.cpp.inc"
       >();
 }
 

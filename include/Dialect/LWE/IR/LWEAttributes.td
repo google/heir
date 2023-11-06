@@ -1,7 +1,7 @@
 #ifndef HEIR_INCLUDE_DIALECT_LWE_IR_LWEATTRIBUTES_TD_
 #define HEIR_INCLUDE_DIALECT_LWE_IR_LWEATTRIBUTES_TD_
 
-include "LWEDialect.td"
+include "include/Dialect/LWE/IR/LWEDialect.td"
 
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/DialectBase.td"
@@ -228,6 +228,14 @@ def RLWE_InverseCanonicalEmbeddingEncoding
     %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
     ```
   }];
+}
+
+def LWE_LWEParams : AttrDef<LWE_Dialect, "LWEParams"> {
+  let mnemonic = "lwe_params";
+
+  let parameters = (ins "IntegerAttr": $cmod, "unsigned":$dimension);
+
+  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEATTRIBUTES_TD_

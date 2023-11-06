@@ -11,6 +11,8 @@ exports_files(
     [
         "LWEDialect.h",
         "LWEAttributes.h",
+        "LWETypes.h",
+        "LWEOps.h",
     ],
 )
 
@@ -19,7 +21,11 @@ td_library(
     srcs = [
         "LWEAttributes.td",
         "LWEDialect.td",
+        "LWEOps.td",
+        "LWETypes.td",
     ],
+    # include from the heir-root to enable fully-qualified include-paths
+    includes = ["../../../.."],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
@@ -75,5 +81,61 @@ gentbl_cc_library(
     deps = [
         ":dialect_inc_gen",
         ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "types_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-typedef-decls",
+            ],
+            "LWETypes.h.inc",
+        ),
+        (
+            [
+                "-gen-typedef-defs",
+            ],
+            "LWETypes.cpp.inc",
+        ),
+        (
+            ["-gen-typedef-doc"],
+            "LWETypes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "LWETypes.td",
+    deps = [
+        ":attributes_inc_gen",
+        ":dialect_inc_gen",
+        ":td_files",
+        "@heir//include/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "ops_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "LWEOps.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "LWEOps.cpp.inc",
+        ),
+        (
+            ["-gen-op-doc"],
+            "LWEOps.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "LWEOps.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+        ":types_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:td_files",
     ],
 )
