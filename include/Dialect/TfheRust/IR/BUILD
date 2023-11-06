@@ -1,4 +1,4 @@
-# BGV, a dialect defining the BGV cryptosystem.
+# TfheRust, an exit dialect to the tfhe-rs API
 
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
@@ -9,21 +9,18 @@ package(
 
 exports_files(
     [
-        "BGVDialect.h",
-        "BGVOps.h",
-        "BGVTypes.h",
-        "BGVAttributes.h",
-        "BGVTraits.h",
+        "TfheRustDialect.h",
+        "TfheRustOps.h",
+        "TfheRustTypes.h",
     ],
 )
 
 td_library(
     name = "td_files",
     srcs = [
-        "BGVAttributes.td",
-        "BGVDialect.td",
-        "BGVOps.td",
-        "BGVTypes.td",
+        "TfheRustDialect.td",
+        "TfheRustOps.td",
+        "TfheRustTypes.td",
     ],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
@@ -38,23 +35,23 @@ gentbl_cc_library(
             [
                 "-gen-dialect-decls",
             ],
-            "BGVDialect.h.inc",
+            "TfheRustDialect.h.inc",
         ),
         (
             [
                 "-gen-dialect-defs",
             ],
-            "BGVDialect.cpp.inc",
+            "TfheRustDialect.cpp.inc",
         ),
         (
             [
                 "-gen-dialect-doc",
             ],
-            "BGVDialect.md",
+            "TfheRustDialect.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVDialect.td",
+    td_file = "TfheRustDialect.td",
     deps = [
         ":td_files",
     ],
@@ -67,23 +64,22 @@ gentbl_cc_library(
             [
                 "-gen-typedef-decls",
             ],
-            "BGVTypes.h.inc",
+            "TfheRustTypes.h.inc",
         ),
         (
             [
                 "-gen-typedef-defs",
             ],
-            "BGVTypes.cpp.inc",
+            "TfheRustTypes.cpp.inc",
         ),
         (
             ["-gen-typedef-doc"],
-            "BGVTypes.md",
+            "TfheRustTypes.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVTypes.td",
+    td_file = "TfheRustTypes.td",
     deps = [
-        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":td_files",
     ],
@@ -94,50 +90,22 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-op-decls"],
-            "BGVOps.h.inc",
+            "TfheRustOps.h.inc",
         ),
         (
             ["-gen-op-defs"],
-            "BGVOps.cpp.inc",
+            "TfheRustOps.cpp.inc",
         ),
         (
             ["-gen-op-doc"],
-            "BGVOps.md",
+            "TfheRustOps.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVOps.td",
+    td_file = "TfheRustOps.td",
     deps = [
         ":dialect_inc_gen",
         ":td_files",
         ":types_inc_gen",
-    ],
-)
-
-gentbl_cc_library(
-    name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-attrdef-decls",
-            ],
-            "BGVAttributes.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-            ],
-            "BGVAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "BGVAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVAttributes.td",
-    deps = [
-        ":dialect_inc_gen",
-        ":td_files",
     ],
 )

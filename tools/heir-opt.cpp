@@ -10,6 +10,7 @@
 #include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
+#include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -155,6 +156,7 @@ int main(int argc, char **argv) {
   registry.insert<poly_ext::PolyExtDialect>();
   registry.insert<polynomial::PolynomialDialect>();
   registry.insert<secret::SecretDialect>();
+  registry.insert<tfhe_rust::TfheRustDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<affine::AffineDialect>();
