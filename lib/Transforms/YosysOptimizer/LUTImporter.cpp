@@ -20,17 +20,19 @@ mlir::Operation *LUTImporter::createOp(Yosys::RTLIL::Cell *cell,
   assert(cell->type.begins_with("\\lut"));
 
   // Create truth table from cell attributes.
-  int lutSize;
-  StringRef(cell->type.substr(4, 1)).getAsInteger(10, lutSize);
-  SmallVector<bool> lutValues(1 << lutSize, false);
+  int lutBits;
+  StringRef(cell->type.substr(4, 1)).getAsInteger(10, lutBits);
 
-  for (int i = 0; i < lutValues.size(); i++) {
+  uint64_t lutValue = 0;
+  int lutSize = 1 << lutBits;
+  for (int i = 0; i < lutSize; i++) {
     auto lutStr =
         cell->getPort(Yosys::RTLIL::IdString(llvm::formatv("\\P{0}", i)));
-    lutValues[i] = lutStr.as_bool();
+    lutValue |= (lutStr.as_bool() ? 1 : 0) << i;
   }
 
-  auto lookupTable = b.getBoolArrayAttr(llvm::ArrayRef<bool>(lutValues));
+  auto lookupTable =
+      b.getIntegerAttr(b.getIntegerType(lutSize, /*isSigned=*/false), lutValue);
   return b.create<comb::TruthTableOp>(inputs, lookupTable);
 }
 

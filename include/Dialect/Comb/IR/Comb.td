@@ -37,6 +37,6 @@ def CombDialect : Dialect {
 class CombOp<string mnemonic, list<Trait> traits = []> :
     Op<CombDialect, mnemonic, traits>;
 
-include "Combinational.td"
+include "include/Dialect/Comb/IR/Combinational.td"
 
 #endif // HEIR_INCLUDE_DIALECT_COMB_COMB_TD

@@ -14,7 +14,11 @@
 // Arithmetic and Logical Operations
 //===----------------------------------------------------------------------===//
 
+#ifndef HEIR_INCLUDE_DIALECT_COMB_COMBINATIONAL_TD
+#define HEIR_INCLUDE_DIALECT_COMB_COMBINATIONAL_TD
+
 include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/EnumAttr.td"
 
 def HWIntegerType : Type<
@@ -272,13 +276,14 @@ def TruthTableOp : CombOp<"truth_table", [Pure]> {
     ```
       %a = ... : i1
       %b = ... : i1
-      %0 = comb.truth_table %a, %b -> [false, true, true, false]
+      %0 = comb.truth_table %a, %b -> 6 : ui4
     ```
 
-    This operation assumes a fully elaborated table -- 2^n entries. Inputs are
-    sorted MSB -> LSB from left to right and the offset into `lookupTable` is
-    computed from them. The table is sorted from 0 -> (2^n - 1) from left to
-    right.
+    This operation assumes that the lookup table is described as an integer of
+    2^n bits to fully specify the table. Inputs are sorted MSB -> LSB from left
+    to right and the offset into `lookupTable` is computed from them. The
+    integer containing the truth table value's LSB is the output for the input
+    "all false", and the MSB is the output for the input "all true".
 
     No difference from array_get into an array of constants except for xprop
     behavior. If one of the inputs is unknown, but said input doesn't make a
@@ -286,7 +291,7 @@ def TruthTableOp : CombOp<"truth_table", [Pure]> {
     be 'x' -- it should be the well-known result.
   }];
 
-  let arguments = (ins Variadic<I1>:$inputs, BoolArrayAttr:$lookupTable);
+  let arguments = (ins Variadic<I1>:$inputs, Builtin_IntegerAttr:$lookupTable);
   let results = (outs I1:$result);
 
   let assemblyFormat = [{
@@ -295,3 +300,5 @@ def TruthTableOp : CombOp<"truth_table", [Pure]> {
 
   let hasVerifier = 1;
 }
+
+#endif // HEIR_INCLUDE_DIALECT_COMB_COMBINATIONAL_TD
