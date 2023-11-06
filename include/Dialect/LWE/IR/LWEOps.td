@@ -6,6 +6,7 @@ include "LWETypes.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/CommonAttrConstraints.td"
 
 class LWE_Op<string mnemonic, list<Trait> traits = []> :
         Op<LWE_Dialect, mnemonic, traits> {
@@ -27,9 +28,16 @@ def LWE_EncodeOp : LWE_Op<"encode", [Pure]> {
     ```
   }];
 
-  let arguments = (ins SignlessIntegerLike:$plaintext);
+  let arguments = (ins
+    SignlessIntegerLike:$plaintext,
+    AnyLWEEncodingAttr:$encoding
+  );
+
   let results = (outs LWEPlaintext:$output);
   let assemblyFormat = "$plaintext attr-dict `:` type($plaintext) `to` type($output)";
+
+  // Verify that the encoding parameter matches the output plaintext attribute.
+  let hasVerifier = 1;
 }
 
 def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [Pure]> {
@@ -37,7 +45,7 @@ def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [Pure]> {
 
   let arguments = (ins
     LWEPlaintext:$input,
-    LWE_LWEParams:$params
+    OptionalAttr<LWE_LWEParams>:$params
   );
 
   let results = (outs LWECiphertext:$output);
@@ -45,6 +53,10 @@ def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [Pure]> {
   let assemblyFormat = [{
     operands attr-dict `:`  qualified(type(operands)) `to` qualified(type(results))
   }];
+
+  // Verify that the LWE params matches the output ciphertext LWE params and
+  // that the encodings of the input and output match.
+  let hasVerifier = 1;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEOPS_TD_
