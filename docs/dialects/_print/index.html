@@ -60,13 +60,22 @@ is bit <code>bit_width-1</code>. So the above example would have starting bit <c
 width <code>3</code>. The bits preceding (more significant than) the starting bit are
 reserved for padding, and the bits following (less significant than) the
 ending bit are reserved for noise.</p><p>The presence of this attribute as the <code>encoding</code> attribute of a tensor
-indicates that the tensor is an LWE ciphertext.</p><p>Example:</p><pre tabindex=0><code>#lwe_encoding = #lwe.polynomial_coefficient_encoding&lt;cleartext_start=30, cleartext_bitwidth=3&gt;
+indicates that the tensor is an LWE ciphertext.</p><p>Example:</p><pre tabindex=0><code>#lwe_encoding = #lwe.bit_field_encoding&lt;cleartext_start=30, cleartext_bitwidth=3&gt;
 %lwe_ciphertext = arith.constant &lt;[1,2,3,4]&gt; : tensor&lt;4xi32, #lwe_encoding&gt;
 </code></pre><h4 id=parameters>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=lweparamsattr>LWEParamsAttr</h3><p>Syntax:</p><pre tabindex=0><code>#lwe.lwe_params&lt;
   IntegerAttr,   # cmod
   unsigned   # dimension
 &gt;
-</code></pre><h4 id=parameters-1>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cmod</td><td style=text-align:center><code>IntegerAttr</code></td><td></td></tr><tr><td style=text-align:center>dimension</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=inversecanonicalembeddingencodingattr>InverseCanonicalEmbeddingEncodingAttr</h3><p>An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.inverse_canonical_embedding_encoding&lt;
+</code></pre><h4 id=parameters-1>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cmod</td><td style=text-align:center><code>IntegerAttr</code></td><td></td></tr><tr><td style=text-align:center>dimension</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=unspecifiedbitfieldencodingattr>UnspecifiedBitFieldEncodingAttr</h3><p>An attribute describing unspecified bit field encodings.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.unspecified_bit_field_encoding&lt;
+  unsigned   # cleartext_bitwidth
+&gt;
+</code></pre><p>See LWE_BitFieldEncoding for a description of bit field encodings.</p><p>This attribute describes an unspecified bit field encoding; this is where
+the starting bit position of the cleartext bit field is unspecified, but its
+width is fixed. A noise growth analysis should be performed to determine the
+optimal amount of bits needed for noise and padding to specify the bit field
+encodings starting bit position.</p><p>Example:</p><pre tabindex=0><code>#lwe_encoding = #lwe.unspecified_bit_field_encoding&lt;cleartext_bitwidth=3&gt;
+%lwe_ciphertext = arith.constant &lt;[1,2,3,4]&gt; : tensor&lt;4xi32, #lwe_encoding&gt;
+</code></pre><h4 id=parameters-2>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=inversecanonicalembeddingencodingattr>InverseCanonicalEmbeddingEncodingAttr</h3><p>An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.inverse_canonical_embedding_encoding&lt;
   unsigned,   # cleartext_start
   unsigned   # cleartext_bitwidth
 &gt;
@@ -121,7 +130,7 @@ coefficients.</p><p>Example:</p><pre tabindex=0><code>#generator = #poly.polynom
 %poly1 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;
 %poly2 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&lt;2x!poly.poly&lt;#ring, #eval_encoding&gt;&gt;
-</code></pre><h4 id=parameters-2>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=polynomialcoefficientencodingattr>PolynomialCoefficientEncodingAttr</h3><p>An attribute describing encoded RLWE plaintexts via coefficients.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.polynomial_coefficient_encoding&lt;
+</code></pre><h4 id=parameters-3>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=polynomialcoefficientencodingattr>PolynomialCoefficientEncodingAttr</h3><p>An attribute describing encoded RLWE plaintexts via coefficients.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.polynomial_coefficient_encoding&lt;
   unsigned,   # cleartext_start
   unsigned   # cleartext_bitwidth
 &gt;
@@ -136,7 +145,7 @@ scheme that supports the coefficient encoding.</p><p>Example:</p><pre tabindex=0
 %poly1 = poly.from_tensor %coeffs1 : tensor&lt;10xi16&gt; -&gt; !poly.poly&lt;#ring&gt;
 %poly2 = poly.from_tensor %coeffs2 : tensor&lt;10xi16&gt; -&gt; !poly.poly&lt;#ring&gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&lt;2x!poly.poly&lt;#ring&gt;, #coeff_encoding&gt;
-</code></pre><h4 id=parameters-3>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=polynomialevaluationencodingattr>PolynomialEvaluationEncodingAttr</h3><p>An attribute describing encoded RLWE plaintexts via evaluations at fixed points.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.polynomial_evaluation_encoding&lt;
+</code></pre><h4 id=parameters-4>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=polynomialevaluationencodingattr>PolynomialEvaluationEncodingAttr</h3><p>An attribute describing encoded RLWE plaintexts via evaluations at fixed points.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.polynomial_evaluation_encoding&lt;
   unsigned,   # cleartext_start
   unsigned   # cleartext_bitwidth
 &gt;
@@ -164,18 +173,18 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.</p><p
 %poly1 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;
 %poly2 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&lt;2x!poly.poly&lt;#ring, #eval_encoding&gt;&gt;
-</code></pre><h4 id=parameters-4>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h2 id=lwe-types>LWE types</h2><h3 id=lweciphertexttype>LWECiphertextType</h3><p>A type for LWE ciphertexts</p><p>Syntax:</p><pre tabindex=0><code>!lwe.lwe_ciphertext&lt;
-  ::mlir::heir::lwe::BitFieldEncodingAttr,   # encoding
-  ::mlir::heir::lwe::LWEParamsAttr   # lwe_params
+</code></pre><h4 id=parameters-5>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h2 id=lwe-types>LWE types</h2><h3 id=lweciphertexttype>LWECiphertextType</h3><p>A type for LWE ciphertexts</p><p>Syntax:</p><pre tabindex=0><code>!lwe.lwe_ciphertext&lt;
+  ::mlir::Attribute,   # encoding
+  LWEParamsAttr   # lwe_params
 &gt;
 </code></pre><p>A type for LWE ciphertexts.</p><p>This type keeps track of the plaintext integer encoding for the LWE
 Ciphertext to ensure proper decoding after decryption. It also keeps track
 of the ring where the LWE ciphertext is defined, which provides information
-on the ciphertext shape and the ring operations used in LWE operations.</p><h4 id=parameters-5>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>encoding</td><td style=text-align:center><code>::mlir::heir::lwe::BitFieldEncodingAttr</code></td><td>An attribute describing encoded LWE plaintexts using bit fields.</td></tr><tr><td style=text-align:center>lwe_params</td><td style=text-align:center><code>::mlir::heir::lwe::LWEParamsAttr</code></td><td></td></tr></tbody></table><h3 id=lweplaintexttype>LWEPlaintextType</h3><p>A type for LWE plaintexts</p><p>Syntax:</p><pre tabindex=0><code>!lwe.lwe_plaintext&lt;
-  ::mlir::heir::lwe::BitFieldEncodingAttr   # encoding
+on the ciphertext shape and the ring operations used in LWE operations.</p><h4 id=parameters-6>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>encoding</td><td style=text-align:center><code>::mlir::Attribute</code></td><td></td></tr><tr><td style=text-align:center>lwe_params</td><td style=text-align:center><code>LWEParamsAttr</code></td><td></td></tr></tbody></table><h3 id=lweplaintexttype>LWEPlaintextType</h3><p>A type for LWE plaintexts</p><p>Syntax:</p><pre tabindex=0><code>!lwe.lwe_plaintext&lt;
+  ::mlir::Attribute   # encoding
 &gt;
 </code></pre><p>A type for LWE plaintexts.</p><p>This type keeps track of the plaintext integer encoding for the LWE
-plaintext before it is encrypted.</p><h4 id=parameters-6>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>encoding</td><td style=text-align:center><code>::mlir::heir::lwe::BitFieldEncodingAttr</code></td><td>An attribute describing encoded LWE plaintexts using bit fields.</td></tr></tbody></table></div><div class=td-content style=page-break-before:always><h1 id=pg-cabcacfc9b7cbac2ba4f6fc790a84b68>5 - PolyExt</h1><p>The PolyExt dialect is a place for &ldquo;external&rdquo; operations on
+plaintext before it is encrypted.</p><h4 id=parameters-7>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>encoding</td><td style=text-align:center><code>::mlir::Attribute</code></td><td></td></tr></tbody></table></div><div class=td-content style=page-break-before:always><h1 id=pg-cabcacfc9b7cbac2ba4f6fc790a84b68>5 - PolyExt</h1><p>The PolyExt dialect is a place for &ldquo;external&rdquo; operations on
 <code>mlir::heir::polynomial::Polynomial</code>.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-b18fea903e4651113f5317788f1491e1>6 - Polynomial</h1><p>The Polynomial dialect defines single-variable polynomial types and
 operations.</p><p>The simplest use of this dialect is to do math in a polynomial ring <code>R[x]</code>,
 where <code>R</code> is another MLIR integer type like <code>u32</code>, and lower to <code>arith</code>.</p><p>More generally, this dialect represent polynomial operations in a quotient
