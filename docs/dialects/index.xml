@@ -508,11 +508,12 @@ bit wide result.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.truth_table` $inputs `-&amp;gt;` $lookupTable attr-dict
 &lt;/code>&lt;/pre>&lt;pre tabindex="0">&lt;code> %a = ... : i1
 %b = ... : i1
-%0 = comb.truth_table %a, %b -&amp;gt; [false, true, true, false]
-&lt;/code>&lt;/pre>&lt;p>This operation assumes a fully elaborated table &amp;ndash; 2^n entries. Inputs are
-sorted MSB -&amp;gt; LSB from left to right and the offset into &lt;code>lookupTable&lt;/code> is
-computed from them. The table is sorted from 0 -&amp;gt; (2^n - 1) from left to
-right.&lt;/p>
+%0 = comb.truth_table %a, %b -&amp;gt; 6 : ui4
+&lt;/code>&lt;/pre>&lt;p>This operation assumes that the lookup table is described as an integer of
+2^n bits to fully specify the table. Inputs are sorted MSB -&amp;gt; LSB from left
+to right and the offset into &lt;code>lookupTable&lt;/code> is computed from them. The
+integer containing the truth table value&amp;rsquo;s LSB is the output for the input
+&amp;ldquo;all false&amp;rdquo;, and the MSB is the output for the input &amp;ldquo;all true&amp;rdquo;.&lt;/p>
 &lt;p>No difference from array_get into an array of constants except for xprop
 behavior. If one of the inputs is unknown, but said input doesn&amp;rsquo;t make a
 difference in the output (based on the lookup table) the result should not
@@ -523,7 +524,7 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>lookupTable&lt;/code>&lt;/td>&lt;td>::mlir::ArrayAttr&lt;/td>&lt;td>1-bit boolean array attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>lookupTable&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
