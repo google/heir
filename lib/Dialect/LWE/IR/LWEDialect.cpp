@@ -1,16 +1,11 @@
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
+#include "include/Dialect/LWE/IR/LWEOps.h"
 #include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
-
-// NOLINTNEXTLINE(misc-include-cleaner): Required to define LWEOps
-#include "include/Dialect/LWE/IR/LWEOps.h"
 
 // Generated definitions
 #include "include/Dialect/LWE/IR/LWEDialect.cpp.inc"
@@ -69,6 +64,26 @@ LogicalResult BitFieldEncodingAttr::verifyEncoding(
   return success();
 }
 
+LogicalResult UnspecifiedBitFieldEncodingAttr::verifyEncoding(
+    ArrayRef<int64_t> shape, Type elementType,
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
+  if (!elementType.isSignlessInteger()) {
+    return emitError() << "Tensors with a bit_field_encoding must have "
+                       << "signless integer element type, but found "
+                       << elementType;
+  }
+
+  unsigned plaintextBitwidth = elementType.getIntOrFloatBitWidth();
+  unsigned cleartextBitwidth = getCleartextBitwidth();
+  if (plaintextBitwidth < cleartextBitwidth)
+    return emitError() << "The tensor element type's bitwidth "
+                       << plaintextBitwidth
+                       << " is too small to store the cleartext, "
+                       << "which has bit width " << cleartextBitwidth << "";
+
+  return success();
+}
+
 LogicalResult requirePolynomialElementTypeFits(
     Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
     unsigned cleartextStart,
@@ -121,6 +136,38 @@ LogicalResult InverseCanonicalEmbeddingEncodingAttr::verifyEncoding(
   return requirePolynomialElementTypeFits(
       elementType, "inverse_canonical_embedding_encoding",
       getCleartextBitwidth(), getCleartextStart(), emitError);
+}
+
+LogicalResult EncodeOp::verify() {
+  auto encodingAttr = this->getEncodingAttr();
+  auto outEncoding = this->getOutput().getType().getEncoding();
+
+  if (encodingAttr != outEncoding) {
+    return this->emitOpError()
+           << "encoding attr must match output LWE plaintext encoding";
+  }
+
+  return success();
+}
+
+LogicalResult TrivialEncryptOp::verify() {
+  auto paramsAttr = this->getParamsAttr();
+  auto outParamsAttr = this->getOutput().getType().getLweParams();
+
+  if (paramsAttr != outParamsAttr) {
+    return this->emitOpError() << "LWE params attr must match output LWE "
+                                  "ciphertext LWE params attr";
+  }
+
+  auto inputEncoding = this->getInput().getType().getEncoding();
+  auto outEncoding = this->getOutput().getType().getEncoding();
+
+  if (inputEncoding != outEncoding) {
+    return this->emitOpError() << "LWE plaintext encoding must match output "
+                                  "LWE ciphertext encoding attr";
+  }
+
+  return success();
 }
 
 }  // namespace lwe

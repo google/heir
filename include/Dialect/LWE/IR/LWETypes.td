@@ -28,8 +28,10 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext"> {
   }];
 
   let parameters = (ins
-    LWE_BitFieldEncoding:$encoding,
-    LWE_LWEParams:$lwe_params
+  // FIXME: Encoding attrs belong on ops and types, should the encoding
+  //   attributes be a different class?
+    "::mlir::Attribute":$encoding,
+    OptionalParameter<"LWEParamsAttr">:$lwe_params
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
@@ -47,7 +49,7 @@ def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext"> {
   }];
 
   let parameters = (ins
-    LWE_BitFieldEncoding:$encoding
+    "::mlir::Attribute":$encoding
   );
 
   let assemblyFormat = "`<` struct(params) `>`";

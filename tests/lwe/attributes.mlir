@@ -2,6 +2,21 @@
 
 // This simply tests for syntax.
 
+
+#encoding0 = #lwe.unspecified_bit_field_encoding<
+  cleartext_bitwidth=3>
+
+// CHECK-LABEL: test_valid_unspecified_lwe_attribute
+func.func @test_valid_unspecified_lwe_attribute() {
+    %c0 = arith.constant 0 : index
+    %two = arith.constant 2 : i16
+    // CHECK: unspecified_bit_field_encoding
+    %coeffs1 = tensor.from_elements %two, %two : tensor<2xi16, #encoding0>
+  return
+}
+
+// -----
+
 #encoding1 = #lwe.bit_field_encoding<
   cleartext_start=14,
   cleartext_bitwidth=3>
@@ -26,6 +41,19 @@ func.func @test_invalid_lwe_attribute() {
     %c0 = arith.constant 0 : index
     %two = arith.constant 2 : i16
     %coeffs1 = tensor.from_elements %two, %two : tensor<2xi16, #encoding2>
+  return
+}
+
+// -----
+
+#encoding3 = #lwe.unspecified_bit_field_encoding<
+  cleartext_bitwidth=8>
+
+// expected-error@below {{tensor element type's bitwidth 4 is too small to store the cleartext, which has bit width 8}}
+func.func @test_invalid_unspecified_lwe_attribute() {
+    %c0 = arith.constant 0 : index
+    %two = arith.constant 2 : i4
+    %coeffs1 = tensor.from_elements %two, %two : tensor<2xi4, #encoding3>
   return
 }
 

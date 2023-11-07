@@ -63,11 +63,42 @@ def LWE_BitFieldEncoding
     Example:
 
     ```
-    #lwe_encoding = #lwe.polynomial_coefficient_encoding<cleartext_start=30, cleartext_bitwidth=3>
+    #lwe_encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
     %lwe_ciphertext = arith.constant <[1,2,3,4]> : tensor<4xi32, #lwe_encoding>
     ```
   }];
 }
+
+def LWE_UnspecifiedBitFieldEncoding
+  : LWE_EncodingAttr<"UnspecifiedBitFieldEncoding",
+      "unspecified_bit_field_encoding"> {
+  let summary = "An attribute describing unspecified bit field encodings.";
+  let description = [{
+    See LWE_BitFieldEncoding for a description of bit field encodings.
+
+    This attribute describes an unspecified bit field encoding; this is where
+    the starting bit position of the cleartext bit field is unspecified, but its
+    width is fixed. A noise growth analysis should be performed to determine the
+    optimal amount of bits needed for noise and padding to specify the bit field
+    encodings starting bit position.
+
+    Example:
+
+    ```
+    #lwe_encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth=3>
+    %lwe_ciphertext = arith.constant <[1,2,3,4]> : tensor<4xi32, #lwe_encoding>
+    ```
+  }];
+
+  // These parameters represent unspecified encodings and simply hold the
+  // cleartext bit width in preparation for specifying the encoding scaling
+  // factors after noise growth analysis.
+  let parameters = (ins
+    "unsigned":$cleartext_bitwidth
+  );
+}
+
+def AnyLWEEncodingAttr : AnyAttrOf<[LWE_BitFieldEncoding, LWE_UnspecifiedBitFieldEncoding]>;
 
 def RLWE_PolynomialCoefficientEncoding
   : LWE_EncodingAttrWithScalingFactor<"PolynomialCoefficientEncoding", "polynomial_coefficient_encoding"> {
