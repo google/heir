@@ -221,9 +221,9 @@ LogicalResult TruthTableOp::verify() {
     return emitOpError("Truth tables support a maximum of ")
            << sizeof(size_t) * 8 - 1 << " inputs on your platform";
 
-  ArrayAttr table = getLookupTable();
-  if (table.size() != (1ull << numInputs))
-    return emitOpError("Expected lookup table of 2^n length");
+  auto table = getLookupTable();
+  if (table.getValue().getBitWidth() != (1ull << numInputs))
+    return emitOpError("Expected lookup table int of 2^n bits");
   return success();
 }
 

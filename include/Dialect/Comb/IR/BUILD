@@ -15,7 +15,7 @@ td_library(
         "Comb.td",
         "Combinational.td",
     ],
-    includes = ["include"],
+    includes = ["../../../.."],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:ControlFlowInterfacesTdFiles",
@@ -45,7 +45,10 @@ gentbl_cc_library(
             "CombDialect.cpp.inc",
         ),
         (
-            ["-gen-dialect-doc"],
+            [
+                "-gen-dialect-doc",
+                "-dialect=comb",
+            ],
             "CombDialect.md",
         ),
     ],

@@ -32,7 +32,6 @@ namespace mlir::heir {
 namespace {
 
 using bazel::tools::cpp::runfiles::Runfiles;
-using ::testing::ElementsAreArray;
 using ::testing::Test;
 
 static constexpr std::string_view kWorkspaceDir = "heir";
@@ -80,13 +79,8 @@ class LUTImporterTestFixture : public Test {
 // Note that we cannot lower truth tables to LLVM, so we must assert the IR
 // rather than executing the code.
 TEST_F(LUTImporterTestFixture, AddOneLUT3) {
-  std::vector<std::vector<bool>> expectedLuts = {
-      {0, 1, 1, 0, 0, 0, 0, 0}, {0, 0, 0, 1, 1, 1, 1, 0},
-      {0, 0, 0, 0, 0, 0, 0, 1}, {0, 1, 1, 0, 0, 0, 0, 0},
-      {0, 0, 0, 1, 1, 1, 1, 0}, {0, 0, 0, 0, 0, 0, 0, 1},
-      {0, 1, 1, 0, 0, 0, 0, 0}, {0, 0, 0, 1, 1, 1, 1, 0},
-      {0, 0, 0, 0, 0, 0, 0, 1}, {0, 1, 1, 0, 0, 0, 0, 0},
-      {1, 0, 0, 0, 0, 0, 0, 0}};
+  std::vector<uint8_t> expectedLuts = {6, 120, 128, 6, 120, 128,
+                                       6, 120, 128, 6, 1};
 
   auto func =
       runImporter("lib/Transforms/YosysOptimizer/tests/add_one_lut3.rtlil");
@@ -99,10 +93,8 @@ TEST_F(LUTImporterTestFixture, AddOneLUT3) {
 
   auto combOps = func.getOps<comb::TruthTableOp>().begin();
   for (size_t i = 0; i < expectedLuts.size(); i++) {
-    SmallVector<bool> table(llvm::map_range(
-        (*combOps++).getLookupTableAttr().getAsValueRange<IntegerAttr>(),
-        [](const APInt &a) { return !a.isZero(); }));
-    EXPECT_THAT(table, ElementsAreArray(expectedLuts[i]));
+    auto lutValue = (*combOps++).getLookupTable().getValue();
+    EXPECT_THAT(lutValue, APInt(lutValue.getBitWidth(), expectedLuts[i]));
   }
 }
 
@@ -118,10 +110,8 @@ TEST_F(LUTImporterTestFixture, AddOneLUT5) {
 
   auto combOps = func.getOps<comb::TruthTableOp>();
   for (auto combOp : combOps) {
-    SmallVector<bool> table(llvm::map_range(
-        combOp.getLookupTableAttr().getAsValueRange<IntegerAttr>(),
-        [](const APInt &a) { return !a.isZero(); }));
-    EXPECT_EQ(table.size(), 32);
+    auto lutValue = combOp.getLookupTable().getValue();
+    EXPECT_EQ(lutValue.getBitWidth(), 32);
   }
 }
 
