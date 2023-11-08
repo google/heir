@@ -4,6 +4,7 @@
 include "TfheRustDialect.td"
 include "TfheRustTypes.td"
 
+include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
 
@@ -43,5 +44,16 @@ def ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table"> {
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
+def GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table"> {
+  let arguments = (
+    ins TfheRust_ServerKey:$serverKey,
+    // TODO(https://github.com/google/heir/issues/246): Generalize to support
+    // integer-valued lookup tables; for now the integer represents a
+    // binary-valued truth table as a bit string, evaluated via
+    // `(lut >> input) & 1`
+    Builtin_IntegerAttr:$truthTable
+  );
+  let results = (outs TfheRust_LookupTable:$lookupTable);
+}
 
 #endif  // INCLUDE_DIALECT_TFHERUST_IR_TFHERUSTOPS_TD_

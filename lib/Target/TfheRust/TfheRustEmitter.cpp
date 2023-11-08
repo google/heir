@@ -67,8 +67,8 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // TfheRust ops
-          .Case<AddOp, ApplyLookupTableOp, ScalarLeftShiftOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<AddOp, ApplyLookupTableOp, GenerateLookupTableOp,
+                ScalarLeftShiftOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -183,7 +183,8 @@ LogicalResult TfheRustEmitter::printSksMethod(::mlir::Value result,
   emitAssignPrefix(result);
   os << variableNames->getNameForValue(sks) << "." << op << "(";
   os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-    return "&" + variableNames->getNameForValue(value);
+    const auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+    return prefix + variableNames->getNameForValue(value);
   });
   os << ");\n";
   return success();
@@ -198,6 +199,18 @@ LogicalResult TfheRustEmitter::printOperation(ApplyLookupTableOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(),
                         {op.getInput(), op.getLookupTable()},
                         "apply_lookup_table");
+}
+
+LogicalResult TfheRustEmitter::printOperation(GenerateLookupTableOp op) {
+  auto sks = op.getServerKey();
+  APInt truthTable = op.getTruthTable().getValue();
+  auto result = op.getResult();
+
+  emitAssignPrefix(result);
+  os << variableNames->getNameForValue(sks) << ".generate_lookup_table(";
+  os << "|x| (" << truthTable << " >> x) & 1";
+  os << ");\n";
+  return success();
 }
 
 LogicalResult TfheRustEmitter::printOperation(ScalarLeftShiftOp op) {

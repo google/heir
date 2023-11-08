@@ -15,8 +15,26 @@ Cargo home `$HOME/.cargo` may need to be replaced by your custom `$CARGO_HOME`,
 if you overrode the default option when installing Cargo.
 
 ```bash
-bazel test //tests/tfhe_rust/end_to_end:all --sandbox_writable_path=$HOME/.cargo
+bazel query "filter('.mlir.test$', //tests/tfhe_rust/end_to_end/...)" \
+  | xargs bazel test --sandbox_writable_path=$HOME/.cargo "$@"
 ```
 
 The `manual` tag is added to the targets in this directory to ensure that they
 are not run when someone runs a glob test like `bazel test //...`.
+
+If you don't do this correctly, you will see an error like this:
+
+```
+# .---command stderr------------
+# |     Updating crates.io index
+# |  Downloading crates ...
+# |   Downloaded memoffset v0.9.0
+# | error: failed to download replaced source registry `crates-io`
+# |
+# | Caused by:
+# |   failed to open `/home/you/.cargo/registry/cache/index.crates.io-6f17d22bba15001f/memoffset-0.9.0.crate`
+# |
+# | Caused by:
+# |   Read-only file system (os error 30)
+# `-----------------------------
+```

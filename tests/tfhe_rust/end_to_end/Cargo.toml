@@ -7,7 +7,7 @@ edition = "2021"
 clap = { version = "4.1.8", features = ["derive"] }
 rayon = "1.6.1"
 serde = { version = "1.0.152", features = ["derive"] }
-tfhe = { version = "0.2.3", features = ["boolean", "shortint", "x86_64-unix"] }
+tfhe = { version = "0.4.1", features = ["boolean", "shortint", "x86_64-unix"] }
 
 [[bin]]
 name = "main"

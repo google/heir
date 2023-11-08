@@ -9,12 +9,17 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 
-class TfheRust_Type<string name, string typeMnemonic>
-    : TypeDef<TfheRust_Dialect, name> {
+class TfheRust_Type<string name, string typeMnemonic, list<Trait> traits = []>
+    : TypeDef<TfheRust_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
 }
 
-class TfheRust_EncryptedUInt<int width> : TfheRust_Type<"EncryptedUInt" # width, "eui" # width> {
+def PassByReference : NativeTypeTrait<"PassByReference"> {
+  let cppNamespace = "::mlir::heir::tfhe_rust";
+}
+
+class TfheRust_EncryptedUInt<int width>
+  : TfheRust_Type<"EncryptedUInt" # width, "eui" # width, [PassByReference]> {
   let summary = "An encrypted unsigned integer corresponding to tfhe-rs's FHEUint" # width # " type.";
 }
 
@@ -23,7 +28,8 @@ foreach i = [2, 3, 4, 8, 10, 12, 14, 16, 32, 64, 128, 256] in {
   def TfheRust_EncryptedUInt # i : TfheRust_EncryptedUInt<i>;
 }
 
-class TfheRust_EncryptedInt<int width> : TfheRust_Type<"EncryptedInt" # width, "ei" # width> {
+class TfheRust_EncryptedInt<int width>
+  : TfheRust_Type<"EncryptedInt" # width, "ei" # width, [PassByReference]> {
   let summary = "An encrypted signed integer corresponding to tfhe-rs's FHEInt" # width # " type.";
 }
 
@@ -55,11 +61,11 @@ def TfheRust_CiphertextType :
   ]>;
 
 
-def TfheRust_ServerKey : TfheRust_Type<"ServerKey", "server_key"> {
+def TfheRust_ServerKey : TfheRust_Type<"ServerKey", "server_key", [PassByReference]> {
   let summary = "The server key required to perform homomorphic operations.";
 }
 
-def TfheRust_LookupTable : TfheRust_Type<"LookupTable", "lookup_table"> {
+def TfheRust_LookupTable : TfheRust_Type<"LookupTable", "lookup_table", [PassByReference]> {
   let summary = "A univariate lookup table used for programmable bootstrapping.";
 }
 
