@@ -7,8 +7,9 @@ weight: 1
 
 cascade:
   - type: "blog"
-    # uncomment this to make blog disappear from the sidebar
-    # toc_root: true
+    # Comment this to make blog appear in the main sidebar nav.
+    # It shows all blog posts expanded, and is too long.
+    toc_root: true
     _target:
       path: "/blog/**"
   - type: "docs"

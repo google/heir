@@ -1,7 +1,7 @@
 <!-- mdformat off(yaml frontmatter) -->
 ---
 title: "HEIR meeting 2023-11-07"
-date: 2023-10-25T00:00:00+00:00
+date: 2023-11-07T00:00:00+00:00
 linkTitle: "HEIR meeting 2023-11-07"
 description: >
     Notes from the 2023-11-07 HEIR meeting.
