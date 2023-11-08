@@ -4,7 +4,6 @@
 include "include/Dialect/Polynomial/IR/PolynomialDialect.td"
 
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/DialectBase.td"
 
 class Polynomial_Attr<string name, string attrMnemonic, list<Trait> traits = []>

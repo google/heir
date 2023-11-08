@@ -4,7 +4,6 @@
 include "include/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "include/Dialect/Polynomial/IR/PolynomialDialect.td"
 include "include/Dialect/Polynomial/IR/PolynomialTypes.td"
-include "mlir/IR/BuiltinAttributes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
