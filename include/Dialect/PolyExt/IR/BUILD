@@ -22,6 +22,7 @@ td_library(
     ],
     deps = [
         "@heir//include/Dialect/Polynomial/IR:td_files",
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",

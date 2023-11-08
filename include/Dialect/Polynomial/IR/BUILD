@@ -30,7 +30,6 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
-        "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",
@@ -64,17 +63,11 @@ gentbl_cc_library(
     name = "attributes_inc_gen",
     tbl_outs = [
         (
-            [
-                "-gen-attrdef-decls",
-                "-attrdefs-dialect=polynomial",
-            ],
+            ["-gen-attrdef-decls"],
             "PolynomialAttributes.h.inc",
         ),
         (
-            [
-                "-gen-attrdef-defs",
-                "-attrdefs-dialect=polynomial",
-            ],
+            ["-gen-attrdef-defs"],
             "PolynomialAttributes.cpp.inc",
         ),
         (
