@@ -7,7 +7,7 @@
 
 An MLIR-based toolchain for
 [homomorphic encryption](https://en.wikipedia.org/wiki/Homomorphic_encryption)
-compilers. Read the docs at [the HEIR website](https://google.github.io/heir).
+compilers. Read the docs at [the HEIR website](https://heir.dev).
 
 For more information on MLIR, see the [MLIR homepage](https://mlir.llvm.org/).
 

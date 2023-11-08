@@ -12,7 +12,7 @@ There are several ways to contribute to HEIR, including:
 - Improving or expanding HEIR's documentation
 - Contributing to HEIR's [code-base](https://github.com/google/heir)
 - Discuss project direction at HEIR's
-  [Working Group meetings](https://google.github.io/heir/community/)
+  [Working Group meetings](https://heir.dev/community/)
 
 ## Ways to contribute
 
@@ -44,7 +44,7 @@ at the [pull request review stage](#pull-request-review-flow).
    [repository page](https://github.com/google/heir). This creates a copy of the
    HEIR repository on your own GitHub account.
 
-1. See [Getting Started](https://google.github.io/heir/docs/getting_started/) to
+1. See [Getting Started](https://heir.dev/docs/getting_started/) to
    install developer dependencies to build and run tests.
 
 1. Add the HEIR repository as an upstream remote, so you can sync your changes
@@ -61,7 +61,7 @@ at the [pull request review stage](#pull-request-review-flow).
    ```
 
    And implement your changes using your favorite IDE. See
-   [IDE Configuration](https://google.github.io/heir/docs/ide_configuration/)
+   [IDE Configuration](https://heir.dev/docs/ide_configuration/)
    for more.
 
 1. Check HEIR's lint and style checks by running the following from the top of
