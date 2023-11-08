@@ -138,7 +138,7 @@ void registerYosysOptimizerPipeline(std::string yosysFilesPath,
                                 const YosysOptimizerPipelineOptions &options) {
         pm.addPass(
             createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast));
-        pm.addPass(mlir::createCanonicalizerPass());
+        pm.addPass(mlir::createCSEPass());
       });
 }
 
