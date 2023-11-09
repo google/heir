@@ -45,6 +45,54 @@ library and ABC binary compilation, and avoid registration of this pass.
 
 ## `heir-translate`
 
+### `--emit-tfhe-rust`
+
+Code generation for the [`tfhe-rs`](https://docs.zama.ai/tfhe-rs) FHE library.
+The library is based on the CGGI cryptosystem, and so this pass is most useful
+when paired with lowerings from the `cggi` dialect.
+
+The version of `tfhe-rs` supported is defined in the
+[end to end `tfhe_rust` tests](https://github.com/google/heir/tree/main/tests/tfhe_rust/end_to_end/Cargo.toml).
+
+Example input:
+
+```mlir
+!sks = !tfhe_rust.server_key
+!lut = !tfhe_rust.lookup_table
+!eui3 = !tfhe_rust.eui3
+
+func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !eui3 {
+  %v1 = tfhe_rust.apply_lookup_table %sks, %input, %lut : (!sks, !eui3, !lut) -> !eui3
+  %v2 = tfhe_rust.add %sks, %input, %v1 : (!sks, !eui3, !eui3) -> !eui3
+  %c1 = arith.constant 1 : i8
+  %v3 = tfhe_rust.scalar_left_shift %sks, %v2, %c1 : (!sks, !eui3, i8) -> !eui3
+  %v4 = tfhe_rust.apply_lookup_table %sks, %v3, %lut : (!sks, !eui3, !lut) -> !eui3
+  return %v4 : !eui3
+}
+```
+
+Example output:
+
+```rust
+use tfhe::shortint::prelude::*;
+
+pub fn test_apply_lookup_table(
+  v9: &ServerKey,
+  v10: &LookupTableOwned,
+  v11: &Ciphertext,
+) -> Ciphertext {
+  let v4 = v9.apply_lookup_table(&v11, &v10);
+  let v5 = v9.unchecked_add(&v11, &v4);
+  let v6 = 1;
+  let v7 = v9.scalar_left_shift(&v5, v6);
+  let v8 = v9.apply_lookup_table(&v7, &v10);
+  v8
+}
+```
+
+Note, the chosen variable names are arbitrary, and the resulting program still
+must be integrated with a larger Rust program.
+
 ### `--emit-verilog`
 
 Code generation for verilog from `arith` and `memref`. Expects a single top
