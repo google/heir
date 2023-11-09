@@ -50,14 +50,14 @@ module {
 
   // Test helpers
   llvm.mlir.global internal constant @str_fail("MISMATCH\0A")
-  func.func private @printString(!llvm.ptr<i8>) -> ()
+  func.func private @printString(!llvm.ptr) -> ()
   // Prints 'MISMATCH' to stdout.
   func.func @printMismatch() -> () {
-    %0 = llvm.mlir.addressof @str_fail : !llvm.ptr<array<9 x i8>>
+    %0 = llvm.mlir.addressof @str_fail : !llvm.ptr
     %1 = llvm.mlir.constant(0 : index) : i64
     %2 = llvm.getelementptr %0[%1, %1]
-      : (!llvm.ptr<array<9 x i8>>, i64, i64) -> !llvm.ptr<i8>
-    func.call @printString(%2) : (!llvm.ptr<i8>) -> ()
+      : (!llvm.ptr, i64, i64) -> !llvm.ptr, !llvm.array<9 x i8>
+    func.call @printString(%2) : (!llvm.ptr) -> ()
     return
   }
   func.func @check_int(%lhs: i16, %rhs: i16) -> () {
