@@ -13,3 +13,6 @@ hugo_stats.json
 
 # for python dependencies
 venv
+
+# for rust codegen tests
+Cargo.lock

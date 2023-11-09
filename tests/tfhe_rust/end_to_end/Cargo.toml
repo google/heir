@@ -1,0 +1,14 @@
+[package]
+name = "heir-tfhe-rust-integration-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.1.8", features = ["derive"] }
+rayon = "1.6.1"
+serde = { version = "1.0.152", features = ["derive"] }
+tfhe = { version = "0.2.3", features = ["boolean", "shortint", "x86_64-unix"] }
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
