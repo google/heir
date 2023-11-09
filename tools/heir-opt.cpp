@@ -1,6 +1,7 @@
 #include <cstdlib>
 
 #include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
+#include "include/Conversion/CombToCGGI/CombToCGGI.h"
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
@@ -178,6 +179,7 @@ int main(int argc, char **argv) {
   // Custom passes in HEIR
   polynomial::registerPolynomialToStandardPasses();
   bgv::registerBGVToPolynomialPasses();
+  comb::registerCombToCGGIPasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
   const char *abcEnvPath = std::getenv("HEIR_ABC_BINARY");

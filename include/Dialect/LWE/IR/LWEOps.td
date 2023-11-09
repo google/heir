@@ -1,8 +1,8 @@
 #ifndef HEIR_INCLUDE_DIALECT_LWE_IR_LWEOPS_TD_
 #define HEIR_INCLUDE_DIALECT_LWE_IR_LWEOPS_TD_
 
-include "LWEDialect.td"
-include "LWETypes.td"
+include "include/Dialect/LWE/IR/LWEDialect.td"
+include "include/Dialect/LWE/IR/LWETypes.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"

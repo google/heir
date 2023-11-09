@@ -1,12 +1,13 @@
 #ifndef HEIR_INCLUDE_DIALECT_CGGI_IR_CGGIOPS_TD_
 #define HEIR_INCLUDE_DIALECT_CGGI_IR_CGGIOPS_TD_
 
-include "CGGIDialect.td"
+include "include/Dialect/CGGI/IR/CGGIDialect.td"
 
 include "include/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "include/Dialect/LWE/IR/LWETypes.td"
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/BuiltinAttributes.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -64,12 +65,12 @@ class CGGI_LutOp<string mnemonic> : CGGI_Op<mnemonic, [Pure, Commutative, SameOp
 
 def CGGI_Lut2Op : CGGI_LutOp<"lut2"> {
   let summary = "A lookup table on two inputs.";
-  let arguments = (ins LWECiphertext:$b, LWECiphertext:$a, IndexAttr:$lookup_table);
+  let arguments = (ins LWECiphertext:$b, LWECiphertext:$a, Builtin_IntegerAttr:$lookup_table);
 }
 
 def CGGI_Lut3Op : CGGI_LutOp<"lut3"> {
   let summary = "A lookup table on three inputs.";
-  let arguments = (ins LWECiphertext:$c, LWECiphertext:$b, LWECiphertext:$a, IndexAttr:$lookup_table);
+  let arguments = (ins LWECiphertext:$c, LWECiphertext:$b, LWECiphertext:$a, Builtin_IntegerAttr:$lookup_table);
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_CGGI_IR_CGGIOPS_TD_

@@ -34,6 +34,7 @@ cc_binary(
     includes = ["include"],
     deps = [
         "@heir//lib/Conversion/BGVToPolynomial",
+        "@heir//lib/Conversion/CombToCGGI",
         "@heir//lib/Conversion/MemrefToArith:ExpandCopy",
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Conversion/PolynomialToStandard",
