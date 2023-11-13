@@ -25,7 +25,7 @@ func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !
 // CHECK-NEXT:   let [[v1:.*]] = [[sks]].apply_lookup_table(&[[input]], &[[lut]]);
 // CHECK-NEXT:   let [[v2:.*]] = [[sks]].unchecked_add(&[[input]], &[[v1]]);
 // CHECK-NEXT:   let [[c1:.*]] = 1;
-// CHECK-NEXT:   let [[v3:.*]] = [[sks]].scalar_left_shift(&[[v2]], &[[c1]]);
+// CHECK-NEXT:   let [[v3:.*]] = [[sks]].scalar_left_shift(&[[v2]], [[c1]]);
 // CHECK-NEXT:   let [[v4:.*]] = [[sks]].apply_lookup_table(&[[v3]], &[[lut]]);
 // CHECK-NEXT:   [[v4]]
 // CHECK-NEXT: }

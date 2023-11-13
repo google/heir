@@ -19,5 +19,6 @@ cc_library(
         "@heir//include/Dialect/TfheRust/IR:types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
     ],
 )

@@ -23,6 +23,7 @@ td_library(
         "TfheRustTypes.td",
     ],
     deps = [
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
     ],

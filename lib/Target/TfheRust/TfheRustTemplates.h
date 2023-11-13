@@ -8,9 +8,7 @@ namespace heir {
 namespace tfhe_rust {
 
 constexpr std::string_view kModulePrelude = R"rust(
-use tfhe::shortint;
 use tfhe::shortint::prelude::*;
-use tfhe::shortint::CiphertextBig as Ciphertext;
 )rust";
 
 }  // namespace tfhe_rust

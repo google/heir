@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
@@ -49,6 +50,7 @@ class TfheRustEmitter {
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(ApplyLookupTableOp op);
+  LogicalResult printOperation(GenerateLookupTableOp op);
   LogicalResult printOperation(ScalarLeftShiftOp op);
 
   // Helpers for above
