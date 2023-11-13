@@ -3040,10 +3040,49 @@ generic op.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="tfhe_rustgenerate_lookup_table-heirtfhe_rustgeneratelookuptableop">&lt;code>tfhe_rust.generate_lookup_table&lt;/code> (heir::tfhe_rust::GenerateLookupTableOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.generate_lookup_table` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;/code>&lt;/pre>&lt;p>Interfaces: InferTypeOpInterface&lt;/p>
+&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>truthTable&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lookupTable&lt;/code>&lt;/td>
+&lt;td>A univariate lookup table used for programmable bootstrapping.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="tfhe_rustscalar_left_shift-heirtfhe_rustscalarleftshiftop">&lt;code>tfhe_rust.scalar_left_shift&lt;/code> (heir::tfhe_rust::ScalarLeftShiftOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_left_shift` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3066,7 +3105,7 @@ generic op.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
