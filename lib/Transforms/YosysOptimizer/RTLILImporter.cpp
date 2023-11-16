@@ -1,6 +1,7 @@
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 
 #include <cassert>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -156,19 +157,22 @@ func::FuncOp RTLILImporter::importModule(
     auto output = conn.first;
     // These must be output wire connections (either an output bit or a bit of a
     // multi-bit output wire).
-    assert(output.is_wire() || output.as_bit().is_wire());
-    assert(retBitValues.contains(output.as_wire()) ||
-           retBitValues.contains(output.as_bit().wire));
-    if (conn.second.chunks().size() == 1) {
-      // This may be a single bit, or it may be a whole wire.
-      Value connValue = getBit(conn.second, b, retBitValues);
-      addResultBit(output, connValue, retBitValues);
-    } else {
-      auto chunks = conn.second.chunks();
+    assert(output.is_wire() || output.as_chunk().is_wire() ||
+           output.as_bit().is_wire());
+    if ((output.is_chunk() && !output.is_wire()) ||
+        ((conn.second.is_chunk() && !conn.second.is_wire()) ||
+         conn.second.chunks().size() > 1)) {
+      // If one of the RHS or LHS is a chunk of a wire (and not a whole wire) OR
+      // contains multiple chunks, then iterate bit by bit to assign the result
+      // bits.
       for (auto i = 0; i < output.size(); i++) {
         Value connValue = getBit(conn.second.bits().at(i), b, retBitValues);
         addResultBit(output.bits().at(i), connValue, retBitValues);
       }
+    } else {
+      // This may be a single bit, a chunk of a wire, or a whole wire.
+      Value connValue = getBit(conn.second, b, retBitValues);
+      addResultBit(output, connValue, retBitValues);
     }
   }
 
