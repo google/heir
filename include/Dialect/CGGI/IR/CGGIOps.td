@@ -27,23 +27,23 @@ class CGGI_BinaryGateOp<string mnemonic>
   let results = (outs LWECiphertext:$output);
   // Note: error: type of result #0, named 'output', is not buildable and a buildable type cannot be inferred
   // LWECiphertext is not buildable?
-  let assemblyFormat = "operands attr-dict `->` type($output)" ;
+  let assemblyFormat = "operands attr-dict `->` qualified(type($output))" ;
 }
 
 def CGGI_AndOp : CGGI_BinaryGateOp<"and"> { let summary = "Logical AND of two ciphertexts."; }
 def CGGI_OrOp  : CGGI_BinaryGateOp<"or">  { let summary = "Logical OR of two ciphertexts."; }
 def CGGI_XorOp : CGGI_BinaryGateOp<"xor"> { let summary = "Logical XOR of two ciphertexts."; }
 
-class CGGI_NotOp : CGGI_Op<"not", [Pure, SameOperandsAndResultType, Involution]> {
+def CGGI_NotOp : CGGI_Op<"not", [Pure, SameOperandsAndResultType, Involution]> {
   let arguments = (ins LWECiphertext:$input);
   let results = (outs LWECiphertext:$output);
-  let assemblyFormat = "operands attr-dict" ;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
   let summary = "Logical NOT of two ciphertexts";
 }
 
 class CGGI_LutOp<string mnemonic> : CGGI_Op<mnemonic, [Pure, Commutative, SameOperandsAndResultType]> {
   let results = (outs LWECiphertext:$output);
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
+  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 
   let description = [{
     An op representing a lookup table applied to some number `n` of ciphertexts

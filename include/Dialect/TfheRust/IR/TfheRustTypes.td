@@ -20,7 +20,7 @@ def PassByReference : NativeTypeTrait<"PassByReference"> {
 
 class TfheRust_EncryptedUInt<int width>
   : TfheRust_Type<"EncryptedUInt" # width, "eui" # width, [PassByReference]> {
-  let summary = "An encrypted unsigned integer corresponding to tfhe-rs's FHEUint" # width # " type.";
+  let summary = "An encrypted unsigned integer corresponding to tfhe-rs's FHEUint" # width # " type";
 }
 
 // Available options are https://docs.rs/tfhe/latest/tfhe/index.html#types
@@ -30,7 +30,7 @@ foreach i = [2, 3, 4, 8, 10, 12, 14, 16, 32, 64, 128, 256] in {
 
 class TfheRust_EncryptedInt<int width>
   : TfheRust_Type<"EncryptedInt" # width, "ei" # width, [PassByReference]> {
-  let summary = "An encrypted signed integer corresponding to tfhe-rs's FHEInt" # width # " type.";
+  let summary = "An encrypted signed integer corresponding to tfhe-rs's FHEInt" # width # " type";
 }
 
 // Available options are https://docs.rs/tfhe/latest/tfhe/index.html#types
