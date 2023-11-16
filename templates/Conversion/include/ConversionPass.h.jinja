@@ -1,0 +1,16 @@
+#ifndef INCLUDE_CONVERSION_{{ pass_name | upper }}_{{ pass_name | upper }}_H_
+#define INCLUDE_CONVERSION_{{ pass_name | upper }}_{{ pass_name | upper }}_H_
+
+#include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
+
+namespace mlir::heir {
+
+#define GEN_PASS_DECL
+#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
+
+#define GEN_PASS_REGISTRATION
+#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
+
+}  // namespace mlir::heir
+
+#endif  // INCLUDE_CONVERSION_{{ pass_name | upper }}_{{ pass_name | upper }}_H_
