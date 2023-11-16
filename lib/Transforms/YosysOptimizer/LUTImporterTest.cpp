@@ -10,17 +10,18 @@
 #include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/Comb/IR/CombOps.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Path.h"             // from @llvm-project
-#include "mlir/include/mlir//IR/Location.h"             // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OwningOpRef.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Path.h"              // from @llvm-project
+#include "mlir/include/mlir//IR/Location.h"              // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OwningOpRef.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 // Block clang-format from reordering
 // clang-format off
@@ -40,7 +41,7 @@ class LUTImporterTestFixture : public Test {
  protected:
   void SetUp() override {
     context.loadDialect<heir::comb::CombDialect, arith::ArithDialect,
-                        func::FuncDialect>();
+                        func::FuncDialect, tensor::TensorDialect>();
     module_ = ModuleOp::create(UnknownLoc::get(&context));
     Yosys::yosys_setup();
   }
@@ -87,9 +88,9 @@ TEST_F(LUTImporterTestFixture, AddOneLUT3) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 1);
-  EXPECT_EQ(funcType.getInput(0).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(funcType.getResult(0).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
 
   auto combOps = func.getOps<comb::TruthTableOp>().begin();
   for (size_t i = 0; i < expectedLuts.size(); i++) {
@@ -104,9 +105,9 @@ TEST_F(LUTImporterTestFixture, AddOneLUT5) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 1);
-  EXPECT_EQ(funcType.getInput(0).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(funcType.getResult(0).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
 
   auto combOps = func.getOps<comb::TruthTableOp>();
   for (auto combOp : combOps) {
@@ -125,12 +126,13 @@ TEST_F(LUTImporterTestFixture, DoubleInput) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 1);
-  EXPECT_EQ(funcType.getInput(0).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(funcType.getResult(0).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
 
   auto returnOp = *func.getOps<func::ReturnOp>().begin();
-  auto concatOp = returnOp.getOperands()[0].getDefiningOp<comb::ConcatOp>();
+  auto concatOp =
+      returnOp.getOperands()[0].getDefiningOp<tensor::FromElementsOp>();
   ASSERT_TRUE(concatOp);
   EXPECT_EQ(concatOp->getNumOperands(), 8);
   arith::ConstantOp constOp =
@@ -147,10 +149,10 @@ TEST_F(LUTImporterTestFixture, MultipleInputs) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 2);
-  EXPECT_EQ(funcType.getInput(0).getIntOrFloatBitWidth(), 8);
-  EXPECT_EQ(funcType.getInput(1).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(1)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(funcType.getResult(0).getIntOrFloatBitWidth(), 8);
+  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
 }
 
 }  // namespace

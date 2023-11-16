@@ -13,17 +13,18 @@
 #include "include/Target/Verilog/VerilogEmitter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/DialectRegistry.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"         // from @llvm-project
-#include "mlir/include/mlir/Pass/PassRegistry.h"        // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"          // from @llvm-project
+#include "mlir/include/mlir/Pass/PassRegistry.h"         // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"         // from @llvm-project
 
 // Block clang-format from reordering
 // clang-format off
@@ -63,7 +64,8 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
       : yosysFilesPath(yosysFilesPath), abcPath(abcPath), abcFast(abcFast) {}
 
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<comb::CombDialect, mlir::arith::ArithDialect>();
+    registry.insert<comb::CombDialect, mlir::arith::ArithDialect,
+                    mlir::tensor::TensorDialect>();
   }
 
   void runOnOperation() override;
@@ -118,6 +120,7 @@ void YosysOptimizer::runOnOperation() {
                << "Converted & optimized func via yosys. Input func:\n"
                << op << "\n\nOutput func:\n"
                << func << "\n");
+    op.setFunctionType(func.getFunctionType());
     op.getBody().takeBody(func.getBody());
 
     return WalkResult::advance();
