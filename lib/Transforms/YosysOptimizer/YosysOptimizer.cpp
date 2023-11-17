@@ -101,6 +101,7 @@ void YosysOptimizer::runOnOperation() {
                                   abcFast ? "-fast" : ""));
 
     // Translate to MLIR and insert into the func
+    LLVM_DEBUG(Yosys::run_pass("dump;"));
     std::stringstream cellOrder;
     Yosys::log_streams.push_back(&cellOrder);
     Yosys::run_pass("torder -stop * P*;");
@@ -112,12 +113,12 @@ void YosysOptimizer::runOnOperation() {
     Yosys::RTLIL::Design *design = Yosys::yosys_get_design();
     func::FuncOp func =
         lutImporter.importModule(design->top_module(), topologicalOrder);
-    op.getBody().takeBody(func.getBody());
 
     LLVM_DEBUG(llvm::dbgs()
                << "Converted & optimized func via yosys. Input func:\n"
                << op << "\n\nOutput func:\n"
                << func << "\n");
+    op.getBody().takeBody(func.getBody());
 
     return WalkResult::advance();
   });
