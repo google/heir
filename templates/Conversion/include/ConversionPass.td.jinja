@@ -1,0 +1,14 @@
+#ifndef INCLUDE_CONVERSION_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
+#define INCLUDE_CONVERSION_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
+
+include "mlir/Pass/PassBase.td"
+
+def {{ pass_name }} : Pass<"{{ source_dialect_mnemonic | replace('_', '-') }}-to-{{ target_dialect_mnemonic | replace('_', '-') }}"> {
+  let summary = "Lower `{{ source_dialect_mnemonic }}` to `{{ target_dialect_mnemonic }}` dialect.";
+  let dependentDialects = [
+    "mlir::heir::{{ source_dialect_namespace }}::{{ source_dialect_name }}Dialect",
+    "mlir::heir::{{ target_dialect_namespace }}::{{ target_dialect_name }}Dialect",
+  ];
+}
+
+#endif  // INCLUDE_CONVERSION_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_

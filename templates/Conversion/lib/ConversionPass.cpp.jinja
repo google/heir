@@ -1,0 +1,62 @@
+#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h"
+
+#include "include/Dialect/{{ source_dialect_name }}/IR/{{ source_dialect_name }}Dialect.h"
+#include "include/Dialect/{{ target_dialect_name }}/IR/{{ target_dialect_name }}Dialect.h"
+#include "lib/Conversion/Utils.h"
+#include "mlir/include/mlir/Transforms/DialectConversion.h" // from @llvm-project
+
+namespace mlir::heir {
+
+#define GEN_PASS_DEF_{{ pass_name | upper }}
+#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
+
+// Remove this class if no type conversions are necessary
+class PassTypeConverter : public TypeConverter {
+ public:
+  PassTypeConverter(MLIRContext *ctx) {
+    addConversion([](Type type) { return type; });
+    // FIXME: implement, replace FooType with the type that needs
+    // to be converted or remove this class
+    addConversion([ctx](FooType type) -> Type {
+      return type;
+    });
+  }
+};
+
+// FIXME: rename to Convert<OpName>Op
+struct ConvertFooOp : public OpConversionPattern<FooOp> {
+  ConvertFooOp(mlir::MLIRContext *context)
+      : OpConversionPattern<FooOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      FooOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    // FIXME: implement
+    return failure();
+  }
+};
+
+struct {{ pass_name }} : public impl::{{ pass_name }}Base<{{ pass_name }}> {
+  void runOnOperation() override {
+    MLIRContext *context = &getContext();
+    auto *module = getOperation();
+    PassTypeConverter typeConverter(context);
+
+    RewritePatternSet patterns(context);
+    ConversionTarget target(*context);
+    target.addLegalDialect<{{ target_dialect_namespace }}::{{ target_dialect_name }}Dialect>();
+    target.addIllegalDialect<{{ source_dialect_namespace }}::{{ source_dialect_name }}Dialect>();
+
+    patterns.add<ConvertFooOp>(typeConverter, context);
+
+    addStructuralConversionPatterns(typeConverter, patterns, target);
+
+    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+      return signalPassFailure();
+    }
+  }
+};
+
+}  // namespace mlir::heir
