@@ -7,6 +7,7 @@ include "TfheRustTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class TfheRust_Op<string mnemonic, list<Trait> traits = []> :
         Op<TfheRust_Dialect, mnemonic, traits> {
@@ -16,17 +17,27 @@ class TfheRust_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::tfhe_rust";
 }
 
-def CreateTrivialOp : TfheRust_Op<"create_trivial"> {
+def CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
   let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift"> {
-  let arguments = (ins TfheRust_ServerKey:$serverKey, TfheRust_CiphertextType:$ciphertext, AnyI8:$shiftAmount);
+def ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
+    Pure,
+    AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let arguments = (ins
+    TfheRust_ServerKey:$serverKey,
+    TfheRust_CiphertextType:$ciphertext,
+    AnyI8:$shiftAmount
+  );
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def AddOp : TfheRust_Op<"add"> {
+def AddOp : TfheRust_Op<"add", [
+    Pure,
+    AllTypesMatch<["lhs", "rhs", "output"]>
+]> {
   let arguments = (ins
     TfheRust_ServerKey:$serverKey,
     TfheRust_CiphertextType:$lhs,
@@ -35,7 +46,10 @@ def AddOp : TfheRust_Op<"add"> {
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table"> {
+def ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table", [
+    Pure,
+    AllTypesMatch<["input", "output"]>
+]> {
   let arguments = (
     ins TfheRust_ServerKey:$serverKey,
     TfheRust_CiphertextType:$input,
@@ -44,7 +58,7 @@ def ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table"> {
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table"> {
+def GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table", [Pure]> {
   let arguments = (
     ins TfheRust_ServerKey:$serverKey,
     // TODO(https://github.com/google/heir/issues/246): Generalize to support
