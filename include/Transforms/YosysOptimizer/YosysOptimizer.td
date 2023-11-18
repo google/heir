@@ -18,6 +18,7 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
   let dependentDialects = [
     "mlir::arith::ArithDialect",
     "mlir::heir::comb::CombDialect",
+    "mlir::heir::secret::SecretDialect",
     "mlir::tensor::TensorDialect"
   ];
 }

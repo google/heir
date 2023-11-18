@@ -25,7 +25,7 @@ def Secret_ConcealOp : Secret_Op<"conceal", [Pure]> {
 
     Examples:
 
-    ```
+    ```mlir
     %Y = secret.conceal %value : i32 -> !secret.secret<i32>
     ```
   }];
@@ -55,7 +55,7 @@ def Secret_RevealOp : Secret_Op<"reveal", [Pure]> {
 
     Examples:
 
-    ```
+    ```mlir
     %Y = secret.reveal %secret_value : !secret.secret<i32> -> i32
     ```
   }];
@@ -104,7 +104,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
     Add two secret integers together
 
-    ```
+    ```mlir
     %Z = secret.generic ins(%X, %Y : !secret.secret<i32>, !secret.secret<i32>) {
       ^bb0(%x: i32, %y: i32) :
         %z = arith.addi %x, %y: i32
@@ -115,7 +115,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
     Add a secret value with a plaintext value. I.e., not all arguments to the
     op need be secret.
 
-    ```
+    ```mlir
     %Z = secret.generic ins(%X, %Y : i32, !secret.secret<i32>) {
       ^bb0(%x: i32, %y: i32) :
         %z = arith.addi %x, %y: i32
@@ -152,6 +152,36 @@ def Secret_GenericOp : Secret_Op<"generic", [
   // TODO(https://github.com/google/heir/issues/108): add a verifier that
   // ensures the arguments to the op match the arguments of the block.
   let hasVerifier = 1;
+}
+
+def CastOp : Secret_Op<"cast", [Pure]> {
+  let summary = "A placeholder cast from one secret type to another";
+  let description = [{
+    A `cast` operation represents a type cast from one secret type to another,
+    that is used to enable the intermixing of various equivalent secret types
+    before a lower-level FHE scheme has been chosen.
+
+    For example, `secret.cast` can be used to convert a `secret<i8>` to a
+    `secret<tensor<8xi1>>` as a compatibility layer between boolean and
+    non-boolean parts of a program. The pass that later lowers the IR to
+    specific FHE schemes would need to replace these casts with appropriate
+    scheme-specific operations, and it is left to those later passes to
+    determine which casts are considered valid.
+
+    Example:
+
+    ```mlir
+    %result = secret.cast %0 : !secret.secret<i8> to !secret.secret<tensor<8xi1>>
+    %result2 = secret.cast %0 : !secret.secret<i8> to !secret.secret<tensor<2xi4>>
+    ```
+  }];
+
+  let arguments = (ins Secret:$input);
+  let results = (outs Secret:$output);
+  let assemblyFormat = [{
+    $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
+  }];
+  let hasFolder = 1;
 }
 
 

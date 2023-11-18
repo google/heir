@@ -1,8 +1,9 @@
 #ifndef HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_
 #define HEIR_INCLUDE_TARGET_VERILOG_VERILOGEMITTER_H_
 
-#include "llvm/include/llvm/ADT/DenseMap.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "include/Dialect/Secret/IR/SecretOps.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/ilist.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -22,11 +23,26 @@ void registerToVerilogTranslation();
 mlir::LogicalResult translateToVerilog(mlir::Operation *op,
                                        llvm::raw_ostream &os);
 
+/// Translates the given operation to Verilog with a fixed input name for the
+/// resulting verilog module. Raises an error if the input IR contains secret
+/// ops.
+mlir::LogicalResult translateToVerilog(
+    mlir::Operation *op, llvm::raw_ostream &os,
+    std::optional<llvm::StringRef> moduleName);
+
+/// Translates the given operation to Verilog with a fixed input name for the
+/// resulting verilog module. If allowSecretOps is false, raises an error if
+/// the input IR contains secret ops.
+mlir::LogicalResult translateToVerilog(
+    mlir::Operation *op, llvm::raw_ostream &os,
+    std::optional<llvm::StringRef> moduleName, bool allowSecretOps);
+
 class VerilogEmitter {
  public:
   VerilogEmitter(raw_ostream &os);
 
-  LogicalResult translate(mlir::Operation &operation);
+  LogicalResult translate(mlir::Operation &operation,
+                          std::optional<llvm::StringRef> moduleName);
 
  private:
   /// Output stream to emit to.
@@ -38,8 +54,26 @@ class VerilogEmitter {
   // Globally unique identifiers for values
   int64_t value_count_;
 
+  // A helper to generalize the work of emitting a func.func and a
+  // secret.generic
+  LogicalResult printFunctionLikeOp(Operation *op,
+                                    llvm::StringRef verilogModuleName,
+                                    ArrayRef<BlockArgument> arguments,
+                                    TypeRange resultTypes,
+                                    Region::BlockListType::iterator blocksBegin,
+                                    Region::BlockListType::iterator blocksEnd);
+
+  // A helper to generalize the work of emitting a func.return and a
+  // secret.yield
+  LogicalResult printReturnLikeOp(Value returnValue);
+
   // Functions for printing individual ops
-  LogicalResult printOperation(mlir::ModuleOp op);
+  LogicalResult printOperation(mlir::ModuleOp op,
+                               std::optional<llvm::StringRef> moduleName);
+  LogicalResult printOperation(mlir::func::FuncOp op,
+                               std::optional<llvm::StringRef> moduleName);
+  LogicalResult printOperation(mlir::heir::secret::GenericOp op,
+                               std::optional<llvm::StringRef> moduleName);
   LogicalResult printOperation(mlir::UnrealizedConversionCastOp op);
   LogicalResult printOperation(mlir::arith::AddIOp op);
   LogicalResult printOperation(mlir::arith::AndIOp op);
@@ -59,8 +93,8 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::affine::AffineLoadOp op);
   LogicalResult printOperation(mlir::affine::AffineStoreOp op);
   LogicalResult printOperation(mlir::func::CallOp op);
-  LogicalResult printOperation(mlir::func::FuncOp op);
   LogicalResult printOperation(mlir::func::ReturnOp op);
+  LogicalResult printOperation(mlir::heir::secret::YieldOp op);
   LogicalResult printOperation(mlir::math::CountLeadingZerosOp op);
   LogicalResult printOperation(mlir::memref::LoadOp op);
 
@@ -69,7 +103,7 @@ class VerilogEmitter {
                               mlir::Value rhs, std::string_view op);
 
   // Emit a Verilog type of the form `wire [width-1:0]`
-  LogicalResult emitType(Location loc, Type type);
+  LogicalResult emitType(Type type);
 
   // Emit a Verilog array shape specifier of the form `[width]`
   LogicalResult emitArrayShapeSuffix(Type type);

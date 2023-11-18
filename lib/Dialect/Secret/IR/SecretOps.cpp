@@ -8,6 +8,7 @@
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OpImplementation.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Region.h"              // from @llvm-project
@@ -232,6 +233,28 @@ void GenericOp::build(OpBuilder &builder, OperationState &result,
   OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(&bodyBlock);
   bodyBuilder(builder, result.location, bodyBlock.getArguments());
+}
+
+OpFoldResult CastOp::fold(CastOp::FoldAdaptor adaptor) {
+  Value input = getInput();
+  Value output = getOutput();
+
+  // self cast is a no-op
+  if (input.getType() == output.getType()) {
+    return input;
+  }
+
+  // Fold a cast-and-cast-back to a no-op.
+  //
+  //  %1 = secret.cast %0 : !secret.secret<T> to !secret.secret<U>
+  //  %2 = secret.cast %1 : !secret.secret<U> to !secret.secret<T>
+  //
+  // folds to use %0 directly in place of %2.
+  auto inputOp = input.getDefiningOp<CastOp>();
+  if (!inputOp || output.getType() != inputOp.getInput().getType())
+    return OpFoldResult();
+
+  return inputOp.getInput();
 }
 
 }  // namespace secret

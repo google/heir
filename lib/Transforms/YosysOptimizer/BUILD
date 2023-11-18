@@ -79,6 +79,7 @@ cc_library(
         "@at_clifford_yosys//:version",
         "@heir//include/Transforms/YosysOptimizer:pass_inc_gen",
         "@heir//lib/Dialect/Comb/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

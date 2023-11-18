@@ -21,8 +21,8 @@ struct YosysOptimizerPipelineOptions
 // registerYosysOptimizerPipeline registers a Yosys pipeline pass using
 // runfiles, the location of Yosys techlib files, and abcPath, the location of
 // the abc binary.
-void registerYosysOptimizerPipeline(std::string yosysFilesPath,
-                                    std::string abcPath);
+void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
+                                    const std::string &abcPath);
 
 }  // namespace heir
 }  // namespace mlir
