@@ -27,7 +27,7 @@ class CGGI_BinaryGateOp<string mnemonic>
   let results = (outs LWECiphertext:$output);
   // Note: error: type of result #0, named 'output', is not buildable and a buildable type cannot be inferred
   // LWECiphertext is not buildable?
-  let assemblyFormat = "operands attr-dict `->` qualified(type($output))" ;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def CGGI_AndOp : CGGI_BinaryGateOp<"and"> { let summary = "Logical AND of two ciphertexts."; }
