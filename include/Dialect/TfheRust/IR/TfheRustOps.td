@@ -46,6 +46,18 @@ def AddOp : TfheRust_Op<"add", [
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
+def SubOp : TfheRust_Op<"sub", [
+    Pure,
+    AllTypesMatch<["lhs", "rhs", "output"]>
+]> {
+  let arguments = (ins
+    TfheRust_ServerKey:$serverKey,
+    TfheRust_CiphertextType:$lhs,
+    TfheRust_CiphertextType:$rhs
+  );
+  let results = (outs TfheRust_CiphertextType:$output);
+}
+
 def ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table", [
     Pure,
     AllTypesMatch<["input", "output"]>

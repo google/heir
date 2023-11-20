@@ -30,6 +30,11 @@ namespace mlir::heir {
 #define GEN_PASS_DEF_CGGITOTFHERUST
 #include "include/Conversion/CGGIToTfheRust/CGGIToTfheRust.h.inc"
 
+constexpr int kBinaryGateLutWidth = 4;
+constexpr int kAndLut = 8;
+constexpr int kOrLut = 14;
+constexpr int kXorLut = 6;
+
 Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
   // Only supporting unsigned types because the LWE dialect does not have a
   // notion of signedness.
@@ -200,6 +205,131 @@ struct ConvertLut3Op : public OpConversionPattern<cggi::Lut3Op> {
   }
 };
 
+struct ConvertLut2Op : public OpConversionPattern<cggi::Lut2Op> {
+  ConvertLut2Op(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::Lut2Op>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::Lut2Op op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    FailureOr<Value> result = getContextualServerKey(op.getOperation());
+    if (failed(result)) return result;
+
+    Value serverKey = result.value();
+    // A followup -cse pass should combine repeated LUT generation ops.
+    auto lut = b.create<tfhe_rust::GenerateLookupTableOp>(
+        serverKey, adaptor.getLookupTable());
+    // Construct input = b << 1 + a
+    auto shiftedB = b.create<tfhe_rust::ScalarLeftShiftOp>(
+        serverKey, adaptor.getB(),
+        b.create<arith::ConstantOp>(b.getI8Type(), b.getI8IntegerAttr(1))
+            .getResult());
+    auto summedBA =
+        b.create<tfhe_rust::AddOp>(serverKey, shiftedB, adaptor.getA());
+
+    rewriter.replaceOp(
+        op, b.create<tfhe_rust::ApplyLookupTableOp>(serverKey, summedBA, lut));
+    return success();
+  }
+};
+
+LogicalResult replaceBinaryGate(Operation *op, Value lhs, Value rhs,
+                                ConversionPatternRewriter &rewriter, int lut) {
+  ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+  FailureOr<Value> result = getContextualServerKey(op);
+  if (failed(result)) return result;
+
+  Value serverKey = result.value();
+  // A followup -cse pass should combine repeated LUT generation ops.
+  auto lookupTable = b.getIntegerAttr(
+      b.getIntegerType(kBinaryGateLutWidth, /*isSigned=*/false), lut);
+  auto lutOp =
+      b.create<tfhe_rust::GenerateLookupTableOp>(serverKey, lookupTable);
+  // Construct input = rhs << 1 + lhs
+  auto shiftedRhs = b.create<tfhe_rust::ScalarLeftShiftOp>(
+      serverKey, rhs,
+      b.create<arith::ConstantOp>(b.getI8Type(), b.getI8IntegerAttr(1))
+          .getResult());
+  auto input = b.create<tfhe_rust::AddOp>(serverKey, shiftedRhs, lhs);
+  rewriter.replaceOp(
+      op, b.create<tfhe_rust::ApplyLookupTableOp>(serverKey, input, lutOp));
+  return success();
+}
+
+struct ConvertAndOp : public OpConversionPattern<cggi::AndOp> {
+  ConvertAndOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::AndOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::AndOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    return replaceBinaryGate(op.getOperation(), adaptor.getLhs(),
+                             adaptor.getRhs(), rewriter, kAndLut);
+  }
+};
+
+struct ConvertOrOp : public OpConversionPattern<cggi::OrOp> {
+  ConvertOrOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::OrOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::OrOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    return replaceBinaryGate(op.getOperation(), adaptor.getLhs(),
+                             adaptor.getRhs(), rewriter, kOrLut);
+  }
+};
+
+struct ConvertXorOp : public OpConversionPattern<cggi::XorOp> {
+  ConvertXorOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::XorOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::XorOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    return replaceBinaryGate(op.getOperation(), adaptor.getLhs(),
+                             adaptor.getRhs(), rewriter, kXorLut);
+  }
+};
+
+struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
+  ConvertNotOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::NotOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::NotOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    FailureOr<Value> result = getContextualServerKey(op);
+    if (failed(result)) return result;
+    Value serverKey = result.value();
+
+    auto width = widthFromEncodingAttr(op.getInput().getType().getEncoding());
+    auto cleartextType = b.getIntegerType(width);
+    auto outputType = encrytpedUIntTypeFromWidth(getContext(), width);
+    // not(x) == trivial_encryption(1) - x
+    auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
+        op.getLoc(), outputType, serverKey,
+        b.create<arith::ConstantOp>(cleartextType,
+                                    b.getIntegerAttr(cleartextType, 1))
+            .getResult());
+    rewriter.replaceOp(op, b.create<tfhe_rust::SubOp>(
+                               serverKey, createTrivialOp, adaptor.getInput()));
+    return success();
+  }
+};
+
 struct ConvertTrivialEncryptOp
     : public OpConversionPattern<lwe::TrivialEncryptOp> {
   ConvertTrivialEncryptOp(mlir::MLIRContext *context)
@@ -275,8 +405,9 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
 
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
-    patterns.add<AddServerKeyArg, ConvertLut3Op, ConvertEncodeOp,
-                 ConvertTrivialEncryptOp>(typeConverter, context);
+    patterns.add<AddServerKeyArg, ConvertAndOp, ConvertEncodeOp, ConvertLut2Op,
+                 ConvertLut3Op, ConvertNotOp, ConvertOrOp,
+                 ConvertTrivialEncryptOp, ConvertXorOp>(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();
