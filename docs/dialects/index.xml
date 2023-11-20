@@ -363,7 +363,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="cggiand-heircggiandop">&lt;code>cggi.and&lt;/code> (heir::cggi::AndOp)&lt;/h3>
 &lt;p>&lt;em>Logical AND of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.and` operands attr-dict `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.and` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
@@ -555,7 +555,7 @@ and sums.&lt;/p>
 &lt;h3 id="cggior-heircggiorop">&lt;code>cggi.or&lt;/code> (heir::cggi::OrOp)&lt;/h3>
 &lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
@@ -596,7 +596,7 @@ and sums.&lt;/p>
 &lt;h3 id="cggixor-heircggixorop">&lt;code>cggi.xor&lt;/code> (heir::cggi::XorOp)&lt;/h3>
 &lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
@@ -3157,6 +3157,50 @@ generic op.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rustsub-heirtfhe_rustsubop">&lt;code>tfhe_rust.sub&lt;/code> (heir::tfhe_rust::SubOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.sub` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
+&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
+&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
