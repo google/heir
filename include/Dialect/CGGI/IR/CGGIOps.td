@@ -5,6 +5,7 @@ include "include/Dialect/CGGI/IR/CGGIDialect.td"
 
 include "include/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "include/Dialect/LWE/IR/LWETypes.td"
+include "include/Interfaces/NoiseInterfaces.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -12,7 +13,8 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class CGGI_Op<string mnemonic, list<Trait> traits = []> :
-        Op<CGGI_Dialect, mnemonic, traits> {
+        Op<CGGI_Dialect, mnemonic, traits # [
+           DeclareOpInterfaceMethods<NoisePropagationInterface>]> {
   let assemblyFormat = [{
     `(` operands `)` attr-dict `:`  `(` qualified(type(operands)) `)` `->` qualified(type(results))
   }];

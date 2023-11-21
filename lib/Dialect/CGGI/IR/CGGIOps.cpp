@@ -1,0 +1,6 @@
+#ifndef LIB_DIALECT_CGGI_IR_CGGIOPS_CPP_
+#define LIB_DIALECT_CGGI_IR_CGGIOPS_CPP_
+
+#include "include/Dialect/CGGI/IR/CGGIOps.h"
+
+#endif  // LIB_DIALECT_CGGI_IR_CGGIOPS_CPP_

@@ -7,6 +7,7 @@ cc_library(
     name = "Dialect",
     srcs = [
         "CGGIDialect.cpp",
+        "CGGIOps.cpp",
     ],
     hdrs = [
         "@heir//include/Dialect/CGGI/IR:CGGIAttributes.h",
@@ -18,6 +19,8 @@ cc_library(
         "@heir//include/Dialect/CGGI/IR:dialect_inc_gen",
         "@heir//include/Dialect/CGGI/IR:ops_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
+        "@heir//lib/Interfaces:NoiseInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",

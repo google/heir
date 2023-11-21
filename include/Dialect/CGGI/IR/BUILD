@@ -23,6 +23,7 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@heir//include/Interfaces:NoiseInterfacesTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",
