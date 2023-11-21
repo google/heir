@@ -1,6 +1,7 @@
 #include "include/Target/TfheRust/TfheRustEmitter.h"
 
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <string>
@@ -44,6 +45,7 @@ void registerToTfheRustTranslation() {
         return translateToTfheRust(op, output);
       },
       [](DialectRegistry &registry) {
+        std::cout << "wat\n";
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
                         arith::ArithDialect>();
       });
