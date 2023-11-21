@@ -155,8 +155,10 @@ LogicalResult TrivialEncryptOp::verify() {
   auto outParamsAttr = this->getOutput().getType().getLweParams();
 
   if (paramsAttr != outParamsAttr) {
-    return this->emitOpError() << "LWE params attr must match output LWE "
-                                  "ciphertext LWE params attr";
+    return this->emitOpError()
+           << "lwe_params attr must match on the op and "
+              "the output type, but found op attr "
+           << paramsAttr << " and output type attr " << outParamsAttr;
   }
 
   auto inputEncoding = this->getInput().getType().getEncoding();
