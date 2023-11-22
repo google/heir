@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "include/Analysis/NoisePropagation/Variance.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
 #include "include/Dialect/LWE/IR/LWEOps.h"
 #include "include/Dialect/LWE/IR/LWETypes.h"
@@ -181,9 +182,15 @@ LogicalResult TrivialEncryptOp::verify() {
   return success();
 }
 
-void AddOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+void AddOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                              SetNoiseFn setValueNoise) {
-  return setValueNoise(getResult(), argNoises[0] + argNoises[1]);
+  Variance result;
+  if (!argNoises[0].isKnown() || !argNoises[1].isKnown())
+    result = Variance::unknown();
+  else
+    result = Variance{argNoises[0].getValue() + argNoises[1].getValue()};
+
+  return setValueNoise(getResult(), result);
 }
 
 }  // namespace lwe

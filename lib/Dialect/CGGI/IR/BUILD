@@ -18,6 +18,8 @@ cc_library(
         "@heir//include/Dialect/CGGI/IR:attributes_inc_gen",
         "@heir//include/Dialect/CGGI/IR:dialect_inc_gen",
         "@heir//include/Dialect/CGGI/IR:ops_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
+        "@heir//lib/Analysis/NoisePropagation:Variance",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
         "@heir//lib/Interfaces:NoiseInterfaces",

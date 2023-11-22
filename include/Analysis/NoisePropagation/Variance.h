@@ -14,6 +14,8 @@ namespace heir {
 /// A class representing an optional variance of a noise distribution.
 class Variance {
  public:
+  static Variance unknown() { return Variance(); }
+
   /// Create an integer value range lattice value.
   Variance(std::optional<int64_t> value = std::nullopt) : value(value) {}
 

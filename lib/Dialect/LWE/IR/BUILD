@@ -13,6 +13,7 @@ cc_library(
         "@heir//include/Dialect/LWE/IR:LWEDialect.h",
         "@heir//include/Dialect/LWE/IR:LWEOps.h",
         "@heir//include/Dialect/LWE/IR:LWETypes.h",
+        "@heir//lib/Analysis/NoisePropagation:Variance",
     ],
     deps = [
         "@heir//include/Dialect/LWE/IR:attributes_inc_gen",

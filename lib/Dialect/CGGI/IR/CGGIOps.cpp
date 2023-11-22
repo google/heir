@@ -3,6 +3,7 @@
 
 #include "include/Dialect/CGGI/IR/CGGIOps.h"
 
+#include "include/Analysis/NoisePropagation/Variance.h"
 #include "include/Dialect/CGGI/IR/CGGIAttributes.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
 #include "include/Interfaces/NoiseInterfaces.h"
@@ -96,35 +97,36 @@ void handleSingleResultOp(Operation *op, Value ctValue,
     return;
   }
   auto cggiParams = llvm::cast<CGGIParamsAttr>(attrs.get("cggi_params"));
-  setValueNoise(op->getResult(0), bootstrapOutputNoise(cggiParams, lweParams));
+  setValueNoise(op->getResult(0),
+                Variance(bootstrapOutputNoise(cggiParams, lweParams)));
 }
 
-void AndOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+void AndOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                              SetNoiseFn setValueNoise) {
   return handleSingleResultOp(getOperation(), getLhs(), setValueNoise);
 }
 
-void OrOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+void OrOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                             SetNoiseFn setValueNoise) {
   return handleSingleResultOp(getOperation(), getLhs(), setValueNoise);
 }
 
-void XorOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+void XorOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                              SetNoiseFn setValueNoise) {
   return handleSingleResultOp(getOperation(), getLhs(), setValueNoise);
 }
 
-void Lut3Op::inferResultNoise(llvm::ArrayRef<long> argNoises,
+void Lut3Op::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                               SetNoiseFn setValueNoise) {
   return handleSingleResultOp(getOperation(), getA(), setValueNoise);
 }
 
-void Lut2Op::inferResultNoise(llvm::ArrayRef<long> argNoises,
+void Lut2Op::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                               SetNoiseFn setValueNoise) {
   return handleSingleResultOp(getOperation(), getA(), setValueNoise);
 }
 
-void NotOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+void NotOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                              SetNoiseFn setValueNoise) {
   // This one doesn't use bootstrap, no error change
   setValueNoise(getInput(), argNoises[0]);
