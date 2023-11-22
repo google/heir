@@ -45,8 +45,8 @@ unsigned maxPerDigitDecompositionError(unsigned baseLog, unsigned numLevels,
 /// Signed decompositions are used for the gadgets, leading to a multiplicative
 /// factor of two difference between the quality "beta" (max digit size) of the
 /// gadget and the chosen parameter 2**base_log.
-int64_t bootstrapOutputNoise(CGGIParamsAttr attr) {
-  lwe::LWEParamsAttr lweParams = attr.getLweParams();
+int64_t bootstrapOutputNoise(CGGIParamsAttr attr,
+                             lwe::LWEParamsAttr lweParams) {
   lwe::RLWEParamsAttr rlweParams = attr.getRlweParams();
   unsigned bskNoiseVariance = attr.getBskNoiseVariance();
   unsigned kskNoiseVariance = attr.getKskNoiseVariance();
@@ -80,16 +80,55 @@ int64_t bootstrapOutputNoise(CGGIParamsAttr attr) {
   return externalProductTerm + keySwitchingTerm;
 }
 
-void AndOp::inferResultNoise(llvm::ArrayRef<long>, SetNoiseFn setValueNoise) {
-  // Have to get a CGGIParams instance here somehow.
-  // auto resultNoise = bootstrapOutputNoise(...);
+void handleSingleResultOp(Operation *op, Value ctValue,
+                          SetNoiseFn setValueNoise) {
+  auto lweParams =
+      cast<lwe::LWECiphertextType>(ctValue.getType()).getLweParams();
+  if (!lweParams) {
+    op->emitOpError() << "lwe_params must be set on the input values to run "
+                         "noise propagation.";
+    return;
+  }
+
+  auto attrs = op->getAttrDictionary();
+  if (!attrs.contains("cggi_params")) {
+    op->emitOpError() << "cggi_params must be set to run noise propagation.";
+    return;
+  }
+  auto cggiParams = llvm::cast<CGGIParamsAttr>(attrs.get("cggi_params"));
+  setValueNoise(op->getResult(0), bootstrapOutputNoise(cggiParams, lweParams));
 }
 
-void OrOp::inferResultNoise(llvm::ArrayRef<long>, SetNoiseFn setValueNoise) {}
-void XorOp::inferResultNoise(llvm::ArrayRef<long>, SetNoiseFn setValueNoise) {}
-void NotOp::inferResultNoise(llvm::ArrayRef<long>, SetNoiseFn setValueNoise) {}
-void Lut3Op::inferResultNoise(llvm::ArrayRef<long>, SetNoiseFn setValueNoise) {}
-void Lut2Op::inferResultNoise(llvm::ArrayRef<long>, SetNoiseFn setValueNoise) {}
+void AndOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+                             SetNoiseFn setValueNoise) {
+  return handleSingleResultOp(getOperation(), getLhs(), setValueNoise);
+}
+
+void OrOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+                            SetNoiseFn setValueNoise) {
+  return handleSingleResultOp(getOperation(), getLhs(), setValueNoise);
+}
+
+void XorOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+                             SetNoiseFn setValueNoise) {
+  return handleSingleResultOp(getOperation(), getLhs(), setValueNoise);
+}
+
+void Lut3Op::inferResultNoise(llvm::ArrayRef<long> argNoises,
+                              SetNoiseFn setValueNoise) {
+  return handleSingleResultOp(getOperation(), getA(), setValueNoise);
+}
+
+void Lut2Op::inferResultNoise(llvm::ArrayRef<long> argNoises,
+                              SetNoiseFn setValueNoise) {
+  return handleSingleResultOp(getOperation(), getA(), setValueNoise);
+}
+
+void NotOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+                             SetNoiseFn setValueNoise) {
+  // This one doesn't use bootstrap, no error change
+  setValueNoise(getInput(), argNoises[0]);
+}
 
 }  // namespace cggi
 }  // namespace heir
