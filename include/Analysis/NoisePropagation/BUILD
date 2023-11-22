@@ -1,0 +1,12 @@
+# NoisePropagationAnalysis analysis pass
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+exports_files(
+    [
+        "NoisePropagationAnalysis.h",
+        "Variance.h",
+    ],
+)

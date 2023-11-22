@@ -10,6 +10,7 @@ cc_library(
     hdrs = ["@heir//include/Interfaces:NoiseInterfaces.h"],
     deps = [
         "@heir//include/Interfaces:NoiseInterfacesIncGen",
+        "@heir//lib/Analysis/NoisePropagation:Variance",
         "@llvm-project//mlir:IR",
     ],
 )

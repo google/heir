@@ -32,7 +32,7 @@ def NoisePropagationInterface : OpInterface<"NoisePropagationInterface"> {
        will have this value set to zero.
     }],
     "void", "inferResultNoise", (ins
-      "::llvm::ArrayRef<int64_t>":$argNoises,
+      "::llvm::ArrayRef<Variance>":$argNoises,
       "::mlir::heir::SetNoiseFn":$setValueNoise)
   >];
 }
