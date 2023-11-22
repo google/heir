@@ -6,6 +6,7 @@
 #include "include/Dialect/LWE/IR/LWEOps.h"
 #include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "include/Interfaces/NoiseInterfaces.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
@@ -178,6 +179,11 @@ LogicalResult TrivialEncryptOp::verify() {
   }
 
   return success();
+}
+
+void AddOp::inferResultNoise(llvm::ArrayRef<long> argNoises,
+                             SetNoiseFn setValueNoise) {
+  return setValueNoise(getResult(), argNoises[0] + argNoises[1]);
 }
 
 }  // namespace lwe

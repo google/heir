@@ -3,10 +3,11 @@
 
 include "include/Dialect/LWE/IR/LWEDialect.td"
 include "include/Dialect/LWE/IR/LWETypes.td"
+include "include/Interfaces/NoiseInterfaces.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/IR/CommonAttrConstraints.td"
 
 class LWE_Op<string mnemonic, list<Trait> traits = []> :
         Op<LWE_Dialect, mnemonic, traits> {
@@ -57,6 +58,18 @@ def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [Pure]> {
   // Verify that the LWE params matches the output ciphertext LWE params and
   // that the encodings of the input and output match.
   let hasVerifier = 1;
+}
+
+def LWE_AddOp : LWE_Op<"add", [
+  Pure,
+  SameOperandsAndResultType,
+  DeclareOpInterfaceMethods<NoisePropagationInterface>
+]> {
+  let arguments = (ins
+    LWECiphertext:$lhs,
+    LWECiphertext:$rhs
+  );
+  let results = (outs LWECiphertext:$output);
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEOPS_TD_
