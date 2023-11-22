@@ -1,0 +1,16 @@
+#ifndef INCLUDE_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
+#define INCLUDE_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
+
+include "mlir/Pass/PassBase.td"
+
+def {{ pass_name }} : Pass<"{{ pass_flag }}"> {
+  // FIXME: add add summary/description
+  let summary = "";
+  let description = [{
+  }];
+  let dependentDialects = [
+
+  ];
+}
+
+#endif  // INCLUDE_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_

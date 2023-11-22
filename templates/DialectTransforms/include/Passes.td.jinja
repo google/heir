@@ -1,0 +1,14 @@
+#ifndef INCLUDE_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_PASSES_TD_
+#define INCLUDE_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_PASSES_TD_
+
+include "mlir/Pass/PassBase.td"
+
+def {{ pass_name }} : Pass<"{{ pass_flag }}"> {
+  // FIXME: add add summary/description
+  let summary = "";
+  let description = [{
+  }];
+  let dependentDialects = ["mlir::heir::{{ dialect_namespace }}::{{ dialect_name}}Dialect"];
+}
+
+#endif  // INCLUDE_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_PASSES_TD_
