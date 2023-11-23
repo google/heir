@@ -70,6 +70,9 @@ def LWE_AddOp : LWE_Op<"add", [
     LWECiphertext:$rhs
   );
   let results = (outs LWECiphertext:$output);
+  let assemblyFormat = [{
+    operands attr-dict `:` qualified(type($output))
+  }];
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEOPS_TD_
