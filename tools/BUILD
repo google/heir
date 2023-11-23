@@ -51,6 +51,7 @@ cc_binary(
         "@heir//lib/Dialect/Secret/Transforms",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Transforms/Secretize",
+        "@heir//lib/Transforms/ValidateNoise",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineToStandard",
