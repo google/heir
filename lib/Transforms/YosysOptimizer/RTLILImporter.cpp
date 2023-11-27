@@ -9,14 +9,15 @@
 #include "include/Dialect/Comb/IR/CombOps.h"
 #include "kernel/rtlil.h"                     // from @at_clifford_yosys
 #include "llvm/include/llvm/ADT/MapVector.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Transforms/FoldUtils.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Transforms/FoldUtils.h"      // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -24,6 +25,21 @@ namespace heir {
 using ::Yosys::RTLIL::Module;
 using ::Yosys::RTLIL::SigSpec;
 using ::Yosys::RTLIL::Wire;
+
+namespace {
+
+// getTypeForWire gets the MLIR type corresponding to the RTLIL wire. If the
+// wire is an integer with multiple bits, then the MLIR type is a tensor of
+// bits.
+Type getTypeForWire(OpBuilder &b, Wire *wire) {
+  auto intTy = b.getI1Type();
+  if (wire->width == 1) {
+    return intTy;
+  }
+  return RankedTensorType::get({wire->width}, intTy);
+}
+
+}  // namespace
 
 llvm::SmallVector<std::string, 10> getTopologicalOrder(
     std::stringstream &torderOutput) {
@@ -75,8 +91,8 @@ Value RTLILImporter::getBit(
     return retBitValues[bit.wire][offset];
   }
   auto argA = getWireValue(bit.wire);
-  auto extractOp =
-      b.createOrFold<comb::ExtractOp>(b.getI1Type(), argA, bit.offset);
+  auto extractOp = b.create<tensor::ExtractOp>(
+      argA, b.create<arith::ConstantIndexOp>(bit.offset).getResult());
   return extractOp;
 }
 
@@ -112,10 +128,10 @@ func::FuncOp RTLILImporter::importModule(
     // The RTLIL module may also have intermediate wires that are neither inputs
     // nor outputs.
     if (wire->port_input) {
-      argTypes.push_back(builder.getIntegerType(wire->width));
+      argTypes.push_back(getTypeForWire(builder, wire));
       wireArgs.push_back(wire);
     } else if (wire->port_output) {
-      retTypes.push_back(builder.getIntegerType(wire->width));
+      retTypes.push_back(getTypeForWire(builder, wire));
       wireRet.push_back(wire);
       retBitValues[wire].resize(wire->width);
     }
@@ -186,7 +202,7 @@ func::FuncOp RTLILImporter::importModule(
     } else {
       // We are in a multi-bit scenario.
       assert(retBits.size() > 1);
-      auto concatOp = b.create<comb::ConcatOp>(retBits);
+      auto concatOp = b.create<tensor::FromElementsOp>(retBits);
       returnValues.push_back(concatOp.getResult());
     }
   }
