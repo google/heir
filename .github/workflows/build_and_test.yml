@@ -1,0 +1,46 @@
+name: Build and Test
+permissions: read-all
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-test:
+    runs-on:
+      labels: ubuntu-20.04-16core
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
+      - name: Cache bazel build artifacts
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # pin@v3.3.1
+        with:
+          path: |
+            ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+
+      - name: "Run `bazel build`"
+        run: |
+          bazel build -c fastbuild //...
+
+      - name: "Run `bazel test`"
+        run: |
+          bazel test -c fastbuild //...
+
+      # Tests specifically for the tfhe-rs codegen
+      - name: rustup toolchain install
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # pin@1.72.1
+        with:
+          toolchain: stable
+
+      - name: Test rust codegen targets
+        run: |
+          bash .github/workflows/run_rust_tests.sh

@@ -1,0 +1,105 @@
+# Polynomial dialect
+
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "Dialect",
+    srcs = [
+        "PolynomialDialect.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Polynomial/IR:PolynomialAttributes.h",
+        "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
+        "@heir//include/Dialect/Polynomial/IR:PolynomialOps.h",
+        "@heir//include/Dialect/Polynomial/IR:PolynomialTypes.h",
+    ],
+    deps = [
+        ":Polynomial",
+        ":PolynomialAttributes",
+        ":PolynomialOps",
+        "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:canonicalize_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:ops_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+    ],
+)
+
+cc_library(
+    name = "PolynomialAttributes",
+    srcs = [
+        "PolynomialAttributes.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Polynomial/IR:PolynomialAttributes.h",
+        "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
+    ],
+    deps = [
+        ":Polynomial",
+        "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AsmParser",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "PolynomialOps",
+    srcs = [
+        "PolynomialOps.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
+        "@heir//include/Dialect/Polynomial/IR:PolynomialOps.h",
+        "@heir//include/Dialect/Polynomial/IR:PolynomialTypes.h",
+    ],
+    deps = [
+        ":PolynomialAttributes",
+        "@heir//include/Dialect/Polynomial/IR:canonicalize_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:ops_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "Polynomial",
+    srcs = [
+        "Polynomial.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Polynomial/IR:Polynomial.h",
+        "@heir//include/Dialect/Polynomial/IR:PolynomialDetail.h",
+    ],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_test(
+    name = "PolynomialTest",
+    size = "small",
+    srcs = ["PolynomialTest.cpp"],
+    deps = [
+        ":Polynomial",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)

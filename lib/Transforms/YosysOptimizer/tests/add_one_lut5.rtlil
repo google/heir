@@ -1,0 +1,390 @@
+
+autoidx 1
+
+attribute \cells_not_processed 1
+module \add_one
+
+  wire width 8 input 1 \x
+
+  wire width 8 output 2 \out
+
+  wire \_0_
+
+  attribute \module_not_derived 1
+  cell \lut5 \_9_
+    connect \Y \out [0]
+    connect \P9 0
+    connect \P8 0
+    connect \P7 0
+    connect \P6 0
+    connect \P5 0
+    connect \P4 0
+    connect \P31 0
+    connect \P30 0
+    connect \P3 0
+    connect \P29 0
+    connect \P28 0
+    connect \P27 0
+    connect \P26 0
+    connect \P25 0
+    connect \P24 0
+    connect \P23 0
+    connect \P22 0
+    connect \P21 0
+    connect \P20 0
+    connect \P2 0
+    connect \P19 0
+    connect \P18 0
+    connect \P17 0
+    connect \P16 0
+    connect \P15 0
+    connect \P14 0
+    connect \P13 0
+    connect \P12 0
+    connect \P11 0
+    connect \P10 0
+    connect \P1 1'0
+    connect \P0 1'1
+    connect \E 0
+    connect \D 0
+    connect \C 0
+    connect \B 0
+    connect \A \x [0]
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_8_
+    connect \Y \out [7]
+    connect \P9 1'1
+    connect \P8 1'1
+    connect \P7 1'1
+    connect \P6 1'0
+    connect \P5 1'0
+    connect \P4 1'0
+    connect \P31 0
+    connect \P30 0
+    connect \P3 1'0
+    connect \P29 0
+    connect \P28 0
+    connect \P27 0
+    connect \P26 0
+    connect \P25 0
+    connect \P24 0
+    connect \P23 0
+    connect \P22 0
+    connect \P21 0
+    connect \P20 0
+    connect \P2 1'0
+    connect \P19 0
+    connect \P18 0
+    connect \P17 0
+    connect \P16 0
+    connect \P15 1'0
+    connect \P14 1'1
+    connect \P13 1'1
+    connect \P12 1'1
+    connect \P11 1'1
+    connect \P10 1'1
+    connect \P1 1'0
+    connect \P0 1'0
+    connect \E 0
+    connect \D \x [7]
+    connect \C \x [6]
+    connect \B \x [5]
+    connect \A \_0_
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_7_
+    connect \Y \out [6]
+    connect \P9 0
+    connect \P8 0
+    connect \P7 1'0
+    connect \P6 1'1
+    connect \P5 1'1
+    connect \P4 1'1
+    connect \P31 0
+    connect \P30 0
+    connect \P3 1'1
+    connect \P29 0
+    connect \P28 0
+    connect \P27 0
+    connect \P26 0
+    connect \P25 0
+    connect \P24 0
+    connect \P23 0
+    connect \P22 0
+    connect \P21 0
+    connect \P20 0
+    connect \P2 1'0
+    connect \P19 0
+    connect \P18 0
+    connect \P17 0
+    connect \P16 0
+    connect \P15 0
+    connect \P14 0
+    connect \P13 0
+    connect \P12 0
+    connect \P11 0
+    connect \P10 0
+    connect \P1 1'0
+    connect \P0 1'0
+    connect \E 0
+    connect \D 0
+    connect \C \x [6]
+    connect \B \x [5]
+    connect \A \_0_
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_6_
+    connect \Y \_0_
+    connect \P9 1'0
+    connect \P8 1'0
+    connect \P7 1'0
+    connect \P6 1'0
+    connect \P5 1'0
+    connect \P4 1'0
+    connect \P31 1'1
+    connect \P30 1'0
+    connect \P3 1'0
+    connect \P29 1'0
+    connect \P28 1'0
+    connect \P27 1'0
+    connect \P26 1'0
+    connect \P25 1'0
+    connect \P24 1'0
+    connect \P23 1'0
+    connect \P22 1'0
+    connect \P21 1'0
+    connect \P20 1'0
+    connect \P2 1'0
+    connect \P19 1'0
+    connect \P18 1'0
+    connect \P17 1'0
+    connect \P16 1'0
+    connect \P15 1'0
+    connect \P14 1'0
+    connect \P13 1'0
+    connect \P12 1'0
+    connect \P11 1'0
+    connect \P10 1'0
+    connect \P1 1'0
+    connect \P0 1'0
+    connect \E \x [4]
+    connect \D \x [2]
+    connect \C \x [3]
+    connect \B \x [1]
+    connect \A \x [0]
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_5_
+    connect \Y \out [5]
+    connect \P9 0
+    connect \P8 0
+    connect \P7 0
+    connect \P6 0
+    connect \P5 0
+    connect \P4 0
+    connect \P31 0
+    connect \P30 0
+    connect \P3 1'0
+    connect \P29 0
+    connect \P28 0
+    connect \P27 0
+    connect \P26 0
+    connect \P25 0
+    connect \P24 0
+    connect \P23 0
+    connect \P22 0
+    connect \P21 0
+    connect \P20 0
+    connect \P2 1'1
+    connect \P19 0
+    connect \P18 0
+    connect \P17 0
+    connect \P16 0
+    connect \P15 0
+    connect \P14 0
+    connect \P13 0
+    connect \P12 0
+    connect \P11 0
+    connect \P10 0
+    connect \P1 1'1
+    connect \P0 1'0
+    connect \E 0
+    connect \D 0
+    connect \C 0
+    connect \B \x [5]
+    connect \A \_0_
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_4_
+    connect \Y \out [4]
+    connect \P9 1'0
+    connect \P8 1'0
+    connect \P7 1'0
+    connect \P6 1'0
+    connect \P5 1'0
+    connect \P4 1'0
+    connect \P31 1'0
+    connect \P30 1'1
+    connect \P3 1'0
+    connect \P29 1'1
+    connect \P28 1'1
+    connect \P27 1'1
+    connect \P26 1'1
+    connect \P25 1'1
+    connect \P24 1'1
+    connect \P23 1'1
+    connect \P22 1'1
+    connect \P21 1'1
+    connect \P20 1'1
+    connect \P2 1'0
+    connect \P19 1'1
+    connect \P18 1'1
+    connect \P17 1'1
+    connect \P16 1'1
+    connect \P15 1'1
+    connect \P14 1'0
+    connect \P13 1'0
+    connect \P12 1'0
+    connect \P11 1'0
+    connect \P10 1'0
+    connect \P1 1'0
+    connect \P0 1'0
+    connect \E \x [4]
+    connect \D \x [2]
+    connect \C \x [3]
+    connect \B \x [1]
+    connect \A \x [0]
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_3_
+    connect \Y \out [3]
+    connect \P9 1'1
+    connect \P8 1'1
+    connect \P7 1'1
+    connect \P6 1'0
+    connect \P5 1'0
+    connect \P4 1'0
+    connect \P31 0
+    connect \P30 0
+    connect \P3 1'0
+    connect \P29 0
+    connect \P28 0
+    connect \P27 0
+    connect \P26 0
+    connect \P25 0
+    connect \P24 0
+    connect \P23 0
+    connect \P22 0
+    connect \P21 0
+    connect \P20 0
+    connect \P2 1'0
+    connect \P19 0
+    connect \P18 0
+    connect \P17 0
+    connect \P16 0
+    connect \P15 1'0
+    connect \P14 1'1
+    connect \P13 1'1
+    connect \P12 1'1
+    connect \P11 1'1
+    connect \P10 1'1
+    connect \P1 1'0
+    connect \P0 1'0
+    connect \E 0
+    connect \D \x [3]
+    connect \C \x [2]
+    connect \B \x [1]
+    connect \A \x [0]
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_2_
+    connect \Y \out [2]
+    connect \P9 0
+    connect \P8 0
+    connect \P7 1'0
+    connect \P6 1'1
+    connect \P5 1'1
+    connect \P4 1'1
+    connect \P31 0
+    connect \P30 0
+    connect \P3 1'1
+    connect \P29 0
+    connect \P28 0
+    connect \P27 0
+    connect \P26 0
+    connect \P25 0
+    connect \P24 0
+    connect \P23 0
+    connect \P22 0
+    connect \P21 0
+    connect \P20 0
+    connect \P2 1'0
+    connect \P19 0
+    connect \P18 0
+    connect \P17 0
+    connect \P16 0
+    connect \P15 0
+    connect \P14 0
+    connect \P13 0
+    connect \P12 0
+    connect \P11 0
+    connect \P10 0
+    connect \P1 1'0
+    connect \P0 1'0
+    connect \E 0
+    connect \D 0
+    connect \C \x [2]
+    connect \B \x [1]
+    connect \A \x [0]
+  end
+
+  attribute \module_not_derived 1
+  cell \lut5 \_1_
+    connect \Y \out [1]
+    connect \P9 0
+    connect \P8 0
+    connect \P7 0
+    connect \P6 0
+    connect \P5 0
+    connect \P4 0
+    connect \P31 0
+    connect \P30 0
+    connect \P3 1'0
+    connect \P29 0
+    connect \P28 0
+    connect \P27 0
+    connect \P26 0
+    connect \P25 0
+    connect \P24 0
+    connect \P23 0
+    connect \P22 0
+    connect \P21 0
+    connect \P20 0
+    connect \P2 1'1
+    connect \P19 0
+    connect \P18 0
+    connect \P17 0
+    connect \P16 0
+    connect \P15 0
+    connect \P14 0
+    connect \P13 0
+    connect \P12 0
+    connect \P11 0
+    connect \P10 0
+    connect \P1 1'1
+    connect \P0 1'0
+    connect \E 0
+    connect \D 0
+    connect \C 0
+    connect \B \x [1]
+    connect \A \x [0]
+  end
+end

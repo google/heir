@@ -1,0 +1,70 @@
+name: Build website, deploy to GH pages if on main
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+jobs:
+  build-and-deploy:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+      with:
+        fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
+
+    # This requires building mlir-tblgen, but may not require a full llvm build
+    # as a result. It results in the files being added to their respective
+    # locations (relative to each *_inc_gen target) under bazel-bin. Note the
+    # _filegroup suffix is required to actually write the markdown files to
+    # disk.
+    - name: "Build markdown files from tblgen sources"
+      run: |
+        bazel query "filter('_filegroup', siblings(kind('gentbl_rule', @heir//...)))" | \
+          xargs bazel build "$@"
+
+    - name: "Copy markdown files to docs/"
+      run: |
+        bash .github/workflows/copy_tblgen_files.sh
+
+    - name: Setup Hugo
+      uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # pin@v2.6.0
+      with:
+        hugo-version: '0.113.0'
+        extended: true
+
+    - name: Setup Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        # The action defaults to search for the dependency file (package-lock.json,
+        # npm-shrinkwrap.json or yarn.lock) in the repository root, and uses its
+        # hash as a part of the cache key.
+        # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
+        cache-dependency-path: '**/package-lock.json'
+
+    - name: Install Docsy dependencies
+      working-directory: ./docs
+      run: npm ci
+
+    - name: Build
+      working-directory: ./docs
+      run: hugo --minify
+
+    - name: Copy CNAME to hugo public dir
+      working-directory: ./docs
+      run: cp CNAME public/CNAME
+
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847 # pin@v3.9.3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/public

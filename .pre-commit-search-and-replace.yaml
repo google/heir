@@ -1,0 +1,15 @@
+# Force all C++ mlir include paths to be prefixed with "mlir/include/mlir",
+# instead of just "mlir/", as the latter is incompatible with Google's internal
+# filesystem.
+- search: '/^#include "mlir\/(?!include\/mlir\/)/'
+  replacement: '#include "mlir/include/mlir/'
+# Same for llvm paths.
+- search: '/^#include "llvm\/(?!include\/llvm\/)/'
+  replacement: '#include "llvm/include/llvm/'
+# Ensure that all C++ mlir include paths include a "// from @llvm-project"
+# comment import into Google's internal filesystem.
+- search: '/^#include ("mlir\/.*")$/'
+  replacement: '#include \1 // from @llvm-project'
+# Same for llvm paths.
+- search: '/^#include ("llvm\/.*")$/'
+  replacement: '#include \1 // from @llvm-project'

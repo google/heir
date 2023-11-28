@@ -1,0 +1,210 @@
+#include <cstdlib>
+
+#include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
+#include "include/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
+#include "include/Conversion/CombToCGGI/CombToCGGI.h"
+#include "include/Conversion/MemrefToArith/MemrefToArith.h"
+#include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
+#include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "include/Dialect/CGGI/IR/CGGIDialect.h"
+#include "include/Dialect/Comb/IR/CombDialect.h"
+#include "include/Dialect/LWE/IR/LWEDialect.h"
+#include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
+#include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "include/Dialect/Secret/IR/SecretDialect.h"
+#include "include/Dialect/Secret/Transforms/Passes.h"
+#include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/TosaToTensor/TosaToTensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Passes.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
+#include "mlir/include/mlir/InitAllDialects.h"             // from @llvm-project
+#include "mlir/include/mlir/InitAllPasses.h"               // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
+#include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
+#include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
+
+#ifndef HEIR_NO_YOSYS
+#include "include/Transforms/YosysOptimizer/YosysOptimizer.h"
+#endif
+
+using namespace mlir;
+using namespace tosa;
+using namespace heir;
+using mlir::func::FuncOp;
+
+void tosaPipelineBuilder(OpPassManager &manager) {
+  // TOSA to linalg
+  manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
+  manager.addNestedPass<FuncOp>(createTosaToLinalg());
+  manager.addNestedPass<FuncOp>(createTosaToArith(true, false));
+  manager.addNestedPass<FuncOp>(createTosaToTensor());
+  manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
+  manager.addNestedPass<FuncOp>(createLinalgDetensorizePass());
+  manager.addPass(createConvertTensorToLinalgPass());
+  manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
+  // Bufferize
+  manager.addNestedPass<FuncOp>(createLinalgBufferizePass());
+  manager.addNestedPass<FuncOp>(tensor::createTensorBufferizePass());
+  manager.addPass(arith::createArithBufferizePass());
+  manager.addPass(func::createFuncBufferizePass());
+  manager.addNestedPass<FuncOp>(bufferization::createFinalizingBufferizePass());
+  // Affine
+  manager.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  manager.addPass(memref::createFoldMemRefAliasOpsPass());
+  manager.addPass(createExpandCopyPass());
+  manager.addPass(createExtractLoopBodyPass());
+  manager.addPass(createUnrollAndForwardStoresPass());
+  // Cleanup
+  manager.addPass(createMemrefGlobalReplacePass());
+  arith::ArithIntNarrowingOptions options;
+  options.bitwidthsSupported = {4, 8, 16};
+  manager.addPass(arith::createArithIntNarrowing(options));
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createSymbolDCEPass());
+}
+
+void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
+  // Poly
+  manager.addPass(polynomial::createPolynomialToStandard());
+  manager.addPass(createCanonicalizerPass());
+
+  // Linalg
+  manager.addNestedPass<FuncOp>(createConvertElementwiseToLinalgPass());
+  // Needed to lower affine.map and affine.apply
+  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+
+  // One-shot bufferize, from
+  // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
+  bufferization::OneShotBufferizationOptions bufferizationOptions;
+  bufferizationOptions.bufferizeFunctionBoundaries = true;
+  manager.addPass(
+      bufferization::createOneShotBufferizePass(bufferizationOptions));
+  manager.addPass(memref::createExpandReallocPass());
+  manager.addPass(bufferization::createOwnershipBasedBufferDeallocationPass());
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(bufferization::createBufferDeallocationSimplificationPass());
+  manager.addPass(bufferization::createLowerDeallocationsPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createCanonicalizerPass());
+
+  // Linalg must be bufferized before it can be lowered
+  // But lowering to loops also re-introduces affine.apply, so re-lower that
+  manager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
+  manager.addPass(createLowerAffinePass());
+
+  // Cleanup
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createSymbolDCEPass());
+
+  // ToLLVM
+  manager.addPass(arith::createArithExpandOpsPass());
+  manager.addPass(createConvertSCFToCFPass());
+  manager.addPass(createConvertControlFlowToLLVMPass());
+  manager.addPass(createConvertIndexToLLVMPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(createConvertFuncToLLVMPass());
+  manager.addPass(createArithToLLVMConversionPass());
+  manager.addPass(createFinalizeMemRefToLLVMConversionPass());
+  manager.addPass(createReconcileUnrealizedCastsPass());
+  // Cleanup
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createSymbolDCEPass());
+}
+
+int main(int argc, char **argv) {
+  mlir::DialectRegistry registry;
+
+  registry.insert<bgv::BGVDialect>();
+  registry.insert<comb::CombDialect>();
+  registry.insert<lwe::LWEDialect>();
+  registry.insert<cggi::CGGIDialect>();
+  registry.insert<poly_ext::PolyExtDialect>();
+  registry.insert<polynomial::PolynomialDialect>();
+  registry.insert<secret::SecretDialect>();
+  registry.insert<tfhe_rust::TfheRustDialect>();
+
+  // Add expected MLIR dialects to the registry.
+  registry.insert<affine::AffineDialect>();
+  registry.insert<arith::ArithDialect>();
+  registry.insert<func::FuncDialect>();
+  registry.insert<memref::MemRefDialect>();
+  registry.insert<scf::SCFDialect>();
+  registry.insert<tensor::TensorDialect>();
+  registry.insert<TosaDialect>();
+  registry.insert<LLVM::LLVMDialect>();
+  registerAllDialects(registry);
+
+  // Register MLIR core passes to build pipeline.
+  registerAllPasses();
+  secret::registerSecretPasses();
+
+  // Custom passes in HEIR
+  polynomial::registerPolynomialToStandardPasses();
+  bgv::registerBGVToPolynomialPasses();
+  comb::registerCombToCGGIPasses();
+  registerCGGIToTfheRustPasses();
+  // Register yosys optimizer pipeline if configured.
+#ifndef HEIR_NO_YOSYS
+  const char *abcEnvPath = std::getenv("HEIR_ABC_BINARY");
+  const char *yosysRunfilesEnvPath = std::getenv("HEIR_YOSYS_SCRIPTS_DIR");
+  if (abcEnvPath == nullptr || yosysRunfilesEnvPath == nullptr) {
+    llvm::errs() << "yosys optimizer deps not found, please set "
+                    "HEIR_ABC_PATH and HEIR_YOSYS_LIBS; otherwise, set "
+                    "HEIR_NO_YOSYS=1\n";
+    return EXIT_FAILURE;
+  }
+  mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
+#endif
+
+  PassPipelineRegistration<>(
+      "heir-tosa-to-arith",
+      "Run passes to lower TOSA models with stripped quant types to arithmetic",
+      tosaPipelineBuilder);
+
+  PassPipelineRegistration<>(
+      "heir-polynomial-to-llvm",
+      "Run passes to lower the polynomial dialect to LLVM",
+      polynomialToLLVMPipelineBuilder);
+
+  return asMainReturnCode(
+      MlirOptMain(argc, argv, "HEIR Pass Driver", registry));
+}

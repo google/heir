@@ -1,0 +1,6 @@
+lit==16.0.6
+
+# for tests/poly/runner/generate_test_cases.py
+tomli==2.0.1
+sympy==1.12
+mpmath==1.3.0
