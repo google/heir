@@ -1,0 +1,32 @@
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "Transforms",
+    hdrs = [
+        "@heir//include/Dialect/{{ dialect_name }}/Transforms:Passes.h",
+    ],
+    deps = [
+        ":{{ pass_name }}",
+        "@heir//include/Dialect/{{ dialect_name }}/Transforms:pass_inc_gen",
+        "@heir//lib/Dialect/{{ dialect_name }}/IR:Dialect",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_library(
+    name = "{{ pass_name }}",
+    srcs = ["{{ pass_name }}.cpp"],
+    hdrs = [
+        "@heir//include/Dialect/{{ dialect_name }}/Transforms:{{ pass_name }}.h",
+    ],
+    deps = [
+        "@heir//include/Dialect/{{ dialect_name }}/Transforms:pass_inc_gen",
+        "@heir//lib/Dialect/{{ dialect_name }}/IR:Dialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ],
+)

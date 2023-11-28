@@ -1,0 +1,19 @@
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "{{ pass_name }}",
+    srcs = ["{{ pass_name }}.cpp"],
+    hdrs = [
+        "@heir//include/Transforms/{{ pass_name }}:{{ pass_name }}.h",
+    ],
+    deps = [
+        "@heir//include/Transforms/{{ pass_name }}:pass_inc_gen",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
