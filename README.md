@@ -11,6 +11,26 @@ compilers. Read the docs at [the HEIR website](https://heir.dev).
 
 For more information on MLIR, see the [MLIR homepage](https://mlir.llvm.org/).
 
+## Contributing
+
+There are many ways to contribute to HEIR:
+
+-   Come to our [twice-monthly meetings](https://heir.dev/community/) to discuss
+    active work on HEIR and future project directions.
+-   Work on an issue marked
+    ["good first issue"](https://github.com/google/heir/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+    or browse issues [labeled by topic](https://github.com/google/heir/labels).
+-   Tell us about what you'd like to use HEIR for in an
+    [offline discussion thread](https://github.com/google/heir/discussions).
+-   Help us understand new FHE research: either
+    -   Read a paper tagged under
+        [research synthesis](https://github.com/google/heir/labels/research%20synthesis)
+        and summarize the novel techniques that could be ported to HEIR.
+    -   File new issues under
+        [research synthesis](https://github.com/google/heir/labels/research%20synthesis)
+        to alert us of papers that should be investigated and incorporated into
+        HEIR.
+
 ## Support disclaimer
 
 This is not an officially supported Google product.
