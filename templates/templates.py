@@ -37,6 +37,18 @@ def copy_all(filepath_mapping):
 
 
 class CLI:
+  """A helper CLI for generating boilerplate MLIR code in HEIR.
+
+  Available subcommands:
+
+    new_conversion_pass: Create a conversion pass from one dialect to another.
+    new_dialect_transform: Create a pass for a dialect-specific transform.
+    new_transform: Create a pass for a non-dialect-specific transform.
+
+  To see the help for a subcommand, run
+
+    python templates/templates.py <subcommand> --help
+  """
 
   def __init__(self):
     git_root = pathlib.Path(__file__).parent.parent
