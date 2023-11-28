@@ -16,10 +16,11 @@ There are several ways to contribute to HEIR, including:
 
 ## Ways to contribute
 
-We welcome pull requests. Please take a look at issues marked with
-[good first issue](https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-or
-[contributions welcome](https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22).
+We welcome pull requests, and have tagged issues for newcomers:
+
+- [Good first issue](https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- [Contributions welcome](https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22)
+- [Research synthesis](https://github.com/google/heir/labels/research%20synthesis): determine what parts of recent FHE research papers can or should be ported to HEIR.
 
 For new proposals, please open a GitHub
 [issue](https://github.com/google/heir/issues) or start a
