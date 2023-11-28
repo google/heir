@@ -18,20 +18,18 @@ class BGV_Type<string name, string typeMnemonic>
 }
 
 def Ciphertext : BGV_Type<"Ciphertext", "ciphertext"> {
-  let summary = "A type for BGV Ciphertext";
+  let summary = "a BGV ciphertext";
 
   let description = [{
-    A type for BGV Ciphertexts.
-
     This type tracks the BGV ciphertext parameters, including the ciphertext
     dimension (number of polynomials) and the set of rings that were used for
     the particular BGV scheme instance. The default dimension is 2, representing
-    a ciphertext that is canonically encrypted against the key basis `(1, s)`.
+    a ciphertext that is canonically encrypted against the key basis $(1, s)$.
 
     The type also includes a ring parameter specification.
 
     For example, `bgv.ciphertext<rings=#rings, dim=3>` is a ciphertext with 3
-    polynomials (c_0, c_1, c_2).
+    polynomials $(c_0, c_1, c_2)$.
 
     The optional attribute `level` specifies the "current ring".
   }];
