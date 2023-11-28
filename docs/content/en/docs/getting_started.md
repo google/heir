@@ -64,3 +64,45 @@ To run them manually, run
 ```bash
 pre-commit run --all-files
 ```
+
+## Creating a New Pass
+
+The `templates` folder contains Python scripts to create boilerplate for new conversion or (dialect-specific) transform passes.
+
+### Conversion Pass
+
+To create a new conversion pass, run a command similar to the following:
+
+```
+python templates/templates.py new_conversion_pass \
+--source_dialect_name=CGGI \
+--source_dialect_namespace=cggi \
+--source_dialect_mnemonic=cggi \
+--target_dialect_name=TfheRust \
+--target_dialect_namespace=tfhe_rust \
+--target_dialect_mnemonic=tfhe_rust
+```
+
+In order to build the resulting code, you must fix the labeled `FIXME`s in the type converter and the op conversion patterns.
+
+### Transform Passes
+
+To create a transform or rewrite pass that operates on a dialect, run a command similar to the following:
+
+```
+python templates/templates.py new_dialect_transform \
+--pass_name=ForgetSecrets \
+--pass_flag=forget-secrets \
+--dialect_name=Secret \
+--dialect_namespace=secret \
+--force=false
+```
+
+If the transform does not operate from and to a specific dialect, use
+
+```
+python templates/templates.py new_transform \
+--pass_name=ForgetSecrets \
+--pass_flag=forget-secrets \
+--force=false
+```
