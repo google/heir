@@ -16,8 +16,8 @@ def NoisePropagationInterface : OpInterface<"NoisePropagationInterface"> {
 
   let methods = [
     InterfaceMethod<[{
-      Infer the noise distribution of the result of this op given the distributions
-      of its inputs.
+      Infers the noise distribution of the result of this op given the
+      distributions of its inputs.
 
       All noise distributions are assumed to be Gaussian centered at zero, and
       so the inputs and results are represented by their variances.
@@ -41,7 +41,7 @@ def NoisePropagationInterface : OpInterface<"NoisePropagationInterface"> {
       its inputs. This is suitable for ops like bootstrap and initial
       encryption.
     }],
-    "bool", "hasDeterministicResultNoise", (ins)
+    "bool", "hasArgumentIndependentResultNoise", (ins)
   >];
 }
 
