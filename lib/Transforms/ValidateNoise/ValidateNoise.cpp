@@ -2,6 +2,7 @@
 
 #include "include/Analysis/NoisePropagation/NoisePropagationAnalysis.h"
 #include "include/Analysis/NoisePropagation/Variance.h"
+#include "include/Interfaces/NoiseInterfaces.h"
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/IntegerRangeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -34,11 +35,36 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto result = module->walk([&](Operation *op) {
       const VarianceLattice *opRange =
           solver.lookupState<VarianceLattice>(op->getResult(0));
-      // FIXME: should be OK for some places to now know the noise.
+      // It's OK for some places to not know the noise, so long as the only
+      // user of that value is a bootstrap-like op.
       if (!opRange || !opRange->getValue().isKnown()) {
-        op->emitOpError() << "Found op without a known noise variance; did the "
-                             "analysis fail?";
-        return WalkResult::interrupt();
+        // One might expect a check for hasSingleUse, but there could
+        // potentially be multiple downstream users, each applying a different
+        // kind of programmable bootstrap to compute different functions, so we
+        // loop over all users.
+        for (auto result : op->getResults()) {
+          for (auto *user : result.getUsers()) {
+            auto noisePropagationOp = dyn_cast<NoisePropagationInterface>(user);
+            // If the cast fails, then we can still proceed. The user could be
+            // control flow like a func.call or a loop. In such cases, the
+            // dataflow solver should propagate the value through the control
+            // flow already, so we don't need to check it. It could also be a
+            // decryption op, which doesn't implement the interface but is
+            // valid.
+            if (noisePropagationOp &&
+                !noisePropagationOp.hasArgumentIndependentResultNoise()) {
+              op->emitOpError()
+                  << "Found op unknown noise variance, and it has a user with "
+                     "non-constant noise propagation. This can happen when an "
+                     "SSA value is part of control flow, such as a loop or an "
+                     "entrypoint to a function with multiple callers. In such "
+                     "cases, an extra bootstrap is required to ensure the "
+                     "value does not exceed its noise bound, or the control "
+                     "flow must be removed.";
+              return WalkResult::interrupt();
+            }
+          }
+        }
       }
 
       int64_t var = opRange->getValue().getValue();

@@ -37,19 +37,24 @@ void NoisePropagationAnalysis::visitOperation(
     Variance oldRange = lattice->getValue();
     ChangeResult changed = lattice->join(Variance{variance});
 
-    // If the result is yielded, then the best we can do is check to see
-    // if the op producing this value has deterministic noise. If so,
-    // we can propagate that noise. Otherwise, we must assume the worst
-    // case scenario of unknown noise.
+    // If the result is yielded, then the best we can do is check to see if the
+    // op producing this value has argument-independent noise. If so, we can
+    // propagate that noise. Otherwise, we must assume the worst case scenario
+    // of unknown noise.
     bool isYieldedResult = llvm::any_of(value.getUsers(), [](Operation *op) {
       return op->hasTrait<OpTrait::IsTerminator>();
     });
-    // FIXME: incorporate deterministic noise check
+    // The check !(lattice->getValue() == oldRange) would fail if the noise
+    // depends on its arguments, but we add the extra check for
+    // hasArgumentIndependentResultNoise to make it easier for humans to
+    // determine where in the codebase one should look for stuff related to
+    // this method.
     if (isYieldedResult && oldRange.isKnown() &&
-        !(lattice->getValue() == oldRange)) {
+        !(lattice->getValue() == oldRange) &&
+        !noisePropagationOp.hasArgumentIndependentResultNoise()) {
       LLVM_DEBUG(
           llvm::dbgs()
-          << "Non-deterministic noise-propagating op passed to a region "
+          << "Non-constant noise-propagating op passed to a region "
              "terminator. Assuming loop result and marking noise unknown\n");
       changed |= lattice->join(Variance(std::nullopt));
     }
