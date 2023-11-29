@@ -1,7 +1,7 @@
 #include "include/Transforms/ValidateNoise/ValidateNoise.h"
 
-#include "lib/Analysis/NoisePropagation/NoisePropagationAnalysis.h"
-#include "lib/Analysis/NoisePropagation/Variance.h"
+#include "include/Analysis/NoisePropagation/NoisePropagationAnalysis.h"
+#include "include/Analysis/NoisePropagation/Variance.h"
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/IntegerRangeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -19,7 +19,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   using ValidateNoiseBase::ValidateNoiseBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
+    auto *module = getOperation();
 
     DataFlowSolver solver;
     // FIXME: do I still need DeadCodeAnalysis?

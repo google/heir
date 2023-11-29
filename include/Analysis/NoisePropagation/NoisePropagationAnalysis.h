@@ -33,15 +33,6 @@ class NoisePropagationAnalysis
 
   void visitOperation(Operation *op, ArrayRef<const VarianceLattice *> operands,
                       ArrayRef<VarianceLattice *> results) override;
-
-  /// Visit block arguments or operation results of an operation with region
-  /// control-flow for which values are not defined by region control-flow. This
-  /// function calls `InferIntRangeInterface` to provide values for block
-  /// arguments.
-  void visitNonControlFlowArguments(Operation *op,
-                                    const RegionSuccessor &successor,
-                                    ArrayRef<VarianceLattice *> argLattices,
-                                    unsigned firstIndex) override;
 };
 
 }  // namespace heir
