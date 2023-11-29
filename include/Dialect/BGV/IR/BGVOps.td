@@ -82,6 +82,8 @@ def BGV_Rotate : BGV_Op<"rotate", [SameOperandsAndResultRings]> {
   let results = (outs
     Ciphertext:$output
   );
+
+  let hasVerifier = 1;
 }
 
 def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {
