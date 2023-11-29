@@ -2,6 +2,7 @@
 
 #include "include/Analysis/NoisePropagation/NoisePropagationAnalysis.h"
 #include "include/Analysis/NoisePropagation/Variance.h"
+#include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Interfaces/NoiseInterfaces.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project// from @llvm-project
@@ -17,6 +18,16 @@ namespace heir {
 
 #define GEN_PASS_DEF_VALIDATENOISE
 #include "include/Transforms/ValidateNoise/ValidateNoise.h.inc"
+
+// TODO(https://github.com/google/heir/issues/297): fix likely
+// mistakes in the maximum formula
+int64_t maxLweNoise(lwe::LWECiphertextType type) {
+  auto encoding = type.getEncoding().cast<lwe::BitFieldEncodingAttr>();
+  // The cleartext start is the lowest bit of the plaintext space that contains
+  // the message. One less is the highest bit that contains noise.
+  int64_t max = 1 << (encoding.getCleartextStart() - 1);
+  return max;
+}
 
 struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   using ValidateNoiseBase::ValidateNoiseBase;
@@ -70,14 +81,12 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
                 user->emitOpError()
                     << "uses SSA value with unknown noise variance, but the op "
                        "has non-constant noise propagation. This can happen "
-                       "when "
-                       "an SSA value is part of control flow, such as a loop "
-                       "or "
-                       "an entrypoint to a function with multiple callers. In "
-                       "such cases, an extra bootstrap is required to ensure "
-                       "the "
-                       "value does not exceed its noise bound, or the control "
-                       "flow must be removed. SSA value was: \n\n"
+                       "when an SSA value is part of control flow, such as a "
+                       "loop or an entrypoint to a function with multiple "
+                       "callers. In such cases, an extra bootstrap is required "
+                       "to ensure the value does not exceed its noise bound, "
+                       "or the control flow must be removed. SSA value was: "
+                       "\n\n"
                     << result << "\n\n";
                 return WalkResult::interrupt();
               }
@@ -88,7 +97,8 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
         }
 
         int64_t var = opRange->getValue().getValue();
-        int64_t maxNoise = 0;  // FIXME: infer from the parameters?
+        int64_t maxNoise =
+            maxLweNoise(result.getType().cast<lwe::LWECiphertextType>());
         if (var > maxNoise) {
           op->emitOpError() << "Found op after which the noise exceeds the "
                                "allowable maximum of "

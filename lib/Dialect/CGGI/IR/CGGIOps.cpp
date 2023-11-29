@@ -7,6 +7,9 @@
 #include "include/Dialect/CGGI/IR/CGGIAttributes.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
 #include "include/Interfaces/NoiseInterfaces.h"
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
+
+#define DEBUG_TYPE "CGGIOps"
 
 namespace mlir {
 namespace heir {
@@ -14,12 +17,13 @@ namespace cggi {
 
 unsigned maxPerDigitDecompositionError(unsigned baseLog, unsigned numLevels,
                                        unsigned ctBitWidth) {
-  // FIXME: this needs verification; I struggled to parse what was said in the
-  // CGGI paper, as well as the original DM paper, so I relied on my own
-  // analysis in https://jeremykun.com/2022/08/29/key-switching-in-lwe/
-  // It aligns roughly with the error analysis in Theorem 4.1 of
-  // https://eprint.iacr.org/2018/421, but using a different perspective
-  // on the "precision" parameter t in that paper.
+  // TODO(https://github.com/google/heir/issues/297): This needs verification;
+  // I struggled to parse what was said in the CGGI paper, as well as the
+  // original DM paper, so I relied on my own analysis in
+  // https://jeremykun.com/2022/08/29/key-switching-in-lwe/ It aligns roughly
+  // with the error analysis in Theorem 4.1 of
+  // https://eprint.iacr.org/2018/421, but using a different perspective on the
+  // "precision" parameter t in that paper.
 
   // maxLevels is the number L such that B^L = lwe_cmod
   // a.k.a., L * log2(B) = cmod_bitwidth
@@ -53,32 +57,39 @@ int64_t bootstrapOutputNoise(CGGIParamsAttr attr,
   unsigned kskNoiseVariance = attr.getKskNoiseVariance();
 
   // Mirroring the notation in https://eprint.iacr.org/2018/421, Theorem 6.3.
-  unsigned logq = lweParams.getCmod().getValue().getBitWidth();
-  unsigned n = lweParams.getDimension();
-  unsigned k = rlweParams.getDimension();
-  unsigned N = rlweParams.getPolyDegree();
-  unsigned l = attr.getBskGadgetNumLevels();
+  int64_t logq = lweParams.getCmod().getValue().logBase2();
+  int64_t n = lweParams.getDimension();
+  int64_t k = rlweParams.getDimension();
+  int64_t N = rlweParams.getPolyDegree();
+  int64_t l = attr.getBskGadgetNumLevels();
   // Beta is the max absolute value of a digit of the signed decomposition
-  unsigned beta = (1 << attr.getBskGadgetBaseLog()) / 2;
+  int64_t beta = (1 << attr.getBskGadgetBaseLog()) / 2;
 
   // Epsilon is the max per-digit error of the approximation introduced by
   // having fewer levels in the gadget key.
-  // FIXME: this needs verification. I think it's the same sort of error as the
-  // key switching key sampleApproxError below.
-  unsigned epsilon = maxPerDigitDecompositionError(
+  // TODO(https://github.com/google/heir/issues/297): This needs verification.
+  // I think it's the same sort of error as the key switching key
+  // sampleApproxError.
+  int64_t epsilon = maxPerDigitDecompositionError(
       attr.getBskGadgetBaseLog(), attr.getBskGadgetNumLevels(), logq);
-  unsigned externalProductTerm =
-      (n * (k + 1) * l * N * beta * beta * bskNoiseVariance +
-       n * (1 + k * N) * epsilon * epsilon);
+
+  int64_t blindRotateTerm1 =
+      n * (k + 1) * l * N * beta * beta * bskNoiseVariance;
+  int64_t blindRotateTerm2 = n * (1 + k * N) * epsilon * epsilon;
+  int64_t blindRotateTerm = blindRotateTerm1 + blindRotateTerm2;
 
   // largestDigit depends on a signed decomposition.
-  unsigned largestDigit = (1 << attr.getKskGadgetBaseLog()) / 2;
-  unsigned kskSampleApproxError = maxPerDigitDecompositionError(
+  int64_t largestDigit = (1 << attr.getKskGadgetBaseLog()) / 2;
+  int64_t kskSampleApproxError = maxPerDigitDecompositionError(
       attr.getKskGadgetBaseLog(), attr.getKskGadgetNumLevels(), logq);
-  unsigned keySwitchingTerm =
+  int64_t keySwitchingTerm =
       (attr.getKskGadgetNumLevels() * largestDigit * kskNoiseVariance +
        n * kskSampleApproxError);
-  return externalProductTerm + keySwitchingTerm;
+
+  LLVM_DEBUG(llvm::dbgs() << "blindRotateTerm1: " << blindRotateTerm1 << "\n");
+  LLVM_DEBUG(llvm::dbgs() << "blindRotateTerm2: " << blindRotateTerm2 << "\n");
+  LLVM_DEBUG(llvm::dbgs() << "keySwitchingTerm: " << keySwitchingTerm << "\n");
+  return blindRotateTerm + keySwitchingTerm;
 }
 
 void handleSingleResultOp(Operation *op, Value ctValue,

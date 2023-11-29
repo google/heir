@@ -19,3 +19,16 @@ func.func @test_defaults_are_valid_for_single_add() -> !ciphertext {
   %6 = lwe.add %4, %5 : !ciphertext
   return %6 : !ciphertext
 }
+
+// CHECK-LABEL: @test_boostrap_unknown_noise_input
+func.func @test_boostrap_unknown_noise_input(%0 : !ciphertext) -> !ciphertext {
+  %1 = cggi.lut2(%0, %0) {lookup_table = 1 : ui4} : !ciphertext
+  return %1 : !ciphertext
+}
+
+// CHECK-LABEL: @test_add_post_bootstrap
+func.func @test_add_post_bootstrap(%0 : !ciphertext) -> !ciphertext {
+  %1 = cggi.lut2(%0, %0) {lookup_table = 1 : ui4} : !ciphertext
+  %2 = lwe.add %1, %1 : !ciphertext
+  return %2 : !ciphertext
+}

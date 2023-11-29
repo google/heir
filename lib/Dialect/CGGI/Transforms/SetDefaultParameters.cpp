@@ -27,13 +27,26 @@ struct SetDefaultParameters
     IntegerAttr defaultCmodAttr =
         IntegerAttr::get(IntegerType::get(&context, 64), defaultCmod);
 
-    // https://github.com/google/jaxite/blob/main/jaxite/jaxite_bool/bool_params.py
-    unsigned defaultBskNoiseVariance = 65536;  // stdev = 2**8, var = 2**16
-    unsigned defaultBskGadgetBaseLog = 4;
-    unsigned defaultBskGadgetNumLevels = 6;
-    unsigned defaultKskNoiseVariance = 268435456;  // stdev = 2**14, var = 2**28
-    unsigned defaultKskGadgetBaseLog = 4;
-    unsigned defaultKskGadgetNumLevels = 5;
+    // TODO(https://github.com/google/heir/issues/297): This needs fixing. I
+    // tried setting these parameters to the same values from
+    // https://github.com/google/jaxite/blob/main/jaxite/jaxite_bool/bool_params.py,
+    // but the formula for the bootstrap and key switch noises in CGGIOps.cpp
+    // both exceeds 30 bits so the verification fails trivially. I wonder if
+    // that bound is tighter in some follow-up papers?
+    //
+    // For now, setting to much smaller values so that we can get the noise
+    // propagation infrastructure checked in, and leaving the noise model fix
+    // to the linked issue.
+    //
+    // int64_t defaultBskNoiseVariance = 65536;  // stdev = 2**8, var = 2**16
+    // int64_t defaultKskNoiseVariance = 268435456;  // stdev = 2**14, var =
+    // 2**28
+    int64_t defaultBskNoiseVariance = 2;
+    int64_t defaultBskGadgetBaseLog = 2;
+    int64_t defaultBskGadgetNumLevels = 16;
+    int64_t defaultKskNoiseVariance = 1048576;  // stdev = 2**10, var = 2**20
+    int64_t defaultKskGadgetBaseLog = 4;
+    int64_t defaultKskGadgetNumLevels = 5;
 
     lwe::RLWEParamsAttr defaultRlweParams = lwe::RLWEParamsAttr::get(
         &context, defaultCmodAttr, defaultRlweDimension, defaultPolyDegree);
