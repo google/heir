@@ -44,7 +44,7 @@ void NoisePropagationAnalysis::visitOperation(
     bool isYieldedResult = llvm::any_of(value.getUsers(), [](Operation *op) {
       return op->hasTrait<OpTrait::IsTerminator>();
     });
-    // FIXME: add DeterministicNoise trait
+    // FIXME: incorporate deterministic noise check
     if (isYieldedResult && oldRange.isKnown() &&
         !(lattice->getValue() == oldRange)) {
       LLVM_DEBUG(

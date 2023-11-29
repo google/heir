@@ -41,7 +41,10 @@ def LWE_EncodeOp : LWE_Op<"encode", [Pure]> {
   let hasVerifier = 1;
 }
 
-def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [Pure]> {
+def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
+  Pure,
+  DeclareOpInterfaceMethods<NoisePropagationInterface>
+]> {
   let summary = "Create a trivial encryption of a plaintext.";
 
   let arguments = (ins

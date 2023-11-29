@@ -193,6 +193,14 @@ void AddOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
   return setValueNoise(getResult(), result);
 }
 
+void TrivialEncryptOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
+                                        SetNoiseFn setValueNoise) {
+  return setValueNoise(getResult(), Variance(0));
+}
+
+bool AddOp::hasDeterministicResultNoise() { return false; }
+bool TrivialEncryptOp::hasDeterministicResultNoise() { return true; }
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

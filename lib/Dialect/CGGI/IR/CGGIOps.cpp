@@ -132,6 +132,13 @@ void NotOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
   setValueNoise(getInput(), argNoises[0]);
 }
 
+bool AndOp::hasDeterministicResultNoise() { return true; }
+bool OrOp::hasDeterministicResultNoise() { return true; }
+bool XorOp::hasDeterministicResultNoise() { return true; }
+bool Lut3Op::hasDeterministicResultNoise() { return true; }
+bool Lut2Op::hasDeterministicResultNoise() { return true; }
+bool NotOp::hasDeterministicResultNoise() { return false; }
+
 }  // namespace cggi
 }  // namespace heir
 }  // namespace mlir

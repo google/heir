@@ -34,6 +34,14 @@ def NoisePropagationInterface : OpInterface<"NoisePropagationInterface"> {
     "void", "inferResultNoise", (ins
       "::llvm::ArrayRef<Variance>":$argNoises,
       "::mlir::heir::SetNoiseFn":$setValueNoise)
+
+  >,
+  InterfaceMethod<[{
+      Returns true if the noise in the result op is independent of the noise in
+      its inputs. This is suitable for ops like bootstrap and initial
+      encryption.
+    }],
+    "bool", "hasDeterministicResultNoise", (ins)
   >];
 }
 
