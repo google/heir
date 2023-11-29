@@ -23,5 +23,6 @@ cc_library(
     hdrs = ["@heir//include/Analysis/NoisePropagation:Variance.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
     ],
 )

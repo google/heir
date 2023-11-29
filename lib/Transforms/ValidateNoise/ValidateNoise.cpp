@@ -25,7 +25,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto *module = getOperation();
 
     DataFlowSolver solver;
-    // FIXME: do I still need DeadCodeAnalysis?
+    // The dataflow solver needs DeadCodeAnalysis to run the other analyses
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<NoisePropagationAnalysis>();
     if (failed(solver.initializeAndRun(module))) {
@@ -35,16 +35,19 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     }
 
     auto result = module->walk([&](Operation *op) {
-      for (Value result : op->getResults()) {
+      for (OpResult result : op->getResults()) {
         const VarianceLattice *opRange =
             solver.lookupState<VarianceLattice>(result);
         if (!opRange) {
-          LLVM_DEBUG(llvm::dbgs()
-                     << "Solver did not assign noise to op " << *op << "\n");
-          return WalkResult::advance();
+          LLVM_DEBUG(op->emitOpError()
+                     << "Solver did not assign noise to op, suggesting the "
+                        "noise propagation analysis did not run properly or at "
+                        "all.");
+          return WalkResult::interrupt();
         }
-        LLVM_DEBUG(llvm::dbgs() << "Found noise " << opRange->getValue()
-                                << " at op " << *op << "\n");
+        LLVM_DEBUG(op->emitRemark()
+                   << "Found noise " << (opRange->getValue())
+                   << " for op result " << result.getResultNumber());
         // It's OK for some places to not know the noise, so long as the only
         // user of that value is a bootstrap-like op.
         if (!opRange->getValue().isKnown()) {

@@ -10,5 +10,10 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Variance &variance) {
   return os << variance.getValue();
 }
 
+Diagnostic &operator<<(Diagnostic &diagnostic, const Variance &variance) {
+  if (!variance.isKnown()) return diagnostic << "unknown";
+  return diagnostic << variance.getValue();
+}
+
 }  // namespace heir
 }  // namespace mlir

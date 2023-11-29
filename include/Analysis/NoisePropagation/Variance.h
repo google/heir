@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"       // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -41,6 +42,9 @@ class Variance {
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const Variance &variance);
+
+  friend Diagnostic &operator<<(Diagnostic &diagnostic,
+                                const Variance &variance);
 
  private:
   std::optional<int64_t> value;
