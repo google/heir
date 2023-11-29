@@ -15,6 +15,13 @@ def Secret_Dialect : Dialect {
     custom types for arithmetic on secret integers of various bit widths.
   }];
 
+  let extraClassDeclaration = [{
+    /// Name of the attribute indicate whether an argument of a function is a
+    //secret.
+    constexpr const static ::llvm::StringLiteral
+        kArgSecretAttrName = "secret.secret";
+  }];
+
   let cppNamespace = "::mlir::heir::secret";
   let useDefaultTypePrinterParser = 1;
 }
