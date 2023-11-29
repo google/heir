@@ -13,17 +13,25 @@ namespace heir {
 void NoisePropagationAnalysis::visitOperation(
     Operation *op, ArrayRef<const VarianceLattice *> operands,
     ArrayRef<VarianceLattice *> results) {
-  // If the lattice on any operand is unknown, bail out.
-  if (llvm::any_of(operands, [](const VarianceLattice *lattice) {
-        return !lattice->getValue().isKnown();
-      })) {
-    return;
-  }
-
   auto noisePropagationOp = dyn_cast<NoisePropagationInterface>(op);
   if (!noisePropagationOp) return setAllToEntryStates(results);
 
-  LLVM_DEBUG(llvm::dbgs() << "Propagating noise for " << *op << "\n");
+  LLVM_DEBUG(llvm::dbgs() << "Propagating noise for " << noisePropagationOp
+                          << "\n");
+
+  // Ops with argument-independent noise propagation can work with unknown noise
+  // arguments, but others cannot.
+  if (!noisePropagationOp.hasArgumentIndependentResultNoise() &&
+      llvm::any_of(operands, [](const VarianceLattice *lattice) {
+        return !lattice->getValue().isKnown();
+      })) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Op " << noisePropagationOp->getName()
+               << "with argument-dependent noise propagation encountered input "
+                  "with unknown noise. Marking result noise as unknown.\n");
+    return setAllToEntryStates(results);
+  }
+
   SmallVector<Variance> argRanges(llvm::map_range(
       operands, [](const VarianceLattice *val) { return val->getValue(); }));
 
