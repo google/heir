@@ -53,6 +53,17 @@ LogicalResult MulOp::verify() {
   }
   return success();
 }
+LogicalResult Rotate::verify() {
+  auto x = this->getX().getType();
+  if (x.getDim() != 2) {
+    return this->emitOpError() << "x.dim == 2 does not hold";
+  }
+  auto out = this->getOutput().getType();
+  if (out.getDim() != 2) {
+    return this->emitOpError() << "output.dim == 2 does not hold";
+  }
+  return success();
+}
 
 LogicalResult Relinearize::verify() {
   auto x = this->getX().getType();
