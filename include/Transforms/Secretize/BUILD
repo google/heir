@@ -8,7 +8,7 @@ package(
 )
 
 exports_files([
-    "Secretize.h",
+    "Passes.h",
 ])
 
 gentbl_cc_library(
@@ -19,15 +19,15 @@ gentbl_cc_library(
                 "-gen-pass-decls",
                 "-name=Secretize",
             ],
-            "Secretize.h.inc",
+            "Passes.h.inc",
         ),
         (
             ["-gen-pass-doc"],
-            "Secretize.md",
+            "Passes.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "Secretize.td",
+    td_file = "Passes.td",
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",
