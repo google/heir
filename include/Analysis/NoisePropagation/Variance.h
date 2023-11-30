@@ -12,6 +12,15 @@
 namespace mlir {
 namespace heir {
 
+enum VarianceType {
+  UNSET,  // A min value for the lattice, i.e., discarable when joined with
+          // anything else.
+  KNOWN,  // A known value for the lattice, i.e., when noise can be inferred.
+  INDEPENDENT,  // A known value for the lattice, independent of
+  MAX  // A max value for the lattice, i.e., when noise cannot be inferred and a
+       // bootstrap must be forced.
+};
+
 /// A class representing an optional variance of a noise distribution.
 class Variance {
  public:
@@ -31,10 +40,10 @@ class Variance {
 
   /// This method represents how to choose a noise from one of two possible
   /// branches, when either could be possible. In the case of FHE, we must
-  /// assume the worse case, so take the max.
+  /// assume the worst case. If either is unknown, assume unknown, otherwise
+  /// take the max.
   static Variance join(const Variance &lhs, const Variance &rhs) {
-    if (!lhs.isKnown()) return rhs;
-    if (!rhs.isKnown()) return lhs;
+    if (!lhs.isKnown() || !rhs.isKnown()) return Variance::unknown();
     return Variance{std::max(lhs.getValue(), rhs.getValue())};
   }
 

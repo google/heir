@@ -5,7 +5,8 @@
 #include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Interfaces/NoiseInterfaces.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project// from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/IntegerRangeAnalysis.h"  // from @llvm-projectject
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
@@ -36,8 +37,11 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto *module = getOperation();
 
     DataFlowSolver solver;
-    // The dataflow solver needs DeadCodeAnalysis to run the other analyses
+    // The dataflow solver needs DeadCodeAnalysis and SparseConstantPropagation
+    // to run pretty much any data flow analysis, see
+    // https://discourse.llvm.org/t/mlir-dead-code-analysis/67568/8
     solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
     solver.load<NoisePropagationAnalysis>();
     if (failed(solver.initializeAndRun(module))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";

@@ -4,7 +4,6 @@
 #include "include/Dialect/CGGI/IR/CGGIOps.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"     // from @llvm-project
 
 namespace mlir {

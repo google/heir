@@ -27,8 +27,8 @@ void NoisePropagationAnalysis::visitOperation(
       })) {
     LLVM_DEBUG(llvm::dbgs()
                << "Op " << noisePropagationOp->getName()
-               << "with argument-dependent noise propagation encountered input "
-                  "with unknown noise. Marking result noise as unknown.\n");
+               << " with argument-dependent noise propagation encountered input"
+                  " with unknown noise. Marking result noise as unknown.\n");
     return setAllToEntryStates(results);
   }
 
@@ -45,6 +45,8 @@ void NoisePropagationAnalysis::visitOperation(
     Variance oldRange = lattice->getValue();
     ChangeResult changed = lattice->join(Variance{variance});
 
+    // FIXME: does this even make sense as a lattice??
+    //
     // If the result is yielded, then the best we can do is check to see if the
     // op producing this value has argument-independent noise. If so, we can
     // propagate that noise. Otherwise, we must assume the worst case scenario
@@ -58,15 +60,15 @@ void NoisePropagationAnalysis::visitOperation(
     // determine where in the codebase one should look for stuff related to
     // this method.
     if (isYieldedResult && oldRange.isKnown() &&
-        !(lattice->getValue() == oldRange) &&
+        !(lattice.getValue() == oldRange) &&
         !noisePropagationOp.hasArgumentIndependentResultNoise()) {
       LLVM_DEBUG(
           llvm::dbgs()
           << "Non-constant noise-propagating op passed to a region "
              "terminator. Assuming loop result and marking noise unknown\n");
-      changed |= lattice->join(Variance(std::nullopt));
+      changed |= lattice.join(Variance::unknown());
     }
-    propagateIfChanged(lattice, changed);
+    propagateIfChanged(&lattice, changed);
   };
 
   noisePropagationOp.inferResultNoise(argRanges, joinCallback);
