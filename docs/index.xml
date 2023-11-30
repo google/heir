@@ -382,7 +382,79 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
+from the HEIR meeting on 2023-11-28.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1nOlAhul4DwZU8UQPpTF1i3OldSY9EmwaWG3EPSZIhHs/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1I7aIipm54CCcDcLyRYXI_gARfT1z93cN/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-11-07.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-10-24</title><link>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</link><pubDate>Wed, 25 Oct 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1MYjjkytck0fxySbrh49hxBJgNM78NXSD0ZwzAgEPOUw/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1zrSCQJXta40KbBiCjcIWOP3gd1tuc3MU/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-10-24.&lt;/p>
+&lt;p>Also of note: our talk at FHE.org was last Thursday
+(&lt;a href="https://www.youtube.com/watch?v=kqDFdKUTNA4">recording&lt;/a>), and the similar
+talk at the LLVM developers meeting talk was the previous Wednesday, though the
+video has not yet been posted for that.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-26</title><link>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</link><pubDate>Wed, 27 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1pkG8eaSUddAySJWjQHIFqe0hyYkO0wH9X0JtnR6wlWo/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1xaH-G3SZPVv_gEpUkfhFuvUTUwU2ZKLY/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-09-26.&lt;/p>
+&lt;p>Next meeting (Oct 10) is canceled for the MLIR workshop, and I&amp;rsquo;ll post an update
+from that workshop on this blog, hopefully also with a video of the talk that
+Alex Viand and I will be giving at the LLVM developers meeting.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video
+recording&lt;/a>
+from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
+from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
+there is no video recording this week.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
+&lt;p>The fourth HEIR meeting was 2023-08-01
+(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
+&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
+&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
+fun!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
+&lt;p>The third HEIR meeting was 2023-07-18
+(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
+&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
+on MLIR and Hardware. See the
+&lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to join.
+(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
+&lt;p>The second HEIR meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
+and
+&lt;a href="https://drive.google.com/file/d/1S893iJdeL08BAonLenmkUGNC34PX1qpg/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>There are some initial design discussion threads started on
+&lt;a href="https://github.com/google/heir/discussions">GitHub Discussions&lt;/a> to get the
+design rolling.&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
+&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
+IRs.&lt;/p>
+&lt;p>Our initial meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
+Stay tuned for future updates while we work out a meeting schedule.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
 &lt;h2 id="bgv-attributes">BGV attributes&lt;/h2>
@@ -745,6 +817,66 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>This pass lowers the &lt;code>bgv&lt;/code> dialect to &lt;code>polynomial&lt;/code> dialect.&lt;/p></description></item><item><title>Docs: CGGI</title><link>https://heir.dev/docs/dialects/cggi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/cggi/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>A dialect for types and operations in the CGGI cryptosystem&lt;/p>
+&lt;h2 id="cggi-attributes">CGGI attributes&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="cggiparamsattr">CGGIParamsAttr&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#cggi.cggi_params&amp;lt;
+::mlir::heir::lwe::RLWEParamsAttr, # rlweParams
+unsigned, # bsk_noise_variance
+unsigned, # bsk_gadget_base_log
+unsigned, # bsk_gadget_num_levels
+unsigned, # ksk_noise_variance
+unsigned, # ksk_gadget_base_log
+unsigned # ksk_gadget_num_levels
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">rlweParams&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::heir::lwe::RLWEParamsAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">bsk_noise_variance&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">bsk_gadget_base_log&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">bsk_gadget_num_levels&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ksk_noise_variance&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ksk_gadget_base_log&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">ksk_gadget_num_levels&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h2 id="cggi-ops">CGGI ops&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="cggiand-heircggiandop">&lt;code>cggi.and&lt;/code> (heir::cggi::AndOp)&lt;/h3>
@@ -2155,6 +2287,48 @@ unsigned # dimension
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="rlweparamsattr">RLWEParamsAttr&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#lwe.rlwe_params&amp;lt;
+IntegerAttr, # cmod
+unsigned, # dimension
+unsigned # polyDegree
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>An attribute describing classical RLWE parameters:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>cmod&lt;/code>: the coefficient modulus for the polynomials.&lt;/li>
+&lt;li>&lt;code>dimension&lt;/code>: the number of polynomials used in an RLWE sample, analogous
+to LWEParams.dimension.&lt;/li>
+&lt;li>&lt;code>polyDegree&lt;/code>: the degree $N$ of the negacyclic polynomial modulus
+$x^N + 1$.&lt;/li>
+&lt;/ul>
+&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">cmod&lt;/td>
+&lt;td style="text-align:center">&lt;code>IntegerAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">dimension&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">polyDegree&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="unspecifiedbitfieldencodingattr">UnspecifiedBitFieldEncodingAttr&lt;/h3>
 &lt;p>An attribute describing unspecified bit field encodings.&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -2170,7 +2344,7 @@ encodings starting bit position.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.unspecified_bit_field_encoding&amp;lt;cleartext_bitwidth=3&amp;gt;
 %lwe_ciphertext = arith.constant &amp;lt;[1,2,3,4]&amp;gt; : tensor&amp;lt;4xi32, #lwe_encoding&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2259,7 +2433,7 @@ coefficients.&lt;/p>
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2301,7 +2475,7 @@ scheme that supports the coefficient encoding.&lt;/p>
 %poly1 = poly.from_tensor %coeffs1 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %poly2 = poly.from_tensor %coeffs2 : tensor&amp;lt;10xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring&amp;gt;, #coeff_encoding&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2362,7 +2536,7 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-6">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2398,7 +2572,7 @@ LWEParamsAttr # lwe_params
 Ciphertext to ensure proper decoding after decryption. It also keeps track
 of the ring where the LWE ciphertext is defined, which provides information
 on the ciphertext shape and the ring operations used in LWE operations.&lt;/p>
-&lt;h4 id="parameters-6">Parameters:&lt;/h4>
+&lt;h4 id="parameters-7">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2429,7 +2603,7 @@ on the ciphertext shape and the ring operations used in LWE operations.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>A type for LWE plaintexts.&lt;/p>
 &lt;p>This type keeps track of the plaintext integer encoding for the LWE
 plaintext before it is encrypted.&lt;/p>
-&lt;h4 id="parameters-7">Parameters:&lt;/h4>
+&lt;h4 id="parameters-8">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2451,7 +2625,7 @@ plaintext before it is encrypted.&lt;/p>
 &lt;h3 id="lweencode-heirlweencodeop">&lt;code>lwe.encode&lt;/code> (heir::lwe::EncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encode an integer to yield an LWE plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.encode` $plaintext attr-dict `:` type($plaintext) `to` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.encode` $plaintext attr-dict `:` qualified(type($plaintext)) `to` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an LWE plaintext.&lt;/p>
 &lt;p>This op uses a an encoding attribute to encode the bits of the integer into
 an LWE plaintext value that can then be encrypted.&lt;/p>
