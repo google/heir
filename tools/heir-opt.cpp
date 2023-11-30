@@ -7,8 +7,10 @@
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/CGGI/IR/CGGIDialect.h"
+#include "include/Dialect/CGGI/Transforms/Passes.h"
 #include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
+#include "include/Dialect/LWE/Transforms/Passes.h"
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
@@ -176,13 +178,11 @@ int main(int argc, char **argv) {
 
   // Register MLIR core passes to build pipeline.
   registerAllPasses();
-  secret::registerSecretPasses();
 
   // Custom passes in HEIR
-  polynomial::registerPolynomialToStandardPasses();
-  bgv::registerBGVToPolynomialPasses();
-  comb::registerCombToCGGIPasses();
-  registerCGGIToTfheRustPasses();
+  cggi::registerCGGIPasses();
+  lwe::registerLWEPasses();
+  secret::registerSecretPasses();
   registerSecretizePasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
@@ -196,6 +196,12 @@ int main(int argc, char **argv) {
   }
   mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
 #endif
+
+  // Dialect conversion passes in HEIR
+  bgv::registerBGVToPolynomialPasses();
+  comb::registerCombToCGGIPasses();
+  polynomial::registerPolynomialToStandardPasses();
+  registerCGGIToTfheRustPasses();
 
   PassPipelineRegistration<>(
       "heir-tosa-to-arith",

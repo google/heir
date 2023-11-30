@@ -34,7 +34,7 @@ def LWE_EncodeOp : LWE_Op<"encode", [Pure]> {
   );
 
   let results = (outs LWEPlaintext:$output);
-  let assemblyFormat = "$plaintext attr-dict `:` type($plaintext) `to` type($output)";
+  let assemblyFormat = "$plaintext attr-dict `:` qualified(type($plaintext)) `to` qualified(type($output))";
 
   // Verify that the encoding parameter matches the output plaintext attribute.
   let hasVerifier = 1;

@@ -20,10 +20,8 @@ cc_library(
         "@heir//include/Dialect/LWE/IR:ops_inc_gen",
         "@heir//include/Dialect/LWE/IR:types_inc_gen",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
-        "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
     ],
 )

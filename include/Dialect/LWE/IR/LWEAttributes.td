@@ -269,4 +269,21 @@ def LWE_LWEParams : AttrDef<LWE_Dialect, "LWEParams"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
+def LWE_RLWEParams : AttrDef<LWE_Dialect, "RLWEParams"> {
+  let mnemonic = "rlwe_params";
+  let description = [{
+    An attribute describing classical RLWE parameters:
+
+    - `cmod`: the coefficient modulus for the polynomials.
+    - `dimension`: the number of polynomials used in an RLWE sample, analogous
+      to LWEParams.dimension.
+    - `polyDegree`: the degree $N$ of the negacyclic polynomial modulus
+      $x^N + 1$.
+  }];
+
+  let parameters = (ins "IntegerAttr": $cmod, "unsigned":$dimension, "unsigned": $polyDegree);
+
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEATTRIBUTES_TD_

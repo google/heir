@@ -7,6 +7,7 @@ package(
 
 exports_files(
     [
+        "CGGIAttributes.h",
         "CGGIDialect.h",
         "CGGIOps.h",
     ],
@@ -15,6 +16,7 @@ exports_files(
 td_library(
     name = "td_files",
     srcs = [
+        "CGGIAttributes.td",
         "CGGIDialect.td",
         "CGGIOps.td",
     ],
@@ -73,5 +75,33 @@ gentbl_cc_library(
         ":td_files",
         "@heir//include/Dialect/LWE/IR:td_files",
         "@heir//include/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "attributes_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-attrdef-decls",
+            ],
+            "CGGIAttributes.h.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-defs",
+            ],
+            "CGGIAttributes.cpp.inc",
+        ),
+        (
+            ["-gen-attrdef-doc"],
+            "CGGIAttributes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "CGGIAttributes.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
     ],
 )
