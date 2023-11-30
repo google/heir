@@ -76,6 +76,7 @@ cc_library(
         ":LUTImporter",
         ":RTLILImporter",
         "@at_clifford_yosys//:kernel",
+        "@at_clifford_yosys//:version",
         "@heir//include/Transforms/YosysOptimizer:pass_inc_gen",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
