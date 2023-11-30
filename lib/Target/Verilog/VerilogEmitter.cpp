@@ -1,17 +1,40 @@
 #include "include/Target/Verilog/VerilogEmitter.h"
 
+#include <cassert>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+
 #include "include/Conversion/MemrefToArith/Utils.h"
+#include "include/Dialect/Secret/IR/SecretDialect.h"
+#include "include/Dialect/Secret/IR/SecretOps.h"
+#include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/ADT/SmallString.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/StringRef.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/ilist.h"               // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
@@ -28,7 +51,6 @@ static constexpr std::string_view kOutputName = "_out_";
 bool shouldMapToSigned(IntegerType::SignednessSemantics val) {
   switch (val) {
     case IntegerType::Signless:
-      return true;
     case IntegerType::Signed:
       return true;
     case IntegerType::Unsigned:
@@ -106,25 +128,49 @@ void registerToVerilogTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         memref::MemRefDialect, affine::AffineDialect,
-                        math::MathDialect>();
+                        secret::SecretDialect, math::MathDialect>();
       });
 }
 
-LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os,
+                                 std::optional<llvm::StringRef> moduleName) {
+  return translateToVerilog(op, os, moduleName, /*allowSecretOps=*/false);
+}
+
+LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os,
+                                 std::optional<llvm::StringRef> moduleName,
+                                 bool allowSecretOps) {
+  if (!allowSecretOps) {
+    auto result = op->walk([&](Operation *op) -> WalkResult {
+      if (isa<secret::SecretDialect>(op->getDialect())) {
+        op->emitError("allowSecretOps is false, but encountered a secret op.");
+        return WalkResult::interrupt();
+      }
+      return WalkResult::advance();
+    });
+    if (result.wasInterrupted()) return failure();
+  }
+
   VerilogEmitter emitter(os);
-  LogicalResult result = emitter.translate(*op);
+  LogicalResult result = emitter.translate(*op, moduleName);
   return result;
+}
+
+LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os) {
+  return translateToVerilog(op, os, std::nullopt);
 }
 
 VerilogEmitter::VerilogEmitter(raw_ostream &os) : os_(os), value_count_(0) {}
 
-LogicalResult VerilogEmitter::translate(Operation &op) {
+LogicalResult VerilogEmitter::translate(
+    Operation &op, std::optional<llvm::StringRef> moduleName) {
   LogicalResult status =
       llvm::TypeSwitch<Operation &, LogicalResult>(op)
-          // Builtin ops.
-          .Case<ModuleOp>([&](auto op) { return printOperation(op); })
+          // Ops that use moduleName
+          .Case<ModuleOp, func::FuncOp, secret::GenericOp>(
+              [&](auto op) { return printOperation(op, moduleName); })
           // Func ops.
-          .Case<func::FuncOp, func::ReturnOp, func::CallOp>(
+          .Case<func::ReturnOp, func::CallOp, secret::YieldOp>(
               [&](auto op) { return printOperation(op); })
           // Arithmetic ops.
           .Case<arith::ConstantOp>([&](auto op) {
@@ -168,9 +214,7 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
           })
           .Case<memref::LoadOp>([&](auto op) { return printOperation(op); })
           // Affine ops.
-          .Case<affine::AffineLoadOp>(
-              [&](auto op) { return printOperation(op); })
-          .Case<affine::AffineStoreOp>(
+          .Case<affine::AffineLoadOp, affine::AffineStoreOp>(
               [&](auto op) { return printOperation(op); })
           .Case<UnrealizedConversionCastOp>(
               [&](auto op) { return printOperation(op); })
@@ -185,11 +229,12 @@ LogicalResult VerilogEmitter::translate(Operation &op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(ModuleOp moduleOp) {
+LogicalResult VerilogEmitter::printOperation(
+    ModuleOp moduleOp, std::optional<llvm::StringRef> moduleName) {
   // We have no use in separating things by modules, so just descend
   // to the underlying ops and continue.
   for (Operation &op : moduleOp) {
-    if (failed(translate(op))) {
+    if (failed(translate(op, moduleName))) {
       return failure();
     }
   }
@@ -197,7 +242,11 @@ LogicalResult VerilogEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
+LogicalResult VerilogEmitter::printFunctionLikeOp(
+    Operation *op, llvm::StringRef verilogModuleName,
+    ArrayRef<BlockArgument> arguments, TypeRange resultTypes,
+    Region::BlockListType::iterator blocksBegin,
+    Region::BlockListType::iterator blocksEnd) {
   /*
    *  A func op translates as follows, noting the internal variable wires
    *  need to be defined at the beginning of the module.
@@ -214,26 +263,27 @@ LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
    *      ...
    *    endmodule
    */
-  os_ << "module " << funcOp.getName() << "(\n";
+  os_ << "module " << verilogModuleName << "(\n";
   os_.indent();
-  for (auto arg : funcOp.getArguments()) {
+  for (auto arg : arguments) {
     // e.g., `input wire [31:0] arg0,`
     os_ << "input ";
-    if (failed(emitType(arg.getLoc(), arg.getType()))) {
+    if (failed(emitType(arg.getType()))) {
+      op->emitError() << "failed to emit type" << arg.getType();
       return failure();
     }
     os_ << " " << getOrCreateName(arg) << ",\n";
   }
 
   // output arg declaration
-  auto result_types = funcOp.getFunctionType().getResults();
-  if (result_types.size() != 1) {
-    emitError(funcOp.getLoc(),
+  if (resultTypes.size() != 1) {
+    emitError(op->getLoc(),
               "Only functions with a single return type are supported");
     return failure();
   }
   os_ << "output ";
-  if (failed(emitType(funcOp.getLoc(), result_types.front()))) {
+  if (failed(emitType(resultTypes.front()))) {
+    op->emitError() << "failed to emit type" << resultTypes.front();
     return failure();
   }
   os_ << " " << kOutputName;
@@ -248,17 +298,17 @@ LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
   // Wire declarations.
   // Look for any op outputs, which are interleaved throughout the function
   // body. Collect any globals used.
-  llvm::SmallVector<memref::GetGlobalOp> get_globals;
+  llvm::SmallVector<memref::GetGlobalOp> getGlobals;
   WalkResult result =
-      funcOp.walk<WalkOrder::PreOrder>([&](Operation *op) -> WalkResult {
+      op->walk<WalkOrder::PreOrder>([&](Operation *op) -> WalkResult {
         if (auto globalOp = dyn_cast<memref::GetGlobalOp>(op)) {
-          get_globals.push_back(globalOp);
+          getGlobals.push_back(globalOp);
         }
         if (auto indexCastOp = dyn_cast<arith::IndexCastOp>(op)) {
-          // IndexCastOp's are a layer of indirection in the arithmetic dialect
-          // that is unneeded in Verilog. A wire declaration is not needed.
-          // Simply remove the indirection by adding a map from the index-casted
-          // result value to the input integer value.
+          // IndexCastOp's are a layer of indirection in the arithmetic
+          // dialect that is unneeded in Verilog. A wire declaration is not
+          // needed. Simply remove the indirection by adding a map from the
+          // index-casted result value to the input integer value.
           auto retVal = indexCastOp.getResult();
           if (!value_to_wire_name_.contains(retVal)) {
             value_to_wire_name_.insert(std::make_pair(
@@ -284,13 +334,14 @@ LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
         }
         for (OpResult result : op->getResults()) {
           if (failed(emitWireDeclaration(result))) {
-            return WalkResult(
-                op->emitError("unable to declare result variable for op"));
+            return WalkResult(op->emitError()
+                              << "unable to declare result variable of type "
+                              << result.getType());
           }
         }
         // Also generate intermediate result values the CTLZ computation.
         if (auto ctlzOp = dyn_cast<math::CountLeadingZerosOp>(op)) {
-          auto ctx = op->getContext();
+          auto *ctx = op->getContext();
           auto ctlzStruct =
               ctlzStructForResult(getOrCreateName(ctlzOp.getResult()));
           llvm::SmallVector<std::pair<StringRef, int>, 4> tempWires = {
@@ -299,8 +350,7 @@ LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
               {ctlzStruct.temp8, 8},
               {ctlzStruct.temp4, 4}};
           for (auto tempWire : tempWires) {
-            if (failed(emitType(op->getLoc(),
-                                IntegerType::get(ctx, tempWire.second)))) {
+            if (failed(emitType(IntegerType::get(ctx, tempWire.second)))) {
               return failure();
             }
             os_ << " " << tempWire.first << ";\n";
@@ -310,12 +360,12 @@ LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
       });
   if (result.wasInterrupted()) return failure();
 
-  auto module = funcOp->getParentOfType<ModuleOp>();
+  auto module = op->getParentOfType<ModuleOp>();
   assert(module);
 
   // Assign global values while we have access to the top-level module.
-  if (!get_globals.empty()) {
-    for (memref::GetGlobalOp getGlobalOp : get_globals) {
+  if (!getGlobals.empty()) {
+    for (memref::GetGlobalOp getGlobalOp : getGlobals) {
       auto global = cast<memref::GlobalOp>(
           module.lookupSymbol(getGlobalOp.getNameAttr()));
       auto cstAttr =
@@ -331,32 +381,48 @@ LogicalResult VerilogEmitter::printOperation(func::FuncOp funcOp) {
   }
 
   os_ << "\n";
-  // ops
-  for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
-      if (failed(translate(op))) {
+  while (blocksBegin != blocksEnd) {
+    for (Operation &op : blocksBegin->getOperations()) {
+      if (failed(translate(op, std::nullopt))) {
         return failure();
       }
     }
+    blocksBegin++;
   }
   os_.unindent();
   os_ << "endmodule\n";
   return success();
 }
 
-LogicalResult VerilogEmitter::printOperation(func::ReturnOp op) {
+LogicalResult VerilogEmitter::printOperation(
+    func::FuncOp funcOp, std::optional<llvm::StringRef> moduleName) {
+  auto *blocks = &funcOp.getBlocks();
+  return printFunctionLikeOp(
+      funcOp.getOperation(), moduleName.value_or(funcOp.getName()),
+      funcOp.getArguments(), funcOp.getFunctionType().getResults(),
+      blocks->begin(), blocks->end());
+}
+
+LogicalResult VerilogEmitter::printReturnLikeOp(Value returnValue) {
   // Return is an assignment to the output wire
   // e.g., assign out = x1200;
-
-  // Only support one return value.
-  auto retval = op.getOperands()[0];
-  os_ << "assign " << kOutputName << " = " << getName(retval) << ";\n";
+  os_ << "assign " << kOutputName << " = " << getName(returnValue) << ";\n";
   return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(func::ReturnOp op) {
+  // Only support one return value.
+  return printReturnLikeOp(op.getOperands()[0]);
+}
+
+LogicalResult VerilogEmitter::printOperation(secret::YieldOp op) {
+  // Only support one return value.
+  return printReturnLikeOp(op.getOperands()[0]);
 }
 
 LogicalResult VerilogEmitter::printOperation(func::CallOp op) {
   // e.g., submodule submod_call(xInput0, xInput1, xOutput);
-  auto opName = getOrCreateName(op.getResult(0)) + "_call";
+  std::string opName = (getOrCreateName(op.getResult(0)) + "_call").str();
 
   // Verilog only supports functions with a single return value.
   if (op.getResults().size() != 1) {
@@ -388,9 +454,10 @@ LogicalResult VerilogEmitter::printOperation(arith::AndIOp op) {
 
 LogicalResult VerilogEmitter::printOperation(arith::CmpIOp op) {
   switch (op.getPredicate()) {
-    // For eq and ne, verilog has multiple operators. == and === are equivalent,
-    // except for the special values X (unknown default initial state) and Z
-    // (high impedance state), which are irrelevant for our purposes. Ditto for
+    // For eq and ne, verilog has multiple operators. == and === are
+    // equivalent, except for the special values X (unknown default initial
+    // state) and Z (high impedance state), which are irrelevant for our
+    // purposes. Ditto for
     // != and !==.
     case arith::CmpIPredicate::eq:
       return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "==");
@@ -651,11 +718,33 @@ LogicalResult VerilogEmitter::printOperation(math::CountLeadingZerosOp op) {
   return success();
 }
 
-LogicalResult VerilogEmitter::emitType(Location loc, Type type) {
+LogicalResult VerilogEmitter::printOperation(
+    mlir::heir::secret::GenericOp op,
+    std::optional<llvm::StringRef> moduleName) {
+  llvm::StringRef name;
+  if (moduleName.has_value()) {
+    name = moduleName.value();
+  } else {
+    // I wanted something more unique here, but an op.getLoc() doesn't print
+    // as a valid verilog identifier. Maybe with enough string massaging it
+    // could.
+    name = "generic_body";
+  }
+  llvm::SmallVector<Type, 4> resultTypes;
+  for (auto ty : op.getResultTypes())
+    resultTypes.push_back(cast<secret::SecretType>(ty).getValueType());
+  auto *blocks = &op.getRegion().getBlocks();
+  return printFunctionLikeOp(op.getOperation(), name,
+                             op.getRegion().getBlocks().front().getArguments(),
+                             resultTypes, blocks->begin(), blocks->end());
+}
+
+LogicalResult VerilogEmitter::emitType(Type type) {
   if (auto iType = dyn_cast<IntegerType>(type)) {
     int32_t width = iType.getWidth();
     return (os_ << wireDeclaration(iType, width)), success();
-  } else if (auto memRefType = dyn_cast<MemRefType>(type)) {
+  }
+  if (auto memRefType = dyn_cast<MemRefType>(type)) {
     auto elementType = memRefType.getElementType();
     if (auto iType = dyn_cast<IntegerType>(elementType)) {
       int32_t flattenedWidth = memRefType.getNumElements() * iType.getWidth();
@@ -670,7 +759,10 @@ void VerilogEmitter::emitAssignPrefix(Value result) {
 }
 
 LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
-  if (failed(emitType(result.getLoc(), result.getType()))) {
+  Type ty = result.getType();
+  if (ty.isa<secret::SecretType>())
+    ty = cast<secret::SecretType>(ty).getValueType();
+  if (failed(emitType(ty))) {
     return failure();
   }
   os_ << " " << getOrCreateName(result) << ";\n";

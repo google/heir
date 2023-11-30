@@ -12,6 +12,7 @@ cc_library(
     name = "verilog_emitter",
     hdrs = ["VerilogEmitter.h"],
     deps = [
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
