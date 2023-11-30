@@ -14,6 +14,7 @@
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
+#include "include/Transforms/Secretize/Secretize.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -182,6 +183,7 @@ int main(int argc, char **argv) {
   bgv::registerBGVToPolynomialPasses();
   comb::registerCombToCGGIPasses();
   registerCGGIToTfheRustPasses();
+  registerSecretizePasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
   const char *abcEnvPath = std::getenv("HEIR_ABC_BINARY");
