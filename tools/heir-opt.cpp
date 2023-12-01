@@ -17,6 +17,7 @@
 #include "include/Dialect/Secret/Transforms/Passes.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Transforms/Secretize/Secretize.h"
+#include "include/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -180,6 +181,7 @@ int main(int argc, char **argv) {
   registerAllPasses();
 
   // Custom passes in HEIR
+  registerValidateNoise();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   secret::registerSecretPasses();

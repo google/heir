@@ -2,10 +2,12 @@
 
 #include <cstdint>
 
+#include "include/Analysis/NoisePropagation/Variance.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
 #include "include/Dialect/LWE/IR/LWEOps.h"
 #include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "include/Interfaces/NoiseInterfaces.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
@@ -179,6 +181,27 @@ LogicalResult TrivialEncryptOp::verify() {
 
   return success();
 }
+
+void AddOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
+                             SetNoiseFn setValueNoise) {
+  if (!argNoises[0].isInitialized() || !argNoises[1].isInitialized()) {
+    emitOpError() << "uses SSA value with uninitialized noise variance.";
+    return setValueNoise(getResult(), Variance::unbounded());
+  }
+  return setValueNoise(
+      getResult(),
+      (argNoises[0].isBounded() && argNoises[1].isBounded())
+          ? Variance::of(argNoises[0].getValue() + argNoises[1].getValue())
+          : Variance::unbounded());
+}
+
+void TrivialEncryptOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
+                                        SetNoiseFn setValueNoise) {
+  return setValueNoise(getResult(), Variance::of(0));
+}
+
+bool AddOp::hasArgumentIndependentResultNoise() { return false; }
+bool TrivialEncryptOp::hasArgumentIndependentResultNoise() { return true; }
 
 }  // namespace lwe
 }  // namespace heir

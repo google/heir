@@ -11,12 +11,12 @@ def CGGI_CGGIParams : AttrDef<CGGI_Dialect, "CGGIParams"> {
   // to lwe dialect?
   let parameters = (ins
     "::mlir::heir::lwe::RLWEParamsAttr": $rlweParams,
-    "unsigned": $bsk_noise_variance,
-    "unsigned": $bsk_gadget_base_log,
-    "unsigned": $bsk_gadget_num_levels,
-    "unsigned": $ksk_noise_variance,
-    "unsigned": $ksk_gadget_base_log,
-    "unsigned": $ksk_gadget_num_levels
+    "int64_t": $bsk_noise_variance,
+    "int64_t": $bsk_gadget_base_log,
+    "int64_t": $bsk_gadget_num_levels,
+    "int64_t": $ksk_noise_variance,
+    "int64_t": $ksk_gadget_base_log,
+    "int64_t": $ksk_gadget_num_levels
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
