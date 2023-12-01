@@ -60,16 +60,23 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
                         "all.");
           return WalkResult::interrupt();
         }
+
         LLVM_DEBUG(op->emitRemark()
                    << "Found noise " << (opRange->getValue())
                    << " for op result " << result.getResultNumber());
-        // It's OK for some places to not know the noise, so long as the only
+        if (!opRange->getValue().isInitialized()) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Skipping check due to uninitialized noise.\n");
+          return WalkResult::advance();
+        }
+
+        // It's OK for some places to have unbounded noise, so long as the only
         // user of that value is a bootstrap-like op.
-        if (!opRange->getValue().isKnown()) {
+        if (!opRange->getValue().isBounded()) {
           // One might expect a check for hasSingleUse, but there could
-          // potentially be multiple downstream users, each applying a different
-          // kind of programmable bootstrap to compute different functions, so
-          // we loop over all users.
+          // potentially be multiple downstream users, each applying a
+          // different kind of programmable bootstrap to compute different
+          // functions, so we loop over all users.
           for (auto result : op->getResults()) {
             for (Operation *user : result.getUsers()) {
               auto noisePropagationOp =
@@ -83,7 +90,8 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
               if (noisePropagationOp &&
                   !noisePropagationOp.hasArgumentIndependentResultNoise()) {
                 user->emitOpError()
-                    << "uses SSA value with unknown noise variance, but the op "
+                    << "uses SSA value with unbounded noise variance, but the "
+                       "op "
                        "has non-constant noise propagation. This can happen "
                        "when an SSA value is part of control flow, such as a "
                        "loop or an entrypoint to a function with multiple "

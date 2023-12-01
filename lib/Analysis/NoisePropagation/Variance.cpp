@@ -5,14 +5,23 @@
 namespace mlir {
 namespace heir {
 
+std::string Variance::toString() const {
+  switch (varianceType) {
+    case (VarianceType::UNINITIALIZED):
+      return "Variance(uninitialized)";
+    case (VarianceType::UNBOUNDED):
+      return "Variance(unbounded)";
+    case (VarianceType::SET):
+      return "Variance(" + std::to_string(getValue()) + ")";
+  }
+}
+
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Variance &variance) {
-  if (!variance.isKnown()) return os << "unknown";
-  return os << variance.getValue();
+  return os << variance.toString();
 }
 
 Diagnostic &operator<<(Diagnostic &diagnostic, const Variance &variance) {
-  if (!variance.isKnown()) return diagnostic << "unknown";
-  return diagnostic << variance.getValue();
+  return diagnostic << variance.toString();
 }
 
 }  // namespace heir

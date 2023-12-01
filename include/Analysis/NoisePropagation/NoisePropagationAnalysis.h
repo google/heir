@@ -28,7 +28,7 @@ class NoisePropagationAnalysis
 
   void setToEntryState(VarianceLattice *lattice) override {
     // At an entry point, we have no information about the noise.
-    propagateIfChanged(lattice, lattice->join(Variance(std::nullopt)));
+    propagateIfChanged(lattice, lattice->join(Variance::uninitialized()));
   }
 
   void visitOperation(Operation *op, ArrayRef<const VarianceLattice *> operands,

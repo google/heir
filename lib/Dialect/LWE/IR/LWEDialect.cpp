@@ -184,18 +184,20 @@ LogicalResult TrivialEncryptOp::verify() {
 
 void AddOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                              SetNoiseFn setValueNoise) {
-  Variance result;
-  if (!argNoises[0].isKnown() || !argNoises[1].isKnown())
-    result = Variance::unknown();
-  else
-    result = Variance{argNoises[0].getValue() + argNoises[1].getValue()};
-
-  return setValueNoise(getResult(), result);
+  if (!argNoises[0].isInitialized() || !argNoises[1].isInitialized()) {
+    emitOpError() << "uses SSA value with uninitialized noise variance.";
+    return setValueNoise(getResult(), Variance::unbounded());
+  }
+  return setValueNoise(
+      getResult(),
+      (argNoises[0].isBounded() && argNoises[1].isBounded())
+          ? Variance::of(argNoises[0].getValue() + argNoises[1].getValue())
+          : Variance::unbounded());
 }
 
 void TrivialEncryptOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,
                                         SetNoiseFn setValueNoise) {
-  return setValueNoise(getResult(), Variance(0));
+  return setValueNoise(getResult(), Variance::of(0));
 }
 
 bool AddOp::hasArgumentIndependentResultNoise() { return false; }

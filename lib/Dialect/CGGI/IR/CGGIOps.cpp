@@ -109,7 +109,7 @@ void handleSingleResultOp(Operation *op, Value ctValue,
   }
   auto cggiParams = llvm::cast<CGGIParamsAttr>(attrs.get("cggi_params"));
   setValueNoise(op->getResult(0),
-                Variance(bootstrapOutputNoise(cggiParams, lweParams)));
+                Variance::of(bootstrapOutputNoise(cggiParams, lweParams)));
 }
 
 void AndOp::inferResultNoise(llvm::ArrayRef<Variance> argNoises,

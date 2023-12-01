@@ -357,7 +357,7 @@ struct UnrollAndForwardPass
                     mlir::arith::ArithDialect, mlir::scf::SCFDialect>();
   }
 
-  void runOnOperation();
+  void runOnOperation() override;
 
   StringRef getArgument() const final { return "unroll-and-forward"; }
 

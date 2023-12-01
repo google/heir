@@ -13,41 +13,79 @@ namespace mlir {
 namespace heir {
 
 enum VarianceType {
-  UNSET,  // A min value for the lattice, i.e., discarable when joined with
-          // anything else.
-  KNOWN,  // A known value for the lattice, i.e., when noise can be inferred.
-  INDEPENDENT,  // A known value for the lattice, independent of
-  MAX  // A max value for the lattice, i.e., when noise cannot be inferred and a
-       // bootstrap must be forced.
+  // A min value for the lattice, discarable when joined with anything else.
+  UNINITIALIZED,
+  // A known value for the lattice, when noise can be inferred.
+  SET,
+  // A max value for the lattice, when noise cannot be inferred and a bootstrap
+  // must be forced.
+  UNBOUNDED
 };
 
 /// A class representing an optional variance of a noise distribution.
 class Variance {
  public:
-  static Variance unknown() { return Variance(); }
+  static Variance uninitialized() {
+    return Variance(VarianceType::UNINITIALIZED, std::nullopt);
+  }
+  static Variance unbounded() {
+    return Variance(VarianceType::UNBOUNDED, std::nullopt);
+  }
+  static Variance of(int64_t value) {
+    return Variance(VarianceType::SET, value);
+  }
 
   /// Create an integer value range lattice value.
-  Variance(std::optional<int64_t> value = std::nullopt) : value(value) {}
+  /// The default constructor must be equivalent to the "entry state" of the
+  /// lattice, i.e., an uninitialized noise variance.
+  Variance(VarianceType varianceType = VarianceType::UNINITIALIZED,
+           std::optional<int64_t> value = std::nullopt)
+      : varianceType(varianceType), value(value) {}
 
-  bool isKnown() const { return value.has_value(); }
+  bool isKnown() const { return varianceType == VarianceType::SET; }
+
+  bool isInitialized() const {
+    return varianceType != VarianceType::UNINITIALIZED;
+  }
+
+  bool isBounded() const { return varianceType != VarianceType::UNBOUNDED; }
 
   const int64_t &getValue() const {
     assert(isKnown());
     return *value;
   }
 
-  bool operator==(const Variance &rhs) const { return value == rhs.value; }
+  bool operator==(const Variance &rhs) const {
+    return varianceType == rhs.varianceType && value == rhs.value;
+  }
 
-  /// This method represents how to choose a noise from one of two possible
-  /// branches, when either could be possible. In the case of FHE, we must
-  /// assume the worst case. If either is unknown, assume unknown, otherwise
-  /// take the max.
   static Variance join(const Variance &lhs, const Variance &rhs) {
-    if (!lhs.isKnown() || !rhs.isKnown()) return Variance::unknown();
-    return Variance{std::max(lhs.getValue(), rhs.getValue())};
+    // Uninitialized variances correspond to values that are not secret,
+    // which may be the inputs to an encryption operation.
+    if (lhs.varianceType == VarianceType::UNINITIALIZED) {
+      return rhs;
+    }
+    if (rhs.varianceType == VarianceType::UNINITIALIZED) {
+      return lhs;
+    }
+
+    // Unbounded represents a pessimistic worst case, and so it must be
+    // preserved no matter the other operand.
+    if (lhs.varianceType == VarianceType::UNBOUNDED) {
+      return lhs;
+    }
+    if (rhs.varianceType == VarianceType::UNBOUNDED) {
+      return rhs;
+    }
+
+    assert(lhs.varianceType == VarianceType::SET &&
+           rhs.varianceType == VarianceType::SET);
+    return Variance::of(std::max(lhs.getValue(), rhs.getValue()));
   }
 
   void print(llvm::raw_ostream &os) const { os << value; }
+
+  std::string toString() const;
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const Variance &variance);
@@ -56,6 +94,7 @@ class Variance {
                                 const Variance &variance);
 
  private:
+  VarianceType varianceType;
   std::optional<int64_t> value;
 };
 
