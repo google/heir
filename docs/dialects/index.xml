@@ -697,7 +697,7 @@ and sums.&lt;/p>
 &lt;p>Types and operations for comb dialect
 This dialect defines the &lt;code>comb&lt;/code> dialect, which is intended to be a generic
 representation of combinational logic outside of a particular use-case.&lt;/p>
-&lt;h2 id="operation-definition">Operation definition&lt;/h2>
+&lt;h2 id="operations">Operations&lt;/h2>
 &lt;h3 id="combadd-heircombaddop">&lt;code>comb.add&lt;/code> (heir::comb::AddOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.add` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
