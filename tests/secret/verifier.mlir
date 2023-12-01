@@ -27,33 +27,6 @@ func.func @test_secret_type_mismatch(%value: !secret.secret<i32>, %c1: i32) {
 
 // -----
 
-func.func @test_refers_to_value_outside_block(%value: !secret.secret<i32>) {
-  %c1 = arith.constant 1 : i32
-  // expected-error@+1 {{uses a value defined outside the block}}
-  %Z = secret.generic
-    ins(%value : !secret.secret<i32>) {
-    ^bb0(%clear_value: i32):
-      %1 = arith.addi %clear_value, %c1 : i32
-      secret.yield %1 : i32
-    } -> (!secret.secret<i32>)
-  return
-}
-
-// -----
-
-func.func @test_refers_to_block_argument_outside_block(%value: !secret.secret<i32>, %c1 : i32) {
-  // expected-error@+1 {{uses a block argument defined outside the block}}
-  %Z = secret.generic
-    ins(%value : !secret.secret<i32>) {
-    ^bb0(%clear_value: i32):
-      %1 = arith.addi %clear_value, %c1 : i32
-      secret.yield %1 : i32
-    } -> (!secret.secret<i32>)
-  return
-}
-
-// -----
-
 func.func @ensure_yield_inside_generic(%value: !secret.secret<i32>) {
   // expected-error@+1 {{expects parent op 'secret.generic'}}
   secret.yield %value : !secret.secret<i32>

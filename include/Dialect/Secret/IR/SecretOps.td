@@ -88,7 +88,6 @@ def Secret_YieldOp : Secret_Op<"yield", [
 }
 
 def Secret_GenericOp : Secret_Op<"generic", [
-  IsolatedFromAbove,
   SingleBlock,
   SingleBlockImplicitTerminator<"YieldOp">
 ]> {
@@ -100,13 +99,18 @@ def Secret_GenericOp : Secret_Op<"generic", [
     may include one or more `!secret.secret` types. The arguments of the block
     in the op's body correspond to the underlying plaintext types of the secrets.
 
+    `secret.generic` is not isolated from above, so you may directly reference
+    values in the enclosing scope. This is required to support using
+    `secret.generic` inside of ops with `AffineScope`, while having the body
+    of the generic use the induction variables defined by the affine scope.
+
     Basic examples:
 
     Add two secret integers together
 
     ```mlir
     %Z = secret.generic ins(%X, %Y : !secret.secret<i32>, !secret.secret<i32>) {
-      ^bb0(%x: i32, %y: i32) :
+      ^bb0(%x: i32, %y: i32):
         %z = arith.addi %x, %y: i32
         secret.yield %z : i32
       } -> (!secret.secret<i32>)
@@ -117,7 +121,19 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
     ```mlir
     %Z = secret.generic ins(%X, %Y : i32, !secret.secret<i32>) {
-      ^bb0(%x: i32, %y: i32) :
+      ^bb0(%x: i32, %y: i32):
+        %z = arith.addi %x, %y: i32
+        secret.yield %z : i32
+      } -> (!secret.secret<i32>)
+    ```
+
+    The same as above, but the plaintext op is not passed through the basic
+    block.
+
+    ```mlir
+    %y = arith.constant 7: i32
+    %Z = secret.generic ins(%Y : !secret.secret<i32>) {
+      ^bb0(%y: i32):
         %z = arith.addi %x, %y: i32
         secret.yield %z : i32
       } -> (!secret.secret<i32>)
