@@ -158,7 +158,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
     using BodyBuilderFn = function_ref<void(OpBuilder &, Location, ValueRange)>;
   }];
 
-  // let hasCanonicalizer = 1;
+  let hasCanonicalizer = 1;
   let hasCustomAssemblyFormat = 1;
 
   // TODO(https://github.com/google/heir/issues/108): add a folder that removes

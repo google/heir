@@ -44,6 +44,7 @@ cc_library(
     deps = [
         "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretOps",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LoopLikeInterface",
