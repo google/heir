@@ -174,29 +174,6 @@ LogicalResult GenericOp::verify() {
     }
   }
 
-  // Verify that all ops in the body only use values defined in the block
-  // arguments.
-  for (auto &op : body->getOperations()) {
-    for (auto operand : op.getOperands()) {
-      // For a block argument (e.g., func argument), the defining op is
-      // nullptr. Still need to check that the parent block of the value is the
-      // containing block
-      auto *definer = operand.getDefiningOp();
-      if (definer == nullptr) {
-        if (operand.getParentBlock() != body) {
-          return emitOpError()
-                 << "Operation " << op.getName()
-                 << " uses a block argument defined outside the block. Op was "
-                 << op;
-        }
-      } else if (definer->getBlock() != body) {
-        return emitOpError()
-               << "Operation " << op.getName()
-               << " uses a value defined outside the block. Op was " << op;
-      }
-    }
-  }
-
   return success();
 }
 
