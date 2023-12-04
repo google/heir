@@ -5,9 +5,12 @@ package(
 
 cc_library(
     name = "Secretize",
-    srcs = ["Secretize.cpp"],
+    srcs = [
+        "Secretize.cpp",
+        "WrapGeneric.cpp",
+    ],
     hdrs = [
-        "@heir//include/Transforms/Secretize:Secretize.h",
+        "@heir//include/Transforms/Secretize:Passes.h",
     ],
     deps = [
         "@heir//include/Transforms/Secretize:pass_inc_gen",

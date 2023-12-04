@@ -7,10 +7,10 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DECL
-#include "include/Transforms/Secretize/Secretize.h.inc"
+#include "include/Transforms/Secretize/Passes.h.inc"
 
 #define GEN_PASS_REGISTRATION
-#include "include/Transforms/Secretize/Secretize.h.inc"
+#include "include/Transforms/Secretize/Passes.h.inc"
 
 }  // namespace heir
 }  // namespace mlir
