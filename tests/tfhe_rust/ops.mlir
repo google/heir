@@ -9,10 +9,7 @@ module {
   // CHECK-LABEL: func @test_create_trivial_bool
   func.func @test_create_trivial_bool(%bsks : !bsks) {
     %0 = arith.constant 1 : i1
-    %1 = arith.constant 1 : i1
-
     %e1 = tfhe_rust.create_bool_trivial %bsks, %0 : (!bsks, i1) -> !tfhe_rust.eb
-    %e2 = tfhe_rust.create_bool_trivial %bsks, %1 : (!bsks, i1) -> !tfhe_rust.eb
     return
   }
 
