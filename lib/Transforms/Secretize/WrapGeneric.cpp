@@ -54,6 +54,8 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
     // Create a secret.generic op and pull the original function block in.
     Block &opEntryBlock = op.getRegion().front();
     rewriter.setInsertionPointToStart(&opEntryBlock);
+
+    SmallVector<Operation *> opsToErase;
     auto newGeneric = rewriter.create<secret::GenericOp>(
         op.getLoc(), op.getArguments(), newOutputs,
         [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
@@ -62,17 +64,28 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
           for (unsigned i = 0; i < blockArguments.size(); ++i) {
             mp.map(opEntryBlock.getArgument(i), blockArguments[i]);
           }
-          for (auto &entryOp : opEntryBlock.getOperations()) {
-            b.clone(entryOp, mp);
-          }
-          auto *returnOp = b.getBlock()->getTerminator();
-          b.create<secret::YieldOp>(loc, returnOp->getOperands());
-          returnOp->erase();
+
+          opEntryBlock.walk([&](Operation *innerOp) {
+            if (!isa<func::ReturnOp>(innerOp)) {
+              b.clone(*innerOp, mp);
+              opsToErase.push_back(innerOp);
+            }
+          });
+
+          auto *returnOp = opEntryBlock.getTerminator();
+          b.create<secret::YieldOp>(
+              loc, llvm::to_vector(llvm::map_range(
+                       returnOp->getOperands(),
+                       [&](Value v) { return mp.lookupOrDefault(v); })));
         });
 
     rewriter.replaceOp(
         opEntryBlock.getTerminator(),
         rewriter.create<func::ReturnOp>(op.getLoc(), newGeneric.getResults()));
+
+    for (auto *erase : llvm::reverse(opsToErase)) {
+      rewriter.eraseOp(erase);
+    }
 
     return success();
   }
