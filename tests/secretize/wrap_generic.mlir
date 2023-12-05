@@ -46,3 +46,20 @@ module {
       func.return %1 : i32
     }
 }
+
+
+// -----
+
+module {
+    // CHECK: @secret_memref(%[[ARG0:.*]]: !secret.secret<memref<1xi32>>) -> !secret.secret<memref<1xi32>>
+    func.func @secret_memref(%value: memref<1xi32> {secret.secret}) -> memref<1xi32> {
+      // CHECK: %[[V0:.*]] = secret.generic ins(%[[ARG0]] : !secret.secret<memref<1xi32>>)
+      %const = arith.constant 100 : i32
+      %0 = affine.load %value[0] : memref<1xi32>
+      %1 = arith.addi %const, %0 : i32
+      %2 = memref.alloc() : memref<1xi32>
+      affine.store %1, %2[0] : memref<1xi32>
+      // CHECK: return %[[V0]] : !secret.secret<memref<1xi32>>
+      func.return %2 : memref<1xi32>
+    }
+}
