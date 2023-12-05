@@ -6,7 +6,9 @@
 namespace mlir {
 namespace heir {
 
-std::unique_ptr<Pass> createYosysOptimizer(std::string runfiles, bool abcFast);
+std::unique_ptr<mlir::Pass> createYosysOptimizer(
+    const std::string &yosysFilesPath, const std::string &abcPath,
+    bool abcFast);
 
 #define GEN_PASS_DECL
 #include "include/Transforms/YosysOptimizer/YosysOptimizer.h.inc"
