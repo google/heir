@@ -42,6 +42,13 @@ LogicalResult YieldOp::verify() {
   // Trait verifier ensures parent is a GenericOp
   auto parent = llvm::cast<GenericOp>(getParentOp());
 
+  if (parent.getNumResults() != getNumOperands()) {
+    return emitOpError()
+           << "Expected yield op to have the same number of operands as its "
+              "enclosing generic's result count. Yield had "
+           << getNumOperands() << " operands, but enclosing generic op had "
+           << parent.getNumResults() << " results.";
+  }
   for (int i = 0; i < getValues().size(); ++i) {
     auto yieldSecretType = SecretType::get(getValues().getTypes()[i]);
     if (yieldSecretType != parent.getResultTypes()[i]) {
@@ -232,6 +239,20 @@ OpFoldResult CastOp::fold(CastOp::FoldAdaptor adaptor) {
     return OpFoldResult();
 
   return inputOp.getInput();
+}
+
+OpOperand *GenericOp::getOpOperandForBlockArgument(Value value) {
+  auto *body = getBody();
+  int index = std::find(body->getArguments().begin(),
+                        body->getArguments().end(), value) -
+              body->getArguments().begin();
+  if (index == body->getArguments().size()) return nullptr;
+
+  return &getOperation()->getOpOperand(index);
+}
+
+YieldOp GenericOp::getYieldOp() {
+  return *getBody()->getOps<YieldOp>().begin();
 }
 
 void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,

@@ -291,8 +291,6 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
 }
 
 // Optimize the body of a secret.generic op.
-// FIXME: consider utilizing
-// https://mlir.llvm.org/docs/PassManagement/#dynamic-pass-pipelines
 void YosysOptimizer::runOnOperation() {
   auto result = getOperation()->walk([&](secret::GenericOp op) {
     if (failed(runOnGenericOp(&getContext(), op, yosysFilesPath, abcPath,
