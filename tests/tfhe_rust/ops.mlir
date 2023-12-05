@@ -3,7 +3,30 @@
 // This simply tests for syntax.
 
 !sks = !tfhe_rust.server_key
+!bsks = !tfhe_rust.bool_server_key
+
 module {
+  // CHECK-LABEL: func @test_create_trivial_bool
+  func.func @test_create_trivial_bool(%bsks : !bsks) {
+    %0 = arith.constant 1 : i1
+    %1 = arith.constant 1 : i1
+
+    %e1 = tfhe_rust.create_bool_trivial %bsks, %0 : (!bsks, i1) -> !tfhe_rust.eb
+    %e2 = tfhe_rust.create_bool_trivial %bsks, %1 : (!bsks, i1) -> !tfhe_rust.eb
+    return
+  }
+
+  // CHECK-LABEL: func @test_bitand_bool
+  func.func @test_bitand_bool(%bsks : !bsks) {
+    %0 = arith.constant 1 : i1
+    %1 = arith.constant 1 : i1
+
+    %e1 = tfhe_rust.create_bool_trivial %bsks, %0 : (!bsks, i1) -> !tfhe_rust.eb
+    %e2 = tfhe_rust.create_bool_trivial %bsks, %1 : (!bsks, i1) -> !tfhe_rust.eb
+    %out = tfhe_rust.bitand %bsks, %e1, %e2: (!bsks, !tfhe_rust.eb, !tfhe_rust.eb) -> !tfhe_rust.eb
+    return
+  }
+
   // CHECK-LABEL: func @test_create_trivial
   func.func @test_create_trivial(%sks : !sks) {
     %0 = arith.constant 1 : i8

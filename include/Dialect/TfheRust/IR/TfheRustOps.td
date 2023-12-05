@@ -17,6 +17,24 @@ class TfheRust_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::tfhe_rust";
 }
 
+def CreateTrivialBoolOp : TfheRust_Op<"create_bool_trivial", [Pure]> {
+  let arguments = (ins TfheRust_BoolServerKey:$boolserverKey, I1:$value);
+  let results = (outs TfheRust_EncryptedBool:$output);
+}
+
+def BitAndOp : TfheRust_Op<"bitand", [
+    Pure,
+    AllTypesMatch<["lhs", "rhs", "output"]>
+]> {
+  let arguments = (ins
+    TfheRust_BoolServerKey:$serverKey,
+    TfheRust_EncryptedBool:$lhs,
+    TfheRust_EncryptedBool:$rhs
+  );
+  let results = (outs TfheRust_EncryptedBool:$output);
+}
+
+
 def CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
   let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
   let results = (outs TfheRust_CiphertextType:$output);

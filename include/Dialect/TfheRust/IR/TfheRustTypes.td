@@ -18,6 +18,14 @@ def PassByReference : NativeTypeTrait<"PassByReference"> {
   let cppNamespace = "::mlir::heir::tfhe_rust";
 }
 
+def TfheRust_EncryptedBool: TfheRust_Type<"EncryptedBool", "eb", [PassByReference]> {
+  let summary = "An encrypted Boolean corresponding to tfhe-rs's FHEBool type";
+}
+
+def TfheRust_BoolServerKey : TfheRust_Type<"BoolServerKey", "bool_server_key", [PassByReference]> {
+  let summary = "The boolean server key required to perform homomorphic operations.";
+}
+
 class TfheRust_EncryptedUInt<int width>
   : TfheRust_Type<"EncryptedUInt" # width, "eui" # width, [PassByReference]> {
   let summary = "An encrypted unsigned integer corresponding to tfhe-rs's FHEUint" # width # " type";
