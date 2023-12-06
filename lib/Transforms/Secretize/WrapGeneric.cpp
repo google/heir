@@ -51,11 +51,14 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
     op.setFunctionType(
         FunctionType::get(getContext(), {newInputs}, {newOutputs}));
 
-    // Create a secret.generic op and pull the original function block in.
+    // Create a new block where we will insert the new secret.generic and move
+    // the function ops into.
     Block &opEntryBlock = op.getRegion().front();
-    rewriter.setInsertionPointToStart(&opEntryBlock);
+    auto newBlock = rewriter.createBlock(
+        &opEntryBlock, opEntryBlock.getArgumentTypes(),
+        SmallVector<Location>(opEntryBlock.getNumArguments(), op.getLoc()));
 
-    SmallVector<Operation *> opsToErase;
+    rewriter.setInsertionPointToStart(newBlock);
     auto newGeneric = rewriter.create<secret::GenericOp>(
         op.getLoc(), op.getArguments(), newOutputs,
         [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
@@ -65,27 +68,19 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
             mp.map(opEntryBlock.getArgument(i), blockArguments[i]);
           }
 
-          opEntryBlock.walk([&](Operation *innerOp) {
-            if (!isa<func::ReturnOp>(innerOp)) {
-              b.clone(*innerOp, mp);
-              opsToErase.push_back(innerOp);
-            }
-          });
-
           auto *returnOp = opEntryBlock.getTerminator();
           b.create<secret::YieldOp>(
               loc, llvm::to_vector(llvm::map_range(
                        returnOp->getOperands(),
                        [&](Value v) { return mp.lookupOrDefault(v); })));
+          returnOp->erase();
         });
 
-    rewriter.replaceOp(
-        opEntryBlock.getTerminator(),
-        rewriter.create<func::ReturnOp>(op.getLoc(), newGeneric.getResults()));
-
-    for (auto *erase : llvm::reverse(opsToErase)) {
-      rewriter.eraseOp(erase);
-    }
+    Block &genericBlock = newGeneric.getRegion().front();
+    rewriter.inlineBlockBefore(&opEntryBlock,
+                               &genericBlock.getOperations().back(),
+                               genericBlock.getArguments());
+    rewriter.create<func::ReturnOp>(op.getLoc(), newGeneric.getResults());
 
     return success();
   }
