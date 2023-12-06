@@ -63,3 +63,24 @@ module {
       func.return %2 : memref<1xi32>
     }
 }
+
+// -----
+
+module {
+    // CHECK: @affine_for(%[[ARG0:.*]]: !secret.secret<memref<1x80xi8>>) -> !secret.secret<memref<1x80xi8>>
+  func.func @affine_for(%arg0: memref<1x80xi8> {secret.secret}) -> memref<1x80xi8> {
+      // CHECK: %[[V0:.*]] = secret.generic ins(%[[ARG0]] : !secret.secret<memref<1x80xi8>>)
+    %c-128_i8 = arith.constant -128 : i8
+    %c0 = arith.constant 0 : index
+    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x80xi8>
+      affine.for %arg2 = 0 to 1 {
+        affine.for %arg3 = 0 to 80 {
+            %0 = affine.load %arg0[%arg2, %arg3] : memref<1x80xi8>
+            %1 = arith.addi  %c-128_i8, %0 : i8
+            affine.store %1, %alloc[%arg2, %arg3] : memref<1x80xi8>
+        }
+      }
+      // CHECK: return %[[V0]] : !secret.secret<memref<1x80xi8>>
+    return %alloc : memref<1x80xi8>
+  }
+}
