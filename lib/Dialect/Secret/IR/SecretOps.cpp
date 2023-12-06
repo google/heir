@@ -3,6 +3,7 @@
 #include <memory>
 #include <utility>
 
+#include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
@@ -231,6 +232,12 @@ OpFoldResult CastOp::fold(CastOp::FoldAdaptor adaptor) {
     return OpFoldResult();
 
   return inputOp.getInput();
+}
+
+void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                            MLIRContext *context) {
+  results.add<CollapseSecretlessGeneric, RemoveUnusedGenericArgs,
+              RemoveNonSecretGenericArgs>(context);
 }
 
 }  // namespace secret

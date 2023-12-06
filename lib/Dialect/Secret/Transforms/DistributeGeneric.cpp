@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "include/Dialect/Secret/IR/SecretOps.h"
+#include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
@@ -39,118 +40,6 @@ std::optional<Value> ofrToValue(std::optional<OpFoldResult> ofr) {
   }
   return std::nullopt;
 }
-
-// Inline the inner block of a secret.generic that has no secret operands.
-//
-// E.g.,
-//
-//    %res = secret.generic ins(%value : i32) {
-//     ^bb0(%clear_value: i32):
-//       %c7 = arith.constant 7 : i32
-//       %0 = arith.muli %clear_value, %c7 : i32
-//       secret.yield %0 : i32
-//    } -> (!secret.secret<i32>)
-//
-// is transformed to
-//
-//    %0 = arith.constant 0 : i32
-//    %res = arith.muli %value, %0 : i32
-//
-struct CollapseSecretlessGeneric : public OpRewritePattern<GenericOp> {
-  CollapseSecretlessGeneric(mlir::MLIRContext *context)
-      : OpRewritePattern<GenericOp>(context, /*benefit=*/3) {}
-
-  LogicalResult matchAndRewrite(GenericOp op,
-                                PatternRewriter &rewriter) const override {
-    for (Type ty : op.getOperandTypes()) {
-      if (dyn_cast<SecretType>(ty)) {
-        return failure();
-      }
-    }
-
-    YieldOp yieldOp = dyn_cast<YieldOp>(op.getBody()->getOperations().back());
-    rewriter.inlineBlockBefore(op.getBody(), op.getOperation(), op.getInputs());
-    rewriter.replaceOp(op, yieldOp.getValues());
-    rewriter.eraseOp(yieldOp);
-    return success();
-  }
-};
-
-// FIXME: move this pattern so it can be reused in canonicalization.
-// Remove unused args of a secret.generic op
-//
-// E.g.,
-//
-//    %res = secret.generic
-//       ins(%value_sec, %unused_sec : !secret.secret<i32>, !secret.secret<i32>)
-//       {
-//     ^bb0(%used: i32, %unused: i32):
-//       %0 = arith.muli %used, %used : i32
-//       secret.yield %0 : i32
-//    } -> (!secret.secret<i32>)
-//
-// is transformed to
-//
-//    %res = secret.generic
-//       ins(%value_sec : !secret.secret<i32>) {
-//     ^bb0(%used: i32):
-//       %0 = arith.muli %used, %used : i32
-//       secret.yield %0 : i32
-//    } -> (!secret.secret<i32>)
-//
-struct RemoveUnusedGenericArgs : public OpRewritePattern<GenericOp> {
-  RemoveUnusedGenericArgs(mlir::MLIRContext *context)
-      : OpRewritePattern<GenericOp>(context, /*benefit=*/2) {}
-
-  LogicalResult matchAndRewrite(GenericOp op,
-                                PatternRewriter &rewriter) const override {
-    bool hasUnusedOps = false;
-    Block *body = op.getBody();
-    for (int i = 0; i < body->getArguments().size(); ++i) {
-      BlockArgument arg = body->getArguments()[i];
-      if (arg.use_empty()) {
-        hasUnusedOps = true;
-        rewriter.updateRootInPlace(op, [&]() {
-          body->eraseArgument(i);
-          op.getOperation()->eraseOperand(i);
-        });
-        // Ensure the next iteration uses the right arg number
-        --i;
-      }
-    }
-
-    return hasUnusedOps ? success() : failure();
-  }
-};
-
-// FIXME: move this pattern so it can be reused in canonicalization.
-// Remove non-secret args of a secret.generic op, since they can be referenced
-// directly in the enclosing scope.
-struct RemoveNonSecretGenericArgs : public OpRewritePattern<GenericOp> {
-  RemoveNonSecretGenericArgs(mlir::MLIRContext *context)
-      : OpRewritePattern<GenericOp>(context, /*benefit=*/2) {}
-
-  LogicalResult matchAndRewrite(GenericOp op,
-                                PatternRewriter &rewriter) const override {
-    bool deletedAny = false;
-    for (OpOperand &operand : op->getOpOperands()) {
-      if (!isa<SecretType>(operand.get().getType())) {
-        deletedAny = true;
-        Block *body = op.getBody();
-        BlockArgument correspondingArg =
-            body->getArgument(operand.getOperandNumber());
-
-        rewriter.replaceAllUsesWith(correspondingArg, operand.get());
-        rewriter.updateRootInPlace(op, [&]() {
-          body->eraseArgument(operand.getOperandNumber());
-          op.getOperation()->eraseOperand(operand.getOperandNumber());
-        });
-      }
-    }
-
-    return deletedAny ? success() : failure();
-  }
-};
 
 // Split a secret.generic containing multiple ops into multiple secret.generics.
 //
@@ -478,10 +367,9 @@ struct DistributeGeneric
     });
 
     patterns.add<SplitGeneric>(context, opsToDistribute);
-    patterns.add<CollapseSecretlessGeneric, RemoveUnusedGenericArgs>(context);
-    patterns.add<RemoveNonSecretGenericArgs>(context);
-    // TODO(https://github.com/google/heir/issues/170): add a pattern that
-    // distributes generic through a single op containing one or more regions.
+    // These patterns are shared with canonicalization
+    patterns.add<CollapseSecretlessGeneric, RemoveUnusedGenericArgs,
+                 RemoveNonSecretGenericArgs>(context);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
   }
 };

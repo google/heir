@@ -11,6 +11,7 @@ exports_files(
     [
         "SecretDialect.h",
         "SecretOps.h",
+        "SecretPatterns.h",
         "SecretTypes.h",
     ],
 )
