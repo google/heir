@@ -75,6 +75,22 @@ struct RemoveNonSecretGenericArgs : public OpRewritePattern<GenericOp> {
                                 PatternRewriter &rewriter) const override;
 };
 
+// Find a value used in the generic but only defined in the ambient scope (i.e.,
+// not passed through the generic's input) and add it to the generic's operands
+// and block arguments.
+//
+// This is the opposite of RemoveNonSecretGenericArgs, and is useful in the case
+// of a pass that needs to have easy access to all the values used in the
+// secret.generic body, such as YosysOptimizer.
+struct CaptureAmbientScope : public OpRewritePattern<GenericOp> {
+  CaptureAmbientScope(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+};
+
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir

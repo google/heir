@@ -1,0 +1,33 @@
+#include "include/Dialect/Secret/Transforms/CaptureGenericAmbientScope.h"
+
+#include <utility>
+
+#include "include/Dialect/Secret/IR/SecretPatterns.h"
+#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+
+namespace mlir {
+namespace heir {
+namespace secret {
+
+#define GEN_PASS_DEF_SECRETCAPTUREGENERICAMBIENTSCOPE
+#include "include/Dialect/Secret/Transforms/Passes.h.inc"
+
+struct CaptureGenericAmbientScope
+    : impl::SecretCaptureGenericAmbientScopeBase<CaptureGenericAmbientScope> {
+  using SecretCaptureGenericAmbientScopeBase::
+      SecretCaptureGenericAmbientScopeBase;
+
+  void runOnOperation() override {
+    MLIRContext *context = &getContext();
+    mlir::RewritePatternSet patterns(context);
+
+    patterns.add<CaptureAmbientScope>(context);
+    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+  }
+};
+
+}  // namespace secret
+}  // namespace heir
+}  // namespace mlir

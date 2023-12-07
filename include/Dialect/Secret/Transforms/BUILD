@@ -29,7 +29,8 @@ gentbl_cc_library(
 )
 
 exports_files([
-    "Passes.h",
-    "ForgetSecrets.h",
+    "CaptureGenericAmbientScope.h",
     "DistributeGeneric.h",
+    "ForgetSecrets.h",
+    "Passes.h",
 ])

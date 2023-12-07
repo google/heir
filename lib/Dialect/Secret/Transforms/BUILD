@@ -9,6 +9,7 @@ cc_library(
         "@heir//include/Dialect/Secret/Transforms:Passes.h",
     ],
     deps = [
+        ":CaptureGenericAmbientScope",
         ":DistributeGeneric",
         ":ForgetSecrets",
         "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
@@ -50,6 +51,21 @@ cc_library(
         "@llvm-project//mlir:LoopLikeInterface",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "CaptureGenericAmbientScope",
+    srcs = ["CaptureGenericAmbientScope.cpp"],
+    hdrs = [
+        "@heir//include/Dialect/Secret/Transforms:CaptureGenericAmbientScope.h",
+    ],
+    deps = [
+        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Transforms",
     ],
 )
