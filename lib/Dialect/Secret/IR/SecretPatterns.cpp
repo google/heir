@@ -63,6 +63,36 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
 
   return deletedAny ? success() : failure();
 }
+
+LogicalResult CaptureAmbientScope::matchAndRewrite(
+    GenericOp genericOp, PatternRewriter &rewriter) const {
+  Value *foundValue = nullptr;
+  genericOp.getBody()->walk([&](Operation *op) -> WalkResult {
+    for (Value operand : op->getOperands()) {
+      Region *operandRegion = operand.getParentRegion();
+      if (operandRegion && !genericOp.getRegion().isAncestor(operandRegion)) {
+        foundValue = &operand;
+        return WalkResult::interrupt();
+      }
+    }
+    return WalkResult::advance();
+  });
+
+  if (foundValue == nullptr) {
+    return failure();
+  }
+
+  Value value = *foundValue;
+  rewriter.updateRootInPlace(genericOp, [&]() {
+    BlockArgument newArg =
+        genericOp.getBody()->addArgument(value.getType(), genericOp.getLoc());
+    rewriter.replaceAllUsesWith(value, newArg);
+    genericOp.getInputsMutable().append(value);
+  });
+
+  return success();
+}
+
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir

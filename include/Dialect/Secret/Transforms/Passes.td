@@ -40,5 +40,14 @@ def SecretDistributeGeneric : Pass<"secret-distribute-generic"> {
   ];
 }
 
+def SecretCaptureGenericAmbientScope : Pass<"secret-capture-generic-ambient-scope"> {
+  let summary = "Capture the ambient scope used in a secret.generic";
+  let description = [{
+    For each value used in the body of a `secret.generic` op, which is defined
+    in the ambient scope outside the `generic`, add it to the argument list of
+    the `generic`.
+  }];
+  let dependentDialects = ["mlir::heir::secret::SecretDialect"];
+}
 
 #endif  // INCLUDE_DIALECT_SECRET_TRANSFORMS_PASSES_TD_
