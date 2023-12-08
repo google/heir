@@ -19,9 +19,9 @@ func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !s
   // CHECK-NEXT:   secret.yield %[[g1_op]] : i32
   // CHECK-NEXT: } -> !secret.secret<i32>
 
-  // CHECK-NEXT: %[[g2:.*]] = secret.generic ins(%[[g1]], %[[g1]] : !secret.secret<i32>, !secret.secret<i32>) {
-  // CHECK-NEXT: ^[[bb2:.*]](%[[clear_g2_in0:.*]]: i32, %[[clear_g2_in1:.*]]: i32):
-  // CHECK-NEXT:   %[[g2_op:.*]] = arith.muli %[[clear_g2_in0]], %[[clear_g2_in1]] : i32
+  // CHECK-NEXT: %[[g2:.*]] = secret.generic ins(%[[g1]] : !secret.secret<i32>) {
+  // CHECK-NEXT: ^[[bb2:.*]](%[[clear_g2_in0:.*]]: i32):
+  // CHECK-NEXT:   %[[g2_op:.*]] = arith.muli %[[clear_g2_in0]], %[[clear_g2_in0]] : i32
   // CHECK-NEXT:   secret.yield %[[g2_op]] : i32
   // CHECK-NEXT: } -> !secret.secret<i32>
 

@@ -6,11 +6,14 @@
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
@@ -117,10 +120,10 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Set the loop op's operands that came from the secret generic block
       // to be the the corresponding operand of the generic op.
       for (OpOperand &operand : opToDistribute.getOpOperands()) {
-        BlockArgument blockArg = dyn_cast<BlockArgument>(operand.get());
-        if (blockArg && blockArg.getOwner() == genericOp.getBody()) {
-          BlockArgument initArg = cast<BlockArgument>(operand.get());
-          operand.set(genericOp.getOperand(initArg.getArgNumber()));
+        OpOperand *corrGenericOperand =
+            genericOp.getOpOperandForBlockArgument(operand.get());
+        if (corrGenericOperand != nullptr) {
+          operand.set(corrGenericOperand->get());
         }
       }
 
@@ -148,11 +151,11 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       genericOp->moveBefore(&loopBodyBlocks.front().getOperations().front());
 
       // Update the yielded values by the terminators of the two ops' blocks.
-      auto yieldedValues = loop.getYieldedValues();
-      genericOp.getBody(0)->getTerminator()->setOperands(yieldedValues);
+      ValueRange yieldedValues = loop.getYieldedValues();
+      genericOp.getYieldOp()->setOperands(yieldedValues);
       // An affine.for op might not have a yielded value, and only manipulate
-      // memrefs in its body. In this case, both the secret.generic and the
-      // affine.for will yield nothing.
+      // memrefs in its body. In this case, the secret.generic may still yield
+      // memrefs, but the affine.for will yield nothing.
       if (!yieldedValues.empty()) {
         auto *terminator = opToDistribute.getRegion(0).front().getTerminator();
         terminator->setOperands(genericOp.getResults());
@@ -169,7 +172,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
       // Move the old loop body ops into the secret.generic
       for (auto *op : loopBodyOps) {
-        op->moveBefore(genericOp.getBody(0)->getTerminator());
+        op->moveBefore(genericOp.getYieldOp());
       }
 
       // One of the secret.generic's inputs may still refer to the loop's
@@ -185,11 +188,16 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // iter_args, which are not part of of the secret.generic's block. To be
       // a bit more general, walk the entire generic body, and for any operand
       // not in the block, add it as an operand to the secret.generic.
-      Block *genericBlock = genericOp.getBody(0);
+      Block *genericBlock = genericOp.getBody();
       genericBlock->walk([&](Operation *op) {
         for (Value operand : op->getOperands()) {
           if (operand.getParentBlock() != genericBlock) {
             if (isa<SecretType>(operand.getType())) {
+              LLVM_DEBUG({
+                llvm::dbgs() << "Found an operand that is secret, but not part "
+                                "of the generic: "
+                             << operand << "\n";
+              });
               // Find the secret.generic operand that corresponds to this
               // operand
               int operandNumber =
@@ -229,66 +237,226 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     // RegionBranchOpInterface (scf.while, scf.if).
   }
 
-  void splitGenericAroundOp(GenericOp op, Operation &opToDistribute,
-                            PatternRewriter &rewriter) const {
-    assert(false && "not implemented");
+  // Adds new value to yield in a generic op. This requires replacing the entire
+  // generic op and cloning all its ops, since I can't find a way to modify the
+  // op's return type in-place.
+  //
+  // Returns the new op and the value range corresponding to the new result
+  // values of the generic.
+  std::pair<GenericOp, ValueRange> addNewYieldedValues(
+      GenericOp genericOp, ValueRange newValuesToYield,
+      PatternRewriter &rewriter) const {
+    YieldOp yieldOp = genericOp.getYieldOp();
+    yieldOp.getValuesMutable().append(newValuesToYield);
+    auto newTypes = llvm::to_vector<4>(
+        llvm::map_range(yieldOp.getValues().getTypes(), [](Type t) -> Type {
+          SecretType newTy = secret::SecretType::get(t);
+          LLVM_DEBUG(llvm::dbgs() << "Adding new type: " << newTy << "\n");
+          return newTy;
+        }));
+    GenericOp newOp = rewriter.create<GenericOp>(
+        genericOp.getLoc(), genericOp.getOperands(), newTypes,
+        [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+          IRMapping mp;
+          for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
+            mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
+          }
+          for (auto &op : genericOp.getBody()->getOperations()) {
+            LLVM_DEBUG(llvm::dbgs() << "Cloning " << op.getName() << "\n");
+            b.clone(op, mp);
+          }
+        });
+
+    LLVM_DEBUG(newOp.emitRemark() << "Cloned generic Op with new results\n");
+
+    auto newResultStartIter = newOp.getResults().drop_front(
+        newOp.getNumResults() - newValuesToYield.size());
+
+    LLVM_DEBUG(llvm::dbgs() << "Replacing old op\n");
+    rewriter.replaceOp(
+        genericOp,
+        ValueRange(newOp.getResults().drop_back(newValuesToYield.size())));
+    return {newOp, ValueRange(newResultStartIter)};
   }
 
-  void splitGenericAfterOp(GenericOp op, Operation &opToDistribute,
-                           PatternRewriter &rewriter) const {
-    LLVM_DEBUG({
-      opToDistribute.emitRemark() << " splitting generic after this op\n";
-    });
-    Block *body = op.getBody();
-    // The inputs to the op may be in the generic op's block arguments
-    // (cleartext values with corresponding secrets), and they need to change
-    // to be the corresponding generic op's normal operands (maybe secret
-    // values).
-    SmallVector<Value> newInputs;
-    for (Value val : opToDistribute.getOperands()) {
-      int index = std::find(body->getArguments().begin(),
-                            body->getArguments().end(), val) -
-                  body->getArguments().begin();
-      if (index == body->getArguments().size()) {
-        // The operand is not a block argument, so it must be referencing the
-        // ambient scope.
-        newInputs.push_back(val);
-      } else {
-        newInputs.push_back(op.getOperand(index));
+  /// Move an op from the body of one secret.generic to an earlier
+  /// secret.generic in the same block. Updates the yielded values and operands
+  /// of the secret.generics appropriately.
+  ///
+  /// `opToMove` must not depend on the results of any other ops in the source
+  /// generic, only its block arguments.
+  ///
+  /// Returns a new version of the targetGeneric, which replaces the input
+  /// `targetGeneric`.
+  GenericOp moveOpToEarlierGeneric(Operation &opToMove, GenericOp sourceGeneric,
+                                   GenericOp targetGeneric,
+                                   PatternRewriter &rewriter) const {
+    LLVM_DEBUG(opToMove.emitRemark() << "Moving op to earlier generic\n");
+
+    assert(opToMove.getParentOp() == sourceGeneric &&
+           "opToMove must be in sourceGeneric");
+    assert(sourceGeneric->getBlock() == targetGeneric->getBlock() &&
+           "source and target generics must be in the same block");
+
+    IRMapping cloningMp;
+    for (OpOperand &operand : opToMove.getOpOperands()) {
+      if (operand.get().getParentBlock() == sourceGeneric.getBody()) {
+        LLVM_DEBUG(llvm::dbgs() << "opToMove depends on block argument "
+                                << operand.get() << " of source generic\n");
+        assert(operand.get().isa<BlockArgument>() &&
+               "opToMove has a non-block-argument operand defined in the "
+               "source generic");
+
+        BlockArgument blockArg = cast<BlockArgument>(operand.get());
+        Value sourceGenericArg =
+            sourceGeneric.getOperand(blockArg.getArgNumber());
+        LLVM_DEBUG(opToMove.emitRemark()
+                   << "Moving op requires adding " << sourceGenericArg
+                   << " to target generic\n");
+
+        // The operand may be the result of the generic we'd like to move it to,
+        // in which case the targetGeneric's result corresponds to a yielded
+        // value in targetGeneric, and we can map the op's operand to that
+        // yielded value.
+        auto *definingOp = sourceGenericArg.getDefiningOp();
+        if (definingOp == targetGeneric.getOperation()) {
+          int resultIndex =
+              std::find(targetGeneric.getResults().begin(),
+                        targetGeneric.getResults().end(), sourceGenericArg) -
+              targetGeneric.getResults().begin();
+
+          assert(resultIndex >= 0 && "unable to find result in yield");
+          Value yieldedValue =
+              targetGeneric.getYieldOp()->getOperand(resultIndex);
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Mapping " << operand.get()
+                     << " to existing yielded value " << yieldedValue << "\n");
+          cloningMp.map(operand.get(), yieldedValue);
+          continue;
+        }
+
+        // The operand may correspond to an existing input to the secret
+        // generic, in which case we don't need to add a new value.
+        int foundArgIndex =
+            std::find(targetGeneric.getOperands().begin(),
+                      targetGeneric.getOperands().end(), sourceGenericArg) -
+            targetGeneric.getOperands().begin();
+        if (foundArgIndex < targetGeneric.getOperands().size()) {
+          BlockArgument existingArg =
+              targetGeneric.getBody()->getArgument(foundArgIndex);
+          LLVM_DEBUG(llvm::dbgs() << "Mapping " << operand.get()
+                                  << " to existing targetGeneric block arg: "
+                                  << existingArg << "\n");
+          cloningMp.map(operand.get(), existingArg);
+          continue;
+        }
+
+        // Otherwise, the operand must be an input to the sourceGeneric, which
+        // must be added to the targetGeneric.
+        targetGeneric.getInputsMutable().append(sourceGenericArg);
+        BlockArgument newBlockArg = targetGeneric.getBody()->addArgument(
+            operand.get().getType(), targetGeneric.getLoc());
+        LLVM_DEBUG(llvm::dbgs() << "Mapping " << operand.get()
+                                << " to new block arg added to targetGeneric "
+                                << newBlockArg << "\n");
+        cloningMp.map(operand.get(), newBlockArg);
       }
+
+      // If the operand is not a sourceGeneric block argument, then it must be
+      // a value defined in the enclosing scope. It cannot be a value defined
+      // between the two secret.generics, because in this pattern we only
+      // invoke this just after splitting a generic into two adjacent ops.
+      assert(isa<BlockArgument>(operand.get()) ||
+             operand.get().getDefiningOp()->isBeforeInBlock(targetGeneric) &&
+                 "Invalid use of moveOpToEarlierGeneric");
     }
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "Cloning " << opToMove << " to target generic\n");
+    Operation *clonedOp = rewriter.clone(opToMove, cloningMp);
+    clonedOp->moveBefore(targetGeneric.getYieldOp());
+    auto [modifiedGeneric, newResults] =
+        addNewYieldedValues(targetGeneric, clonedOp->getResults(), rewriter);
+    LLVM_DEBUG(modifiedGeneric.emitRemark()
+               << "Added new yielded values to target generic\n");
+
+    // Finally, add the new targetGeneric results to the sourceGeneric, and
+    // replace the opToMove with the new block arguments.
+    sourceGeneric.getInputsMutable().append(newResults);
+    SmallVector<Location, 1> newLocs(newResults.size(), sourceGeneric.getLoc());
+    auto clearTypes = llvm::to_vector<6>(llvm::map_range(
+        newResults.getTypes(),
+        [](Type t) -> Type { return cast<SecretType>(t).getValueType(); }));
+    SmallVector<BlockArgument> newBlockArgs = llvm::to_vector<6>(
+        sourceGeneric.getBody()->addArguments(clearTypes, newLocs));
+
+    rewriter.replaceOp(&opToMove, ValueRange{newBlockArgs});
+    LLVM_DEBUG(sourceGeneric.emitRemark()
+               << "Added new operands from targetGeneric\n");
+
+    return modifiedGeneric;
+  }
+
+  /// Split a secret.generic at a given op, creating two secret.generics where
+  /// the first contains the ops preceding `opToDistribute`, and the second
+  /// starts with `opToDistribute`, which can then be given as input to
+  /// `splitGenericAfterFirstOp`.
+  void splitGenericBeforeOp(GenericOp genericOp, Operation &stopBefore,
+                            PatternRewriter &rewriter) const {
+    LLVM_DEBUG(genericOp.emitRemark()
+               << " splitting generic before op " << stopBefore << "\n");
+
+    auto newGeneric = splitGenericAfterFirstOp(genericOp, rewriter);
+    while (&genericOp.getBody()->getOperations().front() != &stopBefore) {
+      auto &op = genericOp.getBody()->getOperations().front();
+      newGeneric = moveOpToEarlierGeneric(op, genericOp, newGeneric, rewriter);
+    }
+  }
+
+  // Splits a generic op after a given opToDistribute. A newly created GenericOp
+  // contains the opToDistribute
+  GenericOp splitGenericAfterFirstOp(GenericOp genericOp,
+                                     PatternRewriter &rewriter) const {
+    Operation &firstOp = genericOp.getBody()->front();
+    LLVM_DEBUG(firstOp.emitRemark() << " splitting generic after this op\n");
 
     // Result types are secret versions of the results of the op, since the
     // secret will yield all of this op's results immediately.
     SmallVector<Type> newResultTypes;
-    for (Type ty : opToDistribute.getResultTypes()) {
+    newResultTypes.reserve(firstOp.getNumResults());
+    for (Type ty : firstOp.getResultTypes()) {
       newResultTypes.push_back(SecretType::get(ty));
     }
 
-    // We may be adding non-secret inputs to the generic, but later patterns
-    // will clean this up.
     auto newGeneric = rewriter.create<GenericOp>(
-        op.getLoc(), newInputs, newResultTypes,
+        genericOp.getLoc(), genericOp.getInputs(), newResultTypes,
         [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
-          auto *newOp = b.clone(opToDistribute);
-          newOp->setOperands(blockArguments);
+          IRMapping mp;
+          for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
+            mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
+          }
+          auto *newOp = b.clone(firstOp, mp);
           b.create<YieldOp>(loc, newOp->getResults());
         });
+
+    LLVM_DEBUG(newGeneric.emitRemark() << " created new generic op\n");
 
     // Once the op is split off into a new generic op, we need to add new
     // operands to the old generic op, add new corresponding block arguments,
     // and replace all uses of the opToDistribute's results with the created
     // block arguments.
     SmallVector<Value> oldGenericNewBlockArgs;
-    rewriter.updateRootInPlace(op, [&]() {
-      op.getInputsMutable().append(newGeneric.getResults());
-      for (auto ty : opToDistribute.getResultTypes()) {
+    rewriter.updateRootInPlace(genericOp, [&]() {
+      genericOp.getInputsMutable().append(newGeneric.getResults());
+      for (auto ty : firstOp.getResultTypes()) {
         BlockArgument arg =
-            op.getBody()->addArgument(ty, opToDistribute.getLoc());
+            genericOp.getBody()->addArgument(ty, firstOp.getLoc());
         oldGenericNewBlockArgs.push_back(arg);
       }
     });
-    rewriter.replaceOp(&opToDistribute, oldGenericNewBlockArgs);
+    rewriter.replaceOp(&firstOp, oldGenericNewBlockArgs);
+
+    return newGeneric;
   }
 
   LogicalResult matchAndRewrite(GenericOp op,
@@ -330,15 +498,19 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     if (opToDistribute == nullptr) return failure();
 
     if (numOps == 2 && !opToDistribute->getRegions().empty()) {
+      LLVM_DEBUG(opToDistribute->emitRemark()
+                 << "Distributing through region holding op isolated in its "
+                    "own generic\n");
       distributeThroughRegionHoldingOp(op, *opToDistribute, rewriter);
       return success();
     }
 
     if (first) {
-      splitGenericAfterOp(op, *opToDistribute, rewriter);
+      splitGenericAfterFirstOp(op, rewriter);
     } else {
-      splitGenericAroundOp(op, *opToDistribute, rewriter);
+      splitGenericBeforeOp(op, *opToDistribute, rewriter);
     }
+
     return success();
   }
 

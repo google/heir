@@ -156,6 +156,14 @@ def Secret_GenericOp : Secret_Op<"generic", [
   let extraClassDeclaration = [{
     /// Defining the function type we use for building the body of affine.for.
     using BodyBuilderFn = function_ref<void(OpBuilder &, Location, ValueRange)>;
+
+    // Returns the unique YieldOp in the body of this generic
+    YieldOp getYieldOp();
+
+    // Returns the OpOperand of this generic op corresponding to the given
+    // value. Returns nullptr if the value is not a block argument for this
+    // secret.generic.
+    OpOperand *getOpOperandForBlockArgument(Value value);
   }];
 
   let hasCanonicalizer = 1;
