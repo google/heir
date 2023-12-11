@@ -32,26 +32,6 @@ bool isCiphertextOrSecret(Type type) {
   return false;
 }
 
-Type getLWECiphertextForInt(MLIRContext *ctx, Type type, int minBitSize) {
-  if (IntegerType intType = dyn_cast<IntegerType>(type)) {
-    if (intType.getWidth() == 1) {
-      return lwe::LWECiphertextType::get(
-          ctx, lwe::UnspecifiedBitFieldEncodingAttr::get(ctx, minBitSize),
-          lwe::LWEParamsAttr());
-    }
-    return RankedTensorType::get(
-        {intType.getWidth()},
-        getLWECiphertextForInt(ctx, IntegerType::get(ctx, 1), minBitSize));
-  }
-  ShapedType shapedType = dyn_cast<ShapedType>(type);
-  assert(shapedType && "expected shaped secret type for a non-integer secret");
-  assert(isa<IntegerType>(shapedType.getElementType()) &&
-         "expected integer element types for shaped secret types");
-  return shapedType.cloneWith(
-      shapedType.getShape(),
-      getLWECiphertextForInt(ctx, shapedType.getElementType(), minBitSize));
-}
-
 // equivalentMultiBitAndTensor checks whether the candidateMultiBit integer type
 // is equivalent to the candidateTensor type.
 // They are equivalent if the candidateTensor is a tensor of single bits with
@@ -78,9 +58,30 @@ class SecretTypeConverter : public TypeConverter {
     addConversion([](Type type) { return type; });
 
     // Convert secret types to LWE ciphertext types
-    addConversion([ctx, minBitWidth](secret::SecretType type) -> Type {
-      return getLWECiphertextForInt(ctx, type.getValueType(), minBitWidth);
+    addConversion([ctx, this](secret::SecretType type) -> Type {
+      return getLWECiphertextForInt(ctx, type.getValueType());
     });
+  }
+
+  Type getLWECiphertextForInt(MLIRContext *ctx, Type type) const {
+    if (IntegerType intType = dyn_cast<IntegerType>(type)) {
+      if (intType.getWidth() == 1) {
+        return lwe::LWECiphertextType::get(
+            ctx, lwe::UnspecifiedBitFieldEncodingAttr::get(ctx, minBitWidth),
+            lwe::LWEParamsAttr());
+      }
+      return RankedTensorType::get(
+          {intType.getWidth()},
+          getLWECiphertextForInt(ctx, IntegerType::get(ctx, 1)));
+    }
+    ShapedType shapedType = dyn_cast<ShapedType>(type);
+    assert(shapedType &&
+           "expected shaped secret type for a non-integer secret");
+    assert(isa<IntegerType>(shapedType.getElementType()) &&
+           "expected integer element types for shaped secret types");
+    return shapedType.cloneWith(
+        shapedType.getShape(),
+        getLWECiphertextForInt(ctx, shapedType.getElementType()));
   }
 
   int minBitWidth;
@@ -120,6 +121,8 @@ class SecretGenericOpTypeConversion
     // For some reason, if this doesn't occur, the type conversion framework is
     // unable to update the uses of converted truth table results.
     rewriter.startRootUpdate(op);
+    const SecretTypeConverter *secretConverter =
+        static_cast<const SecretTypeConverter *>(typeConverter);
     opEntryBlock.walk<WalkOrder::PreOrder>([&](Operation *op) {
       bool ciphertextArg =
           std::any_of(op->getOperands().begin(), op->getOperands().end(),
@@ -128,8 +131,8 @@ class SecretGenericOpTypeConversion
                       });
       if (ciphertextArg) {
         for (unsigned i = 0; i < op->getNumResults(); i++) {
-          op->getResult(i).setType(getLWECiphertextForInt(
-              getContext(), op->getResult(i).getType(), 3));
+          op->getResult(i).setType(secretConverter->getLWECiphertextForInt(
+              getContext(), op->getResult(i).getType()));
         }
       }
     });
@@ -169,13 +172,15 @@ struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
         [&](const Value &val) { return isCiphertextOrSecret(val.getType()); });
 
     SmallVector<mlir::Value, 4> lutInputs;
+    const SecretTypeConverter *secretConverter =
+        static_cast<const SecretTypeConverter *>(typeConverter);
     for (Value val : adaptor.getOperands()) {
       auto integerTy = dyn_cast<IntegerType>(val.getType());
       // If any of the arguments to the truth table are ciphertexts, we must
       // encode and trivially encrypt the plaintext integers arguments.
       if (ciphertextArg && integerTy) {
         assert(integerTy.getWidth() == 1 && "LUT inputs should be single-bit");
-        auto ctxtTy = getLWECiphertextForInt(ctx, integerTy, 3);
+        auto ctxtTy = secretConverter->getLWECiphertextForInt(ctx, integerTy);
         auto encoding = cast<lwe::LWECiphertextType>(ctxtTy).getEncoding();
         auto ptxtTy = lwe::LWEPlaintextType::get(ctx, encoding);
 

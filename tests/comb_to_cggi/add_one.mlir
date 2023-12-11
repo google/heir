@@ -50,7 +50,7 @@ module {
       secret.yield %from_elements : tensor<8xi1>
     } -> !secret.secret<tensor<8xi1>>
     // CHECK: [[CONCAT:%.*]] = tensor.from_elements
-    %26 = secret.cast %25 : !secret.secret<tensor<8xi1>> to !secret.secret<i8>
+    %2 = secret.cast %1 : !secret.secret<tensor<8xi1>> to !secret.secret<i8>
     // CHECK: return [[CONCAT]] : [[LWET]]
     return %2 : !secret.secret<i8>
   }
