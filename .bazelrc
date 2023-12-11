@@ -3,3 +3,4 @@ common --cxxopt='-std=c++17'
 common --copt=-fdiagnostics-color=always
 common --test_output=errors
 common -c dbg
+common --noenable_bzlmod
