@@ -20,21 +20,70 @@ namespace mlir::heir::comb {
 #define GEN_PASS_DEF_COMBTOCGGI
 #include "include/Conversion/CombToCGGI/CombToCGGI.h.inc"
 
+namespace {
+
+bool isCiphertextOrSecret(Type type) {
+  if (isa<secret::SecretType>(type) || isa<lwe::LWECiphertextType>(type)) {
+    return true;
+  }
+  if (ShapedType shapedType = dyn_cast<ShapedType>(type)) {
+    return isCiphertextOrSecret(shapedType.getElementType());
+  }
+  return false;
+}
+
+Type getLWECiphertextForInt(MLIRContext *ctx, Type type, int minBitSize) {
+  if (IntegerType intType = dyn_cast<IntegerType>(type)) {
+    if (intType.getWidth() == 1) {
+      return lwe::LWECiphertextType::get(
+          ctx, lwe::UnspecifiedBitFieldEncodingAttr::get(ctx, minBitSize),
+          lwe::LWEParamsAttr());
+    }
+    return RankedTensorType::get(
+        {intType.getWidth()},
+        getLWECiphertextForInt(ctx, IntegerType::get(ctx, 1), minBitSize));
+  }
+  ShapedType shapedType = dyn_cast<ShapedType>(type);
+  assert(shapedType && "expected shaped secret type for a non-integer secret");
+  assert(isa<IntegerType>(shapedType.getElementType()) &&
+         "expected integer element types for shaped secret types");
+  return shapedType.cloneWith(
+      shapedType.getShape(),
+      getLWECiphertextForInt(ctx, shapedType.getElementType(), minBitSize));
+}
+
+// equivalentMultiBitAndTensor checks whether the candidateMultiBit integer type
+// is equivalent to the candidateTensor type.
+// They are equivalent if the candidateTensor is a tensor of single bits with
+// size equal to the number of bits of the candidateMultiBit.
+bool equivalentMultiBitAndTensor(Type candidateMultiBit, Type candidateTensor) {
+  if (auto multiBitTy = dyn_cast<IntegerType>(candidateMultiBit)) {
+    if (auto tensorTy = dyn_cast<RankedTensorType>(candidateTensor)) {
+      auto tensorElt = dyn_cast<IntegerType>(tensorTy.getElementType());
+      if (tensorElt && multiBitTy.getWidth() ==
+                           tensorTy.getNumElements() * tensorElt.getWidth()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 class SecretTypeConverter : public TypeConverter {
  public:
-  SecretTypeConverter(MLIRContext *ctx) {
+  SecretTypeConverter(MLIRContext *ctx, int minBitWidth)
+      : minBitWidth(minBitWidth) {
     addConversion([](Type type) { return type; });
 
     // Convert secret types to LWE ciphertext types
-    addConversion([ctx](secret::SecretType type) -> Type {
-      auto intType = dyn_cast<IntegerType>(type.getValueType());
-      assert(intType);
-      return lwe::LWECiphertextType::get(
-          ctx,
-          lwe::UnspecifiedBitFieldEncodingAttr::get(ctx, intType.getWidth()),
-          lwe::LWEParamsAttr());
+    addConversion([ctx, minBitWidth](secret::SecretType type) -> Type {
+      return getLWECiphertextForInt(ctx, type.getValueType(), minBitWidth);
     });
   }
+
+  int minBitWidth;
 };
 
 class SecretGenericOpTypeConversion
@@ -59,8 +108,8 @@ class SecretGenericOpTypeConversion
     // secret.generic, so we manually replace them here. This lifts the internal
     // plaintext integer values within the secret.generic body to their original
     // secret values.
-    auto genericInputs = op.getInputs();
-    for (int i = 0; i < opEntryBlock.getNumArguments(); i++) {
+    auto genericInputs = adaptor.getInputs();
+    for (unsigned i = 0; i < opEntryBlock.getNumArguments(); i++) {
       rewriter.replaceAllUsesWith(opEntryBlock.getArgument(i),
                                   genericInputs[i]);
     }
@@ -71,20 +120,20 @@ class SecretGenericOpTypeConversion
     // For some reason, if this doesn't occur, the type conversion framework is
     // unable to update the uses of converted truth table results.
     rewriter.startRootUpdate(op);
-    opEntryBlock.walk([&](comb::TruthTableOp op) {
+    opEntryBlock.walk<WalkOrder::PreOrder>([&](Operation *op) {
       bool ciphertextArg =
-          std::any_of(op.getOperands().begin(), op.getOperands().end(),
+          std::any_of(op->getOperands().begin(), op->getOperands().end(),
                       [&](const Value &val) {
-                        return isa<secret::SecretType>(val.getType());
+                        return isCiphertextOrSecret(val.getType());
                       });
       if (ciphertextArg) {
-        op->getResults()[0].setType(lwe::LWECiphertextType::get(
-            getContext(),
-            lwe::UnspecifiedBitFieldEncodingAttr::get(
-                getContext(), op.getResult().getType().getWidth()),
-            lwe::LWEParamsAttr()));
+        for (unsigned i = 0; i < op->getNumResults(); i++) {
+          op->getResult(i).setType(getLWECiphertextForInt(
+              getContext(), op->getResult(i).getType(), 3));
+        }
       }
     });
+
     rewriter.finalizeRootUpdate(op);
 
     // Inline the secret.generic internal region, moving all of the operations
@@ -115,12 +164,9 @@ struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
     }
 
     MLIRContext *ctx = getContext();
-    bool ciphertextArg =
-        std::any_of(adaptor.getOperands().begin(), adaptor.getOperands().end(),
-                    [&](const Value &val) {
-                      return isa<lwe::LWECiphertextType>(val.getType()) ||
-                             isa<secret::SecretType>(val.getType());
-                    });
+    bool ciphertextArg = std::any_of(
+        adaptor.getOperands().begin(), adaptor.getOperands().end(),
+        [&](const Value &val) { return isCiphertextOrSecret(val.getType()); });
 
     SmallVector<mlir::Value, 4> lutInputs;
     for (Value val : adaptor.getOperands()) {
@@ -128,11 +174,10 @@ struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
       // If any of the arguments to the truth table are ciphertexts, we must
       // encode and trivially encrypt the plaintext integers arguments.
       if (ciphertextArg && integerTy) {
-        auto encoding = lwe::UnspecifiedBitFieldEncodingAttr::get(
-            ctx, integerTy.getWidth());
+        assert(integerTy.getWidth() == 1 && "LUT inputs should be single-bit");
+        auto ctxtTy = getLWECiphertextForInt(ctx, integerTy, 3);
+        auto encoding = cast<lwe::LWECiphertextType>(ctxtTy).getEncoding();
         auto ptxtTy = lwe::LWEPlaintextType::get(ctx, encoding);
-        auto ctxtTy =
-            lwe::LWECiphertextType::get(ctx, encoding, lwe::LWEParamsAttr());
 
         lutInputs.push_back(rewriter.create<lwe::TrivialEncryptOp>(
             op.getLoc(), ctxtTy,
@@ -151,23 +196,53 @@ struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
   }
 };
 
+// ConvertSecretCastOp removes secret.cast operations between multi-bit secret
+// integers and tensors of single-bit secrets.
+struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
+  ConvertSecretCastOp(mlir::MLIRContext *context)
+      : OpConversionPattern<secret::CastOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      secret::CastOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    // If this is a cast from secret<i8> to secret<tensor<8xi1>> or vice
+    // versa, replace with the cast's input.
+    auto inputTy =
+        cast<secret::SecretType>(op.getInput().getType()).getValueType();
+    auto outputTy =
+        cast<secret::SecretType>(op.getOutput().getType()).getValueType();
+
+    if (equivalentMultiBitAndTensor(inputTy, outputTy) ||
+        equivalentMultiBitAndTensor(outputTy, inputTy)) {
+      rewriter.replaceOp(op, adaptor.getInput());
+      return success();
+    }
+
+    return failure();
+  }
+};
+
 struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
-    SecretTypeConverter typeConverter(context);
+
+    // TODO(https://github.com/google/heir/issues/250): The lutSize here is
+    // fixed on the assumption that the comb dialect is using ternary LUTs.
+    // Generalize lutSize by doing an analysis pass on the input combinational
+    // operations and integers.
+    int lutSize = 3;
+    SecretTypeConverter typeConverter(context, lutSize);
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     target.addLegalOp<ModuleOp>();
 
-    patterns.add<ConvertTruthTableOp>(typeConverter, context);
-    target.addIllegalOp<TruthTableOp>();
-
-    patterns.add<SecretGenericOpTypeConversion>(typeConverter,
-                                                patterns.getContext());
-    target.addDynamicallyLegalOp<secret::GenericOp>(
-        [&](secret::GenericOp op) { return typeConverter.isLegal(op); });
+    patterns.add<ConvertTruthTableOp, ConvertSecretCastOp,
+                 SecretGenericOpTypeConversion>(typeConverter, context);
+    target.addIllegalOp<TruthTableOp, secret::GenericOp, secret::CastOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
