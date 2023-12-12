@@ -6,21 +6,19 @@
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"    // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -113,123 +111,166 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Terminators of the region are not part of the secret, since they just
       // handle control flow.
 
-      // Before moving the loop out of the generic, connect the loop's operands
-      // to the corresponding secret operands (via the block argument number).
       rewriter.startRootUpdate(genericOp);
 
-      // Set the loop op's operands that came from the secret generic block
-      // to be the the corresponding operand of the generic op.
-      for (OpOperand &operand : opToDistribute.getOpOperands()) {
-        OpOperand *corrGenericOperand =
-            genericOp.getOpOperandForBlockArgument(operand.get());
-        if (corrGenericOperand != nullptr) {
-          operand.set(corrGenericOperand->get());
+      LLVM_DEBUG(genericOp.emitRemark()
+                 << "Generic op at start of distributeThroughRegionHoldingOp");
+
+      // Clone the loop to occur just before the generic containing it. This
+      // will create a temporary dominance invalidity because, e.g., an arith
+      // op that operates on cleartext i32s in the loop body will now occur
+      // before that block argument is defined. We will patch this up once we
+      // move these ops inside a generic in the body of the loop.
+      //
+      // We also need to ensure the operands to the loop that are generic block
+      // arguments are converted to the corresponding secret input
+      rewriter.setInsertionPoint(genericOp);
+      IRMapping mp;
+      for (Value iterInit : loop.getInits()) {
+        if (auto *genericOperand =
+                genericOp.getOpOperandForBlockArgument(iterInit)) {
+          mp.map(iterInit, genericOperand->get());
         }
       }
-
-      // Set the op's region iter arg types, which need to match the possibly
-      // new type of the operands modified above
-      for (auto [arg, operand] :
-           llvm::zip(loop.getRegionIterArgs(), loop.getInits())) {
-        arg.setType(operand.getType());
+      LoopLikeOpInterface clonedLoop =
+          dyn_cast<LoopLikeOpInterface>(rewriter.clone(opToDistribute, mp));
+      for (auto [operand, blockArg] :
+           llvm::zip(clonedLoop.getInits(), clonedLoop.getRegionIterArgs())) {
+        if (isa<SecretType>(operand.getType()))
+          blockArg.setType(operand.getType());
       }
 
-      opToDistribute.moveBefore(genericOp);
-      // Now the loop is before the secret generic, but the generic still
-      // yields the loop's result (the loop should yield the generic's result)
-      // and the generic's body still needs to be moved inside the loop.
+      LLVM_DEBUG(genericOp->getParentOp()->emitRemark()
+                 << "after cloning loop before generic "
+                    "(expected type conflicts here)");
 
-      // Before touching the loop body, make a list of all its non-terminator
-      // ops for later moving.
-      auto &loopBodyBlocks = loop.getLoopRegions().front()->getBlocks();
-      SmallVector<Operation *> loopBodyOps;
-      for (Operation &op : loopBodyBlocks.begin()->without_terminator()) {
-        loopBodyOps.push_back(&op);
-      }
+      Block &clonedLoopBody = clonedLoop->getRegion(0).getBlocks().front();
+      rewriter.setInsertionPoint(&clonedLoopBody.getOperations().front());
 
-      // Move the generic op to be the first op of the loop body.
-      genericOp->moveBefore(&loopBodyBlocks.front().getOperations().front());
+      // The secret generic is replacing the loop body, which means its outputs
+      // must correspond exactly to the loop's yielded values.
+      //
+      // It is possible that the yield was yielding, say, a memref that the
+      // loop body modified. In this case, we need to trace that back to a
+      // generic operand and replace future uses of it with the corresponding
+      // input value.
+      SmallVector<Type> loopResultTypes = llvm::to_vector<4>(
+          llvm::map_range(clonedLoop->getResults().getTypes(),
+                          [](Type t) -> Type { return SecretType::get(t); }));
 
-      // Update the yielded values by the terminators of the two ops' blocks.
-      ValueRange yieldedValues = loop.getYieldedValues();
-      genericOp.getYieldOp()->setOperands(yieldedValues);
-      // An affine.for op might not have a yielded value, and only manipulate
-      // memrefs in its body. In this case, the secret.generic may still yield
-      // memrefs, but the affine.for will yield nothing.
-      if (!yieldedValues.empty()) {
-        auto *terminator = opToDistribute.getRegion(0).front().getTerminator();
-        terminator->setOperands(genericOp.getResults());
-      }
-
-      // Update the return type of the loop op to match its terminator.
-      auto resultRange = loop.getLoopResults();
-      if (resultRange.has_value()) {
-        for (auto [result, yielded] :
-             llvm::zip(resultRange.value(), yieldedValues)) {
-          result.setType(yielded.getType());
+      // If the original loop's iter arg was a generic block argument, then the
+      // new generic should take as input the loop's corresponding iter arg.
+      SmallVector<Value> newGenericOperands;
+      for (OpOperand &oldGenericOperand : genericOp->getOpOperands()) {
+        auto blockArg = genericOp.getBody()->getArgument(
+            oldGenericOperand.getOperandNumber());
+        auto index = std::find(loop.getInits().begin(), loop.getInits().end(),
+                               blockArg) -
+                     loop.getInits().begin();
+        if (index < loop.getInits().size()) {
+          newGenericOperands.push_back(clonedLoop.getRegionIterArgs()[index]);
+          continue;
         }
+
+        newGenericOperands.push_back(oldGenericOperand.get());
       }
 
-      // Move the old loop body ops into the secret.generic
-      for (auto *op : loopBodyOps) {
-        op->moveBefore(genericOp.getYieldOp());
-      }
-
-      // One of the secret.generic's inputs may still refer to the loop's
-      // iter_args initializer, when now it should refer to the iter_arg itself.
-      for (OpOperand &operand : genericOp->getOpOperands()) {
-        for (auto [iterArg, iterArgInit] :
-             llvm::zip(loop.getRegionIterArgs(), loop.getInits())) {
-          if (operand.get() == iterArgInit) operand.set(iterArg);
-        }
-      }
-
-      // The ops within the secret generic may still refer to the loop
-      // iter_args, which are not part of of the secret.generic's block. To be
-      // a bit more general, walk the entire generic body, and for any operand
-      // not in the block, add it as an operand to the secret.generic.
-      Block *genericBlock = genericOp.getBody();
-      genericBlock->walk([&](Operation *op) {
-        for (Value operand : op->getOperands()) {
-          if (operand.getParentBlock() != genericBlock) {
-            if (isa<SecretType>(operand.getType())) {
-              LLVM_DEBUG({
-                llvm::dbgs() << "Found an operand that is secret, but not part "
-                                "of the generic: "
-                             << operand << "\n";
-              });
-              // Find the secret.generic operand that corresponds to this
-              // operand
-              int operandNumber =
-                  std::find(genericOp.getOperands().begin(),
-                            genericOp.getOperands().end(), operand) -
-                  genericOp.getOperands().begin();
-              assert(operandNumber < genericOp.getNumOperands() &&
-                     "operand not found in secret.generic");
-              BlockArgument blockArg = genericBlock->getArgument(operandNumber);
-              operand.replaceUsesWithIf(blockArg, [&](OpOperand &use) {
-                return use.getOwner()->getParentOp() == genericOp;
-              });
+      SmallVector<Operation *> opsToErase;
+      GenericOp newGenericOp = rewriter.create<GenericOp>(
+          clonedLoopBody.getOperations().front().getLoc(), newGenericOperands,
+          loopResultTypes,
+          [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+            IRMapping mp;
+            for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
+              mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
             }
-          }
-        }
-      });
+            int index = 0;
+            for (Value value : newGenericOperands) {
+              mp.map(value, blockArguments[index++]);
+            }
+            for (Operation &op : clonedLoopBody.getOperations()) {
+              if (&op == &opToDistribute) continue;
 
-      // Finally, ops that came after the original secret.generic may still
-      // refer to a secret.generic result, when now they should refer to the
-      // corresponding result of the loop, if the loop has results.
-      for (OpResult genericResult : genericOp.getResults()) {
-        if (loop.getLoopResults().has_value()) {
-          auto correspondingLoopResult =
-              loop.getLoopResults().value()[genericResult.getResultNumber()];
-          genericResult.replaceUsesWithIf(
-              correspondingLoopResult, [&](OpOperand &use) {
-                return use.getOwner()->getParentOp() != loop.getOperation();
-              });
+              // This ensures that the loop terminator isn't added to the body
+              // of the generic, and that it is not erased.
+              if (op.hasTrait<OpTrait::IsTerminator>()) continue;
+
+              LLVM_DEBUG(llvm::dbgs() << "Cloning " << op.getName() << "\n");
+              b.clone(op, mp);
+              opsToErase.push_back(&op);
+            }
+
+            SmallVector<Value, 4> newYieldedValues;
+            for (Value oldYieldedValue :
+                 clonedLoopBody.getTerminator()->getOperands()) {
+              newYieldedValues.push_back(mp.lookup(oldYieldedValue));
+            }
+            b.create<YieldOp>(loc, newYieldedValues);
+          });
+
+      LLVM_DEBUG(genericOp->getParentOp()->emitRemark()
+                 << "after creating new generic inside loop");
+
+      // Handle the new loop terminator, which, if it used to yield the
+      // plaintext value now yielded by the generic, now needs to yield the
+      // result of the secret generic.
+
+      Operation *clonedLoopTerminator = clonedLoopBody.getTerminator();
+      // This should not introduce a type conflict because we ensured that the
+      // generic yielded the cleartext analogue of what the original terminator
+      // yielded.
+      clonedLoopTerminator->setOperands(newGenericOp.getResults());
+      auto resultValues = clonedLoop.getLoopResults();
+      if (resultValues.has_value()) {
+        for (auto [yieldType, resultVal] :
+             llvm::zip(clonedLoopTerminator->getOperandTypes(),
+                       resultValues.value())) {
+          resultVal.setType(yieldType);
         }
       }
+
+      LLVM_DEBUG(genericOp->getParentOp()->emitRemark()
+                 << "after updating cloned loop yield op");
 
       rewriter.finalizeRootUpdate(genericOp);
+
+      // To replace the original secret.generic, we need to find a suitable
+      // replacement for any of its result values. There are two cases:
+      //
+      // 1. The generic yielded result values from the contained loop, in which
+      // case the loop now yields the secret generic's result. In this case, we
+      // can replace with the loop's results.
+      //
+      // 2. The generic yielded values modified in the affine loop scope, in
+      // which case we need to find the original secret operand and replace
+      // with that.
+      if (loop.getLoopResults() == genericOp.getYieldOp().getValues()) {
+        // Case 1:
+        rewriter.replaceOp(genericOp, clonedLoop);
+      } else {
+        // Case 2:
+        SmallVector<Value> replacements;
+        for (Value value : genericOp.getYieldOp().getValues()) {
+          assert(isa<BlockArgument>(value) &&
+                 "not sure what to do here, file a bug");
+          replacements.push_back(
+              genericOp.getOperand(cast<BlockArgument>(value).getArgNumber()));
+          LLVM_DEBUG(llvm::dbgs() << "replacing value " << value << " with "
+                                  << replacements.back() << "\n");
+        }
+        rewriter.replaceOp(genericOp, replacements);
+      }
+
+      LLVM_DEBUG(clonedLoop->getParentOp()->emitRemark()
+                 << "after replacing original generic with appropriate values");
+
+      for (Operation *op : reverse(opsToErase)) {
+        rewriter.eraseOp(op);
+      }
+
+      LLVM_DEBUG(clonedLoop->getParentOp()->emitRemark()
+                 << "after erasing loop ops cloned into new generic");
+
       return;
     }
 

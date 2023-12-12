@@ -127,3 +127,61 @@ func.func @test_affine_for_split_middle(
   // CHECK: return %[[data]]
   func.return %data : !secret.secret<memref<10xi32>>
 }
+
+// CHECK-LABEL: affine_for_yielding_memref
+// CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi8>>
+func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !secret.secret<memref<10xi8>> {
+  %0 = secret.generic ins(%arg0 : !secret.secret<memref<10xi8>>) {
+  ^bb0(%arg1: memref<10xi8>):
+    // CHECK:       secret.generic
+    // CHECK-NEXT:    memref.alloc
+    // CHECK-NEXT:    secret.yield
+    %alloc = memref.alloc() {alignment = 64 : i64} : memref<10xi8>
+
+    // CHECK:       affine.for
+    // CHECK:       secret.generic
+    // CHECK-NEXT:    bb
+    // CHECK-NEXT:    affine.load
+    // CHECK-NEXT:    affine.store
+    // CHECK-NEXT:    secret.yield
+    affine.for %arg2 = 0 to 10 {
+      %1 = affine.load %arg1[%arg2] : memref<10xi8>
+      affine.store %1, %alloc[%arg2] : memref<10xi8>
+    }
+    secret.yield %alloc : memref<10xi8>
+  } -> !secret.secret<memref<10xi8>>
+  return %0 : !secret.secret<memref<10xi8>>
+}
+
+// CHECK-LABEL: affine_for_hello_world_reproducer
+// CHECK-SAME: %[[data:.*]]: !secret.secret<memref<1x80xi8>>
+func.func @affine_for_hello_world_reproducer(%arg0: !secret.secret<memref<1x80xi8>>) -> !secret.secret<memref<1x80xi8>> {
+  %0 = secret.generic ins(%arg0 : !secret.secret<memref<1x80xi8>>) {
+  ^bb0(%arg1: memref<1x80xi8>):
+    // CHECK:    arith.constant
+    %c-128_i8 = arith.constant -128 : i8
+
+    // CHECK:       secret.generic
+    // CHECK-NEXT:    memref.alloc
+    // CHECK-NEXT:    secret.yield
+    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x80xi8>
+
+    // CHECK:       affine.for
+    // CHECK-NEXT:    affine.for
+    // CHECK-NEXT:      secret.generic
+    // CHECK-NEXT:      bb
+    // CHECK-NEXT:      affine.load
+    // CHECK-NEXT:      arith.addi
+    // CHECK-NEXT:      affine.store
+    // CHECK-NEXT:      secret.yield
+    affine.for %arg2 = 0 to 1 {
+      affine.for %arg3 = 0 to 80 {
+        %1 = affine.load %arg1[%arg2, %arg3] : memref<1x80xi8>
+        %2 = arith.addi %1, %c-128_i8 : i8
+        affine.store %2, %alloc[%arg2, %arg3] : memref<1x80xi8>
+      }
+    }
+    secret.yield %alloc : memref<1x80xi8>
+  } -> !secret.secret<memref<1x80xi8>>
+  return %0 : !secret.secret<memref<1x80xi8>>
+}

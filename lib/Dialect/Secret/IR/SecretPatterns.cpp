@@ -2,7 +2,9 @@
 
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -16,7 +18,17 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
     }
   }
 
-  YieldOp yieldOp = dyn_cast<YieldOp>(op.getBody()->getOperations().back());
+  // Allocation ops cannot be collapsed because they may be used in later
+  // generics. We should eventually do a proper dataflow analysis to ensure
+  // they can be collapsed when no secret data is added to them.
+  //
+  // There is no good way to identify an allocation op in general. Maybe we can
+  // upstream a trait for this?
+  for ([[maybe_unused]] const auto op : op.getOps<memref::AllocOp>()) {
+    return failure();
+  }
+
+  YieldOp yieldOp = op.getYieldOp();
   rewriter.inlineBlockBefore(op.getBody(), op.getOperation(), op.getInputs());
   rewriter.replaceOp(op, yieldOp.getValues());
   rewriter.eraseOp(yieldOp);
