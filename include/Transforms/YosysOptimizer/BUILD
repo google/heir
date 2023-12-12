@@ -23,7 +23,7 @@ gentbl_cc_library(
         ),
         (
             ["-gen-pass-doc"],
-            "YosysOptimizer.md",
+            "YosysOptimizerPasses.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",

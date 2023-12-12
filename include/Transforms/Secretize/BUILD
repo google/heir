@@ -23,7 +23,7 @@ gentbl_cc_library(
         ),
         (
             ["-gen-pass-doc"],
-            "Passes.md",
+            "SecretizePasses.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
