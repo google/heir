@@ -3,6 +3,7 @@
 
 #include "include/Dialect/CGGI/IR/CGGIDialect.h"
 #include "include/Dialect/CGGI/Transforms/SetDefaultParameters.h"
+#include "include/Dialect/CGGI/Transforms/StraightLineVectorizer.h"
 
 namespace mlir {
 namespace heir {

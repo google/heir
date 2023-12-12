@@ -20,11 +20,18 @@ class CGGI_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 // --- Operations for a gate-bootstrapping API of a CGGI library ---
+def LWECiphertextLike : TypeOrContainer<LWECiphertext, "ciphertext-like">;
 
 class CGGI_BinaryGateOp<string mnemonic>
-    : CGGI_Op<mnemonic, [Pure, Commutative, SameOperandsAndResultType]> {
-  let arguments = (ins LWECiphertext:$lhs, LWECiphertext:$rhs);
-  let results = (outs LWECiphertext:$output);
+  : CGGI_Op<mnemonic, [
+    Pure,
+    Commutative,
+    SameOperandsAndResultType,
+    Elementwise,
+    Scalarizable
+]> {
+  let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
+  let results = (outs LWECiphertextLike:$output);
   // Note: error: type of result #0, named 'output', is not buildable and a buildable type cannot be inferred
   // LWECiphertext is not buildable?
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
@@ -41,8 +48,14 @@ def CGGI_NotOp : CGGI_Op<"not", [Pure, SameOperandsAndResultType, Involution]> {
   let summary = "Logical NOT of two ciphertexts";
 }
 
-class CGGI_LutOp<string mnemonic> : CGGI_Op<mnemonic, [Pure, Commutative, SameOperandsAndResultType]> {
-  let results = (outs LWECiphertext:$output);
+class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
+  : CGGI_Op<mnemonic, traits # [
+  Pure,
+  Commutative,
+  Elementwise,
+  Scalarizable
+]> {
+  let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 
   let description = [{
@@ -63,14 +76,15 @@ class CGGI_LutOp<string mnemonic> : CGGI_Op<mnemonic, [Pure, Commutative, SameOp
   }];
 }
 
-def CGGI_Lut2Op : CGGI_LutOp<"lut2"> {
+def CGGI_Lut2Op : CGGI_LutOp<"lut2", [AllTypesMatch<["a", "b", "output"]>]> {
   let summary = "A lookup table on two inputs.";
-  let arguments = (ins LWECiphertext:$b, LWECiphertext:$a, Builtin_IntegerAttr:$lookup_table);
+  let arguments = (ins LWECiphertextLike:$b, LWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
 }
 
-def CGGI_Lut3Op : CGGI_LutOp<"lut3"> {
+def CGGI_Lut3Op : CGGI_LutOp<"lut3", [AllTypesMatch<["a", "b", "c", "output"]>]> {
   let summary = "A lookup table on three inputs.";
-  let arguments = (ins LWECiphertext:$c, LWECiphertext:$b, LWECiphertext:$a, Builtin_IntegerAttr:$lookup_table);
+  let arguments = (ins LWECiphertextLike:$c, LWECiphertextLike:$b, LWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
+  let results = (outs LWECiphertextLike:$output);
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_CGGI_IR_CGGIOPS_TD_
