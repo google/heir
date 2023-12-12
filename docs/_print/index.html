@@ -5,9 +5,22 @@
 <code>>=5.5</code></li><li>A C compiler (like <a href=https://gcc.gnu.org/>gcc</a> or
 <a href=https://clang.llvm.org/>clang</a>)</li></ul><h2 id=clone-and-build-the-project>Clone and build the project</h2><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git clone git@github.com:google/heir.git <span style=color:#ce5c00;font-weight:700>&amp;&amp;</span> <span style=color:#204a87>cd</span> heir
 </span></span><span style=display:flex><span>bazel build @heir//tools:heir-opt
-</span></span></code></pre></div><p>Some passes in this repository require Yosys as a dependency (<code>--yosys-optimizer</code>). If you would like to skip Yosys and ABC compilation to speed up builds, use the following build setting:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel build --define<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#000>HEIR_NO_YOSYS</span><span style=color:#ce5c00;font-weight:700>=</span><span style=color:#0000cf;font-weight:700>1</span> @heir//tools:heir-opt
+</span></span></code></pre></div><p>Some passes in this repository require Yosys as a dependency
+(<code>--yosys-optimizer</code>). If you would like to skip Yosys and ABC compilation to
+speed up builds, use the following build setting:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel build --define<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#000>HEIR_NO_YOSYS</span><span style=color:#ce5c00;font-weight:700>=</span><span style=color:#0000cf;font-weight:700>1</span> @heir//tools:heir-opt
 </span></span></code></pre></div><h2 id=optional-run-the-tests>Optional: Run the tests</h2><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> @heir//...
 </span></span></code></pre></div><p>Like above, run the following to skip tests that depend on Yosys:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> --define<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#000>HEIR_NO_YOSYS</span><span style=color:#ce5c00;font-weight:700>=</span><span style=color:#0000cf;font-weight:700>1</span> --test_tag_filters<span style=color:#ce5c00;font-weight:700>=</span>-yosys @heir//...
+</span></span></code></pre></div><h2 id=optional-run-heir-opt-on-an-mlir-file>Optional: Run heir-opt on an mlir file</h2><p>HEIR comes with two central binaries, <code>heir-opt</code> for running optimization passes
+and dialect conversions, and <code>heir-translate</code> for backend code generation. To
+see the list of available passes in each one, run the binary with <code>--help</code>:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel run //tools:heir-opt -- --help
+</span></span><span style=display:flex><span>bazel run //tools:heir-translate -- --help
+</span></span></code></pre></div><p>Once you&rsquo;ve chosen a pass or <code>--pass-pipeline</code> to run, execute it on the desired
+file. For example, you can run a test file through <code>heir-opt</code> to see its output.
+Note that when the binary is run via <code>bazel</code>, you must pass absolute paths to
+input files. You can also access the underlying binary at
+<code>bazel-bin/tools/heir-opt</code>, provided it has already been built.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel run //tools:heir-opt -- <span style=color:#4e9a06>\
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06></span>  --comb-to-cggi -cse <span style=color:#4e9a06>\
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06></span>  <span style=color:#000>$PWD</span>/tests/comb_to_cggi/add_one.mlir
 </span></span></code></pre></div><h2 id=developing-in-heir>Developing in HEIR</h2><p>We use <a href=https://pre-commit.com/>pre-commit</a> to manage a series of git
 pre-commit hooks for the project; for example, each time you commit code, the
 hooks will make sure that your C++ is formatted properly. If your code isn&rsquo;t,
@@ -15,14 +28,17 @@ the hook will format it, so when you try to commit the second time you&rsquo;ll 
 past the hook.</p><p>All hooks are defined in <code>.pre-commit-config.yaml</code>. To install these hooks, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pip install -r requirements-dev.txt
 </span></span></code></pre></div><p>Then install the hooks to run automatically on <code>git commit</code>:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit install
 </span></span></code></pre></div><p>To run them manually, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit run --all-files
-</span></span></code></pre></div><h2 id=creating-a-new-pass>Creating a New Pass</h2><p>The <code>templates</code> folder contains Python scripts to create boilerplate for new conversion or (dialect-specific) transform passes.</p><h3 id=conversion-pass>Conversion Pass</h3><p>To create a new conversion pass, run a command similar to the following:</p><pre tabindex=0><code>python templates/templates.py new_conversion_pass \
+</span></span></code></pre></div><h2 id=creating-a-new-pass>Creating a New Pass</h2><p>The <code>templates</code> folder contains Python scripts to create boilerplate for new
+conversion or (dialect-specific) transform passes.</p><h3 id=conversion-pass>Conversion Pass</h3><p>To create a new conversion pass, run a command similar to the following:</p><pre tabindex=0><code>python templates/templates.py new_conversion_pass \
 --source_dialect_name=CGGI \
 --source_dialect_namespace=cggi \
 --source_dialect_mnemonic=cggi \
 --target_dialect_name=TfheRust \
 --target_dialect_namespace=tfhe_rust \
 --target_dialect_mnemonic=tfhe_rust
-</code></pre><p>In order to build the resulting code, you must fix the labeled <code>FIXME</code>s in the type converter and the op conversion patterns.</p><h3 id=transform-passes>Transform Passes</h3><p>To create a transform or rewrite pass that operates on a dialect, run a command similar to the following:</p><pre tabindex=0><code>python templates/templates.py new_dialect_transform \
+</code></pre><p>In order to build the resulting code, you must fix the labeled <code>FIXME</code>s in the
+type converter and the op conversion patterns.</p><h3 id=transform-passes>Transform Passes</h3><p>To create a transform or rewrite pass that operates on a dialect, run a command
+similar to the following:</p><pre tabindex=0><code>python templates/templates.py new_dialect_transform \
 --pass_name=ForgetSecrets \
 --pass_flag=forget-secrets \
 --dialect_name=Secret \
