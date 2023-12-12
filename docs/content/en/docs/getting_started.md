@@ -20,7 +20,9 @@ git clone git@github.com:google/heir.git && cd heir
 bazel build @heir//tools:heir-opt
 ```
 
-Some passes in this repository require Yosys as a dependency (`--yosys-optimizer`). If you would like to skip Yosys and ABC compilation to speed up builds, use the following build setting:
+Some passes in this repository require Yosys as a dependency
+(`--yosys-optimizer`). If you would like to skip Yosys and ABC compilation to
+speed up builds, use the following build setting:
 
 ```bash
 bazel build --define=HEIR_NO_YOSYS=1 @heir//tools:heir-opt
@@ -34,9 +36,31 @@ bazel test @heir//...
 
 Like above, run the following to skip tests that depend on Yosys:
 
-
 ```bash
 bazel test --define=HEIR_NO_YOSYS=1 --test_tag_filters=-yosys @heir//...
+```
+
+## Optional: Run heir-opt on an mlir file
+
+HEIR comes with two central binaries, `heir-opt` for running optimization passes
+and dialect conversions, and `heir-translate` for backend code generation. To
+see the list of available passes in each one, run the binary with `--help`:
+
+```bash
+bazel run //tools:heir-opt -- --help
+bazel run //tools:heir-translate -- --help
+```
+
+Once you've chosen a pass or `--pass-pipeline` to run, execute it on the desired
+file. For example, you can run a test file through `heir-opt` to see its output.
+Note that when the binary is run via `bazel`, you must pass absolute paths to
+input files. You can also access the underlying binary at
+`bazel-bin/tools/heir-opt`, provided it has already been built.
+
+```bash
+bazel run //tools:heir-opt -- \
+  --comb-to-cggi -cse \
+  $PWD/tests/comb_to_cggi/add_one.mlir
 ```
 
 ## Developing in HEIR
@@ -67,7 +91,8 @@ pre-commit run --all-files
 
 ## Creating a New Pass
 
-The `templates` folder contains Python scripts to create boilerplate for new conversion or (dialect-specific) transform passes.
+The `templates` folder contains Python scripts to create boilerplate for new
+conversion or (dialect-specific) transform passes.
 
 ### Conversion Pass
 
@@ -83,11 +108,13 @@ python templates/templates.py new_conversion_pass \
 --target_dialect_mnemonic=tfhe_rust
 ```
 
-In order to build the resulting code, you must fix the labeled `FIXME`s in the type converter and the op conversion patterns.
+In order to build the resulting code, you must fix the labeled `FIXME`s in the
+type converter and the op conversion patterns.
 
 ### Transform Passes
 
-To create a transform or rewrite pass that operates on a dialect, run a command similar to the following:
+To create a transform or rewrite pass that operates on a dialect, run a command
+similar to the following:
 
 ```
 python templates/templates.py new_dialect_transform \
