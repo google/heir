@@ -17,6 +17,7 @@ class SelectVariableNames {
   /// value was not assigned a name (suggesting the value was not in the IR
   /// tree that this class was constructed with).
   std::string getNameForValue(Value value) const {
+    assert(variableNames.contains(value));
     return variableNames.lookup(value);
   }
 

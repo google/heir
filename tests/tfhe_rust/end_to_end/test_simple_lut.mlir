@@ -10,7 +10,7 @@
 // We're computing, effectively (0b00000111 >> (1 << 1)) & 1, i.e., 0b111 >> 2
 // CHECK: 1
 func.func @fn_under_test(%sks : !sks, %a: !eui3, %b: !eui3) -> !eui3 {
-  %lut = tfhe_rust.generate_lookup_table %sks {truthTable = 7 : i8} : (!sks) -> !lut
+  %lut = tfhe_rust.generate_lookup_table %sks {truthTable = 7 : ui8} : (!sks) -> !lut
   %c1 = arith.constant 1 : i8
   %0 = tfhe_rust.scalar_left_shift %sks, %a, %c1 : (!sks, !eui3, i8) -> !eui3
   %1 = tfhe_rust.add %sks, %0, %b : (!sks, !eui3, !eui3) -> !eui3

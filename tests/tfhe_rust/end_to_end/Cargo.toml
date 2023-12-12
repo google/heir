@@ -12,3 +12,7 @@ tfhe = { version = "0.4.1", features = ["boolean", "shortint", "x86_64-unix"] }
 [[bin]]
 name = "main"
 path = "src/main.rs"
+
+[[bin]]
+name = "main_add_one"
+path = "src/main_add_one.rs"

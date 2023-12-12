@@ -41,7 +41,7 @@ func.func @test_apply_lookup_table2(%sks : !sks, %lut: !lut, %input : !eui3) -> 
 // CHECK-LABEL: pub fn test_return_multiple_values(
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> (Ciphertext, Ciphertext) {
-// CHECK-NEXT:   ([[input]], [[input]])
+// CHECK-NEXT:   ([[input]].clone(), [[input]].clone())
 // CHECK-NEXT: }
 func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
   return %input, %input : !eui3, !eui3
