@@ -12,17 +12,18 @@
 #include "include/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "include/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Conversion/Utils.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir {
@@ -90,6 +91,10 @@ class PassTypeConverter : public TypeConverter {
       int width = widthFromEncodingAttr(type.getEncoding());
       return encrytpedUIntTypeFromWidth(ctx, width);
     });
+    addConversion([this](ShapedType type) -> Type {
+      return type.cloneWith(type.getShape(),
+                            this->convertType(type.getElementType()));
+    });
   }
 };
 
@@ -119,6 +124,24 @@ FailureOr<Value> getContextualServerKey(Operation *op) {
   }
   return serverKey;
 }
+
+template <class Op>
+struct GenericOpPattern : public OpConversionPattern<Op> {
+  using OpConversionPattern<Op>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      Op op, typename Op::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    SmallVector<Type> retTypes;
+    if (failed(this->getTypeConverter()->convertTypes(op->getResultTypes(),
+                                                      retTypes)))
+      return failure();
+    rewriter.replaceOpWithNewOp<Op>(op, retTypes, adaptor.getOperands(),
+                                    op->getAttrs());
+
+    return success();
+  }
+};
 
 /// Convert a func by adding a server key argument. Converted ops in other
 /// patterns need a server key SSA value available, so this pattern needs a
@@ -402,12 +425,19 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
              typeConverter.isLegal(&op.getBody()) &&
              (!containsCGGIOps(op) || hasServerKeyArg);
     });
+    target.addDynamicallyLegalOp<tensor::FromElementsOp, tensor::ExtractOp>(
+        [&](Operation *op) {
+          return typeConverter.isLegal(op->getOperandTypes()) &&
+                 typeConverter.isLegal(op->getResultTypes());
+        });
 
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
-    patterns.add<AddServerKeyArg, ConvertAndOp, ConvertEncodeOp, ConvertLut2Op,
-                 ConvertLut3Op, ConvertNotOp, ConvertOrOp,
-                 ConvertTrivialEncryptOp, ConvertXorOp>(typeConverter, context);
+    patterns
+        .add<AddServerKeyArg, ConvertAndOp, ConvertEncodeOp, ConvertLut2Op,
+             ConvertLut3Op, ConvertNotOp, ConvertOrOp, ConvertTrivialEncryptOp,
+             ConvertXorOp, GenericOpPattern<tensor::FromElementsOp>,
+             GenericOpPattern<tensor::ExtractOp>>(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();
