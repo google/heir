@@ -237,48 +237,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     // RegionBranchOpInterface (scf.while, scf.if).
   }
 
-  // Adds new value to yield in a generic op. This requires replacing the entire
-  // generic op and cloning all its ops, since I can't find a way to modify the
-  // op's return type in-place.
-  //
-  // Returns the new op and the value range corresponding to the new result
-  // values of the generic.
-  std::pair<GenericOp, ValueRange> addNewYieldedValues(
-      GenericOp genericOp, ValueRange newValuesToYield,
-      PatternRewriter &rewriter) const {
-    YieldOp yieldOp = genericOp.getYieldOp();
-    yieldOp.getValuesMutable().append(newValuesToYield);
-    auto newTypes = llvm::to_vector<4>(
-        llvm::map_range(yieldOp.getValues().getTypes(), [](Type t) -> Type {
-          SecretType newTy = secret::SecretType::get(t);
-          LLVM_DEBUG(llvm::dbgs() << "Adding new type: " << newTy << "\n");
-          return newTy;
-        }));
-    GenericOp newOp = rewriter.create<GenericOp>(
-        genericOp.getLoc(), genericOp.getOperands(), newTypes,
-        [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
-          IRMapping mp;
-          for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
-            mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
-          }
-          for (auto &op : genericOp.getBody()->getOperations()) {
-            LLVM_DEBUG(llvm::dbgs() << "Cloning " << op.getName() << "\n");
-            b.clone(op, mp);
-          }
-        });
-
-    LLVM_DEBUG(newOp.emitRemark() << "Cloned generic Op with new results\n");
-
-    auto newResultStartIter = newOp.getResults().drop_front(
-        newOp.getNumResults() - newValuesToYield.size());
-
-    LLVM_DEBUG(llvm::dbgs() << "Replacing old op\n");
-    rewriter.replaceOp(
-        genericOp,
-        ValueRange(newOp.getResults().drop_back(newValuesToYield.size())));
-    return {newOp, ValueRange(newResultStartIter)};
-  }
-
   /// Move an op from the body of one secret.generic to an earlier
   /// secret.generic in the same block. Updates the yielded values and operands
   /// of the secret.generics appropriately.
@@ -376,7 +334,10 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     Operation *clonedOp = rewriter.clone(opToMove, cloningMp);
     clonedOp->moveBefore(targetGeneric.getYieldOp());
     auto [modifiedGeneric, newResults] =
-        addNewYieldedValues(targetGeneric, clonedOp->getResults(), rewriter);
+        targetGeneric.addNewYieldedValues(clonedOp->getResults(), rewriter);
+    rewriter.replaceOp(
+        targetGeneric,
+        ValueRange(modifiedGeneric.getResults().drop_back(newResults.size())));
     LLVM_DEBUG(modifiedGeneric.emitRemark()
                << "Added new yielded values to target generic\n");
 

@@ -9,8 +9,10 @@
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/OpImplementation.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Region.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
@@ -255,10 +257,71 @@ YieldOp GenericOp::getYieldOp() {
   return *getBody()->getOps<YieldOp>().begin();
 }
 
+GenericOp cloneWithNewTypes(GenericOp op, TypeRange newTypes,
+                            PatternRewriter &rewriter) {
+  return rewriter.create<GenericOp>(
+      op.getLoc(), op.getOperands(), newTypes,
+      [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+        IRMapping mp;
+        for (BlockArgument blockArg : op.getBody()->getArguments()) {
+          mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
+        }
+        for (auto &op : op.getBody()->getOperations()) {
+          b.clone(op, mp);
+        }
+      });
+}
+
+std::pair<GenericOp, ValueRange> GenericOp::addNewYieldedValues(
+    ValueRange newValuesToYield, PatternRewriter &rewriter) {
+  YieldOp yieldOp = getYieldOp();
+  yieldOp.getValuesMutable().append(newValuesToYield);
+  auto newTypes = llvm::to_vector<4>(
+      llvm::map_range(yieldOp.getValues().getTypes(), [](Type t) -> Type {
+        SecretType newTy = secret::SecretType::get(t);
+        return newTy;
+      }));
+  GenericOp newOp = cloneWithNewTypes(*this, newTypes, rewriter);
+
+  auto newResultStartIter = newOp.getResults().drop_front(
+      newOp.getNumResults() - newValuesToYield.size());
+
+  return {newOp, ValueRange(newResultStartIter)};
+}
+
+GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
+                                         PatternRewriter &rewriter,
+                                         SmallVector<Value> &remainingResults) {
+  YieldOp yieldOp = getYieldOp();
+  for ([[maybe_unused]] Value v : yieldedValuesToRemove) {
+    assert(llvm::is_contained(yieldOp.getValues(), v) &&
+           "Cannot remove a value that is not yielded");
+  }
+
+  for (int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
+    Value result = getResults()[i];
+    if (result.use_empty()) {
+      getYieldOp().getValuesMutable().erase(i);
+      // Ensure the next iteration uses the right arg number
+      --i;
+    } else {
+      remainingResults.push_back(result);
+    }
+  }
+
+  auto newResultTypes = llvm::to_vector<4>(
+      llvm::map_range(yieldOp.getValues().getTypes(), [](Type t) -> Type {
+        SecretType newTy = secret::SecretType::get(t);
+        return newTy;
+      }));
+
+  return cloneWithNewTypes(*this, newResultTypes, rewriter);
+}
+
 void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                             MLIRContext *context) {
-  results.add<CollapseSecretlessGeneric, RemoveUnusedGenericArgs,
-              RemoveNonSecretGenericArgs>(context);
+  results.add<CollapseSecretlessGeneric, RemoveUnusedYieldedValues,
+              RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs>(context);
 }
 
 }  // namespace secret
