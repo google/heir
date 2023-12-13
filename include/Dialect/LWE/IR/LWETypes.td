@@ -37,6 +37,16 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
+def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
+  let summary = "A type for RLWE ciphertexts";
+
+  let parameters = (ins
+    "::mlir::Attribute":$encoding,
+    OptionalParameter<"RLWEParamsAttr">:$rlwe_params
+  );
+
+  let assemblyFormat = "`<` struct(params) `>`";
+}
 
 def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext"> {
   let summary = "A type for LWE plaintexts";
@@ -47,6 +57,16 @@ def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext"> {
     This type keeps track of the plaintext integer encoding for the LWE
     plaintext before it is encrypted.
   }];
+
+  let parameters = (ins
+    "::mlir::Attribute":$encoding
+  );
+
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
+  let summary = "A type for RLWE plaintexts";
 
   let parameters = (ins
     "::mlir::Attribute":$encoding

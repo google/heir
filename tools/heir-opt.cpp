@@ -11,6 +11,7 @@
 #include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/LWE/Transforms/Passes.h"
+#include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
@@ -164,6 +165,7 @@ int main(int argc, char **argv) {
   registry.insert<polynomial::PolynomialDialect>();
   registry.insert<secret::SecretDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
+  registry.insert<openfhe::OpenfheDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<affine::AffineDialect>();

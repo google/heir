@@ -45,6 +45,7 @@ cc_binary(
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/Transforms",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/PolyExt/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
