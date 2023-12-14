@@ -2,12 +2,13 @@
 
 #include <string>
 
-#include "llvm/include/llvm/ADT/DenseMap.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -15,7 +16,7 @@ namespace heir {
 SelectVariableNames::SelectVariableNames(Operation *op) {
   int i = 0;
   std::string prefix = "v";
-  op->walk([&](Operation *op) {
+  op->walk<WalkOrder::PreOrder>([&](Operation *op) {
     return llvm::TypeSwitch<Operation &, WalkResult>(*op)
         // Function arguments need names
         .Case<func::FuncOp>([&](auto op) {
