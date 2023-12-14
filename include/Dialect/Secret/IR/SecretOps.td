@@ -164,6 +164,34 @@ def Secret_GenericOp : Secret_Op<"generic", [
     // value. Returns nullptr if the value is not a block argument for this
     // secret.generic.
     OpOperand *getOpOperandForBlockArgument(Value value);
+
+    // Clones a generic op and adds new yielded values. Returns the new op and
+    // the value range corresponding to the new result values of the generic.
+    // Callers can follow this method with something like the following to
+    // replace the current generic op with the result of this method.
+    //
+    // auto [modifiedGeneric, newResults] =
+    //     genericOp.addNewYieldedValues(newResults, rewriter);
+    // rewriter.replaceOp(
+    //    genericOp,
+    //    ValueRange(modifiedGeneric.getResults()
+    //                              .drop_back(newResults.size())));
+    std::pair<GenericOp, ValueRange> addNewYieldedValues(
+      ValueRange newValuesToYield, PatternRewriter &rewriter);
+
+    // Clones the current op with the yielded values in `yieldedValuesToRemove`
+    // removed. Users can replace the current op with the result of this method
+    // as follows:
+    //
+    // SmallVector<Value> remainingResults;
+    // auto modifiedGeneric =
+    //     op.removeYieldedValues(valuesToRemove, rewriter, remainingResults);
+    // rewriter.replaceAllUsesWith(remainingResults, modifiedGeneric.getResults());
+    // rewriter.eraseOp(op);
+    GenericOp removeYieldedValues(
+      ValueRange yieldedValuesToRemove,
+      PatternRewriter &rewriter,
+      SmallVector<Value> &remainingResults);
   }];
 
   let hasCanonicalizer = 1;

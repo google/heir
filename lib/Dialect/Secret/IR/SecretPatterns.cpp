@@ -55,6 +55,27 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
   return hasUnusedOps ? success() : failure();
 }
 
+LogicalResult RemoveUnusedYieldedValues::matchAndRewrite(
+    GenericOp op, PatternRewriter &rewriter) const {
+  SmallVector<Value> valuesToRemove;
+  for (auto &opOperand : op.getYieldOp()->getOpOperands()) {
+    Value result = op.getResults()[opOperand.getOperandNumber()];
+    if (result.use_empty()) {
+      valuesToRemove.push_back(opOperand.get());
+    }
+  }
+
+  if (!valuesToRemove.empty()) {
+    SmallVector<Value> remainingResults;
+    auto modifiedGeneric =
+        op.removeYieldedValues(valuesToRemove, rewriter, remainingResults);
+    rewriter.replaceAllUsesWith(remainingResults, modifiedGeneric.getResults());
+    rewriter.eraseOp(op);
+    return success();
+  }
+  return failure();
+}
+
 LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
     GenericOp op, PatternRewriter &rewriter) const {
   bool deletedAny = false;

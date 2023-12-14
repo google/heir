@@ -64,6 +64,40 @@ struct RemoveUnusedGenericArgs : public OpRewritePattern<GenericOp> {
                                 PatternRewriter &rewriter) const override;
 };
 
+// Remove unused yields of a secret.generic op
+//
+// E.g.,
+//
+//    %res0, %res1 = secret.generic
+//       {
+//     ^bb0(%used: i32, %unused: i32):
+//       %0 = arith.constant 1 : i32
+//       %1 = arith.constant 1 : i32
+//       secret.yield %0, %1 : i32, i32
+//    } -> (!secret.secret<i32>, !secret.secret<i32>)
+//    ... <only use %res0> ...
+//
+// is transformed to
+//
+//    %res0 = secret.generic
+//       ins(%value_sec : !secret.secret<i32>) {
+//     ^bb0(%used: i32):
+//       %0 = arith.constant 1 : i32
+//       %1 = arith.constant 1 : i32
+//       secret.yield %0, : i32
+//    } -> (!secret.secret<i32>)
+//
+// The dead code elimination pass then removes any subsequent unused ops inside
+// the generic.
+struct RemoveUnusedYieldedValues : public OpRewritePattern<GenericOp> {
+  RemoveUnusedYieldedValues(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/2) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+};
+
 // Remove non-secret args of a secret.generic op, since they can be referenced
 // directly in the enclosing scope.
 struct RemoveNonSecretGenericArgs : public OpRewritePattern<GenericOp> {
