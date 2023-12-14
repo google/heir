@@ -423,7 +423,7 @@ unsigned # ksk_gadget_num_levels
 &lt;p>&lt;em>Logical AND of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.and` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
@@ -437,11 +437,11 @@ unsigned # ksk_gadget_num_levels
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -456,7 +456,7 @@ unsigned # ksk_gadget_num_levels
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -473,7 +473,7 @@ computed by this function can be interpreted as&lt;/p>
 significant bit to least-significant bit. The input are combined into a
 single ciphertext input to the lookup table using products with plaintexts
 and sums.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
+&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, Scalarizable&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
@@ -492,11 +492,11 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -511,7 +511,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -528,7 +528,7 @@ computed by this function can be interpreted as&lt;/p>
 significant bit to least-significant bit. The input are combined into a
 single ciphertext input to the lookup table using products with plaintexts
 and sums.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
+&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, Scalarizable&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
@@ -547,15 +547,15 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -570,7 +570,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -615,7 +615,7 @@ and sums.&lt;/p>
 &lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
@@ -629,11 +629,11 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -648,7 +648,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -656,7 +656,7 @@ and sums.&lt;/p>
 &lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable&lt;/p>
 &lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
 &lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
@@ -670,11 +670,11 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -689,7 +689,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Comb</title><link>https://heir.dev/docs/dialects/comb/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/comb/</guid><description>
