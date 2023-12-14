@@ -33,4 +33,5 @@ gentbl_cc_library(
 exports_files([
     "Passes.h",
     "SetDefaultParameters.h",
+    "StraightLineVectorizer.h",
 ])
