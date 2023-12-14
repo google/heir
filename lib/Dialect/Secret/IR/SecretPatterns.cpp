@@ -25,8 +25,9 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 #define DEBUG_TYPE "secret-patterns"
 
@@ -50,8 +51,6 @@ llvm::SmallVector<Value> buildResolvedIndices(Operation *op,
       indices.push_back(rewriter.create<arith::ConstantIndexOp>(
           op->getLoc(), cast<AffineConstantExpr>(affineValue).getValue()));
     } else {
-      assert(affineValue.getKind() == AffineExprKind::DimId &&
-             "expected dimensional id or constant for affine operation index");
       indices.push_back(*(indicesIt++));
     }
   }
@@ -138,18 +137,21 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
 
 LogicalResult RemoveUnusedYieldedValues::matchAndRewrite(
     GenericOp op, PatternRewriter &rewriter) const {
-  SmallVector<Value> valuesToRemove;
+  SmallVector<int> resultIndicesToRemove;
   for (auto &opOperand : op.getYieldOp()->getOpOperands()) {
     Value result = op.getResults()[opOperand.getOperandNumber()];
     if (result.use_empty()) {
-      valuesToRemove.push_back(opOperand.get());
+      LLVM_DEBUG(op.emitRemark() << " result of generic at index "
+                                 << opOperand.getOperandNumber()
+                                 << " is unused, removing from yield\n");
+      resultIndicesToRemove.push_back(opOperand.getOperandNumber());
     }
   }
 
-  if (!valuesToRemove.empty()) {
+  if (!resultIndicesToRemove.empty()) {
     SmallVector<Value> remainingResults;
-    auto modifiedGeneric =
-        op.removeYieldedValues(valuesToRemove, rewriter, remainingResults);
+    auto modifiedGeneric = op.removeYieldedValues(resultIndicesToRemove,
+                                                  rewriter, remainingResults);
     rewriter.replaceAllUsesWith(remainingResults, modifiedGeneric.getResults());
     rewriter.eraseOp(op);
     return success();
@@ -506,6 +508,81 @@ LogicalResult HoistOpAfterGeneric::matchAndRewrite(
   LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
 
   extractOpAfterGeneric(genericOp, opToHoist, rewriter);
+  LLVM_DEBUG({
+    Operation *parent = genericOp->getParentOp();
+    llvm::dbgs() << "After hoisting op\n";
+    parent->dump();
+  });
+  return success();
+}
+
+LogicalResult HoistPlaintextOps::matchAndRewrite(
+    GenericOp genericOp, PatternRewriter &rewriter) const {
+  auto &opRange = genericOp.getBody()->getOperations();
+  if (opRange.size() <= 2) {
+    // This corresponds to a fixed point of the pattern: if an op is hoisted,
+    // it will be in a single-op generic, (yield is the second op), and if
+    // that triggers the pattern, it will be an infinite loop.
+    //
+    // If you encounter this and the op is actually plaintext, you can instead
+    // use CollapseSecretlessGeneric and eliminate the generic op entirely.
+    return failure();
+  }
+
+  auto canHoist = [&](Operation &op) {
+    if (isa<YieldOp>(op)) {
+      return false;
+    }
+    LLVM_DEBUG(llvm::dbgs()
+               << "Considering whether " << op << " can be hoisted\n");
+    if (!isSpeculatable(&op)) {
+      LLVM_DEBUG(llvm::dbgs() << "Op is not speculatable\n");
+      return false;
+    }
+    for (Value operand : op.getOperands()) {
+      auto blockArg = dyn_cast<BlockArgument>(operand);
+
+      if (blockArg) {
+        auto owningGeneric =
+            dyn_cast<GenericOp>(blockArg.getOwner()->getParentOp());
+        bool isEncryptedBlockArg =
+            owningGeneric &&
+            isa<SecretType>(
+                owningGeneric.getOperand(blockArg.getArgNumber()).getType());
+        LLVM_DEBUG(llvm::dbgs()
+                   << "operand " << operand << " is a "
+                   << (isEncryptedBlockArg ? "encrypted" : "plaintext")
+                   << " block arg\n");
+        if (isEncryptedBlockArg) {
+          return false;
+        }
+      } else {
+        bool isPlaintextAmbient =
+            operand.getDefiningOp()->getBlock() != op.getBlock() &&
+            !operand.getType().isa<SecretType>();
+
+        LLVM_DEBUG(llvm::dbgs()
+                   << "operand " << operand << " is a "
+                   << (isPlaintextAmbient ? "plaintext" : "encrypted")
+                   << " ambient SSA value\n");
+        if (!isPlaintextAmbient) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  auto it = std::find_if(opRange.begin(), opRange.end(),
+                         [&](Operation &op) { return canHoist(op); });
+  if (it == opRange.end()) {
+    return failure();
+  }
+
+  Operation *opToHoist = &*it;
+  LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
+  genericOp.extractOpBeforeGeneric(opToHoist, rewriter);
   LLVM_DEBUG({
     Operation *parent = genericOp->getParentOp();
     llvm::dbgs() << "After hoisting op\n";

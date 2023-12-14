@@ -10,7 +10,7 @@ func.func @ops(
           !secret.secret<i3>, !secret.secret<i3>, !secret.secret<i3>, !secret.secret<i3>) {
   ^bb0(%a0: i3, %a1: i3, %a2: i3, %a3: i3):
     %0 = arith.subi %a0, %a1: i3
-    %1 = arith.muli %a2, %a3: i3
+    %1 = arith.muli %0, %a2: i3
     %2 = arith.andi %1, %a3: i3
     secret.yield %2 : i3
   } -> (!secret.secret<i3>)
