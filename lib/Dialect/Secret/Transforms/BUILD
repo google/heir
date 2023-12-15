@@ -47,6 +47,7 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:SecretOps",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LoopLikeInterface",
         "@llvm-project//mlir:Pass",
