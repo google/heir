@@ -82,14 +82,58 @@ func.func @require_post_pass_toposort(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_t
   %r7 = cggi.lut3(%7, %1, %6) {lookup_table = 8 : ui8} : !ct_ty
   %r8 = cggi.lut3(%3, %6, %0) {lookup_table = 8 : ui8} : !ct_ty
 
-  // The resulting lut3 op must precede the cggi.not op, or else we violate SSA
-  // dominance.
+  // The not op has to occur after the lut3s, since it depends on one of the
+  // results.
+
   // CHECK: cggi.lut3(%[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]]) {lookup_table = 8 : ui8} : tensor<8x!lwe.lwe_ciphertext
   // CHECK: cggi.not
-  // CHECK: cggi.and
 
-  %r9 = cggi.and %x, %1 : !ct_ty
+  %from_elements = tensor.from_elements %r1, %r2, %r3, %r4, %r5, %r6, %r7, %x : tensor<8x!ct_ty>
+  return %from_elements : tensor<8x!ct_ty>
+}
 
-  %from_elements = tensor.from_elements %r1, %r2, %r3, %r4, %r5, %r6, %r7, %r9 : tensor<8x!ct_ty>
+// CHECK-LABEL: transitive_dep_splits_level
+func.func @transitive_dep_splits_level(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %0 = tensor.extract %arg0[%c0] : tensor<8x!ct_ty>
+  %1 = tensor.extract %arg0[%c1] : tensor<8x!ct_ty>
+  %2 = tensor.extract %arg0[%c2] : tensor<8x!ct_ty>
+  %3 = tensor.extract %arg0[%c3] : tensor<8x!ct_ty>
+  %4 = tensor.extract %arg0[%c4] : tensor<8x!ct_ty>
+  %5 = tensor.extract %arg0[%c5] : tensor<8x!ct_ty>
+  %6 = tensor.extract %arg0[%c6] : tensor<8x!ct_ty>
+  %7 = tensor.extract %arg0[%c7] : tensor<8x!ct_ty>
+
+  // Four ops that can be vectorized
+  %r1 = cggi.lut3(%0, %1, %2) {lookup_table = 8 : ui8} : !ct_ty
+  %r2 = cggi.lut3(%3, %4, %5) {lookup_table = 8 : ui8} : !ct_ty
+  %r3 = cggi.lut3(%4, %5, %6) {lookup_table = 8 : ui8} : !ct_ty
+  %r4 = cggi.lut3(%5, %6, %7) {lookup_table = 8 : ui8} : !ct_ty
+
+  // A non-vectorizable op that uses one of the results
+  %n1 = cggi.not %r1 : !ct_ty
+  %n2 = cggi.not %r2 : !ct_ty
+  %n3 = cggi.not %r3 : !ct_ty
+  %n4 = cggi.not %r4 : !ct_ty
+
+  // Four more ops that can be vectorized
+  %r5 = cggi.lut3(%0, %n1, %1) {lookup_table = 8 : ui8} : !ct_ty
+  %r6 = cggi.lut3(%2, %n2, %6) {lookup_table = 8 : ui8} : !ct_ty
+  %r7 = cggi.lut3(%7, %n3, %6) {lookup_table = 8 : ui8} : !ct_ty
+  %r8 = cggi.lut3(%3, %n4, %0) {lookup_table = 8 : ui8} : !ct_ty
+
+  // The slice analysis ensures these are split into two levels of 4 ops each.
+  // CHECK: cggi.lut3(%[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]]) {lookup_table = 8 : ui8} : tensor<4x!lwe.lwe_ciphertext
+  // CHECK-COUNT-4: cggi.not
+  // CHECK: cggi.lut3(%[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]]) {lookup_table = 8 : ui8} : tensor<4x!lwe.lwe_ciphertext
+
+  %from_elements = tensor.from_elements %r1, %r2, %r3, %r4, %r5, %r6, %r7, %r8 : tensor<8x!ct_ty>
   return %from_elements : tensor<8x!ct_ty>
 }

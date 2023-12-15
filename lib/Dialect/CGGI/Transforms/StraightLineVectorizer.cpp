@@ -6,9 +6,11 @@
 #include "include/Graph/Graph.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/TopologicalSortUtils.h"  // from @llvm-project
 
 #define DEBUG_TYPE "straight-line-vectorizer"
@@ -30,7 +32,6 @@ bool areCompatible(Operation *lhs, Operation *rhs) {
   }
 
   return llvm::TypeSwitch<Operation *, bool>(lhs)
-      // Builtin ops
       .Case<AndOp, OrOp, XorOp>([&](auto op) { return true; })
       .Case<Lut2Op>([&](auto op) {
         return cast<Lut2Op>(rhs).getLookupTable() == op.getLookupTable();
@@ -52,13 +53,15 @@ bool tryVectorizeBlock(Block *block) {
       continue;
     }
 
-    // TODO(https://github.com/google/heir/issues/342): Add independence
-    // analysis for transitive dependencies
     graph.addVertex(&op);
-    for (auto operand : op.getOperands()) {
-      if (auto *producer = operand.getDefiningOp()) {
-        graph.addEdge(producer, &op);
-      }
+    SetVector<Operation *> backwardSlice;
+    BackwardSliceOptions options;
+    options.omitBlockArguments = true;
+    getBackwardSlice(&op, &backwardSlice, options);
+    for (auto *upstreamDep : backwardSlice) {
+      // An edge from upstreamDep to `op` means that upstreamDep must be
+      // computed before `op`.
+      graph.addEdge(upstreamDep, &op);
     }
   }
 
