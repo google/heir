@@ -98,8 +98,6 @@ static ParseResult parseCommonStructuredOpParts(
       return failure();
   }
   attrsLoc = parser.getCurrentLocation();
-  if (parser.parseOptionalAttrDict(result.attributes)) return failure();
-
   if (succeeded(parser.parseOptionalKeyword("ins"))) {
     if (parser.parseLParen()) return failure();
 
@@ -107,6 +105,8 @@ static ParseResult parseCommonStructuredOpParts(
     if (parser.parseOperandList(inputsOperands) ||
         parser.parseColonTypeList(inputTypes) || parser.parseRParen())
       return failure();
+  } else {
+    inputsOperandsLoc = parser.getCurrentLocation();
   }
 
   if (parser.resolveOperands(inputsOperands, inputTypes, inputsOperandsLoc,
