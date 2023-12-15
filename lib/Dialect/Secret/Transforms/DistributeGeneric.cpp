@@ -6,19 +6,21 @@
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -298,6 +300,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
            "source and target generics must be in the same block");
 
     IRMapping cloningMp;
+    mlir::DominanceInfo dom(sourceGeneric->getParentOfType<func::FuncOp>());
     for (OpOperand &operand : opToMove.getOpOperands()) {
       if (operand.get().getParentBlock() == sourceGeneric.getBody()) {
         LLVM_DEBUG(llvm::dbgs() << "opToMove depends on block argument "
@@ -365,9 +368,10 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // a value defined in the enclosing scope. It cannot be a value defined
       // between the two secret.generics, because in this pattern we only
       // invoke this just after splitting a generic into two adjacent ops.
-      assert(isa<BlockArgument>(operand.get()) ||
-             operand.get().getDefiningOp()->isBeforeInBlock(targetGeneric) &&
-                 "Invalid use of moveOpToEarlierGeneric");
+      assert(
+          operand.get().isa<BlockArgument>() ||
+          dom.properlyDominates(operand.get().getDefiningOp(), targetGeneric) &&
+              "Invalid use of moveOpToEarlierGeneric");
     }
 
     LLVM_DEBUG(llvm::dbgs()

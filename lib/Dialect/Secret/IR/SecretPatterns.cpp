@@ -79,18 +79,18 @@ LogicalResult RemoveUnusedYieldedValues::matchAndRewrite(
 LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
     GenericOp op, PatternRewriter &rewriter) const {
   bool deletedAny = false;
-  for (OpOperand &operand : op->getOpOperands()) {
-    if (!isa<SecretType>(operand.get().getType())) {
+  for (unsigned i = 0; i < op->getNumOperands(); i++) {
+    if (!isa<SecretType>(op->getOperand(i).getType())) {
       deletedAny = true;
       Block *body = op.getBody();
-      BlockArgument correspondingArg =
-          body->getArgument(operand.getOperandNumber());
+      BlockArgument correspondingArg = body->getArgument(i);
 
-      rewriter.replaceAllUsesWith(correspondingArg, operand.get());
+      rewriter.replaceAllUsesWith(correspondingArg, op->getOperand(i));
       rewriter.updateRootInPlace(op, [&]() {
-        body->eraseArgument(operand.getOperandNumber());
-        op.getOperation()->eraseOperand(operand.getOperandNumber());
+        body->eraseArgument(i);
+        op.getOperation()->eraseOperand(i);
       });
+      i--;
     }
   }
 
