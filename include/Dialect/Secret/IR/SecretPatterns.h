@@ -125,6 +125,16 @@ struct CaptureAmbientScope : public OpRewritePattern<GenericOp> {
                                 PatternRewriter &rewriter) const override;
 };
 
+// Find two adjacent generic ops and merge them into one.
+struct MergeAdjacentGenerics : public OpRewritePattern<GenericOp> {
+  MergeAdjacentGenerics(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+};
+
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir

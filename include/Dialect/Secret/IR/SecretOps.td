@@ -164,6 +164,10 @@ def Secret_GenericOp : Secret_Op<"generic", [
     // secret.generic.
     OpOperand *getOpOperandForBlockArgument(Value value);
 
+    // Returns the integer index of a result if the given value is a result of
+    // the generic op.
+    std::optional<int> findResultIndex(Value value);
+
     // Clones a generic op and adds new yielded values. Returns the new op and
     // the value range corresponding to the new result values of the generic.
     // Callers can follow this method with something like the following to

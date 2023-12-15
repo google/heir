@@ -32,5 +32,6 @@ exports_files([
     "CaptureGenericAmbientScope.h",
     "DistributeGeneric.h",
     "ForgetSecrets.h",
+    "MergeAdjacentGenerics.h",
     "Passes.h",
 ])

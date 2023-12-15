@@ -259,6 +259,13 @@ OpOperand *GenericOp::getOpOperandForBlockArgument(Value value) {
   return &getOperation()->getOpOperand(index);
 }
 
+std::optional<int> GenericOp::findResultIndex(Value value) {
+  int index = std::find(getResults().begin(), getResults().end(), value) -
+              getResults().begin();
+  if (index < getNumResults()) return index;
+  return std::nullopt;
+}
+
 YieldOp GenericOp::getYieldOp() {
   return *getBody()->getOps<YieldOp>().begin();
 }
