@@ -68,45 +68,6 @@ typedef std::unordered_multimap<NormalizedMemrefAccess, Operation *,
                                 NormalizedMemrefAccessHash>
     StoreMap;
 
-// Scan all operations that could store a value to the given memref at any
-// index, possibly transitively through renaming the memref via subview,
-// collapse, expand, reinterpret_cast, or extract_strided_metadata. Add the
-// resulting store ops to the `stores` deque.
-static void collectAllTransitiveStoreOps(
-    std::deque<AffineWriteOpInterface> &stores, Value &sourceMemRef) {
-  std::queue<Operation *> users;
-  for (auto user : sourceMemRef.getUsers()) {
-    users.push(user);
-  }
-
-  for (; !users.empty(); users.pop()) {
-    Operation *user = users.front();
-    bool done =
-        llvm::TypeSwitch<Operation &, bool>(*user)
-            .Case<CollapseShapeOp, ExpandShapeOp, ReinterpretCastOp, SubViewOp>(
-                [&](auto op) {
-                  for (auto user : op.getResult().getUsers()) {
-                    users.push(user);
-                  }
-                  return true;
-                })
-            .Case<ExtractStridedMetadataOp>([&](auto op) {
-              for (auto user : op.getResults()[0].getUsers()) {
-                users.push(user);
-              }
-              return true;
-            })
-            .Case<AffineStoreOp>([&](auto op) { return false; })
-            .Default([&](Operation &) { return true; });
-
-    if (done) {
-      continue;
-    }
-
-    stores.push_back(llvm::cast<AffineWriteOpInterface>(user));
-  }
-}
-
 // eraseUnusedMemrefOps erases an alloc operation and all of its users if the
 // alloc and all of its users are unused. For example, a memref that only has
 // store operations and is never read from is unused. If this memref is aliased
@@ -357,7 +318,7 @@ struct UnrollAndForwardPass
                     mlir::arith::ArithDialect, mlir::scf::SCFDialect>();
   }
 
-  void runOnOperation();
+  void runOnOperation() override;
 
   StringRef getArgument() const final { return "unroll-and-forward"; }
 

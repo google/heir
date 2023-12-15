@@ -9,7 +9,8 @@ namespace heir {
 
 using ::llvm::ArrayRef;
 
-std::optional<std::vector<uint64_t>> materialize(affine::MemRefAccess access) {
+std::optional<std::vector<uint64_t>> materialize(
+    const affine::MemRefAccess& access) {
   affine::AffineValueMap thisMap;
   access.getAccessMap(&thisMap);
   std::vector<uint64_t> accessIndices;
@@ -22,7 +23,7 @@ std::optional<std::vector<uint64_t>> materialize(affine::MemRefAccess access) {
       return std::nullopt;
     }
     accessIndices.push_back(
-        (thisMap.getResult(i).dyn_cast<mlir::AffineConstantExpr>()).getValue());
+        (dyn_cast<mlir::AffineConstantExpr>(thisMap.getResult(i))).getValue());
   }
 
   return std::move(accessIndices);
@@ -31,8 +32,8 @@ std::optional<std::vector<uint64_t>> materialize(affine::MemRefAccess access) {
 // getFlattenedAccessIndex gets the flattened access index for MemRef access
 // given the MemRef type's shape. Returns a std::nullopt if the indices are not
 // constants (e.g. derived from inputs).
-std::optional<uint64_t> getFlattenedAccessIndex(affine::MemRefAccess access,
-                                                mlir::Type memRefType) {
+std::optional<uint64_t> getFlattenedAccessIndex(
+    const affine::MemRefAccess& access, mlir::Type memRefType) {
   auto accessIndices = materialize(access);
   if (!accessIndices.has_value()) {
     return std::nullopt;
@@ -46,9 +47,9 @@ llvm::SmallVector<int64_t> unflattenIndex(int64_t index,
                                           int64_t offset) {
   llvm::SmallVector<int64_t> indices;
   int64_t ndx = index - offset;
-  for (int i = 0; i < strides.size(); ++i) {
-    indices.push_back(ndx / strides[i]);
-    ndx = ndx % strides[i];
+  for (long stride : strides) {
+    indices.push_back(ndx / stride);
+    ndx = ndx % stride;
   }
   return indices;
 }
