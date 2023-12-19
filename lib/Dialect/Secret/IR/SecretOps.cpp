@@ -298,15 +298,20 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
            "Cannot remove a value that is not yielded");
   }
 
+  SmallVector<int, 4> indicesToErase;
   for (int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
-    Value result = getResults()[i];
-    if (result.use_empty()) {
-      getYieldOp().getValuesMutable().erase(i);
-      // Ensure the next iteration uses the right arg number
-      --i;
+    if (std::find(yieldedValuesToRemove.begin(), yieldedValuesToRemove.end(),
+                  getYieldOp()->getOperand(i)) != yieldedValuesToRemove.end()) {
+      indicesToErase.push_back(i);
     } else {
-      remainingResults.push_back(result);
+      remainingResults.push_back(getResult(i));
     }
+  }
+
+  // Erase unused values in reverse to ensure deletion doesn't affect the next
+  // indices to delete.
+  for (int i : llvm::reverse(indicesToErase)) {
+    getYieldOp().getValuesMutable().erase(i);
   }
 
   auto newResultTypes = llvm::to_vector<4>(
