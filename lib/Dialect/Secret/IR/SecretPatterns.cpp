@@ -2,6 +2,10 @@
 
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
@@ -9,6 +13,32 @@
 namespace mlir {
 namespace heir {
 namespace secret {
+
+namespace {
+
+llvm::SmallVector<Value> buildResolvedIndices(Operation *op,
+                                              OperandRange opIndices,
+                                              PatternRewriter &rewriter) {
+  affine::MemRefAccess access(op);
+  affine::AffineValueMap thisMap;
+  access.getAccessMap(&thisMap);
+  llvm::SmallVector<Value> indices;
+  auto indicesIt = opIndices.begin();
+  for (unsigned i = 0; i < access.getRank(); ++i) {
+    auto affineValue = thisMap.getResult(i);
+    if (affineValue.getKind() == AffineExprKind::Constant) {
+      indices.push_back(rewriter.create<arith::ConstantIndexOp>(
+          op->getLoc(), cast<AffineConstantExpr>(affineValue).getValue()));
+    } else {
+      assert(affineValue.getKind() == AffineExprKind::DimId &&
+             "expected dimensional id or constant for affine operation index");
+      indices.push_back(*(indicesIt++));
+    }
+  }
+  return indices;
+}
+
+}  // namespace
 
 LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
     GenericOp op, PatternRewriter &rewriter) const {
@@ -100,11 +130,31 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
 LogicalResult CaptureAmbientScope::matchAndRewrite(
     GenericOp genericOp, PatternRewriter &rewriter) const {
   Value *foundValue = nullptr;
+  rewriter.setInsertionPointToStart(genericOp.getBody());
   genericOp.getBody()->walk([&](Operation *op) -> WalkResult {
     for (Value operand : op->getOperands()) {
       Region *operandRegion = operand.getParentRegion();
       if (operandRegion && !genericOp.getRegion().isAncestor(operandRegion)) {
         foundValue = &operand;
+        // If this is an index operand of an affine operation, update to memref
+        // ops. Affine dimensions must be block arguments for affine.for or
+        // affine.parallel.
+        if (isa<IndexType>(operand.getType())) {
+          llvm::TypeSwitch<Operation *>(op)
+              .Case<affine::AffineLoadOp>([&](affine::AffineLoadOp op) {
+                rewriter.replaceOp(op, rewriter.create<memref::LoadOp>(
+                                           op->getLoc(), op.getMemref(),
+                                           buildResolvedIndices(
+                                               op, op.getIndices(), rewriter)));
+              })
+              .Case<affine::AffineStoreOp>([&](affine::AffineStoreOp op) {
+                rewriter.replaceOp(
+                    op,
+                    rewriter.create<memref::StoreOp>(
+                        op->getLoc(), op.getValueToStore(), op.getMemref(),
+                        buildResolvedIndices(op, op.getIndices(), rewriter)));
+              });
+        }
         return WalkResult::interrupt();
       }
     }
@@ -119,7 +169,9 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
   rewriter.updateRootInPlace(genericOp, [&]() {
     BlockArgument newArg =
         genericOp.getBody()->addArgument(value.getType(), genericOp.getLoc());
-    rewriter.replaceAllUsesWith(value, newArg);
+    rewriter.replaceUsesWithIf(value, newArg, [&](mlir::OpOperand &operand) {
+      return operand.getOwner()->getParentOp() == genericOp;
+    });
     genericOp.getInputsMutable().append(value);
   });
 
