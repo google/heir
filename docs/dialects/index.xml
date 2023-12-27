@@ -76,8 +76,8 @@ polynomials $(c_0, c_1, c_2)$.&lt;/p>
 &lt;p>&lt;em>Addition operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.add` `(` operands `)` attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: Commutative, SameOperandsAndResultType&lt;/p>
-&lt;p>Interfaces: InferTypeOpInterface&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -116,7 +116,7 @@ polynomials $(c_0, c_1, c_2)$.&lt;/p>
 &lt;p>&lt;em>Lower the modulus level of the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` `(` operands `)` attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: SameOperandsAndResultRings&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -157,7 +157,7 @@ polynomials $(c_0, c_1, c_2)$.&lt;/p>
 &lt;p>&lt;em>Multiplication operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` `(` operands `)` attr-dict `:` type($x) `-&amp;gt;` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: Commutative, SameOperandsAndResultRings, SameTypeOperands&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -196,8 +196,8 @@ polynomials $(c_0, c_1, c_2)$.&lt;/p>
 &lt;p>&lt;em>Negate the coefficients of the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` `(` operands `)` attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: SameOperandsAndResultType&lt;/p>
-&lt;p>Interfaces: InferTypeOpInterface&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -238,7 +238,7 @@ encrypted against. A ciphertext is canonically encrypted against key basis
 &lt;code>(1, s)&lt;/code>. After a multiplication, its size will increase and the basis will be
 &lt;code>(1, s, s^2)&lt;/code>. The array that represents the key basis is constructed by
 listing the powers of &lt;code>s&lt;/code> at each position of the array. For example, &lt;code>(1, s, s^2)&lt;/code> corresponds to &lt;code>[0, 1, 2]&lt;/code>, while &lt;code>(1, s^2)&lt;/code> corresponds to &lt;code>[0, 2]&lt;/code>.&lt;/p>
-&lt;p>Traits: SameOperandsAndResultRings&lt;/p>
+&lt;p>Traits: &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -279,7 +279,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` `(` operands `)` attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: SameOperandsAndResultRings&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -319,8 +319,8 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` `(` operands `)` attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: SameOperandsAndResultType&lt;/p>
-&lt;p>Interfaces: InferTypeOpInterface&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -423,9 +423,9 @@ unsigned # ksk_gadget_num_levels
 &lt;p>&lt;em>Logical AND of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.and` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -473,9 +473,9 @@ computed by this function can be interpreted as&lt;/p>
 significant bit to least-significant bit. The input are combined into a
 single ciphertext input to the lookup table using products with plaintexts
 and sums.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, Scalarizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -528,9 +528,9 @@ computed by this function can be interpreted as&lt;/p>
 significant bit to least-significant bit. The input are combined into a
 single ciphertext input to the lookup table using products with plaintexts
 and sums.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, Scalarizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -578,9 +578,9 @@ and sums.&lt;/p>
 &lt;p>&lt;em>Logical NOT of two ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.not` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Involution, SameOperandsAndResultType&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -615,9 +615,9 @@ and sums.&lt;/p>
 &lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -656,9 +656,9 @@ and sums.&lt;/p>
 &lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -701,9 +701,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;h3 id="combadd-heircombaddop">&lt;code>comb.add&lt;/code> (heir::comb::AddOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.add` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -742,9 +742,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;h3 id="comband-heircombandop">&lt;code>comb.and&lt;/code> (heir::comb::AndOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.and` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -785,9 +785,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.concat` $inputs attr-dict `:` qualified(type($inputs))
 &lt;/code>&lt;/pre>&lt;p>See the comb rationale document for details on operand ordering.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -822,9 +822,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 &lt;p>&lt;em>Extract a range of bits into a smaller value, lowBit specifies the lowest bit included.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.extract` $input `from` $lowBit attr-dict `:` functional-type($input, $result)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -868,9 +868,9 @@ representation of combinational logic outside of a particular use-case.&lt;/p>
 true, returns 1, otherwise returns 0. This operation always returns a one
 bit wide result.&lt;/p>
 &lt;pre tabindex="0">&lt;code> %r = comb.icmp eq %a, %b : i4
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -914,9 +914,9 @@ bit wide result.&lt;/p>
 &lt;h3 id="combmul-heircombmulop">&lt;code>comb.mul&lt;/code> (heir::comb::MulOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.mul` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -957,9 +957,9 @@ bit wide result.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.mux` (`bin` $twoState^)? $cond `,` $trueValue `,` $falseValue attr-dict `:` qualified(type($result))
 &lt;/code>&lt;/pre>&lt;pre tabindex="0">&lt;code> %0 = mux %pred, %tvalue, %fvalue : i4
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-5">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1006,9 +1006,9 @@ bit wide result.&lt;/p>
 &lt;h3 id="combor-heircomborop">&lt;code>comb.or&lt;/code> (heir::comb::OrOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.or` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-6">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1047,9 +1047,9 @@ bit wide result.&lt;/p>
 &lt;h3 id="combparity-heircombparityop">&lt;code>comb.parity&lt;/code> (heir::comb::ParityOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.parity` (`bin` $twoState^)? $input attr-dict `:` qualified(type($input))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-7">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1089,9 +1089,9 @@ bit wide result.&lt;/p>
 &lt;p>&lt;em>Concatenate the operand a constant number of times&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.replicate` $input attr-dict `:` functional-type($input, $result)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1138,9 +1138,9 @@ integer containing the truth table value&amp;rsquo;s LSB is the output for the i
 behavior. If one of the inputs is unknown, but said input doesn&amp;rsquo;t make a
 difference in the output (based on the lookup table) the result should not
 be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1179,9 +1179,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;h3 id="combxor-heircombxorop">&lt;code>comb.xor&lt;/code> (heir::comb::XorOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.xor` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-9">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1224,9 +1224,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;h3 id="combadd-heircombaddop-1">&lt;code>comb.add&lt;/code> (heir::comb::AddOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.add` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-10">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1265,9 +1265,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;h3 id="comband-heircombandop-1">&lt;code>comb.and&lt;/code> (heir::comb::AndOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.and` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1308,9 +1308,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.concat` $inputs attr-dict `:` qualified(type($inputs))
 &lt;/code>&lt;/pre>&lt;p>See the comb rationale document for details on operand ordering.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1345,9 +1345,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;p>&lt;em>Extract a range of bits into a smaller value, lowBit specifies the lowest bit included.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.extract` $input `from` $lowBit attr-dict `:` functional-type($input, $result)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-12">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1391,9 +1391,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 true, returns 1, otherwise returns 0. This operation always returns a one
 bit wide result.&lt;/p>
 &lt;pre tabindex="0">&lt;code> %r = comb.icmp eq %a, %b : i4
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-13">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1437,9 +1437,9 @@ bit wide result.&lt;/p>
 &lt;h3 id="combmul-heircombmulop-1">&lt;code>comb.mul&lt;/code> (heir::comb::MulOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.mul` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-14">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1480,9 +1480,9 @@ bit wide result.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.mux` (`bin` $twoState^)? $cond `,` $trueValue `,` $falseValue attr-dict `:` qualified(type($result))
 &lt;/code>&lt;/pre>&lt;pre tabindex="0">&lt;code> %0 = mux %pred, %tvalue, %fvalue : i4
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-15">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1529,9 +1529,9 @@ bit wide result.&lt;/p>
 &lt;h3 id="combor-heircomborop-1">&lt;code>comb.or&lt;/code> (heir::comb::OrOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.or` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-16">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1570,9 +1570,9 @@ bit wide result.&lt;/p>
 &lt;h3 id="combparity-heircombparityop-1">&lt;code>comb.parity&lt;/code> (heir::comb::ParityOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.parity` (`bin` $twoState^)? $input attr-dict `:` qualified(type($input))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-17">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1612,9 +1612,9 @@ bit wide result.&lt;/p>
 &lt;p>&lt;em>Concatenate the operand a constant number of times&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.replicate` $input attr-dict `:` functional-type($input, $result)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-21">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1661,9 +1661,9 @@ integer containing the truth table value&amp;rsquo;s LSB is the output for the i
 behavior. If one of the inputs is unknown, but said input doesn&amp;rsquo;t make a
 difference in the output (based on the lookup table) the result should not
 be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-18">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -1702,9 +1702,9 @@ be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p
 &lt;h3 id="combxor-heircombxorop-1">&lt;code>comb.xor&lt;/code> (heir::comb::XorOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `comb.xor` (`bin` $twoState^)? $inputs attr-dict `:` qualified(type($result))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, SameOperandsAndResultType, SameTypeOperands&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-19">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -2216,9 +2216,9 @@ RLWEParamsAttr # rlwe_params
 an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%Y = lwe.encode %value {encoding = #enc}: i1 to !lwe.lwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -2258,9 +2258,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>&lt;em>Create a trivial encryption of a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.trivial_encrypt` operands attr-dict `:` qualified(type(operands)) `to` qualified(type(results))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -2312,9 +2312,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfheadd-heiropenfheaddop">&lt;code>openfhe.add&lt;/code> (heir::openfhe::AddOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2356,9 +2356,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfheencrypt-heiropenfheencryptop">&lt;code>openfhe.encrypt&lt;/code> (heir::openfhe::EncryptOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.encrypt` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2400,9 +2400,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfhemulconst-heiropenfhemulconstop">&lt;code>openfhe.mulconst&lt;/code> (heir::openfhe::MulConstOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mulconst` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2444,9 +2444,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfhemul-heiropenfhemulop">&lt;code>openfhe.mul&lt;/code> (heir::openfhe::MulOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2488,9 +2488,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfhemulplain-heiropenfhemulplainop">&lt;code>openfhe.mulplain&lt;/code> (heir::openfhe::MulPlainOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mulplain` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2532,9 +2532,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfhenegate-heiropenfhenegateop">&lt;code>openfhe.negate&lt;/code> (heir::openfhe::NegateOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.negate` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2572,9 +2572,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfherot-heiropenfherotop">&lt;code>openfhe.rot&lt;/code> (heir::openfhe::RotOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2616,9 +2616,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h3 id="openfhesub-heiropenfhesubop">&lt;code>openfhe.sub&lt;/code> (heir::openfhe::SubOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2669,9 +2669,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>&lt;code>poly_ext.cmod_switch&lt;/code> &amp;ldquo;moves&amp;rdquo; polynomial $x$ from ring $Z/QZ[X]/(f(x))$ to the ring $Z/qZ[X]/(f(x))$.
 The move is done by scaling the polynomial coefficients by $q/Q$ and &amp;ldquo;rounding&amp;rdquo; so input and output coufficients are congruent modulo &lt;code>congruence_modulus&lt;/code> $t$.
 The resulting polynomial $\tilde{x} \approx (q/Q)x$ and $\tilde{x} \equiv x \mod t$.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait, Elementwise, Scalarizable, Tensorizable, Vectorizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -2809,9 +2809,9 @@ Attribute # encoding
 &lt;p>&lt;em>Addition operation between polynomials.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `polynomial.add` `(` operands `)` attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable, Tensorizable, Vectorizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2850,9 +2850,9 @@ Attribute # encoding
 &lt;p>&lt;em>Define a constant polynomial via an attribute.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `polynomial.constant` $input attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -2882,9 +2882,9 @@ The input tensor must list the coefficients in degree-increasing order.&lt;/p>
 &lt;p>The input one-dimensional tensor may have size at most the degree of the
 ring&amp;rsquo;s ideal generator polynomial, with smaller dimension implying that
 all higher-degree terms have coefficient zero.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -2964,7 +2964,7 @@ this op represents as a pair of results.&lt;/p>
 as a cyclic shift of the coefficients of the polynomial. For some rings,
 this results in optimized lowerings that involve rotations and rescaling
 of the coefficients of the input.&lt;/p>
-&lt;p>Interfaces: InferTypeOpInterface&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3041,9 +3041,9 @@ of the coefficients of the input.&lt;/p>
 &lt;p>&lt;em>Multiplication operation between polynomials.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `polynomial.mul` `(` operands `)` attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Commutative, Elementwise, SameOperandsAndResultType, Scalarizable, Tensorizable, Vectorizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3082,8 +3082,8 @@ of the coefficients of the input.&lt;/p>
 &lt;p>&lt;em>Multiplication by a scalar of the field.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `polynomial.mul_scalar` operands attr-dict `:` qualified(type($polynomial)) `,` type($scalar)
-&lt;/code>&lt;/pre>&lt;p>Traits: Elementwise, Scalarizable, Tensorizable, Vectorizable&lt;/p>
-&lt;p>Interfaces: InferTypeOpInterface&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3122,9 +3122,9 @@ of the coefficients of the input.&lt;/p>
 &lt;p>&lt;em>Subtraction operation between polynomials.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `polynomial.sub` `(` operands `)` attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait, Elementwise, SameOperandsAndResultType, Scalarizable, Tensorizable, Vectorizable&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3172,9 +3172,9 @@ implemented by composing &lt;code>to_tensor&lt;/code> with the relevant &lt;code
 ops.&lt;/p>
 &lt;p>The output tensor has shape equal to the degree of the ring&amp;rsquo;s ideal
 generator polynomial, including zeroes.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3259,9 +3259,9 @@ determine which casts are considered valid.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%result&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>cast &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%result2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>cast &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> to &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i4&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3303,9 +3303,9 @@ op is also useful for type materialization in the dialect conversion
 framework.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>conceal &lt;span style="color:#000">%value&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3369,7 +3369,7 @@ block.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%x&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%y&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: SingleBlock, SingleBlockImplicitTerminator&lt;YieldOp>&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>SingleBlockImplicitTerminator&amp;lt;YieldOp&amp;gt;&lt;/code>, &lt;code>SingleBlock&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3409,9 +3409,9 @@ block.&lt;/p>
 useful for target materialization in the dialect conversion framework.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%Y&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>reveal &lt;span style="color:#000">%secret_value&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3448,9 +3448,9 @@ useful for target materialization in the dialect conversion framework.&lt;/p>
 in &lt;code>secret&lt;/code> generic ops. It returns the cleartext value of the
 corresponding private computation to the immediately enclosing &lt;code>secret&lt;/code>
 generic op.&lt;/p>
-&lt;p>Traits: AlwaysSpeculatableImplTrait, HasParent&lt;GenericOp>, ReturnLike, Terminator&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface), RegionBranchTerminatorOpInterface&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>HasParent&amp;lt;GenericOp&amp;gt;&lt;/code>, &lt;code>ReturnLike&lt;/code>, &lt;code>Terminator&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RegionBranchTerminatorOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3542,9 +3542,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustadd-heirtfhe_rustaddop">&lt;code>tfhe_rust.add&lt;/code> (heir::tfhe_rust::AddOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.add` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3586,9 +3586,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustapply_lookup_table-heirtfhe_rustapplylookuptableop">&lt;code>tfhe_rust.apply_lookup_table&lt;/code> (heir::tfhe_rust::ApplyLookupTableOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.apply_lookup_table` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3630,9 +3630,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustbitand-heirtfhe_rustbitandop">&lt;code>tfhe_rust.bitand&lt;/code> (heir::tfhe_rust::BitAndOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitand` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3674,9 +3674,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustcreate_bool_trivial-heirtfhe_rustcreatetrivialboolop">&lt;code>tfhe_rust.create_bool_trivial&lt;/code> (heir::tfhe_rust::CreateTrivialBoolOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.create_bool_trivial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3714,9 +3714,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustcreate_trivial-heirtfhe_rustcreatetrivialop">&lt;code>tfhe_rust.create_trivial&lt;/code> (heir::tfhe_rust::CreateTrivialOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.create_trivial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3754,9 +3754,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustgenerate_lookup_table-heirtfhe_rustgeneratelookuptableop">&lt;code>tfhe_rust.generate_lookup_table&lt;/code> (heir::tfhe_rust::GenerateLookupTableOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.generate_lookup_table` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -3795,9 +3795,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustscalar_left_shift-heirtfhe_rustscalarleftshiftop">&lt;code>tfhe_rust.scalar_left_shift&lt;/code> (heir::tfhe_rust::ScalarLeftShiftOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_left_shift` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3839,9 +3839,9 @@ generic op.&lt;/p>
 &lt;h3 id="tfhe_rustsub-heirtfhe_rustsubop">&lt;code>tfhe_rust.sub&lt;/code> (heir::tfhe_rust::SubOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.sub` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: AlwaysSpeculatableImplTrait&lt;/p>
-&lt;p>Interfaces: ConditionallySpeculatable, InferTypeOpInterface, NoMemoryEffect (MemoryEffectOpInterface)&lt;/p>
-&lt;p>Effects: MemoryEffects::Effect{}&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
