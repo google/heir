@@ -197,6 +197,15 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
                              const std::string &abcPath, bool abcFast) {
   std::string moduleName = "generic_body";
 
+  // Only run this when there are arithmetic operations inside the generic body.
+  auto result = op->walk([&](Operation *op) -> WalkResult {
+    if (isa<arith::ArithDialect>(op->getDialect())) {
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+  if (!result.wasInterrupted()) return success();
+
   // Translate function to Verilog. Translation will fail if the func contains
   // unsupported operations.
   // TODO(https://github.com/google/heir/issues/111): Directly convert MLIR to
@@ -221,7 +230,6 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
   of.close();
 
   // Invoke Yosys to translate to a combinational circuit and optimize.
-  Yosys::yosys_setup();
   Yosys::log_error_stderr = true;
   LLVM_DEBUG(Yosys::log_streams.push_back(&std::cout));
   Yosys::run_pass(llvm::formatv(kYosysTemplate.data(), filename, moduleName,
@@ -239,7 +247,7 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
   Yosys::RTLIL::Design *design = Yosys::yosys_get_design();
   func::FuncOp func =
       lutImporter.importModule(design->top_module(), topologicalOrder);
-  Yosys::yosys_shutdown();
+  Yosys::run_pass("delete;");
 
   // The pass changes the yielded value types, e.g., from an i8 to a
   // tensor<8xi1>. So the containing secret.generic needs to be updated and
@@ -292,6 +300,7 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
 
 // Optimize the body of a secret.generic op.
 void YosysOptimizer::runOnOperation() {
+  Yosys::yosys_setup();
   auto result = getOperation()->walk([&](secret::GenericOp op) {
     if (failed(runOnGenericOp(&getContext(), op, yosysFilesPath, abcPath,
                               abcFast))) {
@@ -299,6 +308,7 @@ void YosysOptimizer::runOnOperation() {
     }
     return WalkResult::advance();
   });
+  Yosys::yosys_shutdown();
 
   if (result.wasInterrupted()) {
     signalPassFailure();
