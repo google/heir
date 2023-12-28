@@ -1,7 +1,6 @@
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 
 #include <cassert>
-#include <iostream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -115,10 +114,8 @@ func::FuncOp RTLILImporter::importModule(
     Module *module, const SmallVector<std::string, 10> &cellOrdering) {
   // Gather input and output wires of the module to match up with the block
   // arguments.
-  SmallVector<Type, 4> argTypes;
-  SmallVector<Wire *, 4> wireArgs;
-  SmallVector<Type, 4> retTypes;
-  SmallVector<Wire *, 4> wireRet;
+  std::map<int, Wire *> wireArgs;
+  std::map<int, Wire *> wireRet;
 
   OpBuilder builder(context);
   // Maintain a map from RTLIL output wires to the Values that comprise it
@@ -128,13 +125,23 @@ func::FuncOp RTLILImporter::importModule(
     // The RTLIL module may also have intermediate wires that are neither inputs
     // nor outputs.
     if (wire->port_input) {
-      argTypes.push_back(getTypeForWire(builder, wire));
-      wireArgs.push_back(wire);
+      wireArgs[wire->port_id - 1] = wire;
     } else if (wire->port_output) {
-      retTypes.push_back(getTypeForWire(builder, wire));
-      wireRet.push_back(wire);
+      // These are indexed after the input wires.
+      wireRet[wire->port_id - 1] = wire;
       retBitValues[wire].resize(wire->width);
     }
+  }
+
+  // Get ordered argument and return type lists.
+  int numInputs = wireArgs.size();
+  SmallVector<Type, 4> argTypes;
+  SmallVector<Type, 4> retTypes;
+  for (auto &[_, wireArg] : wireArgs) {
+    argTypes.push_back(getTypeForWire(builder, wireArg));
+  }
+  for (auto &[_, wireReg] : wireRet) {
+    retTypes.push_back(getTypeForWire(builder, wireReg));
   }
 
   // Build function.
@@ -149,7 +156,7 @@ func::FuncOp RTLILImporter::importModule(
   auto b = ImplicitLocOpBuilder::atBlockBegin(function.getLoc(), block);
 
   // Map the RTLIL wires to the block arguments' Values.
-  for (auto i = 0; i < wireArgs.size(); i++) {
+  for (unsigned i = 0; i < wireArgs.size(); i++) {
     addWireValue(wireArgs[i], block->getArgument(i));
   }
 
@@ -194,7 +201,9 @@ func::FuncOp RTLILImporter::importModule(
 
   // Concatenate result bits if needed, and return result.
   SmallVector<Value, 4> returnValues;
-  for (const auto &[resultWire, retBits] : retBitValues) {
+  for (unsigned i = 0; i < retTypes.size(); i++) {
+    auto *resultWire = wireRet[numInputs + i];  // Indexed after input ports
+    auto retBits = retBitValues[resultWire];
     // If we are returning a whole wire as is (e.g. the input wire) or a single
     // bit, we do not need to concat any return bits.
     if (wireNameToValue.contains(resultWire->name.str())) {
