@@ -42,6 +42,8 @@ cc_library(
         "@heir//include/Dialect/Secret/IR:ops_inc_gen",
         "@heir//include/Dialect/Secret/IR:types_inc_gen",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineAnalysis",
+        "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ControlFlowInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
