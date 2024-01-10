@@ -32,7 +32,7 @@ SelectVariableNames::SelectVariableNames(Operation *op) {
           }
           return WalkResult::advance();
         });
-    // TODO(https://github.com/google/heir/issues/229): handle block arguments
+    // TODO(#229): handle block arguments
   });
 }
 

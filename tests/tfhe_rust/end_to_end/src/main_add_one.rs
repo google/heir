@@ -4,7 +4,7 @@ use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
 
 mod fn_under_test;
 
-// TODO(https://github.com/google/heir/issues/235): improve generality
+// TODO(#235): improve generality
 #[derive(Parser, Debug)]
 struct Args {
     #[arg(id = "message_bits", long)]

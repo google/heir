@@ -54,8 +54,7 @@ p0 = "1 + x**10"
 p1 = "1 + x**11"
 container_type = "i4"
 
-# TODO(https://github.com/google/heir/issues/220): restore once
-# we can use emulate-wide-int in the pipeline
+# TODO(#220): restore once we can use emulate-wide-int in the pipeline
 # [[test]]
 # ideal = "1 + x**12"
 # cmod = 4294967297  # 2**32 + 1

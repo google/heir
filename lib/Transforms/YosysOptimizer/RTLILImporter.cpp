@@ -145,8 +145,7 @@ func::FuncOp RTLILImporter::importModule(
   }
 
   // Build function.
-  // TODO(https://github.com/google/heir/issues/111): Pass in data to fix
-  // function location.
+  // TODO(#111): Pass in data to fix function location.
   FunctionType funcType = builder.getFunctionType(argTypes, retTypes);
   auto function = func::FuncOp::create(
       builder.getUnknownLoc(), module->name.str().replace(0, 1, ""), funcType);

@@ -1,5 +1,4 @@
-// TODO(https://github.com/google/heir/issues/176): re-enable after we remove
-// the need to fully unroll loops
+// TODO(#176): re-enable after we remove the need to fully unroll loops
 // Old command: heir-opt --heir-tosa-to-arith %s | FileCheck %s
 // For now, just trivially run heir-opt and parse it.
 // RUN: heir-opt %s

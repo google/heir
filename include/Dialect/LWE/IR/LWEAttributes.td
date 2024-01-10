@@ -163,7 +163,7 @@ def RLWE_PolynomialEvaluationEncoding
     #lwe_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
     %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
-    // TODO(https://github.com/google/heir/issues/182): fix docs
+    // TODO(#182): fix docs
     // Note no `intt` operation exists in poly yet.
     %poly1 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
     %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
@@ -172,10 +172,10 @@ def RLWE_PolynomialEvaluationEncoding
   }];
 }
 
-// TODO(https://github.com/google/heir/issues/183): does it make sense to use
-// the bit-field parameters here? It may not work sensibly because the rounding
-// happens after scaling-post-INTT, so rounding doesn't happen via bit shifting,
-// and this scheme might need a scaling factor that is not a power of two.
+// TODO(#183): does it make sense to use the bit-field parameters here? It may
+// not work sensibly because the rounding happens after scaling-post-INTT, so
+// rounding doesn't happen via bit shifting, and this scheme might need a scaling
+// factor that is not a power of two.
 def RLWE_InverseCanonicalEmbeddingEncoding
   : LWE_EncodingAttrWithScalingFactor<"InverseCanonicalEmbeddingEncoding", "inverse_canonical_embedding_encoding"> {
   let summary = "An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.";
@@ -252,7 +252,7 @@ def RLWE_InverseCanonicalEmbeddingEncoding
     #lwe_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
     %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
-    // TODO(https://github.com/google/heir/issues/182): fix docs
+    // TODO(#182): fix docs
     // Note no `intt` operation exists in poly yet.
     %poly1 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
     %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
