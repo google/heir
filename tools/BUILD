@@ -51,6 +51,7 @@ cc_binary(
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/Transforms",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
+        "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
         "@heir//lib/Transforms/Secretize",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
@@ -99,6 +100,7 @@ cc_binary(
     deps = [
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/TfheRust:TfheRustEmitter",
+        "@heir//lib/Target/TfheRustBool:TfheRustBoolEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TranslateLib",

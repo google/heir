@@ -7,12 +7,8 @@ edition = "2021"
 clap = { version = "4.1.8", features = ["derive"] }
 rayon = "1.6.1"
 serde = { version = "1.0.152", features = ["derive"] }
-tfhe = { version = "0.4.1", features = ["shortint", "x86_64-unix"] }
+tfhe = { version = "0.4.1", features = ["boolean", "x86_64-unix"] }
 
 [[bin]]
 name = "main"
 path = "src/main.rs"
-
-[[bin]]
-name = "main_add_one"
-path = "src/main_add_one.rs"

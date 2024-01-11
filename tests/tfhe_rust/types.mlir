@@ -4,7 +4,6 @@
 module {
   // CHECK-LABEL: func @test
   func.func @test(
-     %arg_eb: !tfhe_rust.eb,
      %arg_eui2: !tfhe_rust.eui2,
      %arg_eui3: !tfhe_rust.eui3,
      %arg_eui4: !tfhe_rust.eui4,

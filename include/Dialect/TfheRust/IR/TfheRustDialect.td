@@ -8,7 +8,8 @@ def TfheRust_Dialect : Dialect {
   let name = "tfhe_rust";
 
   let description = [{
-    The `thfe_rust` dialect is an exit dialect for generating rust code against the tfhe-rs library API.
+    The `thfe_rust` dialect is an exit dialect for generating rust code against the tfhe-rs library API,
+    using the shortint parameters and encoding scheme.
 
     See https://github.com/zama-ai/tfhe-rs
   }];
