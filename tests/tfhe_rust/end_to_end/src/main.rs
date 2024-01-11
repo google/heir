@@ -21,14 +21,16 @@ struct Args {
 }
 
 fn main() {
-    let flags = Args::parse();
-    let parameters = get_parameters_from_message_and_carry((1 << flags.message_bits) - 1, flags.carry_bits);
-    let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
+  let flags = Args::parse();
 
-    let ct_1 = client_key.encrypt(flags.input1.into());
-    let ct_2 = client_key.encrypt(flags.input2.into());
+  let parameters = get_parameters_from_message_and_carry((1 << flags.message_bits) - 1, flags.carry_bits);
+  let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
 
-    let result = fn_under_test::fn_under_test(&server_key, &ct_1, &ct_2);
-    let output = client_key.decrypt(&result);
-    println!("{:?}", output);
+  let ct_1 = client_key.encrypt(flags.input1.into());
+  let ct_2 = client_key.encrypt(flags.input2.into());
+
+  let result = fn_under_test::fn_under_test(&server_key, &ct_1, &ct_2);
+  let output = client_key.decrypt(&result);
+  println!("{:?}", output);
+
 }

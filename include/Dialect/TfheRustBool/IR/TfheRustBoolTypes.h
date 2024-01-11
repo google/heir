@@ -1,0 +1,9 @@
+#ifndef INCLUDE_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLTYPES_H_
+#define INCLUDE_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLTYPES_H_
+
+#include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+
+#define GET_TYPEDEF_CLASSES
+#include "include/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h.inc"
+
+#endif  // INCLUDE_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLTYPES_H_

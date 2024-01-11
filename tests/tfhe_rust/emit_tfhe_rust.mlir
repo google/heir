@@ -1,8 +1,22 @@
 // RUN: heir-translate %s --emit-tfhe-rust | FileCheck %s
 
 !sks = !tfhe_rust.server_key
+
 !lut = !tfhe_rust.lookup_table
 !eui3 = !tfhe_rust.eui3
+
+// CHECK-LABEL: pub fn test_bitand(
+// CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
+// CHECK-NEXT:   [[input1:v[0-9]+]]: &Ciphertext,
+// CHECK-NEXT:   [[input2:v[0-9]+]]: &Ciphertext,
+// CHECK-NEXT: ) -> Ciphertext {
+// CHECK-NEXT:   let [[v0:.*]] = [[sks]].bitand(&[[input1]], &[[input2]]);
+// CHECK-NEXT:   [[v0]]
+// CHECK-NEXT: }
+func.func @test_bitand(%sks : !sks, %input1 : !eui3, %input2 : !eui3) -> !eui3 {
+  %out = tfhe_rust.bitand %sks, %input1, %input2 : (!sks, !eui3, !eui3) -> !eui3
+  return %out : !eui3
+}
 
 // CHECK-LABEL: pub fn test_apply_lookup_table(
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,

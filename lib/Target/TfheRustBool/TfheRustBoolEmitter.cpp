@@ -1,4 +1,4 @@
-#include "include/Target/TfheRust/TfheRustEmitter.h"
+#include "include/Target/TfheRustBool/TfheRustBoolEmitter.h"
 
 #include <functional>
 #include <iterator>
@@ -7,10 +7,10 @@
 #include <string_view>
 
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
-#include "include/Dialect/TfheRust/IR/TfheRustOps.h"
-#include "include/Dialect/TfheRust/IR/TfheRustTypes.h"
-#include "lib/Target/TfheRust/TfheRustTemplates.h"
+#include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "include/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
+#include "include/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
+#include "lib/Target/TfheRustBool/TfheRustBoolTemplates.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
@@ -31,33 +31,29 @@
 
 namespace mlir {
 namespace heir {
-namespace tfhe_rust {
+namespace tfhe_rust_bool {
 
-// TODO(https://github.com/google/heir/issues/230): Have a separate pass that
-// topo-sorts the gate ops into levels, and use scf.parallel_for to represent
-// them.
-
-void registerToTfheRustTranslation() {
+void registerToTfheRustBoolTranslation() {
   TranslateFromMLIRRegistration reg(
-      "emit-tfhe-rust",
-      "translate the tfhe_rs dialect to Rust code for tfhe-rs",
+      "emit-tfhe-rust-bool",
+      "translate the bool tfhe_rs dialect to Rust code for boolean tfhe-rs",
       [](Operation *op, llvm::raw_ostream &output) {
-        return translateToTfheRust(op, output);
+        return translateToTfheRustBool(op, output);
       },
       [](DialectRegistry &registry) {
-        registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
+        registry.insert<func::FuncDialect, tfhe_rust_bool::TfheRustBoolDialect,
                         arith::ArithDialect, tensor::TensorDialect>();
       });
 }
 
-LogicalResult translateToTfheRust(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToTfheRustBool(Operation *op, llvm::raw_ostream &os) {
   SelectVariableNames variableNames(op);
-  TfheRustEmitter emitter(os, &variableNames);
+  TfheRustBoolEmitter emitter(os, &variableNames);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
 
-LogicalResult TfheRustEmitter::translate(Operation &op) {
+LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
   LogicalResult status =
       llvm::TypeSwitch<Operation &, LogicalResult>(op)
           // Builtin ops
@@ -67,9 +63,8 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
-          // TfheRust ops
-          .Case<AddOp, ApplyLookupTableOp, BitAndOp, GenerateLookupTableOp,
-                ScalarLeftShiftOp, CreateTrivialOp>(
+          // TfheRustBool ops
+          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
@@ -106,7 +101,7 @@ FailureOr<std::string> commaSeparatedTypes(
       });
 }
 
-LogicalResult TfheRustEmitter::printOperation(ModuleOp moduleOp) {
+LogicalResult TfheRustBoolEmitter::printOperation(ModuleOp moduleOp) {
   os << kModulePrelude << "\n";
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
@@ -117,7 +112,7 @@ LogicalResult TfheRustEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
-LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
+LogicalResult TfheRustBoolEmitter::printOperation(func::FuncOp funcOp) {
   os << "pub fn " << funcOp.getName() << "(\n";
   os.indent();
   for (Value arg : funcOp.getArguments()) {
@@ -125,7 +120,7 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
     os << argName << ": &";
     if (failed(emitType(arg.getType()))) {
       return funcOp.emitOpError()
-             << "Failed to emit tfhe-rs type " << arg.getType();
+             << "Failed to emit tfhe-rs bool type " << arg.getType();
     }
     os << ",\n";
   }
@@ -135,7 +130,8 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   if (funcOp.getNumResults() == 1) {
     Type result = funcOp.getResultTypes()[0];
     if (failed(emitType(result))) {
-      return funcOp.emitOpError() << "Failed to emit tfhe-rs type " << result;
+      return funcOp.emitOpError()
+             << "Failed to emit tfhe-rs bool type " << result;
     }
   } else {
     auto result = commaSeparatedTypes(
@@ -143,7 +139,7 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
           auto result = convertType(type);
           if (failed(result)) {
             return funcOp.emitOpError()
-                   << "Failed to emit tfhe-rs type " << type;
+                   << "Failed to emit tfhe-rs bool type " << type;
           }
           return result;
         });
@@ -166,7 +162,7 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   return success();
 }
 
-LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
+LogicalResult TfheRustBoolEmitter::printOperation(func::ReturnOp op) {
   std::function<std::string(Value)> valueOrClonedValue = [&](Value value) {
     auto cloneStr = "";
     if (isa<BlockArgument>(value)) {
@@ -185,11 +181,11 @@ LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
-void TfheRustEmitter::emitAssignPrefix(Value result) {
+void TfheRustBoolEmitter::emitAssignPrefix(Value result) {
   os << "let " << variableNames->getNameForValue(result) << " = ";
 }
 
-LogicalResult TfheRustEmitter::printSksMethod(
+LogicalResult TfheRustBoolEmitter::printSksMethod(
     ::mlir::Value result, ::mlir::Value sks, ::mlir::ValueRange nonSksOperands,
     std::string_view op, SmallVector<std::string> operandTypes) {
   emitAssignPrefix(result);
@@ -197,49 +193,19 @@ LogicalResult TfheRustEmitter::printSksMethod(
   auto operandTypesIt = operandTypes.begin();
   os << variableNames->getNameForValue(sks) << "." << op << "(";
   os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-    const auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
-    return prefix + variableNames->getNameForValue(value) +
+    return variableNames->getNameForValue(value) +
            (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
   });
   os << ");\n";
   return success();
 }
 
-LogicalResult TfheRustEmitter::printOperation(AddOp op) {
-  return printSksMethod(op.getResult(), op.getServerKey(),
-                        {op.getLhs(), op.getRhs()}, "unchecked_add");
-}
-
-LogicalResult TfheRustEmitter::printOperation(ApplyLookupTableOp op) {
-  return printSksMethod(op.getResult(), op.getServerKey(),
-                        {op.getInput(), op.getLookupTable()},
-                        "apply_lookup_table");
-}
-
-LogicalResult TfheRustEmitter::printOperation(GenerateLookupTableOp op) {
-  auto sks = op.getServerKey();
-  uint64_t truthTable = op.getTruthTable().getUInt();
-  auto result = op.getResult();
-
-  emitAssignPrefix(result);
-  os << variableNames->getNameForValue(sks) << ".generate_lookup_table(";
-  os << "|x| (" << std::to_string(truthTable) << " >> x) & 1";
-  os << ");\n";
-  return success();
-}
-
-LogicalResult TfheRustEmitter::printOperation(ScalarLeftShiftOp op) {
-  return printSksMethod(op.getResult(), op.getServerKey(),
-                        {op.getCiphertext(), op.getShiftAmount()},
-                        "scalar_left_shift");
-}
-
-LogicalResult TfheRustEmitter::printOperation(CreateTrivialOp op) {
+LogicalResult TfheRustBoolEmitter::printOperation(CreateTrivialOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(), {op.getValue()},
-                        "create_trivial", {"u64"});
+                        "create_trivial", {"i1"});
 }
 
-LogicalResult TfheRustEmitter::printOperation(arith::ConstantOp op) {
+LogicalResult TfheRustBoolEmitter::printOperation(arith::ConstantOp op) {
   auto valueAttr = op.getValue();
   if (isa<IntegerType>(op.getType()) &&
       op.getType().getIntOrFloatBitWidth() == 1) {
@@ -259,7 +225,7 @@ LogicalResult TfheRustEmitter::printOperation(arith::ConstantOp op) {
   return success();
 }
 
-LogicalResult TfheRustEmitter::printOperation(tensor::ExtractOp op) {
+LogicalResult TfheRustBoolEmitter::printOperation(tensor::ExtractOp op) {
   // We assume here that the indices are SSA values (not integer attributes).
   emitAssignPrefix(op.getResult());
   os << "&" << variableNames->getNameForValue(op.getTensor()) << "["
@@ -270,7 +236,7 @@ LogicalResult TfheRustEmitter::printOperation(tensor::ExtractOp op) {
   return success();
 }
 
-LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
+LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     // Check if block argument, if so, clone.
@@ -283,7 +249,37 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
   return success();
 }
 
-FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
+LogicalResult TfheRustBoolEmitter::printOperation(AndOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "and");
+}
+
+LogicalResult TfheRustBoolEmitter::printOperation(NandOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "nand");
+}
+
+LogicalResult TfheRustBoolEmitter::printOperation(OrOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "or");
+}
+
+LogicalResult TfheRustBoolEmitter::printOperation(NorOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "nor");
+}
+
+LogicalResult TfheRustBoolEmitter::printOperation(XorOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "xor");
+}
+
+LogicalResult TfheRustBoolEmitter::printOperation(XnorOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "xnor");
+}
+
+FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
   // Note: these are probably not the right type names to use exactly, and they
   // will need to chance to the right values once we try to compile it against
   // a specific API version.
@@ -295,20 +291,13 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
     return std::string("Vec<" + elementTy.value() + ">");
   }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
-      .Case<EncryptedUInt3Type>(
+      .Case<EncryptedBoolType>(
           [&](auto type) { return std::string("Ciphertext"); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
-      .Case<LookupTableType>(
-          [&](auto type) { return std::string("LookupTableOwned"); })
       .Default([&](Type &) { return failure(); });
 }
 
-LogicalResult TfheRustEmitter::printOperation(BitAndOp op) {
-  return printSksMethod(op.getResult(), op.getServerKey(),
-                        {op.getLhs(), op.getRhs()}, "bitand");
-}
-
-LogicalResult TfheRustEmitter::emitType(Type type) {
+LogicalResult TfheRustBoolEmitter::emitType(Type type) {
   auto result = convertType(type);
   if (failed(result)) {
     return failure();
@@ -317,9 +306,9 @@ LogicalResult TfheRustEmitter::emitType(Type type) {
   return success();
 }
 
-TfheRustEmitter::TfheRustEmitter(raw_ostream &os,
-                                 SelectVariableNames *variableNames)
+TfheRustBoolEmitter::TfheRustBoolEmitter(raw_ostream &os,
+                                         SelectVariableNames *variableNames)
     : os(os), variableNames(variableNames) {}
-}  // namespace tfhe_rust
+}  // namespace tfhe_rust_bool
 }  // namespace heir
 }  // namespace mlir
