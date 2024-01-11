@@ -21,13 +21,13 @@ module attributes {tf_saved_model.semantics} {
     %4 = "tosa.const"() {value = dense<[0, 0, -5438, -5515, -1352, -1500, -4152, -84, 3396, 0, 1981, -5581, 0, -6964, 3407, -7217]> : tensor<16xi32>} : () -> tensor<16xi32>
     %5 = "tosa.const"() {value = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]> : tensor<16x1xi8>} : () -> tensor<16x1xi8>
     %6 = "tosa.fully_connected"(%arg0, %5, %4) {quantization_info = #tosa.conv_quant<input_zp = -128, weight_zp = 0>} : (tensor<1x1xi8>, tensor<16x1xi8>, tensor<16xi32>) -> tensor<1x16xi32>
-    %7 = "tosa.rescale"(%6) {double_round = true, input_zp = 0 : i32, multiplier = array<i32: 2039655736>, output_zp = -128 : i32, per_channel = false, scale32 = true, shift = array<i32: 38>} : (tensor<1x16xi32>) -> tensor<1x16xi8>
+    %7 = "tosa.rescale"(%6) {double_round = true, input_zp = 0 : i32, multiplier = array<i32: 2039655736>, output_zp = -128 : i32, per_channel = false, scale32 = true, shift = array<i8: 38>} : (tensor<1x16xi32>) -> tensor<1x16xi8>
     %8 = "tosa.clamp"(%7) {max_fp = 0.000000e+00 : f32, max_int = 127 : i64, min_fp = 0.000000e+00 : f32, min_int = -128 : i64} : (tensor<1x16xi8>) -> tensor<1x16xi8>
     %9 = "tosa.fully_connected"(%8, %3, %2) {quantization_info = #tosa.conv_quant<input_zp = -128, weight_zp = 0>} : (tensor<1x16xi8>, tensor<16x16xi8>, tensor<16xi32>) -> tensor<1x16xi32>
-    %10 = "tosa.rescale"(%9) {double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1561796795>, output_zp = -128 : i32, per_channel = false, scale32 = true, shift = array<i32: 37>} : (tensor<1x16xi32>) -> tensor<1x16xi8>
+    %10 = "tosa.rescale"(%9) {double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1561796795>, output_zp = -128 : i32, per_channel = false, scale32 = true, shift = array<i8: 37>} : (tensor<1x16xi32>) -> tensor<1x16xi8>
     %11 = "tosa.clamp"(%10) {max_fp = 0.000000e+00 : f32, max_int = 127 : i64, min_fp = 0.000000e+00 : f32, min_int = -128 : i64} : (tensor<1x16xi8>) -> tensor<1x16xi8>
     %12 = "tosa.fully_connected"(%11, %1, %0) {quantization_info = #tosa.conv_quant<input_zp = -128, weight_zp = 0>} : (tensor<1x16xi8>, tensor<1x16xi8>, tensor<1xi32>) -> tensor<1x1xi32>
-    %13 = "tosa.rescale"(%12) {double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1630361836>, output_zp = 5 : i32, per_channel = false, scale32 = true, shift = array<i32: 36>} : (tensor<1x1xi32>) -> tensor<1x1xi8>
+    %13 = "tosa.rescale"(%12) {double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1630361836>, output_zp = 5 : i32, per_channel = false, scale32 = true, shift = array<i8: 36>} : (tensor<1x1xi32>) -> tensor<1x1xi8>
     // CHECK: return
     return %13 : tensor<1x1xi8>
   }
