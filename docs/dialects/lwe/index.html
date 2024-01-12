@@ -103,7 +103,7 @@ coefficients.</p><p>Example:</p><pre tabindex=0><code>#generator = #poly.polynom
 #lwe_encoding = #lwe.polynomial_evaluation_encoding&lt;cleartext_start=30, cleartext_bitwidth=3&gt;
 
 %evals = arith.constant &lt;[1, 2, 4, 5]&gt; : tensor&lt;4xi16&gt;
-// TODO(https://github.com/google/heir/issues/182): fix docs
+// TODO(#182): fix docs
 // Note no `intt` operation exists in poly yet.
 %poly1 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;
 %poly2 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;
@@ -146,7 +146,7 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.</p><p
 #lwe_encoding = #lwe.polynomial_evaluation_encoding&lt;cleartext_start=30, cleartext_bitwidth=3&gt;
 
 %evals = arith.constant &lt;[1, 2, 4, 5]&gt; : tensor&lt;4xi16&gt;
-// TODO(https://github.com/google/heir/issues/182): fix docs
+// TODO(#182): fix docs
 // Note no `intt` operation exists in poly yet.
 %poly1 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;
 %poly2 = poly.intt %evals : tensor&lt;4xi16&gt; -&gt; !poly.poly&lt;#ring, #eval_encoding&gt;

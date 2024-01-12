@@ -1961,7 +1961,7 @@ coefficients.&lt;/p>
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
 #lwe_encoding = #lwe.polynomial_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
-// TODO(https://github.com/google/heir/issues/182): fix docs
+// TODO(#182): fix docs
 // Note no `intt` operation exists in poly yet.
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
@@ -2064,7 +2064,7 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
 #lwe_encoding = #lwe.polynomial_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
-// TODO(https://github.com/google/heir/issues/182): fix docs
+// TODO(#182): fix docs
 // Note no `intt` operation exists in poly yet.
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
