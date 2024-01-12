@@ -77,7 +77,7 @@ class VerilogEmitter {
 
   // A helper to generalize the work of emitting a func.return and a
   // secret.yield
-  LogicalResult printReturnLikeOp(Value returnValue);
+  LogicalResult printReturnLikeOp(ValueRange returnValues);
 
   // Functions for printing individual ops
   LogicalResult printOperation(mlir::ModuleOp op,
@@ -105,8 +105,6 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::affine::AffineLoadOp op);
   LogicalResult printOperation(mlir::affine::AffineStoreOp op);
   LogicalResult printOperation(mlir::func::CallOp op);
-  LogicalResult printOperation(mlir::func::ReturnOp op);
-  LogicalResult printOperation(mlir::heir::secret::YieldOp op);
   LogicalResult printOperation(mlir::math::CountLeadingZerosOp op);
   LogicalResult printOperation(mlir::memref::LoadOp op);
 
@@ -116,6 +114,7 @@ class VerilogEmitter {
 
   // Emit a Verilog type of the form `wire [width-1:0]`
   LogicalResult emitType(Type type);
+  LogicalResult emitType(Type type, raw_ostream &os);
 
   // Emit a Verilog array shape specifier of the form `[width]`
   LogicalResult emitArrayShapeSuffix(Type type);

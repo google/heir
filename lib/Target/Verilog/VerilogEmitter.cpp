@@ -94,10 +94,23 @@ void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
   }
 }
 
-llvm::SmallString<128> variableLoadStr(StringRef memref, StringRef index,
+llvm::SmallString<128> flattenIndexExpression(
+    const llvm::ArrayRef<StringRef> indices,
+    const llvm::ArrayRef<int64_t> sizes, int width) {
+  llvm::SmallString<128> accum = llvm::formatv("{0}", indices[0]);
+  for (int i = 1; i < indices.size(); ++i) {
+    accum = llvm::formatv("{0} + {1} * ({2})", indices[i], sizes[i], accum);
+  }
+  return indices.size() == 1 ? llvm::formatv("{0} * {1}", width, accum)
+                             : llvm::formatv("{0} * ({1})", width, accum);
+}
+
+llvm::SmallString<128> variableLoadStr(StringRef memref,
+                                       llvm::ArrayRef<StringRef> indices,
+                                       llvm::ArrayRef<int64_t> sizes,
                                        unsigned int width) {
-  return llvm::formatv("{0}[{1} + {2} * {3} : {2} * {3}]", memref, width - 1,
-                       width, index);
+  llvm::SmallString<128> index = flattenIndexExpression(indices, sizes, width);
+  return llvm::formatv("{0}[{1} + {2} : {2}]", memref, width - 1, index);
 }
 
 struct CtlzValueStruct {
@@ -170,8 +183,10 @@ LogicalResult VerilogEmitter::translate(
           .Case<ModuleOp, func::FuncOp, secret::GenericOp>(
               [&](auto op) { return printOperation(op, moduleName); })
           // Func ops.
-          .Case<func::ReturnOp, func::CallOp, secret::YieldOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<func::CallOp>([&](auto op) { return printOperation(op); })
+          // Return-like ops
+          .Case<func::ReturnOp, secret::YieldOp>(
+              [&](auto op) { return printReturnLikeOp(op.getOperands()); })
           // Arithmetic ops.
           .Case<arith::ConstantOp>([&](auto op) {
             if (auto iAttr = dyn_cast<IndexType>(op.getValue().getType())) {
@@ -265,28 +280,36 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
    */
   os_ << "module " << verilogModuleName << "(\n";
   os_.indent();
+  llvm::SmallVector<std::string, 4> argsToPrint;
   for (auto arg : arguments) {
     // e.g., `input wire [31:0] arg0,`
-    os_ << "input ";
-    if (failed(emitType(arg.getType()))) {
+    std::string result;
+    llvm::raw_string_ostream ss(result);
+    ss << "input ";
+    if (failed(emitType(arg.getType(), ss))) {
       op->emitError() << "failed to emit type" << arg.getType();
       return failure();
     }
-    os_ << " " << getOrCreateName(arg) << ",\n";
+    ss << " " << getOrCreateName(arg);
+    argsToPrint.push_back(ss.str());
   }
+  os_ << llvm::join(argsToPrint.begin(), argsToPrint.end(), ",\n");
 
   // output arg declaration
-  if (resultTypes.size() != 1) {
+  if (resultTypes.size() > 1) {
     emitError(op->getLoc(),
-              "Only functions with a single return type are supported");
+              "Only functions with a <= 1 return types are supported");
     return failure();
   }
-  os_ << "output ";
-  if (failed(emitType(resultTypes.front()))) {
-    op->emitError() << "failed to emit type" << resultTypes.front();
-    return failure();
+  if (resultTypes.size() == 1) {
+    os_ << ",\n";
+    os_ << "output ";
+    if (failed(emitType(resultTypes.front()))) {
+      op->emitError() << "failed to emit type" << resultTypes.front();
+      return failure();
+    }
+    os_ << " " << kOutputName;
   }
-  os_ << " " << kOutputName;
 
   // End of module header
   os_.unindent();
@@ -403,21 +426,14 @@ LogicalResult VerilogEmitter::printOperation(
       blocks->begin(), blocks->end());
 }
 
-LogicalResult VerilogEmitter::printReturnLikeOp(Value returnValue) {
+LogicalResult VerilogEmitter::printReturnLikeOp(ValueRange returnValues) {
   // Return is an assignment to the output wire
   // e.g., assign out = x1200;
-  os_ << "assign " << kOutputName << " = " << getName(returnValue) << ";\n";
+  if (returnValues.empty()) {
+    return success();
+  }
+  os_ << "assign " << kOutputName << " = " << getName(returnValues[0]) << ";\n";
   return success();
-}
-
-LogicalResult VerilogEmitter::printOperation(func::ReturnOp op) {
-  // Only support one return value.
-  return printReturnLikeOp(op.getOperands()[0]);
-}
-
-LogicalResult VerilogEmitter::printOperation(secret::YieldOp op) {
-  // Only support one return value.
-  return printReturnLikeOp(op.getOperands()[0]);
 }
 
 LogicalResult VerilogEmitter::printOperation(func::CallOp op) {
@@ -620,12 +636,14 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineLoadOp op) {
     os_ << memrefStr << "[" << flattenedBitIndex + width - 1 << " : "
         << flattenedBitIndex << "];\n";
   } else {
-    if (op.getMemRefType().getRank() > 1) {
-      // TODO(b/284323495): Handle multi-dim variable access.
-      return failure();
-    }
     emitAssignPrefix(op.getResult());
-    os_ << variableLoadStr(memrefStr, getOrCreateName(op.getIndices()[0]),
+
+    llvm::SmallVector<StringRef, 4> indices;
+    for (auto index : op.getIndices()) {
+      indices.push_back(getOrCreateName(index));
+    }
+
+    os_ << variableLoadStr(memrefStr, indices, op.getMemRefType().getShape(),
                            width)
         << ";\n";
   }
@@ -640,17 +658,16 @@ LogicalResult VerilogEmitter::printOperation(memref::LoadOp op) {
     return failure();
   }
 
-  auto memrefStr = getOrCreateName(op.getMemref());
-  auto indexStr = getOrCreateName(op.getIndices()[0]);
-  auto width = iType.getWidth();
+  emitAssignPrefix(op.getResult());
 
-  if (op.getMemRefType().getRank() > 1) {
-    // TODO(b/284323495): Handle multi-dim variable access.
-    return failure();
+  llvm::SmallVector<StringRef, 4> indices;
+  for (auto index : op.getIndices()) {
+    indices.push_back(getOrCreateName(index));
   }
 
-  emitAssignPrefix(op.getResult());
-  os_ << variableLoadStr(memrefStr, indexStr, width) << ";\n";
+  os_ << variableLoadStr(getOrCreateName(op.getMemref()), indices,
+                         op.getMemRefType().getShape(), iType.getWidth())
+      << ";\n";
 
   return success();
 }
@@ -740,15 +757,19 @@ LogicalResult VerilogEmitter::printOperation(
 }
 
 LogicalResult VerilogEmitter::emitType(Type type) {
+  return emitType(type, os_);
+}
+
+LogicalResult VerilogEmitter::emitType(Type type, raw_ostream &os) {
   if (auto iType = dyn_cast<IntegerType>(type)) {
     int32_t width = iType.getWidth();
-    return (os_ << wireDeclaration(iType, width)), success();
+    return (os << wireDeclaration(iType, width)), success();
   }
   if (auto memRefType = dyn_cast<MemRefType>(type)) {
     auto elementType = memRefType.getElementType();
     if (auto iType = dyn_cast<IntegerType>(elementType)) {
       int32_t flattenedWidth = memRefType.getNumElements() * iType.getWidth();
-      return (os_ << wireDeclaration(iType, flattenedWidth)), success();
+      return (os << wireDeclaration(iType, flattenedWidth)), success();
     }
   }
   return failure();

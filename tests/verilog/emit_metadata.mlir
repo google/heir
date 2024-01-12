@@ -1,5 +1,4 @@
-// RUN: heir-translate --allow-unregistered-dialect --emit-metadata %s > %t
-// RUN: FileCheck %s < %t
+// RUN: heir-translate --allow-unregistered-dialect --emit-metadata %s | FileCheck %s
 
 module {
   func.func @main(%arg0: memref<1x80xi8>) -> memref<1x3x2x1xi8> {
@@ -20,6 +19,13 @@ module {
         }
       }
     return %alloc_0 : memref<1x3x2x1xi8>
+  }
+
+  func.func @main2(%arg0: memref<80xi8>) {
+    %c0 = arith.constant 0 : index
+    %c8 = arith.constant 8 : i8
+    memref.store %c8, %arg0[%c0] : memref<80xi8>
+    return
   }
 }
 
@@ -46,22 +52,47 @@ module {
 // CHECK-NEXT:           }
 // CHECK-NEXT:         }
 // CHECK-NEXT:       ],
-// CHECK-NEXT:       "return_type": {
-// CHECK-NEXT:         "memref": {
-// CHECK-NEXT:           "element_type": {
-// CHECK-NEXT:             "integer": {
-// CHECK-NEXT:               "is_signed": false,
-// CHECK-NEXT:               "width": 8
-// CHECK-NEXT:             }
-// CHECK-NEXT:           },
-// CHECK-NEXT:           "shape": [
-// CHECK-NEXT:              1,
-// CHECK-NEXT:              3,
-// CHECK-NEXT:              2,
-// CHECK-NEXT:              1
-// CHECK-NEXT:           ]
+// CHECK-NEXT:       "return_types": [
+// CHECK-NEXT:         {
+// CHECK-NEXT:           "memref": {
+// CHECK-NEXT:             "element_type": {
+// CHECK-NEXT:               "integer": {
+// CHECK-NEXT:                 "is_signed": false,
+// CHECK-NEXT:                 "width": 8
+// CHECK-NEXT:               }
+// CHECK-NEXT:             },
+// CHECK-NEXT:             "shape": [
+// CHECK-NEXT:                1,
+// CHECK-NEXT:                3,
+// CHECK-NEXT:                2,
+// CHECK-NEXT:                1
+// CHECK-NEXT:             ]
+// CHECK-NEXT:           }
 // CHECK-NEXT:         }
-// CHECK-NEXT:       }
+// CHECK-NEXT:       ]
+// CHECK-NEXT:     },
+
+// CHECK-NEXT:     {
+// CHECK-NEXT:       "name": "main2",
+// CHECK-NEXT:       "params": [
+// CHECK-NEXT:         {
+// CHECK-NEXT:           "index": 0,
+// CHECK-NEXT:           "type": {
+// CHECK-NEXT:             "memref": {
+// CHECK-NEXT:               "element_type": {
+// CHECK-NEXT:                 "integer": {
+// CHECK-NEXT:                   "is_signed": false,
+// CHECK-NEXT:                   "width": 8
+// CHECK-NEXT:                 }
+// CHECK-NEXT:               },
+// CHECK-NEXT:               "shape": [
+// CHECK-NEXT:                  80
+// CHECK-NEXT:               ]
+// CHECK-NEXT:             }
+// CHECK-NEXT:           }
+// CHECK-NEXT:         }
+// CHECK-NEXT:       ],
+// CHECK-NEXT:       "return_types": []
 // CHECK-NEXT:     }
 // CHECK-NEXT:   ]
 // CHECK-NEXT: }
