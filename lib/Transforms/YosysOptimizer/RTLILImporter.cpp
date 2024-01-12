@@ -145,7 +145,6 @@ func::FuncOp RTLILImporter::importModule(
   }
 
   // Build function.
-  // TODO(#111): Pass in data to fix function location.
   FunctionType funcType = builder.getFunctionType(argTypes, retTypes);
   auto function = func::FuncOp::create(
       builder.getUnknownLoc(), module->name.str().replace(0, 1, ""), funcType);
