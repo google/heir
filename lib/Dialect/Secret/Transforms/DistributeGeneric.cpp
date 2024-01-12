@@ -276,8 +276,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       return;
     }
 
-    // TODO(https://github.com/google/heir/issues/307): handle
-    // RegionBranchOpInterface (scf.while, scf.if).
+    // TODO(#307): handle RegionBranchOpInterface (scf.while, scf.if).
   }
 
   /// Move an op from the body of one secret.generic to an earlier

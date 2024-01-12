@@ -409,7 +409,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
+    // TODO(#143): Handle tensor of polys.
     auto polyTy = dyn_cast<PolynomialType>(op.getResult().getType());
     if (!polyTy) {
       return failure();
@@ -462,10 +462,9 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
           }
           auto mulOp = b.create<arith::MulIOp>(lhs, rhs);
           auto result = b.create<arith::AddIOp>(mulOp, accum);
-          // TODO(https://github.com/google/heir/issues/201): need a modular
-          // reduction op here to keep all the arithmetic mod cmod.
-          // And simplify the code here and in the poly mod func to use smaller
-          // bit widths.
+          // TODO(#201): need a modular reduction op here to keep all the
+          // arithmetic mod cmod. And simplify the code here and in the poly mod
+          // func to use smaller bit widths.
           b.create<linalg::YieldOp>(result.getResult());
         });
 
@@ -513,8 +512,7 @@ void PolynomialToStandard::generateOpImplementations() {
   module.walk([&](MulOp op) {
     auto polyTy = dyn_cast<PolynomialType>(op.getResult().getType());
     if (!polyTy) {
-      // TODO(https://github.com/google/heir/issues/143): Handle tensor of
-      // polys.
+      // TODO(#143): Handle tensor of polys.
       return WalkResult::interrupt();
     }
     auto convType = naivePolymulOutputTensorType(polyTy);
@@ -555,9 +553,9 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   RankedTensorType resultType =
       llvm::cast<RankedTensorType>(funcType.getResult(0));
 
-  // TODO(https://github.com/google/heir/issues/202): this function name
-  // probably also needs the input tensor type in the name, or it could conflict
-  // with other implementations that have the same cmod+ideal.
+  // TODO(#202): this function name probably also needs the input tensor type in
+  // the name, or it could conflict with other implementations that have the
+  // same cmod+ideal.
   std::string funcName =
       llvm::formatv("__heir_poly_mod_{0}_{1}", ring.coefficientModulus(),
                     ring.getIdeal().toIdentifier());
@@ -657,8 +655,7 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
       [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         Value remainder = args[0];
-        // TODO(https://github.com/google/heir/issues/97): move this out of the
-        // loop when it has ConstantLike trait
+        // TODO(#97): move this out of the loop when it has ConstantLike trait
         auto divisorOp = builder.create<ConstantOp>(
             remRingPolynomialType, PolynomialAttr::get(divisor));
 
@@ -743,7 +740,7 @@ void PolynomialToStandard::runOnOperation() {
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
-  // TODO(https://github.com/google/heir/issues/143): Handle tensor of polys.
+  // TODO(#143): Handle tensor of polys.
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
   }

@@ -234,10 +234,9 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
 
-    // TODO(https://github.com/google/heir/issues/250): The lutSize here is
-    // fixed on the assumption that the comb dialect is using ternary LUTs.
-    // Generalize lutSize by doing an analysis pass on the input combinational
-    // operations and integers.
+    // TODO(#250): The lutSize here is fixed on the assumption that the comb
+    // dialect is using ternary LUTs. Generalize lutSize by doing an analysis
+    // pass on the input combinational operations and integers.
     int lutSize = 3;
     SecretTypeConverter typeConverter(context, lutSize);
 

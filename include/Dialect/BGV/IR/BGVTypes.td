@@ -9,7 +9,7 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
 
-// TODO(https://github.com/google/heir/issues/100): Add a plaintext type.
+// TODO(#100): Add a plaintext type.
 
 // A base class for all types in this dialect
 class BGV_Type<string name, string typeMnemonic>
@@ -34,7 +34,7 @@ def Ciphertext : BGV_Type<"Ciphertext", "ciphertext"> {
     The optional attribute `level` specifies the "current ring".
   }];
 
-  // TODO(https://github.com/google/heir/issues/99): Add # of plaintext bits.
+  // TODO(#99): Add # of plaintext bits.
   let parameters = (ins
     BGVRingArrayAttr:$rings,
     DefaultValuedParameter<"unsigned", "2">:$dim,

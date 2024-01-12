@@ -15,14 +15,14 @@ class BGV_Op<string mnemonic, list<Trait> traits = []> :
         Op<BGV_Dialect, mnemonic, traits> {
 
   // See https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-format
-  // TODO(https://github.com/google/heir/issues/106): Simplify this format by adding type constraints.
+  // TODO(#106): Simplify this format by adding type constraints.
   let assemblyFormat = [{
     `(` operands `)` attr-dict `:`  `(` type(operands) `)` `->` type(results)
   }];
   let cppNamespace = "::mlir::heir::bgv";
 }
 
-// TODO(https://github.com/google/heir/issues/100): Add plaintext-ciphertext operations.
+// TODO(#100): Add plaintext-ciphertext operations.
 
 def BGV_AddOp : BGV_Op<"add", [Commutative, SameOperandsAndResultType]> {
   let summary = "Addition operation between ciphertexts.";

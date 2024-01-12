@@ -25,10 +25,10 @@ def Polynomial : Polynomial_Type<"Polynomial", "polynomial"> {
     OptionalParameter<"Attribute">:$encoding
   );
 
-  // TODO(https://github.com/google/heir/issues/181): Skip the default
-  // builder since the custom builder enables the default value for the
-  // encoding parameter, And I couldn't get DefaultValueParameter to
-  // auto-generate a builder with the appropriate default value.
+  // TODO(#181): Skip the default builder since the custom builder enables the
+  // default value for the encoding parameter, And I couldn't get
+  // DefaultValueParameter to auto-generate a builder with the appropriate default
+  // value.
   let skipDefaultBuilders = 1;
   let builders = [
     TypeBuilder<(ins

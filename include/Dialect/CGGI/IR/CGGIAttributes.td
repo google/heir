@@ -7,7 +7,7 @@ include "mlir/IR/AttrTypeBase.td"
 def CGGI_CGGIParams : AttrDef<CGGI_Dialect, "CGGIParams"> {
   let mnemonic = "cggi_params";
 
-  // TODO(https://github.com/google/heir/issues/276): migrate the gadget params
+  // TODO(#276): migrate the gadget params
   // to lwe dialect?
   let parameters = (ins
     "::mlir::heir::lwe::RLWEParamsAttr": $rlweParams,
