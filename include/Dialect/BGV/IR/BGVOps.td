@@ -14,8 +14,6 @@ def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
 class BGV_Op<string mnemonic, list<Trait> traits = []> :
         Op<BGV_Dialect, mnemonic, traits> {
 
-  // See https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-format
-  // TODO(#106): Simplify this format by adding type constraints.
   let assemblyFormat = [{
     `(` operands `)` attr-dict `:`  `(` type(operands) `)` `->` type(results)
   }];

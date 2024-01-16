@@ -208,7 +208,7 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
 
   // Translate function to Verilog. Translation will fail if the func contains
   // unsupported operations.
-  // TODO(#111): Directly convert MLIR to Yosys' AST instead of using Verilog.
+  // TODO(#374): Directly convert MLIR to Yosys' AST instead of using Verilog.
   //
   // After that is done, it might make sense to rewrite this as a
   // RewritePattern, which only runs if the body does not contain any comb ops,

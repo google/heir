@@ -33,9 +33,6 @@ namespace mlir {
 namespace heir {
 namespace tfhe_rust {
 
-// TODO(#230): Have a separate pass that topo-sorts the gate ops into levels,
-// and use scf.parallel_for to represent them.
-
 void registerToTfheRustTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust",
