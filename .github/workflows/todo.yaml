@@ -12,4 +12,4 @@ jobs:
       uses: j2kun/todo-backlinks@cb650ff669455d273f408df50f57e7b911ee3640 # pin@v0.0.2
       env:
         GITHUB_TOKEN: ${{ github.token }}
-        GITHUB_BASE_REF: ${{ github.base_ref }}
+        GITHUB_BASE_REF: main
