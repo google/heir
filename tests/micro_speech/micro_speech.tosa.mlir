@@ -30,15 +30,15 @@ module attributes {tfl.description = "TOCO Converted.", tfl.schema_version = 3 :
     %17 = "tosa.const"() <{value = dense<[-374, 169, -48, 208, 82, 6, -1201, -694]> : tensor<8xi32>}> : () -> tensor<8xi32>
     %18 = "tosa.reshape"(%arg0) <{new_shape = array<i64: 1, 49, 40, 1>}> : (tensor<1x1960xi8>) -> tensor<1x49x40x1xi8>
     %19 = "tosa.depthwise_conv2d"(%18, %0, %17) <{dilation = array<i64: 1, 1>, pad = array<i64: 4, 5, 3, 3>, quantization_info = #tosa.conv_quant<input_zp = -128, weight_zp = 0>, stride = array<i64: 2, 2>}> : (tensor<1x49x40x1xi8>, tensor<10x8x1x8xi8>, tensor<8xi32>) -> tensor<1x25x20x8xi32>
-    %20 = "tosa.rescale"(%19) <{double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1653229999, 1516545207, 2000799311, 1159928266, 1498403863, 1285645282, 2146175029, 1756589032>, output_zp = -128 : i32, per_channel = true, scale32 = true, shift = array<i32: 41, 43, 41, 41, 41, 41, 41, 41>}> : (tensor<1x25x20x8xi32>) -> tensor<1x25x20x8xi8>
+    %20 = "tosa.rescale"(%19) <{double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1653229999, 1516545207, 2000799311, 1159928266, 1498403863, 1285645282, 2146175029, 1756589032>, output_zp = -128 : i32, per_channel = true, scale32 = true, shift = array<i8: 41, 43, 41, 41, 41, 41, 41, 41>}> : (tensor<1x25x20x8xi32>) -> tensor<1x25x20x8xi8>
     %21 = "tosa.clamp"(%20) <{max_fp = 0.000000e+00 : f32, max_int = 127 : i64, min_fp = 0.000000e+00 : f32, min_int = -128 : i64}> : (tensor<1x25x20x8xi8>) -> tensor<1x25x20x8xi8>
     %22 = "tosa.reshape"(%21) <{new_shape = array<i64: 1, 4000>}> : (tensor<1x25x20x8xi8>) -> tensor<1x4000xi8>
     %23 = "tosa.fully_connected"(%22, %16, %15) <{quantization_info = #tosa.conv_quant<input_zp = -128, weight_zp = 0>}> : (tensor<1x4000xi8>, tensor<4x4000xi8>, tensor<4xi32>) -> tensor<1x4xi32>
-    %24 = "tosa.rescale"(%23) <{double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1932201080>, output_zp = 14 : i32, per_channel = false, scale32 = true, shift = array<i32: 42>}> : (tensor<1x4xi32>) -> tensor<1x4xi8>
-    %25 = "tosa.rescale"(%24) <{double_round = false, input_zp = 14 : i32, multiplier = array<i32: 1073741824>, output_zp = 0 : i32, per_channel = false, scale32 = true, shift = array<i32: 30>}> : (tensor<1x4xi8>) -> tensor<1x4xi32>
+    %24 = "tosa.rescale"(%23) <{double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1932201080>, output_zp = 14 : i32, per_channel = false, scale32 = true, shift = array<i8: 42>}> : (tensor<1x4xi32>) -> tensor<1x4xi8>
+    %25 = "tosa.rescale"(%24) <{double_round = false, input_zp = 14 : i32, multiplier = array<i32: 1073741824>, output_zp = 0 : i32, per_channel = false, scale32 = true, shift = array<i8: 30>}> : (tensor<1x4xi8>) -> tensor<1x4xi32>
     %26 = "tosa.reduce_max"(%25) <{axis = 1 : i32}> : (tensor<1x4xi32>) -> tensor<1x1xi32>
     %27 = "tosa.sub"(%25, %26) : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
-    %28 = "tosa.rescale"(%27) <{double_round = false, input_zp = 0 : i32, multiplier = array<i32: 1073741824>, output_zp = 0 : i32, per_channel = false, scale32 = true, shift = array<i32: 23>}> : (tensor<1x4xi32>) -> tensor<1x4xi16>
+    %28 = "tosa.rescale"(%27) <{double_round = false, input_zp = 0 : i32, multiplier = array<i32: 1073741824>, output_zp = 0 : i32, per_channel = false, scale32 = true, shift = array<i8: 23>}> : (tensor<1x4xi32>) -> tensor<1x4xi16>
     %29 = "tosa.table"(%28, %11) : (tensor<1x4xi16>, tensor<513xi16>) -> tensor<1x4xi32>
     %30 = "tosa.table"(%28, %12) : (tensor<1x4xi16>, tensor<513xi16>) -> tensor<1x4xi32>
     %31 = "tosa.table"(%28, %13) : (tensor<1x4xi16>, tensor<513xi16>) -> tensor<1x4xi32>
@@ -75,7 +75,7 @@ module attributes {tfl.description = "TOCO Converted.", tfl.schema_version = 3 :
     %62 = "tosa.mul"(%39, %61) <{shift = 30 : i8}> : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
     %63 = "tosa.sub"(%10, %42) : (tensor<1x1xi32>, tensor<1x1xi32>) -> tensor<1x1xi32>
     %64 = "tosa.arithmetic_right_shift"(%62, %63) <{round = true}> : (tensor<1x4xi32>, tensor<1x1xi32>) -> tensor<1x4xi32>
-    %65 = "tosa.rescale"(%64) <{double_round = false, input_zp = 0 : i32, multiplier = array<i32: 1073741824>, output_zp = -128 : i32, per_channel = false, scale32 = true, shift = array<i32: 30>}> : (tensor<1x4xi32>) -> tensor<1x4xi8>
+    %65 = "tosa.rescale"(%64) <{double_round = false, input_zp = 0 : i32, multiplier = array<i32: 1073741824>, output_zp = -128 : i32, per_channel = false, scale32 = true, shift = array<i8: 30>}> : (tensor<1x4xi32>) -> tensor<1x4xi8>
     return %65 : tensor<1x4xi8>
   }
 }
