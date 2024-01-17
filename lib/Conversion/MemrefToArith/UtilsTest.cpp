@@ -1,15 +1,19 @@
+#include <cstdint>
+
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
 #include "include/Conversion/MemrefToArith/Utils.h"
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
+using ::llvm::SmallVector;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
 
 TEST(FlattenIndex, UnflattenOffsetZero) {
-  llvm::SmallVector<int64_t, 3> strides = {20, 5, 1};
+  SmallVector<int64_t, 3> strides = {20, 5, 1};
   static const int64_t offset = 0;
   EXPECT_THAT(unflattenIndex(33, strides, offset), ElementsAre(1, 2, 3));
 }

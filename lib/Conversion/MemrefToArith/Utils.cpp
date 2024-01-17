@@ -1,8 +1,17 @@
+#include <cstdint>
+#include <optional>
 #include <utility>
+#include <vector>
 
+#include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -47,7 +56,7 @@ llvm::SmallVector<int64_t> unflattenIndex(int64_t index,
                                           int64_t offset) {
   llvm::SmallVector<int64_t> indices;
   int64_t ndx = index - offset;
-  for (long stride : strides) {
+  for (int64_t stride : strides) {
     indices.push_back(ndx / stride);
     ndx = ndx % stride;
   }
