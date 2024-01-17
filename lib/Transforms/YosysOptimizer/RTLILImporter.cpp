@@ -10,7 +10,7 @@
 #include "llvm/include/llvm/ADT/MapVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
@@ -28,14 +28,14 @@ using ::Yosys::RTLIL::Wire;
 namespace {
 
 // getTypeForWire gets the MLIR type corresponding to the RTLIL wire. If the
-// wire is an integer with multiple bits, then the MLIR type is a tensor of
+// wire is an integer with multiple bits, then the MLIR type is a memref of
 // bits.
 Type getTypeForWire(OpBuilder &b, Wire *wire) {
   auto intTy = b.getI1Type();
   if (wire->width == 1) {
     return intTy;
   }
-  return RankedTensorType::get({wire->width}, intTy);
+  return MemRefType::get({wire->width}, intTy);
 }
 
 }  // namespace
@@ -90,7 +90,7 @@ Value RTLILImporter::getBit(
     return retBitValues[bit.wire][offset];
   }
   auto argA = getWireValue(bit.wire);
-  auto extractOp = b.create<tensor::ExtractOp>(
+  auto extractOp = b.create<memref::LoadOp>(
       argA, b.create<arith::ConstantIndexOp>(bit.offset).getResult());
   return extractOp;
 }
@@ -209,8 +209,14 @@ func::FuncOp RTLILImporter::importModule(
     } else {
       // We are in a multi-bit scenario.
       assert(retBits.size() > 1);
-      auto concatOp = b.create<tensor::FromElementsOp>(retBits);
-      returnValues.push_back(concatOp.getResult());
+      auto allocOp = b.create<memref::AllocOp>(
+          cast<MemRefType>(getTypeForWire(b, resultWire)));
+      for (unsigned j = 0; j < retBits.size(); j++) {
+        b.create<memref::StoreOp>(
+            retBits[j], allocOp.getResult(),
+            ValueRange{b.create<arith::ConstantIndexOp>(j)});
+      }
+      returnValues.push_back(allocOp.getResult());
     }
   }
   b.create<func::ReturnOp>(returnValues);

@@ -21,7 +21,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
@@ -76,7 +76,7 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
 
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
     registry.insert<comb::CombDialect, mlir::arith::ArithDialect,
-                    mlir::tensor::TensorDialect>();
+                    mlir::memref::MemRefDialect>();
   }
 
   void runOnOperation() override;
@@ -90,13 +90,13 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   bool abcFast;
 };
 
-tensor::FromElementsOp convertIntegerValue(Value value, Type convertedType,
-                                           OpBuilder &b, Location loc) {
+memref::AllocOp convertIntegerValue(Value value, Type convertedType,
+                                    OpBuilder &b, Location loc) {
   IntegerType argType = value.getType().cast<IntegerType>();
   int width = argType.getWidth();
-  SmallVector<Value> extractedBits;
-  extractedBits.reserve(width);
 
+  auto allocOp =
+      b.create<memref::AllocOp>(loc, MemRefType::get({width}, b.getI1Type()));
   for (int i = 0; i < width; i++) {
     // These arith ops correspond to extracting the i-th bit
     // from the input
@@ -106,16 +106,16 @@ tensor::FromElementsOp convertIntegerValue(Value value, Type convertedType,
         loc, argType, b.getIntegerAttr(argType, 1 << i));
     auto andOp = b.create<arith::AndIOp>(loc, value, bitMask);
     auto shifted = b.create<arith::ShRSIOp>(loc, andOp, shiftAmount);
-    extractedBits.push_back(
-        b.create<arith::TruncIOp>(loc, b.getI1Type(), shifted));
+    b.create<memref::StoreOp>(
+        loc, b.create<arith::TruncIOp>(loc, b.getI1Type(), shifted), allocOp,
+        ValueRange{b.create<arith::ConstantIndexOp>(loc, i)});
   }
 
-  return b.create<tensor::FromElementsOp>(loc, convertedType,
-                                          ValueRange{extractedBits});
+  return allocOp;
 }
 
 /// Convert a secret.generic's operands secret.secret<i3>
-/// to secret.secret<tensor<3xi1>>.
+/// to secret.secret<memref<3xi1>>.
 LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
                                 SmallVector<Value> &typeConvertedArgs) {
   for (OpOperand &opOperand : op->getOpOperands()) {
@@ -148,7 +148,7 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
   return success();
 }
 
-/// Convert a secret.generic's results from secret.secret<tensor<3xi1>>
+/// Convert a secret.generic's results from secret.secret<memref<3xi1>>
 /// to secret.secret<i3>.
 LogicalResult convertOpResults(secret::GenericOp op,
                                DenseSet<Operation *> &castOps,
@@ -156,10 +156,10 @@ LogicalResult convertOpResults(secret::GenericOp op,
   for (Value opResult : op.getResults()) {
     // The secret.yield verifier ensures generic can only return secret types.
     assert(opResult.getType().isa<secret::SecretType>());
-    RankedTensorType convertedType = opResult.getType()
-                                         .cast<secret::SecretType>()
-                                         .getValueType()
-                                         .cast<RankedTensorType>();
+    MemRefType convertedType = opResult.getType()
+                                   .cast<secret::SecretType>()
+                                   .getValueType()
+                                   .cast<MemRefType>();
     if (!convertedType.getElementType().isa<IntegerType>() ||
         convertedType.getRank() != 1) {
       op.emitError() << "While booleanizing secret.generic, found converted "
@@ -180,7 +180,7 @@ LogicalResult convertOpResults(secret::GenericOp op,
                                               convertedType.getNumElements());
 
     // Insert a reassembly of the original integer type from its booleanized
-    // tensor version.
+    // memref version.
     OpBuilder builder(op);
     builder.setInsertionPointAfter(op);
     auto castOp = builder.create<secret::CastOp>(
@@ -249,12 +249,12 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
   Yosys::run_pass("delete;");
 
   // The pass changes the yielded value types, e.g., from an i8 to a
-  // tensor<8xi1>. So the containing secret.generic needs to be updated and
-  // conversions implemented on either side to convert the ints to tensors
+  // memref<8xi1>. So the containing secret.generic needs to be updated and
+  // conversions implemented on either side to convert the ints to memrefs
   // and back again.
   //
-  // convertOpOperands goes from i8 -> tensor.tensor<8xi1>
-  // converOpResults from tensor.tensor<8xi1> -> i8
+  // convertOpOperands goes from i8 -> memref<8xi1>
+  // converOpResults from memref<8xi1> -> i8
   SmallVector<Value> typeConvertedArgs;
   typeConvertedArgs.reserve(op->getNumOperands());
   if (failed(convertOpOperands(op, func, typeConvertedArgs))) {

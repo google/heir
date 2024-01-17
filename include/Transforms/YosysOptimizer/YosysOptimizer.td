@@ -19,7 +19,7 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
     "mlir::arith::ArithDialect",
     "mlir::heir::comb::CombDialect",
     "mlir::heir::secret::SecretDialect",
-    "mlir::tensor::TensorDialect"
+    "mlir::memref::MemRefDialect"
   ];
 }
 

@@ -16,7 +16,7 @@
 #include "mlir/include/mlir//IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
@@ -41,7 +41,7 @@ class LUTImporterTestFixture : public Test {
  protected:
   void SetUp() override {
     context.loadDialect<heir::comb::CombDialect, arith::ArithDialect,
-                        func::FuncDialect, tensor::TensorDialect>();
+                        func::FuncDialect, memref::MemRefDialect>();
     module_ = ModuleOp::create(UnknownLoc::get(&context));
     Yosys::yosys_setup();
   }
@@ -88,9 +88,9 @@ TEST_F(LUTImporterTestFixture, AddOneLUT3) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 1);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getInput(0)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getResult(0)).getNumElements(), 8);
 
   auto combOps = func.getOps<comb::TruthTableOp>().begin();
   for (size_t i = 0; i < expectedLuts.size(); i++) {
@@ -105,9 +105,9 @@ TEST_F(LUTImporterTestFixture, AddOneLUT5) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 1);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getInput(0)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getResult(0)).getNumElements(), 8);
 
   auto combOps = func.getOps<comb::TruthTableOp>();
   for (auto combOp : combOps) {
@@ -126,21 +126,37 @@ TEST_F(LUTImporterTestFixture, DoubleInput) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 1);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getInput(0)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getResult(0)).getNumElements(), 8);
 
   auto returnOp = *func.getOps<func::ReturnOp>().begin();
-  auto concatOp =
-      returnOp.getOperands()[0].getDefiningOp<tensor::FromElementsOp>();
-  ASSERT_TRUE(concatOp);
-  EXPECT_EQ(concatOp->getNumOperands(), 8);
-  arith::ConstantOp constOp =
-      concatOp->getOperands()[7].getDefiningOp<arith::ConstantOp>();
-  ASSERT_TRUE(constOp);
-  auto constVal = dyn_cast<IntegerAttr>(constOp.getValue());
-  ASSERT_TRUE(constVal);
-  EXPECT_EQ(constVal.getInt(), 0);
+  auto allocOp = returnOp.getOperands()[0].getDefiningOp<memref::AllocOp>();
+  ASSERT_TRUE(allocOp);
+
+  int numStores = 0;
+  for (auto &use : allocOp->getUses()) {
+    use.getOwner()->dump();
+    memref::StoreOp storeOp = dyn_cast_or_null<memref::StoreOp>(use.getOwner());
+    if (!storeOp) {
+      ASSERT_TRUE(dyn_cast_or_null<func::ReturnOp>(use.getOwner()));
+      continue;
+    }
+
+    numStores++;
+    auto storeIdx = storeOp.getIndices()[0].getDefiningOp<arith::ConstantOp>();
+    if (dyn_cast<IntegerAttr>(storeIdx.getValue()).getInt() == 7) {
+      // The last digit of the result must be zero.
+      arith::ConstantOp valueToStore =
+          storeOp.getValueToStore().getDefiningOp<arith::ConstantOp>();
+      ASSERT_TRUE(valueToStore);
+      auto constVal = dyn_cast<IntegerAttr>(valueToStore.getValue());
+      ASSERT_TRUE(constVal);
+      EXPECT_EQ(constVal.getInt(), 0);
+    }
+  }
+  // Expect 8 values stored in the result memref.
+  EXPECT_EQ(numStores, 8);
 }
 
 TEST_F(LUTImporterTestFixture, MultipleInputs) {
@@ -149,10 +165,10 @@ TEST_F(LUTImporterTestFixture, MultipleInputs) {
 
   auto funcType = func.getFunctionType();
   EXPECT_EQ(funcType.getNumInputs(), 2);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(0)).getNumElements(), 8);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getInput(1)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getInput(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getInput(1)).getNumElements(), 8);
   EXPECT_EQ(funcType.getNumResults(), 1);
-  EXPECT_EQ(cast<RankedTensorType>(funcType.getResult(0)).getNumElements(), 8);
+  EXPECT_EQ(cast<MemRefType>(funcType.getResult(0)).getNumElements(), 8);
 }
 
 }  // namespace
