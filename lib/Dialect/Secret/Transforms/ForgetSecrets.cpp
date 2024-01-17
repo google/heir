@@ -1,9 +1,20 @@
 #include "include/Dialect/Secret/Transforms/ForgetSecrets.h"
 
+#include <cassert>
+#include <utility>
+
+#include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/IR/SecretOps.h"
+#include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {

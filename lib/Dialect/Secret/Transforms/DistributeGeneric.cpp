@@ -1,11 +1,15 @@
 #include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
 
 #include <algorithm>
+#include <cassert>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
@@ -16,6 +20,7 @@
 #include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project

@@ -1,14 +1,27 @@
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
 
+#include <cassert>
+
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
