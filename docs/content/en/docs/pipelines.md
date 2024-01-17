@@ -199,7 +199,7 @@ Example output:
           }
         }
       ],
-      "return_type": {
+      "return_types": [{
         "memref": {
           "element_type": {
             "integer": {
@@ -209,7 +209,7 @@ Example output:
           },
           "shape": [1, 3, 2, 1]
         }
-      }
+      }]
     }
   ]
 }

@@ -165,25 +165,6 @@ FailureOr<llvm::json::Object> MetadataEmitter::typeAsJson(MemRefType &ty) {
 }
 
 FailureOr<llvm::json::Object> MetadataEmitter::emitOperation(FuncOp funcOp) {
-  auto result_types = funcOp.getFunctionType().getResults();
-  if (result_types.size() != 1) {
-    emitError(funcOp.getLoc(),
-              "Only functions with a single return type are supported");
-    return failure();
-  }
-  auto output_type = result_types[0];
-  auto status =
-      llvm::TypeSwitch<Type &, FailureOr<llvm::json::Object>>(output_type)
-          .Case<IntegerType, MemRefType>(
-              [&](auto ty) { return typeAsJson(ty); })
-          .Default([&](Type &) { return failure(); });
-
-  if (failed(status)) {
-    funcOp.emitOpError(
-        llvm::formatv("Failed to handle output type {0}", output_type));
-    return failure();
-  }
-
   llvm::json::Array arguments;
   for (auto arg : funcOp.getArguments()) {
     Type type = arg.getType();
@@ -203,13 +184,35 @@ FailureOr<llvm::json::Object> MetadataEmitter::emitOperation(FuncOp funcOp) {
     });
   }
 
-  llvm::json::Object function{
+  auto resultTypes = funcOp.getFunctionType().getResults();
+  llvm::json::Array resultsJson;
+  if (resultTypes.size() > 1) {
+    emitError(funcOp.getLoc(),
+              "Only functions with <=1 return types are supported");
+    return failure();
+  }
+
+  if (resultTypes.size() == 1) {
+    auto outputType = resultTypes[0];
+    auto status =
+        llvm::TypeSwitch<Type &, FailureOr<llvm::json::Object>>(outputType)
+            .Case<IntegerType, MemRefType>(
+                [&](auto ty) { return typeAsJson(ty); })
+            .Default([&](Type &) { return failure(); });
+
+    if (failed(status)) {
+      funcOp.emitOpError(
+          llvm::formatv("Failed to handle output type {0}", outputType));
+      return failure();
+    }
+    resultsJson.push_back(std::move(status.value()));
+  }
+
+  return llvm::json::Object{
       {"name", funcOp.getName()},
-      {"return_type", std::move(status.value())},
+      {"return_types", std::move(resultsJson)},
       {"params", std::move(arguments)},
   };
-
-  return std::move(function);
 }
 
 }  // namespace heir
