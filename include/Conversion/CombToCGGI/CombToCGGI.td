@@ -13,6 +13,7 @@ def CombToCGGI : Pass<"comb-to-cggi"> {
   let dependentDialects = [
     "mlir::heir::comb::CombDialect",
     "mlir::heir::cggi::CGGIDialect",
+    "mlir::memref::MemRefDialect",
   ];
 }
 
