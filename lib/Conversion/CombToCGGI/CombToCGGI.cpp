@@ -120,7 +120,7 @@ class SecretGenericOpTypeConversion
     // secret inputs.
     // For some reason, if this doesn't occur, the type conversion framework is
     // unable to update the uses of converted truth table results.
-    rewriter.startRootUpdate(op);
+    rewriter.startOpModification(op);
     const SecretTypeConverter *secretConverter =
         static_cast<const SecretTypeConverter *>(typeConverter);
     opEntryBlock.walk<WalkOrder::PreOrder>([&](Operation *op) {
@@ -137,7 +137,7 @@ class SecretGenericOpTypeConversion
       }
     });
 
-    rewriter.finalizeRootUpdate(op);
+    rewriter.finalizeOpModification(op);
 
     // Inline the secret.generic internal region, moving all of the operations
     // to the parent region.

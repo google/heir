@@ -169,7 +169,7 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
     }
     auto newFuncType =
         FunctionType::get(getContext(), newTypes, originalType.getResults());
-    rewriter.updateRootInPlace(op, [&] {
+    rewriter.modifyOpInPlace(op, [&] {
       op.setType(newFuncType);
 
       // In addition to updating the type signature, we need to update the

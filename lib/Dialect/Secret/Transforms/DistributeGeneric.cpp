@@ -118,7 +118,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Terminators of the region are not part of the secret, since they just
       // handle control flow.
 
-      rewriter.startRootUpdate(genericOp);
+      rewriter.startOpModification(genericOp);
 
       LLVM_DEBUG(genericOp.emitRemark()
                  << "Generic op at start of distributeThroughRegionHoldingOp");
@@ -239,7 +239,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       LLVM_DEBUG(genericOp->getParentOp()->emitRemark()
                  << "after updating cloned loop yield op");
 
-      rewriter.finalizeRootUpdate(genericOp);
+      rewriter.finalizeOpModification(genericOp);
 
       // To replace the original secret.generic, we need to find a suitable
       // replacement for any of its result values. There are two cases:
@@ -456,7 +456,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     // and replace all uses of the opToDistribute's results with the created
     // block arguments.
     SmallVector<Value> oldGenericNewBlockArgs;
-    rewriter.updateRootInPlace(genericOp, [&]() {
+    rewriter.modifyOpInPlace(genericOp, [&]() {
       genericOp.getInputsMutable().append(newGeneric.getResults());
       for (auto ty : firstOp.getResultTypes()) {
         BlockArgument arg =

@@ -86,7 +86,7 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
     BlockArgument arg = body->getArguments()[i];
     if (arg.use_empty()) {
       hasUnusedOps = true;
-      rewriter.updateRootInPlace(op, [&]() {
+      rewriter.modifyOpInPlace(op, [&]() {
         body->eraseArgument(i);
         op.getOperation()->eraseOperand(i);
       });
@@ -129,7 +129,7 @@ LogicalResult RemoveNonSecretGenericArgs::matchAndRewrite(
       BlockArgument correspondingArg = body->getArgument(i);
 
       rewriter.replaceAllUsesWith(correspondingArg, op->getOperand(i));
-      rewriter.updateRootInPlace(op, [&]() {
+      rewriter.modifyOpInPlace(op, [&]() {
         body->eraseArgument(i);
         op.getOperation()->eraseOperand(i);
       });
@@ -179,7 +179,7 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
   }
 
   Value value = *foundValue;
-  rewriter.updateRootInPlace(genericOp, [&]() {
+  rewriter.modifyOpInPlace(genericOp, [&]() {
     BlockArgument newArg =
         genericOp.getBody()->addArgument(value.getType(), genericOp.getLoc());
     rewriter.replaceUsesWithIf(value, newArg, [&](mlir::OpOperand &operand) {

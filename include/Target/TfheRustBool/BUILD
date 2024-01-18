@@ -15,11 +15,12 @@ cc_library(
     ],
     deps = [
         "@heir//lib/Analysis/SelectVariableNames",
-        "@heir//lib/Dialect/TfheRust/IR:Dialect",
+        "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
