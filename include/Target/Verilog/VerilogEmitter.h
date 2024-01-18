@@ -115,7 +115,7 @@ class VerilogEmitter {
   // Emit a Verilog type of the form `wire [width-1:0]`
   LogicalResult emitType(Type type);
   LogicalResult emitType(Type type, raw_ostream &os);
-
+  LogicalResult emitIndexType(Value indexValue, raw_ostream &os);
   // Emit a Verilog array shape specifier of the form `[width]`
   LogicalResult emitArrayShapeSuffix(Type type);
 
