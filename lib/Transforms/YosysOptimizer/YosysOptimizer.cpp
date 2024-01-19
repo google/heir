@@ -8,9 +8,11 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 #include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/Secret/IR/SecretOps.h"
+#include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
 #include "include/Target/Verilog/VerilogEmitter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
@@ -26,6 +28,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -34,7 +37,8 @@
 #include "mlir/include/mlir/Pass/PassRegistry.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"         // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
 // Block clang-format from reordering
 // clang-format off
@@ -300,9 +304,22 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
 // Optimize the body of a secret.generic op.
 void YosysOptimizer::runOnOperation() {
   Yosys::yosys_setup();
-  auto result = getOperation()->walk([&](secret::GenericOp op) {
-    if (failed(runOnGenericOp(&getContext(), op, yosysFilesPath, abcPath,
-                              abcFast))) {
+  auto *ctx = &getContext();
+  auto *op = getOperation();
+
+  // In general, a secret.generic pattern may not have all its ambient
+  // plaintext variables passed through as inputs. The Yosys optimizer needs to
+  // know all the inputs to the circuit, and capturing the ambient scope as
+  // generic inputs is an easy way to do that.
+  mlir::RewritePatternSet patterns(ctx);
+  patterns.add<secret::CaptureAmbientScope>(ctx);
+  if (failed(applyPatternsAndFoldGreedily(op, std::move(patterns)))) {
+    signalPassFailure();
+    return;
+  }
+
+  auto result = op->walk([&](secret::GenericOp op) {
+    if (failed(runOnGenericOp(ctx, op, yosysFilesPath, abcPath, abcFast))) {
       return WalkResult::interrupt();
     }
     return WalkResult::advance();

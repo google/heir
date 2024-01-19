@@ -272,8 +272,7 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
 
   if (!storeOpOrNull.has_value()) {
     if (!isa<BlockArgument>(loadSourceMemref)) {
-      loadOp.emitWarning() << "Store op is null!"
-                           << "; loadOp=" << loadOp
+      loadOp.emitWarning() << "Store op is null!; loadOp=" << loadOp
                            << "; loadAccessIndex=" << loadAccessIndex;
       llvm_unreachable("Should always be able to find a store op. File a bug.");
       return failure();
