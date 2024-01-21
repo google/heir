@@ -18,6 +18,10 @@ def Openfhe_PublicKey : Openfhe_Type<"PublicKey", "public_key"> {
   let summary = "The public key required to encrypt plaintext in OpenFHE.";
 }
 
+def Openfhe_EvalKey : Openfhe_Type<"EvalKey", "eval_key"> {
+  let summary = "The evaluation key required to keyswitch/relinearize/rotate/automorphism operation in OpenFHE.";
+}
+
 def Openfhe_CryptoContext : Openfhe_Type<"CryptoContext", "crypto_context"> {
   let summary = "The CryptoContext required to perform homomorphic operations in OpenFHE.";
 }
