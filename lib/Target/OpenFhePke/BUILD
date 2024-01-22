@@ -1,4 +1,4 @@
-# TfheRustBool Emitter
+# OpenFhePke Emitter
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -6,15 +6,16 @@ package(
 )
 
 cc_library(
-    name = "TfheRustBoolEmitter",
-    srcs = ["TfheRustBoolEmitter.cpp"],
+    name = "OpenFhePkeEmitter",
+    srcs = ["OpenFhePkeEmitter.cpp"],
     hdrs = [
-        "TfheRustBoolTemplates.h",
-        "@heir//include/Target/TfheRustBool:TfheRustBoolEmitter.h",
+        "OpenFhePkeTemplates.h",
+        "@heir//include/Target/OpenFhePke:OpenFhePkeEmitter.h",
     ],
     deps = [
         "@heir//lib/Analysis/SelectVariableNames",
-        "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Target:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

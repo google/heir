@@ -1,4 +1,5 @@
 #include "include/Target/Metadata/MetadataEmitter.h"
+#include "include/Target/OpenFhePke/OpenFhePkeEmitter.h"
 #include "include/Target/TfheRust/TfheRustEmitter.h"
 #include "include/Target/TfheRustBool/TfheRustBoolEmitter.h"
 #include "include/Target/Verilog/VerilogEmitter.h"
@@ -13,6 +14,9 @@ int main(int argc, char **argv) {
   // tfhe-rs output
   mlir::heir::tfhe_rust::registerToTfheRustTranslation();
   mlir::heir::tfhe_rust_bool::registerToTfheRustBoolTranslation();
+
+  // OpenFHE
+  mlir::heir::openfhe::registerToOpenFhePkeTranslation();
 
   return failed(mlir::mlirTranslateMain(argc, argv, "HEIR Translation Tool"));
 }

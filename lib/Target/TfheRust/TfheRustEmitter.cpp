@@ -11,6 +11,7 @@
 #include "include/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "include/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Target/TfheRust/TfheRustTemplates.h"
+#include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
@@ -80,26 +81,6 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
     return failure();
   }
   return success();
-}
-
-std::string commaSeparatedValues(
-    ValueRange values, std::function<std::string(Value)> valueToString) {
-  return std::accumulate(
-      std::next(values.begin()), values.end(), valueToString(values[0]),
-      [&](std::string a, Value b) { return a + ", " + valueToString(b); });
-}
-
-FailureOr<std::string> commaSeparatedTypes(
-    TypeRange types, std::function<FailureOr<std::string>(Type)> typeToString) {
-  return std::accumulate(
-      std::next(types.begin()), types.end(), typeToString(types[0]),
-      [&](FailureOr<std::string> a, Type b) -> FailureOr<std::string> {
-        auto result = typeToString(b);
-        if (failed(result)) {
-          return failure();
-        }
-        return a.value() + ", " + result.value();
-      });
 }
 
 LogicalResult TfheRustEmitter::printOperation(ModuleOp moduleOp) {
