@@ -47,3 +47,24 @@ module {
 // CHECK-EMPTY:
 // CHECK-NEXT:   assign [[LOAD_DEST]] = [[DATA]][7 + 8 * ([[ARG1]] + 2 * ([[ARG0]])) : 8 * ([[ARG1]] + 2 * ([[ARG0]]))];
 // CHECK:      endmodule
+
+module {
+  memref.global "private" constant @__constant_4xi18 : memref<4xi8> = dense<"0x4D415448">
+  func.func @main(%arg0: index) -> i8 {
+    %1 = memref.get_global @__constant_4xi18 : memref<4xi8>
+    %2 = memref.load %1[%arg0] : memref<4xi8>
+    return %2 : i8
+  }
+}
+
+// CHECK:      module main
+// CHECK-NEXT:   input wire signed [1:0] [[ARG:.*]],
+// CHECK-NEXT:   output wire signed [7:0] [[OUT:.*]]
+// CHECK-NEXT: );
+// CHECK-NEXT: wire signed [31:0] [[DATA:.*]];
+// CHECK-NEXT: wire signed [7:0] [[LOAD_DEST:.*]];
+// CHECK-NEXT: assign [[DATA]] = 32'h{{[A-Z0-9]+}};
+// CHECK-EMPTY:
+// CHECK-NEXT:  assign [[LOAD_DEST]] = [[DATA]][7 + 8 * [[ARG]] : 8 * [[ARG]]];
+// CHECK-NEXT:  assign [[OUT]] = [[LOAD_DEST]];
+// CHECK:      endmodule

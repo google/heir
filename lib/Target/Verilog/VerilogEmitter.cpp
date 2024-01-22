@@ -286,8 +286,13 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
     std::string result;
     llvm::raw_string_ostream ss(result);
     ss << "input ";
-    if (failed(emitType(arg.getType(), ss))) {
-      op->emitError() << "failed to emit type" << arg.getType();
+    if (isa<IndexType>(arg.getType())) {
+      if (failed(emitIndexType(arg, ss))) {
+        op->emitError() << "failed to emit index value " << arg;
+        return failure();
+      }
+    } else if (failed(emitType(arg.getType(), ss))) {
+      op->emitError() << "failed to emit type " << arg.getType();
       return failure();
     }
     ss << " " << getOrCreateName(arg);
@@ -773,6 +778,32 @@ LogicalResult VerilogEmitter::emitType(Type type, raw_ostream &os) {
     }
   }
   return failure();
+}
+
+// Emit a wire declaration for an index value whose width corresponds to the
+// smallest width required to index into any memref used by the value.
+LogicalResult VerilogEmitter::emitIndexType(Value indexValue, raw_ostream &os) {
+  // Operations on index types are not supported in this emitter, so we just
+  // need to check the immediate users and inspect the memrefs they contain.
+  int32_t biggestMemrefSize = 0;
+  for (auto *user : indexValue.getUsers()) {
+    int32_t memrefSize =
+        llvm::TypeSwitch<Operation *, int32_t>(user)
+            .Case<affine::AffineLoadOp, affine::AffineStoreOp, memref::LoadOp,
+                  memref::StoreOp>(
+                [&](auto op) { return op.getMemRefType().getNumElements(); })
+            .Default([&](Operation *) { return 0; });
+    biggestMemrefSize = std::max(biggestMemrefSize, memrefSize);
+  }
+
+  assert(biggestMemrefSize >= 0 &&
+         "unexpected index value unused by any memref ops");
+  auto widthBigint = APInt(64, biggestMemrefSize);
+  int32_t width = widthBigint.isPowerOf2() ? widthBigint.logBase2()
+                                           : widthBigint.logBase2() + 1;
+  os << wireDeclaration(IntegerType::get(indexValue.getContext(), width),
+                        width);
+  return success();
 }
 
 void VerilogEmitter::emitAssignPrefix(Value result) {
