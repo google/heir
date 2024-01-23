@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
@@ -257,6 +258,13 @@ OpOperand *GenericOp::getOpOperandForBlockArgument(Value value) {
   if (index == body->getArguments().size()) return nullptr;
 
   return &getOperation()->getOpOperand(index);
+}
+
+std::optional<int> GenericOp::findResultIndex(Value value) {
+  int index = std::find(getResults().begin(), getResults().end(), value) -
+              getResults().begin();
+  if (index < getNumResults()) return index;
+  return std::nullopt;
 }
 
 YieldOp GenericOp::getYieldOp() {

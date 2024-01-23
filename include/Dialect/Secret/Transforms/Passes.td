@@ -50,4 +50,14 @@ def SecretCaptureGenericAmbientScope : Pass<"secret-capture-generic-ambient-scop
   let dependentDialects = ["mlir::heir::secret::SecretDialect"];
 }
 
+def SecretMergeAdjacentGenerics : Pass<"secret-merge-adjacent-generics"> {
+  let summary = "Merge two adjacent generics into a single generic";
+  let description = [{
+    This pass merges two immedaitely sequential generics into a single
+    generic. Useful as a sub-operation in some passes, and extracted into
+    its own pass for testing purposes.
+  }];
+  let dependentDialects = ["mlir::heir::secret::SecretDialect"];
+}
+
 #endif  // INCLUDE_DIALECT_SECRET_TRANSFORMS_PASSES_TD_
