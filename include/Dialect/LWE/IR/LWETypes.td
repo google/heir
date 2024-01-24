@@ -5,17 +5,18 @@ include "include/Dialect/LWE/IR/LWEDialect.td"
 include "include/Dialect/LWE/IR/LWEAttributes.td"
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/AttrTypeBase.td"
 
 // A base class for all types in this dialect
-class LWE_Type<string name, string typeMnemonic>
-    : TypeDef<LWE_Dialect, name> {
+class LWE_Type<string name, string typeMnemonic, list<Trait> traits = []>
+    : TypeDef<LWE_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
 }
 
 // LWE Ciphertexts are ranked tensors of integers representing the LWE samples
 // and the bias.
-def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext"> {
+def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTypeInterface]> {
   let summary = "A type for LWE ciphertexts";
 
   let description = [{

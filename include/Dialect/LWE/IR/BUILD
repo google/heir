@@ -91,17 +91,22 @@ gentbl_cc_library(
         (
             [
                 "-gen-typedef-decls",
+                "-typedefs-dialect=lwe",
             ],
             "LWETypes.h.inc",
         ),
         (
             [
                 "-gen-typedef-defs",
+                "-typedefs-dialect=lwe",
             ],
             "LWETypes.cpp.inc",
         ),
         (
-            ["-gen-typedef-doc"],
+            [
+                "-gen-typedef-doc",
+                "-typedefs-dialect=lwe",
+            ],
             "LWETypes.md",
         ),
     ],
