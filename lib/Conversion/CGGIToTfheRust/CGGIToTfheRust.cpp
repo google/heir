@@ -18,6 +18,7 @@
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
@@ -425,7 +426,9 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
              typeConverter.isLegal(&op.getBody()) &&
              (!containsCGGIOps(op) || hasServerKeyArg);
     });
-    target.addDynamicallyLegalOp<tensor::FromElementsOp, tensor::ExtractOp>(
+    target.addDynamicallyLegalOp<
+        memref::AllocOp, memref::StoreOp, memref::LoadOp, memref::SubViewOp,
+        memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp>(
         [&](Operation *op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
@@ -433,11 +436,14 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
 
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
-    patterns
-        .add<AddServerKeyArg, ConvertAndOp, ConvertEncodeOp, ConvertLut2Op,
-             ConvertLut3Op, ConvertNotOp, ConvertOrOp, ConvertTrivialEncryptOp,
-             ConvertXorOp, GenericOpPattern<tensor::FromElementsOp>,
-             GenericOpPattern<tensor::ExtractOp>>(typeConverter, context);
+    patterns.add<
+        AddServerKeyArg, ConvertAndOp, ConvertEncodeOp, ConvertLut2Op,
+        ConvertLut3Op, ConvertNotOp, ConvertOrOp, ConvertTrivialEncryptOp,
+        ConvertXorOp, GenericOpPattern<memref::AllocOp>,
+        GenericOpPattern<memref::StoreOp>, GenericOpPattern<memref::LoadOp>,
+        GenericOpPattern<memref::SubViewOp>, GenericOpPattern<memref::CopyOp>,
+        GenericOpPattern<tensor::FromElementsOp>,
+        GenericOpPattern<tensor::ExtractOp>>(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();

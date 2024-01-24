@@ -3,6 +3,7 @@
 
 include "TfheRustDialect.td"
 
+include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/DialectBase.td"
@@ -19,7 +20,7 @@ def PassByReference : NativeTypeTrait<"PassByReference"> {
 }
 
 class TfheRust_EncryptedUInt<int width>
-  : TfheRust_Type<"EncryptedUInt" # width, "eui" # width, [PassByReference]> {
+  : TfheRust_Type<"EncryptedUInt" # width, "eui" # width, [PassByReference, MemRefElementTypeInterface]> {
   let summary = "An encrypted unsigned integer corresponding to tfhe-rs's FHEUint" # width # " type";
 }
 
