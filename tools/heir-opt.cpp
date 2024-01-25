@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "include/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
 #include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 #include "include/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "include/Conversion/CombToCGGI/CombToCGGI.h"
@@ -287,6 +288,7 @@ int main(int argc, char **argv) {
 
   // Dialect conversion passes in HEIR
   bgv::registerBGVToPolynomialPasses();
+  bgv::registerBGVToOpenfhePasses();
   comb::registerCombToCGGIPasses();
   polynomial::registerPolynomialToStandardPasses();
   registerCGGIToTfheRustPasses();

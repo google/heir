@@ -33,6 +33,7 @@ cc_binary(
     }),
     includes = ["include"],
     deps = [
+        "@heir//lib/Conversion/BGVToOpenfhe",
         "@heir//lib/Conversion/BGVToPolynomial",
         "@heir//lib/Conversion/CGGIToTfheRust",
         "@heir//lib/Conversion/CombToCGGI",
