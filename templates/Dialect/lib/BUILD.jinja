@@ -1,0 +1,125 @@
+# {{ dialect_name }} dialect implementation
+
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "Dialect",
+    srcs = [
+        "{{ dialect_name }}Dialect.cpp",
+    ],
+    hdrs = [
+        {% if enable_attributes %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Attributes.h",
+        {% endif %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Dialect.h",
+        {% if enable_ops %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Ops.h",
+        {% endif %}
+        {% if enable_types %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Types.h",
+        {% endif %}
+    ],
+    deps = [
+        {% if enable_attributes %}
+        ":{{ dialect_name }}Attributes",
+        {% endif %}
+        {% if enable_ops %}
+        ":{{ dialect_name }}Ops",
+        {% endif %}
+        {% if enable_types %}
+        ":{{ dialect_name }}Types",
+        {% endif %}
+        {% if enable_attributes %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:attributes_inc_gen",
+        {% endif %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:dialect_inc_gen",
+        {% if enable_ops %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:ops_inc_gen",
+        {% endif %}
+        {% if enable_types %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:types_inc_gen",
+        {% endif %}
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+{% if enable_attributes %}
+cc_library(
+    name = "{{ dialect_name }}Attributes",
+    srcs = [
+        "{{ dialect_name }}Attributes.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Attributes.h",
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Dialect.h",
+    ],
+    deps = [
+        ":{{ dialect_name }}",
+        {% if enable_attributes %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:attributes_inc_gen",
+        {% endif %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:dialect_inc_gen",
+        "@llvm-project//mlir:IR",
+    ],
+)
+{% endif %}
+
+{% if enable_types %}
+cc_library(
+    name = "{{ dialect_name }}Types",
+    srcs = [
+        "{{ dialect_name }}Types.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Dialect.h",
+        {% if enable_attributes %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Attributes.h",
+        {% endif %}
+    ],
+    deps = [
+        {% if enable_attributes %}
+        ":{{ dialect_name }}Attributes",
+        {% endif %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:dialect_inc_gen",
+        {% if enable_ops %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:ops_inc_gen",
+        {% endif %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:types_inc_gen",
+        "@llvm-project//mlir:IR",
+    ],
+)
+{% endif %}
+
+{% if enable_ops %}
+cc_library(
+    name = "{{ dialect_name }}Ops",
+    srcs = [
+        "{{ dialect_name }}Ops.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Dialect.h",
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Ops.h",
+        {% if enable_types %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Types.h",
+        {% endif %}
+    ],
+    deps = [
+        {% if enable_attributes %}
+        ":{{ dialect_name }}Attributes",
+        {% endif %}
+        {% if enable_types %}
+        ":{{ dialect_name }}Types",
+        {% endif %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:dialect_inc_gen",
+        "@heir//include/Dialect/{{ dialect_name }}/IR:ops_inc_gen",
+        {% if enable_types %}
+        "@heir//include/Dialect/{{ dialect_name }}/IR:types_inc_gen",
+        {% endif %}
+        "@llvm-project//mlir:IR",
+    ],
+)
+{% endif %}

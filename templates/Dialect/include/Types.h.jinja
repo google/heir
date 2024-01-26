@@ -1,0 +1,12 @@
+#ifndef HEIR_INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_H_
+#define HEIR_INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_H_
+
+{% if enable_attributes %}
+#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.h"
+{% endif %}
+#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
+
+#define GET_TYPEDEF_CLASSES
+#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h.inc"
+
+#endif  // HEIR_INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_H_
