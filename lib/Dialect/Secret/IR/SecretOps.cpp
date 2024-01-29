@@ -337,6 +337,37 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
   return cloneWithNewTypes(*this, newResultTypes, rewriter);
 }
 
+GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
+                                         PatternRewriter &rewriter,
+                                         SmallVector<Value> &remainingResults) {
+  YieldOp yieldOp = getYieldOp();
+  for ([[maybe_unused]] int index : yieldedIndicesToRemove) {
+    assert(0 <= index && index < yieldOp.getNumOperands() &&
+           "Cannot remove an index that is out of range");
+  }
+
+  for (int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
+    if (std::find(yieldedIndicesToRemove.begin(), yieldedIndicesToRemove.end(),
+                  i) == yieldedIndicesToRemove.end()) {
+      remainingResults.push_back(getResult(i));
+    }
+  }
+
+  // Erase unused values in reverse to ensure deletion doesn't affect the next
+  // indices to delete.
+  for (int i : llvm::reverse(yieldedIndicesToRemove)) {
+    getYieldOp().getValuesMutable().erase(i);
+  }
+
+  auto newResultTypes = llvm::to_vector<4>(
+      llvm::map_range(yieldOp.getValues().getTypes(), [](Type t) -> Type {
+        SecretType newTy = secret::SecretType::get(t);
+        return newTy;
+      }));
+
+  return cloneWithNewTypes(*this, newResultTypes, rewriter);
+}
+
 void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                             MLIRContext *context) {
   results.add<CollapseSecretlessGeneric, RemoveUnusedYieldedValues,

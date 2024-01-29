@@ -195,6 +195,14 @@ def Secret_GenericOp : Secret_Op<"generic", [
       ValueRange yieldedValuesToRemove,
       PatternRewriter &rewriter,
       SmallVector<Value> &remainingResults);
+
+    // Same as above, but the exact operand indices of the yielded values to
+    // remove are specified. Can be useful if you want to use this method to
+    // dedupe yielded values.
+    GenericOp removeYieldedValues(
+      ArrayRef<int> yieldedIndicesToRemove,
+      PatternRewriter &rewriter,
+      SmallVector<Value> &remainingResults);
   }];
 
   let hasCanonicalizer = 1;

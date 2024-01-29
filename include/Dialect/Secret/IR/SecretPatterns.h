@@ -135,6 +135,27 @@ struct MergeAdjacentGenerics : public OpRewritePattern<GenericOp> {
                                 PatternRewriter &rewriter) const override;
 };
 
+// Find a memeref that is stored to in the body of the generic, but not
+// yielded, and add it to the yielded values.
+struct YieldStoredMemrefs : public OpRewritePattern<GenericOp> {
+  YieldStoredMemrefs(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+};
+
+// Dedupe duplicate values yielded by a generic
+struct DedupeYieldedValues : public OpRewritePattern<GenericOp> {
+  DedupeYieldedValues(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+};
+
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir

@@ -1,10 +1,12 @@
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
 
+#include <algorithm>
 #include <cassert>
 #include <optional>
 
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/ADT/DenseMap.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
@@ -325,6 +327,83 @@ LogicalResult MergeAdjacentGenerics::matchAndRewrite(
       newGeneric.getResults().begin() + genericOp->getNumResults());
   rewriter.replaceOp(genericOp, valuesReplacingFirstGeneric);
 
+  return success();
+}
+
+LogicalResult YieldStoredMemrefs::matchAndRewrite(
+    GenericOp genericOp, PatternRewriter &rewriter) const {
+  Value memref;
+  auto walkResult = genericOp.getBody()->walk([&](Operation *op) -> WalkResult {
+    if (auto storeOp = dyn_cast<memref::StoreOp>(op)) {
+      memref = storeOp.getMemRef();
+    } else if (auto storeOp = dyn_cast<affine::AffineStoreOp>(op)) {
+      memref = storeOp.getMemRef();
+    }
+
+    if (memref) {
+      ValueRange yieldOperands = genericOp.getYieldOp().getOperands();
+      int index =
+          std::find(yieldOperands.begin(), yieldOperands.end(), memref) -
+          yieldOperands.begin();
+      if (index < genericOp.getYieldOp().getNumOperands()) {
+        // The memref is already yielded
+        return WalkResult::advance();
+      }
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+
+  // interrupt means we found a memref to add to the yield
+  if (!walkResult.wasInterrupted()) {
+    return failure();
+  }
+
+  auto [modifiedGeneric, newResults] =
+      genericOp.addNewYieldedValues(ValueRange{memref}, rewriter);
+  rewriter.replaceOp(genericOp,
+                     ValueRange(modifiedGeneric.getResults().drop_back(1)));
+  return success();
+}
+
+LogicalResult DedupeYieldedValues::matchAndRewrite(
+    GenericOp genericOp, PatternRewriter &rewriter) const {
+  llvm::SmallDenseMap<Value, int, 4> yieldedValueToIndex;
+  int indexToRemove = -1;
+  int replacementIndex = -1;
+  for (auto &opOperand : genericOp.getYieldOp()->getOpOperands()) {
+    if (yieldedValueToIndex.contains(opOperand.get())) {
+      indexToRemove = opOperand.getOperandNumber();
+      replacementIndex = yieldedValueToIndex[opOperand.get()];
+      break;
+    }
+    yieldedValueToIndex[opOperand.get()] = opOperand.getOperandNumber();
+  }
+
+  if (indexToRemove < 0) {
+    return failure();
+  }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "Found value to dedupe at yield index " << indexToRemove
+                 << "\n";
+    genericOp.dump();
+  });
+
+  Value resultToRemove = genericOp.getResults()[indexToRemove];
+  Value replacementResult = genericOp.getResults()[replacementIndex];
+  rewriter.replaceAllUsesWith(resultToRemove, replacementResult);
+
+  SmallVector<Value> remainingResults;
+  auto modifiedGeneric = genericOp.removeYieldedValues(
+      {indexToRemove}, rewriter, remainingResults);
+  rewriter.replaceAllUsesWith(remainingResults, modifiedGeneric.getResults());
+  rewriter.eraseOp(genericOp);
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "After replacing generic\n";
+    modifiedGeneric.dump();
+  });
   return success();
 }
 
