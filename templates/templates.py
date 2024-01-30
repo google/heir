@@ -19,8 +19,8 @@ def render_all(path: pathlib.Path, **args):
 def try_create_dirs(include_path, lib_path, force=False):
   print(f"Creating dirs:\n  {include_path}\n  {lib_path}")
   try:
-    os.mkdir(include_path)
-    os.mkdir(lib_path)
+    os.makedirs(include_path)
+    os.makedirs(lib_path)
   except FileExistsError:
     if force:
       shutil.rmtree(include_path)
@@ -293,6 +293,100 @@ class CLI:
       shutil.rmtree(include_path)
       shutil.rmtree(lib_path)
       raise
+
+  def new_dialect(
+      self,
+      dialect_name: str = None,
+      dialect_namespace: str = None,
+      enable_attributes: bool = True,
+      enable_types: bool = True,
+      enable_ops: bool = True,
+      force: bool = False,
+  ):
+    """Create a new dialect.
+
+    Args:
+      dialect_name: The dialect's CPP class name prefix and directory name,
+        e.g., CGGI (for CGGIDialect).
+      dialect_namespace: The dialect's CPP namespace, e.g., tfhe_rust for
+        TfheRustDialect.
+      enable_attributes: Generate a separate tablegen and includes for
+        attributes.
+      enable_types: Generate a separate tablegen and includes for types.
+      enable_ops: Generate a separate tablegen and includes for ops.
+      force: If True, overwrite existing files. If False, raise an error if
+        any files already exist.
+    """
+    if not dialect_name:
+      raise ValueError("dialect_name must be provided")
+
+    if not dialect_namespace:
+      dialect_namespace = dialect_name.lower()
+
+    include_path = self.root / "include" / "Dialect" / dialect_name / "IR"
+    lib_path = self.root / "lib" / "Dialect" / dialect_name / "IR"
+
+    if not force and (os.path.isdir(include_path) or os.path.isdir(lib_path)):
+      raise ValueError(
+          f"Dialect directories already exist at {include_path} or {lib_path}")
+
+    templates_path = self.root / "templates" / "Dialect"
+    templ_include = templates_path / "include"
+    templ_lib = templates_path / "lib"
+    path_mapping = {
+        templ_include / "BUILD.jinja": include_path / "BUILD",
+        templ_include / "Dialect.h.jinja": include_path / f"{dialect_name}Dialect.h",
+        templ_include / "Dialect.td.jinja": include_path / f"{dialect_name}Dialect.td",
+        templ_lib / "BUILD.jinja": lib_path / "BUILD",
+        templ_lib / "Dialect.cpp.jinja": lib_path / f"{dialect_name}Dialect.cpp",
+    }
+
+    if enable_attributes:
+        path_mapping.update({
+            templ_include / "Attributes.h.jinja": include_path / f"{dialect_name}Attributes.h",
+            templ_include / "Attributes.td.jinja": include_path / f"{dialect_name}Attributes.td",
+            templ_lib / "Attributes.cpp.jinja": lib_path / f"{dialect_name}Attributes.cpp",
+        })
+
+    if enable_types:
+        path_mapping.update({
+            templ_include / "Types.h.jinja": include_path / f"{dialect_name}Types.h",
+            templ_include / "Types.td.jinja": include_path / f"{dialect_name}Types.td",
+            templ_lib / "Types.cpp.jinja": lib_path / f"{dialect_name}Types.cpp",
+        })
+
+    if enable_ops:
+        path_mapping.update({
+            templ_include / "Ops.h.jinja": include_path / f"{dialect_name}Ops.h",
+            templ_include / "Ops.td.jinja": include_path / f"{dialect_name}Ops.td",
+            templ_lib / "Ops.cpp.jinja": lib_path / f"{dialect_name}Ops.cpp",
+        })
+
+    try:
+      try_create_dirs(include_path, lib_path, force)
+      copy_all(path_mapping)
+      render_all(
+          include_path,
+          dialect_name=dialect_name,
+          dialect_namespace=dialect_namespace,
+          enable_attributes=enable_attributes,
+          enable_types=enable_types,
+          enable_ops=enable_ops,
+      )
+      render_all(
+          lib_path,
+          dialect_name=dialect_name,
+          dialect_namespace=dialect_namespace,
+          enable_attributes=enable_attributes,
+          enable_types=enable_types,
+          enable_ops=enable_ops,
+      )
+    except:
+      print("Hit unrecoverable error, cleaning up")
+      shutil.rmtree(include_path)
+      shutil.rmtree(lib_path)
+      raise
+
 
 
 if __name__ == "__main__":

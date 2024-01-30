@@ -1,0 +1,19 @@
+#ifndef INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_TD_
+#define INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_TD_
+
+include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.td"
+{% if enable_attributes %}
+include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.td"
+{% endif %}
+
+include "mlir/IR/DialectBase.td"
+include "mlir/IR/AttrTypeBase.td"
+
+// A base class for all types in this dialect
+class {{ dialect_name }}_Type<string name, string typeMnemonic>
+    : TypeDef<{{ dialect_name }}_Dialect, name> {
+  let mnemonic = typeMnemonic;
+}
+
+
+#endif  // INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_TD_

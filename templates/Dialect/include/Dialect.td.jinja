@@ -1,0 +1,19 @@
+#ifndef HEIR_INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}DIALECT_TD_
+#define HEIR_INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}DIALECT_TD_
+
+include "mlir/IR/DialectBase.td"
+
+def {{ dialect_name }}_Dialect : Dialect {
+  let name = "{{ dialect_namespace }}";
+  let description = [{
+    // FIXME: add documentation
+    The `{{ dialect_namespace }}` dialect is ...
+  }];
+
+  let cppNamespace = "::mlir::heir::{{ dialect_namespace }}";
+
+  let useDefaultTypePrinterParser = 1;
+  let useDefaultAttributePrinterParser = 1;
+}
+
+#endif  // HEIR_INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}DIALECT_TD_
