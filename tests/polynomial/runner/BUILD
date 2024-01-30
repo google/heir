@@ -1,10 +1,7 @@
 load("@rules_python//python:py_binary.bzl", "py_binary")
 load("//bazel:lit.bzl", "glob_lit_tests")
 
-package(
-    default_applicable_licenses = ["@heir//:license"],
-    default_visibility = ["//visibility:public"],
-)
+package(default_applicable_licenses = ["@heir//:license"])
 
 py_binary(
     name = "generate_test_cases",
