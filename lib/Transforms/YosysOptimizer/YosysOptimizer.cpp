@@ -94,10 +94,13 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   bool abcFast;
 };
 
-memref::AllocOp convertIntegerValue(Value value, Type convertedType,
-                                    OpBuilder &b, Location loc) {
+Value convertIntegerValue(Value value, Type convertedType, OpBuilder &b,
+                          Location loc) {
   IntegerType argType = value.getType().cast<IntegerType>();
   int width = argType.getWidth();
+  if (width == 1) {
+    return value;
+  }
 
   auto allocOp =
       b.create<memref::AllocOp>(loc, MemRefType::get({width}, b.getI1Type()));
@@ -115,7 +118,7 @@ memref::AllocOp convertIntegerValue(Value value, Type convertedType,
         ValueRange{b.create<arith::ConstantIndexOp>(loc, i)});
   }
 
-  return allocOp;
+  return allocOp.getResult();
 }
 
 /// Convert a secret.generic's operands secret.secret<i3>
@@ -129,9 +132,9 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
     if (!opOperand.get().getType().isa<secret::SecretType>()) {
       // The type is not secret, but still must be booleanized
       OpBuilder builder(op);
-      auto fromElementsOp = convertIntegerValue(opOperand.get(), convertedType,
+      auto convertedValue = convertIntegerValue(opOperand.get(), convertedType,
                                                 builder, op.getLoc());
-      typeConvertedArgs.push_back(fromElementsOp.getResult());
+      typeConvertedArgs.push_back(convertedValue);
       continue;
     }
 
@@ -160,28 +163,33 @@ LogicalResult convertOpResults(secret::GenericOp op,
   for (Value opResult : op.getResults()) {
     // The secret.yield verifier ensures generic can only return secret types.
     assert(opResult.getType().isa<secret::SecretType>());
-    MemRefType convertedType = opResult.getType()
-                                   .cast<secret::SecretType>()
-                                   .getValueType()
-                                   .cast<MemRefType>();
-    if (!convertedType.getElementType().isa<IntegerType>() ||
-        convertedType.getRank() != 1) {
-      op.emitError() << "While booleanizing secret.generic, found converted "
-                        "type that cannot be reassembled: "
-                     << convertedType;
-      return failure();
+    secret::SecretType secretType =
+        opResult.getType().cast<secret::SecretType>();
+
+    IntegerType elementType;
+    int numElements = 1;
+    if (MemRefType convertedType =
+            dyn_cast<MemRefType>(secretType.getValueType())) {
+      if (!convertedType.getElementType().isa<IntegerType>() ||
+          convertedType.getRank() != 1) {
+        op.emitError() << "While booleanizing secret.generic, found converted "
+                          "type that cannot be reassembled: "
+                       << convertedType;
+        return failure();
+      }
+      elementType = convertedType.getElementType().cast<IntegerType>();
+      numElements = convertedType.getNumElements();
+    } else {
+      elementType = secretType.getValueType().cast<IntegerType>();
     }
 
-    IntegerType elementType =
-        convertedType.getElementType().cast<IntegerType>();
     if (elementType.getWidth() != 1) {
       op.emitError() << "Converted element type must be i1";
       return failure();
     }
 
     IntegerType reassembledType =
-        IntegerType::get(op.getContext(), elementType.getWidth() *
-                                              convertedType.getNumElements());
+        IntegerType::get(op.getContext(), elementType.getWidth() * numElements);
 
     // Insert a reassembly of the original integer type from its booleanized
     // memref version.
