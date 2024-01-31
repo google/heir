@@ -474,7 +474,7 @@ significant bit to least-significant bit. The input are combined into a
 single ciphertext input to the lookup table using products with plaintexts
 and sums.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>LUTOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
@@ -529,7 +529,7 @@ significant bit to least-significant bit. The input are combined into a
 single ciphertext input to the lookup table using products with plaintexts
 and sums.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>LUTOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
@@ -1139,7 +1139,7 @@ behavior. If one of the inputs is unknown, but said input doesn&amp;rsquo;t make
 difference in the output (based on the lookup table) the result should not
 be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>LUTOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-8">Attributes:&lt;/h4>
 &lt;table>
@@ -1662,7 +1662,7 @@ behavior. If one of the inputs is unknown, but said input doesn&amp;rsquo;t make
 difference in the output (based on the lookup table) the result should not
 be &amp;lsquo;x&amp;rsquo; &amp;ndash; it should be the well-known result.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>LUTOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-18">Attributes:&lt;/h4>
 &lt;table>
