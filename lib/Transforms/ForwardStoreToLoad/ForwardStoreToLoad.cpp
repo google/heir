@@ -44,9 +44,9 @@ bool ForwardSingleStoreToLoad::isForwardableOp(Operation *potentialStore,
                      << "loadOp and store op do not have matching indices\n");
           return false;
         }
-        // get this node to the load node and check if any in between
-        // isForwardableOp
 
+        // Naively scan through the operations between the two ops and check if
+        // anything prevents forwarding.
         for (auto currentNode = storeOp->getNextNode();
              currentNode != loadOp.getOperation();
              currentNode = currentNode->getNextNode()) {
