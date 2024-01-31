@@ -52,6 +52,7 @@ cc_binary(
         "@heir//lib/Dialect/Secret/Transforms",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
+        "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/Secretize",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
