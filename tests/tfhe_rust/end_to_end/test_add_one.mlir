@@ -45,7 +45,7 @@ module {
     %24 = cggi.lut3(%2, %11, %10) {lookup_table = 105 : ui8} : !ct_ty
     %25 = cggi.lut3(%2, %13, %12) {lookup_table = 105 : ui8} : !ct_ty
     %26 = cggi.lut3(%2, %15, %14) {lookup_table = 105 : ui8} : !ct_ty
-    %from_elements = tensor.from_elements %21, %18, %26, %25, %24, %23, %7, %22 : tensor<8x!ct_ty>
+    %from_elements = tensor.from_elements %22, %7, %23, %24, %25, %26, %18, %21 : tensor<8x!ct_ty>
     return %from_elements : tensor<8x!ct_ty>
   }
 }

@@ -33,8 +33,7 @@ pub fn decrypt(ciphertexts: &[Ciphertext], client_key: &ClientKey) -> u8 {
     let mut accum = 0u8;
     for (i, ct) in ciphertexts.iter().enumerate() {
         let bit = client_key.decrypt(ct);
-        // TODO(403): Fix the ordering of the output bits in Yosys Optimizer
-        accum |= (bit as u8) << (7 - i);
+        accum |= (bit as u8) << i;
     }
     accum
 }

@@ -136,7 +136,6 @@ TEST_F(LUTImporterTestFixture, DoubleInput) {
 
   int numStores = 0;
   for (auto &use : allocOp->getUses()) {
-    use.getOwner()->dump();
     memref::StoreOp storeOp = dyn_cast_or_null<memref::StoreOp>(use.getOwner());
     if (!storeOp) {
       ASSERT_TRUE(dyn_cast_or_null<func::ReturnOp>(use.getOwner()));
@@ -145,8 +144,8 @@ TEST_F(LUTImporterTestFixture, DoubleInput) {
 
     numStores++;
     auto storeIdx = storeOp.getIndices()[0].getDefiningOp<arith::ConstantOp>();
-    if (dyn_cast<IntegerAttr>(storeIdx.getValue()).getInt() == 7) {
-      // The last digit of the result must be zero.
+    if (dyn_cast<IntegerAttr>(storeIdx.getValue()).getInt() == 0) {
+      // The 0th digit of the result must be zero.
       arith::ConstantOp valueToStore =
           storeOp.getValueToStore().getDefiningOp<arith::ConstantOp>();
       ASSERT_TRUE(valueToStore);

@@ -86,8 +86,7 @@ Value RTLILImporter::getBit(
   assert(conn.as_bit().is_wire());
   auto bit = conn.as_bit();
   if (retBitValues.contains(bit.wire)) {
-    auto offset = retBitValues[bit.wire].size() - bit.offset - 1;
-    return retBitValues[bit.wire][offset];
+    return retBitValues[bit.wire][bit.offset];
   }
   auto argA = getWireValue(bit.wire);
   auto extractOp = b.create<memref::LoadOp>(
@@ -106,8 +105,7 @@ void RTLILImporter::addResultBit(
   // This must be a bit of the multi-bit output wire.
   auto bit = conn.as_bit();
   assert(bit.is_wire() && retBitValues.contains(bit.wire));
-  auto offset = retBitValues[bit.wire].size() - bit.offset - 1;
-  retBitValues[bit.wire][offset] = result;
+  retBitValues[bit.wire][bit.offset] = result;
 }
 
 func::FuncOp RTLILImporter::importModule(
