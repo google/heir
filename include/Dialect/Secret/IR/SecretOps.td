@@ -171,7 +171,8 @@ def Secret_GenericOp : Secret_Op<"generic", [
     // Clones a generic op and adds new yielded values. Returns the new op and
     // the value range corresponding to the new result values of the generic.
     // Callers can follow this method with something like the following to
-    // replace the current generic op with the result of this method.
+    // replace the current generic op with the result of this method. Always
+    // adds the new yielded values to the end of the list of yielded values.
     //
     // auto [modifiedGeneric, newResults] =
     //     genericOp.addNewYieldedValues(newResults, rewriter);
@@ -203,6 +204,23 @@ def Secret_GenericOp : Secret_Op<"generic", [
       ArrayRef<int> yieldedIndicesToRemove,
       PatternRewriter &rewriter,
       SmallVector<Value> &remainingResults);
+
+    // Modifies a GenericOp in place by taking the given op inside the generic
+    // body and lifting it into a new single-op generic before the context
+    // generic op. Returns the newly created GenericOp.
+    //
+    // For extractOpAfterGeneric, see SecretOps.h (it's a non-member function).
+    GenericOp extractOpBeforeGeneric(
+      Operation *opToExtract, PatternRewriter &rewriter);
+
+    // Inlines the GenericOp in place, dropping any secret types involved.
+    // Extra `operands` argument allows a conversion pattern to pass
+    // adaptor.getOperands().
+    void inlineInPlaceDroppingSecrets(PatternRewriter &rewriter, ValueRange operands);
+
+    void inlineInPlaceDroppingSecrets(PatternRewriter &rewriter) {
+      inlineInPlaceDroppingSecrets(rewriter, getOperands());
+    }
   }];
 
   let hasCanonicalizer = 1;

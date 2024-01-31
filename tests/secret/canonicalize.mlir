@@ -12,5 +12,23 @@ func.func @remove_unused_yielded_values(%arg0: !secret.secret<i32>) -> !secret.s
       // CHECK: secret.yield %[[value:.*]] : i32
       secret.yield %d, %unused : i32, i32
     } -> (!secret.secret<i32>, !secret.secret<i32>)
-  func.return %Z : !secret.secret<i32>
+  return %Z : !secret.secret<i32>
+}
+
+// CHECK-LABEL: func @remove_pass_through_args
+func.func @remove_pass_through_args(
+// CHECK: %[[arg1:.*]]: !secret.secret<i32>, %[[arg2:.*]]: !secret.secret<i32>
+    %arg1 : !secret.secret<i32>, %arg2 : !secret.secret<i32>) -> (!secret.secret<i32>, !secret.secret<i32>) {
+  // CHECK: %[[out1:.*]] = secret.generic
+  %out1, %out2 = secret.generic
+    ins(%arg1, %arg2 : !secret.secret<i32>, !secret.secret<i32>) {
+    ^bb0(%x: i32, %y: i32) :
+      // CHECK: %[[value:.*]] = arith.addi
+      %z = arith.addi %x, %y : i32
+      // Only yield one value
+      // CHECK: secret.yield %[[value]] : i32
+      secret.yield %z, %y : i32, i32
+    } -> (!secret.secret<i32>, !secret.secret<i32>)
+  // CHECK: return %[[out1]], %[[arg2]]
+  return %out1, %out2 : !secret.secret<i32>, !secret.secret<i32>
 }

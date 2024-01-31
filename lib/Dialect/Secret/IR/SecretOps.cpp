@@ -11,6 +11,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
@@ -26,6 +27,8 @@
 #include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+
+#define DEBUG_TYPE "secret-ops"
 
 namespace mlir {
 namespace heir {
@@ -251,6 +254,7 @@ OpFoldResult CastOp::fold(CastOp::FoldAdaptor adaptor) {
 }
 
 OpOperand *GenericOp::getOpOperandForBlockArgument(Value value) {
+  // FIXME: why can't I just dyn_cast the Value to a BlockArgument?
   auto *body = getBody();
   int index = std::find(body->getArguments().begin(),
                         body->getArguments().end(), value) -
@@ -366,6 +370,205 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
       }));
 
   return cloneWithNewTypes(*this, newResultTypes, rewriter);
+}
+
+GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
+                                            PatternRewriter &rewriter) {
+  assert(opToExtract->getParentOp() == *this);
+
+  // Result types are secret versions of the results of the op, since the
+  // secret will yield all of this op's results immediately.
+  SmallVector<Type> newResultTypes;
+  newResultTypes.reserve(opToExtract->getNumResults());
+  for (Type ty : opToExtract->getResultTypes()) {
+    newResultTypes.push_back(SecretType::get(ty));
+  }
+
+  auto newGeneric = rewriter.create<GenericOp>(
+      getLoc(), getInputs(), newResultTypes,
+      [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+        IRMapping mp;
+        for (BlockArgument blockArg : getBody()->getArguments()) {
+          mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
+        }
+        auto *newOp = b.clone(*opToExtract, mp);
+        b.create<YieldOp>(loc, newOp->getResults());
+      });
+
+  // Once the op is split off into a new generic op, we need to add new
+  // operands to the old generic op, add new corresponding block arguments, and
+  // replace all uses of the opToExtract's results with the created block
+  // arguments.
+  SmallVector<Value> oldGenericNewBlockArgs;
+  rewriter.modifyOpInPlace(*this, [&]() {
+    getInputsMutable().append(newGeneric.getResults());
+    for (auto ty : opToExtract->getResultTypes()) {
+      BlockArgument arg = getBody()->addArgument(ty, opToExtract->getLoc());
+      oldGenericNewBlockArgs.push_back(arg);
+    }
+  });
+  rewriter.replaceOp(opToExtract, oldGenericNewBlockArgs);
+
+  return newGeneric;
+}
+
+// When replacing a generic op with a new one, and given an op in the original
+// generic op, find the corresponding op in the new generic op.
+//
+// Note, this is brittle and depends on the two generic ops having identical
+// copies of the same ops in the same order.
+Operation *findCorrespondingOp(GenericOp oldGenericOp, GenericOp newGenericOp,
+                               Operation *op) {
+  assert(oldGenericOp.getBody()->getOperations().size() ==
+             newGenericOp.getBody()->getOperations().size() &&
+         "findCorrespondingOp requires both oldGenericOp and newGenericOp have "
+         "the same size");
+  for (auto [oldOp, newOp] :
+       llvm::zip(oldGenericOp.getBody()->getOperations(),
+                 newGenericOp.getBody()->getOperations())) {
+    if (&oldOp == op) {
+      assert(oldOp.getName() == newOp.getName() &&
+             "Expected corresponding op to be the same type in old and new "
+             "generic");
+      return &newOp;
+    }
+  }
+  llvm_unreachable(
+      "findCorrespondingOp used but no corresponding op was found");
+  return nullptr;
+}
+
+std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
+    GenericOp genericOp, Operation *opToExtract, PatternRewriter &rewriter) {
+  assert(opToExtract->getParentOp() == genericOp);
+  [[maybe_unused]] auto *parent = genericOp->getParentOp();
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "At start of extracting op after generic:\n";
+    parent->dump();
+  });
+  // The new yields may not always be needed, and this can be cleaned up by
+  // canonicalize, or a manual application of DedupeYieldedValues and
+  // RemoveUnusedYieldedValues.
+  auto result =
+      genericOp.addNewYieldedValues(opToExtract->getOperands(), rewriter);
+  // Can't do structured assignment of pair above, because clang fails to
+  // compile the usage of these values in the closure below.
+  // (https://stackoverflow.com/a/46115028/438830).
+  GenericOp genericOpWithNewYields = result.first;
+  ValueRange newResults = result.second;
+  // Keep track of the opToExtract in the new generic.
+  opToExtract =
+      findCorrespondingOp(genericOp, genericOpWithNewYields, opToExtract);
+  rewriter.replaceOp(genericOp,
+                     ValueRange(genericOpWithNewYields.getResults().drop_back(
+                         newResults.size())));
+  LLVM_DEBUG({
+    llvm::dbgs() << "After adding new yielded values:\n";
+    parent->dump();
+    llvm::dbgs() << "opToExtract is now in:\n";
+    opToExtract->getParentOp()->dump();
+  });
+
+  SmallVector<Value> newGenericOperands;
+  newGenericOperands.reserve(opToExtract->getNumOperands());
+  for (auto operand : opToExtract->getOperands()) {
+    // If the yielded value is a block argument or ambient, we can just use the
+    // original SSA value.
+    auto blockArg = operand.dyn_cast<BlockArgument>();
+    bool isBlockArgOfGeneric =
+        blockArg && blockArg.getOwner() == genericOpWithNewYields.getBody();
+    bool isAmbient =
+        (blockArg && blockArg.getOwner() != genericOpWithNewYields.getBody()) ||
+        (!blockArg && operand.getDefiningOp()->getBlock() !=
+                          genericOpWithNewYields.getBody());
+    if (isBlockArgOfGeneric) {
+      newGenericOperands.push_back(
+          genericOpWithNewYields.getOperand(blockArg.getArgNumber()));
+      continue;
+    }
+    if (isAmbient) {
+      newGenericOperands.push_back(operand);
+      continue;
+    }
+
+    // Otherwise, find the corresponding result of the generic op
+    auto yieldOperands = genericOpWithNewYields.getYieldOp().getOperands();
+    int resultIndex =
+        std::find(yieldOperands.begin(), yieldOperands.end(), operand) -
+        yieldOperands.begin();
+    newGenericOperands.push_back(genericOpWithNewYields.getResult(resultIndex));
+  }
+
+  // Result types are secret versions of the results of the op, since the
+  // secret will yield all of this op's results immediately.
+  SmallVector<Type> newResultTypes;
+  newResultTypes.reserve(opToExtract->getNumResults());
+  for (Type ty : opToExtract->getResultTypes()) {
+    newResultTypes.push_back(SecretType::get(ty));
+  }
+
+  rewriter.setInsertionPointAfter(genericOpWithNewYields);
+  auto newGeneric = rewriter.create<GenericOp>(
+      genericOpWithNewYields.getLoc(), newGenericOperands, newResultTypes,
+      [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
+        IRMapping mp;
+        int i = 0;
+        for (Value operand : opToExtract->getOperands()) {
+          mp.map(operand, blockArguments[i]);
+          ++i;
+        }
+        auto *newOp = b.clone(*opToExtract, mp);
+        b.create<YieldOp>(loc, newOp->getResults());
+      });
+  LLVM_DEBUG({
+    llvm::dbgs() << "After adding new single-op generic:\n";
+    parent->dump();
+  });
+
+  // Once the op is split off into a new generic op, we need to erase
+  // the old op and remove its results from the yield op.
+  rewriter.setInsertionPointAfter(genericOpWithNewYields);
+  SmallVector<Value> remainingResults;
+  auto replacedGeneric = genericOpWithNewYields.removeYieldedValues(
+      opToExtract->getResults(), rewriter, remainingResults);
+  // Keep track of the opToExtract in the new generic.
+  opToExtract =
+      findCorrespondingOp(genericOpWithNewYields, replacedGeneric, opToExtract);
+  rewriter.replaceAllUsesWith(remainingResults, replacedGeneric.getResults());
+  rewriter.eraseOp(genericOpWithNewYields);
+  rewriter.eraseOp(opToExtract);
+  LLVM_DEBUG({
+    llvm::dbgs() << "After removing opToExtract from old generic:\n";
+    parent->dump();
+  });
+
+  return std::pair{replacedGeneric, newGeneric};
+}
+
+void GenericOp::inlineInPlaceDroppingSecrets(PatternRewriter &rewriter,
+                                             ValueRange operands) {
+  GenericOp &op = *this;
+  Block *originalBlock = op->getBlock();
+  Block &opEntryBlock = op.getRegion().front();
+  YieldOp yieldOp = dyn_cast<YieldOp>(op.getRegion().back().getTerminator());
+
+  // Inline the op's (unique) block, including the yield op. This also
+  // requires splitting the parent block of the generic op, so that we have a
+  // clear insertion point for inlining.
+  Block *newBlock = rewriter.splitBlock(originalBlock, Block::iterator(op));
+  rewriter.inlineRegionBefore(op.getRegion(), newBlock);
+
+  // Now that op's region is inlined, the operands of its YieldOp are mapped
+  // to the materialized target values. Therefore, we can replace the op's
+  // uses with those of its YieldOp's operands.
+  rewriter.replaceOp(op, yieldOp->getOperands());
+
+  // No need for these intermediate blocks, merge them into 1.
+  rewriter.mergeBlocks(&opEntryBlock, originalBlock, operands);
+  rewriter.mergeBlocks(newBlock, originalBlock, {});
+
+  rewriter.eraseOp(yieldOp);
 }
 
 void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,
