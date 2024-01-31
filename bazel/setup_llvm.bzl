@@ -6,6 +6,7 @@ load("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
 
 # The subset of LLVM targets that HEIR cares about.
 _LLVM_TARGETS = [
+    "AArch64",
     "X86",
     # The bazel dependency graph for mlir-opt fails to load (at the analysis step) without the NVPTX
     # target in this list, because mlir/test:TestGPU depends on the //llvm:NVPTXCodeGen target,
