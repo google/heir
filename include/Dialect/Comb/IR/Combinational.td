@@ -17,6 +17,8 @@
 #ifndef HEIR_INCLUDE_DIALECT_COMB_COMBINATIONAL_TD
 #define HEIR_INCLUDE_DIALECT_COMB_COMBINATIONAL_TD
 
+include "include/Dialect/HEIRInterfaces.td"
+
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/EnumAttr.td"
@@ -270,7 +272,7 @@ def MuxOp : CombOp<"mux",
 
 }
 
-def TruthTableOp : CombOp<"truth_table", [Pure]> {
+def TruthTableOp : CombOp<"truth_table", [Pure, DeclareOpInterfaceMethods<LUTOpInterface>]> {
   let summary = "Return a true/false based on a lookup table";
   let description = [{
     ```

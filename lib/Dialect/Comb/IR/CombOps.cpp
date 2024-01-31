@@ -227,6 +227,10 @@ LogicalResult TruthTableOp::verify() {
   return success();
 }
 
+mlir::ValueRange TruthTableOp::getLookupTableInputs() {
+  return mlir::ValueRange{getInputs()};
+}
+
 }  // namespace comb
 }  // namespace heir
 }  // namespace mlir

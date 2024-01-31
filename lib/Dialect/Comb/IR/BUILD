@@ -18,6 +18,7 @@ cc_library(
         "@heir//include/Dialect/Comb/IR:enum_inc_gen",
         "@heir//include/Dialect/Comb/IR:ops_inc_gen",
         "@heir//include/Dialect/Comb/IR:type_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ControlFlowInterfaces",
         "@llvm-project//mlir:FunctionInterfaces",

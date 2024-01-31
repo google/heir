@@ -17,6 +17,7 @@ td_library(
     ],
     includes = ["../../../.."],
     deps = [
+        "@heir//include/Dialect:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:ControlFlowInterfacesTdFiles",
         "@llvm-project//mlir:FunctionInterfacesTdFiles",

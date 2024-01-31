@@ -34,3 +34,31 @@ func.func @ops(
   // CHECK-SAME: !secret.secret<memref<3xi1>> to !secret.secret<i3>
   // CHECK: return
 }
+
+// CHECK-LABEL: @truth_table
+func.func @truth_table(
+    %arg0: !secret.secret<i1>, %arg1: !secret.secret<i1>) -> (!secret.secret<i1>) {
+  %1 = secret.generic ins(%arg0, %arg1:
+          !secret.secret<i1>, !secret.secret<i1>) {
+  ^bb0(%a0: i1, %a1: i1):
+    %0 = arith.addi %a0, %a1: i1
+    secret.yield %0 : i1
+  } -> (!secret.secret<i1>)
+  return %1 : !secret.secret<i1>
+  // CHECK: secret.cast
+  // CHECK-SAME: !secret.secret<i1> to !secret.secret<i1>
+  // CHECK: secret.cast
+  // CHECK-SAME: !secret.secret<i1> to !secret.secret<i1>
+
+  // Main computation
+  // CHECK: secret.generic
+  // Single truth table with initial (MSB) false value
+  // CHECK: comb.truth_table %false
+  // Truth table value is a 6
+  // CHECK-SAME: -> 6
+  // CHECK: secret.yield
+
+  // CHECK: secret.cast
+  // CHECK-SAME: !secret.secret<i1> to !secret.secret<i1>
+  // CHECK: return
+}

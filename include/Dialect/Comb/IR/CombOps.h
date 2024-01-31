@@ -14,6 +14,7 @@
 #define HEIR_INCLUDE_DIALECT_COMB_COMBOPS_H
 
 #include "include/Dialect/Comb/IR/CombDialect.h"
+#include "include/Dialect/HEIRInterfaces.h"
 #include "mlir/include/mlir/Bytecode/BytecodeOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/OpImplementation.h"  // from @llvm-project

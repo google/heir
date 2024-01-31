@@ -1,6 +1,7 @@
 #ifndef HEIR_INCLUDE_DIALECT_CGGI_IR_CGGIOPS_TD_
 #define HEIR_INCLUDE_DIALECT_CGGI_IR_CGGIOPS_TD_
 
+include "include/Dialect/HEIRInterfaces.td"
 include "include/Dialect/CGGI/IR/CGGIDialect.td"
 
 include "include/Dialect/Polynomial/IR/PolynomialAttributes.td"
@@ -53,7 +54,9 @@ class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
   Pure,
   Commutative,
   Elementwise,
-  Scalarizable
+  Scalarizable,
+  DeclareOpInterfaceMethods<LUTOpInterface>
+
 ]> {
   let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
