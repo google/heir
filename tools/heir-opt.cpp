@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <string>
 
 #include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 #include "include/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
@@ -15,11 +16,13 @@
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
+#include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "include/Transforms/Secretize/Passes.h"
+#include "include/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -63,8 +66,7 @@ using namespace tosa;
 using namespace heir;
 using mlir::func::FuncOp;
 
-void tosaPipelineBuilder(OpPassManager &manager) {
-  // TOSA to linalg
+void tosaToLinalg(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
   manager.addNestedPass<FuncOp>(createTosaToLinalg());
   manager.addNestedPass<FuncOp>(createTosaToArith(true, false));
@@ -73,6 +75,27 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createLinalgDetensorizePass());
   manager.addPass(createConvertTensorToLinalgPass());
   manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
+}
+
+void oneShotBufferize(OpPassManager &manager) {
+  // One-shot bufferize, from
+  // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
+  bufferization::OneShotBufferizationOptions bufferizationOptions;
+  bufferizationOptions.bufferizeFunctionBoundaries = true;
+  manager.addPass(
+      bufferization::createOneShotBufferizePass(bufferizationOptions));
+  manager.addPass(memref::createExpandReallocPass());
+  manager.addPass(bufferization::createOwnershipBasedBufferDeallocationPass());
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(bufferization::createBufferDeallocationSimplificationPass());
+  manager.addPass(bufferization::createLowerDeallocationsPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createCanonicalizerPass());
+}
+
+void tosaPipelineBuilder(OpPassManager &manager) {
+  // TOSA to linalg
+  tosaToLinalg(manager);
   // Bufferize
   manager.addNestedPass<FuncOp>(createLinalgBufferizePass());
   manager.addNestedPass<FuncOp>(tensor::createTensorBufferizePass());
@@ -113,19 +136,8 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
 
-  // One-shot bufferize, from
-  // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
-  bufferization::OneShotBufferizationOptions bufferizationOptions;
-  bufferizationOptions.bufferizeFunctionBoundaries = true;
-  manager.addPass(
-      bufferization::createOneShotBufferizePass(bufferizationOptions));
-  manager.addPass(memref::createExpandReallocPass());
-  manager.addPass(bufferization::createOwnershipBasedBufferDeallocationPass());
-  manager.addPass(createCanonicalizerPass());
-  manager.addPass(bufferization::createBufferDeallocationSimplificationPass());
-  manager.addPass(bufferization::createLowerDeallocationsPass());
-  manager.addPass(createCSEPass());
-  manager.addPass(createCanonicalizerPass());
+  // Bufferize
+  oneShotBufferize(manager);
 
   // Linalg must be bufferized before it can be lowered
   // But lowering to loops also re-introduces affine.apply, so re-lower that
@@ -154,6 +166,61 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createSCCPPass());
   manager.addPass(createCSEPass());
   manager.addPass(createSymbolDCEPass());
+}
+
+void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
+                               const std::string &abcPath) {
+  PassPipelineRegistration<YosysOptimizerPipelineOptions>(
+      "tosa-to-boolean-tfhe", "Arithmetic modules to boolean tfhe-rs pipeline.",
+      [yosysFilesPath, abcPath](OpPassManager &pm,
+                                const YosysOptimizerPipelineOptions &options) {
+        // Secretize inputs
+        pm.addPass(createSecretize());
+
+        // TOSA to linalg
+        tosaToLinalg(pm);
+
+        // Bufferize
+        oneShotBufferize(pm);
+
+        // Affine
+        pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
+        pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+        pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+        pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+        pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+        pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        pm.addPass(createExpandCopyPass());
+
+        // Cleanup
+        pm.addPass(createMemrefGlobalReplacePass());
+        arith::ArithIntNarrowingOptions arithOps;
+        arithOps.bitwidthsSupported = {4, 8, 16};
+        pm.addPass(arith::createArithIntNarrowing(arithOps));
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createSCCPPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSymbolDCEPass());
+
+        // Wrap with secret.generic and then distribute-generic.
+        pm.addPass(createWrapGeneric());
+        auto distributeOpts = secret::SecretDistributeGenericOptions{};
+        distributeOpts.opsToDistribute = {"affine.for", "affine.load",
+                                          "affine.store", "memref.get_global"};
+        pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
+        pm.addPass(createCanonicalizerPass());
+
+        // Booleanize and Yosys Optimize
+        pm.addPass(
+            createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast));
+
+        // Lower combinational circuit to Tfhe-Rust
+        pm.addPass(mlir::createCSEPass());
+        pm.addPass(comb::createCombToCGGI());
+        pm.addPass(createCGGIToTfheRust());
+        pm.addPass(mlir::createCSEPass());
+        pm.addPass(createCanonicalizerPass());
+      });
 }
 
 int main(int argc, char **argv) {
@@ -201,6 +268,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
   mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
+  tosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
 #endif
 
   // Dialect conversion passes in HEIR
