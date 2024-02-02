@@ -22,7 +22,6 @@
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "include/Transforms/Secretize/Passes.h"
-#include "include/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -168,6 +167,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createSymbolDCEPass());
 }
 
+#ifndef HEIR_NO_YOSYS
 void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
                                const std::string &abcPath) {
   PassPipelineRegistration<YosysOptimizerPipelineOptions>(
@@ -222,6 +222,7 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
         pm.addPass(createCanonicalizerPass());
       });
 }
+#endif
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
