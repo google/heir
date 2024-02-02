@@ -91,13 +91,37 @@ def ExpandCopyPass : Pass<"expand-copy", "mlir::ModuleOp"> {
       }
     }
     ```
+
+    When `--disable-affine-loop=true` is set, then the output becomes
+    ```
+    module {
+      func.func @memref_copy() {
+        %alloc = memref.alloc() : memref<2x3xi32>
+        %alloc_0 = memref.alloc() : memref<2x3xi32>
+        %c0 = arith.constant 0 : index
+        %c1 = arith.constant 1 : index
+        %c2 = arith.constant 2 : index
+        %0 = affine.load %alloc[%c0, %c0] : memref<2x3xi32>
+        affine.store %0, %alloc_0[%c0, %c0] : memref<2x3xi32>
+        %1 = affine.load %alloc[%c0, %c1] : memref<2x3xi32>
+        affine.store %1, %alloc_0[%c0, %c1] : memref<2x3xi32>
+        %2 = affine.load %alloc[%c0, %c2] : memref<2x3xi32>
+        affine.store %2, %alloc_0[%c0, %c2] : memref<2x3xi32>
+        [...]
+      }
+    }
+    ```
   }];
+
+  let options = [
+    Option<"disableAffineLoop", "disable-affine-loop", "bool", /*default=*/"false",
+           "Use this to control to disable using affine loops">,
+  ];
 
   let dependentDialects = [
     "mlir::affine::AffineDialect",
     "mlir::arith::ArithDialect",
     "mlir::memref::MemRefDialect",
-    "mlir::scf::SCFDialect",
   ];
 }
 
