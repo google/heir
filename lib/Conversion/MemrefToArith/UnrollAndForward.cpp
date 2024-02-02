@@ -9,7 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/MemrefToArith/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
@@ -40,6 +39,9 @@
 
 namespace mlir {
 namespace heir {
+
+#define GEN_PASS_DEF_UNROLLANDFORWARDPASS
+#include "include/Conversion/MemrefToArith/MemrefToArith.h.inc"
 
 namespace {
 
@@ -323,15 +325,10 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
 
 // UnrollAndForwardPass intends to forward scalars.
 struct UnrollAndForwardPass
-    : public PassWrapper<UnrollAndForwardPass, OperationPass<FuncOp>> {
-  void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
-                    mlir::arith::ArithDialect, mlir::scf::SCFDialect>();
-  }
+    : impl::UnrollAndForwardPassBase<UnrollAndForwardPass> {
+  using UnrollAndForwardPassBase::UnrollAndForwardPassBase;
 
   void runOnOperation() override;
-
-  StringRef getArgument() const final { return "unroll-and-forward"; }
 
  private:
   LogicalResult unrollAndForwardStores();
@@ -448,10 +445,6 @@ void UnrollAndForwardPass::runOnOperation() {
       continue;
     }
   }
-}
-
-std::unique_ptr<Pass> createUnrollAndForwardStoresPass() {
-  return std::make_unique<UnrollAndForwardPass>();
 }
 
 }  // namespace heir

@@ -26,6 +26,9 @@
 namespace mlir {
 namespace heir {
 
+#define GEN_PASS_DEF_MEMREFGLOBALREPLACEPASS
+#include "include/Conversion/MemrefToArith/MemrefToArith.h.inc"
+
 // MemrefGlobalLoweringPattern lowers global memrefs by looking for its usages
 // in modules and replacing them with in-module memref allocations and stores.
 // In order for all memref.globals to be lowered, this pattern requires that
@@ -124,12 +127,8 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
 // MemrefGlobalReplacementPass forwards global memref constants loads to
 // arithmetic constants.
 struct MemrefGlobalReplacementPass
-    : public mlir::PassWrapper<MemrefGlobalReplacementPass,
-                               mlir::OperationPass<mlir::ModuleOp>> {
-  void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
-                    mlir::arith::ArithDialect, mlir::scf::SCFDialect>();
-  }
+    : impl::MemrefGlobalReplacePassBase<MemrefGlobalReplacementPass> {
+  using MemrefGlobalReplacePassBase::MemrefGlobalReplacePassBase;
 
   void runOnOperation() override {
     mlir::ConversionTarget target(getContext());
@@ -139,13 +138,7 @@ struct MemrefGlobalReplacementPass
 
     (void)applyPartialConversion(getOperation(), target, std::move(patterns));
   }
-
-  mlir::StringRef getArgument() const final { return "memref-global-replace"; }
 };
-
-std::unique_ptr<Pass> createMemrefGlobalReplacePass() {
-  return std::make_unique<MemrefGlobalReplacementPass>();
-}
 
 }  // namespace heir
 }  // namespace mlir

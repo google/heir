@@ -18,13 +18,11 @@
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
+namespace heir {
 
 // This is used to pull in the pass options.
-#define GEN_PASS_DECL_EXTRACTLOOPBODYPASS
 #define GEN_PASS_DEF_EXTRACTLOOPBODYPASS
 #include "include/Conversion/MemrefToArith/MemrefToArith.h.inc"
-
-namespace heir {
 
 namespace {
 
@@ -196,13 +194,8 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
 // storing the result in an output memref. The function inputs become the loaded
 // values, and the function output is the value to store.
 struct ExtractLoopBodyPass
-    : public impl::ExtractLoopBodyPassBase<ExtractLoopBodyPass> {
-  ExtractLoopBodyPass() = default;
-
-  void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
-                    mlir::arith::ArithDialect>();
-  }
+    : impl::ExtractLoopBodyPassBase<ExtractLoopBodyPass> {
+  using ExtractLoopBodyPassBase::ExtractLoopBodyPassBase;
 
   void runOnOperation() override {
     auto module = getOperation();
@@ -214,13 +207,7 @@ struct ExtractLoopBodyPass
       extractLoopBody(op, minimumLoopSize, minimumBodySize);
     });
   }
-
-  mlir::StringRef getArgument() const final { return "extract-loop-body"; }
 };
-
-std::unique_ptr<Pass> createExtractLoopBodyPass() {
-  return std::make_unique<ExtractLoopBodyPass>();
-}
 
 }  // namespace heir
 }  // namespace mlir

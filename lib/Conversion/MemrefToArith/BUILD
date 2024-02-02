@@ -35,6 +35,7 @@ cc_library(
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
     deps = [
         ":Utils",
+        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
@@ -53,6 +54,7 @@ cc_library(
     srcs = ["ExpandCopy.cpp"],
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
     deps = [
+        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
@@ -90,6 +92,7 @@ cc_library(
     hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
     deps = [
         ":Utils",
+        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",

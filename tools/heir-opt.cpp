@@ -110,7 +110,7 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   manager.addPass(memref::createFoldMemRefAliasOpsPass());
   manager.addPass(createExpandCopyPass());
   manager.addPass(createExtractLoopBodyPass());
-  manager.addPass(createUnrollAndForwardStoresPass());
+  manager.addPass(createUnrollAndForwardPass());
   // Cleanup
   manager.addPass(createMemrefGlobalReplacePass());
   arith::ArithIntNarrowingOptions options;

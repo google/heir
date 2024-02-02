@@ -47,7 +47,12 @@ def MemrefGlobalReplacePass : Pass<"memref-global-replace", "mlir::ModuleOp"> {
 
   }];
 
-  let constructor = "createMemrefGlobalReplacePass()";
+  let dependentDialects = [
+    "mlir::affine::AffineDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::memref::MemRefDialect",
+    "mlir::scf::SCFDialect",
+  ];
 }
 
 def ExpandCopyPass : Pass<"expand-copy", "mlir::ModuleOp"> {
@@ -86,13 +91,17 @@ def ExpandCopyPass : Pass<"expand-copy", "mlir::ModuleOp"> {
       }
     }
     ```
-
   }];
 
-  let constructor = "createExpandCopyPass()";
+  let dependentDialects = [
+    "mlir::affine::AffineDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::memref::MemRefDialect",
+    "mlir::scf::SCFDialect",
+  ];
 }
 
-def UnrollAndForwardPass : Pass<"unroll-and-forward", "mlir::ModuleOp"> {
+def UnrollAndForwardPass : Pass<"unroll-and-forward", "func::FuncOp"> {
   let summary = "Loop unrolls and forwards stores to loads.";
 
   let description = [{
@@ -120,7 +129,12 @@ def UnrollAndForwardPass : Pass<"unroll-and-forward", "mlir::ModuleOp"> {
 
   }];
 
-  let constructor = "createUnrollAndForwardStoresPass()";
+  let dependentDialects = [
+    "mlir::affine::AffineDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::memref::MemRefDialect",
+    "mlir::scf::SCFDialect",
+  ];
 }
 
 def ExtractLoopBodyPass : Pass<"extract-loop-body", "mlir::ModuleOp"> {
@@ -194,7 +208,11 @@ def ExtractLoopBodyPass : Pass<"extract-loop-body", "mlir::ModuleOp"> {
            "Use this to control the minimum loop body size to apply this pass">,
   ];
 
-  let constructor = "createExtractLoopBodyPass()";
+  let dependentDialects = [
+    "mlir::affine::AffineDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::memref::MemRefDialect",
+  ];
 }
 
 #endif  // HEIR_INCLUDE_CONVERSION_MEMREFTOARITH_MEMREFTOARITH_TD_

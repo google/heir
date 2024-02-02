@@ -20,9 +20,12 @@
 namespace mlir {
 namespace heir {
 
-// MemrefCopyExpansionPass expands a `memref.copy` with explicit affine loads
+#define GEN_PASS_DEF_EXPANDCOPYPASS
+#include "include/Conversion/MemrefToArith/MemrefToArith.h.inc"
+
+// MemrefCopyExpansionPattern expands a `memref.copy` with explicit affine loads
 // stores.
-class MemrefCopyExpansionPass final
+class MemrefCopyExpansionPattern final
     : public mlir::OpRewritePattern<mlir::memref::CopyOp> {
   using OpRewritePattern<memref::CopyOp>::OpRewritePattern;
 
@@ -57,14 +60,8 @@ class MemrefCopyExpansionPass final
 };
 
 // ExpandCopyPass intends to remove all memref copy operations.
-struct ExpandCopyPass
-    : public mlir::PassWrapper<ExpandCopyPass,
-                               mlir::OperationPass<mlir::ModuleOp>> {
-  void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
-                    mlir::arith::ArithDialect, mlir::scf::SCFDialect>();
-  }
-
+struct ExpandCopyPass : impl::ExpandCopyPassBase<ExpandCopyPass> {
+  using ExpandCopyPassBase::ExpandCopyPassBase;
   void runOnOperation() override {
     mlir::ConversionTarget target(getContext());
     target.addIllegalOp<mlir::memref::CopyOp>();
@@ -72,17 +69,11 @@ struct ExpandCopyPass
                            mlir::affine::AffineDialect>();
 
     mlir::RewritePatternSet patterns(&getContext());
-    patterns.add<MemrefCopyExpansionPass>(&getContext());
+    patterns.add<MemrefCopyExpansionPattern>(&getContext());
 
     (void)applyPartialConversion(getOperation(), target, std::move(patterns));
   }
-
-  mlir::StringRef getArgument() const final { return "expand-copy"; }
 };
-
-std::unique_ptr<Pass> createExpandCopyPass() {
-  return std::make_unique<ExpandCopyPass>();
-}
 
 }  // namespace heir
 }  // namespace mlir
