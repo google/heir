@@ -1,5 +1,6 @@
 #include "include/Target/Metadata/MetadataEmitter.h"
 #include "include/Target/OpenFhePke/OpenFhePkeEmitter.h"
+#include "include/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 #include "include/Target/TfheRust/TfheRustEmitter.h"
 #include "include/Target/TfheRustBool/TfheRustBoolEmitter.h"
 #include "include/Target/Verilog/VerilogEmitter.h"
@@ -17,6 +18,7 @@ int main(int argc, char **argv) {
 
   // OpenFHE
   mlir::heir::openfhe::registerToOpenFhePkeTranslation();
+  mlir::heir::openfhe::registerToOpenFhePkeHeaderTranslation();
 
   return failed(mlir::mlirTranslateMain(argc, argv, "HEIR Translation Tool"));
 }

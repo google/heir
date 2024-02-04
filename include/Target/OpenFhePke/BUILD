@@ -6,7 +6,7 @@ package(
 )
 
 exports_files(
-    srcs = ["OpenFhePkeEmitter.h"],
+    srcs = glob(["*.h"]),
 )
 
 cc_library(

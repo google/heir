@@ -1,5 +1,5 @@
-#ifndef INCLUDE_TARGET_OPENFHEPKE_OPENFHEPKEEMITTER_H_
-#define INCLUDE_TARGET_OPENFHEPKE_OPENFHEPKEEMITTER_H_
+#ifndef INCLUDE_TARGET_OPENFHEPKE_OPENFHEPKEHEADEREMITTER_H_
+#define INCLUDE_TARGET_OPENFHEPKE_OPENFHEPKEHEADEREMITTER_H_
 
 #include <string>
 #include <string_view>
@@ -7,7 +7,6 @@
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "include/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
@@ -22,15 +21,17 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-void registerToOpenFhePkeTranslation();
+void registerToOpenFhePkeHeaderTranslation();
 
 /// Translates the given operation to OpenFhePke.
-::mlir::LogicalResult translateToOpenFhePke(::mlir::Operation *op,
-                                            llvm::raw_ostream &os);
+::mlir::LogicalResult translateToOpenFhePkeHeader(::mlir::Operation *op,
+                                                  llvm::raw_ostream &os);
 
-class OpenFhePkeEmitter {
+/// For each function in the mlir module, emits a function header declaration
+/// along with any necessary includes.
+class OpenFhePkeHeaderEmitter {
  public:
-  OpenFhePkeEmitter(raw_ostream &os, SelectVariableNames *variableNames);
+  OpenFhePkeHeaderEmitter(raw_ostream &os, SelectVariableNames *variableNames);
 
   LogicalResult translate(::mlir::Operation &operation);
 
@@ -44,27 +45,14 @@ class OpenFhePkeEmitter {
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
-  LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
-  LogicalResult printOperation(::mlir::func::ReturnOp op);
-  LogicalResult printOperation(AddOp op);
-  LogicalResult printOperation(SubOp op);
-  LogicalResult printOperation(MulOp op);
-
-  // Helpers for above
-  LogicalResult printEvalMethod(::mlir::Value result,
-                                ::mlir::Value cryptoContext,
-                                ::mlir::ValueRange nonEvalOperands,
-                                std::string_view op);
 
   // Emit an OpenFhe type
   LogicalResult emitType(Type type);
-
-  void emitAssignPrefix(::mlir::Value result);
 };
 
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_TARGET_OPENFHEPKE_OPENFHEPKEEMITTER_H_
+#endif  // INCLUDE_TARGET_OPENFHEPKE_OPENFHEPKEHEADEREMITTER_H_
