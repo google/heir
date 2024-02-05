@@ -7,7 +7,7 @@ Input
 module { func.func @memref_copy() { %alloc = memref.alloc() : memref<2x3xi32> %alloc_0 = memref.alloc() : memref<2x3xi32> memref.copy %alloc, %alloc_0 : memref<1x1xi32> to memref<1x1xi32> } } Output"><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/passes/memreftoarith/"><meta property="article:section" content="docs"><meta itemprop=name content="MemrefToArith"><meta itemprop=description content="-expand-copy Expands memref.copy ops to explicit affine loads and stores
 This pass removes memref copy operations by expanding them to affine loads and stores. This pass introduces affine loops over the dimensions of the MemRef, so must be run prior to any affine loop unrolling in a pipeline.
 Input
-module { func.func @memref_copy() { %alloc = memref.alloc() : memref<2x3xi32> %alloc_0 = memref.alloc() : memref<2x3xi32> memref.copy %alloc, %alloc_0 : memref<1x1xi32> to memref<1x1xi32> } } Output"><meta itemprop=wordCount content="769"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="MemrefToArith"><meta name=twitter:description content="-expand-copy Expands memref.copy ops to explicit affine loads and stores
+module { func.func @memref_copy() { %alloc = memref.alloc() : memref<2x3xi32> %alloc_0 = memref.alloc() : memref<2x3xi32> memref.copy %alloc, %alloc_0 : memref<1x1xi32> to memref<1x1xi32> } } Output"><meta itemprop=wordCount content="864"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="MemrefToArith"><meta name=twitter:description content="-expand-copy Expands memref.copy ops to explicit affine loads and stores
 This pass removes memref copy operations by expanding them to affine loads and stores. This pass introduces affine loops over the dimensions of the MemRef, so must be run prior to any affine loop unrolling in a pipeline.
 Input
 module { func.func @memref_copy() { %alloc = memref.alloc() : memref<2x3xi32> %alloc_0 = memref.alloc() : memref<2x3xi32> memref.copy %alloc, %alloc_0 : memref<1x1xi32> to memref<1x1xi32> } } Output"><link rel=preload href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
@@ -34,6 +34,23 @@ MemRef, so must be run prior to any affine loop unrolling in a pipeline.</p><p>I
     }
   }
 }
+</code></pre><p>When <code>--disable-affine-loop=true</code> is set, then the output becomes</p><pre tabindex=0><code>module {
+  func.func @memref_copy() {
+    %alloc = memref.alloc() : memref&lt;2x3xi32&gt;
+    %alloc_0 = memref.alloc() : memref&lt;2x3xi32&gt;
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %0 = affine.load %alloc[%c0, %c0] : memref&lt;2x3xi32&gt;
+    affine.store %0, %alloc_0[%c0, %c0] : memref&lt;2x3xi32&gt;
+    %1 = affine.load %alloc[%c0, %c1] : memref&lt;2x3xi32&gt;
+    affine.store %1, %alloc_0[%c0, %c1] : memref&lt;2x3xi32&gt;
+    %2 = affine.load %alloc[%c0, %c2] : memref&lt;2x3xi32&gt;
+    affine.store %2, %alloc_0[%c0, %c2] : memref&lt;2x3xi32&gt;
+    [...]
+  }
+}
+</code></pre><h4 id=options>Options</h4><pre tabindex=0><code>-disable-affine-loop : Use this to control to disable using affine loops
 </code></pre><h3 id=-extract-loop-body><code>-extract-loop-body</code></h3><p><em>Extracts logic of a loop bodies into functions.</em></p><p>This pass extracts logic in the inner body of for loops into functions.</p><p>This pass requires that tensors are lowered to memref. It expects that a
 loop body contains a number of affine.load statements used as inputs to the
 extracted function, and a single affine.store used as the extracted
@@ -79,7 +96,7 @@ function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
     return %102 : i8
   }
 }
-</code></pre><h4 id=options>Options</h4><pre tabindex=0><code>-min-loop-size : Use this to control the minimum loop size to apply this pass
+</code></pre><h4 id=options-1>Options</h4><pre tabindex=0><code>-min-loop-size : Use this to control the minimum loop size to apply this pass
 -min-body-size : Use this to control the minimum loop body size to apply this pass
 </code></pre><h3 id=-memref-global-replace><code>-memref-global-replace</code></h3><p><em>MemrefGlobalReplacePass forwards global memrefs accessors to arithmetic values</em></p><p>This pass forwards constant global MemRef values to referencing affine
 loads. This pass requires that the MemRef global values are initialized as

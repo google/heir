@@ -70,6 +70,25 @@ affine.store %1, %alloc_0[%arg0, %arg1] : memref&amp;lt;2x3xi32&amp;gt;
 }
 }
 }
+&lt;/code>&lt;/pre>&lt;p>When &lt;code>--disable-affine-loop=true&lt;/code> is set, then the output becomes&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @memref_copy() {
+%alloc = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%alloc_0 = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%c0 = arith.constant 0 : index
+%c1 = arith.constant 1 : index
+%c2 = arith.constant 2 : index
+%0 = affine.load %alloc[%c0, %c0] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %0, %alloc_0[%c0, %c0] : memref&amp;lt;2x3xi32&amp;gt;
+%1 = affine.load %alloc[%c0, %c1] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %1, %alloc_0[%c0, %c1] : memref&amp;lt;2x3xi32&amp;gt;
+%2 = affine.load %alloc[%c0, %c2] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %2, %alloc_0[%c0, %c2] : memref&amp;lt;2x3xi32&amp;gt;
+[...]
+}
+}
+&lt;/code>&lt;/pre>&lt;h4 id="options">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-disable-affine-loop : Use this to control to disable using affine loops
 &lt;/code>&lt;/pre>&lt;h3 id="-extract-loop-body">&lt;code>-extract-loop-body&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Extracts logic of a loop bodies into functions.&lt;/em>&lt;/p>
 &lt;p>This pass extracts logic in the inner body of for loops into functions.&lt;/p>
@@ -121,7 +140,7 @@ func.func private @__for_loop(%arg0: i8) -&amp;gt; i8 {
 return %102 : i8
 }
 }
-&lt;/code>&lt;/pre>&lt;h4 id="options">Options&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="options-1">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-min-loop-size : Use this to control the minimum loop size to apply this pass
 -min-body-size : Use this to control the minimum loop body size to apply this pass
 &lt;/code>&lt;/pre>&lt;h3 id="-memref-global-replace">&lt;code>-memref-global-replace&lt;/code>&lt;/h3>
