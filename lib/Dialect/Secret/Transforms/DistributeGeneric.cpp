@@ -429,43 +429,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
                                      PatternRewriter &rewriter) const {
     Operation &firstOp = genericOp.getBody()->front();
     LLVM_DEBUG(firstOp.emitRemark() << " splitting generic after this op\n");
-
-    // Result types are secret versions of the results of the op, since the
-    // secret will yield all of this op's results immediately.
-    SmallVector<Type> newResultTypes;
-    newResultTypes.reserve(firstOp.getNumResults());
-    for (Type ty : firstOp.getResultTypes()) {
-      newResultTypes.push_back(SecretType::get(ty));
-    }
-
-    auto newGeneric = rewriter.create<GenericOp>(
-        genericOp.getLoc(), genericOp.getInputs(), newResultTypes,
-        [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
-          IRMapping mp;
-          for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
-            mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
-          }
-          auto *newOp = b.clone(firstOp, mp);
-          b.create<YieldOp>(loc, newOp->getResults());
-        });
-
+    auto newGeneric = genericOp.extractOpBeforeGeneric(&firstOp, rewriter);
     LLVM_DEBUG(newGeneric.emitRemark() << " created new generic op\n");
-
-    // Once the op is split off into a new generic op, we need to add new
-    // operands to the old generic op, add new corresponding block arguments,
-    // and replace all uses of the opToDistribute's results with the created
-    // block arguments.
-    SmallVector<Value> oldGenericNewBlockArgs;
-    rewriter.modifyOpInPlace(genericOp, [&]() {
-      genericOp.getInputsMutable().append(newGeneric.getResults());
-      for (auto ty : firstOp.getResultTypes()) {
-        BlockArgument arg =
-            genericOp.getBody()->addArgument(ty, firstOp.getLoc());
-        oldGenericNewBlockArgs.push_back(arg);
-      }
-    });
-    rewriter.replaceOp(&firstOp, oldGenericNewBlockArgs);
-
     return newGeneric;
   }
 

@@ -75,26 +75,7 @@ struct ConvertGeneric : public OpConversionPattern<GenericOp> {
   LogicalResult matchAndRewrite(
       GenericOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    Block *originalBlock = op->getBlock();
-    Block &opEntryBlock = op.getRegion().front();
-    YieldOp yieldOp = dyn_cast<YieldOp>(op.getRegion().back().getTerminator());
-
-    // Inline the op's (unique) block, including the yield op. This also
-    // requires splitting the parent block of the generic op, so that we have a
-    // clear insertion point for inlining.
-    Block *newBlock = rewriter.splitBlock(originalBlock, Block::iterator(op));
-    rewriter.inlineRegionBefore(op.getRegion(), newBlock);
-
-    // Now that op's region is inlined, the operands of its YieldOp are mapped
-    // to the materialized target values. Therefore, we can replace the op's
-    // uses with those of its YieldOp's operands.
-    rewriter.replaceOp(op, yieldOp->getOperands());
-
-    // No need for these intermediate blocks, merge them into 1.
-    rewriter.mergeBlocks(&opEntryBlock, originalBlock, adaptor.getOperands());
-    rewriter.mergeBlocks(newBlock, originalBlock, {});
-
-    rewriter.eraseOp(yieldOp);
+    op.inlineInPlaceDroppingSecrets(rewriter, adaptor.getOperands());
     return success();
   }
 };

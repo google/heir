@@ -1,6 +1,8 @@
 #ifndef INCLUDE_DIALECT_SECRET_IR_SECRETPATTERNS_H_
 #define INCLUDE_DIALECT_SECRET_IR_SECRETPATTERNS_H_
 
+#include <utility>
+
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
@@ -154,6 +156,49 @@ struct DedupeYieldedValues : public OpRewritePattern<GenericOp> {
  public:
   LogicalResult matchAndRewrite(GenericOp op,
                                 PatternRewriter &rewriter) const override;
+};
+
+// Hoist an op out of a generic and place it before the generic (in a new
+// generic block), if possible. This will be impossible if one of the op's
+// operands depends on another SSA value defined by an op inside the
+// generic.
+//
+// Accepts a list of op names to hoist.
+struct HoistOpBeforeGeneric : public OpRewritePattern<GenericOp> {
+  HoistOpBeforeGeneric(mlir::MLIRContext *context,
+                       std::vector<std::string> opTypes)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1),
+        opTypes(std::move(opTypes)) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+
+  bool canHoist(Operation &op) const;
+
+ private:
+  std::vector<std::string> opTypes;
+};
+
+// Hoist an op out of a generic and place it after the generic (in a new
+// generic block), if possible. This will be impossible if one of the op's
+// results is used by another op inside the generic before the yield.
+//
+// Accepts a list of op names to hoist.
+struct HoistOpAfterGeneric : public OpRewritePattern<GenericOp> {
+  HoistOpAfterGeneric(mlir::MLIRContext *context,
+                      std::vector<std::string> opTypes)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1),
+        opTypes(std::move(opTypes)) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+
+  bool canHoist(Operation &op) const;
+
+ private:
+  std::vector<std::string> opTypes;
 };
 
 }  // namespace secret

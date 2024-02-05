@@ -92,6 +92,7 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
   for (int i = 0; i < body->getArguments().size(); ++i) {
     BlockArgument arg = body->getArguments()[i];
     if (arg.use_empty()) {
+      LLVM_DEBUG(llvm::dbgs() << arg << " has no uses; removing\n");
       hasUnusedOps = true;
       rewriter.modifyOpInPlace(op, [&]() {
         body->eraseArgument(i);
@@ -99,6 +100,36 @@ LogicalResult RemoveUnusedGenericArgs::matchAndRewrite(
       });
       // Ensure the next iteration uses the right arg number
       --i;
+    } else if (llvm::any_of(arg.getUsers(), [&](Operation *user) {
+                 return llvm::isa<YieldOp>(user);
+               })) {
+      LLVM_DEBUG(llvm::dbgs() << arg << " is passed through to yield\n");
+      // In this case, the arg is passed through to the yield, and the yield
+      // can be removed and replaced with the operand. Note we don't need to
+      // remove the block argument itself since a subsequent iteration of this
+      // pattern will detect if that is possible (if it has no other uses).
+      Value replacementValue = op.getOperand(arg.getArgNumber());
+      SmallVector<Value> yieldedValuesToRemove;
+      SmallVector<Value> resultsToReplace;
+      SmallVector<Value> replacementValues;
+
+      for (auto &opOperand : op.getYieldOp()->getOpOperands()) {
+        if (opOperand.get() == arg) {
+          yieldedValuesToRemove.push_back(opOperand.get());
+          resultsToReplace.push_back(
+              op.getResult(opOperand.getOperandNumber()));
+          replacementValues.push_back(replacementValue);
+        }
+      }
+      rewriter.replaceAllUsesWith(resultsToReplace, replacementValues);
+
+      SmallVector<Value> remainingResults;
+      auto modifiedGeneric = op.removeYieldedValues(yieldedValuesToRemove,
+                                                    rewriter, remainingResults);
+      rewriter.replaceAllUsesWith(remainingResults,
+                                  modifiedGeneric.getResults());
+      rewriter.eraseOp(op);
+      return success();
     }
   }
 
@@ -403,6 +434,82 @@ LogicalResult DedupeYieldedValues::matchAndRewrite(
   LLVM_DEBUG({
     llvm::dbgs() << "After replacing generic\n";
     modifiedGeneric.dump();
+  });
+  return success();
+}
+
+bool HoistOpBeforeGeneric::canHoist(Operation &op) const {
+  bool inConfiguredList =
+      std::find(opTypes.begin(), opTypes.end(), op.getName().getStringRef()) !=
+      opTypes.end();
+  bool allOperandsAreBlockArgsOrAmbient =
+      llvm::all_of(op.getOperands(), [&](Value operand) {
+        return isa<BlockArgument>(operand) ||
+               operand.getDefiningOp()->getBlock() != op.getBlock();
+      });
+  return inConfiguredList && allOperandsAreBlockArgsOrAmbient;
+}
+
+LogicalResult HoistOpBeforeGeneric::matchAndRewrite(
+    GenericOp genericOp, PatternRewriter &rewriter) const {
+  auto &opRange = genericOp.getBody()->getOperations();
+  if (opRange.size() <= 2) {
+    // This corresponds to a fixed point of the pattern: if an op is hoisted,
+    // it will be in a single-op generic, (yield is the second op), and if
+    // that triggers the pattern, it will be an infinite loop.
+    return failure();
+  }
+
+  auto it = std::find_if(opRange.begin(), opRange.end(),
+                         [&](Operation &op) { return canHoist(op); });
+  if (it == opRange.end()) {
+    return failure();
+  }
+
+  Operation *opToHoist = &*it;
+  LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
+  genericOp.extractOpBeforeGeneric(opToHoist, rewriter);
+  LLVM_DEBUG({
+    Operation *parent = genericOp->getParentOp();
+    llvm::dbgs() << "After hoisting op\n";
+    parent->dump();
+  });
+  return success();
+}
+
+bool HoistOpAfterGeneric::canHoist(Operation &op) const {
+  bool inConfiguredList =
+      std::find(opTypes.begin(), opTypes.end(), op.getName().getStringRef()) !=
+      opTypes.end();
+  bool allUsesAreYields = llvm::all_of(
+      op.getUsers(), [&](Operation *user) { return isa<YieldOp>(user); });
+  return inConfiguredList && allUsesAreYields;
+}
+
+LogicalResult HoistOpAfterGeneric::matchAndRewrite(
+    GenericOp genericOp, PatternRewriter &rewriter) const {
+  auto &opRange = genericOp.getBody()->getOperations();
+  if (opRange.size() <= 2) {
+    // This corresponds to a fixed point of the pattern: if an op is hoisted,
+    // it will be in a single-op generic, (yield is the second op), and if
+    // that triggers the pattern, it will be an infinite loop.
+    return failure();
+  }
+
+  auto it = std::find_if(opRange.begin(), opRange.end(),
+                         [&](Operation &op) { return canHoist(op); });
+  if (it == opRange.end()) {
+    return failure();
+  }
+
+  Operation *opToHoist = &*it;
+  LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
+
+  extractOpAfterGeneric(genericOp, opToHoist, rewriter);
+  LLVM_DEBUG({
+    Operation *parent = genericOp->getParentOp();
+    llvm::dbgs() << "After hoisting op\n";
+    parent->dump();
   });
   return success();
 }
