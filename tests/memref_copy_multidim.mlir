@@ -1,4 +1,5 @@
-// RUN: heir-opt --expand-copy %s | FileCheck %s
+// RUN: heir-opt --expand-copy %s | FileCheck --check-prefix=LOOP --check-prefix=CHECK %s
+// RUN: heir-opt --expand-copy=disable-affine-loop=true %s | FileCheck --check-prefix=NO-LOOP --check-prefix=CHECK %s
 
 // This verifies that --expand-copy removes memref.copy and rewrites with affine
 // loads and stores.
@@ -13,9 +14,9 @@ func.func @memref_copy() -> i32 {
   %alloc0 = memref.alloc() : memref<2x2xi32>
   affine.store %c_42, %alloc[%c0, %c0] :  memref<2x2xi32>
   // CHECK-NOT: memref.copy
-  // CHECK: affine.for
-  // CHECK: affine.for
-  // CHECK-NEXT: affine.load {{.*}}[[MEM1]]
+  // LOOP-COUNT-2: affine.for
+  // NO-LOOP-NOT: affine.for
+  // CHECK: affine.load {{.*}}[[MEM1]]
   // CHECK-NEXT: affine.store {{.*}}[[MEM2]]
   memref.copy %alloc, %alloc0 : memref<2x2xi32> to memref<2x2xi32>
   %v1 = arith.addi %c_42, %c_42 : i32
