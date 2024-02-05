@@ -315,3 +315,29 @@ git_repository(
     remote = "https://github.com/google/or-tools.git",
     shallow_since = "1647023481 +0100",
 )
+
+# OpenFHE backend and dependencies
+git_repository(
+    name = "cereal",
+    build_file = "//bazel/openfhe:cereal.BUILD",
+    commit = "ebef1e929807629befafbb2918ea1a08c7194554",
+    remote = "https://github.com/USCiLab/cereal.git",
+)
+
+git_repository(
+    name = "rapidjson",
+    build_file = "//bazel/openfhe:rapidjson.BUILD",
+    commit = "f54b0e47a08782a6131cc3d60f94d038fa6e0a51",
+    remote = "https://github.com/Tencent/rapidjson.git",
+)
+
+git_repository(
+    name = "openfhe",
+    build_file = "//bazel/openfhe:openfhe.BUILD",
+    # TODO(#424): update to v1.1.3, which fixes issues with scheme switching
+    # that show up when run with sanitizers enabled
+    # Currently v1.1.2, 2023-12-26
+    commit = "b2869aef5cf61afd364b3eaea748dcc8a7020b9c",
+    patches = ["@heir//bazel/openfhe:add_config_core.patch"],
+    remote = "https://github.com/openfheorg/openfhe-development.git",
+)
