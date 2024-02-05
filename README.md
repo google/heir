@@ -4,6 +4,7 @@
 ![GitHub Contributors](https://img.shields.io/github/contributors/google/heir)
 ![GitHub Discussions](https://img.shields.io/github/discussions/google/heir)
 ![GitHub License](https://img.shields.io/github/license/google/heir)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/google/heir/badge)](https://securityscorecards.dev/viewer/?uri=github.com/google/heir)
 
 An MLIR-based toolchain for
 [homomorphic encryption](https://en.wikipedia.org/wiki/Homomorphic_encryption)
