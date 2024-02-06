@@ -1,9 +1,6 @@
 load("//bazel:lit.bzl", "glob_lit_tests")
 
-package(
-    default_applicable_licenses = ["@heir//:license"],
-    default_visibility = ["//visibility:public"],
-)
+package(default_applicable_licenses = ["@heir//:license"])
 
 filegroup(
     name = "yosys_test_utilities",
