@@ -11,9 +11,42 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 jobs:
-  build-and-test:
+  check-cache:
     runs-on:
-      labels: ubuntu-20.04-16core
+      labels: ubuntu-20.04-4core
+    outputs:
+      runner: ${{ steps.runner.outputs.runner }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
+      - name: Cache bazel build artifacts
+        id: cache
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # pin@v3.3.1
+        with:
+          path: |
+            ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-${{ hashFiles('bazel/import_llvm.bzl') }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
+          lookup-only: true
+      - name: Select runner
+        id: runner
+        env:
+          CACHE_HIT: ${{ steps.cache.outputs.cache-hit  == 'true' }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${CACHE_HIT}" == "true" ]]; then
+            echo "runner=ubuntu-20.04-4core" >> "$GITHUB_OUTPUT"
+          else
+            echo "runner=ubuntu-20.04-16core" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-test:
+    needs: check-cache
+    runs-on:
+      labels: ${{ needs.check-cache.outputs.runner }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3

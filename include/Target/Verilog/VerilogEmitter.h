@@ -62,6 +62,7 @@ class VerilogEmitter {
 
   /// Map from a Value to name of Verilog variable that is bound to the value.
   llvm::DenseMap<Value, std::string> value_to_wire_name_;
+  llvm::SmallVector<std::string> output_wire_names_;
 
   // Globally unique identifiers for values
   int64_t value_count_;
@@ -116,6 +117,7 @@ class VerilogEmitter {
   LogicalResult emitType(Type type);
   LogicalResult emitType(Type type, raw_ostream &os);
   LogicalResult emitIndexType(Value indexValue, raw_ostream &os);
+
   // Emit a Verilog array shape specifier of the form `[width]`
   LogicalResult emitArrayShapeSuffix(Type type);
 
@@ -130,6 +132,8 @@ class VerilogEmitter {
   StringRef getOrCreateName(BlockArgument arg);
   StringRef getOrCreateName(Value value);
   StringRef getOrCreateName(Value value, std::string_view prefix);
+  StringRef getOrCreateOutputWireName(int resultIndex);
+  StringRef getOutputWireName(int resultIndex);
   StringRef getName(Value value);
 };
 

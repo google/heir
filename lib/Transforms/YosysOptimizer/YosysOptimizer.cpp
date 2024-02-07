@@ -9,6 +9,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "include/Dialect/Comb/IR/CombDialect.h"
 #include "include/Dialect/Secret/IR/SecretOps.h"
@@ -17,16 +18,21 @@
 #include "include/Target/Verilog/VerilogEmitter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/LoopUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -45,7 +51,7 @@
 #include "kernel/yosys.h" // from @at_clifford_yosys
 // clang-format on
 
-#define DEBUG_TYPE "yosysoptimizer"
+#define DEBUG_TYPE "yosys-optimizer"
 
 namespace mlir {
 namespace heir {
@@ -62,21 +68,27 @@ using std::string;
 constexpr std::string_view kYosysTemplate = R"(
 read_verilog {0};
 hierarchy -check -top \{1};
-proc; memory;
-techmap -map {2}/techmap.v; opt;
-abc -exe {3} -lut 3 {4};
-opt_clean -purge;
+proc; memory; stat;
+techmap -map {2}/techmap.v; stat;
+opt; stat;
+abc -exe {3} -lut 3 {4}; stat;
+opt_clean -purge; stat;
 rename -hide */c:*; rename -enumerate */c:*;
 techmap -map {2}/map_lut_to_lut3.v; opt_clean -purge;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
+stat;
 )";
 
 struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   using YosysOptimizerBase::YosysOptimizerBase;
 
-  YosysOptimizer(std::string yosysFilesPath, std::string abcPath, bool abcFast)
-      : yosysFilesPath(yosysFilesPath), abcPath(abcPath), abcFast(abcFast) {}
+  YosysOptimizer(std::string yosysFilesPath, std::string abcPath, bool abcFast,
+                 int unrollFactor)
+      : yosysFilesPath(std::move(yosysFilesPath)),
+        abcPath(std::move(abcPath)),
+        abcFast(abcFast),
+        unrollFactor(unrollFactor) {}
 
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
     registry.insert<comb::CombDialect, mlir::arith::ArithDialect,
@@ -92,6 +104,7 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   std::string abcPath;
 
   bool abcFast;
+  int unrollFactor;
 };
 
 Value convertIntegerValue(Value value, Type convertedType, OpBuilder &b,
@@ -140,7 +153,8 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
 
     secret::SecretType originalType =
         opOperand.get().getType().cast<secret::SecretType>();
-    if (!originalType.getValueType().isa<IntegerType>()) {
+
+    if (!originalType.getValueType().isa<IntegerType, MemRefType>()) {
       op.emitError() << "Unsupported input type to secret.generic: "
                      << originalType.getValueType();
       return failure();
@@ -204,6 +218,109 @@ LogicalResult convertOpResults(secret::GenericOp op,
   return success();
 }
 
+/// Move affine.apply to the start of an affine.for's body. This makes the
+/// assumption that affine.apply's are independent of each other within the
+/// body of a loop nest, which is probably not true in general, but may suffice
+/// for this pass, in which the loop unrolling inserts a single affine.apply op
+/// between two generics in the unrolled loop body.
+class FrontloadAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
+ public:
+  using OpRewritePattern<affine::AffineApplyOp>::OpRewritePattern;
+
+  FrontloadAffineApply(MLIRContext *context, affine::AffineForOp parentOp)
+      : OpRewritePattern(context, /*benefit=*/3), parentOp(parentOp) {}
+
+  LogicalResult matchAndRewrite(affine::AffineApplyOp op,
+                                PatternRewriter &rewriter) const override {
+    auto forOp = op->getParentOfType<affine::AffineForOp>();
+    if (!forOp) return failure();
+    if (forOp != parentOp) return failure();
+
+    for (auto &earlierOp : forOp.getBody()->getOperations()) {
+      if (&earlierOp == op) break;
+
+      if (!isa<affine::AffineApplyOp>(earlierOp)) {
+        rewriter.setInsertionPoint(&earlierOp);
+        rewriter.replaceOp(op, rewriter.clone(*op.getOperation()));
+        return success();
+      }
+    }
+    return failure();
+  }
+
+ private:
+  affine::AffineForOp parentOp;
+};
+
+/// Convert an "affine.apply" operation into a sequence of arithmetic
+/// operations using the StandardOps dialect.
+class ExpandAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
+ public:
+  using OpRewritePattern<affine::AffineApplyOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(affine::AffineApplyOp op,
+                                PatternRewriter &rewriter) const override {
+    auto maybeExpandedMap =
+        affine::expandAffineMap(rewriter, op.getLoc(), op.getAffineMap(),
+                                llvm::to_vector<8>(op.getOperands()));
+    if (!maybeExpandedMap) return failure();
+    rewriter.replaceOp(op, *maybeExpandedMap);
+    return success();
+  }
+};
+
+LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
+                                     DominanceInfo &domInfo,
+                                     PostDominanceInfo &postDomInfo) {
+  SmallVector<affine::AffineForOp> nestedLoops;
+
+  auto walkResult =
+      op->walk<WalkOrder::PreOrder>([&](affine::AffineForOp forOp) {
+        LLVM_DEBUG(forOp.emitRemark() << "Visiting loop nest");
+        SmallVector<affine::AffineForOp> nestedLoops;
+        mlir::affine::getPerfectlyNestedLoops(nestedLoops, forOp);
+
+        // We unroll the inner-most loop nest, if it consists of a single
+        // generic as the body. Note that unrolling replaces the loop with a new
+        // loop, and as a result the replaced loop is visisted again in the
+        // walk. This means we must ensure that the post-condition of the
+        // processing in this function. doesn't trigger this logic a second
+        // time.
+        affine::AffineForOp innerMostLoop = nestedLoops.back();
+        // two ops because the last one must be affine.yield
+        bool containsSingleOp =
+            innerMostLoop.getBody()->getOperations().size() == 2;
+        bool firstOpIsGeneric = isa<secret::GenericOp>(
+            innerMostLoop.getBody()->getOperations().front());
+        if (!containsSingleOp || !firstOpIsGeneric) {
+          LLVM_DEBUG(innerMostLoop.emitRemark()
+                     << "Skipping loop nest because either it contains more "
+                     << "than one op or its sole op is not a generic op.\n");
+          return WalkResult::skip();
+        }
+
+        if (failed(loopUnrollUpToFactor(innerMostLoop, unrollFactor))) {
+          return WalkResult::interrupt();
+        }
+        LLVM_DEBUG(innerMostLoop.emitRemark() << "Post loop unroll");
+
+        mlir::RewritePatternSet patterns(op->getContext());
+        patterns.add<FrontloadAffineApply, secret::MergeAdjacentGenerics>(
+            op->getContext(), innerMostLoop);
+        if (failed(applyPatternsAndFoldGreedily(op, std::move(patterns)))) {
+          return WalkResult::interrupt();
+        }
+
+        LLVM_DEBUG(innerMostLoop.emitRemark()
+                   << "Post merge generics (without cleanup)");
+        // Success means we do not process any more nodes within this loop nest,
+        // This corresponds to skipping this node in the walk.
+        return WalkResult::skip();
+      });
+
+  return walkResult.wasInterrupted() ? failure() : success();
+}
+
 LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
                              const std::string &yosysFilesPath,
                              const std::string &abcPath, bool abcFast) {
@@ -228,6 +345,8 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
   // func.func. It's necessary to wait for the migration because the Yosys API
   // used here maintains global state that apparently does not play nicely with
   // the instantiation of multiple rewrite patterns.
+  LLVM_DEBUG(op.emitRemark() << "Emitting verilog for this op");
+
   char *filename = std::tmpnam(nullptr);
   std::error_code ec;
   llvm::raw_fd_ostream of(filename, ec);
@@ -239,6 +358,14 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
     return failure();
   }
   of.close();
+
+  LLVM_DEBUG({
+    std::string result;
+    llvm::raw_string_ostream os(result);
+    [[maybe_unused]] auto res =
+        translateToVerilog(op, os, moduleName, /*allowSecretOps=*/true);
+    llvm::dbgs() << "Emitted verilog:\n" << os.str() << "\n";
+  });
 
   // Invoke Yosys to translate to a combinational circuit and optimize.
   Yosys::log_error_stderr = true;
@@ -315,16 +442,51 @@ void YosysOptimizer::runOnOperation() {
   auto *ctx = &getContext();
   auto *op = getOperation();
 
+  if (unrollFactor > 0 && failed(unrollAndMergeGenerics(
+                              op, unrollFactor, getAnalysis<DominanceInfo>(),
+                              getAnalysis<PostDominanceInfo>()))) {
+    signalPassFailure();
+    return;
+  }
+
+  // Cleanup after unrollAndMergeGenerics
+  mlir::RewritePatternSet cleanupPatterns(ctx);
+  // We lift loads/stores into their own generics if possible, to avoid putting
+  // the entire memref in the verilog module. Some loads would be hoistable but
+  // they depend on arithmetic of index accessors that are otherwise secret.
+  // Hence we need the HoistPlaintextOps provided by
+  // populateGenericCanonicalizers in addition to special patterns that lift
+  // loads and stores into their own generics.
+  cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
+      op->getContext(), std::vector<std::string>{"memref.load", "affine.load"});
+  cleanupPatterns.add<secret::HoistOpAfterGeneric>(
+      op->getContext(),
+      std::vector<std::string>{"memref.store", "affine.store"});
+  secret::populateGenericCanonicalizers(cleanupPatterns, ctx);
+  if (failed(applyPatternsAndFoldGreedily(op, std::move(cleanupPatterns)))) {
+    signalPassFailure();
+    getOperation()->emitError()
+        << "Failed to cleanup generic ops after unrollAndMergeGenerics";
+    return;
+  }
+
   // In general, a secret.generic pattern may not have all its ambient
   // plaintext variables passed through as inputs. The Yosys optimizer needs to
   // know all the inputs to the circuit, and capturing the ambient scope as
   // generic inputs is an easy way to do that.
   mlir::RewritePatternSet patterns(ctx);
-  patterns.add<secret::CaptureAmbientScope>(ctx);
+  patterns.add<secret::CaptureAmbientScope, secret::YieldStoredMemrefs>(ctx);
   if (failed(applyPatternsAndFoldGreedily(op, std::move(patterns)))) {
     signalPassFailure();
+    getOperation()->emitError()
+        << "Failed to preprocess generic ops before yosys optimizer";
     return;
   }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "IR after cleanup in preparation for yosys optimizer\n";
+    getOperation()->dump();
+  });
 
   auto result = op->walk([&](secret::GenericOp op) {
     if (failed(runOnGenericOp(ctx, op, yosysFilesPath, abcPath, abcFast))) {
@@ -340,9 +502,10 @@ void YosysOptimizer::runOnOperation() {
 }
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
-    const std::string &yosysFilesPath, const std::string &abcPath,
-    bool abcFast) {
-  return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, abcFast);
+    const std::string &yosysFilesPath, const std::string &abcPath, bool abcFast,
+    int unrollFactor) {
+  return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, abcFast,
+                                          unrollFactor);
 }
 
 void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
@@ -351,9 +514,26 @@ void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
       "yosys-optimizer", "The yosys optimizer pipeline.",
       [yosysFilesPath, abcPath](OpPassManager &pm,
                                 const YosysOptimizerPipelineOptions &options) {
-        pm.addPass(
-            createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast));
+        pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
+                                        options.abcFast, options.unrollFactor));
         pm.addPass(mlir::createCSEPass());
+      });
+}
+
+void registerUnrollAndOptimizeAnalysisPipeline(
+    const std::string &yosysFilesPath, const std::string &abcPath) {
+  PassPipelineRegistration<UnrollAndOptimizePipelineOptions>(
+      "unroll-and-optimize-analysis",
+      "An analysis tool for determining an optimal loop-unroll factor.",
+      [yosysFilesPath, abcPath](
+          OpPassManager &pm, const UnrollAndOptimizePipelineOptions &options) {
+        for (int i = 0; i < 4; ++i) {
+          pm.addPass(mlir::createCSEPass());
+          pm.addPass(mlir::createCanonicalizerPass());
+          pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
+                                          options.abcFast, /*unrollFactor=*/2));
+          // TODO(#257): Implement statistics printer
+        }
       });
 }
 

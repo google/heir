@@ -1,13 +1,16 @@
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 
 #include <cassert>
+#include <map>
 #include <sstream>
 #include <string>
 #include <utility>
 
 #include "include/Dialect/Comb/IR/CombOps.h"
-#include "kernel/rtlil.h"                     // from @at_clifford_yosys
-#include "llvm/include/llvm/ADT/MapVector.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/MapVector.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
@@ -15,8 +18,16 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/FoldUtils.h"      // from @llvm-project
+
+// Block clang-format from reordering
+// clang-format off
+#include "kernel/yosys.h" // from @at_clifford_yosys
+// clang-format on
+
+#define DEBUG_TYPE "rtlil-importer"
 
 namespace mlir {
 namespace heir {
@@ -97,7 +108,12 @@ Value RTLILImporter::getBit(
 void RTLILImporter::addResultBit(
     const SigSpec &conn, Value result,
     llvm::MapVector<Wire *, SmallVector<Value>> &retBitValues) {
-  assert(conn.is_wire() || conn.is_bit());
+  if (!conn.is_wire() && !conn.is_bit()) {
+    LLVM_DEBUG(llvm::errs()
+               << "expected output connection to be an output wire or bit,"
+               << " but got: chunk: " << conn.is_chunk());
+    llvm_unreachable("expected output connection to be an output wire or bit,");
+  }
   if (conn.is_wire()) {
     addWireValue(conn.as_wire(), result);
     return;

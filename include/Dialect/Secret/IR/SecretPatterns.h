@@ -128,13 +128,20 @@ struct CaptureAmbientScope : public OpRewritePattern<GenericOp> {
 };
 
 // Find two adjacent generic ops and merge them into one.
+// Accepts a parent op to apply this pattern only to generics descending from
+// that op.
 struct MergeAdjacentGenerics : public OpRewritePattern<GenericOp> {
-  MergeAdjacentGenerics(mlir::MLIRContext *context)
-      : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
+  MergeAdjacentGenerics(mlir::MLIRContext *context,
+                        std::optional<Operation *> parentOp = std::nullopt)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1),
+        parentOp(parentOp) {}
 
  public:
   LogicalResult matchAndRewrite(GenericOp op,
                                 PatternRewriter &rewriter) const override;
+
+ private:
+  std::optional<Operation *> parentOp;
 };
 
 // Find a memeref that is stored to in the body of the generic, but not
@@ -199,6 +206,17 @@ struct HoistOpAfterGeneric : public OpRewritePattern<GenericOp> {
 
  private:
   std::vector<std::string> opTypes;
+};
+
+// Identify the earliest op inside a generic that relies only on plaintext
+// operands, and hoist it out of the generic.
+struct HoistPlaintextOps : public OpRewritePattern<GenericOp> {
+  HoistPlaintextOps(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
 };
 
 }  // namespace secret

@@ -1,5 +1,6 @@
 #include "include/Target/Verilog/VerilogEmitter.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <optional>
@@ -11,8 +12,10 @@
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/ilist.h"               // from @llvm-project
@@ -33,6 +36,7 @@
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -43,10 +47,7 @@ namespace heir {
 
 namespace {
 
-// Since a verilog module has only one output value, and the names are scoped
-// to the module, we can safely hard code `_out_` as every function's output
-// wire name.
-static constexpr std::string_view kOutputName = "_out_";
+static constexpr std::string_view kOutputPrefix = "_out_";
 
 bool shouldMapToSigned(IntegerType::SignednessSemantics val) {
   switch (val) {
@@ -270,7 +271,9 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
    *      input wire [7:0] arg0,
    *      input wire [7:0] arg1,
    *      ... ,
-   *      output wire [7:0] out
+   *      output wire [7:0] _out_1,
+   *      output wire [7:0] _out_2,
+   *      ...
    *    );
    *      wire [31:0] x0;
    *      wire [31:0] x1000;
@@ -282,39 +285,44 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
   os_.indent();
   llvm::SmallVector<std::string, 4> argsToPrint;
   for (auto arg : arguments) {
-    // e.g., `input wire [31:0] arg0,`
     std::string result;
     llvm::raw_string_ostream ss(result);
     ss << "input ";
     if (isa<IndexType>(arg.getType())) {
       if (failed(emitIndexType(arg, ss))) {
-        op->emitError() << "failed to emit index value " << arg;
+        arg.getParentBlock()->getParentOp()->emitError()
+            << "failed to emit index value " << arg;
         return failure();
       }
     } else if (failed(emitType(arg.getType(), ss))) {
-      op->emitError() << "failed to emit type " << arg.getType();
+      arg.getParentBlock()->getParentOp()->emitError()
+          << "failed to emit type " << arg.getType();
       return failure();
     }
     ss << " " << getOrCreateName(arg);
     argsToPrint.push_back(ss.str());
   }
-  os_ << llvm::join(argsToPrint.begin(), argsToPrint.end(), ",\n");
 
-  // output arg declaration
-  if (resultTypes.size() > 1) {
-    emitError(op->getLoc(),
-              "Only functions with a <= 1 return types are supported");
-    return failure();
-  }
-  if (resultTypes.size() == 1) {
-    os_ << ",\n";
-    os_ << "output ";
-    if (failed(emitType(resultTypes.front()))) {
-      op->emitError() << "failed to emit type" << resultTypes.front();
+  // Outputs must be declared as arguments as well,
+  // in the same declaration list.
+  for (auto [index, resultType] : llvm::enumerate(resultTypes)) {
+    std::string result;
+    llvm::raw_string_ostream ss(result);
+    ss << "output ";
+    if (isa<IndexType>(resultType)) {
+      op->emitError() << "cannot emit index type as output";
       return failure();
     }
-    os_ << " " << kOutputName;
+
+    if (failed(emitType(resultType, ss))) {
+      op->emitError() << "failed to emit output type " << resultType;
+      return failure();
+    }
+
+    ss << " " << getOrCreateOutputWireName(index);
+    argsToPrint.push_back(ss.str());
   }
+  os_ << llvm::join(argsToPrint.begin(), argsToPrint.end(), ",\n");
 
   // End of module header
   os_.unindent();
@@ -437,7 +445,10 @@ LogicalResult VerilogEmitter::printReturnLikeOp(ValueRange returnValues) {
   if (returnValues.empty()) {
     return success();
   }
-  os_ << "assign " << kOutputName << " = " << getName(returnValues[0]) << ";\n";
+  for (auto [index, result] : llvm::enumerate(returnValues)) {
+    os_ << "assign " << getOutputWireName(index) << " = "
+        << getName(returnValues[index]) << ";\n";
+  }
   return success();
 }
 
@@ -819,6 +830,25 @@ LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
   }
   os_ << " " << getOrCreateName(result) << ";\n";
   return success();
+}
+
+StringRef VerilogEmitter::getOrCreateOutputWireName(int resultIndex) {
+  if (resultIndex < output_wire_names_.size()) {
+    return output_wire_names_[resultIndex];
+  }
+  output_wire_names_.push_back(
+      llvm::formatv("{0}{1}", kOutputPrefix, output_wire_names_.size()).str());
+  return output_wire_names_.back();
+}
+
+StringRef VerilogEmitter::getOutputWireName(int resultIndex) {
+  if (resultIndex < output_wire_names_.size()) {
+    return output_wire_names_[resultIndex];
+  }
+  llvm_unreachable(
+      llvm::formatv("output wire name not found for index {0}", resultIndex)
+          .str()
+          .c_str());
 }
 
 StringRef VerilogEmitter::getOrCreateName(Value value,

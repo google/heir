@@ -275,8 +275,8 @@ YieldOp GenericOp::getYieldOp() {
   return *getBody()->getOps<YieldOp>().begin();
 }
 
-GenericOp cloneWithNewTypes(GenericOp op, TypeRange newTypes,
-                            PatternRewriter &rewriter) {
+GenericOp cloneWithNewResultTypes(GenericOp op, TypeRange newTypes,
+                                  PatternRewriter &rewriter) {
   return rewriter.create<GenericOp>(
       op.getLoc(), op.getOperands(), newTypes,
       [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
@@ -299,7 +299,7 @@ std::pair<GenericOp, ValueRange> GenericOp::addNewYieldedValues(
         SecretType newTy = secret::SecretType::get(t);
         return newTy;
       }));
-  GenericOp newOp = cloneWithNewTypes(*this, newTypes, rewriter);
+  GenericOp newOp = cloneWithNewResultTypes(*this, newTypes, rewriter);
 
   auto newResultStartIter = newOp.getResults().drop_front(
       newOp.getNumResults() - newValuesToYield.size());
@@ -338,7 +338,7 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
         return newTy;
       }));
 
-  return cloneWithNewTypes(*this, newResultTypes, rewriter);
+  return cloneWithNewResultTypes(*this, newResultTypes, rewriter);
 }
 
 GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
@@ -369,12 +369,16 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
         return newTy;
       }));
 
-  return cloneWithNewTypes(*this, newResultTypes, rewriter);
+  return cloneWithNewResultTypes(*this, newResultTypes, rewriter);
 }
 
 GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
                                             PatternRewriter &rewriter) {
   assert(opToExtract->getParentOp() == *this);
+  LLVM_DEBUG({
+    llvm::dbgs() << "Extracting:\n";
+    opToExtract->dump();
+  });
 
   // Result types are secret versions of the results of the op, since the
   // secret will yield all of this op's results immediately.
@@ -394,6 +398,10 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
         auto *newOp = b.clone(*opToExtract, mp);
         b.create<YieldOp>(loc, newOp->getResults());
       });
+  LLVM_DEBUG({
+    llvm::dbgs() << "After adding new single-op generic:\n";
+    newGeneric->getParentOp()->dump();
+  });
 
   // Once the op is split off into a new generic op, we need to add new
   // operands to the old generic op, add new corresponding block arguments, and
@@ -410,6 +418,13 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
   rewriter.replaceOp(opToExtract, oldGenericNewBlockArgs);
 
   return newGeneric;
+}
+
+void populateGenericCanonicalizers(RewritePatternSet &patterns,
+                                   MLIRContext *ctx) {
+  patterns.add<CollapseSecretlessGeneric, RemoveUnusedYieldedValues,
+               RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs,
+               HoistPlaintextOps>(ctx);
 }
 
 // When replacing a generic op with a new one, and given an op in the original
@@ -573,8 +588,7 @@ void GenericOp::inlineInPlaceDroppingSecrets(PatternRewriter &rewriter,
 
 void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                             MLIRContext *context) {
-  results.add<CollapseSecretlessGeneric, RemoveUnusedYieldedValues,
-              RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs>(context);
+  populateGenericCanonicalizers(results, context);
 }
 
 }  // namespace secret
