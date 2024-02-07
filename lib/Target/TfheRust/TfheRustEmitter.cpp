@@ -355,6 +355,9 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
         return res;
       })
       .Case<IntegerType>([&](IntegerType type) -> FailureOr<std::string> {
+        if (type.getWidth() == 1) {
+          return std::string("bool");
+        }
         auto width = getRustIntegerType(type.getWidth());
         if (failed(width)) return failure();
         return (type.isUnsigned() ? std::string("u") : "") + "i" +

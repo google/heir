@@ -2,14 +2,16 @@
 
 #include <utility>
 
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -20,6 +22,50 @@ namespace heir {
 
 #define GEN_PASS_DEF_FORWARDSTORETOLOAD
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h.inc"
+
+/// Apply the affine map from an 'affine.store' operation to its operands, and
+/// feed the results to a newly created 'memref.store' operation (which replaces
+/// the original 'affine.store').
+class AffineStoreLowering : public OpRewritePattern<affine::AffineStoreOp> {
+ public:
+  using OpRewritePattern<affine::AffineStoreOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(affine::AffineStoreOp op,
+                                PatternRewriter &rewriter) const override {
+    // Expand affine map from 'affineStoreOp'.
+    SmallVector<Value, 8> indices(op.getMapOperands());
+    auto maybeExpandedMap = affine::expandAffineMap(rewriter, op.getLoc(),
+                                                    op.getAffineMap(), indices);
+    if (!maybeExpandedMap) return failure();
+
+    // Build memref.store valueToStore, memref[expandedMap.results].
+    rewriter.replaceOpWithNewOp<memref::StoreOp>(
+        op, op.getValueToStore(), op.getMemRef(), *maybeExpandedMap);
+    return success();
+  }
+};
+
+/// Apply the affine map from an 'affine.load' operation to its operands, and
+/// feed the results to a newly created 'memref.load' operation (which replaces
+/// the original 'affine.load').
+class AffineLoadLowering : public OpRewritePattern<affine::AffineLoadOp> {
+ public:
+  using OpRewritePattern<affine::AffineLoadOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(affine::AffineLoadOp op,
+                                PatternRewriter &rewriter) const override {
+    // Expand affine map from 'affineLoadOp'.
+    SmallVector<Value, 8> indices(op.getMapOperands());
+    auto resultOperands = affine::expandAffineMap(rewriter, op.getLoc(),
+                                                  op.getAffineMap(), indices);
+    if (!resultOperands) return failure();
+
+    // Build vector.load memref[expandedMap.results].
+    rewriter.replaceOpWithNewOp<memref::LoadOp>(op, op.getMemRef(),
+                                                *resultOperands);
+    return success();
+  }
+};
 
 bool ForwardSingleStoreToLoad::isForwardableOp(Operation *potentialStore,
                                                memref::LoadOp &loadOp) const {
@@ -111,6 +157,7 @@ struct ForwardStoreToLoad : impl::ForwardStoreToLoadBase<ForwardStoreToLoad> {
     MLIRContext *context = &getContext();
     RewritePatternSet patterns(context);
     DominanceInfo dom(getOperation());
+    patterns.add<AffineLoadLowering, AffineStoreLowering>(context);
     patterns.add<ForwardSingleStoreToLoad>(context, dom);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
   }

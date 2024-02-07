@@ -214,12 +214,23 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
         pm.addPass(
             createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast));
 
-        // Lower combinational circuit to Tfhe-Rust
+        // Lower combinational circuit to CGGI
         pm.addPass(mlir::createCSEPass());
         pm.addPass(comb::createCombToCGGI());
+
+        // CGGI to Tfhe-Rust exit dialect
         pm.addPass(createCGGIToTfheRust());
-        pm.addPass(mlir::createCSEPass());
         pm.addPass(createCanonicalizerPass());
+        pm.addPass(createCSEPass());
+
+        // Cleanup loads and stores
+        pm.addPass(createExpandCopyPass(
+            ExpandCopyPassOptions{.disableAffineLoop = true}));
+        pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        pm.addPass(createForwardStoreToLoad());
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSCCPPass());
       });
 }
 #endif

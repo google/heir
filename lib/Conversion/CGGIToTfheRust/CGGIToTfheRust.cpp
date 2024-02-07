@@ -426,9 +426,10 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
              typeConverter.isLegal(&op.getBody()) &&
              (!containsCGGIOps(op) || hasServerKeyArg);
     });
-    target.addDynamicallyLegalOp<
-        memref::AllocOp, memref::StoreOp, memref::LoadOp, memref::SubViewOp,
-        memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp>(
+    target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
+                                 memref::StoreOp, memref::LoadOp,
+                                 memref::SubViewOp, memref::CopyOp,
+                                 tensor::FromElementsOp, tensor::ExtractOp>(
         [&](Operation *op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
@@ -440,8 +441,9 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
         AddServerKeyArg, ConvertAndOp, ConvertEncodeOp, ConvertLut2Op,
         ConvertLut3Op, ConvertNotOp, ConvertOrOp, ConvertTrivialEncryptOp,
         ConvertXorOp, GenericOpPattern<memref::AllocOp>,
-        GenericOpPattern<memref::StoreOp>, GenericOpPattern<memref::LoadOp>,
-        GenericOpPattern<memref::SubViewOp>, GenericOpPattern<memref::CopyOp>,
+        GenericOpPattern<memref::DeallocOp>, GenericOpPattern<memref::StoreOp>,
+        GenericOpPattern<memref::LoadOp>, GenericOpPattern<memref::SubViewOp>,
+        GenericOpPattern<memref::CopyOp>,
         GenericOpPattern<tensor::FromElementsOp>,
         GenericOpPattern<tensor::ExtractOp>>(typeConverter, context);
 

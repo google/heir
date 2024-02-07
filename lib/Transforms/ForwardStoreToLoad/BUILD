@@ -13,6 +13,7 @@ cc_library(
         "@heir//include/Transforms/ForwardStoreToLoad:pass_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Pass",
