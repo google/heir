@@ -19,13 +19,11 @@ struct Args {
 }
 
 // Encrypt a u8
-pub fn encrypt(value: u8, client_key: &ClientKey) -> Vec<Ciphertext> {
-    (0..8)
-        .map(|shift| {
-            let bit = (value >> shift) & 1;
-            client_key.encrypt(if bit != 0 { 1 } else { 0 })
-        })
-        .collect()
+pub fn encrypt(value: u8, client_key: &ClientKey) -> [Ciphertext; 8] {
+    core::array::from_fn(|shift| {
+        let bit = (value >> shift) & 1;
+        client_key.encrypt(if bit != 0 { 1 } else { 0 })
+    })
 }
 
 // Decrypt a u8

@@ -17,6 +17,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -34,6 +35,20 @@ namespace mlir {
 namespace heir {
 namespace tfhe_rust {
 
+namespace {
+
+// getRustIntegerType returns the width of the closest builtin integer type.
+FailureOr<int> getRustIntegerType(int width) {
+  for (int candidate : {8, 16, 32, 64, 128}) {
+    if (width <= candidate) {
+      return candidate;
+    }
+  }
+  return failure();
+}
+
+}  // namespace
+
 void registerToTfheRustTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust",
@@ -43,7 +58,8 @@ void registerToTfheRustTranslation() {
       },
       [](DialectRegistry &registry) {
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
-                        arith::ArithDialect, tensor::TensorDialect>();
+                        arith::ArithDialect, tensor::TensorDialect,
+                        memref::MemRefDialect>();
       });
 }
 
@@ -71,7 +87,10 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
-
+          // MemRef ops
+          .Case<memref::AllocOp, memref::LoadOp,
+                memref::StoreOp>(  // todo subview & copy
+              [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -105,9 +124,17 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
              << "Failed to emit tfhe-rs type " << arg.getType();
     }
     os << ",\n";
+    if (isa<tfhe_rust::ServerKeyType>(arg.getType())) {
+      serverKeyArg_ = argName;
+    }
   }
   os.unindent();
   os << ") -> ";
+
+  if (serverKeyArg_.empty()) {
+    return funcOp.emitWarning() << "expected server key function argument to "
+                                   "create default ciphertexts";
+  }
 
   if (funcOp.getNumResults() == 1) {
     Type result = funcOp.getResultTypes()[0];
@@ -162,8 +189,10 @@ LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
-void TfheRustEmitter::emitAssignPrefix(Value result) {
-  os << "let " << variableNames->getNameForValue(result) << " = ";
+void TfheRustEmitter::emitAssignPrefix(Value result, bool mut,
+                                       std::string type) {
+  os << "let " << (mut ? "mut " : "") << variableNames->getNameForValue(result)
+     << (type.empty() ? "" : (" : " + type)) << " = ";
 }
 
 LogicalResult TfheRustEmitter::printSksMethod(
@@ -260,23 +289,93 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
   return success();
 }
 
+LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
+  //  Uses an iterator to create an array with a default value
+  MemRefType memRefType = op.getMemref().getType();
+  auto typeStr = convertType(memRefType);
+  if (failed(typeStr)) {
+    op.emitOpError() << "failed to emit memref type " << memRefType;
+  }
+  emitAssignPrefix(op.getResult(), true, typeStr.value());
+
+  auto defaultOr = defaultValue(memRefType.getElementType());
+  if (failed(defaultOr)) {
+    return op.emitOpError()
+           << "Failed to emit default memref element type " << memRefType;
+  }
+  std::string res = defaultOr.value();
+  for (unsigned _ : memRefType.getShape()) {
+    res = llvm::formatv("core::array::from_fn(|_| {0})", res);
+  }
+  os << res << ";\n";
+  return success();
+}
+
+LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {
+  os << variableNames->getNameForValue(op.getMemref()) << "["
+     << commaSeparatedValues(
+            op.getIndices(),
+            [&](Value value) { return variableNames->getNameForValue(value); })
+     << "] = " << variableNames->getNameForValue(op.getValueToStore()) << ";\n";
+  return success();
+}
+
+LogicalResult TfheRustEmitter::printOperation(memref::LoadOp op) {
+  emitAssignPrefix(op.getResult());
+  bool isRef = isa<EncryptedUInt3Type>(op.getResult().getType());
+  os << (isRef ? "&" : "") << variableNames->getNameForValue(op.getMemref())
+     << "["
+     << commaSeparatedValues(
+            op.getIndices(),
+            [&](Value value) { return variableNames->getNameForValue(value); })
+     << "];\n";
+  return success();
+}
+
 FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
   // Note: these are probably not the right type names to use exactly, and they
   // will need to chance to the right values once we try to compile it against
   // a specific API version.
-  if (auto shapedType = dyn_cast<ShapedType>(type)) {
-    // A lambda in a type switch statement can't return multiple types.
-    // FIXME: why can't both types be FailureOr<std::string>?
-    auto elementTy = convertType(shapedType.getElementType());
-    if (failed(elementTy)) return failure();
-    return std::string("Vec<" + elementTy.value() + ">");
-  }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+      .Case<RankedTensorType>(
+          [&](RankedTensorType type) -> FailureOr<std::string> {
+            // Tensor types are emitted as vectors
+            auto elementTy = convertType(type.getElementType());
+            if (failed(elementTy)) return failure();
+            return std::string("Vec<" + elementTy.value() + ">");
+          })
+      .Case<MemRefType>([&](MemRefType type) -> FailureOr<std::string> {
+        // MemRef types are emitted as arrays
+        auto elementTy = convertType(type.getElementType());
+        if (failed(elementTy)) return failure();
+        std::string res = elementTy.value();
+        for (unsigned dim : type.getShape()) {
+          res = llvm::formatv("[{0}; {1}]", res, dim);
+        }
+        return res;
+      })
+      .Case<IntegerType>([&](IntegerType type) -> FailureOr<std::string> {
+        auto width = getRustIntegerType(type.getWidth());
+        if (failed(width)) return failure();
+        return (type.isUnsigned() ? std::string("u") : "") + "i" +
+               std::to_string(width.value());
+      })
       .Case<EncryptedUInt3Type>(
           [&](auto type) { return std::string("Ciphertext"); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
       .Case<LookupTableType>(
           [&](auto type) { return std::string("LookupTableOwned"); })
+      .Default([&](Type &) { return failure(); });
+}
+
+FailureOr<std::string> TfheRustEmitter::defaultValue(Type type) {
+  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
+      .Case<IntegerType>([&](IntegerType type) { return std::string("0"); })
+      .Case<EncryptedUInt3Type>([&](auto type) -> FailureOr<std::string> {
+        if (serverKeyArg_.empty()) return failure();
+        return std::string(
+            llvm::formatv("{0}.create_trivial(0 as u64)", serverKeyArg_));
+      })
       .Default([&](Type &) { return failure(); });
 }
 

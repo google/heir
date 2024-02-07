@@ -60,3 +60,22 @@ func.func @test_apply_lookup_table2(%sks : !sks, %lut: !lut, %input : !eui3) -> 
 func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
   return %input, %input : !eui3, !eui3
 }
+
+// CHECK-LABEL: pub fn test_memref(
+// CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
+// CHECK-NEXT:   [[input:v[0-9]+]]: &[Ciphertext; 1],
+// CHECK-NEXT: ) -> [Ciphertext; 1] {
+func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3>) {
+  // CHECK-NEXT: let [[v1:.*]] = 0;
+  %c0 = arith.constant 0 : index
+  // CHECK-NEXT: let [[v2:.*]] = &[[input]][[[v1]]];
+  %0 = memref.load %input[%c0] : memref<1x!eui3>
+  // CHECK-NEXT: let [[v3:.*]] = [[sks]].bitand(&[[v2]], &[[v2]]);
+  %1 = tfhe_rust.bitand %sks, %0, %0 : (!sks, !eui3, !eui3) -> !eui3
+  // CHECK-NEXT: let mut [[v4:.*]] : [Ciphertext; 1] = core::array::from_fn(|_| [[sks]].create_trivial(0 as u64));
+  %2 = memref.alloc() : memref<1x!eui3>
+  // CHECK-NEXT: [[v4]][[[v1]]] = [[v3]];
+  memref.store %1, %2[%c0] : memref<1x!eui3>
+  // CHECK-NEXT: [[v4]]
+  return %2 : memref<1x!eui3>
+}

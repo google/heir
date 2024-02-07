@@ -10,6 +10,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
@@ -44,6 +45,9 @@ class TfheRustEmitter {
   /// values.
   SelectVariableNames *variableNames;
 
+  // Server key arg to create default values when initializing arrays
+  std::string serverKeyArg_;
+
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
@@ -54,6 +58,9 @@ class TfheRustEmitter {
   LogicalResult printOperation(CreateTrivialOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
+  LogicalResult printOperation(memref::AllocOp op);
+  LogicalResult printOperation(memref::LoadOp op);
+  LogicalResult printOperation(memref::StoreOp op);
   LogicalResult printOperation(ApplyLookupTableOp op);
   LogicalResult printOperation(GenerateLookupTableOp op);
   LogicalResult printOperation(ScalarLeftShiftOp op);
@@ -67,8 +74,10 @@ class TfheRustEmitter {
   // Emit a TfheRust type
   LogicalResult emitType(Type type);
   FailureOr<std::string> convertType(Type type);
+  // Emit a default value for the given type
+  FailureOr<std::string> defaultValue(Type type);
 
-  void emitAssignPrefix(::mlir::Value result);
+  void emitAssignPrefix(Value result, bool mut = false, std::string type = "");
 };
 
 }  // namespace tfhe_rust
