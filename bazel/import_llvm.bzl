@@ -14,7 +14,7 @@ def import_llvm(name):
         # this BUILD file is intentionally empty, because the LLVM project
         # internally contains a set of bazel BUILD files overlaying the project.
         build_file_content = "# empty",
-        commit = LLVM_COMMIT,
+        branch = "fix_mlir_bazel_overlay",
         init_submodules = False,
-        remote = "https://github.com/llvm/llvm-project.git",
+        remote = "https://github.com/makslevental/llvm-project.git",
     )
