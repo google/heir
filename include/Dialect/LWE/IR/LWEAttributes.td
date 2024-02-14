@@ -37,34 +37,60 @@ def LWE_BitFieldEncoding
     A bit field encoding of an integer describes which contiguous region
     of bits a small integer occupies within a larger integer.
 
-    In LWE the plaintexts are integers of a given bit width, and the cleartext
-    messages are integers of a smaller bit width. A common example might be
-    3-bit cleartexts inside a 32-bit plaintext. In the CGGI FHE scheme, the
-    3-bit cleartext might be stored as follows, where 0 denotes a 0 bit, `b`
-    denotes a bit of the cleartext, `n` denotes a bit reserved for noise, and
-    `|` is a visual aid to show where the bit fields begin and end.
+    The data describing the encoding consists of the starting bit positions of
+    the cleartext bit field and its width, where the LSB is bit 0 and the MSB
+    is bit `bit_width-1`. So the above example would have starting bit `30` and
+    width `3`. The bits not specified for the message have semantics defined
+    by the scheme or lowering.
 
+    Note that this encoding does not specify the underlying bit width of the
+    plaintext space. This is left for lowerings to decide.
+
+    The presence of this attribute as the `encoding` attribute of a tensor
+    indicates that the tensor is an LWE ciphertext.
+
+    **Example (CGGI):**
+
+    ```
+    #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
+    !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
+
+    %0 = arith.constant 4 : i3
+    %1 = lwe.encode %0 { encoding = #encoding }: i3 to !plaintext
+    ```
+
+    The above represents an LWE plaintext encoding the 3-bit cleartext 4 as an
+    LWE ciphertext in a 32-bit integer, with a single bit of padding at the MSB.
+    This corresponds to the following, where 0 denotes a 0 bit, `b` denotes a
+    bit of the cleartext, `n` denotes a bit reserved for noise, and `|` is a
+    visual aid to show where the bit fields begin and end.
 
     ```
        0|bbb|nn...n
     MSB^          ^LSB
     ```
 
-    The data describing the encoding consists of the starting bit positions of
-    the cleartext bit field and its width, where the LSB is bit 0 and the MSB
-    is bit `bit_width-1`. So the above example would have starting bit `30` and
-    width `3`. The bits preceding (more significant than) the starting bit are
-    reserved for padding, and the bits following (less significant than) the
-    ending bit are reserved for noise.
+    **Example (BGV):**
 
-    The presence of this attribute as the `encoding` attribute of a tensor
-    indicates that the tensor is an LWE ciphertext.
-
-    Example:
+    Note: BGV uses the RLWE encodings, but they have the same bit-field encoding
+    attributes as here. So this example serves mainly to show how this attribute
+    can be used to specify storing bits in the LSB of a plaintext.
 
     ```
-    #lwe_encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
-    %lwe_ciphertext = arith.constant <[1,2,3,4]> : tensor<4xi32, #lwe_encoding>
+    #encoding = #lwe.bit_field_encoding<cleartext_start=4, cleartext_bitwidth=4>
+    !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
+
+    %0 = arith.constant 9 : i4
+    %1 = lwe.encode %0 { encoding = #encoding }: i4 to !plaintext
+    ```
+
+    The above represents an LWE plaintext encoding a 4-bit cleartext as an
+    LWE ciphertext in the least-significant bits of a larger integer.
+    This corresponds to the following.
+
+    ```
+       nn...n|bbbb
+    MSB^         ^LSB
     ```
   }];
 }
@@ -111,6 +137,9 @@ def RLWE_PolynomialCoefficientEncoding
     The presence of this attribute as the `encoding` attribute of a tensor of
     `poly.poly` indicates that the tensor is an RLWE ciphertext for some RLWE
     scheme that supports the coefficient encoding.
+
+    See `bit_field_encoding` for the definition of the `cleartext_start` and
+    `cleartext_bitwidth` fields.
 
     Example:
 
@@ -169,6 +198,9 @@ def RLWE_PolynomialEvaluationEncoding
     %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
     %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
     ```
+
+    See `bit_field_encoding` for the definition of the `cleartext_start` and
+    `cleartext_bitwidth` fields.
   }];
 }
 
@@ -258,6 +290,9 @@ def RLWE_InverseCanonicalEmbeddingEncoding
     %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
     %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
     ```
+
+    See `bit_field_encoding` for the definition of the `cleartext_start` and
+    `cleartext_bitwidth` fields.
   }];
 }
 
