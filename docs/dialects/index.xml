@@ -1751,25 +1751,40 @@ unsigned # cleartext_bitwidth
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A bit field encoding of an integer describes which contiguous region
 of bits a small integer occupies within a larger integer.&lt;/p>
-&lt;p>In LWE the plaintexts are integers of a given bit width, and the cleartext
-messages are integers of a smaller bit width. A common example might be
-3-bit cleartexts inside a 32-bit plaintext. In the CGGI FHE scheme, the
-3-bit cleartext might be stored as follows, where 0 denotes a 0 bit, &lt;code>b&lt;/code>
-denotes a bit of the cleartext, &lt;code>n&lt;/code> denotes a bit reserved for noise, and
-&lt;code>|&lt;/code> is a visual aid to show where the bit fields begin and end.&lt;/p>
-&lt;pre tabindex="0">&lt;code> 0|bbb|nn...n
-MSB^ ^LSB
-&lt;/code>&lt;/pre>&lt;p>The data describing the encoding consists of the starting bit positions of
+&lt;p>The data describing the encoding consists of the starting bit positions of
 the cleartext bit field and its width, where the LSB is bit 0 and the MSB
 is bit &lt;code>bit_width-1&lt;/code>. So the above example would have starting bit &lt;code>30&lt;/code> and
-width &lt;code>3&lt;/code>. The bits preceding (more significant than) the starting bit are
-reserved for padding, and the bits following (less significant than) the
-ending bit are reserved for noise.&lt;/p>
+width &lt;code>3&lt;/code>. The bits not specified for the message have semantics defined
+by the scheme or lowering.&lt;/p>
+&lt;p>Note that this encoding does not specify the underlying bit width of the
+plaintext space. This is left for lowerings to decide.&lt;/p>
 &lt;p>The presence of this attribute as the &lt;code>encoding&lt;/code> attribute of a tensor
 indicates that the tensor is an LWE ciphertext.&lt;/p>
-&lt;p>Example:&lt;/p>
-&lt;pre tabindex="0">&lt;code>#lwe_encoding = #lwe.bit_field_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
-%lwe_ciphertext = arith.constant &amp;lt;[1,2,3,4]&amp;gt; : tensor&amp;lt;4xi32, #lwe_encoding&amp;gt;
+&lt;p>&lt;strong>Example (CGGI):&lt;/strong>&lt;/p>
+&lt;pre tabindex="0">&lt;code>#encoding = #lwe.bit_field_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
+!plaintext = !lwe.lwe_plaintext&amp;lt;encoding = #encoding&amp;gt;
+%0 = arith.constant 4 : i3
+%1 = lwe.encode %0 { encoding = #encoding }: i3 to !plaintext
+&lt;/code>&lt;/pre>&lt;p>The above represents an LWE plaintext encoding the 3-bit cleartext 4 as an
+LWE ciphertext in a 32-bit integer, with a single bit of padding at the MSB.
+This corresponds to the following, where 0 denotes a 0 bit, &lt;code>b&lt;/code> denotes a
+bit of the cleartext, &lt;code>n&lt;/code> denotes a bit reserved for noise, and &lt;code>|&lt;/code> is a
+visual aid to show where the bit fields begin and end.&lt;/p>
+&lt;pre tabindex="0">&lt;code> 0|bbb|nn...n
+MSB^ ^LSB
+&lt;/code>&lt;/pre>&lt;p>&lt;strong>Example (BGV):&lt;/strong>&lt;/p>
+&lt;p>Note: BGV uses the RLWE encodings, but they have the same bit-field encoding
+attributes as here. So this example serves mainly to show how this attribute
+can be used to specify storing bits in the LSB of a plaintext.&lt;/p>
+&lt;pre tabindex="0">&lt;code>#encoding = #lwe.bit_field_encoding&amp;lt;cleartext_start=4, cleartext_bitwidth=4&amp;gt;
+!plaintext = !lwe.lwe_plaintext&amp;lt;encoding = #encoding&amp;gt;
+%0 = arith.constant 9 : i4
+%1 = lwe.encode %0 { encoding = #encoding }: i4 to !plaintext
+&lt;/code>&lt;/pre>&lt;p>The above represents an LWE plaintext encoding a 4-bit cleartext as an
+LWE ciphertext in the least-significant bits of a larger integer.
+This corresponds to the following.&lt;/p>
+&lt;pre tabindex="0">&lt;code> nn...n|bbbb
+MSB^ ^LSB
 &lt;/code>&lt;/pre>&lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1966,7 +1981,9 @@ coefficients.&lt;/p>
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;p>See &lt;code>bit_field_encoding&lt;/code> for the definition of the &lt;code>cleartext_start&lt;/code> and
+&lt;code>cleartext_bitwidth&lt;/code> fields.&lt;/p>
+&lt;h4 id="parameters-4">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -2001,6 +2018,8 @@ of the polynomials contain the cleartexts, with the same semantics as
 &lt;p>The presence of this attribute as the &lt;code>encoding&lt;/code> attribute of a tensor of
 &lt;code>poly.poly&lt;/code> indicates that the tensor is an RLWE ciphertext for some RLWE
 scheme that supports the coefficient encoding.&lt;/p>
+&lt;p>See &lt;code>bit_field_encoding&lt;/code> for the definition of the &lt;code>cleartext_start&lt;/code> and
+&lt;code>cleartext_bitwidth&lt;/code> fields.&lt;/p>
 &lt;p>Example:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#generator = #poly.polynomial&amp;lt;1 + x**1024&amp;gt;
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
@@ -2069,7 +2088,9 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 %poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
-&lt;/code>&lt;/pre>&lt;h4 id="parameters-6">Parameters:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;p>See &lt;code>bit_field_encoding&lt;/code> for the definition of the &lt;code>cleartext_start&lt;/code> and
+&lt;code>cleartext_bitwidth&lt;/code> fields.&lt;/p>
+&lt;h4 id="parameters-6">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
