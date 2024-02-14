@@ -20,5 +20,11 @@ glob_lit_tests(
         "notap",
     ],
     driver = "@heir//tests:run_lit.sh",
+    size_override = {
+        "test_add.mlir": "large",
+        "test_add_one.mlir": "large",
+        "test_bitand.mlir": "large",
+        "test_simple_lut.mlir": "large",
+    },
     test_file_exts = ["mlir"],
 )
