@@ -155,10 +155,9 @@ hedron_compile_commands_setup()
 # install dependencies for yosys/ABC circuit optimizers
 http_archive(
     name = "rules_hdl",
-    # Commit on 2023-06-13, current as of 2023-06-13.
-    sha256 = "21307b0c14a036f1b4879c8f1d4d50a115053eb87c428307d4d6569c3e7ba859",
-    strip_prefix = "bazel_rules_hdl-e6540a5bccbfb124aec0b19deaa9cf855781b3a5",
-    url = "https://github.com/hdl/bazel_rules_hdl/archive/e6540a5bccbfb124aec0b19deaa9cf855781b3a5.tar.gz",
+    # Commit 2024-02-14, after merging our patch to fix MacOS builds
+    strip_prefix = "bazel_rules_hdl-ef9cce1b82fedb98b56adae1f999885143f5796f",
+    url = "https://github.com/hdl/bazel_rules_hdl/archive/ef9cce1b82fedb98b56adae1f999885143f5796f.tar.gz",
 )
 
 load("@rules_hdl//dependency_support/at_clifford_yosys:at_clifford_yosys.bzl", "at_clifford_yosys")
