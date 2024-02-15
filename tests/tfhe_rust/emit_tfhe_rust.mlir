@@ -97,7 +97,7 @@ func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3
 func.func @test_plaintext_arith_ops(%sks : !sks, %input : i64) -> (!eui3) {
   %c1_i32 = arith.constant 1 : i32
   %c429_i32 = arith.constant 429 : i32
-  %0 = arith.trunci %input : i64 to i32 
+  %0 = arith.trunci %input : i64 to i32
   %1 = arith.shli %c1_i32, %0 : i32
   %2 = arith.andi %1, %c429_i32 : i32
   %3 = arith.shrsi %2, %0 : i32
