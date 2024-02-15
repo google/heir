@@ -23,33 +23,24 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
       time at the expense of a possibly larger output circuit.
     - `unroll-factor`: Before optimizing the circuit, unroll loops by a given
       factor. If unset, this pass will not unroll any loops.
+    - `print-stats`: Prints statistics about the optimized circuits.
   }];
-  // TODO(https://github.com/google/heir/issues/257): add option for the pass to select
-  // the unroll factor automatically.
+  // TODO(#257): add option for the pass to select the unroll factor
+  // automatically.
+
+  let statistics = [
+    Statistic<
+      "totalCircuitSize",
+      "total circuit size",
+      "The total circuit size for all optimized circuits, after optimization is done."
+    >,
+  ];
 
   let dependentDialects = [
     "mlir::arith::ArithDialect",
     "mlir::heir::comb::CombDialect",
     "mlir::heir::secret::SecretDialect",
     "mlir::memref::MemRefDialect"
-  ];
-}
-
-def UnrollAndOptimizeAnalysis : Pass<"unroll-and-optimize-analysis"> {
-  let summary = "Iteratively unroll and optimize an IR, printing optimization stats.";
-
-  let description = [{
-    This pass invokes the `--yosys-optimizer` pass while iteratively applying
-    loop-unrolling. Along the way, it prints statistics about the optimized
-    circuits, which can be used to determine an optimal loop-unrolling factor
-    for a given program.
-  }];
-
-  let dependentDialects = [
-    "mlir::arith::ArithDialect",
-    "mlir::heir::comb::CombDialect",
-    "mlir::heir::secret::SecretDialect",
-    "mlir::tensor::TensorDialect"
   ];
 }
 
