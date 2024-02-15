@@ -473,11 +473,6 @@ LogicalResult HoistOpBeforeGeneric::matchAndRewrite(
   Operation *opToHoist = &*it;
   LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
   genericOp.extractOpBeforeGeneric(opToHoist, rewriter);
-  LLVM_DEBUG({
-    Operation *parent = genericOp->getParentOp();
-    llvm::dbgs() << "After hoisting op\n";
-    parent->dump();
-  });
   return success();
 }
 
@@ -510,11 +505,6 @@ LogicalResult HoistOpAfterGeneric::matchAndRewrite(
   LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
 
   extractOpAfterGeneric(genericOp, opToHoist, rewriter);
-  LLVM_DEBUG({
-    Operation *parent = genericOp->getParentOp();
-    llvm::dbgs() << "After hoisting op\n";
-    parent->dump();
-  });
   return success();
 }
 
@@ -585,11 +575,6 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
   Operation *opToHoist = &*it;
   LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
   genericOp.extractOpBeforeGeneric(opToHoist, rewriter);
-  LLVM_DEBUG({
-    Operation *parent = genericOp->getParentOp();
-    llvm::dbgs() << "After hoisting op\n";
-    parent->dump();
-  });
   return success();
 }
 

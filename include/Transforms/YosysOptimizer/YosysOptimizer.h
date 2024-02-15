@@ -8,7 +8,7 @@ namespace heir {
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
     const std::string &yosysFilesPath, const std::string &abcPath, bool abcFast,
-    int unrollFactor = 0);
+    int unrollFactor = 0, bool printStats = false);
 
 #define GEN_PASS_DECL
 #include "include/Transforms/YosysOptimizer/YosysOptimizer.h.inc"
@@ -24,13 +24,11 @@ struct YosysOptimizerPipelineOptions
       llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
                      "value of zero (default) prevents unrolling."),
       llvm::cl::init(0)};
-};
 
-struct UnrollAndOptimizePipelineOptions
-    : public PassPipelineOptions<UnrollAndOptimizePipelineOptions> {
-  PassOptions::Option<bool> abcFast{*this, "abc-fast",
-                                    llvm::cl::desc("Run abc in fast mode."),
-                                    llvm::cl::init(false)};
+  PassOptions::Option<bool> printStats{
+      *this, "print-stats",
+      llvm::cl::desc("Prints statistics about the optimized circuit"),
+      llvm::cl::init(false)};
 };
 
 // registerYosysOptimizerPipeline registers a Yosys pipeline pass using
@@ -38,12 +36,6 @@ struct UnrollAndOptimizePipelineOptions
 // the abc binary.
 void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
                                     const std::string &abcPath);
-
-// Registers a pipeline that interleaves yosys-optimizer and loop unrolling and
-// prints statistics about the optimized circuits. Intended for offline analysis
-// to determine the best loop-unrolling factor.
-void registerUnrollAndOptimizeAnalysisPipeline(
-    const std::string &yosysFilesPath, const std::string &abcPath);
 
 }  // namespace heir
 }  // namespace mlir

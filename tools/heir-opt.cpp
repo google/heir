@@ -280,8 +280,6 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
   mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
-  mlir::heir::registerUnrollAndOptimizeAnalysisPipeline(yosysRunfilesEnvPath,
-                                                        abcEnvPath);
   tosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
 #endif
 

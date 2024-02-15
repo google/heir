@@ -19,6 +19,7 @@
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/Statistic.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
@@ -80,14 +81,21 @@ clean;
 stat;
 )";
 
+struct RelativeOptimizationStatistics {
+  std::string originalOp;
+  int64_t numArithOps;
+  int64_t numCells;
+};
+
 struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   using YosysOptimizerBase::YosysOptimizerBase;
 
   YosysOptimizer(std::string yosysFilesPath, std::string abcPath, bool abcFast,
-                 int unrollFactor)
+                 int unrollFactor, bool printStats)
       : yosysFilesPath(std::move(yosysFilesPath)),
         abcPath(std::move(abcPath)),
         abcFast(abcFast),
+        printStats(printStats),
         unrollFactor(unrollFactor) {}
 
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
@@ -97,6 +105,8 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
 
   void runOnOperation() override;
 
+  LogicalResult runOnGenericOp(secret::GenericOp op);
+
  private:
   // Path to a directory containing yosys techlibs.
   std::string yosysFilesPath;
@@ -104,7 +114,9 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   std::string abcPath;
 
   bool abcFast;
+  bool printStats;
   int unrollFactor;
+  llvm::SmallVector<RelativeOptimizationStatistics> optStatistics;
 };
 
 Value convertIntegerValue(Value value, Type convertedType, OpBuilder &b,
@@ -284,7 +296,7 @@ LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
         // generic as the body. Note that unrolling replaces the loop with a new
         // loop, and as a result the replaced loop is visisted again in the
         // walk. This means we must ensure that the post-condition of the
-        // processing in this function. doesn't trigger this logic a second
+        // processing in this function doesn't trigger this logic a second
         // time.
         affine::AffineForOp innerMostLoop = nestedLoops.back();
         // two ops because the last one must be affine.yield
@@ -302,7 +314,7 @@ LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
         if (failed(loopUnrollUpToFactor(innerMostLoop, unrollFactor))) {
           return WalkResult::interrupt();
         }
-        LLVM_DEBUG(innerMostLoop.emitRemark() << "Post loop unroll");
+        LLVM_DEBUG(op->emitRemark() << "Post loop unroll");
 
         mlir::RewritePatternSet patterns(op->getContext());
         patterns.add<FrontloadAffineApply, secret::MergeAdjacentGenerics>(
@@ -311,8 +323,7 @@ LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
           return WalkResult::interrupt();
         }
 
-        LLVM_DEBUG(innerMostLoop.emitRemark()
-                   << "Post merge generics (without cleanup)");
+        LLVM_DEBUG(op->emitRemark() << "Post merge generics (without cleanup)");
         // Success means we do not process any more nodes within this loop nest,
         // This corresponds to skipping this node in the walk.
         return WalkResult::skip();
@@ -321,19 +332,26 @@ LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
   return walkResult.wasInterrupted() ? failure() : success();
 }
 
-LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
-                             const std::string &yosysFilesPath,
-                             const std::string &abcPath, bool abcFast) {
+LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   std::string moduleName = "generic_body";
+  MLIRContext *context = op->getContext();
 
-  // Only run this when there are arithmetic operations inside the generic body.
-  auto result = op->walk([&](Operation *op) -> WalkResult {
+  // Count number of arith ops in the generic body
+  int64_t numArithOps = 0;
+  op->walk([&](Operation *op) {
     if (isa<arith::ArithDialect>(op->getDialect())) {
-      return WalkResult::interrupt();
+      numArithOps++;
     }
-    return WalkResult::advance();
   });
-  if (!result.wasInterrupted()) return success();
+  if (numArithOps == 0) return success();
+
+  optStatistics.push_back(RelativeOptimizationStatistics());
+  auto &stats = optStatistics.back();
+  if (printStats) {
+    llvm::raw_string_ostream os(stats.originalOp);
+    op->print(os);
+    stats.numArithOps = numArithOps;
+  }
 
   // Translate function to Verilog. Translation will fail if the func contains
   // unsupported operations.
@@ -383,9 +401,19 @@ LogicalResult runOnGenericOp(MLIRContext *context, secret::GenericOp op,
   auto topologicalOrder = getTopologicalOrder(cellOrder);
   LUTImporter lutImporter = LUTImporter(context);
   Yosys::RTLIL::Design *design = Yosys::yosys_get_design();
+  auto numCells = design->top_module()->cells().size();
+  totalCircuitSize += numCells;
+  if (printStats) {
+    stats.numCells = numCells;
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << "Importing RTLIL module\n");
+
   func::FuncOp func =
       lutImporter.importModule(design->top_module(), topologicalOrder);
   Yosys::run_pass("delete;");
+
+  LLVM_DEBUG(llvm::dbgs() << "Done importing RTLIL, now type-coverting ops\n");
 
   // The pass changes the yielded value types, e.g., from an i8 to a
   // memref<8xi1>. So the containing secret.generic needs to be updated and
@@ -442,7 +470,7 @@ void YosysOptimizer::runOnOperation() {
   auto *ctx = &getContext();
   auto *op = getOperation();
 
-  if (unrollFactor > 0 && failed(unrollAndMergeGenerics(
+  if (unrollFactor > 1 && failed(unrollAndMergeGenerics(
                               op, unrollFactor, getAnalysis<DominanceInfo>(),
                               getAnalysis<PostDominanceInfo>()))) {
     signalPassFailure();
@@ -458,10 +486,9 @@ void YosysOptimizer::runOnOperation() {
   // populateGenericCanonicalizers in addition to special patterns that lift
   // loads and stores into their own generics.
   cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
-      op->getContext(), std::vector<std::string>{"memref.load", "affine.load"});
+      ctx, std::vector<std::string>{"memref.load", "affine.load"});
   cleanupPatterns.add<secret::HoistOpAfterGeneric>(
-      op->getContext(),
-      std::vector<std::string>{"memref.store", "affine.store"});
+      ctx, std::vector<std::string>{"memref.store", "affine.store"});
   secret::populateGenericCanonicalizers(cleanupPatterns, ctx);
   if (failed(applyPatternsAndFoldGreedily(op, std::move(cleanupPatterns)))) {
     signalPassFailure();
@@ -489,12 +516,23 @@ void YosysOptimizer::runOnOperation() {
   });
 
   auto result = op->walk([&](secret::GenericOp op) {
-    if (failed(runOnGenericOp(ctx, op, yosysFilesPath, abcPath, abcFast))) {
+    if (failed(runOnGenericOp(op))) {
       return WalkResult::interrupt();
     }
     return WalkResult::advance();
   });
   Yosys::yosys_shutdown();
+
+  if (printStats && !optStatistics.empty()) {
+    for (auto &stats : optStatistics) {
+      double ratio = (double)stats.numCells / stats.numArithOps;
+      llvm::errs() << "Optimization stats for op: \n\n"
+                   << stats.originalOp
+                   << "\n\n  Starting arith op count: " << stats.numArithOps
+                   << "\n  Ending cell count: " << stats.numCells
+                   << "\n  Ratio: " << ratio << "\n\n";
+    }
+  }
 
   if (result.wasInterrupted()) {
     signalPassFailure();
@@ -503,9 +541,9 @@ void YosysOptimizer::runOnOperation() {
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
     const std::string &yosysFilesPath, const std::string &abcPath, bool abcFast,
-    int unrollFactor) {
+    int unrollFactor, bool printStats) {
   return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, abcFast,
-                                          unrollFactor);
+                                          unrollFactor, printStats);
 }
 
 void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
@@ -515,25 +553,9 @@ void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
       [yosysFilesPath, abcPath](OpPassManager &pm,
                                 const YosysOptimizerPipelineOptions &options) {
         pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
-                                        options.abcFast, options.unrollFactor));
+                                        options.abcFast, options.unrollFactor,
+                                        options.printStats));
         pm.addPass(mlir::createCSEPass());
-      });
-}
-
-void registerUnrollAndOptimizeAnalysisPipeline(
-    const std::string &yosysFilesPath, const std::string &abcPath) {
-  PassPipelineRegistration<UnrollAndOptimizePipelineOptions>(
-      "unroll-and-optimize-analysis",
-      "An analysis tool for determining an optimal loop-unroll factor.",
-      [yosysFilesPath, abcPath](
-          OpPassManager &pm, const UnrollAndOptimizePipelineOptions &options) {
-        for (int i = 0; i < 4; ++i) {
-          pm.addPass(mlir::createCSEPass());
-          pm.addPass(mlir::createCanonicalizerPass());
-          pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
-                                          options.abcFast, /*unrollFactor=*/2));
-          // TODO(#257): Implement statistics printer
-        }
       });
 }
 
