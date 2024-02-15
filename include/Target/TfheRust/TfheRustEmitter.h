@@ -51,6 +51,10 @@ class TfheRustEmitter {
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  LogicalResult printOperation(::mlir::arith::ShLIOp op);
+  LogicalResult printOperation(::mlir::arith::AndIOp op);
+  LogicalResult printOperation(::mlir::arith::ShRSIOp op);
+  LogicalResult printOperation(::mlir::arith::TruncIOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(AddOp op);
@@ -70,6 +74,8 @@ class TfheRustEmitter {
                                ::mlir::ValueRange nonSksOperands,
                                std::string_view op,
                                SmallVector<std::string> operandTypes = {});
+  LogicalResult printBinaryOp(::mlir::Value result, ::mlir::Value lhs,
+                              ::mlir::Value rhs, std::string_view op);
 
   // Emit a TfheRust type
   LogicalResult emitType(Type type);

@@ -79,7 +79,9 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
-          .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
+          .Case<arith::ConstantOp, arith::ShRSIOp, arith::ShLIOp,
+                arith::TruncIOp, arith::AndIOp>(
+              [&](auto op) { return printOperation(op); })
           // TfheRust ops
           .Case<AddOp, ApplyLookupTableOp, BitAndOp, GenerateLookupTableOp,
                 ScalarLeftShiftOp, CreateTrivialOp>(
@@ -118,7 +120,7 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   os.indent();
   for (Value arg : funcOp.getArguments()) {
     auto argName = variableNames->getNameForValue(arg);
-    os << argName << ": &";
+    os << argName << ": " << (isa<IntegerType>(arg.getType()) ? "" : "&");
     if (failed(emitType(arg.getType()))) {
       return funcOp.emitOpError()
              << "Failed to emit tfhe-rs type " << arg.getType();
@@ -211,6 +213,16 @@ LogicalResult TfheRustEmitter::printSksMethod(
   return success();
 }
 
+LogicalResult TfheRustEmitter::printBinaryOp(::mlir::Value result,
+                                             ::mlir::Value lhs,
+                                             ::mlir::Value rhs,
+                                             std::string_view op) {
+  emitAssignPrefix(result);
+  os << variableNames->getNameForValue(lhs) << " " << op << " "
+     << variableNames->getNameForValue(rhs) << ";\n";
+  return success();
+}
+
 LogicalResult TfheRustEmitter::printOperation(AddOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(),
                         {op.getLhs(), op.getRhs()}, "unchecked_add");
@@ -262,6 +274,36 @@ LogicalResult TfheRustEmitter::printOperation(arith::ConstantOp op) {
   } else {
     return op.emitError() << "Unknown constant type " << valueAttr.getType();
   }
+  return success();
+}
+
+LogicalResult TfheRustEmitter::printOperation(::mlir::arith::ShLIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "<<");
+}
+
+LogicalResult TfheRustEmitter::printOperation(::mlir::arith::AndIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "&");
+}
+
+LogicalResult TfheRustEmitter::printOperation(::mlir::arith::ShRSIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), ">>");
+}
+
+LogicalResult TfheRustEmitter::printOperation(::mlir::arith::TruncIOp op) {
+  emitAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getIn());
+  if (isa<IntegerType>(op.getType()) &&
+      op.getType().getIntOrFloatBitWidth() == 1) {
+    // Compare with zero to truncate to a boolean.
+    os << " != 0";
+  } else {
+    os << " as ";
+    if (failed(emitType(op.getType()))) {
+      return op.emitOpError()
+             << "Failed to emit truncated type " << op.getType();
+    }
+  }
+  os << ";\n";
   return success();
 }
 

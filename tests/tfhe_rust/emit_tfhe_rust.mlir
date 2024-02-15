@@ -79,3 +79,29 @@ func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3
   // CHECK-NEXT: [[v4]]
   return %2 : memref<1x!eui3>
 }
+
+// CHECK-LABEL: pub fn test_plaintext_arith_ops(
+// CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
+// CHECK-NEXT:   [[input:v[0-9]+]]: i64,
+// CHECK-NEXT: ) -> Ciphertext {
+  // CHECK-NEXT: let [[v1:.*]] = 1;
+  // CHECK-NEXT: let [[v2:.*]] = 429;
+  // CHECK-NEXT: let [[v0:.*]] = [[input]] as i32;
+  // CHECK-NEXT: let [[v3:.*]] = [[v1]] << [[v0]];
+  // CHECK-NEXT: let [[v4:.*]] = [[v3]] & [[v2]];
+  // CHECK-NEXT: let [[v5:.*]] = [[v4]] >> [[v0]];
+  // CHECK-NEXT: let [[v6:.*]] = [[v5]] != 0;
+  // CHECK-NEXT: let [[v7:.*]] = [[sks]].create_trivial([[v6]] as u64);
+  // CHECK-NEXT: [[v7]]
+// CHECK-NEXT: }
+func.func @test_plaintext_arith_ops(%sks : !sks, %input : i64) -> (!eui3) {
+  %c1_i32 = arith.constant 1 : i32
+  %c429_i32 = arith.constant 429 : i32
+  %0 = arith.trunci %input : i64 to i32 
+  %1 = arith.shli %c1_i32, %0 : i32
+  %2 = arith.andi %1, %c429_i32 : i32
+  %3 = arith.shrsi %2, %0 : i32
+  %4 = arith.trunci %3 : i32 to i1
+  %5 = tfhe_rust.create_trivial %sks, %4 : (!tfhe_rust.server_key, i1) -> !eui3
+  return %5 : !eui3
+}
