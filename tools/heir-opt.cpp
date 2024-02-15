@@ -23,6 +23,7 @@
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "include/Transforms/Secretize/Passes.h"
+#include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -53,6 +54,7 @@
 #include "mlir/include/mlir/InitAllDialects.h"             // from @llvm-project
 #include "mlir/include/mlir/InitAllPasses.h"               // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
@@ -169,14 +171,31 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
 }
 
 #ifndef HEIR_NO_YOSYS
+struct TosaToBooleanTfheOptions
+    : public PassPipelineOptions<TosaToBooleanTfheOptions> {
+  PassOptions::Option<bool> abcFast{*this, "abc-fast",
+                                    llvm::cl::desc("Run abc in fast mode."),
+                                    llvm::cl::init(false)};
+
+  PassOptions::Option<int> unrollFactor{
+      *this, "unroll-factor",
+      llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
+                     "value of zero (default) prevents unrolling."),
+      llvm::cl::init(0)};
+
+  PassOptions::Option<std::string> entryFunction{
+      *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
+      llvm::cl::init("main")};
+};
+
 void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
                                const std::string &abcPath) {
-  PassPipelineRegistration<YosysOptimizerPipelineOptions>(
+  PassPipelineRegistration<TosaToBooleanTfheOptions>(
       "tosa-to-boolean-tfhe", "Arithmetic modules to boolean tfhe-rs pipeline.",
       [yosysFilesPath, abcPath](OpPassManager &pm,
-                                const YosysOptimizerPipelineOptions &options) {
+                                const TosaToBooleanTfheOptions &options) {
         // Secretize inputs
-        pm.addPass(createSecretize());
+        pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
 
         // TOSA to linalg
         tosaToLinalg(pm);
@@ -212,8 +231,8 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
         pm.addPass(createCanonicalizerPass());
 
         // Booleanize and Yosys Optimize
-        pm.addPass(
-            createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast));
+        pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
+                                        options.abcFast, options.unrollFactor));
 
         // Lower combinational circuit to CGGI
         pm.addPass(mlir::createCSEPass());
