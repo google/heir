@@ -47,6 +47,21 @@ FailureOr<int> getRustIntegerType(int width) {
   return failure();
 }
 
+FailureOr<DenseElementsAttr> getConstantGlobalData(memref::GetGlobalOp op) {
+  auto module = op->getParentOfType<mlir::ModuleOp>();
+  auto globalOp =
+      dyn_cast<mlir::memref::GlobalOp>(module.lookupSymbol(op.getName()));
+  if (!globalOp) {
+    return failure();
+  }
+  auto cstAttr =
+      dyn_cast_or_null<DenseElementsAttr>(globalOp.getConstantInitValue());
+  if (!cstAttr) {
+    return failure();
+  }
+  return cstAttr;
+}
+
 }  // namespace
 
 void registerToTfheRustTranslation() {
@@ -90,7 +105,11 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
           // MemRef ops
-          .Case<memref::AllocOp, memref::LoadOp,
+          .Case<memref::GlobalOp, memref::DeallocOp>([&](auto op) {
+            // These are no-ops.
+            return success();
+          })
+          .Case<memref::AllocOp, memref::GetGlobalOp, memref::LoadOp,
                 memref::StoreOp>(  // todo subview & copy
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
@@ -353,6 +372,45 @@ LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
   return success();
 }
 
+LogicalResult TfheRustEmitter::printOperation(memref::GetGlobalOp op) {
+  MemRefType memRefType = dyn_cast<MemRefType>(op.getResult().getType());
+  if (!memRefType) {
+    return op.emitOpError()
+           << "Expected global to be a memref " << op.getName();
+  }
+  auto cstAttr = getConstantGlobalData(op);
+  if (failed(cstAttr)) {
+    return op.emitOpError() << "Failed to get constant global data";
+  }
+
+  auto type = convertType(memRefType.getElementType());
+  if (failed(type)) {
+    return op.emitOpError()
+           << "Failed to emit type for global " << op.getResult().getType();
+  }
+
+  // Globals are emitted as 1-D arrays.
+  os << "static " << variableNames->getNameForValue(op.getResult())
+     << llvm::formatv(" : [{0}; {1}]", type, memRefType.getNumElements())
+     << " = [";
+
+  // Populate data by iterating through constant data attribute
+  auto printValue = [](APInt value) -> std::string {
+    llvm::SmallString<40> s;
+    value.toStringSigned(s, 10);
+    return std::string(s);
+  };
+
+  auto cstIter = cstAttr.value().value_begin<APInt>();
+  auto cstIterEnd = cstAttr.value().value_end<APInt>();
+  os << std::accumulate(
+      std::next(cstIter), cstIterEnd, printValue(*cstIter),
+      [&](std::string a, APInt value) { return a + ", " + printValue(value); });
+
+  os << "];\n";
+  return success();
+}
+
 LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {
   os << variableNames->getNameForValue(op.getMemref()) << "["
      << commaSeparatedValues(
@@ -366,11 +424,26 @@ LogicalResult TfheRustEmitter::printOperation(memref::LoadOp op) {
   emitAssignPrefix(op.getResult());
   bool isRef = isa<EncryptedUInt3Type>(op.getResult().getType());
   os << (isRef ? "&" : "") << variableNames->getNameForValue(op.getMemref())
-     << "["
-     << commaSeparatedValues(
-            op.getIndices(),
-            [&](Value value) { return variableNames->getNameForValue(value); })
-     << "];\n";
+     << "[";
+
+  if (dyn_cast_or_null<memref::GetGlobalOp>(op.getMemRef().getDefiningOp())) {
+    // Global arrays are 1-dimensional, so flatten the index.
+    // TODO(#449): Share with Verilog Emitter.
+    const auto [strides, offset] =
+        getStridesAndOffset(cast<MemRefType>(op.getMemRefType()));
+    os << std::to_string(offset);
+    for (int i = 0; i < strides.size(); ++i) {
+      os << llvm::formatv(" + {0} * {1}",
+                          variableNames->getNameForValue(op.getIndices()[i]),
+                          strides[i]);
+    }
+  } else {
+    os << commaSeparatedValues(op.getIndices(), [&](Value value) {
+      return variableNames->getNameForValue(value);
+    });
+  }
+
+  os << "];\n";
   return success();
 }
 
