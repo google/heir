@@ -67,6 +67,7 @@ LogicalResult HoistConstantLikeOps<SksOp>::matchAndRewrite(
 
   rewriter.moveOpAfter(op, lastOperandDefiner);
   op->setAttr("hoisted", rewriter.getBoolAttr(true));
+
   return success();
 }
 
