@@ -365,7 +365,7 @@ LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
            << "Failed to emit default memref element type " << memRefType;
   }
   std::string res = defaultOr.value();
-  for (unsigned _ : memRefType.getShape()) {
+  for ([[maybe_unused]] unsigned dim : memRefType.getShape()) {
     res = llvm::formatv("core::array::from_fn(|_| {0})", res);
   }
   os << res << ";\n";

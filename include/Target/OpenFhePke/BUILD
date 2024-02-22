@@ -6,7 +6,7 @@ package(
 )
 
 exports_files(
-    srcs = ["OpenFhePkeEmitter.h"],
+    srcs = glob(["*.h"]),
 )
 
 cc_library(
@@ -22,6 +22,26 @@ cc_library(
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "open_fhe_utils",
+    hdrs = ["OpenFheUtils.h"],
+    deps = [
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "open_fhe_pke_header_emitter",
+    hdrs = ["OpenFhePkeHeaderEmitter.h"],
+    deps = [
+        "@heir//lib/Analysis/SelectVariableNames",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )

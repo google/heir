@@ -12,7 +12,7 @@ namespace openfhe {
 
 // clang-format off
 constexpr std::string_view kModulePrelude = R"cpp(
-#include "openfhe.h" // from @openfhe
+#include "src/pke/include/openfhe.h" // from @openfhe
 
 using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;

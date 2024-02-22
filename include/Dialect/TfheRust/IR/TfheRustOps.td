@@ -20,8 +20,8 @@ class TfheRust_Op<string mnemonic, list<Trait> traits = []> :
 def CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
   let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
   let results = (outs TfheRust_CiphertextType:$output);
+  let hasCanonicalizer = 1;
 }
-
 
 def BitAndOp : TfheRust_Op<"bitand", [
     Pure,
@@ -92,6 +92,7 @@ def GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table", [Pure]> {
     Builtin_IntegerAttr:$truthTable
   );
   let results = (outs TfheRust_LookupTable:$lookupTable);
+  let hasCanonicalizer = 1;
 }
 
 #endif  // INCLUDE_DIALECT_TFHERUST_IR_TFHERUSTOPS_TD_

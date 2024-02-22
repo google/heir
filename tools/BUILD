@@ -103,6 +103,7 @@ cc_binary(
     deps = [
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFhePkeEmitter",
+        "@heir//lib/Target/OpenFhePke:OpenFhePkeHeaderEmitter",
         "@heir//lib/Target/TfheRust:TfheRustEmitter",
         "@heir//lib/Target/TfheRustBool:TfheRustBoolEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",

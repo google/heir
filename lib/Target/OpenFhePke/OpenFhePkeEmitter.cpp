@@ -1,15 +1,13 @@
 #include "include/Target/OpenFhePke/OpenFhePkeEmitter.h"
 
 #include <functional>
-#include <string>
 #include <string_view>
 
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "include/Dialect/Openfhe/IR/OpenfheOps.h"
-#include "include/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "include/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -175,17 +173,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(SubOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(MulOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
-                         {op.getLhs(), op.getRhs()}, "EvalMul");
-}
-
-FailureOr<std::string> OpenFhePkeEmitter::convertType(Type type) {
-  return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
-      // For now, these types are defined in the prelude as aliases.
-      .Case<CryptoContextType>(
-          [&](auto ty) { return std::string("CryptoContextT"); })
-      .Case<lwe::RLWECiphertextType>(
-          [&](auto ty) { return std::string("CiphertextT"); })
-      .Default([&](Type &) { return failure(); });
+                         {op.getLhs(), op.getRhs()}, "EvalMult");
 }
 
 LogicalResult OpenFhePkeEmitter::emitType(Type type) {
