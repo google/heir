@@ -38,10 +38,6 @@ def Secret_ConcealOp : Secret_Op<"conceal", [Pure]> {
     // Builder to infer output type from the input type
     OpBuilder<(ins "Value":$cleartext)>
   ];
-
-  // TODO(#108): add a folder that collapses secret<secret<T>> into secret<T>
-  // and removes intermediate conceal ops.
-  // let hasFolder = 1;
 }
 
 def Secret_RevealOp : Secret_Op<"reveal", [Pure]> {
@@ -225,12 +221,6 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
   let hasCanonicalizer = 1;
   let hasCustomAssemblyFormat = 1;
-
-  // TODO(#108): add a folder that removes the op if there are no secret inputs.
-  // let hasFolder = 1;
-
-  // TODO(#108): add a verifier that
-  // ensures the arguments to the op match the arguments of the block.
   let hasVerifier = 1;
 }
 
