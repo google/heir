@@ -29,6 +29,9 @@ privacy-first software systems.
 
 HEIR is built in the [MLIR](https://mlir.llvm.org/) framework.
 
+For an overview of the project's goals, see [our talk at
+FHE.org](https://www.youtube.com/watch?v=kqDFdKUTNA4).
+
 ## Project Goals
 
 -   Provide MLIR dialects for all modern FHE schemes.
