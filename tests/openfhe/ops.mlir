@@ -55,14 +55,6 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_mul_const
-  func.func @test_mul_const(%cc : !cc, %pt : !pt, %pk: !pk) {
-    %0 = arith.constant 5 : i64
-    %c1 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
-    %out = openfhe.mul_const %cc, %c1, %0: (!cc, !ct, i64) -> !ct
-    return
-  }
-
   // CHECK-LABEL: func @test_mul_and_relin
   func.func @test_mul_and_relin(%cc : !cc, %pt : !pt, %pk: !pk) {
     %c1 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
@@ -96,23 +88,15 @@ module {
 
   // CHECK-LABEL: func @test_automorph
   func.func @test_automorph(%cc : !cc, %pt : !pt, %ek: !ek, %pk: !pk) {
-    %0 = arith.constant 3 : i32
     %ct = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
-    %out = openfhe.automorph %cc, %ct, %ek, %0: (!cc, !ct, !ek, i32) -> !ct
+    %out = openfhe.automorph %cc, %ct, %ek : (!cc, !ct, !ek) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_find_automorph_idx
-  func.func @test_find_automorph_idx(%cc : !cc) {
-    %0 = arith.constant 1 : i32
-    %out = openfhe.find_automorph_idx %cc, %0: (!cc, i32) -> i32
-    return
-  }
-
-  // CHECK-LABEL: func @test_keyswitch
-  func.func @test_keyswitch(%cc : !cc, %pt : !pt, %pk: !pk, %ek : !ek) {
+  // CHECK-LABEL: func @test_key_switch
+  func.func @test_key_switch(%cc : !cc, %pt : !pt, %pk: !pk, %ek : !ek) {
     %ct = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
-    %out = openfhe.keyswitch %cc, %ct, %ek: (!cc, !ct, !ek) -> !ct
+    %out = openfhe.key_switch %cc, %ct, %ek: (!cc, !ct, !ek) -> !ct
     return
   }
 

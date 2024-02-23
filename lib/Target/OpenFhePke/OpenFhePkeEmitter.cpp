@@ -60,11 +60,12 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           // Func ops
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
+          // Arith ops
+          .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // OpenFHE ops
-          // TODO(#385): add remaining OpenFHE ops
-          .Case<AddOp, SubOp, MulOp>(
-              [&](auto op) { return printOperation(op); })
-
+          .Case<AddOp, SubOp, MulOp, MulPlainOp, SquareOp, NegateOp, MulConstOp,
+                RelinOp, ModReduceOp, LevelReduceOp, RotOp, AutomorphOp,
+                KeySwitchOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -174,6 +175,96 @@ LogicalResult OpenFhePkeEmitter::printOperation(SubOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(MulOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getLhs(), op.getRhs()}, "EvalMult");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(MulPlainOp op) {
+  // OpenFHE defines an overload for EvalMult to work on both plaintext and
+  // ciphertext inputs.
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext(), op.getPlaintext()}, "EvalMult");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(MulConstOp op) {
+  // OpenFHE defines an overload for EvalMult to work on constant inputs,
+  // but only for some schemes.
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext(), op.getConstant()}, "EvalMult");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(NegateOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext()}, "EvalNegate");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(SquareOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext()}, "EvalSquare");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(RelinOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext()}, "Relinearize");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(ModReduceOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext()}, "ModReduce");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(LevelReduceOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext()}, "LevelReduce");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(RotOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext(), op.getIndex()}, "EvalRotate");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
+  // EvalAutomorphism has a bit of a strange function signature in OpenFHE:
+  //
+  //     EvalAutomorphism(
+  //       ConstCiphertext<DCRTPoly> ciphertext,
+  //       int32_t i,
+  //       const std::map<int32_t, EvalKey<DCRTPoly>>& evalKeyMap
+  //     )
+  //
+  // Here i is an index to evalKeyMap, but no other data from evalKeyMap is
+  // used. To match the API, we emit code that just creates a single-entry map
+  // locally before calling EvalAutomorphism.
+  //
+  // This would probably be an easy upstream fix to add a specialized function
+  // call if it becomes necessary.
+  std::string mapName =
+      variableNames->getNameForValue(op.getResult()) + "evalkeymap";
+  auto result = convertType(op.getEvalKey().getType());
+  os << "std::map<uint32_t, " << result << "> " << mapName << " = {{0, "
+     << variableNames->getNameForValue(op.getEvalKey()) << "}};\n";
+
+  emitAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getCryptoContext())
+     << "->EvalAutomorphism(";
+  os << variableNames->getNameForValue(op.getCiphertext()) << ", 0, " << mapName
+     << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext(), op.getEvalKey()}, "KeySwitch");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
+  auto valueAttr = op.getValue();
+  emitAssignPrefix(op.getResult());
+  if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
+    os << intAttr.getValue() << ";\n";
+  } else {
+    return op.emitError() << "Unsupported constant type "
+                          << valueAttr.getType();
+  }
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::emitType(Type type) {
