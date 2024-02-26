@@ -240,8 +240,11 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
 
         // CGGI to Tfhe-Rust exit dialect
         pm.addPass(createCGGIToTfheRust());
-        pm.addPass(createCanonicalizerPass());
+        // Note: tfhe-rust canonicalization patterns involve hoisting
+        // constant-like operations. CSE must be run before canonicalizer to
+        // ensure full hoisting.
         pm.addPass(createCSEPass());
+        pm.addPass(createCanonicalizerPass());
 
         // Cleanup loads and stores
         pm.addPass(createExpandCopyPass(
