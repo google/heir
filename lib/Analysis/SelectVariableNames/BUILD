@@ -10,8 +10,6 @@ cc_library(
     hdrs = ["@heir//include/Analysis/SelectVariableNames:SelectVariableNames.h"],
     deps = [
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
