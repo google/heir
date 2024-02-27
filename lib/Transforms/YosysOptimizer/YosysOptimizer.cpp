@@ -183,10 +183,12 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
 
 /// Convert a secret.generic's results from secret.secret<memref<3xi1>>
 /// to secret.secret<i3>.
+// genericOp has the original, func op has the memref's yosys optimized
 LogicalResult convertOpResults(secret::GenericOp op,
+                               SmallVector<Type> originalResultTy,
                                DenseSet<Operation *> &castOps,
                                SmallVector<Value> &typeConvertedResults) {
-  for (Value opResult : op.getResults()) {
+  for (auto opResult : op->getResults()) {
     // The secret.yield verifier ensures generic can only return secret types.
     assert(opResult.getType().isa<secret::SecretType>());
     secret::SecretType secretType =
@@ -214,15 +216,12 @@ LogicalResult convertOpResults(secret::GenericOp op,
       return failure();
     }
 
-    IntegerType reassembledType =
-        IntegerType::get(op.getContext(), elementType.getWidth() * numElements);
-
     // Insert a reassembly of the original integer type from its booleanized
     // memref version.
     OpBuilder builder(op);
     builder.setInsertionPointAfter(op);
     auto castOp = builder.create<secret::CastOp>(
-        op.getLoc(), secret::SecretType::get(reassembledType), opResult);
+        op.getLoc(), originalResultTy[opResult.getResultNumber()], opResult);
     castOps.insert(castOp);
     typeConvertedResults.push_back(castOp.getOutput());
   }
@@ -428,9 +427,23 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
     return failure();
   }
 
+  SmallVector<Type> originalResultTypes;
+  for (auto result : op->getResults()) {
+    originalResultTypes.push_back(result.getType());
+  }
+
   int resultIndex = 0;
   for (Type ty : func.getFunctionType().getResults())
     op->getResult(resultIndex++).setType(secret::SecretType::get(ty));
+
+  DenseSet<Operation *> castOps;
+  SmallVector<Value> typeConvertedResults;
+  castOps.reserve(op->getNumResults());
+  typeConvertedResults.reserve(op->getNumResults());
+  if (failed(convertOpResults(op, originalResultTypes, castOps,
+                              typeConvertedResults))) {
+    return failure();
+  }
 
   // Replace the func.return with a secret.yield
   op.getRegion().takeBody(func.getBody());
@@ -443,14 +456,6 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
                                       returnOp.getOperands());
   returnOp.erase();
   func.erase();
-
-  DenseSet<Operation *> castOps;
-  SmallVector<Value> typeConvertedResults;
-  castOps.reserve(op->getNumResults());
-  typeConvertedResults.reserve(op->getNumResults());
-  if (failed(convertOpResults(op, castOps, typeConvertedResults))) {
-    return failure();
-  }
 
   LLVM_DEBUG(llvm::dbgs() << "Generic results: " << typeConvertedResults.size()
                           << "\n");

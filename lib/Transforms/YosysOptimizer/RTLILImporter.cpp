@@ -167,6 +167,13 @@ func::FuncOp RTLILImporter::importModule(
   auto *block = function.addEntryBlock();
   auto b = ImplicitLocOpBuilder::atBlockBegin(function.getLoc(), block);
 
+  // Set the return bits to default 0
+  auto constantOp = b.createOrFold<arith::ConstantOp>(
+      b.getIntegerAttr(b.getIntegerType(1), 0));
+  for (auto &[wire, values] : retBitValues) {
+    values.assign(wire->width, constantOp);
+  }
+
   // Map the RTLIL wires to the block arguments' Values.
   for (unsigned i = 0; i < wireArgs.size(); i++) {
     addWireValue(wireArgs[i], block->getArgument(i));
