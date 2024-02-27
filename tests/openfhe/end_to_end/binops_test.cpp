@@ -1,16 +1,9 @@
 #include <cstdint>
 #include <vector>
 
-#include "gmock/gmock.h"  // from @googletest
-#include "gtest/gtest.h"  // from @googletest
-#include "src/core/include/lattice/hal/default/lat-backend-default.h"  // from @openfhe
-#include "src/pke/include/constants.h"               // from @openfhe
-#include "src/pke/include/cryptocontext-fwd.h"       // from @openfhe
-#include "src/pke/include/encoding/plaintext-fwd.h"  // from @openfhe
-#include "src/pke/include/gen-cryptocontext.h"       // from @openfhe
-#include "src/pke/include/key/keypair.h"             // from @openfhe
-#include "src/pke/include/scheme/bgvrns/cryptocontext-bgvrns.h"  // from @openfhe
-#include "src/pke/include/scheme/bgvrns/cryptocontextparams-bgvrns.h"  // from @openfhe
+#include "gmock/gmock.h"              // from @googletest
+#include "gtest/gtest.h"              // from @googletest
+#include "src/pke/include/openfhe.h"  // from @openfhe
 
 // Generated headers (block clang-format from messing up order)
 #include "tests/openfhe/end_to_end/binops_lib.h"

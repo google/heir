@@ -19,6 +19,10 @@ FailureOr<std::string> convertType(Type type) {
           [&](auto ty) { return std::string("CryptoContextT"); })
       .Case<lwe::RLWECiphertextType>(
           [&](auto ty) { return std::string("CiphertextT"); })
+      .Case<lwe::RLWEPlaintextType>(
+          [&](auto ty) { return std::string("Plaintext"); })
+      .Case<openfhe::EvalKeyType>(
+          [&](auto ty) { return std::string("EvalKeyT"); })
       .Default([&](Type &) { return failure(); });
 }
 

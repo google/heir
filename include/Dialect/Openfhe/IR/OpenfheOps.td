@@ -111,24 +111,12 @@ def AutomorphOp : Openfhe_Op<"automorph",[
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     RLWECiphertext:$ciphertext,
-    Openfhe_EvalKey:$evalKey,
-    I32:$index
+    Openfhe_EvalKey:$evalKey
   );
   let results = (outs RLWECiphertext:$output);
 }
 
-def FindAutomorphIdxOp : Openfhe_Op<"find_automorph_idx",[
-  Pure,
-  AllTypesMatch<["idx", "automorph_idx"]>
-]> {
-  let arguments = (ins
-    Openfhe_CryptoContext:$cryptoContext,
-    I32:$idx
-  );
-  let results = (outs I32:$automorph_idx);
-}
-
-def KeySwitchOp : Openfhe_Op<"keyswitch", [
+def KeySwitchOp : Openfhe_Op<"key_switch", [
    Pure,
    AllTypesMatch<["ciphertext", "output"]>
 ]> {

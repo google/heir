@@ -12,7 +12,6 @@ openfhe_end_to_end_test(
     generated_lib_header = "binops_lib.h",
     mlir_src = "binops.mlir",
     tags = [
-        "manual",
         "notap",
     ],
     test_src = "binops_test.cpp",
