@@ -204,9 +204,9 @@ LogicalResult VerilogEmitter::translate(
             return printOperation(op);
           })
           .Case<arith::AddIOp, arith::CmpIOp, arith::ExtSIOp, arith::ExtUIOp,
-                arith::IndexCastOp, arith::MaxSIOp, arith::MulIOp,
-                arith::SelectOp, arith::ShLIOp, arith::ShRSIOp, arith::ShRUIOp,
-                arith::SubIOp, arith::TruncIOp, arith::AndIOp>(
+                arith::IndexCastOp, arith::MaxSIOp, arith::MinSIOp,
+                arith::MulIOp, arith::SelectOp, arith::ShLIOp, arith::ShRSIOp,
+                arith::ShRUIOp, arith::SubIOp, arith::TruncIOp, arith::AndIOp>(
               [&](auto op) { return printOperation(op); })
           // Custom math ops.
           .Case<math::CountLeadingZerosOp>(
@@ -603,6 +603,14 @@ LogicalResult VerilogEmitter::printOperation(arith::MaxSIOp op) {
   auto lhs = getName(op.getLhs());
   auto rhs = getName(op.getRhs());
   os_ << lhs << " > " << rhs << " ? " << lhs << " : " << rhs << ";\n";
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(mlir::arith::MinSIOp op) {
+  emitAssignPrefix(op.getResult());
+  auto lhs = getName(op.getLhs());
+  auto rhs = getName(op.getRhs());
+  os_ << lhs << " < " << rhs << " ? " << lhs << " : " << rhs << ";\n";
   return success();
 }
 

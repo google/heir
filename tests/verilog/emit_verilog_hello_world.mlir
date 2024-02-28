@@ -22,7 +22,8 @@ module {
     %9 = arith.extui %0 : i8 to i32
     %10 = arith.andi %8, %c1 : i32
     %11 = arith.maxsi %8, %7 : i32
-    %out = arith.trunci %7 : i32 to i8
+    %12 = arith.minsi %11, %10 : i32
+    %out = arith.trunci %12 : i32 to i8
     return %out : i8
   }
 }
@@ -47,6 +48,7 @@ module {
 // CHECK-NEXT:   wire signed [31:0] [[V9:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V10:.*]];
 // CHECK-NEXT:   wire signed [31:0] [[V11:.*]];
+// CHECK-NEXT:   wire signed [31:0] [[V12:.*]];
 // CHECK-NEXT:   wire signed [7:0] [[_OUT:.*]];
 // CHECK-EMPTY:
 // CHECK-NEXT:   assign [[C0]] = 0;
@@ -72,7 +74,8 @@ module {
 // CHECK-NEXT:   assign [[V9]] = {{[{][{]}}24{1'b0}}, [[V0]]};
 // CHECK-NEXT:   assign [[V10]] = [[V8]] & [[C1]];
 // CHECK-NEXT:   assign [[V11]] = [[V8]] > [[V7]] ? [[V8]] : [[V7]];
-// CHECK-NEXT:   assign [[_OUT]] = [[V7]][7:0];
+// CHECK-NEXT:   assign [[V12]] = [[V11]] < [[V10]] ? [[V11]] : [[V10]];
+// CHECK-NEXT:   assign [[_OUT]] = [[V12]][7:0];
 // CHECK-NEXT:   assign [[OUT]] = [[_OUT]];
 // CHECK-NEXT: endmodule
 
