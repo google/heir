@@ -11,12 +11,14 @@ exports_files(
     [
         "TensorExtDialect.h",
         "TensorExtOps.h",
+        "TensorExtPatterns.h",
     ],
 )
 
 td_library(
     name = "td_files",
     srcs = [
+        "TensorExtCanonicalization.td",
         "TensorExtDialect.td",
         "TensorExtOps.td",
     ],
@@ -75,5 +77,23 @@ gentbl_cc_library(
         ":dialect_inc_gen",
         ":td_files",
         "@heir//include/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "canonicalize_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "TensorExtCanonicalization.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "TensorExtCanonicalization.td",
+    deps = [
+        ":ops_inc_gen",
+        ":td_files",
+        "@llvm-project//mlir:ArithOpsTdFiles",
+        "@llvm-project//mlir:TensorOpsTdFiles",
     ],
 )

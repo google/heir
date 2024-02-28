@@ -1,5 +1,5 @@
-#ifndef HEIR_INCLUDE_DIALECT_TensorExt_IR_TensorExtOPS_H_
-#define HEIR_INCLUDE_DIALECT_TensorExt_IR_TensorExtOPS_H_
+#ifndef INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTOPS_H_
+#define INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTOPS_H_
 
 #include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
@@ -8,4 +8,4 @@
 #define GET_OP_CLASSES
 #include "include/Dialect/TensorExt/IR/TensorExtOps.h.inc"
 
-#endif  // HEIR_INCLUDE_DIALECT_TensorExt_IR_TensorExtOPS_H_
+#endif  // INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTOPS_H_

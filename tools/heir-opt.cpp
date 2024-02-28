@@ -21,6 +21,7 @@
 #include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
 #include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "include/Dialect/TensorExt/Transforms/Passes.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
@@ -292,6 +293,7 @@ int main(int argc, char **argv) {
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   secret::registerSecretPasses();
+  tensor_ext::registerTensorExtPasses();
   registerSecretizePasses();
   registerFullLoopUnrollPasses();
   registerForwardStoreToLoadPasses();

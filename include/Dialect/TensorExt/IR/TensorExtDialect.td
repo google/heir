@@ -1,5 +1,5 @@
-#ifndef HEIR_INCLUDE_DIALECT_TensorExt_IR_TensorExtDIALECT_TD_
-#define HEIR_INCLUDE_DIALECT_TensorExt_IR_TensorExtDIALECT_TD_
+#ifndef INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTDIALECT_TD_
+#define INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
 
@@ -12,6 +12,9 @@ def TensorExt_Dialect : Dialect {
   }];
 
   let cppNamespace = "::mlir::heir::tensor_ext";
+  let dependentDialects = [
+    "tensor::TensorDialect",
+  ];
 }
 
-#endif  // HEIR_INCLUDE_DIALECT_TensorExt_IR_TensorExtDIALECT_TD_
+#endif  // INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTDIALECT_TD_
