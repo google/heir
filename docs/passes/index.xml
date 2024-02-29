@@ -264,6 +264,11 @@ are distributed through when possible.&lt;/p>
 &lt;p>&lt;em>Convert secret types to standard types&lt;/em>&lt;/p>
 &lt;p>Drop the &lt;code>secret&amp;lt;...&amp;gt;&lt;/code> type from the IR, replacing it with the contained
 type and the corresponding cleartext computation.&lt;/p>
+&lt;h3 id="-secret-generic-absorb-constants">&lt;code>-secret-generic-absorb-constants&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Copy constants into a secret.generic body&lt;/em>&lt;/p>
+&lt;p>For each constant value used in the body of a &lt;code>secret.generic&lt;/code> op, which is
+defined in the ambient scope outside the &lt;code>generic&lt;/code>, add it&amp;rsquo;s definition into
+the &lt;code>generic&lt;/code> body.&lt;/p>
 &lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Merge two adjacent generics into a single generic&lt;/em>&lt;/p>
 &lt;p>This pass merges two immedaitely sequential generics into a single

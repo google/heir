@@ -1308,7 +1308,9 @@ list of op names (e.g., <code>distribute-thorugh="affine.for,scf.if"</code>), wh
 limits the distribution to only pass through those ops. If unset, all ops
 are distributed through when possible.</p><h4 id=options>Options</h4><pre tabindex=0><code>-distribute-through : comma-separated list of ops that should be distributed through
 </code></pre><h3 id=-secret-forget-secrets><code>-secret-forget-secrets</code></h3><p><em>Convert secret types to standard types</em></p><p>Drop the <code>secret&lt;...></code> type from the IR, replacing it with the contained
-type and the corresponding cleartext computation.</p><h3 id=-secret-merge-adjacent-generics><code>-secret-merge-adjacent-generics</code></h3><p><em>Merge two adjacent generics into a single generic</em></p><p>This pass merges two immedaitely sequential generics into a single
+type and the corresponding cleartext computation.</p><h3 id=-secret-generic-absorb-constants><code>-secret-generic-absorb-constants</code></h3><p><em>Copy constants into a secret.generic body</em></p><p>For each constant value used in the body of a <code>secret.generic</code> op, which is
+defined in the ambient scope outside the <code>generic</code>, add it&rsquo;s definition into
+the <code>generic</code> body.</p><h3 id=-secret-merge-adjacent-generics><code>-secret-merge-adjacent-generics</code></h3><p><em>Merge two adjacent generics into a single generic</em></p><p>This pass merges two immedaitely sequential generics into a single
 generic. Useful as a sub-operation in some passes, and extracted into
 its own pass for testing purposes.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-365fa6726f09d9b87b36797b28838879>5.12 - YosysOptimizerPasses</h1><h3 id=-yosys-optimizer><code>-yosys-optimizer</code></h3><p><em>Invoke Yosys to perform circuit optimization.</em></p><p>This pass invokes Yosys to convert an arithmetic circuit to an optimized
 boolean circuit that uses the arith and comb dialects.</p><p>Note that booleanization changes the function signature: multi-bit integers
