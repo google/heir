@@ -21,6 +21,7 @@
 #include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -576,6 +577,41 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
   LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
   genericOp.extractOpBeforeGeneric(opToHoist, rewriter);
   return success();
+}
+
+void genericAbsorbConstants(secret::GenericOp genericOp,
+                            mlir::IRRewriter &rewriter) {
+  rewriter.setInsertionPointToStart(genericOp.getBody());
+  genericOp.getBody()->walk([&](Operation *op) -> WalkResult {
+    for (Value operand : op->getOperands()) {
+      // If this is a block argument, get the generic's corresponding operand.
+      Value opOperand = operand;
+      auto blockArg = dyn_cast<BlockArgument>(operand);
+      if (blockArg) {
+        opOperand = genericOp.getOpOperandForBlockArgument(blockArg)->get();
+      }
+      auto *definingOp = opOperand.getDefiningOp();
+      if (definingOp && definingOp->hasTrait<OpTrait::ConstantLike>()) {
+        // If the definingOp is outside of the generic region, then copy it
+        // inside the region.
+        Region *operandRegion = definingOp->getParentRegion();
+        if (operandRegion && !genericOp.getRegion().isAncestor(operandRegion)) {
+          auto copiedOp = rewriter.clone(*definingOp);
+          rewriter.replaceAllUsesWith(operand, copiedOp->getResults());
+          // If this was a block argument, additionally remove the block
+          // argument.
+          if (blockArg) {
+            int index = blockArg.getArgNumber();
+            rewriter.modifyOpInPlace(op, [&]() {
+              genericOp.getBody()->eraseArgument(index);
+              genericOp.getOperation()->eraseOperand(index);
+            });
+          }
+        }
+      }
+    }
+    return WalkResult::advance();
+  });
 }
 
 }  // namespace secret

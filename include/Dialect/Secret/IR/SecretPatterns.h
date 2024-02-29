@@ -219,6 +219,13 @@ struct HoistPlaintextOps : public OpRewritePattern<GenericOp> {
                                 PatternRewriter &rewriter) const override;
 };
 
+// Inspects a generic body for any constant operands, and copies the constant
+// definition inside the generic body. This is useful for performing IR
+// optimizations local to the generic body, so that constants can be folded
+// rather than treated as variable arguments defined outside of the block.
+void genericAbsorbConstants(secret::GenericOp genericOp,
+                            mlir::IRRewriter &rewriter);
+
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir

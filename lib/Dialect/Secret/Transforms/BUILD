@@ -12,6 +12,7 @@ cc_library(
         ":CaptureGenericAmbientScope",
         ":DistributeGeneric",
         ":ForgetSecrets",
+        ":GenericAbsorbConstants",
         ":MergeAdjacentGenerics",
         "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -62,6 +63,21 @@ cc_library(
     srcs = ["CaptureGenericAmbientScope.cpp"],
     hdrs = [
         "@heir//include/Dialect/Secret/Transforms:CaptureGenericAmbientScope.h",
+    ],
+    deps = [
+        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "GenericAbsorbConstants",
+    srcs = ["GenericAbsorbConstants.cpp"],
+    hdrs = [
+        "@heir//include/Dialect/Secret/Transforms:GenericAbsorbConstants.h",
     ],
     deps = [
         "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",

@@ -338,7 +338,8 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   // Count number of arith ops in the generic body
   int64_t numArithOps = 0;
   op->walk([&](Operation *op) {
-    if (isa<arith::ArithDialect>(op->getDialect())) {
+    if (isa<arith::ArithDialect>(op->getDialect()) &&
+        !isa<arith::ConstantOp>(op)) {
       numArithOps++;
     }
   });
@@ -520,7 +521,14 @@ void YosysOptimizer::runOnOperation() {
     getOperation()->dump();
   });
 
+  mlir::IRRewriter builder(&getContext());
   auto result = op->walk([&](secret::GenericOp op) {
+    // Now pass through any constants used after capturing the ambient scope.
+    // This
+    // way Yosys can optimize constants away instead of treating them as
+    // variables to the optimized body.
+    genericAbsorbConstants(op, builder);
+
     if (failed(runOnGenericOp(op))) {
       return WalkResult::interrupt();
     }

@@ -5,6 +5,7 @@
 #include "include/Dialect/Secret/Transforms/CaptureGenericAmbientScope.h"
 #include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "include/Dialect/Secret/Transforms/ForgetSecrets.h"
+#include "include/Dialect/Secret/Transforms/GenericAbsorbConstants.h"
 #include "include/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
 
 namespace mlir {

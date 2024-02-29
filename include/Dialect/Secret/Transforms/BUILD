@@ -30,6 +30,7 @@ gentbl_cc_library(
 
 exports_files([
     "CaptureGenericAmbientScope.h",
+    "GenericAbsorbConstants.h",
     "DistributeGeneric.h",
     "ForgetSecrets.h",
     "MergeAdjacentGenerics.h",

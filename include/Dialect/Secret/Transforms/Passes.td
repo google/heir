@@ -60,4 +60,14 @@ def SecretMergeAdjacentGenerics : Pass<"secret-merge-adjacent-generics"> {
   let dependentDialects = ["mlir::heir::secret::SecretDialect"];
 }
 
+def SecretGenericAbsorbConstants : Pass<"secret-generic-absorb-constants"> {
+  let summary = "Copy constants into a secret.generic body";
+  let description = [{
+    For each constant value used in the body of a `secret.generic` op, which is
+    defined in the ambient scope outside the `generic`, add it's definition into
+    the `generic` body.
+  }];
+  let dependentDialects = ["mlir::heir::secret::SecretDialect"];
+}
+
 #endif  // INCLUDE_DIALECT_SECRET_TRANSFORMS_PASSES_TD_
