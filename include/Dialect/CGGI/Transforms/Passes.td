@@ -19,13 +19,4 @@ def SetDefaultParameters : Pass<"cggi-set-default-parameters"> {
   let dependentDialects = ["mlir::heir::cggi::CGGIDialect"];
 }
 
-def StraightLineVectorizer : Pass<"cggi-straight-line-vectorizer"> {
-  let summary = "A straight-line vectorizer for CGGI bootstrapping ops.";
-  let description = [{
-  This pass vectorizes CGGI ops. It ignores control flow and only vectorizes
-  straight-line programs within a given region.
-  }];
-  let dependentDialects = ["mlir::heir::cggi::CGGIDialect"];
-}
-
 #endif  // INCLUDE_DIALECT_CGGI_TRANSFORMS_PASSES_TD_
