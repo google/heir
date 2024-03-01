@@ -22,6 +22,7 @@
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
+#include "include/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "include/Transforms/Secretize/Passes.h"
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -288,6 +289,7 @@ int main(int argc, char **argv) {
   lwe::registerLWEPasses();
   secret::registerSecretPasses();
   registerSecretizePasses();
+  registerFullLoopUnrollPasses();
   registerForwardStoreToLoadPasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
