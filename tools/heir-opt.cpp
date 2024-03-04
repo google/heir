@@ -19,6 +19,7 @@
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
+#include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
@@ -268,6 +269,7 @@ int main(int argc, char **argv) {
   registry.insert<tfhe_rust::TfheRustDialect>();
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
   registry.insert<openfhe::OpenfheDialect>();
+  registry.insert<tensor_ext::TensorExtDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<affine::AffineDialect>();
