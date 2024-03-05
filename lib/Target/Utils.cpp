@@ -16,6 +16,9 @@ namespace heir {
 
 std::string commaSeparatedValues(
     ValueRange values, std::function<std::string(Value)> valueToString) {
+  if (values.empty()) {
+    return std::string();
+  }
   return std::accumulate(
       std::next(values.begin()), values.end(), valueToString(values[0]),
       [&](std::string a, Value b) { return a + ", " + valueToString(b); });
@@ -23,6 +26,9 @@ std::string commaSeparatedValues(
 
 FailureOr<std::string> commaSeparatedTypes(
     TypeRange types, std::function<FailureOr<std::string>(Type)> typeToString) {
+  if (types.empty()) {
+    return std::string();
+  }
   return std::accumulate(
       std::next(types.begin()), types.end(), typeToString(types[0]),
       [&](FailureOr<std::string> a, Type b) -> FailureOr<std::string> {
@@ -36,6 +42,9 @@ FailureOr<std::string> commaSeparatedTypes(
 
 std::string bracketEnclosedValues(
     ValueRange values, std::function<std::string(Value)> valueToString) {
+  if (values.empty()) {
+    return std::string();
+  }
   return std::accumulate(
       std::next(values.begin()), values.end(),
       "[" + valueToString(values[0]) + "]",

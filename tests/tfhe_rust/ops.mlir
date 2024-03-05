@@ -1,10 +1,12 @@
 // RUN: heir-opt %s | FileCheck %s
+// RUN: heir-translate --emit-tfhe-rust %s | FileCheck --check-prefix=RS %s
 
 // This simply tests for syntax.
 !sks = !tfhe_rust.server_key
 
 module {
   // CHECK-LABEL: func @test_create_trivial
+  // RS-LABEL: pub fn test_create_trivial
   func.func @test_create_trivial(%sks : !sks) {
     %0 = arith.constant 1 : i8
     %1 = arith.constant 1 : i3
@@ -16,6 +18,7 @@ module {
   }
 
   // CHECK-LABEL: func @test_bitand
+  // RS-LABEL: pub fn test_bitand
   func.func @test_bitand(%sks : !sks) {
     %0 = arith.constant 1 : i1
     %1 = arith.constant 1 : i1
@@ -28,6 +31,7 @@ module {
 
 
   // CHECK-LABEL: func @test_apply_lookup_table
+  // RS-LABEL: pub fn test_apply_lookup_table
   func.func @test_apply_lookup_table(%sks : !sks, %lut: !tfhe_rust.lookup_table) {
     %0 = arith.constant 1 : i3
     %1 = arith.constant 2 : i3
