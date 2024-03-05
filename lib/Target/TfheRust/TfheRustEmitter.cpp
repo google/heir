@@ -1,5 +1,7 @@
 #include "include/Target/TfheRust/TfheRustEmitter.h"
 
+#include <cassert>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <numeric>
@@ -10,11 +12,18 @@
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "include/Dialect/TfheRust/IR/TfheRustTypes.h"
+#include "include/Graph/Graph.h"
 #include "lib/Target/TfheRust/TfheRustTemplates.h"
 #include "lib/Target/Utils.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
+#include "mlir/include/mlir/Analysis/SliceAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
@@ -31,11 +40,54 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
+#define DEBUG_TYPE "tfhe-rust-emitter"
+
 namespace mlir {
 namespace heir {
 namespace tfhe_rust {
 
 namespace {
+
+graph::Graph<Operation *> getGraph(affine::AffineForOp forOp) {
+  graph::Graph<Operation *> graph;
+  auto block = forOp.getBody();
+
+  // Skip if there isn't any apply_lookup_table
+  if (llvm::none_of(block->getOperations(), [&](Operation &op) {
+        return isa<ApplyLookupTableOp>(op);
+      })) {
+    return graph;
+  }
+
+  for (auto &op : block->getOperations()) {
+    if (!isa<ApplyLookupTableOp, AddOp, ScalarLeftShiftOp>(op)) {
+      continue;
+    }
+    graph.addVertex(&op);
+    for (auto operand : op.getOperands()) {
+      auto *definingOp = operand.getDefiningOp();
+      if (!definingOp || definingOp->getBlock() != block ||
+          !isa<ApplyLookupTableOp, AddOp, ScalarLeftShiftOp>(definingOp)) {
+        continue;
+      }
+      graph.addEdge(definingOp, &op);
+    }
+  }
+
+  return graph;
+}
+
+SmallVector<Value> getCiphertextOperands(ValueRange inputs) {
+  SmallVector<Value> vals;
+  for (Value val : inputs) {
+    // TODO(#474): Generalize to any encrypted uint.
+    if (isa<tfhe_rust::EncryptedUInt3Type>(val.getType())) {
+      vals.push_back(val);
+    }
+  }
+
+  return vals;
+}
 
 // getRustIntegerType returns the width of the closest builtin integer type.
 FailureOr<int> getRustIntegerType(int width) {
@@ -74,7 +126,7 @@ void registerToTfheRustTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
                         arith::ArithDialect, tensor::TensorDialect,
-                        memref::MemRefDialect>();
+                        memref::MemRefDialect, affine::AffineDialect>();
       });
 }
 
@@ -93,9 +145,19 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
           // Func ops
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
+          // Affine ops
+          .Case<affine::AffineForOp>(
+              [&](auto op) { return printOperation(op); })
+          .Case<affine::AffineYieldOp>([&](auto op) -> LogicalResult {
+            if (op->getNumResults() != 0) {
+              return op.emitOpError()
+                     << "AffineYieldOp has non-zero number of results";
+            }
+            return success();
+          })
           // Arith ops
-          .Case<arith::ConstantOp, arith::ShRSIOp, arith::ShLIOp,
-                arith::TruncIOp, arith::AndIOp>(
+          .Case<arith::ConstantOp, arith::IndexCastOp, arith::ShRSIOp,
+                arith::ShLIOp, arith::TruncIOp, arith::AndIOp>(
               [&](auto op) { return printOperation(op); })
           // TfheRust ops
           .Case<AddOp, ApplyLookupTableOp, BitAndOp, GenerateLookupTableOp,
@@ -110,8 +172,7 @@ LogicalResult TfheRustEmitter::translate(Operation &op) {
             return success();
           })
           .Case<memref::AllocOp, memref::GetGlobalOp, memref::LoadOp,
-                memref::StoreOp>(  // todo subview & copy
-              [&](auto op) { return printOperation(op); })
+                memref::StoreOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -178,6 +239,13 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   os << " {\n";
   os.indent();
 
+  // Create a global temp_nodes hashmap for any created SSA values.
+  // TODO(#462): Insert block argument that are encrypted ints into temp_nodes.
+  os << "let mut temp_nodes : HashMap<usize, Ciphertext> = HashMap::new();\n";
+  os << "let mut luts : HashMap<&str, LookupTableOwned> = HashMap::new();\n";
+
+  os << kRunLevelDefn << "\n";
+
   for (Block &block : funcOp.getBlocks()) {
     for (Operation &op : block.getOperations()) {
       if (failed(translate(op))) {
@@ -193,11 +261,28 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
 
 LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
   std::function<std::string(Value)> valueOrClonedValue = [&](Value value) {
-    auto cloneStr = "";
     if (isa<BlockArgument>(value)) {
-      cloneStr = ".clone()";
+      // Function arguments used as outputs must be cloned.
+      return variableNames->getNameForValue(value) + ".clone()";
+    } else if (MemRefType memRefType = dyn_cast<MemRefType>(value.getType())) {
+      auto shape = memRefType.getShape();
+      // Internally allocated memrefs that are treated as hashmaps must be
+      // converted to arrays.
+      unsigned int i = 0;
+      std::string res =
+          variableNames->getNameForValue(value) + std::string(".get(&(") +
+          std::accumulate(std::next(shape.begin()), shape.end(),
+                          std::string("i0"),
+                          [&](std::string a, int64_t value) {
+                            return a + ", i" + std::to_string(++i);
+                          }) +
+          std::string(")).unwrap().clone()");
+      for (unsigned _ : shape) {
+        res = llvm::formatv("core::array::from_fn(|i{0}| {1})", i--, res);
+      }
+      return res;
     }
-    return variableNames->getNameForValue(value) + cloneStr;
+    return variableNames->getNameForValue(value);
   };
 
   if (op.getNumOperands() == 1) {
@@ -221,14 +306,36 @@ LogicalResult TfheRustEmitter::printSksMethod(
     std::string_view op, SmallVector<std::string> operandTypes) {
   emitAssignPrefix(result);
 
-  auto operandTypesIt = operandTypes.begin();
+  if (!operandTypes.empty()) {
+    assert(operandTypes.size() == nonSksOperands.size() &&
+           "invalid sizes of operandTypes");
+    operandTypes =
+        llvm::to_vector(llvm::map_range(operandTypes, [&](std::string value) {
+          return value.empty() ? "" : " as " + value;
+        }));
+  }
+  auto *operandTypesIt = operandTypes.begin();
   os << variableNames->getNameForValue(sks) << "." << op << "(";
   os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-    const auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
-    return prefix + variableNames->getNameForValue(value) +
-           (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
+    auto valueStr = variableNames->getNameForValue(value);
+    if (isa<LookupTableType>(value.getType())) {
+      valueStr = "luts[\"" + variableNames->getNameForValue(value) + "\"]";
+    }
+    std::string prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+    std::string suffix = operandTypes.empty() ? "" : *operandTypesIt++;
+    return prefix + valueStr + suffix;
   });
+
   os << ");\n";
+
+  // Insert ciphertext results into temp_nodes so that the levelled ops can
+  // reference them.
+  // TODO(#474): Generalize to any encrypted uint.
+  if (isa<EncryptedUInt3Type>(result.getType())) {
+    os << llvm::formatv("temp_nodes.insert({0}, {1}.clone());\n",
+                        variableNames->getIntForValue(result),
+                        variableNames->getNameForValue(result));
+  }
   return success();
 }
 
@@ -258,17 +365,124 @@ LogicalResult TfheRustEmitter::printOperation(GenerateLookupTableOp op) {
   uint64_t truthTable = op.getTruthTable().getUInt();
   auto result = op.getResult();
 
-  emitAssignPrefix(result);
+  os << "luts.insert(\"" << variableNames->getNameForValue(result) << "\", ";
+
   os << variableNames->getNameForValue(sks) << ".generate_lookup_table(";
   os << "|x| (" << std::to_string(truthTable) << " >> x) & 1";
-  os << ");\n";
+
+  os << "));\n";
+  return success();
+}
+
+std::string TfheRustEmitter::operationType(Operation *op) {
+  return llvm::TypeSwitch<Operation *, std::string>(op)
+      .Case<tfhe_rust::ApplyLookupTableOp>([&](ApplyLookupTableOp op) {
+        return "LUT3(\"" + variableNames->getNameForValue(op.getLookupTable()) +
+               "\")";
+      })
+      .Case<tfhe_rust::ScalarLeftShiftOp>([&](ScalarLeftShiftOp op) {
+        auto constantShift =
+            cast<arith::ConstantOp>(op.getShiftAmount().getDefiningOp());
+        return "LSH(" +
+               std::to_string(
+                   cast<IntegerAttr>(constantShift.getValue()).getInt()) +
+               ")";
+      })
+      .Case<tfhe_rust::AddOp>([&](Operation *) { return "ADD"; });
+}
+
+LogicalResult TfheRustEmitter::printOperation(affine::AffineForOp forOp) {
+  os << "for " << variableNames->getNameForValue(forOp.getInductionVar())
+     << " in " << forOp.getConstantLowerBound() << ".."
+     << forOp.getConstantUpperBound() << " {\n";
+  os.indent();
+
+  auto graph = getGraph(forOp);
+  if (!graph.empty()) {
+    auto sortedGraph = graph.sortGraphByLevels();
+    if (failed(sortedGraph)) {
+      llvm_unreachable("Only possible failure is a cycle in the SSA graph!");
+    }
+    auto levels = sortedGraph.value();
+    // Print lists of operations per level.
+    for (int level = 0; level < levels.size(); ++level) {
+      os << "static LEVEL_" << level << " : [((OpType, usize), &[GateInput]); "
+         << levels[level].size() << "] = [";
+      for (auto &op : levels[level]) {
+        // Print the operation type and its ciphertext args
+        os << llvm::formatv(
+            "(({0}, {1}), &[{2}]), ", operationType(op),
+            variableNames->getIntForValue(op->getResult(0)),
+            commaSeparatedValues(
+                getCiphertextOperands(op->getOperands()), [&](Value value) {
+                  // TODO(#462): This assumes that all ciphertexts are loaded
+                  // into temp_nodes. Currently, block arguments are not
+                  // supported.
+                  return "Tv(" +
+                         std::to_string(variableNames->getIntForValue(value)) +
+                         ")";
+                }));
+      }
+      os << "];\n";
+    }
+
+    // Walk operations of the for loop body until we hit an op besides
+    // GenerateLookupTable, CreateTrivial, or a memref::LoadOp.
+    forOp.getBody()->walk([&](Operation *op) -> WalkResult {
+      return llvm::TypeSwitch<Operation *, WalkResult>(op)
+          .Case<tfhe_rust::GenerateLookupTableOp, tfhe_rust::CreateTrivialOp>(
+              [&](Operation *op) {
+                if (failed(translate(*op))) {
+                  return WalkResult::interrupt();
+                }
+                return WalkResult::advance();
+              })
+          .Case<memref::LoadOp>([&](memref::LoadOp op) {
+            // Insert the result into the temp_nodes hashmap.
+            os << llvm::formatv("temp_nodes.insert({0}, ",
+                                variableNames->getIntForValue(op.getResult()));
+            printLoadOp(op);
+            os << ".clone());\n";
+
+            return WalkResult::advance();
+          })
+          // Note: if these ops are hoisted before the add, shift, and
+          // apply_lookup_table ops, we could interrupt and stop here.
+          .Default([](Operation *) { return WalkResult::advance(); });
+    });
+
+    // Execute each task in the level.
+    for (int level = 0; level < levels.size(); ++level) {
+      os << llvm::formatv(
+          "run_level({1}, &mut temp_nodes, &mut luts, &LEVEL_{0});\n", level,
+          serverKeyArg_);
+    }
+
+    // Store into memrefs by taking the values from temp_nodes.
+    for (memref::StoreOp op : forOp.getBody()->getOps<memref::StoreOp>()) {
+      std::string valueToStore =
+          llvm::formatv("temp_nodes[&{0}].clone()",
+                        variableNames->getIntForValue(op.getValueToStore()));
+      printStoreOp(op, valueToStore);
+    }
+  } else {
+    // Without levelled execution, trasnslate the body operations.
+    for (Operation &op : forOp.getBody()->getOperations()) {
+      if (failed(translate(op))) {
+        return failure();
+      }
+    }
+  }
+
+  os.unindent();
+  os << "}\n";
   return success();
 }
 
 LogicalResult TfheRustEmitter::printOperation(ScalarLeftShiftOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(),
                         {op.getCiphertext(), op.getShiftAmount()},
-                        "scalar_left_shift");
+                        "scalar_left_shift", {"", "u8"});
 }
 
 LogicalResult TfheRustEmitter::printOperation(CreateTrivialOp op) {
@@ -293,6 +507,17 @@ LogicalResult TfheRustEmitter::printOperation(arith::ConstantOp op) {
   } else {
     return op.emitError() << "Unknown constant type " << valueAttr.getType();
   }
+  return success();
+}
+
+LogicalResult TfheRustEmitter::printOperation(arith::IndexCastOp op) {
+  emitAssignPrefix(op.getOut());
+  os << variableNames->getNameForValue(op.getIn()) << " as ";
+  if (failed(emitType(op.getOut().getType()))) {
+    return op.emitOpError()
+           << "Failed to emit index cast type " << op.getOut().getType();
+  }
+  os << ";\n";
   return success();
 }
 
@@ -351,24 +576,18 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
-  //  Uses an iterator to create an array with a default value
-  MemRefType memRefType = op.getMemref().getType();
-  auto typeStr = convertType(memRefType);
-  if (failed(typeStr)) {
-    op.emitOpError() << "failed to emit memref type " << memRefType;
+  os << "let mut " << variableNames->getNameForValue(op.getMemref())
+     << " : HashMap<("
+     << std::accumulate(
+            std::next(op.getMemref().getType().getShape().begin()),
+            op.getMemref().getType().getShape().end(), std::string("usize"),
+            [&](std::string a, int64_t value) { return a + ", usize"; })
+     << "), ";
+  if (failed(emitType(op.getMemref().getType().getElementType()))) {
+    return op.emitOpError() << "Failed to get memref element type";
   }
-  emitAssignPrefix(op.getResult(), true, typeStr.value());
 
-  auto defaultOr = defaultValue(memRefType.getElementType());
-  if (failed(defaultOr)) {
-    return op.emitOpError()
-           << "Failed to emit default memref element type " << memRefType;
-  }
-  std::string res = defaultOr.value();
-  for ([[maybe_unused]] unsigned dim : memRefType.getShape()) {
-    res = llvm::formatv("core::array::from_fn(|_| {0})", res);
-  }
-  os << res << ";\n";
+  os << "> = HashMap::new();\n";
   return success();
 }
 
@@ -411,46 +630,68 @@ LogicalResult TfheRustEmitter::printOperation(memref::GetGlobalOp op) {
   return success();
 }
 
+void TfheRustEmitter::printStoreOp(memref::StoreOp op,
+                                   std::string valueToStore) {
+  os << variableNames->getNameForValue(op.getMemref());
+  os << ".insert(("
+     << commaSeparatedValues(op.getIndices(),
+                             [&](Value value) {
+                               return variableNames->getNameForValue(value) +
+                                      std::string(" as usize");
+                             })
+     << "), " << valueToStore << ");\n";
+}
+
 LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {
-  os << variableNames->getNameForValue(op.getMemref()) << "["
-     << commaSeparatedValues(
-            op.getIndices(),
-            [&](Value value) { return variableNames->getNameForValue(value); })
-     << "] = " << variableNames->getNameForValue(op.getValueToStore()) << ";\n";
+  printStoreOp(op, variableNames->getNameForValue(op.getValueToStore()));
   return success();
 }
 
-LogicalResult TfheRustEmitter::printOperation(memref::LoadOp op) {
-  emitAssignPrefix(op.getResult());
-  bool isRef = isa<EncryptedUInt3Type>(op.getResult().getType());
-  os << (isRef ? "&" : "") << variableNames->getNameForValue(op.getMemref())
-     << "[";
-
+void TfheRustEmitter::printLoadOp(memref::LoadOp op) {
+  os << variableNames->getNameForValue(op.getMemref());
   if (dyn_cast_or_null<memref::GetGlobalOp>(op.getMemRef().getDefiningOp())) {
-    // Global arrays are 1-dimensional, so flatten the index.
+    // Global arrays are 1-dimensional, so flatten the index
     // TODO(#449): Share with Verilog Emitter.
     const auto [strides, offset] =
         getStridesAndOffset(cast<MemRefType>(op.getMemRefType()));
-    os << std::to_string(offset);
+    os << "[" << std::to_string(offset);
     for (int i = 0; i < strides.size(); ++i) {
       os << llvm::formatv(" + {0} * {1}",
                           variableNames->getNameForValue(op.getIndices()[i]),
                           strides[i]);
     }
-  } else {
-    os << commaSeparatedValues(op.getIndices(), [&](Value value) {
+    os << "]";
+  } else if (isa<BlockArgument>(op.getMemRef())) {
+    // This is a block argument array.
+    os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
       return variableNames->getNameForValue(value);
     });
+  } else {
+    // Otherwise, this must be an internally allocated memref, treated as a
+    // hashmap.
+    os << ".get(&(" << commaSeparatedValues(op.getIndices(), [&](Value value) {
+      return variableNames->getNameForValue(value) + " as usize";
+    }) << ")).unwrap()";
   }
+}
 
-  os << "];\n";
+LogicalResult TfheRustEmitter::printOperation(memref::LoadOp op) {
+  emitAssignPrefix(op.getResult());
+
+  // TODO(#474): Generalize to any encrypted uint.
+  bool isRef = isa<EncryptedUInt3Type>(op.getResult().getType());
+  os << (isRef ? "&" : "");
+
+  printLoadOp(op);
+
+  os << ";\n";
   return success();
 }
 
 FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
-  // Note: these are probably not the right type names to use exactly, and they
-  // will need to chance to the right values once we try to compile it against
-  // a specific API version.
+  // Note: these are probably not the right type names to use exactly, and
+  // they will need to chance to the right values once we try to compile it
+  // against a specific API version.
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<RankedTensorType>(
           [&](RankedTensorType type) -> FailureOr<std::string> {
@@ -464,7 +705,7 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
         auto elementTy = convertType(type.getElementType());
         if (failed(elementTy)) return failure();
         std::string res = elementTy.value();
-        for (unsigned dim : type.getShape()) {
+        for (unsigned dim : llvm::reverse(type.getShape())) {
           res = llvm::formatv("[{0}; {1}]", res, dim);
         }
         return res;
@@ -478,6 +719,7 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
         return (type.isUnsigned() ? std::string("u") : "") + "i" +
                std::to_string(width.value());
       })
+      // TODO(#474): Generalize to any encrypted uint.
       .Case<EncryptedUInt3Type>(
           [&](auto type) { return std::string("Ciphertext"); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
@@ -489,6 +731,7 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
 FailureOr<std::string> TfheRustEmitter::defaultValue(Type type) {
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<IntegerType>([&](IntegerType type) { return std::string("0"); })
+      // TODO(#474): Generalize to any encrypted uint.
       .Case<EncryptedUInt3Type>([&](auto type) -> FailureOr<std::string> {
         if (serverKeyArg_.empty()) return failure();
         return std::string(

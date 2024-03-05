@@ -13,10 +13,13 @@ cc_library(
         "@heir//include/Target/TfheRust:TfheRustEmitter.h",
     ],
     deps = [
+        "@heir//include/Graph",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Target:Utils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

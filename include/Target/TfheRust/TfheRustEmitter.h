@@ -7,7 +7,8 @@
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRust/IR/TfheRustOps.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
@@ -51,6 +52,7 @@ class TfheRustEmitter {
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  LogicalResult printOperation(::mlir::arith::IndexCastOp op);
   LogicalResult printOperation(::mlir::arith::ShLIOp op);
   LogicalResult printOperation(::mlir::arith::AndIOp op);
   LogicalResult printOperation(::mlir::arith::ShRSIOp op);
@@ -60,6 +62,7 @@ class TfheRustEmitter {
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(BitAndOp op);
   LogicalResult printOperation(CreateTrivialOp op);
+  LogicalResult printOperation(affine::AffineForOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
   LogicalResult printOperation(memref::AllocOp op);
@@ -77,6 +80,9 @@ class TfheRustEmitter {
                                SmallVector<std::string> operandTypes = {});
   LogicalResult printBinaryOp(::mlir::Value result, ::mlir::Value lhs,
                               ::mlir::Value rhs, std::string_view op);
+  void printStoreOp(memref::StoreOp op, std::string valueToStore);
+  void printLoadOp(memref::LoadOp op);
+  std::string operationType(Operation *op);
 
   // Emit a TfheRust type
   LogicalResult emitType(Type type);

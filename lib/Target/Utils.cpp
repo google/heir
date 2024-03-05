@@ -34,5 +34,13 @@ FailureOr<std::string> commaSeparatedTypes(
       });
 }
 
+std::string bracketEnclosedValues(
+    ValueRange values, std::function<std::string(Value)> valueToString) {
+  return std::accumulate(
+      std::next(values.begin()), values.end(),
+      "[" + valueToString(values[0]) + "]",
+      [&](std::string a, Value b) { return a + "[" + valueToString(b) + "]"; });
+}
+
 }  // namespace heir
 }  // namespace mlir

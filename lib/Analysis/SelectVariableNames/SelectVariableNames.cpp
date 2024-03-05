@@ -12,16 +12,15 @@ namespace heir {
 
 SelectVariableNames::SelectVariableNames(Operation *op) {
   int i = 0;
-  std::string prefix = "v";
   op->walk<WalkOrder::PreOrder>([&](Operation *op) {
     for (Value result : op->getResults()) {
-      variableNames.try_emplace(result, prefix + std::to_string(i++));
+      variableNames.try_emplace(result, i++);
     }
 
     for (Region &region : op->getRegions()) {
       for (Block &block : region) {
         for (Value arg : block.getArguments()) {
-          variableNames.try_emplace(arg, prefix + std::to_string(i++));
+          variableNames.try_emplace(arg, i++);
         }
       }
     }

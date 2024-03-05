@@ -10,7 +10,9 @@
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT:   [[input2:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> Ciphertext {
-// CHECK-NEXT:   let [[v0:.*]] = [[sks]].bitand(&[[input1]], &[[input2]]);
+// CHECK:      let [[v0:.*]] = [[sks]].bitand(&[[input1]], &[[input2]]);
+// CHECK-NEXT: temp_nodes.insert
+// CHECK-SAME:   [[v0]]
 // CHECK-NEXT:   [[v0]]
 // CHECK-NEXT: }
 func.func @test_bitand(%sks : !sks, %input1 : !eui3, %input2 : !eui3) -> !eui3 {
@@ -23,7 +25,9 @@ func.func @test_bitand(%sks : !sks, %input1 : !eui3, %input2 : !eui3) -> !eui3 {
 // CHECK-NEXT:   [[lut:v[0-9]+]]: &LookupTableOwned,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> Ciphertext {
-// CHECK-NEXT:   let [[v0:.*]] = [[sks]].apply_lookup_table(&[[input]], &[[lut]]);
+// CHECK:      let [[v0:.*]] = [[sks]].apply_lookup_table(&[[input]], &luts["[[lut]]"]);
+// CHECK-NEXT: temp_nodes.insert
+// CHECK-SAME:   [[v0]]
 // CHECK-NEXT:   [[v0]]
 // CHECK-NEXT: }
 func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !eui3 {
@@ -36,11 +40,13 @@ func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !
 // CHECK-NEXT:   [[lut:v[0-9]+]]: &LookupTableOwned,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> Ciphertext {
-// CHECK-NEXT:   let [[v1:.*]] = [[sks]].apply_lookup_table(&[[input]], &[[lut]]);
-// CHECK-NEXT:   let [[v2:.*]] = [[sks]].unchecked_add(&[[input]], &[[v1]]);
-// CHECK-NEXT:   let [[c1:.*]] = 1;
-// CHECK-NEXT:   let [[v3:.*]] = [[sks]].scalar_left_shift(&[[v2]], [[c1]]);
-// CHECK-NEXT:   let [[v4:.*]] = [[sks]].apply_lookup_table(&[[v3]], &[[lut]]);
+// CHECK:   let [[v1:.*]] = [[sks]].apply_lookup_table(&[[input]], &luts["[[lut]]"]);
+// CHECK:   let [[v2:.*]] = [[sks]].unchecked_add(&[[input]], &[[v1]]);
+// CHECK:   let [[c1:.*]] = 1;
+// CHECK:   let [[v3:.*]] = [[sks]].scalar_left_shift(&[[v2]], [[c1]] as u8);
+// CHECK:   let [[v4:.*]] = [[sks]].apply_lookup_table(&[[v3]], &luts["[[lut]]"]);
+// CHECK-NEXT: temp_nodes.insert
+// CHECK-SAME:   [[v4]]
 // CHECK-NEXT:   [[v4]]
 // CHECK-NEXT: }
 func.func @test_apply_lookup_table2(%sks : !sks, %lut: !lut, %input : !eui3) -> !eui3 {
@@ -55,7 +61,7 @@ func.func @test_apply_lookup_table2(%sks : !sks, %lut: !lut, %input : !eui3) -> 
 // CHECK-LABEL: pub fn test_return_multiple_values(
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> (Ciphertext, Ciphertext) {
-// CHECK-NEXT:   ([[input]].clone(), [[input]].clone())
+// CHECK:   ([[input]].clone(), [[input]].clone())
 // CHECK-NEXT: }
 func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
   return %input, %input : !eui3, !eui3
@@ -65,15 +71,15 @@ func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &[Ciphertext; 1],
 // CHECK-NEXT: ) -> [Ciphertext; 1] {
-  // CHECK-NEXT: let [[v1:.*]] = 0;
+  // CHECK: let [[v1:.*]] = 0;
   // CHECK-NEXT: let [[v2:.*]] = &[[input]][[[v1]]];
   // CHECK-NEXT: static [[v3:.*]] : [bool; 1] = [-1];
   // CHECK-NEXT: let [[v4:.*]] = [[v3]][0 + [[v1]] * 1 + [[v1]] * 1];
   // CHECK-NEXT: let [[v5:.*]] = [[sks]].create_trivial([[v4]] as u64);
-  // CHECK-NEXT: let [[v6:.*]] = [[sks]].bitand(&[[v2]], &[[v5]]);
-  // CHECK-NEXT: let mut [[v7:.*]] : [Ciphertext; 1] = core::array::from_fn(|_| [[sks]].create_trivial(0 as u64));
-  // CHECK-NEXT: [[v7]][[[v1]]] = [[v6]];
-  // CHECK-NEXT: [[v7]]
+  // CHECK: let [[v6:.*]] = [[sks]].bitand(&[[v2]], &[[v5]]);
+  // CHECK: let mut [[v7:.*]] : HashMap<(usize), Ciphertext> = HashMap::new();
+  // CHECK-NEXT: [[v7]].insert(([[v1]] as usize), [[v6]]);
+  // CHECK-NEXT: core::array::from_fn(|i0| [[v7]].get
 memref.global constant @__constant_1x1xi1 : memref<1x1xi1> = dense<[[1]]> {alignment = 64 : i64}
 func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3>) {
   %c0 = arith.constant 0 : index
@@ -92,7 +98,7 @@ func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input:v[0-9]+]]: i64,
 // CHECK-NEXT: ) -> Ciphertext {
-  // CHECK-NEXT: let [[v1:.*]] = 1;
+  // CHECK: let [[v1:.*]] = 1;
   // CHECK-NEXT: let [[v2:.*]] = 429;
   // CHECK-NEXT: let [[v0:.*]] = [[input]] as i32;
   // CHECK-NEXT: let [[v3:.*]] = [[v1]] << [[v0]];
@@ -100,7 +106,9 @@ func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3
   // CHECK-NEXT: let [[v5:.*]] = [[v4]] >> [[v0]];
   // CHECK-NEXT: let [[v6:.*]] = [[v5]] != 0;
   // CHECK-NEXT: let [[v7:.*]] = [[sks]].create_trivial([[v6]] as u64);
-  // CHECK-NEXT: [[v7]]
+  // CHECK-NEXT: temp_nodes.insert
+  // CHECK-SAME:   [[v7]]
+  // CHECK: [[v7]]
 // CHECK-NEXT: }
 func.func @test_plaintext_arith_ops(%sks : !sks, %input : i64) -> (!eui3) {
   %c1_i32 = arith.constant 1 : i32

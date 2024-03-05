@@ -21,6 +21,12 @@ std::string commaSeparatedValues(
 FailureOr<std::string> commaSeparatedTypes(
     TypeRange types, std::function<FailureOr<std::string>(Type)> typeToString);
 
+// Return a string containing the values in the given
+// ValueRange enclosed in square brackets, with each value being converted to a
+// string by the given mapping function, for example [1][2].
+std::string bracketEnclosedValues(
+    ValueRange values, std::function<std::string(Value)> valueToString);
+
 }  // namespace heir
 }  // namespace mlir
 

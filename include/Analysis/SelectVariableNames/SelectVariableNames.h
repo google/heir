@@ -1,6 +1,8 @@
 #ifndef INCLUDE_ANALYSIS_SELECTVARIABLENAMES_SELECTVARIABLENAMES_H_
 #define INCLUDE_ANALYSIS_SELECTVARIABLENAMES_SELECTVARIABLENAMES_H_
 
+#include <string>
+
 #include "llvm/include/llvm/ADT/DenseMap.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
@@ -18,11 +20,19 @@ class SelectVariableNames {
   /// tree that this class was constructed with).
   std::string getNameForValue(Value value) const {
     assert(variableNames.contains(value));
+    return prefix + std::to_string(variableNames.lookup(value));
+  }
+
+  // Return the unique integer assigned to a given value.
+  int getIntForValue(Value value) const {
+    assert(variableNames.contains(value));
     return variableNames.lookup(value);
   }
 
  private:
-  llvm::DenseMap<Value, std::string> variableNames;
+  llvm::DenseMap<Value, int> variableNames;
+
+  std::string prefix{"v"};
 };
 
 }  // namespace heir
