@@ -567,16 +567,30 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
     return true;
   };
 
-  auto it = std::find_if(opRange.begin(), opRange.end(),
-                         [&](Operation &op) { return canHoist(op); });
-  if (it == opRange.end()) {
-    return failure();
+  LLVM_DEBUG(
+      llvm::dbgs() << "Scanning generic body looking for ops to hoist...\n");
+
+  // We can't hoist them as they are detected because the process of hoisting
+  // alters the context generic op.
+  llvm::SmallVector<Operation *> opsToHoist;
+  bool hoistedAny = false;
+  for (Operation &op : opRange) {
+    if (canHoist(op)) {
+      opsToHoist.push_back(&op);
+      hoistedAny = true;
+    }
   }
 
-  Operation *opToHoist = &*it;
-  LLVM_DEBUG(llvm::dbgs() << "Hoisting " << *opToHoist << "\n");
-  genericOp.extractOpBeforeGeneric(opToHoist, rewriter);
-  return success();
+  LLVM_DEBUG(llvm::dbgs() << "Found " << opsToHoist.size()
+                          << " ops to hoist\n");
+
+  for (Operation *op : opsToHoist) {
+    genericOp.extractOpBeforeGeneric(op, rewriter);
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << "Done hoisting\n");
+
+  return hoistedAny ? success() : failure();
 }
 
 void genericAbsorbConstants(secret::GenericOp genericOp,
@@ -596,7 +610,7 @@ void genericAbsorbConstants(secret::GenericOp genericOp,
         // inside the region.
         Region *operandRegion = definingOp->getParentRegion();
         if (operandRegion && !genericOp.getRegion().isAncestor(operandRegion)) {
-          auto copiedOp = rewriter.clone(*definingOp);
+          auto *copiedOp = rewriter.clone(*definingOp);
           rewriter.replaceAllUsesWith(operand, copiedOp->getResults());
           // If this was a block argument, additionally remove the block
           // argument.
