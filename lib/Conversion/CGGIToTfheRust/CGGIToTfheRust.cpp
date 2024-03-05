@@ -84,9 +84,9 @@ int widthFromEncodingAttr(Attribute encoding) {
       });
 }
 
-class PassTypeConverter : public TypeConverter {
+class CGGIToTfheRustTypeConverter : public TypeConverter {
  public:
-  PassTypeConverter(MLIRContext *ctx) {
+  CGGIToTfheRustTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
     addConversion([ctx](lwe::LWECiphertextType type) -> Type {
       int width = widthFromEncodingAttr(type.getEncoding());
@@ -402,7 +402,7 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
     MLIRContext *context = &getContext();
     auto *op = getOperation();
 
-    PassTypeConverter typeConverter(context);
+    CGGIToTfheRustTypeConverter typeConverter(context);
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     addStructuralConversionPatterns(typeConverter, patterns, target);

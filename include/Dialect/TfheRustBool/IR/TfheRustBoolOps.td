@@ -8,6 +8,7 @@ include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/BuiltinTypes.td"
 
 
 class TfheRustBool_Op<string mnemonic, list<Trait> traits = []> :
@@ -41,6 +42,19 @@ def OrOp  : TfheRustBool_BinaryGateOp<"or">  { let summary = "Logical OR of two 
 def NorOp  : TfheRustBool_BinaryGateOp<"nor">  { let summary = "Logical NOR of two TFHE-rs Bool ciphertexts."; }
 def XorOp : TfheRustBool_BinaryGateOp<"xor"> { let summary = "Logical XOR of two TFHE-rs Bool ciphertexts."; }
 def XnorOp : TfheRustBool_BinaryGateOp<"xnor"> { let summary = "Logical XNOR of two TFHE-rs Bool ciphertexts."; }
+
+
+def AndPackedOp : TfheRustBool_Op<"and_packed", [
+    Pure,
+    AllTypesMatch<["lhs", "rhs", "output"]>
+]> {
+  let arguments = (ins
+    TfheRustBool_ServerKey:$serverKey,
+    TensorOf<[TfheRustBool_Encrypted]>:$lhs,
+    TensorOf<[TfheRustBool_Encrypted]>:$rhs
+  );
+  let results = (outs TensorOf<[TfheRustBool_Encrypted]>:$output);
+}
 
 
 def NotOp : TfheRustBool_Op<"not", [
