@@ -27,3 +27,4 @@ glob_lit_tests(
     },
     test_file_exts = ["mlir"],
 )
+
