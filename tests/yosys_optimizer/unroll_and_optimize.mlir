@@ -198,6 +198,8 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //
 //     Extracted plaintext arith op
 //     CHECK-NEXT: %[[index_minus_one:.*]] = arith.subi %[[index]], %[[c1]]
+//     Same deal, but for second unwrapped loop iteration marked by SECOND_SUB
+//     CHECK-NEXT: arith.subi
 //
 //     Extracted load that can only be extracted because the previous
 //     arith op was extracted.
@@ -208,8 +210,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //       CHECK-NEXT: secret.yield
 //     CHECK-NEXT: }
 //
-//     Same deal, but for second unwrapped loop iteration
-//     CHECK-NEXT: arith.subi
+//     mark: SECOND_SUB
 //     CHECK-NEXT: secret.generic
 //       CHECK-NEXT: bb
 //       CHECK-NEXT: memref.load

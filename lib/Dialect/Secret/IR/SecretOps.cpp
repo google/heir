@@ -388,12 +388,55 @@ GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,
     newResultTypes.push_back(SecretType::get(ty));
   }
 
+  // The inputs to the new single-op generic are the subset of the current
+  // generic's inputs that correspond to the opToExtract's operands, and any
+  // operands among ops in opToExtract's nested regions.
+  SmallVector<Value> newGenericOperands;
+  SmallVector<Value> oldBlockArgs;
+  DenseSet<Value> processedValues;
+  newGenericOperands.reserve(opToExtract->getNumOperands());
+  oldBlockArgs.reserve(opToExtract->getNumOperands());
+  processedValues.reserve(opToExtract->getNumOperands());
+  for (auto operand : opToExtract->getOperands()) {
+    if (processedValues.count(operand)) continue;
+    // If the yielded value is ambient, skip it and it continues to be ambient.
+    auto *correspondingOperand = getOpOperandForBlockArgument(operand);
+    if (!correspondingOperand) {
+      // The operand must be ambient
+      continue;
+    }
+    newGenericOperands.push_back(correspondingOperand->get());
+    oldBlockArgs.push_back(operand);
+    processedValues.insert(operand);
+  }
+  opToExtract->walk([&](Operation *nestedOp) {
+    for (Value operand : nestedOp->getOperands()) {
+      if (processedValues.count(operand)) continue;
+      auto *correspondingOperand = getOpOperandForBlockArgument(operand);
+      if (!correspondingOperand) {
+        // Assume the operand is ambient, or else a block argument of
+        // opToExtract or an op within a nested region of opToExtract.
+        continue;
+      }
+      newGenericOperands.push_back(correspondingOperand->get());
+      oldBlockArgs.push_back(operand);
+      processedValues.insert(operand);
+    }
+  });
+
+  LLVM_DEBUG(llvm::dbgs() << "New single-op generic will have "
+                          << newGenericOperands.size() << " operands\n");
+
   auto newGeneric = rewriter.create<GenericOp>(
-      getLoc(), getInputs(), newResultTypes,
+      getLoc(), newGenericOperands, newResultTypes,
       [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
-        for (BlockArgument blockArg : getBody()->getArguments()) {
-          mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
+        // the newly-created blockArguments have the same index order as
+        // newGenericOperands, which in turn shares the index ordering of
+        // oldBlockArgs (they were constructed this way specifically to enable
+        // this IR Mapping).
+        for (auto [oldArg, newArg] : llvm::zip(oldBlockArgs, blockArguments)) {
+          mp.map(oldArg, newArg);
         }
         auto *newOp = b.clone(*opToExtract, mp);
         b.create<YieldOp>(loc, newOp->getResults());
