@@ -1,4 +1,4 @@
-# SetDefaultParameters tablegen and headers.
+# StraightLineVectorizer tablegen and headers.
 
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
 
@@ -7,30 +7,29 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+exports_files([
+    "StraightLineVectorizer.h",
+])
+
 gentbl_cc_library(
     name = "pass_inc_gen",
     tbl_outs = [
         (
             [
                 "-gen-pass-decls",
-                "-name=CGGI",
+                "-name=StraightLineVectorizer",
             ],
-            "Passes.h.inc",
+            "StraightLineVectorizer.h.inc",
         ),
         (
             ["-gen-pass-doc"],
-            "CGGIPasses.md",
+            "StraightLineVectorizerPasses.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "Passes.td",
+    td_file = "StraightLineVectorizer.td",
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )
-
-exports_files([
-    "Passes.h",
-    "SetDefaultParameters.h",
-])

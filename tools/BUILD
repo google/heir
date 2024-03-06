@@ -58,6 +58,7 @@ cc_binary(
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/Secretize",
+        "@heir//lib/Transforms/StraightLineVectorizer",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineToStandard",

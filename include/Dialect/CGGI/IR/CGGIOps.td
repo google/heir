@@ -28,7 +28,7 @@ class CGGI_BinaryGateOp<string mnemonic>
     Pure,
     Commutative,
     SameOperandsAndResultType,
-    Elementwise,
+    ElementwiseMappable,
     Scalarizable
 ]> {
   let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
@@ -53,7 +53,7 @@ class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
   : CGGI_Op<mnemonic, traits # [
   Pure,
   Commutative,
-  Elementwise,
+  ElementwiseMappable,
   Scalarizable,
   DeclareOpInterfaceMethods<LUTOpInterface>
 
