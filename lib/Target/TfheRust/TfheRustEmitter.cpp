@@ -211,38 +211,44 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
     }
   }
   os.unindent();
-  os << ") -> ";
+  os << ")";
 
   if (serverKeyArg_.empty()) {
     return funcOp.emitWarning() << "expected server key function argument to "
                                    "create default ciphertexts";
   }
 
-  if (funcOp.getNumResults() == 1) {
-    Type result = funcOp.getResultTypes()[0];
-    if (failed(emitType(result))) {
-      return funcOp.emitOpError() << "Failed to emit tfhe-rs type " << result;
+  if (funcOp.getNumResults() > 0) {
+    os << " -> ";
+    if (funcOp.getNumResults() == 1) {
+      Type result = funcOp.getResultTypes()[0];
+      if (failed(emitType(result))) {
+        return funcOp.emitOpError() << "Failed to emit tfhe-rs type " << result;
+      }
+    } else {
+      auto result = commaSeparatedTypes(
+          funcOp.getResultTypes(), [&](Type type) -> FailureOr<std::string> {
+            auto result = convertType(type);
+            if (failed(result)) {
+              return funcOp.emitOpError()
+                     << "Failed to emit tfhe-rs type " << type;
+            }
+            return result;
+          });
+      os << "(" << result.value() << ")";
     }
-  } else {
-    auto result = commaSeparatedTypes(
-        funcOp.getResultTypes(), [&](Type type) -> FailureOr<std::string> {
-          auto result = convertType(type);
-          if (failed(result)) {
-            return funcOp.emitOpError()
-                   << "Failed to emit tfhe-rs type " << type;
-          }
-          return result;
-        });
-    os << "(" << result.value() << ")";
   }
 
   os << " {\n";
   os.indent();
 
   // Create a global temp_nodes hashmap for any created SSA values.
-  // TODO(#462): Insert block argument that are encrypted ints into temp_nodes.
-  os << "let mut temp_nodes : HashMap<usize, Ciphertext> = HashMap::new();\n";
-  os << "let mut luts : HashMap<&str, LookupTableOwned> = HashMap::new();\n";
+  // TODO(#462): Insert block argument that are encrypted ints into
+  // temp_nodes.
+  os << "let mut temp_nodes : HashMap<usize, Ciphertext> = "
+        "HashMap::new();\n";
+  os << "let mut luts : HashMap<&str, LookupTableOwned> = "
+        "HashMap::new();\n";
 
   os << kRunLevelDefn << "\n";
 
@@ -284,6 +290,10 @@ LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
     }
     return variableNames->getNameForValue(value);
   };
+
+  if (op.getNumOperands() == 0) {
+    return success();
+  }
 
   if (op.getNumOperands() == 1) {
     os << valueOrClonedValue(op.getOperands()[0]) << "\n";
@@ -415,9 +425,9 @@ LogicalResult TfheRustEmitter::printOperation(affine::AffineForOp forOp) {
             variableNames->getIntForValue(op->getResult(0)),
             commaSeparatedValues(
                 getCiphertextOperands(op->getOperands()), [&](Value value) {
-                  // TODO(#462): This assumes that all ciphertexts are loaded
-                  // into temp_nodes. Currently, block arguments are not
-                  // supported.
+                  // TODO(#462): This assumes that all ciphertexts are
+                  // loaded into temp_nodes. Currently, block arguments are
+                  // not supported.
                   return "Tv(" +
                          std::to_string(variableNames->getIntForValue(value)) +
                          ")";
@@ -552,7 +562,8 @@ LogicalResult TfheRustEmitter::printOperation(::mlir::arith::TruncIOp op) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(tensor::ExtractOp op) {
-  // We assume here that the indices are SSA values (not integer attributes).
+  // We assume here that the indices are SSA values (not integer
+  // attributes).
   emitAssignPrefix(op.getResult());
   os << "&" << variableNames->getNameForValue(op.getTensor()) << "["
      << commaSeparatedValues(
