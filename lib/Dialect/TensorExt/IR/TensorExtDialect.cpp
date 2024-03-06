@@ -1,0 +1,27 @@
+#include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
+
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+
+// NOLINTNEXTLINE(misc-include-cleaner): Required to define TensorExtOps
+#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
+
+// Generated definitions
+#include "include/Dialect/TensorExt/IR/TensorExtDialect.cpp.inc"
+
+#define GET_OP_CLASSES
+#include "include/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
+
+namespace mlir {
+namespace heir {
+namespace tensor_ext {
+
+void TensorExtDialect::initialize() {
+  addOperations<
+#define GET_OP_LIST
+#include "include/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
+      >();
+}
+
+}  // namespace tensor_ext
+}  // namespace heir
+}  // namespace mlir
