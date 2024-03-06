@@ -11,9 +11,9 @@ namespace mlir::heir {
 #include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
 
 // Remove this class if no type conversions are necessary
-class PassTypeConverter : public TypeConverter {
+class {{ pass_name }}TypeConverter : public TypeConverter {
  public:
-  PassTypeConverter(MLIRContext *ctx) {
+  {{ pass_name }}TypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
     // FIXME: implement, replace FooType with the type that needs
     // to be converted or remove this class
@@ -42,7 +42,7 @@ struct {{ pass_name }} : public impl::{{ pass_name }}Base<{{ pass_name }}> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
-    PassTypeConverter typeConverter(context);
+    {{ pass_name }}TypeConverter typeConverter(context);
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
