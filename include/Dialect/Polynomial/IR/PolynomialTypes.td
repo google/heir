@@ -4,16 +4,17 @@
 include "include/Dialect/Polynomial/IR/PolynomialDialect.td"
 include "include/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
-include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinTypes.td"
+include "mlir/IR/DialectBase.td"
 
 // A base class for all types in this dialect
-class Polynomial_Type<string name, string typeMnemonic>
-    : TypeDef<Polynomial_Dialect, name> {
+class Polynomial_Type<string name, string typeMnemonic, list<Trait> traits = []>
+    : TypeDef<Polynomial_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
 }
 
-def Polynomial : Polynomial_Type<"Polynomial", "polynomial"> {
+def Polynomial : Polynomial_Type<"Polynomial", "polynomial", [MemRefElementTypeInterface]> {
   let summary = "An element of a polynomial quotient ring";
 
   let description = [{
