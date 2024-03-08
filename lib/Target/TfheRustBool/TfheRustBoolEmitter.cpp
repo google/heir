@@ -1,8 +1,6 @@
 #include "include/Target/TfheRustBool/TfheRustBoolEmitter.h"
 
 #include <functional>
-#include <iterator>
-#include <numeric>
 #include <string>
 #include <string_view>
 
@@ -20,6 +18,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -65,7 +64,7 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // TfheRustBool ops
-          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp>(
+          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp, AndPackedOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
@@ -174,7 +173,17 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
   auto operandTypesIt = operandTypes.begin();
   os << variableNames->getNameForValue(sks) << "." << op << "(";
   os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-    return variableNames->getNameForValue(value) +
+    auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+    // First check if a DefiningOp exists
+    // if not: comes from function definition
+    mlir::Operation *op = value.getDefiningOp();
+    if (op) {
+      prefix = isa<tensor::ExtractOp>(op) ? "" : prefix;
+    } else {
+      prefix = "";
+    }
+
+    return prefix + variableNames->getNameForValue(value) +
            (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
   });
   os << ");\n";
@@ -183,7 +192,7 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
 
 LogicalResult TfheRustBoolEmitter::printOperation(CreateTrivialOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(), {op.getValue()},
-                        "create_trivial", {"i1"});
+                        "create_trivial", {"bool"});
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(arith::ConstantOp op) {
@@ -258,6 +267,11 @@ LogicalResult TfheRustBoolEmitter::printOperation(XorOp op) {
 LogicalResult TfheRustBoolEmitter::printOperation(XnorOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(),
                         {op.getLhs(), op.getRhs()}, "xnor");
+}
+
+LogicalResult TfheRustBoolEmitter::printOperation(AndPackedOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "and_packed");
 }
 
 FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {

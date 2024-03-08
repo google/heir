@@ -59,6 +59,8 @@ class TfheRustBoolEmitter {
   LogicalResult printOperation(XorOp op);
   LogicalResult printOperation(XnorOp op);
 
+  LogicalResult printOperation(AndPackedOp op);
+
   // Helpers for above
   LogicalResult printSksMethod(::mlir::Value result, ::mlir::Value sks,
                                ::mlir::ValueRange nonSksOperands,

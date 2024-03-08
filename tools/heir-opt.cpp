@@ -4,6 +4,7 @@
 #include "include/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
 #include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 #include "include/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
+#include "include/Conversion/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "include/Conversion/CombToCGGI/CombToCGGI.h"
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
@@ -315,6 +316,7 @@ int main(int argc, char **argv) {
   comb::registerCombToCGGIPasses();
   polynomial::registerPolynomialToStandardPasses();
   registerCGGIToTfheRustPasses();
+  registerCGGIToTfheRustBoolPasses();
 
   PassPipelineRegistration<>(
       "heir-tosa-to-arith",

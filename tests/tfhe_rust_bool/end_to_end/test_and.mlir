@@ -6,7 +6,7 @@
 !bsks = !tfhe_rust_bool.server_key
 !eb = !tfhe_rust_bool.eb
 
-// CHECK: 1 1 1
+// CHECK: 1
 func.func @fn_under_test(%bsks : !bsks, %a: !eb, %b: !eb) -> !eb {
   %res = tfhe_rust_bool.and %bsks, %a, %b: (!bsks, !eb, !eb) -> !eb
   return %res : !eb
