@@ -5723,13 +5723,57 @@ using the boolean parameter set.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="tfhe_rust_booland_packed-heirtfhe_rust_boolandpackedop">&lt;code>tfhe_rust_bool.and_packed&lt;/code> (heir::tfhe_rust_bool::AndPackedOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.and_packed` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>tensor of An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type values&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>tensor of An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>tensor of An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="tfhe_rust_boolcreate_trivial-heirtfhe_rust_boolcreatetrivialop">&lt;code>tfhe_rust_bool.create_trivial&lt;/code> (heir::tfhe_rust_bool::CreateTrivialOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.create_trivial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5748,7 +5792,7 @@ using the boolean parameter set.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5769,7 +5813,7 @@ using the boolean parameter set.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5796,7 +5840,7 @@ using the boolean parameter set.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5815,51 +5859,6 @@ using the boolean parameter set.&lt;/p>
 &lt;p>&lt;em>Logical NAND of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nand` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="tfhe_rust_boolnor-heirtfhe_rust_boolnorop">&lt;code>tfhe_rust_bool.nor&lt;/code> (heir::tfhe_rust_bool::NorOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5901,54 +5900,14 @@ using the boolean parameter set.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="tfhe_rust_boolnot-heirtfhe_rust_boolnotop">&lt;code>tfhe_rust_bool.not&lt;/code> (heir::tfhe_rust_bool::NotOp)&lt;/h3>
+&lt;h3 id="tfhe_rust_boolnor-heirtfhe_rust_boolnorop">&lt;code>tfhe_rust_bool.nor&lt;/code> (heir::tfhe_rust_bool::NorOp)&lt;/h3>
+&lt;p>&lt;em>Logical NOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.not` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="tfhe_rust_boolor-heirtfhe_rust_boolorop">&lt;code>tfhe_rust_bool.or&lt;/code> (heir::tfhe_rust_bool::OrOp)&lt;/h3>
-&lt;p>&lt;em>Logical OR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.or` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5971,6 +5930,46 @@ using the boolean parameter set.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolnot-heirtfhe_rust_boolnotop">&lt;code>tfhe_rust_bool.not&lt;/code> (heir::tfhe_rust_bool::NotOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.not` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -5986,10 +5985,10 @@ using the boolean parameter set.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="tfhe_rust_boolxnor-heirtfhe_rust_boolxnorop">&lt;code>tfhe_rust_bool.xnor&lt;/code> (heir::tfhe_rust_bool::XnorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XNOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="tfhe_rust_boolor-heirtfhe_rust_boolorop">&lt;code>tfhe_rust_bool.or&lt;/code> (heir::tfhe_rust_bool::OrOp)&lt;/h3>
+&lt;p>&lt;em>Logical OR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xnor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.or` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6031,10 +6030,10 @@ using the boolean parameter set.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="tfhe_rust_boolxor-heirtfhe_rust_boolxorop">&lt;code>tfhe_rust_bool.xor&lt;/code> (heir::tfhe_rust_bool::XorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="tfhe_rust_boolxnor-heirtfhe_rust_boolxnorop">&lt;code>tfhe_rust_bool.xnor&lt;/code> (heir::tfhe_rust_bool::XnorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XNOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xnor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6062,6 +6061,51 @@ using the boolean parameter set.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-8">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolxor-heirtfhe_rust_boolxorop">&lt;code>tfhe_rust_bool.xor&lt;/code> (heir::tfhe_rust_bool::XorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
