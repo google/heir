@@ -11,6 +11,7 @@ cc_library(
     deps = [
         ":CollapseInsertionChains",
         ":InsertRotate",
+        ":RotateAndReduce",
         "@heir//include/Dialect/TensorExt/Transforms:pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//mlir:IR",
@@ -41,6 +42,25 @@ cc_library(
     srcs = ["CollapseInsertionChains.cpp"],
     hdrs = [
         "@heir//include/Dialect/TensorExt/Transforms:CollapseInsertionChains.h",
+    ],
+    deps = [
+        "@heir//include/Dialect/TensorExt/Transforms:pass_inc_gen",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "RotateAndReduce",
+    srcs = ["RotateAndReduce.cpp"],
+    hdrs = [
+        "@heir//include/Dialect/TensorExt/Transforms:RotateAndReduce.h",
     ],
     deps = [
         "@heir//include/Dialect/TensorExt/Transforms:pass_inc_gen",

@@ -1,4 +1,4 @@
-# InsertRotate tablegen and headers.
+# TensorExt pass tablegen and headers.
 
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
 
@@ -49,7 +49,8 @@ gentbl_cc_library(
 )
 
 exports_files([
-    "Passes.h",
     "CollapseInsertionChains.h",
     "InsertRotate.h",
+    "Passes.h",
+    "RotateAndReduce.h",
 ])
