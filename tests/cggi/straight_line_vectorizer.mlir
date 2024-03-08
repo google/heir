@@ -5,7 +5,8 @@
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
 // CHECK-LABEL: add_one
-// CHECK: cggi.lut3(%[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]]) {lookup_table = 105 : ui8} : tensor<8x!lwe.lwe_ciphertext
+// CHECK-COUNT-9: cggi.lut3
+// CHECK: cggi.lut3(%[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]]) {lookup_table = 105 : ui8} : tensor<6x!lwe.lwe_ciphertext
 func.func @add_one(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %true = arith.constant true
   %false = arith.constant false

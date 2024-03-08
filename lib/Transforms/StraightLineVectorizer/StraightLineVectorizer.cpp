@@ -25,7 +25,8 @@ namespace heir {
 bool areCompatible(Operation *lhs, Operation *rhs) {
   if (lhs->getName() != rhs->getName() ||
       lhs->getDialect() != rhs->getDialect() ||
-      lhs->getResultTypes() != rhs->getResultTypes()) {
+      lhs->getResultTypes() != rhs->getResultTypes() ||
+      lhs->getAttrs() != rhs->getAttrs()) {
     return false;
   }
   return OpTrait::hasElementwiseMappableTraits(lhs);
