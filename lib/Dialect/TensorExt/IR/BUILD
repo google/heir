@@ -20,6 +20,7 @@ cc_library(
         "@heir//include/Dialect/TensorExt/IR:ops_inc_gen",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )
 
@@ -33,9 +34,12 @@ cc_library(
         "@heir//include/Dialect/TensorExt/IR:TensorExtOps.h",
     ],
     deps = [
+        "@heir//include/Dialect/TensorExt/IR:canonicalize_inc_gen",
         "@heir//include/Dialect/TensorExt/IR:dialect_inc_gen",
         "@heir//include/Dialect/TensorExt/IR:ops_inc_gen",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:TensorDialect",
     ],
 )

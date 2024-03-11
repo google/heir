@@ -1,5 +1,6 @@
 #include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
 
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
 // NOLINTNEXTLINE(misc-include-cleaner): Required to define TensorExtOps

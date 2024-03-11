@@ -6,12 +6,12 @@
 #include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 
-// Required after PatternMatch.h
-#include "include/Dialect/Polynomial/IR/PolynomialCanonicalize.cpp.inc"
-
 namespace mlir {
 namespace heir {
 namespace polynomial {
+
+// Required after PatternMatch.h
+#include "include/Dialect/Polynomial/IR/PolynomialCanonicalize.cpp.inc"
 
 void FromTensorOp::build(OpBuilder &builder, OperationState &result,
                          Value input, RingAttr ring) {
