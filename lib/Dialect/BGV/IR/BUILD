@@ -13,7 +13,6 @@ cc_library(
     hdrs = [
         "@heir//include/Dialect/BGV/IR:BGVDialect.h",
         "@heir//include/Dialect/BGV/IR:BGVOps.h",
-        "@heir//include/Dialect/BGV/IR:BGVTraits.h",
     ],
     deps = [
         "@heir//include/Dialect/BGV/IR:dialect_inc_gen",

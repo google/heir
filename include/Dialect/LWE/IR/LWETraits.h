@@ -1,14 +1,15 @@
-#ifndef HEIR_INCLUDE_DIALECT_BGV_IR_BGVTRAITS_H_
-#define HEIR_INCLUDE_DIALECT_BGV_IR_BGVTRAITS_H_
+#ifndef HEIR_INCLUDE_DIALECT_LWE_IR_LWETRAITS_H_
+#define HEIR_INCLUDE_DIALECT_LWE_IR_LWETRAITS_H_
 
 #include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "mlir/include/mlir/IR/OpDefinition.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
-namespace mlir::heir::bgv {
+namespace mlir::heir::lwe {
 
-// TODO(#212): Move to LWE dialect/namespace
 // Trait that ensures that all operands and results ciphertext have the same set
 // of rings.
 template <typename ConcreteType>
@@ -48,6 +49,6 @@ class SameOperandsAndResultRings
   }
 };
 
-}  // namespace mlir::heir::bgv
+}  // namespace mlir::heir::lwe
 
-#endif  // HEIR_INCLUDE_DIALECT_BGV_IR_BGVTRAITS_H_
+#endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWETRAITS_H_

@@ -13,6 +13,7 @@ exports_files(
         "LWEAttributes.h",
         "LWETypes.h",
         "LWEOps.h",
+        "LWETraits.h",
     ],
 )
 

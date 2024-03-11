@@ -14,6 +14,8 @@
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring1>
 #params2 = #lwe.rlwe_params<dimension=2, ring=#ring2>
 
+!pt = !lwe.rlwe_plaintext<encoding=#encoding>
+
 !ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params>
 !ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>
 !ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2>
@@ -30,5 +32,13 @@ module {
     %2 = bgv.modulus_switch(%1) {to_ring = #ring2} : (!ct) -> !ct2
     // CHECK: rlwe_params = <dimension = 3, ring = <cmod=161729713, ideal=#polynomial.polynomial<1 + x**1024>>>
     return %arg0 : !ct
+  }
+
+  func.func @test_ciphertext_plaintext(%arg0: !pt, %arg1: !pt, %arg2: !pt, %arg3: !ct) -> !ct {
+    %add = bgv.add_plain(%arg3, %arg0) : !ct
+    %sub = bgv.sub_plain(%add, %arg1) : !ct
+    %mul = bgv.mul_plain(%sub, %arg2) : !ct
+    // CHECK: rlwe_params = <dimension = 3, ring = <cmod=161729713, ideal=#polynomial.polynomial<1 + x**1024>>>
+    return %mul : !ct
   }
 }

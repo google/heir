@@ -11,7 +11,6 @@ exports_files(
     [
         "BGVDialect.h",
         "BGVOps.h",
-        "BGVTraits.h",
     ],
 )
 

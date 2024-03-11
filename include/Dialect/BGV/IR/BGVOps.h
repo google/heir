@@ -2,7 +2,7 @@
 #define HEIR_INCLUDE_DIALECT_BGV_IR_BGVOPS_H_
 
 #include "include/Dialect/BGV/IR/BGVDialect.h"
-#include "include/Dialect/BGV/IR/BGVTraits.h"
+#include "include/Dialect/LWE/IR/LWETraits.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"       // from @llvm-project

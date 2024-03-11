@@ -1,9 +1,15 @@
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 
+#include <optional>
+
 #include "include/Dialect/BGV/IR/BGVOps.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "include/Dialect/LWE/IR/LWEAttributes.h"
+#include "include/Dialect/LWE/IR/LWETypes.h"
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 // Generated definitions
 #include "include/Dialect/BGV/IR/BGVDialect.cpp.inc"
@@ -82,6 +88,29 @@ LogicalResult ModulusSwitch::verify() {
            << "output ring modulus should divide the input ring modulus";
   }
 
+  return success();
+}
+
+LogicalResult MulOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, MulOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  auto x = cast<lwe::RLWECiphertextType>(adaptor.getX().getType());
+  auto y = cast<lwe::RLWECiphertextType>(adaptor.getY().getType());
+  auto newDim =
+      x.getRlweParams().getDimension() + y.getRlweParams().getDimension() - 1;
+  inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
+      ctx, x.getEncoding(),
+      lwe::RLWEParamsAttr::get(ctx, newDim, x.getRlweParams().getRing())));
+  return success();
+}
+
+LogicalResult Relinearize::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, Relinearize::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  auto x = cast<lwe::RLWECiphertextType>(adaptor.getX().getType());
+  inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
+      ctx, x.getEncoding(),
+      lwe::RLWEParamsAttr::get(ctx, 2, x.getRlweParams().getRing())));
   return success();
 }
 
