@@ -30,6 +30,17 @@ class Openfhe_UnaryOp<string mnemonic, list<Trait> traits = []>
   let results = (outs RLWECiphertext:$output);
 }
 
+class Openfhe_UnaryTypeSwitchOp<string mnemonic, list<Trait> traits = []>
+  :  Openfhe_Op<mnemonic, traits # [
+    Pure,
+]>{
+ let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    RLWECiphertext:$ciphertext
+  );
+  let results = (outs RLWECiphertext:$output);
+}
+
 class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
   :  Openfhe_Op<mnemonic, traits # [
     Pure,
@@ -89,8 +100,8 @@ def NegateOp : Openfhe_UnaryOp<"negate"> { let summary = "OpenFHE negate operati
 def SquareOp : Openfhe_UnaryOp<"square"> { let summary = "OpenFHE square operation of a ciphertext."; }
 def RelinOp : Openfhe_UnaryOp<"relin"> { let summary = "OpenFHE relinearize operation of a ciphertext."; }
 
-def ModReduceOp : Openfhe_UnaryOp<"mod_reduce"> { let summary = "OpenFHE mod_reduce operation of a ciphertext. (used only for BGV/CKKS)"; }
-def LevelReduceOp : Openfhe_UnaryOp<"level_reduce"> { let summary = "OpenFHE level_reduce operation of a ciphertext."; }
+def ModReduceOp : Openfhe_UnaryTypeSwitchOp<"mod_reduce"> { let summary = "OpenFHE mod_reduce operation of a ciphertext. (used only for BGV/CKKS)"; }
+def LevelReduceOp : Openfhe_UnaryTypeSwitchOp<"level_reduce"> { let summary = "OpenFHE level_reduce operation of a ciphertext."; }
 
 def RotOp : Openfhe_Op<"rot",[
   Pure,

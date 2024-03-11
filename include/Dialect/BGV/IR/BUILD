@@ -11,8 +11,6 @@ exports_files(
     [
         "BGVDialect.h",
         "BGVOps.h",
-        "BGVTypes.h",
-        "BGVAttributes.h",
         "BGVTraits.h",
     ],
 )
@@ -20,10 +18,8 @@ exports_files(
 td_library(
     name = "td_files",
     srcs = [
-        "BGVAttributes.td",
         "BGVDialect.td",
         "BGVOps.td",
-        "BGVTypes.td",
     ],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
@@ -61,35 +57,6 @@ gentbl_cc_library(
 )
 
 gentbl_cc_library(
-    name = "types_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-            ],
-            "BGVTypes.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-            ],
-            "BGVTypes.cpp.inc",
-        ),
-        (
-            ["-gen-typedef-doc"],
-            "BGVTypes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVTypes.td",
-    deps = [
-        ":attributes_inc_gen",
-        ":dialect_inc_gen",
-        ":td_files",
-    ],
-)
-
-gentbl_cc_library(
     name = "ops_inc_gen",
     tbl_outs = [
         (
@@ -110,34 +77,7 @@ gentbl_cc_library(
     deps = [
         ":dialect_inc_gen",
         ":td_files",
-        ":types_inc_gen",
-    ],
-)
-
-gentbl_cc_library(
-    name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-attrdef-decls",
-            ],
-            "BGVAttributes.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-            ],
-            "BGVAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "BGVAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVAttributes.td",
-    deps = [
-        ":dialect_inc_gen",
-        ":td_files",
+        "@heir//include/Dialect/LWE/IR:td_files",
+        "@heir//include/Dialect/Polynomial/IR:td_files",
     ],
 )

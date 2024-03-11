@@ -309,14 +309,16 @@ def LWE_RLWEParams : AttrDef<LWE_Dialect, "RLWEParams"> {
   let description = [{
     An attribute describing classical RLWE parameters:
 
-    - `cmod`: the coefficient modulus for the polynomials.
     - `dimension`: the number of polynomials used in an RLWE sample, analogous
       to LWEParams.dimension.
     - `polyDegree`: the degree $N$ of the negacyclic polynomial modulus
       $x^N + 1$.
   }];
 
-  let parameters = (ins "IntegerAttr": $cmod, "unsigned":$dimension, "unsigned": $polyDegree);
+  let parameters = (ins
+    DefaultValuedParameter<"unsigned", "2">:$dimension,
+    "::mlir::heir::polynomial::RingAttr":$ring
+  );
 
   let assemblyFormat = "`<` struct(params) `>`";
 }

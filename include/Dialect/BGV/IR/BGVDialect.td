@@ -14,9 +14,6 @@ def BGV_Dialect : Dialect {
   }];
 
   let cppNamespace = "::mlir::heir::bgv";
-
-  let useDefaultTypePrinterParser = 1;
-  let useDefaultAttributePrinterParser = 1;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_BGV_IR_BGVDIALECT_TD_

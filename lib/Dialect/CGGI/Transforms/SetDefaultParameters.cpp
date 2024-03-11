@@ -1,8 +1,12 @@
 #include "include/Dialect/CGGI/Transforms/SetDefaultParameters.h"
 
+#include <vector>
+
 #include "include/Dialect/CGGI/IR/CGGIAttributes.h"
 #include "include/Dialect/CGGI/IR/CGGIOps.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
+#include "include/Dialect/Polynomial/IR/Polynomial.h"
+#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"     // from @llvm-project
@@ -22,10 +26,12 @@ struct SetDefaultParameters
     auto *op = getOperation();
     MLIRContext &context = getContext();
     unsigned defaultRlweDimension = 1;
-    unsigned defaultPolyDegree = 1024;
     APInt defaultCmod = APInt::getOneBitSet(64, 32);
-    IntegerAttr defaultCmodAttr =
-        IntegerAttr::get(IntegerType::get(&context, 64), defaultCmod);
+    std::vector<polynomial::Monomial> monomials;
+    monomials.push_back(polynomial::Monomial(1, 1024));
+    monomials.push_back(polynomial::Monomial(1, 0));
+    polynomial::Polynomial defaultPolyIdeal =
+        polynomial::Polynomial::fromMonomials(monomials, &context);
 
     // https://github.com/google/jaxite/blob/main/jaxite/jaxite_bool/bool_params.py
     unsigned defaultBskNoiseVariance = 65536;  // stdev = 2**8, var = 2**16
@@ -36,7 +42,8 @@ struct SetDefaultParameters
     unsigned defaultKskGadgetNumLevels = 5;
 
     lwe::RLWEParamsAttr defaultRlweParams = lwe::RLWEParamsAttr::get(
-        &context, defaultCmodAttr, defaultRlweDimension, defaultPolyDegree);
+        &context, defaultRlweDimension,
+        polynomial::RingAttr::get(defaultCmod, defaultPolyIdeal));
     CGGIParamsAttr defaultParams =
         CGGIParamsAttr::get(&context, defaultRlweParams,
                             defaultBskNoiseVariance, defaultBskGadgetBaseLog,

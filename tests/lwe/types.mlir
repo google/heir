@@ -23,7 +23,10 @@ func.func @test_valid_lwe_ciphertext_unspecified(%arg0 : !ciphertext_noparams) -
   return %arg0 : !ciphertext_noparams
 }
 
-#rlwe_params = #lwe.rlwe_params<cmod=7917, dimension=10, polyDegree=1024>
+
+#my_poly = #polynomial.polynomial<1 + x**1024>
+#ring = #polynomial.ring<cmod=7917, ideal=#my_poly>
+#rlwe_params = #lwe.rlwe_params<dimension=10, ring=#ring>
 !ciphertext_rlwe = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params>
 
 // CHECK-LABEL: test_valid_rlwe_ciphertext

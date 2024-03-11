@@ -5,7 +5,6 @@
 
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/BGV/IR/BGVOps.h"
-#include "include/Dialect/BGV/IR/BGVTypes.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
 #include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
@@ -29,24 +28,8 @@ namespace mlir::heir::bgv {
 
 class ToLWECiphertextTypeConverter : public TypeConverter {
  public:
-  // Convert ciphertext to RLWE ciphertext
   ToLWECiphertextTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](CiphertextType type) -> Type {
-      assert(type.getLevel().has_value());
-      auto level = type.getLevel().value();
-      assert(level < type.getRings().getRings().size());
-
-      auto ring = type.getRings().getRings()[level];
-      auto cmod = ring.getCmod();
-      auto polyDegree = ring.getIdeal().getDegree();
-      auto dim = type.getDim();
-      return lwe::RLWECiphertextType::get(
-          // TODO(#99): Set a default encoding when the adding # of plaintext
-          // bits on BGV Ciphertext is done.
-          ctx, lwe::PolynomialEvaluationEncodingAttr::get(ctx, 0, 0),
-          lwe::RLWEParamsAttr::get(ctx, cmod, dim, polyDegree));
-    });
   }
 };
 
@@ -208,9 +191,6 @@ struct ConvertRelinOp : public OpConversionPattern<Relinearize> {
   }
 };
 
-bool checkModulusSwitchLevels(unsigned long fromLevel, unsigned long toLevel) {
-  return fromLevel == toLevel + 1;
-}
 struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitch> {
   ConvertModulusSwitchOp(mlir::MLIRContext *context)
       : OpConversionPattern<ModulusSwitch>(context) {}
@@ -223,22 +203,10 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitch> {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
-    auto fromLevel = adaptor.getFromLevel();
-    auto toLevel = adaptor.getToLevel();
-
-    // Since the `ModReduce()` function in OpenFHE decreases the level of a
-    // ciphertext by 1, `fromLevel == toLevel + 1` holds for
-    // `bgv.ModulusSwitch`.
-    if (!checkModulusSwitchLevels(fromLevel, toLevel)) {
-      op.emitError() << "fromLevel must be toLevel + 1, got "
-                     << "fromLevel: " << fromLevel << " and "
-                     << "toLevel: " << toLevel;
-      return failure();
-    }
-
     Value cryptoContext = result.value();
     rewriter.replaceOp(op, rewriter.create<openfhe::ModReduceOp>(
-                               op.getLoc(), cryptoContext, adaptor.getX()));
+                               op.getLoc(), op.getOutput().getType(),
+                               cryptoContext, adaptor.getX()));
     return success();
   }
 };

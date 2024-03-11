@@ -26,6 +26,8 @@ cc_library(
         "@heir//include/Dialect/CGGI/Transforms:pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",

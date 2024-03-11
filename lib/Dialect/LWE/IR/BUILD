@@ -19,6 +19,7 @@ cc_library(
         "@heir//include/Dialect/LWE/IR:dialect_inc_gen",
         "@heir//include/Dialect/LWE/IR:ops_inc_gen",
         "@heir//include/Dialect/LWE/IR:types_inc_gen",
+        "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",

@@ -3,6 +3,7 @@
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Target/Utils.h"
@@ -35,7 +36,7 @@ void registerToOpenFhePkeHeaderTranslation() {
       },
       [](DialectRegistry &registry) {
         registry.insert<func::FuncDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect>();
+                        lwe::LWEDialect, polynomial::PolynomialDialect>();
       });
 }
 

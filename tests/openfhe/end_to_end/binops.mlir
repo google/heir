@@ -1,7 +1,8 @@
 // RUN: heir-translate %s --emit-openfhe-pke | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
-#params = #lwe.rlwe_params<cmod=7917, dimension=1, polyDegree=16384>
+#ring = #polynomial.ring<cmod=7917, ideal=#polynomial.polynomial<x**16384 + 1>>
+#params = #lwe.rlwe_params<dimension=1, ring=#ring>
 !cc = !openfhe.crypto_context
 !ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params>
 

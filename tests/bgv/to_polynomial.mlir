@@ -3,11 +3,14 @@
 
 // This simply tests for syntax.
 
+#encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
+
 #my_poly = #polynomial.polynomial<1 + x**1024>
-#ring1 = #polynomial.ring<cmod=463187969, ideal=#my_poly>
-#ring2 = #polynomial.ring<cmod=33538049, ideal=#my_poly>
-#rings = #bgv.rings<#ring1, #ring2>
-!ct1 = !bgv.ciphertext<rings=#rings, dim=2, level=1>
+#ring = #polynomial.ring<cmod=33538049, ideal=#my_poly>
+#params = #lwe.rlwe_params<dimension=2, ring=#ring>
+#params1 = #lwe.rlwe_params<dimension=3, ring=#ring>
+
+!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params>
 
 // CHECK: module
 module {
@@ -40,7 +43,7 @@ module {
     // CHECK: [[Z1:%.+]] = polynomial.add([[X0Y1]], [[X1Y0]]) : [[P]]
     // CHECK: [[Z2:%.+]] = polynomial.mul([[X1]], [[Y1]]) : [[P]]
     // CHECK: [[Z:%.+]] = tensor.from_elements [[Z0]], [[Z1]], [[Z2]] : tensor<3x[[P]]>
-    %mul = bgv.mul(%x, %y) : !ct1 -> !bgv.ciphertext<rings=#rings, dim=3, level=1>
+    %mul = bgv.mul(%x, %y) : !ct1 -> !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>
     return
   }
 }

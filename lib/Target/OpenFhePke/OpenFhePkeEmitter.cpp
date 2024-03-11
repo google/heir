@@ -7,6 +7,7 @@
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "include/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Target/Utils.h"
@@ -39,9 +40,9 @@ void registerToOpenFhePkeTranslation() {
         return translateToOpenFhePke(op, output);
       },
       [](DialectRegistry &registry) {
-        registry
-            .insert<func::FuncDialect, openfhe::OpenfheDialect, lwe::LWEDialect,
-                    arith::ArithDialect, tensor::TensorDialect>();
+        registry.insert<func::FuncDialect, openfhe::OpenfheDialect,
+                        lwe::LWEDialect, polynomial::PolynomialDialect,
+                        arith::ArithDialect, tensor::TensorDialect>();
       });
 }
 

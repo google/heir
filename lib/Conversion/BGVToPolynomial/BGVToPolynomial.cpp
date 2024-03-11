@@ -5,7 +5,7 @@
 
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/BGV/IR/BGVOps.h"
-#include "include/Dialect/BGV/IR/BGVTypes.h"
+#include "include/Dialect/LWE/IR/LWETypes.h"
 #include "include/Dialect/Polynomial/IR/Polynomial.h"
 #include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "include/Dialect/Polynomial/IR/PolynomialOps.h"
@@ -13,6 +13,7 @@
 #include "lib/Conversion/Utils.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
@@ -26,15 +27,12 @@ class CiphertextTypeConverter : public TypeConverter {
   // Convert ciphertext to tensor<#dim x !poly.poly<#rings[#level]>>
   CiphertextTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](CiphertextType type) -> Type {
-      assert(type.getLevel().has_value());
-      auto level = type.getLevel().value();
-      assert(level < type.getRings().getRings().size());
-
-      auto ring = type.getRings().getRings()[level];
+    addConversion([ctx](lwe::RLWECiphertextType type) -> Type {
+      auto rlweParams = type.getRlweParams();
+      auto ring = rlweParams.getRing();
       auto polyTy = polynomial::PolynomialType::get(ctx, ring);
 
-      return RankedTensorType::get({type.getDim()}, polyTy);
+      return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
     });
   }
   // We don't include any custom materialization ops because this lowering is

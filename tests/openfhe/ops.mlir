@@ -2,7 +2,10 @@
 
 // This simply tests for syntax.
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
-#params = #lwe.rlwe_params<cmod=7917, dimension=1, polyDegree=16384>
+#my_poly = #polynomial.polynomial<1 + x**16384>
+#ring= #polynomial.ring<cmod=7917, ideal=#my_poly>
+#params = #lwe.rlwe_params<dimension=1, ring=#ring>
+
 !pk = !openfhe.public_key
 !ek = !openfhe.eval_key
 !cc = !openfhe.crypto_context

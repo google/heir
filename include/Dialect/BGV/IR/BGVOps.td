@@ -2,10 +2,12 @@
 #define HEIR_INCLUDE_DIALECT_BGV_IR_BGVOPS_TD_
 
 include "BGVDialect.td"
-include "BGVTypes.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
+
+include "include/Dialect/LWE/IR/LWETypes.td"
+include "include/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
 def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
   let cppNamespace = "::mlir::heir::bgv";
@@ -15,7 +17,7 @@ class BGV_Op<string mnemonic, list<Trait> traits = []> :
         Op<BGV_Dialect, mnemonic, traits> {
 
   let assemblyFormat = [{
-    `(` operands `)` attr-dict `:`  `(` type(operands) `)` `->` type(results)
+    `(` operands `)` attr-dict `:`  `(` qualified(type(operands)) `)` `->` qualified(type(results))
   }];
   let cppNamespace = "::mlir::heir::bgv";
 }
@@ -26,45 +28,45 @@ def BGV_AddOp : BGV_Op<"add", [Commutative, SameOperandsAndResultType]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
-    Ciphertext:$x,
-    Ciphertext:$y
+    RLWECiphertext:$x,
+    RLWECiphertext:$y
   );
 
   let results = (outs
-    Ciphertext:$output
+    RLWECiphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
+  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_SubOp : BGV_Op<"sub", [SameOperandsAndResultType]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
-    Ciphertext:$x,
-    Ciphertext:$y
+    RLWECiphertext:$x,
+    RLWECiphertext:$y
   );
 
   let results = (outs
-    Ciphertext:$output
+    RLWECiphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
+  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, SameTypeOperands]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
-    Ciphertext:$x,
-    Ciphertext:$y
+    RLWECiphertext:$x,
+    RLWECiphertext:$y
   );
 
   let results = (outs
-    Ciphertext:$output
+    RLWECiphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($x) `->` type($output)" ;
+  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($x)) `->` qualified(type($output))" ;
 
   let hasVerifier = 1;
 }
@@ -73,12 +75,12 @@ def BGV_Rotate : BGV_Op<"rotate", [SameOperandsAndResultRings]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
-    Ciphertext:$x,
+    RLWECiphertext:$x,
     I64Attr:$offset
   );
 
   let results = (outs
-    Ciphertext:$output
+    RLWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -88,14 +90,14 @@ def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
-    Ciphertext:$x
+    RLWECiphertext:$x
   );
 
   let results = (outs
-    Ciphertext:$output
+    RLWECiphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` type($output)" ;
+  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings]> {
@@ -112,30 +114,28 @@ def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings]> {
   }];
 
   let arguments = (ins
-    Ciphertext:$x,
+    RLWECiphertext:$x,
     DenseI32ArrayAttr:$from_basis,
     DenseI32ArrayAttr:$to_basis
   );
 
   let results = (outs
-    Ciphertext:$output
+    RLWECiphertext:$output
   );
 
   let hasVerifier = 1;
 }
 
-def BGV_ModulusSwitch : BGV_Op<"modulus_switch", [SameOperandsAndResultRings]> {
-  // This must be validated against the BGV ring parameter.
+def BGV_ModulusSwitch : BGV_Op<"modulus_switch"> {
   let summary = "Lower the modulus level of the ciphertext.";
 
   let arguments = (ins
-    Ciphertext:$x,
-    I64Attr:$from_level,
-    I64Attr:$to_level
+    RLWECiphertext:$x,
+    Ring_Attr:$to_ring
   );
 
   let results = (outs
-    Ciphertext:$output
+    RLWECiphertext:$output
   );
 
   let hasVerifier = 1;

@@ -4,6 +4,9 @@
 #include "include/Dialect/LWE/IR/LWEDialect.h"
 #include "mlir/include/mlir/IR/TensorEncoding.h"  // from @llvm-project
 
+// Required to pull in poly's Ring_Attr
+#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
+
 #define GET_ATTRDEF_CLASSES
 #include "include/Dialect/LWE/IR/LWEAttributes.h.inc"
 

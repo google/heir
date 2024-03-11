@@ -13,6 +13,7 @@ cc_library(
         "@heir//include/Conversion/BGVToPolynomial:pass_inc_gen",
         "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@llvm-project//mlir:ArithDialect",
