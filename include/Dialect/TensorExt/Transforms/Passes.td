@@ -60,4 +60,47 @@ def CollapseInsertionChains : Pass<"collapse-insertion-chains"> {
   let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
 }
 
+def RotateAndReduce : Pass<"rotate-and-reduce"> {
+  let summary = "Use a logarithmic number of rotations to reduce a tensor.";
+  let description = [{
+  This pass identifies when a commutative, associative binary operation is used
+  to reduce all of the entries of a tensor to a single value, and optimizes the
+  operations by using a logarithmic number of reduction operations.
+
+  In particular, this pass identifies an unrolled set of operations of the form
+  (the binary ops may come in any order):
+
+  ```mlir
+  %0 = tensor.extract %t[0] : tensor<8xi32>
+  %1 = tensor.extract %t[1] : tensor<8xi32>
+  %2 = tensor.extract %t[2] : tensor<8xi32>
+  %3 = tensor.extract %t[3] : tensor<8xi32>
+  %4 = tensor.extract %t[4] : tensor<8xi32>
+  %5 = tensor.extract %t[5] : tensor<8xi32>
+  %6 = tensor.extract %t[6] : tensor<8xi32>
+  %7 = tensor.extract %t[7] : tensor<8xi32>
+  %8 = arith.addi %0, %1 : i32
+  %9 = arith.addi %8, %2 : i32
+  %10 = arith.addi %9, %3 : i32
+  %11 = arith.addi %10, %4 : i32
+  %12 = arith.addi %11, %5 : i32
+  %13 = arith.addi %12, %6 : i32
+  %14 = arith.addi %13, %7 : i32
+  ```
+
+  and replaces it with a logarithmic number of `rotate` and `addi` operations:
+
+  ```mlir
+  %0 = tensor_ext.rotate %t, 4 : tensor<8xi32>
+  %1 = arith.addi %t, %0 : tensor<8xi32>
+  %2 = tensor_ext.rotate %1, 2 : tensor<8xi32>
+  %3 = arith.addi %1, %2 : tensor<8xi32>
+  %4 = tensor_ext.rotate %3, 1 : tensor<8xi32>
+  %5 = arith.addi %3, %4 : tensor<8xi32>
+  ```
+  }];
+  let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
+}
+
+
 #endif  // INCLUDE_DIALECT_TENSOREXT_TRANSFORMS_PASSES_TD_
