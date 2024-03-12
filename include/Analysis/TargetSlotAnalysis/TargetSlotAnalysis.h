@@ -122,9 +122,9 @@ class TargetSlotAnalysis
   void visitOperation(Operation *op, ArrayRef<TargetSlotLattice *> operands,
                       ArrayRef<const TargetSlotLattice *> results) override;
 
-  void visitBranchOperand(OpOperand &operand) override {};
-  void visitCallOperand(OpOperand &operand) override {};
-  void setToExitState(TargetSlotLattice *lattice) override {};
+  void visitBranchOperand(OpOperand &operand) override{};
+  void visitCallOperand(OpOperand &operand) override{};
+  void setToExitState(TargetSlotLattice *lattice) override{};
 };
 
 }  // namespace target_slot_analysis
