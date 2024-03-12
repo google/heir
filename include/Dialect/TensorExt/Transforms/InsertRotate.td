@@ -1,6 +1,7 @@
 #ifndef INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTPATTERNS_TD_
 #define INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTPATTERNS_TD_
 
+include "include/DRR/Utils.td"
 include "include/Dialect/TensorExt/IR/TensorExtOps.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"
@@ -12,12 +13,6 @@ include "mlir/IR/PatternBase.td"
 // batching heuristics from the HECO project. See section 4.4 of
 // https://arxiv.org/abs/2202.01649 and the hir2hir passes in
 // https://github.com/MarbleHE/HECO/blob/main/src/Passes/hir2hir/
-
-defvar DefOverflow = ConstantEnumCase<Arith_IntegerOverflowAttr, "none">;
-
-// To understand why this is needed, see
-// https://discourse.llvm.org/t/compilation-failure-with-drr-generated-pattern/77385
-def MakeSingleResultVariadic: NativeCodeCall<"{ $0 }">;
 
 // Match an arith op that extracts scalar values from two tensors, and replace
 // it with rotations to align slots and apply the same op in SIMD. Other

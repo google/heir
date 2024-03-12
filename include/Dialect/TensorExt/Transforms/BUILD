@@ -41,6 +41,7 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "InsertRotate.td",
     deps = [
+        "@heir//include/DRR",
         "@heir//include/Dialect/TensorExt/IR:ops_inc_gen",
         "@heir//include/Dialect/TensorExt/IR:td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",

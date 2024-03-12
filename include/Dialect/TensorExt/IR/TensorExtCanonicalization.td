@@ -2,21 +2,10 @@
 #define INCLUDE_DIALECT_TENSOREXT_IR_TENSOREXTCANONICALIZATION_TD_
 
 include "TensorExtOps.td"
+include "include/DRR/Utils.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"
 include "mlir/IR/PatternBase.td"
-
-// TODO(#515): refactor these helpers to a common file with InsertRotate.td
-defvar DefOverflow = ConstantEnumCase<Arith_IntegerOverflowAttr, "none">;
-
-def MakeSingleResultVariadic: NativeCodeCall<"{ $0 }">;
-
-def CreateIndexCastOp : NativeCodeCall<
-      "$_builder.create<arith::IndexCastOp>($0.getLoc(), $1.getType(), $0)">;
-
-def IsZero :
-    Constraint<
-      CPred<"llvm::cast<mlir::IntegerAttr>($0).getValue().isZero()">>;
 
 def OutOfBoundsOfTensorDim :
   Constraint<
@@ -31,7 +20,7 @@ def OutOfBoundsOfTensorDim :
 def DropZeroRotation : Pat<
   (TensorExt_RotateOp $tensor, (ConstantLikeMatcher APIntAttr:$c0)),
   (replaceWithValue $tensor),
-  [(IsZero $c0)]
+  [(IsZeroIntAttr $c0)]
 >;
 
 // rotate %t, x -> rotate %t, x mod size
