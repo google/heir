@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "include/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/Utils.h"
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -26,25 +27,6 @@ namespace tensor_ext {
 
 #define GEN_PASS_DEF_COLLAPSEINSERTIONCHAINS
 #include "include/Dialect/TensorExt/Transforms/Passes.h.inc"
-
-template <typename Op>
-FailureOr<int64_t> get1DExtractionIndex(Op op) {
-  auto insertIndices = op.getIndices();
-  if (insertIndices.size() != 1) return failure();
-
-  // Each index must be constant; this may require running --canonicalize or
-  // -sccp before this pass to apply folding rules (use -sccp if you need to
-  // fold constants through control flow).
-  Value insertIndex = *insertIndices.begin();
-  auto insertIndexConstOp = insertIndex.getDefiningOp<arith::ConstantIndexOp>();
-  if (!insertIndexConstOp) return failure();
-
-  auto insertOffsetAttr =
-      llvm::dyn_cast<IntegerAttr>(insertIndexConstOp.getValue());
-  if (!insertOffsetAttr) return failure();
-
-  return insertOffsetAttr.getInt();
-}
 
 /// A pattern that searches for sequences of extract + insert, where the
 /// indices extracted and inserted have the same offset, and replaced them with

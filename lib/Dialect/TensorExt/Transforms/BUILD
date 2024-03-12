@@ -28,6 +28,7 @@ cc_library(
         "@heir//include/Dialect/TensorExt/IR:canonicalize_inc_gen",
         "@heir//include/Dialect/TensorExt/Transforms:insert_rotate_inc_gen",
         "@heir//include/Dialect/TensorExt/Transforms:pass_inc_gen",
+        "@heir//lib/Analysis/TargetSlotAnalysis",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
@@ -45,6 +46,7 @@ cc_library(
     ],
     deps = [
         "@heir//include/Dialect/TensorExt/Transforms:pass_inc_gen",
+        "@heir//lib/Dialect:Utils",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

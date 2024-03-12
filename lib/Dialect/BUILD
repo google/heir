@@ -18,3 +18,15 @@ cc_library(
         "@llvm-project//mlir:IR",
     ],
 )
+
+cc_library(
+    name = "Utils",
+    srcs = [
+        "Utils.h",
+    ],
+    deps = [
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)

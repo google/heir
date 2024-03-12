@@ -10,6 +10,7 @@ package(
 exports_files(
     [
         "HEIRInterfaces.h",
+        "Utils.h",
     ],
 )
 
@@ -41,5 +42,20 @@ gentbl_cc_library(
     td_file = "HEIRInterfaces.td",
     deps = [
         ":td_files",
+    ],
+)
+
+cc_library(
+    name = "Utils",
+    srcs = [
+        "Utils.h",
+    ],
+    hdrs = [
+        "Utils.h",
+    ],
+    deps = [
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
