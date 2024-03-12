@@ -1,10 +1,8 @@
 // RUN: heir-opt --cggi-to-tfhe-rust-bool -cse -remove-dead-values %s | FileCheck %s
 
-
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 1>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
-
 
 // CHECK-LABEL: add_one_bool
 // CHECK-NOT: cggi
