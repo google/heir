@@ -222,9 +222,8 @@ struct ConvertFromElements
 void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
                                          RewritePatternSet &patterns,
                                          ConversionTarget &target) {
-  target.addDynamicallyLegalDialect<tensor::TensorDialect>([&](Operation *op) {
-    return typeConverter.isLegal(op->getOperandTypes());
-  });
+  target.addDynamicallyLegalDialect<tensor::TensorDialect>(
+      [&](Operation *op) { return typeConverter.isLegal(op); });
 
   typeConverter.addConversion([&](TensorType type) -> Type {
     if (!typeConverter.isLegal(type.getElementType())) {
@@ -248,9 +247,8 @@ void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
     return type;
   });
 
-  target.addDynamicallyLegalDialect<affine::AffineDialect>([&](Operation *op) {
-    return typeConverter.isLegal(op->getOperandTypes());
-  });
+  target.addDynamicallyLegalDialect<affine::AffineDialect>(
+      [&](Operation *op) { return typeConverter.isLegal(op); });
 
   patterns.add<ConvertAny, ConvertExtract, ConvertInsert, ConvertFromElements>(
       typeConverter, patterns.getContext());
