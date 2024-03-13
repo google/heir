@@ -6,6 +6,12 @@
 namespace mlir {
 namespace heir {
 
+// Adds conversion patterns that deal with tensor<..xsource_type>
+// when source_type will be type converted to tensor<...>, too
+void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
+                                         RewritePatternSet &patterns,
+                                         ConversionTarget &target);
+
 // Adds the standard set of conversion patterns for
 // converting types involved in func, cf, etc., which
 // don't depend on the logic of the dialect beyond the

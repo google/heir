@@ -739,8 +739,8 @@ void PolynomialToStandard::runOnOperation() {
                ConvertConstant, ConvertMulScalar>(typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
+  addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
 
-  // TODO(#143): Handle tensor of polys.
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
   }
