@@ -185,7 +185,7 @@ func::FuncOp RTLILImporter::importModule(
            "expected cell in RTLIL design");
     auto *cell = module->cells_["\\" + cellName];
 
-    SmallVector<Value, 4> inputValues;
+    SmallVector<Value> inputValues;
     for (const auto &conn : getInputs(cell)) {
       inputValues.push_back(getBit(conn, b, retBitValues));
     }

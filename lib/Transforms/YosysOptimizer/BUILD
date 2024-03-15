@@ -63,6 +63,22 @@ cc_test(
 )
 
 cc_library(
+    name = "BooleanGateImporter",
+    srcs = ["BooleanGateImporter.cpp"],
+    hdrs = ["BooleanGateImporter.h"],
+    deps = [
+        ":RTLILImporter",
+        "@at_clifford_yosys//:kernel",
+        "@heir//lib/Dialect/Comb/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "YosysOptimizer",
     srcs = ["YosysOptimizer.cpp"],
     hdrs = [
@@ -73,6 +89,7 @@ cc_library(
         "@heir//lib/Transforms/YosysOptimizer/yosys:share_files",
     ],
     deps = [
+        ":BooleanGateImporter",
         ":LUTImporter",
         ":RTLILImporter",
         "@at_clifford_yosys//:kernel",

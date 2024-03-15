@@ -160,6 +160,12 @@ LogicalResult OrOp::verify() { return verifyUTBinOp(*this); }
 
 LogicalResult XorOp::verify() { return verifyUTBinOp(*this); }
 
+LogicalResult XNorOp::verify() { return verifyUTBinOp(*this); }
+
+LogicalResult NandOp::verify() { return verifyUTBinOp(*this); }
+
+LogicalResult NorOp::verify() { return verifyUTBinOp(*this); }
+
 //===----------------------------------------------------------------------===//
 // ConcatOp
 //===----------------------------------------------------------------------===//
