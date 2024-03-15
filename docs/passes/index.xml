@@ -373,6 +373,7 @@ time at the expense of a possibly larger output circuit.&lt;/li>
 &lt;li>&lt;code>unroll-factor&lt;/code>: Before optimizing the circuit, unroll loops by a given
 factor. If unset, this pass will not unroll any loops.&lt;/li>
 &lt;li>&lt;code>print-stats&lt;/code>: Prints statistics about the optimized circuits.&lt;/li>
+&lt;li>&lt;code>mode={Boolean,LUT}&lt;/code>: Map gates to boolean gates or lookup table gates.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
