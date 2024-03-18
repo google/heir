@@ -12,6 +12,8 @@ cc_library(
     deps = [
         "@heir//include/Conversion/PolynomialToStandard:pass_inc_gen",
         "@heir//lib/Conversion:Utils",
+        "@heir//lib/Dialect/Polynomial/IR:Polynomial",
+        "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
         "@heir//lib/Dialect/Polynomial/IR:PolynomialOps",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
@@ -23,6 +25,7 @@ cc_library(
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:Transforms",
     ],

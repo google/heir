@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_LUTIMPORTER_H_
-#define HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_LUTIMPORTER_H_
+#ifndef THIRD_PARTY_HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_BOOLEANGATEIMPORTER_H_
+#define THIRD_PARTY_HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_BOOLEANGATEIMPORTER_H_
 
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
@@ -12,14 +12,14 @@
 // clang-format off
 #include "kernel/rtlil.h" // from @at_clifford_yosys
 // clang-format on
-
 namespace mlir {
 namespace heir {
 
-// LUTImporter implements the RTLILConfig for importing RTLIL that uses LUTs.
-class LUTImporter : public RTLILImporter {
+// BooleanGateImporter implements the RTLILConfig for importing RTLIL that uses
+// boolean gates.
+class BooleanGateImporter : public RTLILImporter {
  public:
-  LUTImporter(MLIRContext *context) : RTLILImporter(context) {}
+  BooleanGateImporter(MLIRContext *context) : RTLILImporter(context) {}
 
  protected:
   Operation *createOp(Yosys::RTLIL::Cell *cell, SmallVector<Value> &inputs,
@@ -34,4 +34,4 @@ class LUTImporter : public RTLILImporter {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_LUTIMPORTER_H_
+#endif  // THIRD_PARTY_HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_BOOLEANGATEIMPORTER_H_

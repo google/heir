@@ -1,18 +1,45 @@
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "include/Dialect/Polynomial/IR/Polynomial.h"
+#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "include/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/LLVMIR/LLVMAttrs.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -474,11 +501,12 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
 
     // 2N - 1 sized result tensor -> reduce modulo ideal to get a N sized tensor
     func::FuncOp divMod = getFuncOpCallback(funcType, polyTy.getRing());
-    if (!divMod)
+    if (!divMod) {
       return rewriter.notifyMatchFailure(op, [&](::mlir::Diagnostic &diag) {
         diag << "Missing software implementation for polynomial mod op of type"
              << funcType << " and for ring " << polyTy.getRing();
       });
+    }
 
     rewriter.replaceOpWithNewOp<func::CallOp>(op, divMod, polyMul.getResult(0));
     return success();
@@ -739,8 +767,8 @@ void PolynomialToStandard::runOnOperation() {
                ConvertConstant, ConvertMulScalar>(typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
+  addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
 
-  // TODO(#143): Handle tensor of polys.
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
   }

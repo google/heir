@@ -1,15 +1,19 @@
 #ifndef HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_
 #define HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_
 
-#include "kernel/rtlil.h"                     // from @at_clifford_yosys
-#include "llvm/include/llvm/ADT/MapVector.h"  // from @llvm-project
-#include "llvm/include/llvm/ADT/StringMap.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/MapVector.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/StringMap.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+
+// Block clang-format from reordering
+// clang-format off
+#include "kernel/rtlil.h" // from @at_clifford_yosys
+// clang-format on
 
 namespace mlir {
 namespace heir {
@@ -41,11 +45,11 @@ class RTLILImporter {
  protected:
   // cellToOp converts an RTLIL cell to an MLIR operation.
   virtual Operation *createOp(Yosys::RTLIL::Cell *cell,
-                              SmallVector<Value, 4> &inputs,
+                              SmallVector<Value> &inputs,
                               ImplicitLocOpBuilder &b) const = 0;
 
   // Returns a list of RTLIL cell inputs.
-  virtual SmallVector<Yosys::RTLIL::SigSpec, 4> getInputs(
+  virtual SmallVector<Yosys::RTLIL::SigSpec> getInputs(
       Yosys::RTLIL::Cell *cell) const = 0;
 
   // Returns an RTLIL cell output.
