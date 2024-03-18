@@ -5,6 +5,9 @@ These tests exercise Rust codegen for the
 compiling the generated Rust source and running the resulting binary. This sets
 tests are specifically of the boolean plaintexts and the accompanying library.
 
+This specific e2e tests are designed for the [FPT](https://eprint.iacr.org/2022/1635) accelerator, made by COSIC. 
+
+
 To avoid introducing these large dependencies into the entire project, these
 tests are manual, and require the system they're running on to have
 [Cargo](https://doc.rust-lang.org/cargo/index.html) installed. During the test,
