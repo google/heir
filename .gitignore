@@ -21,3 +21,6 @@ tests/tfhe_rust_bool/end_to_end_fpga/tfhe-rs
 
 # vscode
 .vscode/**
+
+# for python files
+__pycache__

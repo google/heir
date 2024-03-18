@@ -40,7 +40,11 @@ Like above, run the following to skip tests that depend on Yosys:
 bazel test --define=HEIR_NO_YOSYS=1 --test_tag_filters=-yosys @heir//...
 ```
 
-## Optional: Run heir-opt on an mlir file
+## Run the hello-world example
+
+The `hello-world` example is a simple program that
+
+## Optional: Run a custom `heir-opt` pipeline
 
 HEIR comes with two central binaries, `heir-opt` for running optimization passes
 and dialect conversions, and `heir-translate` for backend code generation. To
@@ -61,6 +65,24 @@ input files. You can also access the underlying binary at
 bazel run //tools:heir-opt -- \
   --comb-to-cggi -cse \
   $PWD/tests/comb_to_cggi/add_one.mlir
+```
+
+To convert an existing lit test to a `bazel run` command for manual tweaking
+and introspection (e.g., adding `--debug` or `--mlir-print-ir-after-all` to see
+how he IR changes with each pass), use `python scripts/lit_to_bazel.py`.
+
+```bash
+# after pip installing requirements-dev.txt
+python scripts/lit_to_bazel.py tests/simd/box_blur_64x64.mlir
+```
+
+Which outputs
+
+```bash
+bazel run --noallow_analysis_cache_discard //tools:heir-opt -- \
+--secretize=entry-function=box_blur --wrap-generic --canonicalize --cse --full-loop-unroll \
+--insert-rotate --cse --canonicalize --collapse-insertion-chains \
+--canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
 ```
 
 ## Developing in HEIR
@@ -91,15 +113,18 @@ pre-commit run --all-files
 
 ## Creating a New Pass
 
-The `templates` folder contains Python scripts to create boilerplate for new
-conversion or (dialect-specific) transform passes.
+The `scripts/templates` folder contains Python scripts to create boilerplate
+for new conversion or (dialect-specific) transform passes. These should be used
+when the tablegen files containing existing pass definitions in the expected
+filepaths are not already present. Otherwise, you should modify the existing
+tablegen files directly.
 
 ### Conversion Pass
 
 To create a new conversion pass, run a command similar to the following:
 
 ```
-python templates/templates.py new_conversion_pass \
+python scripts/templates/templates.py new_conversion_pass \
 --source_dialect_name=CGGI \
 --source_dialect_namespace=cggi \
 --source_dialect_mnemonic=cggi \
@@ -117,7 +142,7 @@ To create a transform or rewrite pass that operates on a dialect, run a command
 similar to the following:
 
 ```
-python templates/templates.py new_dialect_transform \
+python scripts/templates/templates.py new_dialect_transform \
 --pass_name=ForgetSecrets \
 --pass_flag=forget-secrets \
 --dialect_name=Secret \
@@ -128,7 +153,7 @@ python templates/templates.py new_dialect_transform \
 If the transform does not operate from and to a specific dialect, use
 
 ```
-python templates/templates.py new_transform \
+python scripts/templates/templates.py new_transform \
 --pass_name=ForgetSecrets \
 --pass_flag=forget-secrets \
 --force=false

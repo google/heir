@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+norecursedirs = [
+  ".git",
+  "__pycache__",
+  "bazel",
+  "bazel-bin",
+  "bazel-heir",
+  "bazel-out",
+  "bazel-testlogs",
+  "docs",
+  "external",
+  "tests",
+  "tools",
+  "venv",
+]
