@@ -274,6 +274,11 @@ LogicalResult TfheRustBoolEmitter::printOperation(AndPackedOp op) {
                         {op.getLhs(), op.getRhs()}, "and_packed");
 }
 
+LogicalResult TfheRustBoolEmitter::printOperation(XorPackedOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(),
+                        {op.getLhs(), op.getRhs()}, "xor_packed");
+}
+
 FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
   // Note: these are probably not the right type names to use exactly, and they
   // will need to chance to the right values once we try to compile it against
@@ -283,7 +288,10 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
     // FIXME: why can't both types be FailureOr<std::string>?
     auto elementTy = convertType(shapedType.getElementType());
     if (failed(elementTy)) return failure();
-    return std::string("Vec<" + elementTy.value() + ">");
+    auto refprefix =
+        shapedType.getElementType().hasTrait<PassByReference>() ? "&" : "";
+    return std::string(std::string("Vec<") + refprefix + elementTy.value() +
+                       ">");
   }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<EncryptedBoolType>(
