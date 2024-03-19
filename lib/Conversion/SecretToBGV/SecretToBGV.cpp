@@ -14,16 +14,18 @@
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Conversion/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir {
@@ -64,12 +66,14 @@ class SecretToBGVTypeConverter : public TypeConverter {
 
     // Convert secret types to BGV ciphertext types
     addConversion([ctx, this](secret::SecretType type) -> Type {
-      RankedTensorType tensorTy = cast<RankedTensorType>(type.getValueType());
+      int bitWidth =
+          llvm::TypeSwitch<Type, int>(type.getValueType())
+              .Case<RankedTensorType>(
+                  [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
+              .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
       return lwe::RLWECiphertextType::get(
           ctx,
-          lwe::PolynomialEvaluationEncodingAttr::get(
-              ctx, tensorTy.getElementTypeBitWidth(),
-              tensorTy.getElementTypeBitWidth()),
+          lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
           lwe::RLWEParamsAttr::get(ctx, 2, ring_));
     });
 
@@ -108,9 +112,7 @@ class SecretGenericOpConversion
         inputs.push_back(
             adaptor.getODSOperands(0)[secretArg->getOperandNumber()]);
       } else {
-        return rewriter.notifyMatchFailure(
-            op->getLoc(),
-            "Plaintext-ciphertext operations are not yet supported.");
+        inputs.push_back(operand.get());
       }
     }
 
@@ -158,7 +160,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       for (auto value : op->getOperands()) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
           auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (!tensorTy ||
+          if (tensorTy &&
               tensorTy.getShape() !=
                   ArrayRef<int64_t>{rlweRing.value().getIdeal().getDegree()}) {
             return WalkResult::interrupt();
@@ -169,7 +171,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     });
     if (compatibleTensors.wasInterrupted()) {
       module->emitError(
-          "expected secret types to be tensors with dimension "
+          "expected batched secret types to be tensors with dimension "
           "matching ring parameter");
       return signalPassFailure();
     }
@@ -183,6 +185,9 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
     patterns.add<SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
+                 SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
+                 SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
+                 SecretGenericOpConversion<tensor_ext::RotateOp, bgv::Rotate>,
                  SecretGenericOpMulConversion>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
