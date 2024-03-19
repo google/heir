@@ -1,7 +1,7 @@
 // This test ensures the testing harness is working properly with minimal codegen.
 
 // RUN: heir-translate %s --emit-tfhe-rust-bool > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main -- 1 1 | FileCheck %s
+// RUN: cargo run --release --manifest-path %S/Cargo.toml -- 1 1 | FileCheck %s
 
 !bsks = !tfhe_rust_bool.server_key
 !eb = !tfhe_rust_bool.eb

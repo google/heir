@@ -51,7 +51,9 @@ class TfheRustBoolEmitter {
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(CreateTrivialOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
+  LogicalResult printOperation(tensor::ExtractSliceOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
+  LogicalResult printOperation(tensor::ConcatOp op);
   LogicalResult printOperation(AndOp op);
   LogicalResult printOperation(NandOp op);
   LogicalResult printOperation(OrOp op);
