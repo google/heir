@@ -64,8 +64,8 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // TfheRustBool ops
-          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp, AndPackedOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp, AndPackedOp,
+                XorPackedOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
@@ -270,6 +270,10 @@ LogicalResult TfheRustBoolEmitter::printOperation(XnorOp op) {
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(AndPackedOp op) {
+  os << "let " << variableNames->getNameForValue(op.getLhs()) << " = "
+     << variableNames->getNameForValue(op.getLhs()) << ".iter().collect();\n";
+  os << "let " << variableNames->getNameForValue(op.getRhs()) << " = "
+     << variableNames->getNameForValue(op.getRhs()) << ".iter().collect();\n";
   return printSksMethod(op.getResult(), op.getServerKey(),
                         {op.getLhs(), op.getRhs()}, "and_packed");
 }
@@ -288,10 +292,9 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
     // FIXME: why can't both types be FailureOr<std::string>?
     auto elementTy = convertType(shapedType.getElementType());
     if (failed(elementTy)) return failure();
-    auto refprefix =
-        shapedType.getElementType().hasTrait<PassByReference>() ? "&" : "";
-    return std::string(std::string("Vec<") + refprefix + elementTy.value() +
-                       ">");
+    // auto refprefix =
+    //     shapedType.getElementType().hasTrait<PassByReference>() ? "&" : "";
+    return std::string(std::string("Vec<") + elementTy.value() + ">");
   }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<EncryptedBoolType>(
