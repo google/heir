@@ -2,13 +2,20 @@
 
 #include <utility>
 
-#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "include/Analysis/TargetSlotAnalysis/TargetSlotAnalysis.h"
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "insert-rotate"
 
 namespace mlir {
 namespace heir {
@@ -32,6 +39,31 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     RewritePatternSet patterns(context);
+
+    SymbolTableCollection symbolTable;
+    DataFlowSolver solver;
+    // These two upstream analyses are required dependencies for any sparse
+    // dataflow analysis, or else the analysis will be a no-op. Cf.
+    // https://github.com/llvm/llvm-project/issues/58922
+    solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
+    solver.load<target_slot_analysis::TargetSlotAnalysis>(symbolTable);
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+
+    LLVM_DEBUG({
+      getOperation()->walk([&](Operation *op) {
+        if (op->getNumResults() == 0) return;
+        auto *targetSlotLattice =
+            solver.lookupState<target_slot_analysis::TargetSlotLattice>(
+                op->getResult(0));
+        llvm::dbgs() << "Target slot for op " << *op << ": "
+                     << targetSlotLattice->getValue() << "\n";
+      });
+    });
 
     alignment::populateWithGenerated(patterns);
     canonicalization::populateWithGenerated(patterns);

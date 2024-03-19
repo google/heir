@@ -3,7 +3,10 @@
 These tests exercise Rust codegen for the
 [tfhe-rs](https://github.com/zama-ai/tfhe-rs) backend library, including
 compiling the generated Rust source and running the resulting binary. This sets
-tests are specifically of the boolean plaintexts and the accompanying library.
+tests are specifically of the boolean plaintexts, accompanying COSIC-KU Leuven version of the library,
+and the [FPT-accelerator](https://eprint.iacr.org/2022/1635).
+
+> :warning: Not possible to run these tests without the COSIC extension of TFHE-rs and FPT-accelerator
 
 To avoid introducing these large dependencies into the entire project, these
 tests are manual, and require the system they're running on to have
