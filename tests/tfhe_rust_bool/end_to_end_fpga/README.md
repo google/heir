@@ -8,6 +8,9 @@ and the [FPT-accelerator](https://eprint.iacr.org/2022/1635).
 
 > :warning: Not possible to run these tests without the COSIC extension of TFHE-rs and FPT-accelerator
 
+This specific e2e tests are designed for the [FPT](https://eprint.iacr.org/2022/1635) accelerator, made by COSIC. 
+
+
 To avoid introducing these large dependencies into the entire project, these
 tests are manual, and require the system they're running on to have
 [Cargo](https://doc.rust-lang.org/cargo/index.html) installed. During the test,
