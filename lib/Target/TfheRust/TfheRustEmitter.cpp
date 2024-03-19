@@ -471,7 +471,7 @@ LogicalResult TfheRustEmitter::printOperation(affine::AffineForOp forOp) {
     // Store into memrefs by taking the values from temp_nodes.
     for (memref::StoreOp op : forOp.getBody()->getOps<memref::StoreOp>()) {
       std::string valueToStore =
-          llvm::formatv("temp_nodes[&{0}].clone()",
+          llvm::formatv("temp_nodes[&{0}]",
                         variableNames->getIntForValue(op.getValueToStore()));
       printStoreOp(op, valueToStore);
     }
@@ -650,7 +650,7 @@ void TfheRustEmitter::printStoreOp(memref::StoreOp op,
                                return variableNames->getNameForValue(value) +
                                       std::string(" as usize");
                              })
-     << "), " << valueToStore << ");\n";
+     << "), " << valueToStore << ".clone());\n";
 }
 
 LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {
@@ -688,10 +688,6 @@ void TfheRustEmitter::printLoadOp(memref::LoadOp op) {
 
 LogicalResult TfheRustEmitter::printOperation(memref::LoadOp op) {
   emitAssignPrefix(op.getResult());
-
-  // TODO(#474): Generalize to any encrypted uint.
-  bool isRef = isa<EncryptedUInt3Type>(op.getResult().getType());
-  os << (isRef ? "&" : "");
 
   printLoadOp(op);
 
