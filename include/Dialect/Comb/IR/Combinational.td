@@ -80,6 +80,9 @@ def XorOp : UTVariadicOp<"xor", [Commutative]> {
     bool isBinaryNot();
   }];
 }
+def XNorOp  : UTVariadicOp<"xnor">;
+def NandOp  : UTVariadicOp<"nand">;
+def NorOp  : UTVariadicOp<"nor">;
 
 //===----------------------------------------------------------------------===//
 // Comparisons
@@ -153,6 +156,15 @@ def ICmpOp : CombOp<"icmp", [Pure, SameTypeOperands]> {
 //===----------------------------------------------------------------------===//
 // Unary Operations
 //===----------------------------------------------------------------------===//
+
+class UnaryOp<string mnemonic, list<Trait> traits = []> :
+      CombOp<mnemonic, traits # [Pure, SameOperandsAndResultType]> {
+  let arguments = (ins HWIntegerType:$input, UnitAttr:$twoState);
+  let results = (outs HWIntegerType:$result);
+
+  let assemblyFormat = "(`bin` $twoState^)? $input attr-dict `:` qualified(type($input))";
+}
+def InvOp  : UnaryOp<"inv">;
 
 // Base class for unary reduction operations that produce an i1.
 class UnaryI1ReductionOp<string mnemonic, list<Trait> traits = []> :

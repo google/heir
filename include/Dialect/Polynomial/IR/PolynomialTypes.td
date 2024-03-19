@@ -14,7 +14,7 @@ class Polynomial_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 }
 
-def Polynomial : Polynomial_Type<"Polynomial", "polynomial", [MemRefElementTypeInterface]> {
+def Polynomial : Polynomial_Type<"Polynomial", "polynomial"> {
   let summary = "An element of a polynomial quotient ring";
 
   let description = [{

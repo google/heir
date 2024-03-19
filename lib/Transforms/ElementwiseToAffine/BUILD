@@ -4,16 +4,18 @@ package(
 )
 
 cc_library(
-    name = "Utils",
-    srcs = ["Utils.cpp"],
-    hdrs = ["Utils.h"],
+    name = "ElementwiseToAffine",
+    srcs = ["ElementwiseToAffine.cpp"],
+    hdrs = [
+        "@heir//include/Transforms/ElementwiseToAffine:ElementwiseToAffine.h",
+    ],
     deps = [
+        "@heir//include/Transforms/ElementwiseToAffine:pass_inc_gen",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:FuncTransforms",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:SCFTransforms",
+        "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:Transforms",

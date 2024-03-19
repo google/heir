@@ -24,6 +24,7 @@ def YosysOptimizer : Pass<"yosys-optimizer"> {
     - `unroll-factor`: Before optimizing the circuit, unroll loops by a given
       factor. If unset, this pass will not unroll any loops.
     - `print-stats`: Prints statistics about the optimized circuits.
+    - `mode={Boolean,LUT}`: Map gates to boolean gates or lookup table gates.
   }];
   // TODO(#257): add option for the pass to select the unroll factor
   // automatically.

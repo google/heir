@@ -16,6 +16,7 @@
 #include "include/Dialect/Secret/IR/SecretPatterns.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
 #include "include/Target/Verilog/VerilogEmitter.h"
+#include "lib/Transforms/YosysOptimizer/BooleanGateImporter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
@@ -66,7 +67,7 @@ using std::string;
 // $2: yosys runfiles
 // $3: abc path
 // $4: abc fast option -fast
-constexpr std::string_view kYosysTemplate = R"(
+constexpr std::string_view kYosysLutTemplate = R"(
 read_verilog {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
@@ -76,6 +77,24 @@ abc -exe {3} -lut 3 {4}; stat;
 opt_clean -purge; stat;
 rename -hide */c:*; rename -enumerate */c:*;
 techmap -map {2}/map_lut_to_lut3.v; opt_clean -purge;
+hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
+clean;
+stat;
+)";
+
+// $0: verilog filename
+// $1: function name
+// $2: abc path
+// $3: yosys runfiles path
+// $4: abc fast option -fast
+constexpr std::string_view kYosysBooleanTemplate = R"(
+read_verilog {0};
+hierarchy -check -top \{1};
+proc; memory; stat;
+techmap -map {3}/techmap.v; opt; stat;
+abc -exe {2} -liberty {3}/tfhe-rs_cells.liberty {4}; stat;
+opt_clean -purge; stat;
+rename -hide */c:*; rename -enumerate */c:*;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
 stat;
@@ -91,17 +110,13 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   using YosysOptimizerBase::YosysOptimizerBase;
 
   YosysOptimizer(std::string yosysFilesPath, std::string abcPath, bool abcFast,
-                 int unrollFactor, bool printStats)
+                 int unrollFactor, Mode mode, bool printStats)
       : yosysFilesPath(std::move(yosysFilesPath)),
         abcPath(std::move(abcPath)),
         abcFast(abcFast),
         printStats(printStats),
-        unrollFactor(unrollFactor) {}
-
-  void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<comb::CombDialect, mlir::arith::ArithDialect,
-                    mlir::memref::MemRefDialect>();
-  }
+        unrollFactor(unrollFactor),
+        mode(mode) {}
 
   void runOnOperation() override;
 
@@ -116,6 +131,7 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   bool abcFast;
   bool printStats;
   int unrollFactor;
+  Mode mode;
   llvm::SmallVector<RelativeOptimizationStatistics> optStatistics;
 };
 
@@ -183,7 +199,6 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
 
 /// Convert a secret.generic's results from secret.secret<memref<3xi1>>
 /// to secret.secret<i3>.
-// genericOp has the original, func op has the memref's yosys optimized
 LogicalResult convertOpResults(secret::GenericOp op,
                                SmallVector<Type> originalResultTy,
                                DenseSet<Operation *> &castOps,
@@ -195,7 +210,6 @@ LogicalResult convertOpResults(secret::GenericOp op,
         opResult.getType().cast<secret::SecretType>();
 
     IntegerType elementType;
-    int numElements = 1;
     if (MemRefType convertedType =
             dyn_cast<MemRefType>(secretType.getValueType())) {
       if (!convertedType.getElementType().isa<IntegerType>() ||
@@ -206,7 +220,6 @@ LogicalResult convertOpResults(secret::GenericOp op,
         return failure();
       }
       elementType = convertedType.getElementType().cast<IntegerType>();
-      numElements = convertedType.getNumElements();
     } else {
       elementType = secretType.getValueType().cast<IntegerType>();
     }
@@ -388,9 +401,22 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   // Invoke Yosys to translate to a combinational circuit and optimize.
   Yosys::log_error_stderr = true;
   LLVM_DEBUG(Yosys::log_streams.push_back(&std::cout));
-  Yosys::run_pass(llvm::formatv(kYosysTemplate.data(), filename, moduleName,
-                                yosysFilesPath, abcPath,
-                                abcFast ? "-fast" : ""));
+
+  LLVM_DEBUG(
+      llvm::dbgs() << "Using "
+                   << (mode == Mode::LUT ? "LUT cells" : "boolean gates"));
+  auto yosysTemplate =
+      llvm::formatv(kYosysLutTemplate.data(), filename, moduleName,
+                    yosysFilesPath, abcPath, abcFast ? "-fast" : "")
+          .str();
+  if (mode == Mode::Boolean) {
+    std::cout << yosysFilesPath << std::endl;
+    yosysTemplate =
+        llvm::formatv(kYosysBooleanTemplate.data(), filename, moduleName,
+                      abcPath, yosysFilesPath, abcFast ? "-fast" : "")
+            .str();
+  }
+  Yosys::run_pass(yosysTemplate);
 
   // Translate Yosys result back to MLIR and insert into the func
   LLVM_DEBUG(Yosys::run_pass("dump;"));
@@ -399,7 +425,6 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   Yosys::run_pass("torder -stop * P*;");
   Yosys::log_streams.clear();
   auto topologicalOrder = getTopologicalOrder(cellOrder);
-  LUTImporter lutImporter = LUTImporter(context);
   Yosys::RTLIL::Design *design = Yosys::yosys_get_design();
   auto numCells = design->top_module()->cells().size();
   totalCircuitSize += numCells;
@@ -408,9 +433,14 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   }
 
   LLVM_DEBUG(llvm::dbgs() << "Importing RTLIL module\n");
-
+  std::unique_ptr<RTLILImporter> importer;
+  if (mode == Mode::LUT) {
+    importer = std::make_unique<LUTImporter>(context);
+  } else {
+    importer = std::make_unique<BooleanGateImporter>(context);
+  }
   func::FuncOp func =
-      lutImporter.importModule(design->top_module(), topologicalOrder);
+      importer->importModule(design->top_module(), topologicalOrder);
   Yosys::run_pass("delete;");
 
   LLVM_DEBUG(llvm::dbgs() << "Done importing RTLIL, now type-coverting ops\n");
@@ -554,9 +584,9 @@ void YosysOptimizer::runOnOperation() {
 
 std::unique_ptr<mlir::Pass> createYosysOptimizer(
     const std::string &yosysFilesPath, const std::string &abcPath, bool abcFast,
-    int unrollFactor, bool printStats) {
+    int unrollFactor, Mode mode, bool printStats) {
   return std::make_unique<YosysOptimizer>(yosysFilesPath, abcPath, abcFast,
-                                          unrollFactor, printStats);
+                                          unrollFactor, mode, printStats);
 }
 
 void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
@@ -567,7 +597,7 @@ void registerYosysOptimizerPipeline(const std::string &yosysFilesPath,
                                 const YosysOptimizerPipelineOptions &options) {
         pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
                                         options.abcFast, options.unrollFactor,
-                                        options.printStats));
+                                        options.mode, options.printStats));
         pm.addPass(mlir::createCSEPass());
       });
 }

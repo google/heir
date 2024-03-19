@@ -3,19 +3,23 @@
 #include <cassert>
 
 #include "include/Dialect/Comb/IR/CombOps.h"
-#include "kernel/rtlil.h"                    // from @at_clifford_yosys
-#include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
+// Block clang-format from reordering
+// clang-format off
+#include "kernel/rtlil.h" // from @at_clifford_yosys
+// clang-format on
+
 namespace mlir {
 namespace heir {
 
 mlir::Operation *LUTImporter::createOp(Yosys::RTLIL::Cell *cell,
-                                       SmallVector<Value, 4> &inputs,
+                                       SmallVector<Value> &inputs,
                                        ImplicitLocOpBuilder &b) const {
   assert(cell->type.begins_with("\\lut"));
 
@@ -36,7 +40,7 @@ mlir::Operation *LUTImporter::createOp(Yosys::RTLIL::Cell *cell,
   return b.create<comb::TruthTableOp>(inputs, lookupTable);
 }
 
-SmallVector<Yosys::RTLIL::SigSpec, 4> LUTImporter::getInputs(
+SmallVector<Yosys::RTLIL::SigSpec> LUTImporter::getInputs(
     Yosys::RTLIL::Cell *cell) const {
   assert(cell->type.begins_with("\\lut") && "expected lut cells");
 

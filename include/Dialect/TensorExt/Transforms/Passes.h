@@ -4,6 +4,7 @@
 #include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "include/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "include/Dialect/TensorExt/Transforms/InsertRotate.h"
+#include "include/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 
 namespace mlir {
 namespace heir {

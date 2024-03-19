@@ -24,6 +24,7 @@
 #include "include/Dialect/TensorExt/Transforms/Passes.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "include/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "include/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "include/Transforms/Secretize/Passes.h"
@@ -32,12 +33,9 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"  // from @llvm-project
-#include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
@@ -57,6 +55,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
 #include "mlir/include/mlir/InitAllDialects.h"             // from @llvm-project
+#include "mlir/include/mlir/InitAllExtensions.h"           // from @llvm-project
 #include "mlir/include/mlir/InitAllPasses.h"               // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"            // from @llvm-project
@@ -132,6 +131,7 @@ void tosaPipelineBuilder(OpPassManager &manager) {
 
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
+  manager.addPass(createElementwiseToAffine());
   manager.addPass(polynomial::createPolynomialToStandard());
   manager.addPass(createCanonicalizerPass());
 
@@ -140,6 +140,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Needed to lower affine.map and affine.apply
   manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
   manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  manager.addPass(createLowerAffinePass());
   manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
 
@@ -160,14 +161,9 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // ToLLVM
   manager.addPass(arith::createArithExpandOpsPass());
   manager.addPass(createConvertSCFToCFPass());
-  manager.addPass(createConvertControlFlowToLLVMPass());
-  manager.addPass(createConvertIndexToLLVMPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-  manager.addPass(createCanonicalizerPass());
-  manager.addPass(createConvertFuncToLLVMPass());
-  manager.addPass(createArithToLLVMConversionPass());
-  manager.addPass(createFinalizeMemRefToLLVMConversionPass());
-  manager.addPass(createReconcileUnrealizedCastsPass());
+  manager.addPass(createConvertToLLVMPass());
+
   // Cleanup
   manager.addPass(createCanonicalizerPass());
   manager.addPass(createSCCPPass());
@@ -285,6 +281,7 @@ int main(int argc, char **argv) {
   registry.insert<TosaDialect>();
   registry.insert<LLVM::LLVMDialect>();
   registerAllDialects(registry);
+  registerAllExtensions(registry);
 
   // Register MLIR core passes to build pipeline.
   registerAllPasses();
@@ -294,6 +291,7 @@ int main(int argc, char **argv) {
   lwe::registerLWEPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
+  registerElementwiseToAffinePasses();
   registerSecretizePasses();
   registerFullLoopUnrollPasses();
   registerForwardStoreToLoadPasses();
