@@ -32,7 +32,6 @@ pub fn decrypt(ciphertexts: &Vec<Ciphertext>, client_key: &ClientKey) -> u8 {
         accum |= (bit as u8) << i;
     }
     accum.reverse_bits()
-
 }
 
 fn main() {
