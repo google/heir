@@ -14,7 +14,7 @@
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring1>
 #params2 = #lwe.rlwe_params<dimension=2, ring=#ring2>
 
-!pt = !lwe.rlwe_plaintext<encoding=#encoding>
+!pt = !lwe.rlwe_plaintext<encoding=#encoding, ring=#ring1>
 
 !ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params>
 !ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>

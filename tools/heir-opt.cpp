@@ -8,6 +8,7 @@
 #include "include/Conversion/CombToCGGI/CombToCGGI.h"
 #include "include/Conversion/MemrefToArith/MemrefToArith.h"
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
+#include "include/Conversion/SecretToBGV/SecretToBGV.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
 #include "include/Dialect/CGGI/IR/CGGIDialect.h"
 #include "include/Dialect/CGGI/Transforms/Passes.h"
@@ -317,6 +318,7 @@ int main(int argc, char **argv) {
   polynomial::registerPolynomialToStandardPasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
+  registerSecretToBGVPasses();
 
   PassPipelineRegistration<>(
       "heir-tosa-to-arith",

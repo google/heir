@@ -43,7 +43,7 @@ def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
 
   let parameters = (ins
     "::mlir::Attribute":$encoding,
-    OptionalParameter<"RLWEParamsAttr">:$rlwe_params
+    "RLWEParamsAttr":$rlwe_params
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
@@ -70,7 +70,8 @@ def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
   let summary = "A type for RLWE plaintexts";
 
   let parameters = (ins
-    "::mlir::Attribute":$encoding
+    "::mlir::Attribute":$encoding,
+    "::mlir::heir::polynomial::RingAttr":$ring
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
