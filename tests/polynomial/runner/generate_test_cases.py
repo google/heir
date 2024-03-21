@@ -3,6 +3,7 @@
 import argparse
 import sys
 
+import math
 import sympy
 import tomli
 
@@ -148,6 +149,13 @@ def parse_to_sympy(poly_str: str, var: sympy.Symbol, cmod: int):
     poly += coeff * var**degree
   return poly.as_poly(domain=f'ZZ[{cmod}]')
 
+def emulate_extsi(x, cmod):
+  bitwidth = 1 if cmod == 0 else math.log2(cmod)
+  # bitwidth.is_integer() will denote if bitwidth is a power of 2
+  bitwidth = int(bitwidth) if bitwidth.is_integer() else int(bitwidth) + 1
+  cst = 1 << (bitwidth - 1)
+  negate = (x & cst) > 0 # most significant bit is set so negate
+  return x if not negate else x - (1 << bitwidth)
 
 def main(args: argparse.Namespace) -> None:
   if not args.tests_toml_path:
@@ -200,6 +208,9 @@ def main(args: argparse.Namespace) -> None:
         domain_q = domain.convert(sympy.mod_inverse(exp_coeff.q, cmod))
         result = (domain_p * domain_q) % cmod
         expected_coeffs[j] = result
+      elif exp_coeff.is_integer and 2 * abs(exp_coeff) >= cmod:
+        modded = exp_coeff % cmod
+        expected_coeffs[j] = emulate_extsi(modded, cmod)
 
     if len(expected_coeffs) < coeff_list_len:
       expected_coeffs = expected_coeffs + [0] * (

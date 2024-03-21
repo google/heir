@@ -34,6 +34,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"  // from @llvm-project
@@ -152,6 +153,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // But lowering to loops also re-introduces affine.apply, so re-lower that
   manager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
   manager.addPass(createLowerAffinePass());
+  manager.addPass(createBufferizationToMemRefPass());
 
   // Cleanup
   manager.addPass(createCanonicalizerPass());
