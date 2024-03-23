@@ -1,4 +1,4 @@
-// RUN: heir-opt --comb-to-cggi -cse %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic --comb-to-cggi -cse %s | FileCheck %s
 
 // This test was produced by running
 //   heir-opt --yosys-optimizer --canonicalize tests/yosys_optimizer/add_one.mlir

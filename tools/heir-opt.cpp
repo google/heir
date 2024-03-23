@@ -238,6 +238,7 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
 
         // Lower combinational circuit to CGGI
         pm.addPass(mlir::createCSEPass());
+        pm.addPass(secret::createSecretDistributeGeneric());
         pm.addPass(comb::createCombToCGGI());
 
         // CGGI to Tfhe-Rust exit dialect

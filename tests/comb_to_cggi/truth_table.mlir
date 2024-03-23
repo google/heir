@@ -1,4 +1,4 @@
-// RUN: heir-opt --split-input-file --comb-to-cggi --cse %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic --split-input-file --comb-to-cggi --cse %s | FileCheck %s
 
 // CHECK-NOT: secret
 // CHECK: @truth_table_all_secret([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*>]]) -> [[LWET]]

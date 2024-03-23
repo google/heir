@@ -1,4 +1,4 @@
-// RUN: heir-opt --comb-to-cggi %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic --comb-to-cggi %s | FileCheck %s
 
 // CHECK: module
 module attributes {tf_saved_model.semantics} {
