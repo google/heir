@@ -54,15 +54,19 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
       return;
     }
 
-    LLVM_DEBUG({
-      getOperation()->walk([&](Operation *op) {
-        if (op->getNumResults() == 0) return;
-        auto *targetSlotLattice =
-            solver.lookupState<target_slot_analysis::TargetSlotLattice>(
-                op->getResult(0));
-        llvm::dbgs() << "Target slot for op " << *op << ": "
-                     << targetSlotLattice->getValue() << "\n";
-      });
+    // Annotate all arith ops with their target slot attribute, so that it can
+    // be matched in the DRR rules.
+    OpBuilder builder(context);
+    getOperation()->walk([&](Operation *op) {
+      if (op->getNumResults() == 0) return;
+      auto *targetSlotLattice =
+          solver.lookupState<target_slot_analysis::TargetSlotLattice>(
+              op->getResult(0));
+      if (targetSlotLattice->getValue().isInitialized()) {
+        op->setAttr(
+            "target_slot",
+            builder.getIndexAttr(targetSlotLattice->getValue().getValue()));
+      }
     });
 
     alignment::populateWithGenerated(patterns);
