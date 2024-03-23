@@ -10,8 +10,9 @@ package(
 exports_files(
     [
         "RNSDialect.h",
-        "RNSTypes.h",
         "RNSOps.h",
+        "RNSTypeInterfaces.h",
+        "RNSTypes.h",
     ],
 )
 
@@ -20,6 +21,7 @@ td_library(
     srcs = [
         "RNSDialect.td",
         "RNSOps.td",
+        "RNSTypeInterfaces.td",
         "RNSTypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
@@ -105,5 +107,24 @@ gentbl_cc_library(
         ":td_files",
         ":types_inc_gen",
         "@heir//include/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "type_interfaces_inc_gen",
+    tbl_outs = [
+        (
+            ["--gen-type-interface-decls"],
+            "RNSTypeInterfaces.h.inc",
+        ),
+        (
+            ["--gen-type-interface-defs"],
+            "RNSTypeInterfaces.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "RNSTypeInterfaces.td",
+    deps = [
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
     ],
 )

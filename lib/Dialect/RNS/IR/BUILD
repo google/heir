@@ -13,6 +13,7 @@ cc_library(
     hdrs = [
         "@heir//include/Dialect/RNS/IR:RNSDialect.h",
         "@heir//include/Dialect/RNS/IR:RNSOps.h",
+        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
         "@heir//include/Dialect/RNS/IR:RNSTypes.h",
     ],
     deps = [
@@ -20,6 +21,7 @@ cc_library(
         ":RNSTypes",
         "@heir//include/Dialect/RNS/IR:dialect_inc_gen",
         "@heir//include/Dialect/RNS/IR:ops_inc_gen",
+        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
         "@heir//include/Dialect/RNS/IR:types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
@@ -33,11 +35,13 @@ cc_library(
     ],
     hdrs = [
         "@heir//include/Dialect/RNS/IR:RNSDialect.h",
+        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
         "@heir//include/Dialect/RNS/IR:RNSTypes.h",
     ],
     deps = [
         "@heir//include/Dialect/RNS/IR:dialect_inc_gen",
         "@heir//include/Dialect/RNS/IR:ops_inc_gen",
+        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
         "@heir//include/Dialect/RNS/IR:types_inc_gen",
         "@llvm-project//mlir:IR",
     ],
