@@ -1,5 +1,5 @@
-#ifndef INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_TD_
-#define INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_TD_
+#ifndef INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_TD_
+#define INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_TD_
 
 include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.td"
 {% if enable_attributes %}
@@ -16,4 +16,4 @@ class {{ dialect_name }}_Type<string name, string typeMnemonic>
 }
 
 
-#endif  // INCLUDE_DIALECT_{{ dialect_name }}_IR_{{ dialect_name }}TYPES_TD_
+#endif  // INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_TD_
