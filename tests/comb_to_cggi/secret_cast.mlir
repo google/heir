@@ -1,6 +1,6 @@
 // This test ensures that secret casting before and after generics lowers to CGGI properly.
 
-// RUN: heir-opt --comb-to-cggi -cse %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic --comb-to-cggi -cse %s | FileCheck %s
 
 // CHECK: module
 module attributes {tf_saved_model.semantics} {

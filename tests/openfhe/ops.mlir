@@ -9,7 +9,7 @@
 !pk = !openfhe.public_key
 !ek = !openfhe.eval_key
 !cc = !openfhe.crypto_context
-!pt = !lwe.rlwe_plaintext<encoding = #encoding>
+!pt = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring>
 !ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params>
 
 module {

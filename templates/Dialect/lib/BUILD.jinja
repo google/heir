@@ -76,6 +76,7 @@ cc_library(
     ],
     hdrs = [
         "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Dialect.h",
+        "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Types.h",
         {% if enable_attributes %}
         "@heir//include/Dialect/{{ dialect_name }}/IR:{{ dialect_name }}Attributes.h",
         {% endif %}

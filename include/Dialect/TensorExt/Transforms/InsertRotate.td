@@ -7,7 +7,12 @@ include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"
 include "mlir/IR/PatternBase.td"
 
-// TODO(#512): Support target slot selection when the downstream op is an insert.
+// Get the target_slot attribute from an op, if it exists, or else
+// return a zero index attribute.
+def GetTargetSlotAttr : NativeCodeCall<
+      "$0.getOwner()->hasAttr(\"target_slot\")"
+      " ? llvm::cast<mlir::IntegerAttr>($0.getOwner()->getAttr(\"target_slot\"))"
+      " : $_builder.getIndexAttr(0)">;
 
 // The patterns in this file are intended to align with the automatic-SIMD
 // batching heuristics from the HECO project. See section 4.4 of
@@ -20,23 +25,31 @@ include "mlir/IR/PatternBase.td"
 // canonicalization patterns will remove duplicated rotations.
 foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   def InsertRotations_#ArithOp : Pattern<
-    (ArithOp
+    (ArithOp:$arithOp
       (Tensor_ExtractOp $t1, (variadic $i1)),
       (Tensor_ExtractOp $t2, (variadic $i2)),
       $overflow),
     [
-      (TensorExt_RotateOp:$r1 $t1, $i1),
-      (TensorExt_RotateOp:$r2 $t2, $i2),
+      (TensorExt_RotateOp:$r1 $t1,
+          (Arith_SubIOp $i1, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
+      (TensorExt_RotateOp:$r2 $t2,
+          (Arith_SubIOp $i2, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
       (ArithOp:$opResult $r1, $r2, $overflow),
       (Tensor_ExtractOp
         $opResult,
-        (MakeSingleResultVariadic (Arith_ConstantOp ConstantAttr<IndexAttr, "0">))),
+        (MakeSingleResultVariadic
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
     ]
   >;
 }
 
+
 // Pre-align the first op's operands to the index that the result is
-// used for in a subsequent op.
+// used for in a subsequent op. This is used to simplify the IR
+// primarily when there is no specific slot target selected for an op. In
+// that case, the above pattern will still replace extractions with
+// rotations, and the simplifications will occur by replacing triples
+// of rotations with pairs.
 // TODO(#514): handle OuterOp with two different InnerOps on the LHS and RHS
 foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {

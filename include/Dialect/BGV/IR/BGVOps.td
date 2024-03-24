@@ -27,7 +27,9 @@ class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
     [AllTypesMatch<["x", "output"]>,
     TypesMatchWith<"type of 'y' matches encoding type of 'x'",
                     "output", "y",
-                    "lwe::RLWEPlaintextType::get($_ctxt, ::llvm::cast<lwe::RLWECiphertextType>($_self).getEncoding())">]> :
+                    "lwe::RLWEPlaintextType::get($_ctxt, "
+                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getEncoding(),"
+                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getRlweParams().getRing())">]> :
         BGV_Op<mnemonic, traits> {
   let arguments = (ins
     RLWECiphertext:$x,

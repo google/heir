@@ -158,6 +158,18 @@ LogicalResult EncodeOp::verify() {
   return success();
 }
 
+LogicalResult RLWEEncodeOp::verify() {
+  auto encodingAttr = this->getEncodingAttr();
+  auto outEncoding = this->getOutput().getType().getEncoding();
+
+  if (encodingAttr != outEncoding) {
+    return this->emitOpError()
+           << "encoding attr must match output LWE plaintext encoding";
+  }
+
+  return success();
+}
+
 LogicalResult TrivialEncryptOp::verify() {
   auto paramsAttr = this->getParamsAttr();
   auto outParamsAttr = this->getOutput().getType().getLweParams();

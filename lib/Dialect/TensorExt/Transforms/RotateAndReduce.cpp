@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project
@@ -53,6 +54,9 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
       auto result =
           llvm::TypeSwitch<Operation *, LogicalResult>(upstreamOpPtr)
               .Case<arith::ConstantOp>(
+                  [&](auto upstreamOp) { return success(); })
+              // Ignore generic ops
+              .template Case<secret::GenericOp>(
                   [&](auto upstreamOp) { return success(); })
               .template Case<arith::AddIOp, arith::MulIOp>(
                   [&](auto upstreamOp) {
@@ -129,7 +133,12 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
                 accessIndices.insert(accessIndex);
                 return success();
               })
-              .Default([&](Operation *op) { return failure(); });
+              .Default([&](Operation *op) {
+                LLVM_DEBUG(llvm::dbgs() << "Not continuing because type switch "
+                                           "encountered unsupported op "
+                                        << op->getName() << "\n");
+                return failure();
+              });
 
       if (failed(result)) {
         return;

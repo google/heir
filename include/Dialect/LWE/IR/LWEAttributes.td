@@ -296,6 +296,8 @@ def RLWE_InverseCanonicalEmbeddingEncoding
   }];
 }
 
+def AnyRLWEEncodingAttr : AnyAttrOf<[RLWE_PolynomialCoefficientEncoding, RLWE_PolynomialEvaluationEncoding, RLWE_InverseCanonicalEmbeddingEncoding]>;
+
 def LWE_LWEParams : AttrDef<LWE_Dialect, "LWEParams"> {
   let mnemonic = "lwe_params";
 

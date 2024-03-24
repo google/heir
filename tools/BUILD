@@ -41,6 +41,7 @@ cc_binary(
         "@heir//lib/Conversion/MemrefToArith:ExpandCopy",
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Conversion/PolynomialToStandard",
+        "@heir//lib/Conversion/SecretToBGV",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Transforms",

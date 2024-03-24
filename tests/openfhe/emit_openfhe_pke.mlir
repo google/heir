@@ -7,7 +7,7 @@
 #params = #lwe.rlwe_params<dimension=1, ring=#ring>
 !cc = !openfhe.crypto_context
 !ek = !openfhe.eval_key
-!pt = !lwe.rlwe_plaintext<encoding = #encoding>
+!pt = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring>
 !ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params>
 
 // CHECK-LABEL: CiphertextT test_basic_emitter(
