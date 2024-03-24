@@ -68,7 +68,7 @@ func.func @fn_under_test(%bsks : !bsks,  %arg0: tensor<8x!eb>, %arg1: tensor<8x!
   %fa5_c = tfhe_rust_bool.xor_packed %bsks, %fa5_2, %fa5_3 : (!bsks, tensor<1x!eb>, tensor<1x!eb>) -> tensor<1x!eb>
   %fa6_1 = tfhe_rust_bool.xor_packed %bsks, %extracted_07, %extracted_17 : (!bsks, tensor<1x!eb>, tensor<1x!eb>) -> tensor<1x!eb>
   %fa6_s = tfhe_rust_bool.xor_packed %bsks, %fa6_1, %fa5_c : (!bsks, tensor<1x!eb>, tensor<1x!eb>) -> tensor<1x!eb>
-  %from_elements = tensor.concat dim(0) %fa6_s, %fa5_s, %fa4_s, %fa3_s, %fa2_s, %fa1_s, %fa0_s, %ha_s 
+  %from_elements = tensor.concat dim(0) %fa6_s, %fa5_s, %fa4_s, %fa3_s, %fa2_s, %fa1_s, %fa0_s, %ha_s
     : (tensor<1x!eb>, tensor<1x!eb>, tensor<1x!eb>, tensor<1x!eb>, tensor<1x!eb>, tensor<1x!eb>, tensor<1x!eb>, tensor<1x!eb>) -> tensor<8x!eb>
   return %from_elements : tensor<8x!eb>
 }

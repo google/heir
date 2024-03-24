@@ -75,7 +75,11 @@ fn main() {
     // let ct_1= ct_1.into_iter().collect();
     // let ct_2= ct_2.into_iter().collect();
 
-    let result = fn_under_test::fn_under_test(&server_key, &ct_1, &ct_2);
+    let t = Instant::now();
+    let result = fn_under_test::fn_under_testtt(&server_key, &ct_1, &ct_2);
+    let run = t.elapsed().as_millis();
+
+    println!("{:?}", run);
 
     let output = decrypt(&result, &client_key);
 
