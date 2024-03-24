@@ -8,7 +8,7 @@
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT:   [[input2:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> Ciphertext {
-// CHECK-NEXT:   let [[v0:.*]] = [[bsks]].and(&[[input1]], &[[input2]]);
+// CHECK-NEXT:   let [[v0:.*]] = [[bsks]].and([[input1]], [[input2]]);
 // CHECK-NEXT:   [[v0]]
 // CHECK-NEXT: }
 func.func @test_and(%bsks : !bsks, %input1 : !eb, %input2 : !eb) -> !eb {

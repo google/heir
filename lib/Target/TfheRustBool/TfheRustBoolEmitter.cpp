@@ -64,8 +64,8 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // TfheRustBool ops
-          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp, AndPackedOp,
-                XorPackedOp>([&](auto op) { return printOperation(op); })
+          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp>(
+              [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp,
                 tensor::ExtractSliceOp, tensor::ConcatOp>(
@@ -149,6 +149,9 @@ LogicalResult TfheRustBoolEmitter::printOperation(func::ReturnOp op) {
     if (isa<BlockArgument>(value)) {
       cloneStr = ".clone()";
     }
+    if (isa<tensor::FromElementsOp>(value.getDefiningOp())) {
+      cloneStr = ".into_iter().cloned().collect()";
+    }
     return variableNames->getNameForValue(value) + cloneStr;
   };
 
@@ -169,59 +172,71 @@ void TfheRustBoolEmitter::emitAssignPrefix(Value result) {
 LogicalResult TfheRustBoolEmitter::printSksMethod(
     ::mlir::Value result, ::mlir::Value sks, ::mlir::ValueRange nonSksOperands,
     std::string_view op, SmallVector<std::string> operandTypes) {
-
   if (isa<TensorType>(nonSksOperands[0].getType())) {
-    os << "let " << variableNames->getNameForValue(result) << "_ref = ";
-    std::string_view opName = "and_packed";
+    mlir::Operation *opParent = nonSksOperands[0].getDefiningOp();
+    if (!opParent) {
+      os << "let " << variableNames->getNameForValue(nonSksOperands[0])
+         << "_ref = " << variableNames->getNameForValue(nonSksOperands[0])
+         << ".clone();\n";
+      os << "let " << variableNames->getNameForValue(nonSksOperands[0])
+         << "_ref: Vec<&Ciphertext> = "
+         << variableNames->getNameForValue(nonSksOperands[0])
+         << ".iter().collect();\n";
+      os << "let " << variableNames->getNameForValue(nonSksOperands[1])
+         << "_ref = " << variableNames->getNameForValue(nonSksOperands[1])
+         << ".clone();\n";
+      os << "let " << variableNames->getNameForValue(nonSksOperands[1])
+         << "_ref: Vec<&Ciphertext> = "
+         << variableNames->getNameForValue(nonSksOperands[1])
+         << ".iter().collect();\n";
+    }
 
-    os << variableNames->getNameForValue(sks) << "." << opName << "(";
+    emitAssignPrefix(result);
+
+    os << variableNames->getNameForValue(sks) << "." << op << "_packed(";
     os << commaSeparatedValues(
         {nonSksOperands[0], nonSksOperands[1]}, [&](Value value) {
           auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+          auto suffix = "";
           // First check if a DefiningOp exists
           // if not: comes from function definition
-
-          // getDefiningOp<TensorType> look for a gedefining op using a specific
-          // type
           mlir::Operation *opParent = value.getDefiningOp();
           if (opParent) {
-            prefix = !isa<tensor::ExtractOp>(opParent) ? "" : prefix;
+            prefix = isa<tensor::ExtractOp>(opParent) ? prefix : "";
+            prefix =
+                isa<tensor::FromElementsOp>(value.getDefiningOp()) ? "&" : "";
           } else {
-            prefix = "";
+            prefix = "&";
+            suffix = "_ref";
           }
 
-          prefix = opName.find("packed") ? "&" : prefix;
-
-          return prefix + variableNames->getNameForValue(value);
+          return prefix + variableNames->getNameForValue(value) + suffix;
         });
     os << ");\n";
-
-    os << "let " << variableNames->getNameForValue(result)
-       << ": Vec<&Ciphertext> = " << variableNames->getNameForValue(result)
-       << "_ref.iter().collect();\n";
     return success();
 
   } else {
-      emitAssignPrefix(result);
+    emitAssignPrefix(result);
 
-  auto operandTypesIt = operandTypes.begin();
-  os << variableNames->getNameForValue(sks) << "." << op << "(";
-  os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-    auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
-    // First check if a DefiningOp exists
-    // if not: comes from function definition
-    mlir::Operation *op = value.getDefiningOp();
-    if (op) {
-      prefix = isa<tensor::ExtractOp>(op) ? "" : prefix;
-    } else {
-      prefix = "";
-    }
+    auto operandTypesIt = operandTypes.begin();
+    os << variableNames->getNameForValue(sks) << "." << op << "(";
+    os << commaSeparatedValues(nonSksOperands, [&](Value value) {
+      // ToDo: can be removed?
+      auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+      // First check if a DefiningOp exists
+      // if not: comes from function definition
+      mlir::Operation *op = value.getDefiningOp();
+      if (op) {
+        prefix = isa<tensor::ExtractOp>(op) ? "" : prefix;
+      } else {
+        prefix = "";
+      }
 
-    return prefix + variableNames->getNameForValue(value) +
-           (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
-  });
-  os << ");\n";
-  return success();
+      return prefix + variableNames->getNameForValue(value) +
+             (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
+    });
+    os << ");\n";
+    return success();
   }
 }
 
@@ -274,11 +289,13 @@ LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     // Check if block argument, if so, clone.
-    auto cloneStr = isa<BlockArgument>(value) ? ".clone()": "";
+    auto cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
     // Get the name of defining operation its dialect
-    auto tfhe_op = value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust_bool";
+    auto tfhe_op =
+        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust_bool";
     auto prefix = tfhe_op ? "&" : "";
-    return std::string(prefix) + variableNames->getNameForValue(value) + cloneStr;
+    return std::string(prefix) + variableNames->getNameForValue(value) +
+           cloneStr;
   }) << "];\n";
   return success();
 }
@@ -323,74 +340,6 @@ LogicalResult TfheRustBoolEmitter::printOperation(XorOp op) {
 LogicalResult TfheRustBoolEmitter::printOperation(XnorOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(),
                         {op.getLhs(), op.getRhs()}, "xnor");
-}
-
-LogicalResult TfheRustBoolEmitter::printOperation(AndPackedOp op) {
-  os << "let " << variableNames->getNameForValue(op.getResult()) << "_ref = ";
-  std::string_view opName = "and_packed";
-
-  os << variableNames->getNameForValue(op.getServerKey()) << "." << opName
-     << "(";
-  os << commaSeparatedValues({op.getLhs(), op.getRhs()}, [&](Value value) {
-    auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
-    // First check if a DefiningOp exists
-    // if not: comes from function definition
-
-    mlir::Operation *opParent = value.getDefiningOp();
-    if (opParent) {
-      prefix = isa<tensor::ExtractOp>(opParent) ? "" : prefix;
-    } else {
-      prefix = "";
-    }
-
-    prefix = opName.find("packed") ? "&" : prefix;
-
-    return prefix + variableNames->getNameForValue(value);
-  });
-  os << ");\n";
-
-  os << "let " << variableNames->getNameForValue(op.getResult())
-     << ": Vec<&Ciphertext> = "
-     << variableNames->getNameForValue(op.getResult())
-     << "_ref.iter().collect();\n";
-  return success();
-}
-
-LogicalResult TfheRustBoolEmitter::printOperation(XorPackedOp op) {
-  // os << "let " << variableNames->getNameForValue(op.getLhs()) << " = "
-  //    << variableNames->getNameForValue(op.getLhs()) <<
-  //    ".iter().collect();\n";
-  // os << "let " << variableNames->getNameForValue(op.getRhs()) << " = "
-  //    << variableNames->getNameForValue(op.getRhs()) <<
-  //    ".iter().collect();\n";
-  os << "let " << variableNames->getNameForValue(op.getResult()) << "_ref = ";
-  std::string_view opName = "xor_packed";
-
-  os << variableNames->getNameForValue(op.getServerKey()) << "." << opName
-     << "(";
-  os << commaSeparatedValues({op.getLhs(), op.getRhs()}, [&](Value value) {
-    auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
-    // First check if a DefiningOp exists
-    // if not: comes from function definition
-
-    mlir::Operation *opParent = value.getDefiningOp();
-    if (opParent) {
-      prefix = isa<tensor::ExtractOp>(opParent) ? "" : prefix;
-    } else {
-      prefix = "";
-    }
-
-    prefix = opName.find("packed") ? "&" : prefix;
-
-    return prefix + variableNames->getNameForValue(value);
-  });
-  os << ");\n";
-
-  os << "let " << variableNames->getNameForValue(op.getResult())
-     << ": Vec<&Ciphertext> = "
-     << variableNames->getNameForValue(op.getResult())
-     << "_ref.iter().collect();\n";
-  return success();
 }
 
 FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {

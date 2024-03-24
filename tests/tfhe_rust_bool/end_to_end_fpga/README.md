@@ -23,6 +23,12 @@ bazel query "filter('.mlir.test$', //tests/tfhe_rust_bool/end_to_end_fpga/...)" 
   | xargs bazel test --sandbox_writable_path=$HOME/.cargo "$@"
 ```
 
+Manually generate the Rust code fort the CGGI lowering:
+```bash
+bazel run //tools:heir-opt -- -cse --straight-line-vectorize --cggi-to-tfhe-rust-bool -cse $(pwd)/tests/cggi_to_tfhe_rust_bool/add_bool.mlir | bazel run //tools:heir-translate -- --emit-tfhe-rust-bool
+```
+
+
 The `manual` tag is added to the targets in this directory to ensure that they
 are not run when someone runs a glob test like `bazel test //...`.
 

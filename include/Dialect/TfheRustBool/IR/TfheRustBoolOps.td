@@ -47,41 +47,6 @@ def NorOp  : TfheRustBool_BinaryGateOp<"nor">  { let summary = "Logical NOR of t
 def XorOp : TfheRustBool_BinaryGateOp<"xor"> { let summary = "Logical XOR of two TFHE-rs Bool ciphertexts."; }
 def XnorOp : TfheRustBool_BinaryGateOp<"xnor"> { let summary = "Logical XNOR of two TFHE-rs Bool ciphertexts."; }
 
-// def TfheRustBool_Ops : 
-//   AnyTypeOp<[
-//     AndOp, 
-//     NandOp, 
-//     OrOp, 
-//     NorOp, 
-//     XorOp, 
-//     XnorOp,
-//   ]>;
-
-
-def AndPackedOp : TfheRustBool_Op<"and_packed", [
-    Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>
-]> {
-  let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
-    TensorOf<[TfheRustBool_Encrypted]>:$lhs,
-    TensorOf<[TfheRustBool_Encrypted]>:$rhs
-  );
-  let results = (outs TensorOf<[TfheRustBool_Encrypted]>:$output);
-}
-
-def XorPackedOp : TfheRustBool_Op<"xor_packed", [
-    Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>
-]> {
-  let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
-    TensorOf<[TfheRustBool_Encrypted]>:$lhs,
-    TensorOf<[TfheRustBool_Encrypted]>:$rhs
-  );
-  let results = (outs TensorOf<[TfheRustBool_Encrypted]>:$output);
-}
-
 def NotOp : TfheRustBool_Op<"not", [
     Pure,
     AllTypesMatch<["input", "output"]>
