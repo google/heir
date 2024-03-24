@@ -67,8 +67,7 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
           .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::FromElementsOp,
-                tensor::ExtractSliceOp, tensor::ConcatOp>(
+          .Case<tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
 
           .Default([&](Operation &) {
@@ -169,26 +168,22 @@ void TfheRustBoolEmitter::emitAssignPrefix(Value result) {
   os << "let " << variableNames->getNameForValue(result) << " = ";
 }
 
+void TfheRustBoolEmitter::emitReferenceConversion(Value value) {
+  auto varName = variableNames->getNameForValue(value);
+  os << "let " << varName << "_ref = " << varName << ".clone();\n";
+  os << "let " << varName << "_ref: Vec<&Ciphertext> = " << varName
+     << ".iter().collect();\n";
+}
+
 LogicalResult TfheRustBoolEmitter::printSksMethod(
     ::mlir::Value result, ::mlir::Value sks, ::mlir::ValueRange nonSksOperands,
     std::string_view op, SmallVector<std::string> operandTypes) {
   if (isa<TensorType>(nonSksOperands[0].getType())) {
-    mlir::Operation *opParent = nonSksOperands[0].getDefiningOp();
+    auto *opParent = nonSksOperands[0].getDefiningOp();
     if (!opParent) {
-      os << "let " << variableNames->getNameForValue(nonSksOperands[0])
-         << "_ref = " << variableNames->getNameForValue(nonSksOperands[0])
-         << ".clone();\n";
-      os << "let " << variableNames->getNameForValue(nonSksOperands[0])
-         << "_ref: Vec<&Ciphertext> = "
-         << variableNames->getNameForValue(nonSksOperands[0])
-         << ".iter().collect();\n";
-      os << "let " << variableNames->getNameForValue(nonSksOperands[1])
-         << "_ref = " << variableNames->getNameForValue(nonSksOperands[1])
-         << ".clone();\n";
-      os << "let " << variableNames->getNameForValue(nonSksOperands[1])
-         << "_ref: Vec<&Ciphertext> = "
-         << variableNames->getNameForValue(nonSksOperands[1])
-         << ".iter().collect();\n";
+      for (auto nonSksOperand : nonSksOperands) {
+        emitReferenceConversion(nonSksOperand);
+      }
     }
 
     emitAssignPrefix(result);
@@ -277,13 +272,6 @@ LogicalResult TfheRustBoolEmitter::printOperation(tensor::ExtractOp op) {
   return success();
 }
 
-LogicalResult TfheRustBoolEmitter::printOperation(tensor::ExtractSliceOp op) {
-  emitAssignPrefix(op.getResult());
-  os << "vec![&" << variableNames->getNameForValue(op.getSource()) << "["
-     << op.getStaticOffsets()[0] << "]];\n";
-  return success();
-}
-
 // Need to produce a Vec<&Ciphertext>
 LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
   emitAssignPrefix(op.getResult());
@@ -297,18 +285,6 @@ LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
   }) << "];\n";
-  return success();
-}
-
-LogicalResult TfheRustBoolEmitter::printOperation(tensor::ConcatOp op) {
-  auto varName = variableNames->getNameForValue(op.getResult());
-  os << "let mut " << varName << ": Vec<Ciphertext> = vec![];\n";
-  ValueRange values = op.getOperands();
-  for (Value a : values) {
-    os << varName << ".extend(" << variableNames->getNameForValue(a)
-       << "_ref);\n";
-  }
-
   return success();
 }
 
