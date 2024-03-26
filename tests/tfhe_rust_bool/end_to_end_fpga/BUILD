@@ -12,7 +12,6 @@ glob_lit_tests(
     data = [
         "Cargo.toml",
         "src/main.rs",
-        "src/main_bool_add.rs",
         "@heir//tests:test_utilities",
     ],
     default_tags = [

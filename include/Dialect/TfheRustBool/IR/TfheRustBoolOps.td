@@ -56,6 +56,17 @@ def AndPackedOp : TfheRustBool_Op<"and_packed", [
   let results = (outs TensorOf<[TfheRustBool_Encrypted]>:$output);
 }
 
+def XorPackedOp : TfheRustBool_Op<"xor_packed", [
+    Pure,
+    AllTypesMatch<["lhs", "rhs", "output"]>
+]> {
+  let arguments = (ins
+    TfheRustBool_ServerKey:$serverKey,
+    TensorOf<[TfheRustBool_Encrypted]>:$lhs,
+    TensorOf<[TfheRustBool_Encrypted]>:$rhs
+  );
+  let results = (outs TensorOf<[TfheRustBool_Encrypted]>:$output);
+}
 
 def NotOp : TfheRustBool_Op<"not", [
     Pure,

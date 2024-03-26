@@ -17,7 +17,7 @@ venv
 # for rust codegen tests
 **/Cargo.lock
 tests/**/**/target/
-tests/tfhe_rust_bool/end_to_end_fpga/
+tests/tfhe_rust_bool/end_to_end_fpga/tfhe-rs
 
 # vscode
 .vscode/**
