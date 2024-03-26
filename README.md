@@ -17,7 +17,8 @@ For more information on MLIR, see the [MLIR homepage](https://mlir.llvm.org/).
 There are many ways to contribute to HEIR:
 
 -   Come to our [twice-monthly meetings](https://heir.dev/community/) to discuss
-    active work on HEIR and future project directions.
+    active work on HEIR and future project directions. The meetings are recorded
+    and posted to our [blog](https://heir.dev/blog/)
 -   Work on an issue marked
     ["good first issue"](https://github.com/google/heir/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
     or browse issues [labeled by topic](https://github.com/google/heir/labels).
