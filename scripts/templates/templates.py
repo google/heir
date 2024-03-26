@@ -51,7 +51,7 @@ class CLI:
   """
 
   def __init__(self):
-    git_root = pathlib.Path(__file__).parent.parent
+    git_root = pathlib.Path(__file__).parent.parent.parent
     if not os.path.isdir(git_root / ".git"):
       raise RuntimeError(f"Could not find git root, looked at {git_root}")
     self.root = git_root
