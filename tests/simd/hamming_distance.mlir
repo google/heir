@@ -1,22 +1,14 @@
 // RUN: heir-opt --secretize=entry-function=hamming --wrap-generic --canonicalize --cse \
-// RUN:   --full-loop-unroll --cse --canonicalize --insert-rotate --cse --canonicalize \
+// RUN:   --full-loop-unroll --cse --canonicalize --insert-rotate --cse --canonicalize --rotate-and-reduce --cse --canonicalize \
 // RUN:   %s | FileCheck %s
 
 // CHECK-LABEL: @hamming
 // CHECK: secret.generic
 // CHECK: arith.subi
 // CHECK-NEXT: arith.muli
-// CHECK-NEXT: tensor_ext.rotate
-// CHECK-NEXT: arith.addi
-// CHECK-NEXT: tensor_ext.rotate
-// CHECK-NEXT: arith.addi
-// CHECK-NEXT: tensor_ext.rotate
-// CHECK-NEXT: arith.addi
-// CHECK-NEXT: tensor.extract
-// CHECK-NEXT: secret.yield
-
-// TODO(#521): support rotate-and-reduce when the input is already a series of incremental rotations,
-// as this IR is currently lowered to 4-1 rotate operations to sum after doing (x-y)**2 in SIMD.
+// CHECK-COUNT-2: tensor_ext.rotate
+// CHECK-NOT: tensor_ext.rotate
+// CHECK: secret.yield
 
 func.func @hamming(%arg0: tensor<4xi16> {secret.secret}, %arg1: tensor<4xi16> {secret.secret}) -> i16 {
   %c0 = arith.constant 0 : index
