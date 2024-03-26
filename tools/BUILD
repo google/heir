@@ -72,6 +72,7 @@ cc_binary(
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:ArithToLLVM",
         "@llvm-project//mlir:ArithTransforms",
+        "@llvm-project//mlir:BufferizationToMemRef",
         "@llvm-project//mlir:BufferizationTransforms",
         "@llvm-project//mlir:ControlFlowToLLVM",
         "@llvm-project//mlir:ConvertToLLVM",

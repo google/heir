@@ -408,17 +408,17 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   }
 };
 
-unsigned nextPow2(unsigned x) {
-  return x == 1 ? 1 : 1 << (32 - APInt(32, x - 1).countLeadingZeros());
-}
-
-RankedTensorType naivePolymulOutputTensorType(PolynomialType type) {
-  auto convNumBits =
-      (type.getRing().coefficientModulus() - 1).getActiveBits() * 2;
-  auto convNumBitsRounded = nextPow2(convNumBits);
-  auto eltType = IntegerType::get(type.getContext(), convNumBitsRounded);
+RankedTensorType polymulOutputTensorType(PolynomialType type) {
+  auto convNumBits = (type.getRing().coefficientModulus() - 1).getActiveBits();
+  auto eltType = IntegerType::get(type.getContext(), convNumBits);
   auto convDegree = 2 * type.getRing().getIdeal().getDegree() - 1;
   return RankedTensorType::get({convDegree}, eltType);
+}
+
+IntegerType polymulIntermediateType(PolynomialType type) {
+  auto convNumBits =
+      (type.getRing().coefficientModulus() - 1).getActiveBits() * 2;
+  return IntegerType::get(type.getContext(), convNumBits);
 }
 
 // Lower polynomial multiplication to a 1D convolution, followed by with a
@@ -448,12 +448,9 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
     //   for j = 0, ..., N-1
     //     c[i+j] += a[i] * b[j]
     //
-    RankedTensorType polymulTensorType = naivePolymulOutputTensorType(polyTy);
-    auto inputOutputHaveSameBitwidth =
-        polymulTensorType.getElementType().getIntOrFloatBitWidth() ==
-        dyn_cast<RankedTensorType>(adaptor.getLhs().getType())
-            .getElementType()
-            .getIntOrFloatBitWidth();
+    RankedTensorType polymulTensorType = polymulOutputTensorType(polyTy);
+    IntegerType intermediateType = polymulIntermediateType(polyTy);
+
     SmallVector<utils::IteratorType> iteratorTypes(
         2, utils::IteratorType::parallel);
     AffineExpr d0, d1;
@@ -463,12 +460,43 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
         AffineMap::get(2, 0, {d1}),      // j
         AffineMap::get(2, 0, {d0 + d1})  // i+j
     };
-
     auto polymulOutput = b.create<arith::ConstantOp>(
         polymulTensorType,
         DenseElementsAttr::get(
             polymulTensorType,
             APInt(polymulTensorType.getElementTypeBitWidth(), 0L)));
+
+    // When our modulus is not a machine-word size (power of 2) we can not rely
+    // on the natural overflow behaviour during the computation of
+    // acc = a[i] * b[j] + c[i+j]. If we compute acc mod cmod then we are able
+    // to ensure that we will not overflow the intermediate type sized integer.
+    // This is because a[i] * b[j] + c[i+j] < cmod^2 + cmod < maximum of
+    // intermediate type. Which lets us not have to compute the modulus after
+    // the multiplication step and the addition step.
+    //
+    // Eg: cmod = 7, then the intermediate type is i6 and 7 + 7^2 = 56 < 64 =
+    // 2^6.
+    //
+    // Further, when we truncate from the intermediate type back to the
+    // polynomial type, we can't rely on the truncation behaviour to ensure that
+    // the value congruent with respect to cmod. So we will have to manually
+    // convert by computing acc + cmod mod cmod.
+    //
+    // Eg: Let acc = -12. Then arith.remsi acc 7 = -5 : i6, and so,
+    // arith.trunci -5 : i6 -> i3 = 3. -5 is not congruent with 3 mod 7. So we
+    // will need to compute -5 + 7 mod 7 = 2, such that acc is in [0,7) before
+    // truncating.
+    APInt mod = polyTy.getRing().coefficientModulus();
+    bool needToMod = !mod.isPowerOf2();
+    Value polyCMod;
+    if (needToMod) {
+      polyCMod = b.create<arith::ConstantOp>(
+          intermediateType,
+          IntegerAttr::get(
+              intermediateType,
+              mod.sextOrTrunc(intermediateType.getIntOrFloatBitWidth())));
+    }
+
     auto polyMul = b.create<linalg::GenericOp>(
         /*resultTypes=*/polymulTensorType,
         /*inputs=*/adaptor.getOperands(),
@@ -478,21 +506,22 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
         /*bodyBuilder=*/
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-          auto lhs = args[0];
-          auto rhs = args[1];
-          auto accum = args[2];
-          if (!inputOutputHaveSameBitwidth) {
-            lhs = b.create<arith::ExtSIOp>(polymulTensorType.getElementType(),
-                                           lhs);
-            rhs = b.create<arith::ExtSIOp>(polymulTensorType.getElementType(),
-                                           rhs);
-          }
+          auto lhs = b.create<arith::ExtSIOp>(intermediateType, args[0]);
+          auto rhs = b.create<arith::ExtSIOp>(intermediateType, args[1]);
+          auto accum = b.create<arith::ExtSIOp>(intermediateType, args[2]);
           auto mulOp = b.create<arith::MulIOp>(lhs, rhs);
-          auto result = b.create<arith::AddIOp>(mulOp, accum);
-          // TODO(#201): need a modular reduction op here to keep all the
-          // arithmetic mod cmod. And simplify the code here and in the poly mod
-          // func to use smaller bit widths.
-          b.create<linalg::YieldOp>(result.getResult());
+          auto addOp = b.create<arith::AddIOp>(mulOp, accum);
+          Value result = addOp.getResult();
+          if (needToMod) {
+            // Compute the congruent integer within cmod and the truncation type
+            auto remOp = b.create<arith::RemSIOp>(addOp, polyCMod);
+            auto addCModOp = b.create<arith::AddIOp>(remOp, polyCMod);
+            auto congruent = b.create<arith::RemSIOp>(addCModOp, polyCMod);
+            result = congruent.getResult();
+          }
+          auto truncOp = b.create<arith::TruncIOp>(
+              polymulTensorType.getElementType(), result);
+          b.create<linalg::YieldOp>(truncOp.getResult());
         });
 
     auto postReductionType = convertPolynomialType(polyTy);
@@ -543,7 +572,7 @@ void PolynomialToStandard::generateOpImplementations() {
       // TODO(#143): Handle tensor of polys.
       return WalkResult::interrupt();
     }
-    auto convType = naivePolymulOutputTensorType(polyTy);
+    auto convType = polymulOutputTensorType(polyTy);
     auto postReductionType = convertPolynomialType(polyTy);
     FunctionType funcType =
         FunctionType::get(op.getContext(), {convType}, {postReductionType});
@@ -570,12 +599,10 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
 
   // These tensor types are used in the implementation
   //
-  //  - The input tensor<2047xi64>, e.g., the output of a naive polymul of two
+  //  - The input tensor<2047xi32>, e.g., the output of a naive polymul of two
   //    tensor<1024xi32>
   //  - The result tensor<1024xi32>, e.g., the result after modular reduction is
-  //    complete
-  //  - An intermediate tensor<1024xi64>, representing the remainder being
-  //    accumulated, before a final remui op is applied to its coefficients.
+  //    complete and represents the remainder being accumulated
   RankedTensorType inputType =
       llvm::cast<RankedTensorType>(funcType.getInput(0));
   RankedTensorType resultType =
@@ -707,31 +734,21 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
         b.create<scf::YieldOp>(nextRemainder.getResult());
       });
 
-  // The result remainder is still in the larger ring, but needs to have its
-  // coefficients modded and then converted to the smaller ring.
+  // The result remainder is still in the larger ring, so we need to convert to
+  // the smaller ring.
   auto toTensorOp = builder.create<ToTensorOp>(inputType, whileOp.getResult(0));
-  auto remainderModArg = builder.create<arith::ConstantOp>(
-      inputType, DenseElementsAttr::get(
-                     inputType, ring.coefficientModulus().sextOrTrunc(
-                                    inputType.getElementTypeBitWidth())));
-  auto remainderCoeffsRemOp = builder.create<arith::RemSIOp>(
-      toTensorOp.getResult(), remainderModArg.getResult());
-
-  // Now the remainder has values mod the result modulus, so it just needs
-  // to be reinterpreted in the result ring via truncating the tensor type
-  // and changing the element type.
-  auto remainderIntegerTrunced = builder.create<arith::TruncIOp>(
+  auto truncedTensor = builder.create<arith::TruncIOp>(
       RankedTensorType::get(inputType.getShape(), resultType.getElementType()),
-      remainderCoeffsRemOp);
+      toTensorOp);
 
   SmallVector<OpFoldResult> offsets{builder.getIndexAttr(0)};
   SmallVector<OpFoldResult> sizes{
       builder.getIndexAttr(resultType.getShape()[0])};
   SmallVector<OpFoldResult> strides{builder.getIndexAttr(1)};
-  auto remainderTensorTrunced = builder.create<tensor::ExtractSliceOp>(
-      resultType, remainderIntegerTrunced.getResult(), offsets, sizes, strides);
+  auto extractedTensor = builder.create<tensor::ExtractSliceOp>(
+      resultType, truncedTensor.getResult(), offsets, sizes, strides);
 
-  builder.create<func::ReturnOp>(remainderTensorTrunced.getResult());
+  builder.create<func::ReturnOp>(extractedTensor.getResult());
   return funcOp;
 }
 

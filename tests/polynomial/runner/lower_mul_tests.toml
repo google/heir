@@ -54,6 +54,20 @@ p0 = "1 + x**10"
 p1 = "1 + x**11"
 container_type = "i4"
 
+[[test]]
+ideal = "1 + x**3"
+cmod = 7
+p0 = "-4 + x**1"
+p1 = "-1 + 3x**1"
+container_type = "i3"
+
+[[test]]
+ideal = "1 + x**3"
+cmod = 8
+p0 = "-4 + x**1"
+p1 = "-1 + 3x**1"
+container_type = "i3"
+
 # TODO(#220): restore once we can use emulate-wide-int in the pipeline
 # [[test]]
 # ideal = "1 + x**12"
