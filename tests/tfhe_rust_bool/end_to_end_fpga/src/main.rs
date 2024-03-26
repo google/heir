@@ -72,9 +72,6 @@ fn main() {
     let ct_1 = encrypt(flags.input1.into(), &client_key);
     let ct_2 = encrypt(flags.input2.into(), &client_key);
 
-    // let ct_1= ct_1.into_iter().collect();
-    // let ct_2= ct_2.into_iter().collect();
-
     let t = Instant::now();
     let result = fn_under_test::fn_under_test(&server_key, &ct_1, &ct_2);
     let run = t.elapsed().as_millis();

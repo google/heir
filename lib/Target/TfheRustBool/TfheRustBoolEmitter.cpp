@@ -216,7 +216,6 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
     auto operandTypesIt = operandTypes.begin();
     os << variableNames->getNameForValue(sks) << "." << op << "(";
     os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-      // ToDo: can be removed?
       auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
       // First check if a DefiningOp exists
       // if not: comes from function definition
@@ -327,8 +326,7 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
     // FIXME: why can't both types be FailureOr<std::string>?
     auto elementTy = convertType(shapedType.getElementType());
     if (failed(elementTy)) return failure();
-    // auto refprefix =
-    //     shapedType.getElementType().hasTrait<PassByReference>() ? "&" : "";
+
     return std::string(std::string("Vec<") + elementTy.value() + ">");
   }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
