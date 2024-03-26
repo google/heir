@@ -121,6 +121,10 @@ gentbl_cc_library(
             ["--gen-type-interface-defs"],
             "RNSTypeInterfaces.cpp.inc",
         ),
+        (
+            ["-gen-type-interface-docs"],
+            "RNSTypeInterfaces.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "RNSTypeInterfaces.td",
