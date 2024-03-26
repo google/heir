@@ -18,7 +18,9 @@ speed up builds, use the following build setting:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Like above, run the following to skip tests that depend on Yosys:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> --define&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#000">HEIR_NO_YOSYS&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> --test_tag_filters&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>-yosys @heir//...
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="optional-run-heir-opt-on-an-mlir-file">Optional: Run heir-opt on an mlir file&lt;/h2>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="run-the-hello-world-example">Run the hello-world example&lt;/h2>
+&lt;p>The &lt;code>hello-world&lt;/code> example is a simple program that&lt;/p>
+&lt;h2 id="optional-run-a-custom-heir-opt-pipeline">Optional: Run a custom &lt;code>heir-opt&lt;/code> pipeline&lt;/h2>
 &lt;p>HEIR comes with two central binaries, &lt;code>heir-opt&lt;/code> for running optimization passes
 and dialect conversions, and &lt;code>heir-translate&lt;/code> for backend code generation. To
 see the list of available passes in each one, run the binary with &lt;code>--help&lt;/code>:&lt;/p>
@@ -32,6 +34,16 @@ input files. You can also access the underlying binary at
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel run //tools:heir-opt -- &lt;span style="color:#4e9a06">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span> --comb-to-cggi -cse &lt;span style="color:#4e9a06">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span> &lt;span style="color:#000">$PWD&lt;/span>/tests/comb_to_cggi/add_one.mlir
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To convert an existing lit test to a &lt;code>bazel run&lt;/code> command for manual tweaking
+and introspection (e.g., adding &lt;code>--debug&lt;/code> or &lt;code>--mlir-print-ir-after-all&lt;/code> to see
+how he IR changes with each pass), use &lt;code>python scripts/lit_to_bazel.py&lt;/code>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic"># after pip installing requirements-dev.txt&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>python scripts/lit_to_bazel.py tests/simd/box_blur_64x64.mlir
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Which outputs&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel run --noallow_analysis_cache_discard //tools:heir-opt -- &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--secretize&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>entry-function&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>box_blur --wrap-generic --canonicalize --cse --full-loop-unroll &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--insert-rotate --cse --canonicalize --collapse-insertion-chains &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="developing-in-heir">Developing in HEIR&lt;/h2>
 &lt;p>We use &lt;a href="https://pre-commit.com/">pre-commit&lt;/a> to manage a series of git
 pre-commit hooks for the project; for example, each time you commit code, the
@@ -45,11 +57,14 @@ past the hook.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To run them manually, run&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit run --all-files
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="creating-a-new-pass">Creating a New Pass&lt;/h2>
-&lt;p>The &lt;code>templates&lt;/code> folder contains Python scripts to create boilerplate for new
-conversion or (dialect-specific) transform passes.&lt;/p>
+&lt;p>The &lt;code>scripts/templates&lt;/code> folder contains Python scripts to create boilerplate
+for new conversion or (dialect-specific) transform passes. These should be used
+when the tablegen files containing existing pass definitions in the expected
+filepaths are not already present. Otherwise, you should modify the existing
+tablegen files directly.&lt;/p>
 &lt;h3 id="conversion-pass">Conversion Pass&lt;/h3>
 &lt;p>To create a new conversion pass, run a command similar to the following:&lt;/p>
-&lt;pre tabindex="0">&lt;code>python templates/templates.py new_conversion_pass \
+&lt;pre tabindex="0">&lt;code>python scripts/templates/templates.py new_conversion_pass \
 --source_dialect_name=CGGI \
 --source_dialect_namespace=cggi \
 --source_dialect_mnemonic=cggi \
@@ -61,14 +76,14 @@ type converter and the op conversion patterns.&lt;/p>
 &lt;h3 id="transform-passes">Transform Passes&lt;/h3>
 &lt;p>To create a transform or rewrite pass that operates on a dialect, run a command
 similar to the following:&lt;/p>
-&lt;pre tabindex="0">&lt;code>python templates/templates.py new_dialect_transform \
+&lt;pre tabindex="0">&lt;code>python scripts/templates/templates.py new_dialect_transform \
 --pass_name=ForgetSecrets \
 --pass_flag=forget-secrets \
 --dialect_name=Secret \
 --dialect_namespace=secret \
 --force=false
 &lt;/code>&lt;/pre>&lt;p>If the transform does not operate from and to a specific dialect, use&lt;/p>
-&lt;pre tabindex="0">&lt;code>python templates/templates.py new_transform \
+&lt;pre tabindex="0">&lt;code>python scripts/templates/templates.py new_transform \
 --pass_name=ForgetSecrets \
 --pass_flag=forget-secrets \
 --force=false
@@ -401,19 +416,12 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-12-12.&lt;/p>
-&lt;p>This is the last meeting for 2023. Please respond to &lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this
-poll&lt;/a> for 2024 scheduling preferences.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-10-24</title><link>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</link><pubDate>Wed, 25 Oct 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</guid><description>
+&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-10-24</title><link>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</link><pubDate>Wed, 25 Oct 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1MYjjkytck0fxySbrh49hxBJgNM78NXSD0ZwzAgEPOUw/edit?usp=sharing">notes&lt;/a>
 and
