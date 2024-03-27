@@ -622,11 +622,11 @@ and sums.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cgginot-heircgginotop">&lt;code>cggi.not&lt;/code> (heir::cggi::NotOp)&lt;/h3>
-&lt;p>&lt;em>Logical NOT of two ciphertexts&lt;/em>&lt;/p>
+&lt;h3 id="cgginand-heircgginandop">&lt;code>cggi.nand&lt;/code> (heir::cggi::NandOp)&lt;/h3>
+&lt;p>&lt;em>Logical NAND of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.not` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.nand` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
@@ -639,8 +639,12 @@ and sums.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -655,14 +659,14 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cggior-heircggiorop">&lt;code>cggi.or&lt;/code> (heir::cggi::OrOp)&lt;/h3>
-&lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="cgginor-heircgginorop">&lt;code>cggi.nor&lt;/code> (heir::cggi::NorOp)&lt;/h3>
+&lt;p>&lt;em>Logical NOR of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.nor` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -700,14 +704,51 @@ and sums.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cggixor-heircggixorop">&lt;code>cggi.xor&lt;/code> (heir::cggi::XorOp)&lt;/h3>
-&lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;h3 id="cgginot-heircgginotop">&lt;code>cggi.not&lt;/code> (heir::cggi::NotOp)&lt;/h3>
+&lt;p>&lt;em>Logical NOT of two ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.not` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="cggior-heircggiorop">&lt;code>cggi.or&lt;/code> (heir::cggi::OrOp)&lt;/h3>
+&lt;p>&lt;em>Logical OR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.or` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -726,7 +767,89 @@ and sums.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="cggixnor-heircggixnorop">&lt;code>cggi.xnor&lt;/code> (heir::cggi::XNorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XNOR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xnor` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="cggixor-heircggixorop">&lt;code>cggi.xor&lt;/code> (heir::cggi::XorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XOR of two ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.xor` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6796,6 +6919,709 @@ using the boolean parameter set.&lt;/p>
 &lt;p>See &lt;a href="https://github.com/zama-ai/tfhe-rs">https://github.com/zama-ai/tfhe-rs&lt;/a>&lt;/p>
 &lt;h2 id="tfherustbool-types">TfheRustBool types&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="bfloat16type">BFloat16Type&lt;/h3>
+&lt;p>bfloat16 floating-point type&lt;/p>
+&lt;h3 id="complextype">ComplexType&lt;/h3>
+&lt;p>Complex number with a parameterized element type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>complex-type ::= `complex` `&amp;lt;` type `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>The value of &lt;code>complex&lt;/code> type represents a complex number with a parameterized
+element type, which is composed of a real and imaginary value of that
+element type. The element must be a floating point or integer scalar type.&lt;/p>
+&lt;h4 id="example">Example:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>complex&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>complex&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">elementType&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="float8e4m3b11fnuztype">Float8E4M3B11FNUZType&lt;/h3>
+&lt;p>8-bit floating point with 3 bit mantissa&lt;/p>
+&lt;p>An 8-bit floating point type with 1 sign bit, 4 bits exponent and 3 bits
+mantissa. This is not a standard type as defined by IEEE-754, but it follows
+similar conventions, with the exception that there are no infinity values,
+no negative zero, and only one NaN representation. This type has the
+following characteristics:&lt;/p>
+&lt;ul>
+&lt;li>bit encoding: S1E4M3&lt;/li>
+&lt;li>exponent bias: 11&lt;/li>
+&lt;li>infinities: Not supported&lt;/li>
+&lt;li>NaNs: Supported with sign bit set to 1, exponent bits and mantissa bits set to all 0s&lt;/li>
+&lt;li>denormals when exponent is 0&lt;/li>
+&lt;/ul>
+&lt;p>Related to: &lt;a href="https://dl.acm.org/doi/10.5555/3454287.3454728">https://dl.acm.org/doi/10.5555/3454287.3454728&lt;/a>&lt;/p>
+&lt;h3 id="float8e4m3fntype">Float8E4M3FNType&lt;/h3>
+&lt;p>8-bit floating point with 3 bit mantissa&lt;/p>
+&lt;p>An 8-bit floating point type with 1 sign bit, 4 bits exponent and 3 bits
+mantissa. This is not a standard type as defined by IEEE-754, but it follows
+similar conventions, with the exception that there are no infinity values
+and only two NaN representations. This type has the following
+characteristics:&lt;/p>
+&lt;ul>
+&lt;li>bit encoding: S1E4M3&lt;/li>
+&lt;li>exponent bias: 7&lt;/li>
+&lt;li>infinities: Not supported&lt;/li>
+&lt;li>NaNs: supported with exponent bits and mantissa bits set to all 1s&lt;/li>
+&lt;li>denormals when exponent is 0&lt;/li>
+&lt;/ul>
+&lt;p>Described in: &lt;a href="https://arxiv.org/abs/2209.05433">https://arxiv.org/abs/2209.05433&lt;/a>&lt;/p>
+&lt;h3 id="float8e4m3fnuztype">Float8E4M3FNUZType&lt;/h3>
+&lt;p>8-bit floating point with 3 bit mantissa&lt;/p>
+&lt;p>An 8-bit floating point type with 1 sign bit, 4 bits exponent and 3 bits
+mantissa. This is not a standard type as defined by IEEE-754, but it follows
+similar conventions, with the exception that there are no infinity values,
+no negative zero, and only one NaN representation. This type has the
+following characteristics:&lt;/p>
+&lt;ul>
+&lt;li>bit encoding: S1E4M3&lt;/li>
+&lt;li>exponent bias: 8&lt;/li>
+&lt;li>infinities: Not supported&lt;/li>
+&lt;li>NaNs: Supported with sign bit set to 1, exponent bits and mantissa bits set to all 0s&lt;/li>
+&lt;li>denormals when exponent is 0&lt;/li>
+&lt;/ul>
+&lt;p>Described in: &lt;a href="https://arxiv.org/abs/2209.05433">https://arxiv.org/abs/2209.05433&lt;/a>&lt;/p>
+&lt;h3 id="float8e5m2type">Float8E5M2Type&lt;/h3>
+&lt;p>8-bit floating point with 2 bit mantissa&lt;/p>
+&lt;p>An 8-bit floating point type with 1 sign bit, 5 bits exponent and 2 bits
+mantissa. This is not a standard type as defined by IEEE-754, but it
+follows similar conventions with the following characteristics:&lt;/p>
+&lt;ul>
+&lt;li>bit encoding: S1E5M2&lt;/li>
+&lt;li>exponent bias: 15&lt;/li>
+&lt;li>infinities: supported with exponent set to all 1s and mantissa 0s&lt;/li>
+&lt;li>NaNs: supported with exponent bits set to all 1s and mantissa of
+(01, 10, or 11)&lt;/li>
+&lt;li>denormals when exponent is 0&lt;/li>
+&lt;/ul>
+&lt;p>Described in: &lt;a href="https://arxiv.org/abs/2209.05433">https://arxiv.org/abs/2209.05433&lt;/a>&lt;/p>
+&lt;h3 id="float8e5m2fnuztype">Float8E5M2FNUZType&lt;/h3>
+&lt;p>8-bit floating point with 2 bit mantissa&lt;/p>
+&lt;p>An 8-bit floating point type with 1 sign bit, 5 bits exponent and 2 bits
+mantissa. This is not a standard type as defined by IEEE-754, but it follows
+similar conventions, with the exception that there are no infinity values,
+no negative zero, and only one NaN representation. This type has the
+following characteristics:&lt;/p>
+&lt;ul>
+&lt;li>bit encoding: S1E5M2&lt;/li>
+&lt;li>exponent bias: 16&lt;/li>
+&lt;li>infinities: Not supported&lt;/li>
+&lt;li>NaNs: Supported with sign bit set to 1, exponent bits and mantissa bits set to all 0s&lt;/li>
+&lt;li>denormals when exponent is 0&lt;/li>
+&lt;/ul>
+&lt;p>Described in: &lt;a href="https://arxiv.org/abs/2206.02915">https://arxiv.org/abs/2206.02915&lt;/a>&lt;/p>
+&lt;h3 id="float16type">Float16Type&lt;/h3>
+&lt;p>16-bit floating-point type&lt;/p>
+&lt;h3 id="float32type">Float32Type&lt;/h3>
+&lt;p>32-bit floating-point type&lt;/p>
+&lt;h3 id="float64type">Float64Type&lt;/h3>
+&lt;p>64-bit floating-point type&lt;/p>
+&lt;h3 id="float80type">Float80Type&lt;/h3>
+&lt;p>80-bit floating-point type&lt;/p>
+&lt;h3 id="float128type">Float128Type&lt;/h3>
+&lt;p>128-bit floating-point type&lt;/p>
+&lt;h3 id="floattf32type">FloatTF32Type&lt;/h3>
+&lt;p>TF32 floating-point type&lt;/p>
+&lt;h3 id="functiontype">FunctionType&lt;/h3>
+&lt;p>Map from a list of inputs to a list of results&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>// Function types may have multiple results.
+function-result-type ::= type-list-parens | non-function-type
+function-type ::= type-list-parens `-&amp;gt;` function-result-type
+&lt;/code>&lt;/pre>&lt;p>The function type can be thought of as a function signature. It consists of
+a list of formal parameter types and a list of formal result types.&lt;/p>
+&lt;h4 id="example-1">Example:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@add_one&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%c1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">inputs&lt;/td>
+&lt;td style="text-align:center">&lt;code>ArrayRef&amp;lt;Type&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">results&lt;/td>
+&lt;td style="text-align:center">&lt;code>ArrayRef&amp;lt;Type&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="indextype">IndexType&lt;/h3>
+&lt;p>Integer-like type with unknown platform-dependent bit width&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>// Target word-sized integer.
+index-type ::= `index`
+&lt;/code>&lt;/pre>&lt;p>The index type is a signless integer whose size is equal to the natural
+machine word of the target ( &lt;a href="../../Rationale/Rationale/#integer-signedness-semantics">rationale&lt;/a> )
+and is used by the affine constructs in MLIR.&lt;/p>
+&lt;p>&lt;strong>Rationale:&lt;/strong> integers of platform-specific bit widths are practical to
+express sizes, dimensionalities and subscripts.&lt;/p>
+&lt;h3 id="integertype">IntegerType&lt;/h3>
+&lt;p>Integer type with arbitrary precision up to a fixed limit&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>// Sized integers like i1, i4, i8, i16, i32.
+signed-integer-type ::= `si` [1-9][0-9]*
+unsigned-integer-type ::= `ui` [1-9][0-9]*
+signless-integer-type ::= `i` [1-9][0-9]*
+integer-type ::= signed-integer-type |
+unsigned-integer-type |
+signless-integer-type
+&lt;/code>&lt;/pre>&lt;p>Integer types have a designated bit width and may optionally have signedness
+semantics.&lt;/p>
+&lt;p>&lt;strong>Rationale:&lt;/strong> low precision integers (like &lt;code>i2&lt;/code>, &lt;code>i4&lt;/code> etc) are useful for
+low-precision inference chips, and arbitrary precision integers are useful
+for hardware synthesis (where a 13 bit multiplier is a lot cheaper/smaller
+than a 16 bit one).&lt;/p>
+&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">width&lt;/td>
+&lt;td style="text-align:center">&lt;code>unsigned&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">signedness&lt;/td>
+&lt;td style="text-align:center">&lt;code>SignednessSemantics&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="memreftype">MemRefType&lt;/h3>
+&lt;p>Shaped reference to a region of memory&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>layout-specification ::= attribute-value
+memory-space ::= attribute-value
+memref-type ::= `memref` `&amp;lt;` dimension-list-ranked type
+(`,` layout-specification)? (`,` memory-space)? `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>A &lt;code>memref&lt;/code> type is a reference to a region of memory (similar to a buffer
+pointer, but more powerful). The buffer pointed to by a memref can be
+allocated, aliased and deallocated. A memref can be used to read and write
+data from/to the memory region which it references. Memref types use the
+same shape specifier as tensor types. Note that &lt;code>memref&amp;lt;f32&amp;gt;&lt;/code>,
+&lt;code>memref&amp;lt;0 x f32&amp;gt;&lt;/code>, &lt;code>memref&amp;lt;1 x 0 x f32&amp;gt;&lt;/code>, and &lt;code>memref&amp;lt;0 x 1 x f32&amp;gt;&lt;/code> are all
+different types.&lt;/p>
+&lt;p>A &lt;code>memref&lt;/code> is allowed to have an unknown rank (e.g. &lt;code>memref&amp;lt;*xf32&amp;gt;&lt;/code>). The
+purpose of unranked memrefs is to allow external library functions to
+receive memref arguments of any rank without versioning the functions based
+on the rank. Other uses of this type are disallowed or will have undefined
+behavior.&lt;/p>
+&lt;p>Are accepted as elements:&lt;/p>
+&lt;ul>
+&lt;li>built-in integer types;&lt;/li>
+&lt;li>built-in index type;&lt;/li>
+&lt;li>built-in floating point types;&lt;/li>
+&lt;li>built-in vector types with elements of the above types;&lt;/li>
+&lt;li>another memref type;&lt;/li>
+&lt;li>any other type implementing &lt;code>MemRefElementTypeInterface&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;h5 id="layout">Layout&lt;/h5>
+&lt;p>A memref may optionally have a layout that indicates how indices are
+transformed from the multi-dimensional form into a linear address. The
+layout must avoid internal aliasing, i.e., two distinct tuples of
+&lt;em>in-bounds&lt;/em> indices must be pointing to different elements in memory. The
+layout is an attribute that implements &lt;code>MemRefLayoutAttrInterface&lt;/code>. The
+bulitin dialect offers two kinds of layouts: strided and affine map, each
+of which is available as an attribute. Other attributes may be used to
+represent the layout as long as they can be converted to a
+&lt;a href="Affine.md/#semi-affine-maps">semi-affine map&lt;/a> and implement the required
+interface. Users of memref are expected to fallback to the affine
+representation when handling unknown memref layouts. Multi-dimensional
+affine forms are interpreted in &lt;em>row-major&lt;/em> fashion.&lt;/p>
+&lt;p>In absence of an explicit layout, a memref is considered to have a
+multi-dimensional identity affine map layout. Identity layout maps do not
+contribute to the MemRef type identification and are discarded on
+construction. That is, a type with an explicit identity map is
+&lt;code>memref&amp;lt;?x?xf32, (i,j)-&amp;gt;(i,j)&amp;gt;&lt;/code> is strictly the same as the one without a
+layout, &lt;code>memref&amp;lt;?x?xf32&amp;gt;&lt;/code>.&lt;/p>
+&lt;h5 id="affine-map-layout">Affine Map Layout&lt;/h5>
+&lt;p>The layout may be represented directly as an affine map from the index space
+to the storage space. For example, the following figure shows an index map
+which maps a 2-dimensional index from a 2x2 index space to a 3x3 index
+space, using symbols &lt;code>S0&lt;/code> and &lt;code>S1&lt;/code> as offsets.&lt;/p>
+&lt;p>&lt;img src="https://heir.dev/includes/img/index-map.svg" alt="Index Map Example">&lt;/p>
+&lt;p>Semi-affine maps are sufficiently flexible to represent a wide variety of
+dense storage layouts, including row- and column-major and tiled:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// MxN matrix stored in row major layout in memory:
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#layout_map_row_major&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>i&lt;span style="color:#000;font-weight:bold">,&lt;/span> j&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>i&lt;span style="color:#000;font-weight:bold">,&lt;/span> j&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// MxN matrix stored in column major layout in memory:
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#layout_map_col_major&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>i&lt;span style="color:#000;font-weight:bold">,&lt;/span> j&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>j&lt;span style="color:#000;font-weight:bold">,&lt;/span> i&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// MxN matrix stored in a 2-d blocked/tiled layout with 64x64 tiles.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#layout_tiled&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>i&lt;span style="color:#000;font-weight:bold">,&lt;/span> j&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>i floordiv &lt;span style="color:#0000cf;font-weight:bold">64&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> j floordiv &lt;span style="color:#0000cf;font-weight:bold">64&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> i mod &lt;span style="color:#0000cf;font-weight:bold">64&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> j mod &lt;span style="color:#0000cf;font-weight:bold">64&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h5 id="strided-layout">Strided Layout&lt;/h5>
+&lt;p>Memref layout can be expressed using strides to encode the distance, in
+number of elements, in (linear) memory between successive entries along a
+particular dimension. For example, a row-major strided layout for
+&lt;code>memref&amp;lt;2x3x4xf32&amp;gt;&lt;/code> is &lt;code>strided&amp;lt;[12, 4, 1]&amp;gt;&lt;/code>, where the last dimension is
+contiguous as indicated by the unit stride and the remaining strides are
+products of the sizes of faster-variying dimensions. Strided layout can also
+express non-contiguity, e.g., &lt;code>memref&amp;lt;2x3, strided&amp;lt;[6, 2]&amp;gt;&amp;gt;&lt;/code> only accesses
+even elements of the dense consecutive storage along the innermost
+dimension.&lt;/p>
+&lt;p>The strided layout supports an optional &lt;em>offset&lt;/em> that indicates the
+distance, in the number of elements, between the beginning of the memref
+and the first accessed element. When omitted, the offset is considered to
+be zero. That is, &lt;code>memref&amp;lt;2, strided&amp;lt;[2], offset: 0&amp;gt;&amp;gt;&lt;/code> and
+&lt;code>memref&amp;lt;2, strided&amp;lt;[2]&amp;gt;&amp;gt;&lt;/code> are strictly the same type.&lt;/p>
+&lt;p>Both offsets and strides may be &lt;em>dynamic&lt;/em>, that is, unknown at compile time.
+This is represented by using a question mark (&lt;code>?&lt;/code>) instead of the value in
+the textual form of the IR.&lt;/p>
+&lt;p>The strided layout converts into the following canonical one-dimensional
+affine form through explicit linearization:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">...&lt;/span> dN&lt;span style="color:#000;font-weight:bold">)[&lt;/span>offset&lt;span style="color:#000;font-weight:bold">,&lt;/span> stride0&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">...&lt;/span> strideN&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>offset &lt;span style="color:#a40000">+&lt;/span> d0 &lt;span style="color:#000;font-weight:bold">*&lt;/span> stride0 &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#000;font-weight:bold">...&lt;/span> dN &lt;span style="color:#000;font-weight:bold">*&lt;/span> strideN&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Therefore, it is never subject to the implicit row-major layout
+interpretation.&lt;/p>
+&lt;h5 id="codegen-of-unranked-memref">Codegen of Unranked Memref&lt;/h5>
+&lt;p>Using unranked memref in codegen besides the case mentioned above is highly
+discouraged. Codegen is concerned with generating loop nests and specialized
+instructions for high-performance, unranked memref is concerned with hiding
+the rank and thus, the number of enclosing loops required to iterate over
+the data. However, if there is a need to code-gen unranked memref, one
+possible path is to cast into a static ranked type based on the dynamic
+rank. Another possible path is to emit a single while loop conditioned on a
+linear index and perform delinearization of the linear index to a dynamic
+array containing the (unranked) indices. While this is possible, it is
+expected to not be a good idea to perform this during codegen as the cost
+of the translations is expected to be prohibitive and optimizations at this
+level are not expected to be worthwhile. If expressiveness is the main
+concern, irrespective of performance, passing unranked memrefs to an
+external C++ library and implementing rank-agnostic logic there is expected
+to be significantly simpler.&lt;/p>
+&lt;p>Unranked memrefs may provide expressiveness gains in the future and help
+bridge the gap with unranked tensors. Unranked memrefs will not be expected
+to be exposed to codegen but one may query the rank of an unranked memref
+(a special op will be needed for this purpose) and perform a switch and cast
+to a ranked memref as a prerequisite to codegen.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// With static ranks, we need a function for each possible argument type
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">%A&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%B&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x64x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>call &lt;span style="color:#000">@helper_2D&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%A&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)-&amp;gt;()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>call &lt;span style="color:#000">@helper_3D&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%B&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x64x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)-&amp;gt;()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// With unknown rank, the functions can be unified under one unranked type
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">%A&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%B&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x64x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Remove rank info
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">%A_u&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>_cast &lt;span style="color:#000">%A&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;*&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%B_u&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>_cast &lt;span style="color:#000">%B&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x64x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;*&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// call same function with dynamic ranks
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>call &lt;span style="color:#000">@helper&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%A_u&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;*&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;)-&amp;gt;()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>call &lt;span style="color:#000">@helper&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%B_u&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;*&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;)-&amp;gt;()&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The core syntax and representation of a layout specification is a
+&lt;a href="Affine.md/#semi-affine-maps">semi-affine map&lt;/a>. Additionally,
+syntactic sugar is supported to make certain layout specifications more
+intuitive to read. For the moment, a &lt;code>memref&lt;/code> supports parsing a strided
+form which is converted to a semi-affine map automatically.&lt;/p>
+&lt;p>The memory space of a memref is specified by a target-specific attribute.
+It might be an integer value, string, dictionary or custom dialect attribute.
+The empty memory space (attribute is None) is target specific.&lt;/p>
+&lt;p>The notionally dynamic value of a memref value includes the address of the
+buffer allocated, as well as the symbols referred to by the shape, layout
+map, and index maps.&lt;/p>
+&lt;p>Examples of memref static type&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Identity index/layout map
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#identity&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Column major layout.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#col_major&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">,&lt;/span> d2&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d2&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">,&lt;/span> d0&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A 2-d tiled layout with tiles of size 128 x 256.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#tiled_2d_128x256&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0 div &lt;span style="color:#0000cf;font-weight:bold">128&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1 div &lt;span style="color:#0000cf;font-weight:bold">256&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> d0 mod &lt;span style="color:#0000cf;font-weight:bold">128&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1 mod &lt;span style="color:#0000cf;font-weight:bold">256&lt;/span>&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A tiled data layout with non-constant tile sizes.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#tiled_dynamic&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)[&lt;/span>s0&lt;span style="color:#000;font-weight:bold">,&lt;/span> s1&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0 floordiv s0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1 floordiv s1&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> d0 mod s0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1 mod s1&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A layout that yields a padding on two at either end of the minor dimension.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#padded&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d1 &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> floordiv &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d1 &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> mod &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// The dimension list &amp;#34;16x32&amp;#34; defines the following 2D index space:
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">//
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// { (i, j) : 0 &amp;lt;= i &amp;lt; 16, 0 &amp;lt;= j &amp;lt; 32 }
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">//
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x32x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">#identity&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// The dimension list &amp;#34;16x4x?&amp;#34; defines the following 3D index space:
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">//
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// { (i, j, k) : 0 &amp;lt;= i &amp;lt; 16, 0 &amp;lt;= j &amp;lt; 4, 0 &amp;lt;= k &amp;lt; N }
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">//
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// where N is a symbol which represents the runtime value of the size of
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// the third dimension.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">//
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// %N here binds to the size of the third dimension.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">%A&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%N&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x4x?x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">#col_major&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A 2-d dynamic shaped memref that also has a dynamically sized tiled
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// layout. The memref index space is of size %M x %N, while %B1 and %B2
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// bind to the symbols s0, s1 respectively of the layout map #tiled_dynamic.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Data tiles of size %B1 x %B2 in the logical space will be stored
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// contiguously in memory. The allocation size will be
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// (%M ceildiv %B1) * %B1 * (%N ceildiv %B2) * %B2 f32 elements.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">%T&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%M&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%N&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">%B1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%B2&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">?x?x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">#tiled_dynamic&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A memref that has a two-element padding at either end. The allocation
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// size will fit 16 * 64 float elements of data.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">%P&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x64x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">#padded&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Affine map with symbol &amp;#39;s0&amp;#39; used as offset for the first dimension.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">#imapS&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>s0&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0 &lt;span style="color:#a40000">+&lt;/span> s0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Allocate memref and bind the following symbols:
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// &amp;#39;%n&amp;#39; is bound to the dynamic second dimension of the memref type.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// &amp;#39;%o&amp;#39; is bound to the symbol &amp;#39;s0&amp;#39; in the affine map of the memref type.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">%n&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%o&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%A&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> alloc &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%n&lt;/span>&lt;span style="color:#000;font-weight:bold">)[&lt;/span>&lt;span style="color:#000">%o&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">16x?x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">#imapS&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">shape&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;int64_t&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">elementType&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">layout&lt;/td>
+&lt;td style="text-align:center">&lt;code>MemRefLayoutAttrInterface&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">memorySpace&lt;/td>
+&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="nonetype">NoneType&lt;/h3>
+&lt;p>A unit type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>none-type ::= `none`
+&lt;/code>&lt;/pre>&lt;p>NoneType is a unit type, i.e. a type with exactly one possible value, where
+its value does not have a defined dynamic representation.&lt;/p>
+&lt;h4 id="example-2">Example:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@none_type&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%none_val&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;foo.unknown_op&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> none
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="opaquetype">OpaqueType&lt;/h3>
+&lt;p>Type of a non-registered dialect&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>opaque-type ::= `opaque` `&amp;lt;` type `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>Opaque types represent types of non-registered dialects. These are types
+represented in their raw string form, and can only usefully be tested for
+type equality.&lt;/p>
+&lt;h4 id="example-3">Example:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>opaque&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;llvm&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;struct&amp;lt;(i32, float)&amp;gt;&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>opaque&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;pdl&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;value&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">dialectNamespace&lt;/td>
+&lt;td style="text-align:center">&lt;code>StringAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">typeData&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::StringRef&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="rankedtensortype">RankedTensorType&lt;/h3>
+&lt;p>Multi-dimensional array with a fixed number of dimensions&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>tensor-type ::= `tensor` `&amp;lt;` dimension-list type (`,` encoding)? `&amp;gt;`
+dimension-list ::= (dimension `x`)*
+dimension ::= `?` | decimal-literal
+encoding ::= attribute-value
+&lt;/code>&lt;/pre>&lt;p>Values with tensor type represents aggregate N-dimensional data values, and
+have a known element type and a fixed rank with a list of dimensions. Each
+dimension may be a static non-negative decimal constant or be dynamically
+determined (indicated by &lt;code>?&lt;/code>).&lt;/p>
+&lt;p>The runtime representation of the MLIR tensor type is intentionally
+abstracted - you cannot control layout or get a pointer to the data. For
+low level buffer access, MLIR has a &lt;a href="#memreftype">&lt;code>memref&lt;/code> type&lt;/a>. This
+abstracted runtime representation holds both the tensor data values as well
+as information about the (potentially dynamic) shape of the tensor. The
+&lt;a href="MemRef.md/#memrefdim-mlirmemrefdimop">&lt;code>dim&lt;/code> operation&lt;/a> returns the size of a
+dimension from a value of tensor type.&lt;/p>
+&lt;p>The &lt;code>encoding&lt;/code> attribute provides additional information on the tensor.
+An empty attribute denotes a straightforward tensor without any specific
+structure. But particular properties, like sparsity or other specific
+characteristics of the data of the tensor can be encoded through this
+attribute. The semantics are defined by a type and attribute interface
+and must be respected by all passes that operate on tensor types.
+TODO: provide this interface, and document it further.&lt;/p>
+&lt;p>Note: hexadecimal integer literals are not allowed in tensor type
+declarations to avoid confusion between &lt;code>0xf32&lt;/code> and &lt;code>0 x f32&lt;/code>. Zero sizes
+are allowed in tensors and treated as other sizes, e.g.,
+&lt;code>tensor&amp;lt;0 x 1 x i32&amp;gt;&lt;/code> and &lt;code>tensor&amp;lt;1 x 0 x i32&amp;gt;&lt;/code> are different types. Since
+zero sizes are not allowed in some other types, such tensors should be
+optimized away before lowering tensors to vectors.&lt;/p>
+&lt;h4 id="example-4">Example:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Known rank but unknown dimensions.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">? x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">? x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">? x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">? x&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Partially known dimensions.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">? x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">? x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">13 x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">? x&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Full static shape.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">17 x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4 x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">13 x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4 x&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Tensor with rank zero. Represents a scalar.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Zero-element dimensions are allowed.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">x&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">42 x&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Zero-element tensor of f32 type (hexadecimal literals not allowed here).
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0xf32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Tensor with an encoding attribute (where #ENCODING is a named alias).
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">?x?x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f64&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">#ENCODING&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">shape&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;int64_t&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">elementType&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encoding&lt;/td>
+&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tupletype">TupleType&lt;/h3>
+&lt;p>Fixed-sized collection of other types&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>tuple-type ::= `tuple` `&amp;lt;` (type ( `,` type)*)? `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>The value of &lt;code>tuple&lt;/code> type represents a fixed-size collection of elements,
+where each element may be of a different type.&lt;/p>
+&lt;p>&lt;strong>Rationale:&lt;/strong> Though this type is first class in the type system, MLIR
+provides no standard operations for operating on &lt;code>tuple&lt;/code> types
+(&lt;a href="../../Rationale/Rationale/#tuple-types">rationale&lt;/a>).&lt;/p>
+&lt;h4 id="example-5">Example:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Empty tuple.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>tuple&lt;span style="color:#000;font-weight:bold">&amp;lt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Single element
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>tuple&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Many elements.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>tuple&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i5&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-6">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">types&lt;/td>
+&lt;td style="text-align:center">&lt;code>ArrayRef&amp;lt;Type&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="unrankedmemreftype">UnrankedMemRefType&lt;/h3>
+&lt;p>Shaped reference, with unknown rank, to a region of memory&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>unranked-memref-type ::= `memref` `&amp;lt;*x` type (`,` memory-space)? `&amp;gt;`
+memory-space ::= attribute-value
+&lt;/code>&lt;/pre>&lt;p>A &lt;code>memref&lt;/code> type with an unknown rank (e.g. &lt;code>memref&amp;lt;*xf32&amp;gt;&lt;/code>). The purpose of
+unranked memrefs is to allow external library functions to receive memref
+arguments of any rank without versioning the functions based on the rank.
+Other uses of this type are disallowed or will have undefined behavior.&lt;/p>
+&lt;p>See &lt;a href="#memreftype">MemRefType&lt;/a> for more information on
+memref types.&lt;/p>
+&lt;h4 id="examples">Examples:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;*&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// An unranked memref with a memory space of 10.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">memref&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;*&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-7">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">elementType&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">memorySpace&lt;/td>
+&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="unrankedtensortype">UnrankedTensorType&lt;/h3>
+&lt;p>Multi-dimensional array with unknown dimensions&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>tensor-type ::= `tensor` `&amp;lt;` `*` `x` type `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>An unranked tensor is a type of tensor in which the set of dimensions have
+unknown rank. See &lt;a href="#rankedtensortype">RankedTensorType&lt;/a>
+for more information on tensor types.&lt;/p>
+&lt;h4 id="examples-1">Examples:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;*&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-8">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">elementType&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="vectortype">VectorType&lt;/h3>
+&lt;p>Multi-dimensional SIMD vector type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>vector-type ::= `vector` `&amp;lt;` vector-dim-list vector-element-type `&amp;gt;`
+vector-element-type ::= float-type | integer-type | index-type
+vector-dim-list := (static-dim-list `x`)?
+static-dim-list ::= static-dim (`x` static-dim)*
+static-dim ::= (decimal-literal | `[` decimal-literal `]`)
+&lt;/code>&lt;/pre>&lt;p>The vector type represents a SIMD style vector used by target-specific
+operation sets like AVX or SVE. While the most common use is for 1D
+vectors (e.g. vector&amp;lt;16 x f32&amp;gt;) we also support multidimensional registers
+on targets that support them (like TPUs). The dimensions of a vector type
+can be fixed-length, scalable, or a combination of the two. The scalable
+dimensions in a vector are indicated between square brackets ([ ]).&lt;/p>
+&lt;p>Vector shapes must be positive decimal integers. 0D vectors are allowed by
+omitting the dimension: &lt;code>vector&amp;lt;f32&amp;gt;&lt;/code>.&lt;/p>
+&lt;p>Note: hexadecimal integer literals are not allowed in vector type
+declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid because it is interpreted as a
+2D vector with shape &lt;code>(0, 42)&lt;/code> and zero shapes are not allowed.&lt;/p>
+&lt;h4 id="examples-2">Examples:&lt;/h4>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A 2D fixed-length vector of 3x42 i32 elements.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">vector&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">3x42x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A 1D scalable-length vector that contains a multiple of 4 f32 elements.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">vector&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A 2D scalable-length vector that contains a multiple of 2x8 f32 elements.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">vector&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">]x[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A 2D mixed fixed/scalable vector that contains 4 scalable vectors of 4 f32 elements.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">vector&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4x&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A 3D mixed fixed/scalable vector in which only the inner dimension is
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// scalable.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">vector&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>x8xf32&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-9">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">shape&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;int64_t&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">elementType&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">scalableDims&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;bool&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="encryptedbooltype">EncryptedBoolType&lt;/h3>
 &lt;p>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust_bool.eb&lt;/code>&lt;/p>
