@@ -92,12 +92,38 @@ the reviewer can easily see the diff.</li><li>If all looks good, the reviewer wi
 <a href=https://github.com/google/heir/blob/main/.github/workflows/pr_review.yml>check</a>
 your PR for multiple commits. You may use the <code>git rebase -i</code> to squash the
 commits. Pull requests must comprise of a single git commit before merging.</li></ul><ol start=4><li><strong>Pull Ready</strong></li></ol><ul><li>Once the PR is squashed into a single git commit, a maintainer will apply the
-<code>pull ready</code> label.</li><li>This initiates the internal code migration and presubmits.</li><li>If needed, we may come to you to make some minor changes in case tests fail at
-this stage. If so, we will request changes from the GitHub UI and the PR must
-be approved again.</li><li>At times, it may not be your change, but it may be additional internal lints
-and layering checks that are not integrated with <code>bazel</code> or open-source
-tooling. We will go ahead and fix this.</li><li>Once the internal tests pass, we merge the code internally and externally. You
-will see <code>copybara-bot</code> close the PR and merge your commit directly into main.</li></ul></div><div class=td-content style=page-break-before:always><h1 id=pg-b53b4ed2389ea7b400cfd891e785a6ad>3 - IDE Configuration</h1><h2 id=vs-code>VS Code</h2><p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
+<code>pull ready</code> label.</li><li>This initiates the internal code migration and presubmits.</li><li>After the internal process is finished, the commit will be added to <code>main</code>
+and the PR closed as merged by that commit.</li></ul><h3 id=internal-review-details>Internal review details</h3><p>This diagram summarizes the GitHub/Google code synchronization process.
+This is largely automated by a Google-owned system called
+<a href=https://github.com/google/copybara>Copybara</a>, the configuration for
+which is Google-internal. This system treats the Google-internal version
+of HEIR as the source of truth, and applies specified transformation
+rules to copy internal changes to GitHub and integrate external PRs
+internally.</p><p>Notable aspects:</p><ul><li>The final merged code may differ slightly from a PR. The changes are mainly
+to support stricter internal requirements for BUILD files that we cannot
+reproduce externally due to minor differences between Google&rsquo;s internal build
+systems and bazel that we don&rsquo;t know how to align. Sometimes they will also
+include additional code quality fixes suggested by internal static analyzers
+that do not exist outside of Google.</li><li>Due to the above, signed commits with internal modifications will not
+maintain valid signatures after merging, which labels the commit with a
+warning.</li><li>You will see various actions taken on GitHub that include <code>copybara</code> in the
+name, such as changes that originate from Google engineers doing various
+approved migrations (e.g., migrating HEIR to support changes in MLIR or
+abseil).</li></ul><figure><a href=/images/hugo-copybara.png><img src=/images/hugo-copybara.png></a><figcaption><h4>A diagram summarizing the copybara flow for HEIR internally to Google</h4></figcaption></figure><h3 id=why-bother-with-copybara>Why bother with Copybara?</h3><p>tl;dr: Automatic syncing with upstream MLIR and associated code migration.</p><p>Until HEIR has a formal governance structure in place, Google
+engineers—specifically Asra Ali, Shruthi Gorantala, and Jeremy Kun—are the
+codebase stewards. Because the project is young and the team is small, we want
+to reduce our workload. One important aspect of that is keeping up to date
+with the upstream MLIR project and incorporating bug fixes and new features
+into HEIR. Google also wishes to stay up to date with MLIR and LLVM, and so
+it has tooling devoted to integrating new MLIR changes into Google&rsquo;s monorepo
+every few hours. As part of that rotation, a set of approved internal projects
+that depend on MLIR (like TensorFlow) are patched to support breaking changes
+in MLIR. HEIR is one of those approved projects.</p><p>As shown in the previous section, the cost of this is that no change can go
+into HEIR without at least two Googlers approving it, and the project is held
+to a specific set of code quality standards, namely Google&rsquo;s. We acknowledge
+these quirks, and look forward to the day when HEIR is useful enough and
+important enough that we can revisit this governance structure with the
+community.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-b53b4ed2389ea7b400cfd891e785a6ad>3 - IDE Configuration</h1><h2 id=vs-code>VS Code</h2><p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
 extensions:</p><ul><li><strong>llvm-vs-code-extensions.vscode-mlir</strong>: Adds language support for MLIR, PDLL,
 and TableGen.</li><li><strong>llvm-vs-code-extensions.vscode-clangd</strong>: Adds clangd code completion using a
 generated

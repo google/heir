@@ -196,15 +196,56 @@ commits. Pull requests must comprise of a single git commit before merging.&lt;/
 &lt;li>Once the PR is squashed into a single git commit, a maintainer will apply the
 &lt;code>pull ready&lt;/code> label.&lt;/li>
 &lt;li>This initiates the internal code migration and presubmits.&lt;/li>
-&lt;li>If needed, we may come to you to make some minor changes in case tests fail at
-this stage. If so, we will request changes from the GitHub UI and the PR must
-be approved again.&lt;/li>
-&lt;li>At times, it may not be your change, but it may be additional internal lints
-and layering checks that are not integrated with &lt;code>bazel&lt;/code> or open-source
-tooling. We will go ahead and fix this.&lt;/li>
-&lt;li>Once the internal tests pass, we merge the code internally and externally. You
-will see &lt;code>copybara-bot&lt;/code> close the PR and merge your commit directly into main.&lt;/li>
-&lt;/ul></description></item><item><title>Docs: IDE Configuration</title><link>https://heir.dev/docs/ide_configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/ide_configuration/</guid><description>
+&lt;li>After the internal process is finished, the commit will be added to &lt;code>main&lt;/code>
+and the PR closed as merged by that commit.&lt;/li>
+&lt;/ul>
+&lt;h3 id="internal-review-details">Internal review details&lt;/h3>
+&lt;p>This diagram summarizes the GitHub/Google code synchronization process.
+This is largely automated by a Google-owned system called
+&lt;a href="https://github.com/google/copybara">Copybara&lt;/a>, the configuration for
+which is Google-internal. This system treats the Google-internal version
+of HEIR as the source of truth, and applies specified transformation
+rules to copy internal changes to GitHub and integrate external PRs
+internally.&lt;/p>
+&lt;p>Notable aspects:&lt;/p>
+&lt;ul>
+&lt;li>The final merged code may differ slightly from a PR. The changes are mainly
+to support stricter internal requirements for BUILD files that we cannot
+reproduce externally due to minor differences between Google&amp;rsquo;s internal build
+systems and bazel that we don&amp;rsquo;t know how to align. Sometimes they will also
+include additional code quality fixes suggested by internal static analyzers
+that do not exist outside of Google.&lt;/li>
+&lt;li>Due to the above, signed commits with internal modifications will not
+maintain valid signatures after merging, which labels the commit with a
+warning.&lt;/li>
+&lt;li>You will see various actions taken on GitHub that include &lt;code>copybara&lt;/code> in the
+name, such as changes that originate from Google engineers doing various
+approved migrations (e.g., migrating HEIR to support changes in MLIR or
+abseil).&lt;/li>
+&lt;/ul>
+&lt;figure>&lt;a href="https://heir.dev/images/hugo-copybara.png">
+&lt;img src="https://heir.dev/images/hugo-copybara.png"/> &lt;/a>&lt;figcaption>
+&lt;h4>A diagram summarizing the copybara flow for HEIR internally to Google&lt;/h4>
+&lt;/figcaption>
+&lt;/figure>
+&lt;h3 id="why-bother-with-copybara">Why bother with Copybara?&lt;/h3>
+&lt;p>tl;dr: Automatic syncing with upstream MLIR and associated code migration.&lt;/p>
+&lt;p>Until HEIR has a formal governance structure in place, Google
+engineers—specifically Asra Ali, Shruthi Gorantala, and Jeremy Kun—are the
+codebase stewards. Because the project is young and the team is small, we want
+to reduce our workload. One important aspect of that is keeping up to date
+with the upstream MLIR project and incorporating bug fixes and new features
+into HEIR. Google also wishes to stay up to date with MLIR and LLVM, and so
+it has tooling devoted to integrating new MLIR changes into Google&amp;rsquo;s monorepo
+every few hours. As part of that rotation, a set of approved internal projects
+that depend on MLIR (like TensorFlow) are patched to support breaking changes
+in MLIR. HEIR is one of those approved projects.&lt;/p>
+&lt;p>As shown in the previous section, the cost of this is that no change can go
+into HEIR without at least two Googlers approving it, and the project is held
+to a specific set of code quality standards, namely Google&amp;rsquo;s. We acknowledge
+these quirks, and look forward to the day when HEIR is useful enough and
+important enough that we can revisit this governance structure with the
+community.&lt;/p></description></item><item><title>Docs: IDE Configuration</title><link>https://heir.dev/docs/ide_configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/ide_configuration/</guid><description>
 &lt;h2 id="vs-code">VS Code&lt;/h2>
 &lt;p>For an out-of-tree MLIR project built with Bazel, install the following VS Code
 extensions:&lt;/p>
@@ -416,17 +457,25 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-02-22</title><link>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</link><pubDate>Thu, 22 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1ktK2Y2-OnadvsIIa94HRch_oHCaQ0D6gbT3CElKmGak/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1RDONadr54-7uX5ko5dmUX3s1l7QHeHbM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-02-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
+&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
+&lt;p>The fourth HEIR meeting was 2023-08-01
+(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
+&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
+&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
+fun!&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
 &lt;h2 id="bgv-ops">BGV ops&lt;/h2>
