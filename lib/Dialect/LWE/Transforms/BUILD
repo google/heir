@@ -28,6 +28,7 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:Transforms",
     ],
 )
