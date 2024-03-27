@@ -134,4 +134,50 @@ def Polynomial_ConstantOp : Polynomial_Op<"constant", [Pure]> {
   let assemblyFormat = "$input attr-dict `:` qualified(type($output))";
 }
 
+def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure]> {
+  let summary = "Computes point-value tensor representation of a polynomial.";
+  let description = [{
+    `polynomial.ntt` computes the forward integer Number Theoretic Transform
+    (NTT) on the input polynomial. It returns a tensor containing a point-value
+    representation of the input polynomial. The output tensor has shape equal to
+    the degree of the ring's ideal generation polynomial. The polynomial's
+    RingAttr is embedded as the encoding attribute of the output tensor.
+
+    Given an input polynomial $F(x)$ (over a ring with degree $n$) and a
+    primitive $n$-th root of unity $\omega_n$, the output is the list of $n$
+    evaluations
+
+    $f_k = F(\omega_n^k) ; k \in [0, n)$
+    The choice of primitive root is determined by subsequent lowerings.
+  }];
+
+  let arguments = (ins Polynomial:$input);
+
+  let results = (outs RankedTensorOf<[AnyInteger]>:$output);
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
+
+  let hasVerifier = 1;
+}
+
+def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
+  let summary = "Computes the reverse integer Number Theoretic Transform (NTT).";
+  let description = [{
+    `polynomial.intt` computes the reverse integer Number Theoretic Transform
+    (INTT) on the input tensor. This is the inverse operation of the
+    `polynomial.ntt` operation.
+
+    The input tensor is interpreted as a point-value representation of the
+    output polynomial at powers of a primitive $n$-th root of unity (see
+    `polynomial.ntt`). The ring of the polynomial is taken from the required
+    encoding attribute of the tensor.
+  }];
+
+  let arguments = (ins RankedTensorOf<[AnyInteger]>:$input);
+
+  let results = (outs Polynomial:$output);
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
+
+  let hasVerifier = 1;
+}
+
 #endif  // INCLUDE_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_
