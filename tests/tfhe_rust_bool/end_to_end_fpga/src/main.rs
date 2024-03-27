@@ -1,9 +1,11 @@
+#[allow(unused_imports)]
+use std::time::Instant;
+
 use clap::Parser;
 use tfhe::boolean::prelude::*;
 
 use tfhe::boolean::engine::BooleanEngine;
 use tfhe::boolean::prelude::*;
-use std::time::Instant;
 
 #[cfg(feature = "fpga")]
 use tfhe::boolean::server_key::FpgaGates;
@@ -72,10 +74,14 @@ fn main() {
     let ct_1 = encrypt(flags.input1.into(), &client_key);
     let ct_2 = encrypt(flags.input2.into(), &client_key);
 
-    let ct_1= ct_1.iter().collect();
-    let ct_2= ct_2.iter().collect();
+    // timing placeholders to quickly obtain the measurements of the generated function
+    // let t = Instant::now();
 
     let result = fn_under_test::fn_under_test(&server_key, &ct_1, &ct_2);
+
+    // let run = t.elapsed().as_millis();
+
+    // println!("{:?}", run);
 
     let output = decrypt(&result, &client_key);
 

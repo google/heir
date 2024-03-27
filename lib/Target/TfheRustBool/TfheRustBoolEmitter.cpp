@@ -64,7 +64,7 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // TfheRustBool ops
-          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp, AndPackedOp>(
+          .Case<AndOp, NandOp, OrOp, NorOp, XorOp, XnorOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
@@ -144,11 +144,14 @@ LogicalResult TfheRustBoolEmitter::printOperation(func::FuncOp funcOp) {
 
 LogicalResult TfheRustBoolEmitter::printOperation(func::ReturnOp op) {
   std::function<std::string(Value)> valueOrClonedValue = [&](Value value) {
-    auto cloneStr = "";
+    auto suffix = "";
     if (isa<BlockArgument>(value)) {
-      cloneStr = ".clone()";
+      suffix = ".clone()";
     }
-    return variableNames->getNameForValue(value) + cloneStr;
+    if (isa<tensor::FromElementsOp>(value.getDefiningOp())) {
+      suffix = ".into_iter().cloned().collect()";
+    }
+    return variableNames->getNameForValue(value) + suffix;
   };
 
   if (op.getNumOperands() == 1) {
@@ -165,29 +168,77 @@ void TfheRustBoolEmitter::emitAssignPrefix(Value result) {
   os << "let " << variableNames->getNameForValue(result) << " = ";
 }
 
+void TfheRustBoolEmitter::emitReferenceConversion(Value value) {
+  auto tensorType = dyn_cast<TensorType>(value.getType());
+
+  if (isa<EncryptedBoolType>(tensorType.getElementType())) {
+    auto varName = variableNames->getNameForValue(value);
+
+    os << "let " << varName << "_ref = " << varName << ".clone();\n";
+    os << "let " << varName << "_ref: Vec<&Ciphertext> = " << varName
+       << ".iter().collect();\n";
+  }
+}
+
 LogicalResult TfheRustBoolEmitter::printSksMethod(
     ::mlir::Value result, ::mlir::Value sks, ::mlir::ValueRange nonSksOperands,
     std::string_view op, SmallVector<std::string> operandTypes) {
-  emitAssignPrefix(result);
+  if (isa<TensorType>(nonSksOperands[0].getType())) {
+    auto *opParent = nonSksOperands[0].getDefiningOp();
 
-  auto operandTypesIt = operandTypes.begin();
-  os << variableNames->getNameForValue(sks) << "." << op << "(";
-  os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-    auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
-    // First check if a DefiningOp exists
-    // if not: comes from function definition
-    mlir::Operation *op = value.getDefiningOp();
-    if (op) {
-      prefix = isa<tensor::ExtractOp>(op) ? "" : prefix;
-    } else {
-      prefix = "";
+    if (!opParent) {
+      for (auto nonSksOperand : nonSksOperands) {
+        emitReferenceConversion(nonSksOperand);
+      }
     }
 
-    return prefix + variableNames->getNameForValue(value) +
-           (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
-  });
-  os << ");\n";
-  return success();
+    emitAssignPrefix(result);
+
+    os << variableNames->getNameForValue(sks) << "." << op << "_packed(";
+    os << commaSeparatedValues(
+        {nonSksOperands[0], nonSksOperands[1]}, [&](Value value) {
+          auto *prefix = "&";
+          auto suffix = "";
+          // First check if a DefiningOp exists
+          // if not: comes from function definition
+          mlir::Operation *opParent = value.getDefiningOp();
+          if (opParent) {
+            if (!isa<tensor::FromElementsOp>(value.getDefiningOp()) &
+                !isa<tensor::ExtractOp>(opParent))
+              prefix = "";
+
+          } else {
+            prefix = "&";
+            suffix = "_ref";
+          }
+
+          return prefix + variableNames->getNameForValue(value) + suffix;
+        });
+    os << ");\n";
+    return success();
+
+  } else {
+    emitAssignPrefix(result);
+
+    auto operandTypesIt = operandTypes.begin();
+    os << variableNames->getNameForValue(sks) << "." << op << "(";
+    os << commaSeparatedValues(nonSksOperands, [&](Value value) {
+      auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
+      // First check if a DefiningOp exists
+      // if not: comes from function definition
+      mlir::Operation *op = value.getDefiningOp();
+      if (op) {
+        prefix = isa<tensor::ExtractOp>(op) ? "" : prefix;
+      } else {
+        prefix = "";
+      }
+
+      return prefix + variableNames->getNameForValue(value) +
+             (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
+    });
+    os << ");\n";
+    return success();
+  }
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(CreateTrivialOp op) {
@@ -215,6 +266,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(arith::ConstantOp op) {
   return success();
 }
 
+// Produces a &Ciphertext
 LogicalResult TfheRustBoolEmitter::printOperation(tensor::ExtractOp op) {
   // We assume here that the indices are SSA values (not integer attributes).
   emitAssignPrefix(op.getResult());
@@ -226,15 +278,18 @@ LogicalResult TfheRustBoolEmitter::printOperation(tensor::ExtractOp op) {
   return success();
 }
 
+// Need to produce a Vec<&Ciphertext>
 LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     // Check if block argument, if so, clone.
-    auto cloneStr = "";
-    if (isa<BlockArgument>(value)) {
-      cloneStr = ".clone()";
-    }
-    return variableNames->getNameForValue(value) + cloneStr;
+    auto cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
+    // Get the name of defining operation its dialect
+    auto tfhe_op =
+        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust_bool";
+    auto prefix = tfhe_op ? "&" : "";
+    return std::string(prefix) + variableNames->getNameForValue(value) +
+           cloneStr;
   }) << "];\n";
   return success();
 }
@@ -269,11 +324,6 @@ LogicalResult TfheRustBoolEmitter::printOperation(XnorOp op) {
                         {op.getLhs(), op.getRhs()}, "xnor");
 }
 
-LogicalResult TfheRustBoolEmitter::printOperation(AndPackedOp op) {
-  return printSksMethod(op.getResult(), op.getServerKey(),
-                        {op.getLhs(), op.getRhs()}, "and_packed");
-}
-
 FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
   // Note: these are probably not the right type names to use exactly, and they
   // will need to chance to the right values once we try to compile it against
@@ -283,7 +333,8 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
     // FIXME: why can't both types be FailureOr<std::string>?
     auto elementTy = convertType(shapedType.getElementType());
     if (failed(elementTy)) return failure();
-    return std::string("Vec<" + elementTy.value() + ">");
+
+    return std::string(std::string("Vec<") + elementTy.value() + ">");
   }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<EncryptedBoolType>(
