@@ -139,7 +139,7 @@ Notable aspects:
   approved migrations (e.g., migrating HEIR to support changes in MLIR or
   abseil).
 
-{{< figure title="A diagram summarizing the copybara flow for HEIR internally to Google" src="/images/hugo-copybara.png" link="/images/hugo-copybara.png" >}}
+{{< figure title="A diagram summarizing the copybara flow for HEIR internally to Google" src="/images/heir-copybara.png" link="/images/heir-copybara.png" >}}
 
 ### Why bother with Copybara?
 
