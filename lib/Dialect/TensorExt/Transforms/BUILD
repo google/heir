@@ -69,6 +69,7 @@ cc_library(
     ],
     deps = [
         "@heir//include/Dialect/TensorExt/Transforms:pass_inc_gen",
+        "@heir//lib/Analysis/RotationAnalysis",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",

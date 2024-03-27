@@ -1,4 +1,4 @@
-// RUN: heir-opt --rotate-and-reduce --canonicalize %s | FileCheck %s
+// RUN: heir-opt --rotate-and-reduce --cse --canonicalize %s | FileCheck %s
 
 
 // Sum all entries of a tensor into a single scalar
@@ -304,4 +304,262 @@ func.func @not_supported_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
   %14 = arith.addi %13, %7 : i32
   %15 = arith.addi %14, %2 : i32
   return %15 : i32
+}
+
+// CHECK-LABEL: @sum_of_linear_rotates
+// CHECK-COUNT-5: tensor_ext.rotate
+// CHECK-NOT: tensor_ext.rotate
+func.func @sum_of_linear_rotates(%arg0: !secret.secret<tensor<32xi16>>) -> !secret.secret<i16> {
+  %c30 = arith.constant 30 : index
+  %c29 = arith.constant 29 : index
+  %c31 = arith.constant 31 : index
+  %c1 = arith.constant 1 : index
+  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) {
+  ^bb0(%arg1: tensor<32xi16>):
+    %1 = tensor_ext.rotate %arg1, %c1 : tensor<32xi16>, index
+    %2 = arith.addi %1, %arg1 : tensor<32xi16>
+    %3 = tensor_ext.rotate %arg1, %c31 : tensor<32xi16>, index
+    %4 = tensor_ext.rotate %2, %c29 : tensor<32xi16>, index
+    %5 = arith.addi %3, %4 : tensor<32xi16>
+    %6 = arith.addi %5, %arg1 : tensor<32xi16>
+    %7 = tensor_ext.rotate %6, %c30 : tensor<32xi16>, index
+    %8 = arith.addi %3, %7 : tensor<32xi16>
+    %9 = arith.addi %8, %arg1 : tensor<32xi16>
+    %10 = tensor_ext.rotate %9, %c30 : tensor<32xi16>, index
+    %11 = arith.addi %3, %10 : tensor<32xi16>
+    %12 = arith.addi %11, %arg1 : tensor<32xi16>
+    %13 = tensor_ext.rotate %12, %c30 : tensor<32xi16>, index
+    %14 = arith.addi %3, %13 : tensor<32xi16>
+    %15 = arith.addi %14, %arg1 : tensor<32xi16>
+    %16 = tensor_ext.rotate %15, %c30 : tensor<32xi16>, index
+    %17 = arith.addi %3, %16 : tensor<32xi16>
+    %18 = arith.addi %17, %arg1 : tensor<32xi16>
+    %19 = tensor_ext.rotate %18, %c30 : tensor<32xi16>, index
+    %20 = arith.addi %3, %19 : tensor<32xi16>
+    %21 = arith.addi %20, %arg1 : tensor<32xi16>
+    %22 = tensor_ext.rotate %21, %c30 : tensor<32xi16>, index
+    %23 = arith.addi %3, %22 : tensor<32xi16>
+    %24 = arith.addi %23, %arg1 : tensor<32xi16>
+    %25 = tensor_ext.rotate %24, %c30 : tensor<32xi16>, index
+    %26 = arith.addi %3, %25 : tensor<32xi16>
+    %27 = arith.addi %26, %arg1 : tensor<32xi16>
+    %28 = tensor_ext.rotate %27, %c30 : tensor<32xi16>, index
+    %29 = arith.addi %3, %28 : tensor<32xi16>
+    %30 = arith.addi %29, %arg1 : tensor<32xi16>
+    %31 = tensor_ext.rotate %30, %c30 : tensor<32xi16>, index
+    %32 = arith.addi %3, %31 : tensor<32xi16>
+    %33 = arith.addi %32, %arg1 : tensor<32xi16>
+    %34 = tensor_ext.rotate %33, %c30 : tensor<32xi16>, index
+    %35 = arith.addi %3, %34 : tensor<32xi16>
+    %36 = arith.addi %35, %arg1 : tensor<32xi16>
+    %37 = tensor_ext.rotate %36, %c30 : tensor<32xi16>, index
+    %38 = arith.addi %3, %37 : tensor<32xi16>
+    %39 = arith.addi %38, %arg1 : tensor<32xi16>
+    %40 = tensor_ext.rotate %39, %c30 : tensor<32xi16>, index
+    %41 = arith.addi %3, %40 : tensor<32xi16>
+    %42 = arith.addi %41, %arg1 : tensor<32xi16>
+    %43 = tensor_ext.rotate %42, %c30 : tensor<32xi16>, index
+    %44 = arith.addi %3, %43 : tensor<32xi16>
+    %45 = arith.addi %44, %arg1 : tensor<32xi16>
+    %46 = tensor_ext.rotate %45, %c30 : tensor<32xi16>, index
+    %47 = arith.addi %3, %46 : tensor<32xi16>
+    %48 = arith.addi %47, %arg1 : tensor<32xi16>
+    %extracted = tensor.extract %48[%c31] : tensor<32xi16>
+    secret.yield %extracted : i16
+  } -> !secret.secret<i16>
+  return %0 : !secret.secret<i16>
+}
+
+// CHECK-LABEL: @rotate_not_applied_because_rotation_missing
+// CHECK-COUNT-3: tensor_ext.rotate
+func.func @rotate_not_applied_because_rotation_missing(%arg0: !secret.secret<tensor<4xi16>>) -> !secret.secret<i16> {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<4xi16>>) {
+  ^bb0(%arg1: tensor<4xi16>):
+    %1 = tensor_ext.rotate %arg1, %c1 : tensor<4xi16>, index
+    %2 = arith.addi %1, %arg1 : tensor<4xi16>
+    %3 = tensor_ext.rotate %1, %c1 : tensor<4xi16>, index
+    %4 = arith.addi %2, %3 : tensor<4xi16>
+    // To make the rotation apply, replace %5 with this line
+    // %5 = tensor_ext.rotate %3, %c1 : tensor<4xi16>, index
+    %5 = tensor_ext.rotate %3, %c2 : tensor<4xi16>, index
+    %6 = arith.addi %4, %5 : tensor<4xi16>
+    %extracted = tensor.extract %6[%c0] : tensor<4xi16>
+    secret.yield %extracted : i16
+  } -> !secret.secret<i16>
+  return %0 : !secret.secret<i16>
+}
+
+// CHECK-LABEL: @rotate_not_applied_because_rotation_duplicated
+// CHECK-COUNT-3: tensor_ext.rotate
+func.func @rotate_not_applied_because_rotation_duplicated(%arg0: !secret.secret<tensor<4xi16>>) -> !secret.secret<i16> {
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<4xi16>>) {
+  ^bb0(%arg1: tensor<4xi16>):
+    %1 = tensor_ext.rotate %arg1, %c1 : tensor<4xi16>, index
+    %2 = arith.addi %1, %arg1 : tensor<4xi16>
+    %3 = tensor_ext.rotate %1, %c1 : tensor<4xi16>, index
+    %4 = arith.addi %2, %3 : tensor<4xi16>
+    // To return to normal, replace %v4_2 with %4
+    %v4_2 = arith.addi %4, %3 : tensor<4xi16>
+    %5 = tensor_ext.rotate %3, %c1 : tensor<4xi16>, index
+    %6 = arith.addi %v4_2, %5 : tensor<4xi16>
+    %extracted = tensor.extract %6[%c1] : tensor<4xi16>
+    secret.yield %extracted : i16
+  } -> !secret.secret<i16>
+  return %0 : !secret.secret<i16>
+}
+
+// CHECK-LABEL: @rotate_not_applied_because_multiple_tensors
+// CHECK-COUNT-3: tensor_ext.rotate
+func.func @rotate_not_applied_because_multiple_tensors(
+    %arg0 : tensor<4xi16>, %arg1 : tensor<4xi16>) -> i16 {
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %1 = tensor_ext.rotate %arg1, %c1 : tensor<4xi16>, index
+  %2 = arith.addi %1, %arg1 : tensor<4xi16>
+  %3 = tensor_ext.rotate %1, %c1 : tensor<4xi16>, index
+  %4 = arith.addi %2, %3 : tensor<4xi16>
+  // To return to normal, replace %v4_2 with %4
+  %v4_2 = arith.addi %4, %arg0 : tensor<4xi16>
+  %5 = tensor_ext.rotate %3, %c1 : tensor<4xi16>, index
+  %6 = arith.addi %v4_2, %5 : tensor<4xi16>
+  %extracted = tensor.extract %6[%c1] : tensor<4xi16>
+  return %extracted : i16
+}
+
+// CHECK-LABEL: @rotate_not_applied_because_mixed_ops
+// CHECK-COUNT-3: tensor_ext.rotate
+func.func @rotate_not_applied_because_mixed_ops(%arg1 : tensor<4xi16>) -> i16 {
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %1 = tensor_ext.rotate %arg1, %c1 : tensor<4xi16>, index
+  %2 = arith.addi %1, %arg1 : tensor<4xi16>
+  %3 = tensor_ext.rotate %1, %c1 : tensor<4xi16>, index
+  // To return to normal, replace muli with addi
+  %4 = arith.muli %2, %3 : tensor<4xi16>
+  %5 = tensor_ext.rotate %3, %c1 : tensor<4xi16>, index
+  %6 = arith.addi %4, %5 : tensor<4xi16>
+  %extracted = tensor.extract %6[%c1] : tensor<4xi16>
+  return %extracted : i16
+}
+
+// CHECK-LABEL: @reduce_add_and_mul
+// 9 rotations because the first rotation can be re-used between the two
+// reductions
+// CHECK-COUNT-9: tensor_ext.rotate
+// CHECK-NOT: tensor_ext.rotate
+func.func @reduce_add_and_mul(%arg1: tensor<32xi16>) -> i16 {
+  %c30 = arith.constant 30 : index
+  %c29 = arith.constant 29 : index
+  %c31 = arith.constant 31 : index
+  %c1 = arith.constant 1 : index
+
+  // the add reduction
+  %1 = tensor_ext.rotate %arg1, %c1 : tensor<32xi16>, index
+  %2 = arith.addi %1, %arg1 : tensor<32xi16>
+  %3 = tensor_ext.rotate %arg1, %c31 : tensor<32xi16>, index
+  %4 = tensor_ext.rotate %2, %c29 : tensor<32xi16>, index
+  %5 = arith.addi %3, %4 : tensor<32xi16>
+  %6 = arith.addi %5, %arg1 : tensor<32xi16>
+  %7 = tensor_ext.rotate %6, %c30 : tensor<32xi16>, index
+  %8 = arith.addi %3, %7 : tensor<32xi16>
+  %9 = arith.addi %8, %arg1 : tensor<32xi16>
+  %10 = tensor_ext.rotate %9, %c30 : tensor<32xi16>, index
+  %11 = arith.addi %3, %10 : tensor<32xi16>
+  %12 = arith.addi %11, %arg1 : tensor<32xi16>
+  %13 = tensor_ext.rotate %12, %c30 : tensor<32xi16>, index
+  %14 = arith.addi %3, %13 : tensor<32xi16>
+  %15 = arith.addi %14, %arg1 : tensor<32xi16>
+  %16 = tensor_ext.rotate %15, %c30 : tensor<32xi16>, index
+  %17 = arith.addi %3, %16 : tensor<32xi16>
+  %18 = arith.addi %17, %arg1 : tensor<32xi16>
+  %19 = tensor_ext.rotate %18, %c30 : tensor<32xi16>, index
+  %20 = arith.addi %3, %19 : tensor<32xi16>
+  %21 = arith.addi %20, %arg1 : tensor<32xi16>
+  %22 = tensor_ext.rotate %21, %c30 : tensor<32xi16>, index
+  %23 = arith.addi %3, %22 : tensor<32xi16>
+  %24 = arith.addi %23, %arg1 : tensor<32xi16>
+  %25 = tensor_ext.rotate %24, %c30 : tensor<32xi16>, index
+  %26 = arith.addi %3, %25 : tensor<32xi16>
+  %27 = arith.addi %26, %arg1 : tensor<32xi16>
+  %28 = tensor_ext.rotate %27, %c30 : tensor<32xi16>, index
+  %29 = arith.addi %3, %28 : tensor<32xi16>
+  %30 = arith.addi %29, %arg1 : tensor<32xi16>
+  %31 = tensor_ext.rotate %30, %c30 : tensor<32xi16>, index
+  %32 = arith.addi %3, %31 : tensor<32xi16>
+  %33 = arith.addi %32, %arg1 : tensor<32xi16>
+  %34 = tensor_ext.rotate %33, %c30 : tensor<32xi16>, index
+  %35 = arith.addi %3, %34 : tensor<32xi16>
+  %36 = arith.addi %35, %arg1 : tensor<32xi16>
+  %37 = tensor_ext.rotate %36, %c30 : tensor<32xi16>, index
+  %38 = arith.addi %3, %37 : tensor<32xi16>
+  %39 = arith.addi %38, %arg1 : tensor<32xi16>
+  %40 = tensor_ext.rotate %39, %c30 : tensor<32xi16>, index
+  %41 = arith.addi %3, %40 : tensor<32xi16>
+  %42 = arith.addi %41, %arg1 : tensor<32xi16>
+  %43 = tensor_ext.rotate %42, %c30 : tensor<32xi16>, index
+  %44 = arith.addi %3, %43 : tensor<32xi16>
+  %45 = arith.addi %44, %arg1 : tensor<32xi16>
+  %46 = tensor_ext.rotate %45, %c30 : tensor<32xi16>, index
+  %47 = arith.addi %3, %46 : tensor<32xi16>
+  %48 = arith.addi %47, %arg1 : tensor<32xi16>
+  %extracted = tensor.extract %48[%c31] : tensor<32xi16>
+
+  // the mul reduction
+  %v1_2 = tensor_ext.rotate %arg1, %c1 : tensor<32xi16>, index
+  %v2_2 = arith.muli %v1_2, %arg1 : tensor<32xi16>
+  %v3_2 = tensor_ext.rotate %arg1, %c31 : tensor<32xi16>, index
+  %v4_2 = tensor_ext.rotate %v2_2, %c29 : tensor<32xi16>, index
+  %v5_2 = arith.muli %v3_2, %v4_2 : tensor<32xi16>
+  %v6_2 = arith.muli %v5_2, %arg1 : tensor<32xi16>
+  %v7_2 = tensor_ext.rotate %v6_2, %c30 : tensor<32xi16>, index
+  %v8_2 = arith.muli %v3_2, %v7_2 : tensor<32xi16>
+  %v9_2 = arith.muli %v8_2, %arg1 : tensor<32xi16>
+  %v10_2 = tensor_ext.rotate %v9_2, %c30 : tensor<32xi16>, index
+  %v11_2 = arith.muli %v3_2, %v10_2 : tensor<32xi16>
+  %v12_2 = arith.muli %v11_2, %arg1 : tensor<32xi16>
+  %v13_2 = tensor_ext.rotate %v12_2, %c30 : tensor<32xi16>, index
+  %v14_2 = arith.muli %v3_2, %v13_2 : tensor<32xi16>
+  %v15_2 = arith.muli %v14_2, %arg1 : tensor<32xi16>
+  %v16_2 = tensor_ext.rotate %v15_2, %c30 : tensor<32xi16>, index
+  %v17_2 = arith.muli %v3_2, %v16_2 : tensor<32xi16>
+  %v18_2 = arith.muli %v17_2, %arg1 : tensor<32xi16>
+  %v19_2 = tensor_ext.rotate %v18_2, %c30 : tensor<32xi16>, index
+  %v20_2 = arith.muli %v3_2, %v19_2 : tensor<32xi16>
+  %v21_2 = arith.muli %v20_2, %arg1 : tensor<32xi16>
+  %v22_2 = tensor_ext.rotate %v21_2, %c30 : tensor<32xi16>, index
+  %v23_2 = arith.muli %v3_2, %v22_2 : tensor<32xi16>
+  %v24_2 = arith.muli %v23_2, %arg1 : tensor<32xi16>
+  %v25_2 = tensor_ext.rotate %v24_2, %c30 : tensor<32xi16>, index
+  %v26_2 = arith.muli %v3_2, %v25_2 : tensor<32xi16>
+  %v27_2 = arith.muli %v26_2, %arg1 : tensor<32xi16>
+  %v28_2 = tensor_ext.rotate %v27_2, %c30 : tensor<32xi16>, index
+  %v29_2 = arith.muli %v3_2, %v28_2 : tensor<32xi16>
+  %v30_2 = arith.muli %v29_2, %arg1 : tensor<32xi16>
+  %v31_2 = tensor_ext.rotate %v30_2, %c30 : tensor<32xi16>, index
+  %v32_2 = arith.muli %v3_2, %v31_2 : tensor<32xi16>
+  %v33_2 = arith.muli %v32_2, %arg1 : tensor<32xi16>
+  %v34_2 = tensor_ext.rotate %v33_2, %c30 : tensor<32xi16>, index
+  %v35_2 = arith.muli %v3_2, %v34_2 : tensor<32xi16>
+  %v36_2 = arith.muli %v35_2, %arg1 : tensor<32xi16>
+  %v37_2 = tensor_ext.rotate %v36_2, %c30 : tensor<32xi16>, index
+  %v38_2 = arith.muli %v3_2, %v37_2 : tensor<32xi16>
+  %v39_2 = arith.muli %v38_2, %arg1 : tensor<32xi16>
+  %v40_2 = tensor_ext.rotate %v39_2, %c30 : tensor<32xi16>, index
+  %v41_2 = arith.muli %v3_2, %v40_2 : tensor<32xi16>
+  %v42_2 = arith.muli %v41_2, %arg1 : tensor<32xi16>
+  %v43_2 = tensor_ext.rotate %v42_2, %c30 : tensor<32xi16>, index
+  %v44_2 = arith.muli %v3_2, %v43_2 : tensor<32xi16>
+  %v45_2 = arith.muli %v44_2, %arg1 : tensor<32xi16>
+  %v46_2 = tensor_ext.rotate %v45_2, %c30 : tensor<32xi16>, index
+  %v47_2 = arith.muli %v3_2, %v46_2 : tensor<32xi16>
+  %v48_2 = arith.muli %v47_2, %arg1 : tensor<32xi16>
+  %extracted_2 = tensor.extract %v48_2[%c31] : tensor<32xi16>
+
+  %out = arith.addi %extracted, %extracted_2 : i16
+  return %out : i16
 }
