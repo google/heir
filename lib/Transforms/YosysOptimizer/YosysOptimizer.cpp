@@ -87,12 +87,13 @@ stat;
 // $2: abc path
 // $3: yosys runfiles path
 // $4: abc fast option -fast
+// TODO(#554): Re-enable -fast mode.
 constexpr std::string_view kYosysBooleanTemplate = R"(
 read_verilog {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
 techmap -map {3}/techmap.v; opt; stat;
-abc -exe {2} -liberty {3}/tfhe-rs_cells.liberty {4}; stat;
+abc -exe {2} -liberty {3}/tfhe-rs_cells.liberty; stat;
 opt_clean -purge; stat;
 rename -hide */c:*; rename -enumerate */c:*;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
@@ -410,7 +411,6 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
                     yosysFilesPath, abcPath, abcFast ? "-fast" : "")
           .str();
   if (mode == Mode::Boolean) {
-    std::cout << yosysFilesPath << std::endl;
     yosysTemplate =
         llvm::formatv(kYosysBooleanTemplate.data(), filename, moduleName,
                       abcPath, yosysFilesPath, abcFast ? "-fast" : "")

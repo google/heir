@@ -64,17 +64,22 @@ gentbl_cc_library(
         (
             [
                 "-gen-typedef-decls",
+                "-typedefs-dialect=tfhe_rust_bool",
             ],
             "TfheRustBoolTypes.h.inc",
         ),
         (
             [
                 "-gen-typedef-defs",
+                "-typedefs-dialect=tfhe_rust_bool",
             ],
             "TfheRustBoolTypes.cpp.inc",
         ),
         (
-            ["-gen-typedef-doc"],
+            [
+                "-gen-typedef-doc",
+                "-typedefs-dialect=tfhe_rust_bool",
+            ],
             "TfheRustBoolTypes.md",
         ),
     ],

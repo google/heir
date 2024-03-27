@@ -149,8 +149,11 @@ struct ConvertBinOp : public OpConversionPattern<BinOp> {
 };
 
 using ConvertBoolAndOp = ConvertBinOp<cggi::AndOp, tfhe_rust_bool::AndOp>;
+using ConvertBoolNandOp = ConvertBinOp<cggi::NandOp, tfhe_rust_bool::NandOp>;
 using ConvertBoolOrOp = ConvertBinOp<cggi::OrOp, tfhe_rust_bool::OrOp>;
+using ConvertBoolNorOp = ConvertBinOp<cggi::NorOp, tfhe_rust_bool::NorOp>;
 using ConvertBoolXorOp = ConvertBinOp<cggi::XorOp, tfhe_rust_bool::XorOp>;
+using ConvertBoolXNorOp = ConvertBinOp<cggi::XNorOp, tfhe_rust_bool::XnorOp>;
 
 struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
   ConvertBoolNotOp(mlir::MLIRContext *context)
@@ -260,6 +263,7 @@ class CGGIToTfheRustBool
     patterns.add<
         AddBoolServerKeyArg, ConvertBoolAndOp, ConvertBoolEncodeOp,
         ConvertBoolOrOp, ConvertBoolTrivialEncryptOp, ConvertBoolXorOp,
+        ConvertBoolNorOp, ConvertBoolXNorOp, ConvertBoolNandOp,
         ConvertBoolNotOp, GenericOpPattern<memref::AllocOp>,
         GenericOpPattern<memref::DeallocOp>, GenericOpPattern<memref::StoreOp>,
         GenericOpPattern<memref::LoadOp>, GenericOpPattern<memref::SubViewOp>,

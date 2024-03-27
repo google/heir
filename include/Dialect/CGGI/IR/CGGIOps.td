@@ -39,8 +39,11 @@ class CGGI_BinaryGateOp<string mnemonic>
 }
 
 def CGGI_AndOp : CGGI_BinaryGateOp<"and"> { let summary = "Logical AND of two ciphertexts."; }
+def CGGI_NandOp : CGGI_BinaryGateOp<"nand"> { let summary = "Logical NAND of two ciphertexts."; }
+def CGGI_NorOp  : CGGI_BinaryGateOp<"nor">  { let summary = "Logical NOR of two ciphertexts."; }
 def CGGI_OrOp  : CGGI_BinaryGateOp<"or">  { let summary = "Logical OR of two ciphertexts."; }
 def CGGI_XorOp : CGGI_BinaryGateOp<"xor"> { let summary = "Logical XOR of two ciphertexts."; }
+def CGGI_XNorOp : CGGI_BinaryGateOp<"xnor"> { let summary = "Logical XNOR of two ciphertexts."; }
 
 def CGGI_NotOp : CGGI_Op<"not", [Pure, SameOperandsAndResultType, Involution]> {
   let arguments = (ins LWECiphertext:$input);

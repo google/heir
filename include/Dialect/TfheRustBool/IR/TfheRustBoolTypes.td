@@ -4,6 +4,7 @@
 include "TfheRustBoolDialect.td"
 
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
@@ -18,7 +19,8 @@ def PassByReference : NativeTypeTrait<"PassByReference"> {
   let cppNamespace = "::mlir::heir::tfhe_rust_bool";
 }
 
-def TfheRustBool_Encrypted: TfheRustBool_Type<"EncryptedBool", "eb", [PassByReference]> {
+def TfheRustBool_Encrypted: TfheRustBool_Type<"EncryptedBool", "eb",
+    [PassByReference, MemRefElementTypeInterface]> {
   let summary = "An encrypted Boolean corresponding to tfhe-rs's FHEBool type";
 }
 

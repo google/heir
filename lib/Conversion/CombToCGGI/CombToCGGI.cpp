@@ -351,6 +351,33 @@ class SecretGenericOpMemRefLoadConversion
   }
 };
 
+template <typename GateOp, typename CGGIGateOp>
+class SecretGenericOpGateConversion : public SecretGenericOpConversion<GateOp> {
+  using SecretGenericOpConversion<GateOp>::SecretGenericOpConversion;
+
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+                 ArrayRef<NamedAttribute> attributes,
+                 ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<CGGIGateOp>(op, outputTypes, inputs,
+                                            attributes);
+  }
+};
+
+using SecretGenericOpInvConversion =
+    SecretGenericOpGateConversion<comb::InvOp, cggi::NotOp>;
+using SecretGenericOpAndConversion =
+    SecretGenericOpGateConversion<comb::AndOp, cggi::AndOp>;
+using SecretGenericOpOrConversion =
+    SecretGenericOpGateConversion<comb::OrOp, cggi::OrOp>;
+using SecretGenericOpNorConversion =
+    SecretGenericOpGateConversion<comb::NorOp, cggi::NorOp>;
+using SecretGenericOpXNorConversion =
+    SecretGenericOpGateConversion<comb::XNorOp, cggi::XNorOp>;
+using SecretGenericOpXorConversion =
+    SecretGenericOpGateConversion<comb::XorOp, cggi::XorOp>;
+using SecretGenericOpNandConversion =
+    SecretGenericOpGateConversion<comb::NandOp, cggi::NandOp>;
+
 class SecretGenericOpAffineLoadConversion
     : public SecretGenericOpConversion<affine::AffineLoadOp> {
   using SecretGenericOpConversion<
@@ -519,7 +546,11 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
              SecretGenericOpAffineStoreConversion,
              SecretGenericOpAffineLoadConversion,
              SecretGenericOpMemRefStoreConversion, ConvertTruthTableOp,
-             ConvertSecretCastOp>(typeConverter, context);
+             SecretGenericOpInvConversion, SecretGenericOpAndConversion,
+             SecretGenericOpNorConversion, SecretGenericOpNandConversion,
+             SecretGenericOpOrConversion, SecretGenericOpXNorConversion,
+             SecretGenericOpXorConversion, ConvertSecretCastOp>(typeConverter,
+                                                                context);
     target.addIllegalOp<TruthTableOp, secret::CastOp, secret::GenericOp>();
     target.addDynamicallyLegalOp<memref::StoreOp>([&](memref::StoreOp op) {
       // Legal only when the memref element type matches the stored type.
