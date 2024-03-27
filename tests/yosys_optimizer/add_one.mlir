@@ -1,5 +1,7 @@
-// RUN: heir-opt --yosys-optimizer --canonicalize --cse %s | FileCheck %s
+// RUN: heir-opt --yosys-optimizer --canonicalize --cse %s | FileCheck %s --check-prefix=CHECK --check-prefix=LUT
+// RUN: heir-opt --yosys-optimizer="abc-fast=True" --canonicalize --cse %s | FileCheck %s --check-prefix=CHECK --check-prefix=LUT-FAST
 // RUN: heir-opt --yosys-optimizer="mode=Boolean" --canonicalize --cse %s | FileCheck --check-prefix=CHECK --check-prefix=BOOL %s
+// RUN: heir-opt --yosys-optimizer="mode=Boolean abc-fast=True" --canonicalize --cse %s | FileCheck --check-prefix=CHECK --check-prefix=BOOL-FAST %s
 
 module {
   // CHECK-LABEL: @add_one
@@ -14,7 +16,16 @@ module {
         ins(%in, %one: !secret.secret<i8>, i8) {
         ^bb0(%IN: i8, %ONE: i8) :
             // CHECK-NOT: arith.addi
-            // BOOL-COUNT-7: comb.inv
+
+            // LUT-COUNT-11: comb.truth_table
+            // LUT-FAST-COUNT-13: comb.truth_table
+            // BOOL-COUNT-14: comb
+            // BOOL-FAST-COUNT-16: comb
+
+            // LUT-NOT: comb.truth_table
+            // LUT-FAST-NOT: comb.truth_table
+            // BOOL-NOT: comb
+            // BOOL-FAST-NOT: comb
             %2 = arith.addi %IN, %ONE : i8
             secret.yield %2 : i8
         } -> (!secret.secret<i8>)

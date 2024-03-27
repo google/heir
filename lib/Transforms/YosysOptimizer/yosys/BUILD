@@ -9,6 +9,5 @@ filegroup(
     name = "share_files",
     srcs = glob([
         "*.v",
-        "*.liberty",
     ]),
 )
