@@ -134,4 +134,39 @@ def Polynomial_ConstantOp : Polynomial_Op<"constant", [Pure]> {
   let assemblyFormat = "$input attr-dict `:` qualified(type($output))";
 }
 
+def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure]> {
+  let summary = "Computes point-value tensor representation of a polynomial.";
+  let description = [{
+    `polynomial.ntt` creates a tensor value containing the point-value
+    representation of the input polynomial. The polynomial's RingAttr is
+    embedded as the encoding attribute.
+
+    The output tensor has shape equal to the degree of the ring's ideal
+    generator polynomial, including zeroes.
+  }];
+
+  let arguments = (ins Polynomial:$input);
+
+  let results = (outs RankedTensorOf<[AnyInteger]>:$output);
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
+
+  let hasVerifier = 1;
+}
+
+def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
+  let summary = "Computes the polynomial of a point-value representation tensor";
+  let description = [{
+    `polynomial.intt` creates a polynomial value from the input tensor
+    containing the point-value representation. The ring of the polynomial is
+    taken from the required encoding attribute of the tensor.
+  }];
+
+  let arguments = (ins RankedTensorOf<[AnyInteger]>:$input);
+
+  let results = (outs Polynomial:$output);
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
+
+  let hasVerifier = 1;
+}
+
 #endif  // INCLUDE_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_
