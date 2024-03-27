@@ -25,7 +25,13 @@ void TargetSlotAnalysis::visitOperation(
         auto insertIndexRes = get1DExtractionIndex<tensor::InsertOp>(insertOp);
         // If the target slot can't be statically determined, we can't
         // propagate anything through the IR.
-        if (failed(insertIndexRes)) return;
+        if (failed(insertIndexRes)) {
+          LLVM_DEBUG({
+            llvm::dbgs() << "At " << insertOp
+                         << " can't determine static insertion index\n";
+          });
+          return;
+        }
 
         // The target slot propagates to the value inserted, which is the first
         // positional argument
