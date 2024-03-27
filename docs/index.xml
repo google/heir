@@ -276,6 +276,22 @@ file changes.&lt;/p>
 files, you may need to build those targets and then re-run the &lt;code>refresh_all&lt;/code>
 command above.&lt;/p></description></item><item><title>Docs: Pipelines</title><link>https://heir.dev/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/pipelines/</guid><description>
 &lt;h2 id="heir-opt">&lt;code>heir-opt&lt;/code>&lt;/h2>
+&lt;h3 id="--heir-simd-vectorizer">&lt;code>--heir-simd-vectorizer&lt;/code>&lt;/h3>
+&lt;p>Run scheme-agnostic passes to convert FHE programs that operate on scalar types
+to equivalent programs that operate on vectors.&lt;/p>
+&lt;p>This pass is intended to process FHE programs that are known to be good for
+SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle
+&lt;code>arith&lt;/code> ops operating on &lt;code>tensor&lt;/code> types (with or without &lt;code>secret.generic&lt;/code>).&lt;/p>
+&lt;p>The pass unrolls all loops, then applies a series of passes that convert scalar
+operations on tensor elements to SIMD operations on full tensors. This uses the
+FHE computational model common to BGV, BFV, and CKKS, in which data is packed
+in polynomial ciphertexts, interpreted as vectors of individual data elements,
+and arithmetic can be applied across entire ciphertexts, with some limited
+support for rotations via automorphisms of the underlying ring.&lt;/p>
+&lt;p>Along the way, this pipeline applies heuristic optimizations to minimize the
+number of rotations needed, relying on the implicit cost model that rotations
+are generally expensive. The specific set of passes can be found in
+&lt;code>tools/heir-opt.cpp&lt;/code> where the pipeline is defined.&lt;/p>
 &lt;h3 id="--heir-tosa-to-arith">&lt;code>--heir-tosa-to-arith&lt;/code>&lt;/h3>
 &lt;p>Lowers a TOSA MLIR model to &lt;code>func&lt;/code>, &lt;code>arith&lt;/code>, and &lt;code>memref&lt;/code>.&lt;/p>
 &lt;p>Lowers from TOSA through &lt;code>linalg&lt;/code> and &lt;code>affine&lt;/code>, and converts all tensors to
@@ -457,33 +473,7 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-03-07.&lt;/p>
-&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due
-to the FHE.org, HACS, and RWC conferences. Hope to see
-you all there!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-12-12.&lt;/p>
-&lt;p>This is the last meeting for 2023. Please respond to &lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this
-poll&lt;/a> for 2024 scheduling preferences.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the
-&lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;/ul></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
 &lt;h2 id="bgv-ops">BGV ops&lt;/h2>

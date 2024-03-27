@@ -2053,7 +2053,18 @@ to <code>tensor&lt;8xi1></code>.</p><p>The optimizer will be applied to each <co
 arithmetic ops that can be optimized.</p><p>Optional parameters:</p><ul><li><code>abc-fast</code>: Run the abc optimizer in &ldquo;fast&rdquo; mode, getting faster compile
 time at the expense of a possibly larger output circuit.</li><li><code>unroll-factor</code>: Before optimizing the circuit, unroll loops by a given
 factor. If unset, this pass will not unroll any loops.</li><li><code>print-stats</code>: Prints statistics about the optimized circuits.</li><li><code>mode={Boolean,LUT}</code>: Map gates to boolean gates or lookup table gates.</li></ul><h4 id=statistics>Statistics</h4><pre tabindex=0><code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-</code></pre></div><div class=td-content style=page-break-before:always><h1 id=pg-db9ac78ce08367ea2b7db8c1412049b6>6 - Pipelines</h1><h2 id=heir-opt><code>heir-opt</code></h2><h3 id=--heir-tosa-to-arith><code>--heir-tosa-to-arith</code></h3><p>Lowers a TOSA MLIR model to <code>func</code>, <code>arith</code>, and <code>memref</code>.</p><p>Lowers from TOSA through <code>linalg</code> and <code>affine</code>, and converts all tensors to
+</code></pre></div><div class=td-content style=page-break-before:always><h1 id=pg-db9ac78ce08367ea2b7db8c1412049b6>6 - Pipelines</h1><h2 id=heir-opt><code>heir-opt</code></h2><h3 id=--heir-simd-vectorizer><code>--heir-simd-vectorizer</code></h3><p>Run scheme-agnostic passes to convert FHE programs that operate on scalar types
+to equivalent programs that operate on vectors.</p><p>This pass is intended to process FHE programs that are known to be good for
+SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle
+<code>arith</code> ops operating on <code>tensor</code> types (with or without <code>secret.generic</code>).</p><p>The pass unrolls all loops, then applies a series of passes that convert scalar
+operations on tensor elements to SIMD operations on full tensors. This uses the
+FHE computational model common to BGV, BFV, and CKKS, in which data is packed
+in polynomial ciphertexts, interpreted as vectors of individual data elements,
+and arithmetic can be applied across entire ciphertexts, with some limited
+support for rotations via automorphisms of the underlying ring.</p><p>Along the way, this pipeline applies heuristic optimizations to minimize the
+number of rotations needed, relying on the implicit cost model that rotations
+are generally expensive. The specific set of passes can be found in
+<code>tools/heir-opt.cpp</code> where the pipeline is defined.</p><h3 id=--heir-tosa-to-arith><code>--heir-tosa-to-arith</code></h3><p>Lowers a TOSA MLIR model to <code>func</code>, <code>arith</code>, and <code>memref</code>.</p><p>Lowers from TOSA through <code>linalg</code> and <code>affine</code>, and converts all tensors to
 memrefs. Fully unrolls all loops, and forwards stores to subsequent loads
 whenever possible. The output is suitable as an input to <code>heir-translate --emit-verilog</code>. Retains <code>affine.load</code> and <code>affine.store</code> ops that cannot be
 removed (e.g., reading from the input and writing to the output, or loading from
