@@ -7,6 +7,27 @@ weight: 9
 
 ## `heir-opt`
 
+### `--heir-simd-vectorizer`
+
+Run scheme-agnostic passes to convert FHE programs that operate on scalar types
+to equivalent programs that operate on vectors.
+
+This pass is intended to process FHE programs that are known to be good for
+SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle
+`arith` ops operating on `tensor` types (with or without `secret.generic`).
+
+The pass unrolls all loops, then applies a series of passes that convert scalar
+operations on tensor elements to SIMD operations on full tensors. This uses the
+FHE computational model common to BGV, BFV, and CKKS, in which data is packed
+in polynomial ciphertexts, interpreted as vectors of individual data elements,
+and arithmetic can be applied across entire ciphertexts, with some limited
+support for rotations via automorphisms of the underlying ring.
+
+Along the way, this pipeline applies heuristic optimizations to minimize the
+number of rotations needed, relying on the implicit cost model that rotations
+are generally expensive. The specific set of passes can be found in
+`tools/heir-opt.cpp` where the pipeline is defined.
+
 ### `--heir-tosa-to-arith`
 
 Lowers a TOSA MLIR model to `func`, `arith`, and `memref`.
@@ -25,6 +46,7 @@ tool can lower a TFLite FlatBuffer to textual MLIR with
 `--output-format=mlir-ir`. See
 [hello_world.tosa.mlir](https://github.com/google/heir/blob/main/tests/hello_world.tosa.mlir)
 for an example.
+
 
 ### `--yosys-optimizer`
 

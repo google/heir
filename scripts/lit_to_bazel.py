@@ -1,6 +1,6 @@
+from collections import deque
 import os
 import pathlib
-from collections import deque
 
 import fire
 
@@ -10,6 +10,7 @@ PIPE = "|"
 OUT_REDIRECT = ">"
 IN_REDIRECT = "<"
 RUN_PREFIX = "// RUN:"
+
 
 def strip_run_prefix(line):
     if RUN_PREFIX in line:
@@ -28,8 +29,8 @@ def convert_to_run_commands(run_lines):
 
         line = strip_run_prefix(line)
 
-        if '|' in line:
-            first, second = line.split('|', maxsplit=1)
+        if "|" in line:
+            first, second = line.split("|", maxsplit=1)
             current_command += " " + first.strip()
             cmds.append(current_command.strip())
             current_command = ""
@@ -43,8 +44,8 @@ def convert_to_run_commands(run_lines):
             current_command = ""
             continue
 
-        if line.strip().endswith('\\'):
-            current_command += " " + line.replace('\\', '').strip()
+        if line.strip().endswith("\\"):
+            current_command += " " + line.replace("\\", "").strip()
             continue
 
         current_command += line
@@ -56,6 +57,7 @@ def convert_to_run_commands(run_lines):
 
 def lit_to_bazel(
     lit_test_file: str,
+    git_root: str = "",
 ):
     """A helper CLI that converts MLIR test files to bazel run commands.
 
@@ -64,9 +66,11 @@ def lit_to_bazel(
         command.
     """
 
-    git_root = pathlib.Path(__file__).parent.parent
-    if not os.path.isdir(git_root / ".git"):
-        raise RuntimeError(f"Could not find git root, looked at {git_root}")
+    if not git_root:
+        git_root = pathlib.Path(__file__).parent.parent
+        if not os.path.isdir(git_root / ".git"):
+            raise RuntimeError(f"Could not find git root, looked at {git_root}")
+    # if git root is manually specified, just trust it
 
     if not lit_test_file:
         raise ValueError("lit_test_file must be provided")
@@ -81,7 +85,7 @@ def lit_to_bazel(
                 run_lines.append(line)
 
     commands = convert_to_run_commands(run_lines)
-    commands = [x for x in commands if 'FileCheck' not in x]
+    commands = [x for x in commands if "FileCheck" not in x]
     # remove consecutive and trailing pipes
     if commands[-1] == PIPE:
         commands.pop()
@@ -95,8 +99,13 @@ def lit_to_bazel(
     # I would consider using bazel-bin/tools/heir-opt, but the yosys
     # requirement requires additional env vars to be set for the yosys and ABC
     # paths, which is not yet worth doing for this script.
-    joined = joined.replace("heir-opt", "bazel run --noallow_analysis_cache_discard //tools:heir-opt --")
-    joined = joined.replace("heir-translate", f"{git_root}/bazel-bin/tools/heir-translate")
+    joined = joined.replace(
+        "heir-opt",
+        "bazel run --noallow_analysis_cache_discard //tools:heir-opt --",
+    )
+    joined = joined.replace(
+        "heir-translate", f"{git_root}/bazel-bin/tools/heir-translate"
+    )
     joined = joined.replace("%s", str(pathlib.Path(lit_test_file).absolute()))
     print(joined)
 

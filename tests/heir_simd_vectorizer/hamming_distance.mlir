@@ -1,6 +1,5 @@
 // RUN: heir-opt --secretize=entry-function=hamming --wrap-generic --canonicalize --cse \
-// RUN:   --full-loop-unroll --cse --canonicalize --insert-rotate --cse --canonicalize \
-// RUN:   %s | FileCheck %s
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 // CHECK-LABEL: @hamming
 // CHECK: secret.generic
@@ -15,10 +14,11 @@
 // CHECK-NEXT: tensor.extract
 // CHECK-NEXT: secret.yield
 
-// TODO(#521): support rotate-and-reduce when the input is already a series of incremental rotations,
-// as this IR is currently lowered to 4-1 rotate operations to sum after doing (x-y)**2 in SIMD.
+// TODO(#521): Fix rotate-and-reduce to work on this IR.
+// The problem is that the lattice identifies the rotate-version of this IR as
+// being overdetermined.
 
-func.func @hamming(%arg0: tensor<4xi16> {secret.secret}, %arg1: tensor<4xi16> {secret.secret}) -> i16 {
+func.func @hamming(%arg0: tensor<4xi16>, %arg1: tensor<4xi16>) -> i16 {
   %c0 = arith.constant 0 : index
   %c0_si16 = arith.constant 0 : i16
   %0 = affine.for %arg2 = 0 to 4 iter_args(%arg6 = %c0_si16) -> i16 {

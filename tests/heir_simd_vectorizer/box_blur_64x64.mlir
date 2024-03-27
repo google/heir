@@ -1,6 +1,5 @@
-// RUN: heir-opt --secretize=entry-function=box_blur --wrap-generic --canonicalize --cse --full-loop-unroll \
-// RUN:   --insert-rotate --cse --canonicalize --collapse-insertion-chains --canonicalize --cse \
-// RUN:   %s | FileCheck %s
+// RUN: heir-opt --secretize=entry-function=box_blur --wrap-generic --canonicalize --cse \
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 module  {
   // CHECK-LABEL: @box_blur
@@ -30,7 +29,7 @@ module  {
   // CHECK-NEXT:     secret.yield %[[v15]]
   // CHECK-NEXT:   } -> !secret.secret<tensor<4096xi16>>
   // CHECK-NEXT:   return %[[v0]]
-  func.func @box_blur(%arg0: tensor<4096xi16> {secret.secret}) -> tensor<4096xi16> {
+  func.func @box_blur(%arg0: tensor<4096xi16>) -> tensor<4096xi16> {
     %c4096 = arith.constant 4096 : index
     %c64 = arith.constant 64 : index
     %0 = affine.for %x = 0 to 64 iter_args(%arg0_x = %arg0) -> (tensor<4096xi16>) {

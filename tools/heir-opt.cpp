@@ -22,7 +22,10 @@
 #include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
 #include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "include/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
+#include "include/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "include/Dialect/TensorExt/Transforms/Passes.h"
+#include "include/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
@@ -172,6 +175,29 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createSCCPPass());
   manager.addPass(createCSEPass());
   manager.addPass(createSymbolDCEPass());
+}
+
+void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
+  // For now we unroll loops to enable insert-rotate, but we would like to be
+  // smarter about this and do an affine loop analysis.
+  manager.addPass(createFullLoopUnroll());
+
+  // Insert rotations aligned to slot targets. Future work should provide
+  // alternative methods to optimally align rotations, and allow the user to
+  // configure this via pipeline options.
+  manager.addPass(tensor_ext::createInsertRotate());
+  manager.addPass(createCSEPass());
+  manager.addPass(createCanonicalizerPass());
+
+  manager.addPass(tensor_ext::createCollapseInsertionChains());
+  manager.addPass(createCSEPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCanonicalizerPass());
+
+  manager.addPass(tensor_ext::createRotateAndReduce());
+  manager.addPass(createCSEPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCanonicalizerPass());
 }
 
 #ifndef HEIR_NO_YOSYS
@@ -332,6 +358,13 @@ int main(int argc, char **argv) {
       "heir-polynomial-to-llvm",
       "Run passes to lower the polynomial dialect to LLVM",
       polynomialToLLVMPipelineBuilder);
+
+  PassPipelineRegistration<>(
+      "heir-simd-vectorizer",
+      "Run scheme-agnostic passes to convert FHE programs that operate on "
+      "scalar types to equivalent programs that operate on vectors and use "
+      "tensor_ext.rotate",
+      heirSIMDVectorizerPipelineBuilder);
 
   return asMainReturnCode(
       MlirOptMain(argc, argv, "HEIR Pass Driver", registry));

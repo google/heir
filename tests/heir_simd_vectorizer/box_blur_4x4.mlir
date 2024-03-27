@@ -1,13 +1,11 @@
 // RUN: heir-opt --secretize=entry-function=box_blur --wrap-generic --canonicalize --cse \
-// RUN:   --full-loop-unroll \
-// RUN:   --insert-rotate --cse --canonicalize --collapse-insertion-chains --canonicalize --cse \
-// RUN:   %s | FileCheck %s
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 module  {
   // CHECK-LABEL: @box_blur
   // CHECK-NOT: tensor.extract
   // CHECK-COUNT-7: tensor_ext.rotate
-  func.func @box_blur(%arg0: tensor<16xi16> {secret.secret}) -> tensor<16xi16> {
+  func.func @box_blur(%arg0: tensor<16xi16>) -> tensor<16xi16> {
     %c16 = arith.constant 16 : index
     %c4 = arith.constant 4 : index
     %0 = affine.for %x = 0 to 4 iter_args(%arg0_x = %arg0) -> (tensor<16xi16>) {
