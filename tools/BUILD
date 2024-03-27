@@ -51,6 +51,7 @@ cc_binary(
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/PolyExt/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/Transforms",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
