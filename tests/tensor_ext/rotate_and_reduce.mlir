@@ -563,3 +563,27 @@ func.func @reduce_add_and_mul(%arg1: tensor<32xi16>) -> i16 {
   %out = arith.addi %extracted, %extracted_2 : i16
   return %out : i16
 }
+
+
+// This test caused rotate-and-reduce to crash, so is here as a regression test
+// without any particular assertion required.
+// CHECK-LABEL: @test_dot_product_regression
+func.func @test_dot_product_regression(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) -> !secret.secret<i16> {
+  %c3 = arith.constant 3 : index
+  %c2 = arith.constant 2 : index
+  %c1 = arith.constant 1 : index
+  %c0 = arith.constant 0 : index
+  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
+    %1 = arith.muli %arg2, %arg3 : tensor<8xi16>
+    %2 = tensor_ext.rotate %1, %c1 : tensor<8xi16>, index
+    %3 = arith.addi %2, %1 : tensor<8xi16>
+    %4 = tensor_ext.rotate %1, %c2 : tensor<8xi16>, index
+    %5 = arith.addi %4, %3 : tensor<8xi16>
+    %6 = tensor_ext.rotate %1, %c3 : tensor<8xi16>, index
+    %7 = arith.addi %6, %5 : tensor<8xi16>
+    %extracted = tensor.extract %7[%c0] : tensor<8xi16>
+    secret.yield %extracted : i16
+  } -> !secret.secret<i16>
+  return %0 : !secret.secret<i16>
+}
