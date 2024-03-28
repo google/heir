@@ -52,37 +52,36 @@
 // CHECK:    ^[[bb0:.*]](%[[DIVIDEND:.*]]: [[NAIVE_POLYMUL_TENSOR_TY]]):
 // CHECK:      %[[DIVISOR:.*]] = arith.constant dense<"0x[[DIVISOR_COEFFS:010*10*]]"> : [[NAIVE_POLYMUL_TENSOR_TY]]
 
-// TODO(#551): clean up test so that variables names are captured and not hard-coded
-// CHECK:      %c0_i32 = arith.constant 0 : i32
-// CHECK:      %c1 = arith.constant 1 : index
-// CHECK:      %c2046 = arith.constant 2046 : index
-// CHECK:      %1 = scf.while (%arg2 = %c2046) : (index) -> index {
-// CHECK:        %extracted_4 = tensor.extract %arg1[%arg2] : tensor<2047xi32>
-// CHECK:        %8 = arith.cmpi eq, %extracted_4, %c0_i32 : i32
-// CHECK:        scf.condition(%8) %arg2 : index
+// CHECK:      %[[c0_i32:.*]] = arith.constant 0 : i32
+// CHECK:      %[[c1:.*]] = arith.constant 1 : index
+// CHECK:      %[[c2046:.*]] = arith.constant 2046 : index
+// CHECK:      %[[v1:.*]] = scf.while (%[[arg2:.*]] = %[[c2046]]) : (index) -> index {
+// CHECK:        %[[extracted_4:.*]] = tensor.extract %[[DIVIDEND]][%[[arg2]]] : tensor<2047xi32>
+// CHECK:        %[[cmp1:.*]] = arith.cmpi eq, %[[extracted_4]], %[[c0_i32]] : i32
+// CHECK:        scf.condition(%[[cmp1]]) %[[arg2]] : index
 // CHECK:      } do {
-// CHECK:      ^bb0(%arg2: index):
-// CHECK:        %8 = arith.subi %arg2, %c1 : index
-// CHECK:        scf.yield %8 : index
+// CHECK:      ^bb0(%[[arg2:.*]]: index):
+// CHECK:        %[[sub1:.*]] = arith.subi %[[arg2]], %[[c1]] : index
+// CHECK:        scf.yield %[[sub1]] : index
 // CHECK:      }
-// CHECK:      %extracted = tensor.extract %arg1[%1] : tensor<2047xi32>
-// CHECK:      %2 = arith.subi %1, %c1024 : index
-// CHECK:      %splat = tensor.splat %extracted : tensor<2047xi32>
-// CHECK:      %3 = arith.muli %cst, %splat : tensor<2047xi32>
-// CHECK:      %4 = tensor.empty() : tensor<2047xi32>
-// CHECK:      %c2047 = arith.constant 2047 : index
-// CHECK:      %5 = arith.subi %c2047, %2 : index
-// CHECK:      %extracted_slice_0 = tensor.extract_slice %3[0] [%5] [1] : tensor<2047xi32> to tensor<?xi32>
-// CHECK:      %extracted_slice_1 = tensor.extract_slice %3[%5] [%2] [1] : tensor<2047xi32> to tensor<?xi32>
-// CHECK:      %inserted_slice = tensor.insert_slice %extracted_slice_0 into %4[%2] [%5] [1] : tensor<?xi32> into tensor<2047xi32>
-// CHECK:      %inserted_slice_2 = tensor.insert_slice %extracted_slice_1 into %inserted_slice[0] [%2] [1] : tensor<?xi32> into tensor<2047xi32>
-// CHECK:      %splat_3 = tensor.splat %c-1_i32 : tensor<2047xi32>
-// CHECK:      %6 = arith.muli %inserted_slice_2, %splat_3 : tensor<2047xi32>
-// CHECK:      %7 = arith.addi %arg1, %6 : tensor<2047xi32>
-// CHECK:      scf.yield %7 : tensor<2047xi32>
+// CHECK:      %[[extracted:.*]] = tensor.extract %[[DIVIDEND]][%[[v1]]] : tensor<2047xi32>
+// CHECK:      %[[v2:.*]] = arith.subi %[[v1]], %[[c1024]] : index
+// CHECK:      %[[splat:.*]] = tensor.splat %[[extracted]] : tensor<2047xi32>
+// CHECK:      %[[mul:.*]] = arith.muli %cst, %[[splat]] : tensor<2047xi32>
+// CHECK:      %[[empty:.*]] = tensor.empty() : tensor<2047xi32>
+// CHECK:      %[[c2047:.*]] = arith.constant 2047 : index
+// CHECK:      %[[v5:.*]] = arith.subi %[[c2047]], %[[v2]] : index
+// CHECK:      %[[extracted_slice_0:.*]] = tensor.extract_slice %[[mul]][0] [%[[v5]]] [1] : tensor<2047xi32> to tensor<?xi32>
+// CHECK:      %[[extracted_slice_1:.*]] = tensor.extract_slice %[[mul]][%[[v5]]] [%[[v2]]] [1] : tensor<2047xi32> to tensor<?xi32>
+// CHECK:      %[[inserted_slice:.*]] = tensor.insert_slice %[[extracted_slice_0]] into %[[empty]][%[[v2]]] [%[[v5]]] [1] : tensor<?xi32> into tensor<2047xi32>
+// CHECK:      %[[inserted_slice_2:.*]] = tensor.insert_slice %[[extracted_slice_1]] into %[[inserted_slice]][0] [%[[v2]]] [1] : tensor<?xi32> into tensor<2047xi32>
+// CHECK:      %[[splat_3:.*]] = tensor.splat %[[c_minus1]] : tensor<2047xi32>
+// CHECK:      %[[mul_2:.*]] = arith.muli %[[inserted_slice_2]], %[[splat_3]] : tensor<2047xi32>
+// CHECK:      %[[add:.*]] = arith.addi %[[DIVIDEND]], %[[mul_2]] : tensor<2047xi32>
+// CHECK:      scf.yield %[[add]] : tensor<2047xi32>
 // CHECK:    }
-// CHECK:    %extracted_slice = tensor.extract_slice %0[0] [1024] [1] : tensor<2047xi32> to tensor<1024xi32>
-// CHECK:    return %extracted_slice : tensor<1024xi32>
+// CHECK:    %[[extracted_slice:.*]] = tensor.extract_slice %[[rem_result]][0] [1024] [1] : tensor<2047xi32> to tensor<1024xi32>
+// CHECK:    return %[[extracted_slice]] : tensor<1024xi32>
 // CHECK:  }
 // CHECK: }
 
