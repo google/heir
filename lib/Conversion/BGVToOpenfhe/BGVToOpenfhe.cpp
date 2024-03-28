@@ -148,9 +148,8 @@ struct ConvertRotateOp : public OpConversionPattern<Rotate> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    auto offsetValue = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), rewriter.getIntegerAttr(rewriter.getIntegerType(64),
-                                             adaptor.getOffset()));
+    auto offsetValue =
+        rewriter.create<arith::ConstantOp>(op.getLoc(), adaptor.getOffset());
     rewriter.replaceOp(
         op, rewriter.create<openfhe::RotOp>(op.getLoc(), cryptoContext,
                                             adaptor.getX(), offsetValue));
