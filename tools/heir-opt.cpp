@@ -181,7 +181,6 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
   // For now we unroll loops to enable insert-rotate, but we would like to be
   // smarter about this and do an affine loop analysis.
   manager.addPass(createFullLoopUnroll());
-  manager.addPass(createSCCPPass());
 
   // Insert rotations aligned to slot targets. Future work should provide
   // alternative methods to optimally align rotations, and allow the user to
