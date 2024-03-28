@@ -42,13 +42,33 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
 
     SymbolTableCollection symbolTable;
     DataFlowSolver solver;
-    // These two upstream analyses are required dependencies for any sparse
-    // dataflow analysis, or else the analysis will be a no-op. Cf.
+
+    // These two upstream analyses are required to be instantiated in any
+    // sparse dataflow analysis, or else the analysis will be a no-op. Cf.
     // https://github.com/llvm/llvm-project/issues/58922
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
-    solver.load<target_slot_analysis::TargetSlotAnalysis>(symbolTable);
     if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+
+    // We want to use the result of the sparse constant propagation from the
+    // first dataflow solver as an input to the target slot analysis. For some
+    // reason, actually running `--sccp` before this pass causes the IR to
+    // simplify away some operations that are needed to properly identify
+    // target slots. So the SparseConstantPropagation above is a simulated
+    // folding of arith operations, so as to identify when insertion indices
+    // are statically inferable.
+    //
+    // TODO(#572): find a better way to depend dataflow analyses on each other.
+    DataFlowSolver solver2;
+    solver2.load<dataflow::DeadCodeAnalysis>();
+    solver2.load<dataflow::SparseConstantPropagation>();
+    solver2.load<target_slot_analysis::TargetSlotAnalysis>(symbolTable,
+                                                           &solver);
+    if (failed(solver2.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
       return;
@@ -60,9 +80,9 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
     getOperation()->walk([&](Operation *op) {
       if (op->getNumResults() == 0) return;
       auto *targetSlotLattice =
-          solver.lookupState<target_slot_analysis::TargetSlotLattice>(
+          solver2.lookupState<target_slot_analysis::TargetSlotLattice>(
               op->getResult(0));
-      if (targetSlotLattice->getValue().isInitialized()) {
+      if (targetSlotLattice && targetSlotLattice->getValue().isInitialized()) {
         op->setAttr(
             "target_slot",
             builder.getIndexAttr(targetSlotLattice->getValue().getValue()));

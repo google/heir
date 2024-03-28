@@ -1,8 +1,10 @@
 #include "include/Analysis/TargetSlotAnalysis/TargetSlotAnalysis.h"
 
 #include "lib/Dialect/Utils.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -22,15 +24,47 @@ void TargetSlotAnalysis::visitOperation(
   llvm::TypeSwitch<Operation &>(*op)
       .Case<tensor::InsertOp>([&](auto insertOp) {
         LLVM_DEBUG({ llvm::dbgs() << "Visiting: " << *op << "\n"; });
-        auto insertIndexRes = get1DExtractionIndex<tensor::InsertOp>(insertOp);
+        auto insertIndices = insertOp.getIndices();
+        if (insertIndices.size() != 1) {
+          LLVM_DEBUG(llvm::dbgs() << "At " << insertOp
+                                  << " can't handle >1D insertion index\n");
+          return;
+        }
+
+        Value insertIndexValue = insertOp.getIndices()[0];
+        const dataflow::Lattice<dataflow::ConstantValue> *insertIndexLattice =
+            sccpAnalysis
+                ->lookupState<dataflow::Lattice<dataflow::ConstantValue>>(
+                    insertIndexValue);
+
+        if (insertIndexLattice) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "At " << insertOp << " SCCP analysis gives lattice of "
+                     << *insertIndexLattice << "\n");
+        }
+
         // If the target slot can't be statically determined, we can't
         // propagate anything through the IR.
-        if (failed(insertIndexRes)) return;
+        if (!insertIndexLattice ||
+            insertIndexLattice->getValue().isUninitialized() ||
+            !insertIndexLattice->getValue().getConstantValue()) {
+          LLVM_DEBUG(
+              llvm::dbgs()
+              << "At " << insertOp
+              << " can't statically determine constant insertion index\n");
+          return;
+        }
+        Attribute insertIndexAttr =
+            insertIndexLattice->getValue().getConstantValue();
+        auto insertIndexIntAttr = insertIndexAttr.dyn_cast<IntegerAttr>();
+        assert(insertIndexIntAttr &&
+               "If 1D insertion index is constant, it must be integer");
+        int64_t insertIndexConst = insertIndexIntAttr.getInt();
 
         // The target slot propagates to the value inserted, which is the first
         // positional argument
         TargetSlotLattice *lattice = operands[0];
-        TargetSlot newSlot = TargetSlot{insertIndexRes.value()};
+        TargetSlot newSlot = TargetSlot{insertIndexConst};
         LLVM_DEBUG({
           llvm::dbgs() << "Joining " << lattice->getValue() << " and "
                        << newSlot << " --> "
