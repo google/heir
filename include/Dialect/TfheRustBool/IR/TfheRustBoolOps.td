@@ -24,16 +24,20 @@ def CreateTrivialOp : TfheRustBool_Op<"create_trivial", [Pure]> {
   let results = (outs TfheRustBool_Encrypted:$output);
 }
 
+// --- Operations for a gate-bootstrapping API of a CGGI library ---
+def TfheRustBoolLike : TypeOrContainer<TfheRustBool_Encrypted, "eb-like">;
+
+
 class TfheRustBool_BinaryGateOp<string mnemonic>
   : TfheRustBool_Op<mnemonic, [
     Pure,
     AllTypesMatch<["lhs", "rhs", "output"]>
 ]> {
   let arguments = (ins TfheRustBool_ServerKey:$serverKey,
-    TfheRustBool_Encrypted:$lhs,
-    TfheRustBool_Encrypted:$rhs
+    TfheRustBoolLike:$lhs,
+    TfheRustBoolLike:$rhs
   );
-  let results = (outs TfheRustBool_Encrypted:$output);
+  let results = (outs TfheRustBoolLike:$output);
 }
 
 def AndOp : TfheRustBool_BinaryGateOp<"and"> { let summary = "Logical AND of two TFHE-rs Bool ciphertexts."; }
@@ -42,31 +46,6 @@ def OrOp  : TfheRustBool_BinaryGateOp<"or">  { let summary = "Logical OR of two 
 def NorOp  : TfheRustBool_BinaryGateOp<"nor">  { let summary = "Logical NOR of two TFHE-rs Bool ciphertexts."; }
 def XorOp : TfheRustBool_BinaryGateOp<"xor"> { let summary = "Logical XOR of two TFHE-rs Bool ciphertexts."; }
 def XnorOp : TfheRustBool_BinaryGateOp<"xnor"> { let summary = "Logical XNOR of two TFHE-rs Bool ciphertexts."; }
-
-
-def AndPackedOp : TfheRustBool_Op<"and_packed", [
-    Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>
-]> {
-  let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
-    TensorOf<[TfheRustBool_Encrypted]>:$lhs,
-    TensorOf<[TfheRustBool_Encrypted]>:$rhs
-  );
-  let results = (outs TensorOf<[TfheRustBool_Encrypted]>:$output);
-}
-
-def XorPackedOp : TfheRustBool_Op<"xor_packed", [
-    Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>
-]> {
-  let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
-    TensorOf<[TfheRustBool_Encrypted]>:$lhs,
-    TensorOf<[TfheRustBool_Encrypted]>:$rhs
-  );
-  let results = (outs TensorOf<[TfheRustBool_Encrypted]>:$output);
-}
 
 def NotOp : TfheRustBool_Op<"not", [
     Pure,

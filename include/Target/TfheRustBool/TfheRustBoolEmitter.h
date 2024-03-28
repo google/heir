@@ -59,8 +59,6 @@ class TfheRustBoolEmitter {
   LogicalResult printOperation(XorOp op);
   LogicalResult printOperation(XnorOp op);
 
-  LogicalResult printOperation(AndPackedOp op);
-
   // Helpers for above
   LogicalResult printSksMethod(::mlir::Value result, ::mlir::Value sks,
                                ::mlir::ValueRange nonSksOperands,
@@ -72,6 +70,7 @@ class TfheRustBoolEmitter {
   FailureOr<std::string> convertType(Type type);
 
   void emitAssignPrefix(::mlir::Value result);
+  void emitReferenceConversion(::mlir::Value value);
 };
 
 }  // namespace tfhe_rust_bool
