@@ -8,6 +8,11 @@
 #my_poly_4 = #polynomial.polynomial<t**3 + 4t + 2>
 #ring1 = #polynomial.ring<cmod=2837465, ideal=#my_poly>
 #one_plus_x_squared = #polynomial.polynomial<1 + x**2>
+
+#ideal = #polynomial.polynomial<-1 + x**1024>
+#ring = #polynomial.ring<cmod=18, ideal=#ideal>
+!poly_ty = !polynomial.polynomial<#ring>
+
 module {
   func.func @test_multiply() -> !polynomial.polynomial<#ring1> {
     %c0 = arith.constant 0 : index
@@ -66,6 +71,16 @@ module {
   func.func @test_constant() {
     %0 = polynomial.constant #one_plus_x_squared : !polynomial.polynomial<#ring1>
     %1 = polynomial.constant <1 + x**2> : !polynomial.polynomial<#ring1>
+    return
+  }
+
+  func.func @test_ntt(%0 : !poly_ty) {
+    %1 = polynomial.ntt %0 : !poly_ty -> tensor<1024xi32, #ring>
+    return
+  }
+
+  func.func @test_intt(%0 : tensor<1024xi32, #ring>) {
+    %1 = polynomial.intt %0 : tensor<1024xi32, #ring> -> !poly_ty
     return
   }
 }

@@ -83,6 +83,50 @@ LogicalResult MonomialMulOp::verify() {
                              "must be of the form (x^n - 1) for some n";
 }
 
+static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
+                                 RankedTensorType tensorType) {
+  auto encoding = tensorType.getEncoding();
+  if (!encoding) {
+    return op->emitOpError()
+           << "a ring encoding was not provided to the tensor.";
+  }
+  auto encodedRing = dyn_cast<RingAttr>(encoding);
+  if (!encodedRing) {
+    return op->emitOpError()
+           << "the provided tensor encoding is not a ring attribute.";
+  }
+
+  if (encodedRing != ring) {
+    return op->emitOpError()
+           << "encoded ring type " << encodedRing
+           << " is not equivalent to the polynomial ring " << ring << ".";
+  }
+
+  auto polyDegree = ring.getIdeal().getDegree();
+  auto tensorShape = tensorType.getShape();
+  bool compatible = tensorShape.size() == 1 && tensorShape[0] == polyDegree;
+  if (!compatible) {
+    return op->emitOpError()
+           << "tensor type " << tensorType
+           << " must be a tensor of shape [d] where d "
+           << "is exactly the degree of the ring's ideal " << ring;
+  }
+
+  return success();
+}
+
+LogicalResult NTTOp::verify() {
+  auto ring = getInput().getType().getRing();
+  auto tensorType = getOutput().getType();
+  return verifyNTTOp(this->getOperation(), ring, tensorType);
+}
+
+LogicalResult INTTOp::verify() {
+  auto tensorType = getInput().getType();
+  auto ring = getOutput().getType().getRing();
+  return verifyNTTOp(this->getOperation(), ring, tensorType);
+}
+
 void SubOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *context) {
   populateWithGenerated(results);

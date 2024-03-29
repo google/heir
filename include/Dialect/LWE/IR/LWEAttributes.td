@@ -192,10 +192,8 @@ def RLWE_PolynomialEvaluationEncoding
     #lwe_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
     %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
-    // TODO(#182): fix docs
-    // Note no `intt` operation exists in poly yet.
-    %poly1 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
-    %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
+    %poly1 = poly.intt %evals : tensor<4xi16, #ring> -> !poly.poly<#ring, #eval_encoding>
+    %poly2 = poly.intt %evals : tensor<4xi16, #ring> -> !poly.poly<#ring, #eval_encoding>
     %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
     ```
 
@@ -284,10 +282,8 @@ def RLWE_InverseCanonicalEmbeddingEncoding
     #lwe_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
     %evals = arith.constant <[1, 2, 4, 5]> : tensor<4xi16>
-    // TODO(#182): fix docs
-    // Note no `intt` operation exists in poly yet.
-    %poly1 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
-    %poly2 = poly.intt %evals : tensor<4xi16> -> !poly.poly<#ring, #eval_encoding>
+    %poly1 = poly.intt %evals : tensor<4xi16, #ring> -> !poly.poly<#ring, #eval_encoding>
+    %poly2 = poly.intt %evals : tensor<4xi16, #ring> -> !poly.poly<#ring, #eval_encoding>
     %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!poly.poly<#ring, #eval_encoding>>
     ```
 
