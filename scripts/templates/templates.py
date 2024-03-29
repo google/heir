@@ -43,6 +43,7 @@ class CLI:
 
     new_conversion_pass: Create a conversion pass from one dialect to another.
     new_dialect_transform: Create a pass for a dialect-specific transform.
+    new_dialect: Create a new dialect.
     new_transform: Create a pass for a non-dialect-specific transform.
 
   To see the help for a subcommand, run
