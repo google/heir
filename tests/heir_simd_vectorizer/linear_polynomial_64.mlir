@@ -6,6 +6,8 @@
 // CHECK-LABEL: @linear_polynomial
 // CHECK: secret.generic
 // CHECK-NOT: tensor_ext.rotate
+// CHECK-NOT: insert
+// CHECK-NOT: extract
 func.func @linear_polynomial(%a: tensor<64xi16>, %b: tensor<64xi16>, %x: tensor<64xi16>, %y: tensor<64xi16>) -> tensor<64xi16> {
   %0 = affine.for %i = 0 to 64 iter_args(%iter = %y) -> (tensor<64xi16>) {
     %ai = tensor.extract %a[%i] : tensor<64xi16>
