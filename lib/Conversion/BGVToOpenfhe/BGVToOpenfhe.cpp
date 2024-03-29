@@ -12,6 +12,7 @@
 #include "include/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Conversion/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -148,12 +149,29 @@ struct ConvertRotateOp : public OpConversionPattern<Rotate> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    auto offsetValue = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), rewriter.getIntegerAttr(rewriter.getIntegerType(64),
-                                             adaptor.getOffset()));
+    Value castOffset =
+        llvm::TypeSwitch<Type, Value>(adaptor.getOffset().getType())
+            .Case<IndexType>([&](auto ty) {
+              return rewriter
+                  .create<arith::IndexCastOp>(
+                      op.getLoc(), rewriter.getI64Type(), adaptor.getOffset())
+                  .getResult();
+            })
+            .Case<IntegerType>([&](IntegerType ty) {
+              if (ty.getWidth() < 64) {
+                return rewriter
+                    .create<arith::ExtUIOp>(op.getLoc(), rewriter.getI64Type(),
+                                            adaptor.getOffset())
+                    .getResult();
+              }
+              return rewriter
+                  .create<arith::TruncIOp>(op.getLoc(), rewriter.getI64Type(),
+                                           adaptor.getOffset())
+                  .getResult();
+            });
     rewriter.replaceOp(
         op, rewriter.create<openfhe::RotOp>(op.getLoc(), cryptoContext,
-                                            adaptor.getX(), offsetValue));
+                                            adaptor.getX(), castOffset));
     return success();
   }
 };

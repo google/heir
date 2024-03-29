@@ -102,12 +102,12 @@ def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain"> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
 }
 
-def BGV_Rotate : BGV_Op<"rotate", [SameOperandsAndResultRings]> {
+def BGV_Rotate : BGV_Op<"rotate", [AllTypesMatch<["x", "output"]>]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
     RLWECiphertext:$x,
-    I64Attr:$offset
+    SignlessIntegerLike:$offset
   );
 
   let results = (outs
@@ -115,6 +115,27 @@ def BGV_Rotate : BGV_Op<"rotate", [SameOperandsAndResultRings]> {
   );
 
   let hasVerifier = 1;
+}
+
+def BGV_ExtractOp : BGV_Op<"extract", [AllTypesMatch<["x", "output"]>]> {
+  let summary = "Extract the i-th element of a ciphertext.";
+
+  let description = [{
+    While this operation is costly to compute in FHE, we represent it so we can
+    implement efficient lowerings and folders.
+
+    This op can be implemented as a plaintext multiplication with a one-hot
+    vector and a rotate.
+  }];
+
+  let arguments = (ins
+    RLWECiphertext:$x,
+    SignlessIntegerLike:$offset
+  );
+
+  let results = (outs
+    RLWECiphertext:$output
+  );
 }
 
 def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {
