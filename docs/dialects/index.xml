@@ -2510,10 +2510,8 @@ coefficients.&lt;/p>
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
 #lwe_encoding = #lwe.polynomial_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
-// TODO(#182): fix docs
-// Note no `intt` operation exists in poly yet.
-%poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
-%poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%poly1 = poly.intt %evals : tensor&amp;lt;4xi16, #ring&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%poly2 = poly.intt %evals : tensor&amp;lt;4xi16, #ring&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>See &lt;code>bit_field_encoding&lt;/code> for the definition of the &lt;code>cleartext_start&lt;/code> and
 &lt;code>cleartext_bitwidth&lt;/code> fields.&lt;/p>
@@ -2617,10 +2615,8 @@ NTT/INTT to tansform quickly between the coefficient and evaluation forms.&lt;/p
 #ring = #poly.ring&amp;lt;cmod=65536, ideal=#generator&amp;gt;
 #lwe_encoding = #lwe.polynomial_evaluation_encoding&amp;lt;cleartext_start=30, cleartext_bitwidth=3&amp;gt;
 %evals = arith.constant &amp;lt;[1, 2, 4, 5]&amp;gt; : tensor&amp;lt;4xi16&amp;gt;
-// TODO(#182): fix docs
-// Note no `intt` operation exists in poly yet.
-%poly1 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
-%poly2 = poly.intt %evals : tensor&amp;lt;4xi16&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%poly1 = poly.intt %evals : tensor&amp;lt;4xi16, #ring&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
+%poly2 = poly.intt %evals : tensor&amp;lt;4xi16, #ring&amp;gt; -&amp;gt; !poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;
 %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor&amp;lt;2x!poly.poly&amp;lt;#ring, #eval_encoding&amp;gt;&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>See &lt;code>bit_field_encoding&lt;/code> for the definition of the &lt;code>cleartext_start&lt;/code> and
 &lt;code>cleartext_bitwidth&lt;/code> fields.&lt;/p>
@@ -5281,6 +5277,50 @@ all higher-degree terms have coefficient zero.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="polynomialintt-heirpolynomialinttop">&lt;code>polynomial.intt&lt;/code> (heir::polynomial::INTTOp)&lt;/h3>
+&lt;p>&lt;em>Computes the reverse integer Number Theoretic Transform (NTT).&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.intt` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
+&lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.intt&lt;/code> computes the reverse integer Number Theoretic Transform
+(INTT) on the input tensor. This is the inverse operation of the
+&lt;code>polynomial.ntt&lt;/code> operation.&lt;/p>
+&lt;p>The input tensor is interpreted as a point-value representation of the
+output polynomial at powers of a primitive $n$-th root of unity (see
+&lt;code>polynomial.ntt&lt;/code>). The ring of the polynomial is taken from the required
+encoding attribute of the tensor.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>ranked tensor of integer values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial quotient ring&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="polynomialleading_term-heirpolynomialleadingtermop">&lt;code>polynomial.leading_term&lt;/code> (heir::polynomial::LeadingTermOp)&lt;/h3>
 &lt;p>&lt;em>Compute the leading term of the polynomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -5288,7 +5328,7 @@ all higher-degree terms have coefficient zero.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>The degree of a polynomial is the largest $k$ for which the coefficient
 $a_k$ of $x^k$ is nonzero. The leading term is the term $a_k x^k$, which
 this op represents as a pair of results.&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5303,7 +5343,7 @@ this op represents as a pair of results.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5331,7 +5371,7 @@ as a cyclic shift of the coefficients of the polynomial. For some rings,
 this results in optimized lowerings that involve rotations and rescaling
 of the coefficients of the input.&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5350,7 +5390,7 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5369,7 +5409,7 @@ of the coefficients of the input.&lt;/p>
 &lt;p>&lt;em>Create a polynomial that consists of a single monomial.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `polynomial.monomial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
-&lt;/code>&lt;/pre>&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;/code>&lt;/pre>&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5388,7 +5428,7 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5410,7 +5450,7 @@ of the coefficients of the input.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5429,7 +5469,7 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5450,7 +5490,7 @@ of the coefficients of the input.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `polynomial.mul_scalar` operands attr-dict `:` qualified(type($polynomial)) `,` type($scalar)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5469,7 +5509,7 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5484,6 +5524,53 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="polynomialntt-heirpolynomialnttop">&lt;code>polynomial.ntt&lt;/code> (heir::polynomial::NTTOp)&lt;/h3>
+&lt;p>&lt;em>Computes point-value tensor representation of a polynomial.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `polynomial.ntt` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` type($output)
+&lt;/code>&lt;/pre>&lt;p>&lt;code>polynomial.ntt&lt;/code> computes the forward integer Number Theoretic Transform
+(NTT) on the input polynomial. It returns a tensor containing a point-value
+representation of the input polynomial. The output tensor has shape equal to
+the degree of the ring&amp;rsquo;s ideal generation polynomial. The polynomial&amp;rsquo;s
+RingAttr is embedded as the encoding attribute of the output tensor.&lt;/p>
+&lt;p>Given an input polynomial $F(x)$ (over a ring with degree $n$) and a
+primitive $n$-th root of unity $\omega_n$, the output is the list of $n$
+evaluations&lt;/p>
+&lt;p>$f_k = F(\omega_n^k) ; k \in [0, n)$
+The choice of primitive root is determined by subsequent lowerings.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>An element of a polynomial quotient ring&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of integer values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="polynomialsub-heirpolynomialsubop">&lt;code>polynomial.sub&lt;/code> (heir::polynomial::SubOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between polynomials.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -5491,7 +5578,7 @@ of the coefficients of the input.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5510,7 +5597,7 @@ of the coefficients of the input.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5541,7 +5628,7 @@ generator polynomial, including zeroes.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -5556,7 +5643,7 @@ generator polynomial, including zeroes.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
