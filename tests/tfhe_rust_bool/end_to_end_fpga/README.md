@@ -19,9 +19,15 @@ Cargo home `$HOME/.cargo` may need to be replaced by your custom `$CARGO_HOME`,
 if you overrode the default option when installing Cargo.
 
 ```bash
-bazel query "filter('.mlir.test$', //tests/tfhe_rust_bool/end_to_end/...)" \
+  bazel query "filter('.mlir.test$', //tests/tfhe_rust_bool/end_to_end_fpga/...)" \
   | xargs bazel test --sandbox_writable_path=$HOME/.cargo "$@"
 ```
+
+Manually generate the Rust code for the CGGI lowering:
+```bash
+  bazel run //tools:heir-opt -- -cse --straight-line-vectorize --cggi-to-tfhe-rust-bool -cse $(pwd)/tests/cggi_to_tfhe_rust_bool/add_bool.mlir | bazel run //tools:heir-translate -- --emit-tfhe-rust-bool
+```
+
 
 The `manual` tag is added to the targets in this directory to ensure that they
 are not run when someone runs a glob test like `bazel test //...`.

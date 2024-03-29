@@ -1,14 +1,10 @@
 // RUN: heir-translate %s --emit-tfhe-rust-bool > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_add_one -- 1 1 | FileCheck %s
+// RUN: cargo run --release --manifest-path %S/Cargo.toml -- 1 1 | FileCheck %s
 
 !bsks = !tfhe_rust_bool.server_key
 !eb = !tfhe_rust_bool.eb
 
-// CHECK-LABEL: pub fn fn_under_test(
-// CHECK-NEXT:   [[bsks:v[0-9]+]]: &ServerKey,
-// CHECK-NEXT:   [[input1:v[0-9]+]]: &Vec<Ciphertext>,
-// CHECK-NEXT:   [[input2:v[0-9]+]]: &Vec<Ciphertext>,
-// CHECK-NEXT: ) -> Vec<Ciphertext> {
+// CHECK: 01000000
 func.func @fn_under_test(%bsks : !bsks,  %arg0: tensor<8x!eb>, %arg1: tensor<8x!eb>) -> tensor<8x!eb> {
   %c7 = arith.constant 7 : index
   %c6 = arith.constant 6 : index
