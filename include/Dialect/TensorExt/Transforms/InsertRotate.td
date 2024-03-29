@@ -5,6 +5,8 @@ include "include/DRR/Utils.td"
 include "include/Dialect/TensorExt/IR/TensorExtOps.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"
+include "mlir/IR/CommonTypeConstraints.td"
+include "mlir/IR/Constraints.td"
 include "mlir/IR/PatternBase.td"
 
 // Get the target_slot attribute from an op, if it exists, or else
@@ -14,17 +16,21 @@ def GetTargetSlotAttr : NativeCodeCall<
       " ? llvm::cast<mlir::IntegerAttr>($0.getOwner()->getAttr(\"target_slot\"))"
       " : $_builder.getIndexAttr(0)">;
 
+def CreateSplatOp : NativeCodeCall<
+      "$_builder.create<tensor::SplatOp>($0.getLoc(), $0, $1.getType())">;
+
+def NotExtract : Constraint<CPred<
+      "$0.getDefiningOp() && !llvm::isa<tensor::ExtractOp>($0.getDefiningOp())">>;
+
 // The patterns in this file are intended to align with the automatic-SIMD
 // batching heuristics from the HECO project. See section 4.4 of
 // https://arxiv.org/abs/2202.01649 and the hir2hir passes in
 // https://github.com/MarbleHE/HECO/blob/main/src/Passes/hir2hir/
 
-// Match an arith op that extracts scalar values from two tensors, and replace
-// it with rotations to align slots and apply the same op in SIMD. Other
-// patterns in this file will find better alignment of adjacent rotations, and
-// canonicalization patterns will remove duplicated rotations.
+// Match an arith op that extracts scalar values from one or more tensors, and
+// replace it with rotations to align slots and apply the same op in SIMD.
 foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
-  def InsertRotations_#ArithOp : Pattern<
+  def InsertRotations_TwoTensorArgs_#ArithOp : Pattern<
     (ArithOp:$arithOp
       (Tensor_ExtractOp $t1, (variadic $i1)),
       (Tensor_ExtractOp $t2, (variadic $i2)),
@@ -40,6 +46,42 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
         (MakeSingleResultVariadic
           (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
     ]
+  >;
+
+  // In this and the next pattern, the non-tensor arg must be elevated to a tensor
+  // by repeating it across the right dimension.
+  def InsertRotations_SplatRHSToTensor_#ArithOp : Pattern<
+    (ArithOp:$arithOp
+      (Tensor_ExtractOp $t1, (variadic $i1)),
+      $nonExtractedArg,
+      $overflow),
+    [
+      (TensorExt_RotateOp:$r1 $t1,
+          (Arith_SubIOp $i1, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
+      (ArithOp:$opResult $r1, (CreateSplatOp $nonExtractedArg, $t1), $overflow),
+      (Tensor_ExtractOp
+        $opResult,
+        (MakeSingleResultVariadic
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+    ],
+    [(NotExtract $nonExtractedArg)]
+  >;
+
+  def InsertRotations_SplatLHSToTensor_#ArithOp : Pattern<
+    (ArithOp:$arithOp
+      $nonExtractedArg,
+      (Tensor_ExtractOp $t1, (variadic $i1)),
+      $overflow),
+    [
+      (TensorExt_RotateOp:$r1 $t1,
+          (Arith_SubIOp $i1, (Arith_ConstantOp (GetTargetSlotAttr $arithOp)), DefOverflow)),
+      (ArithOp:$opResult (CreateSplatOp $nonExtractedArg, $t1), $r1, $overflow),
+      (Tensor_ExtractOp
+        $opResult,
+        (MakeSingleResultVariadic
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+    ],
+    [(NotExtract $nonExtractedArg)]
   >;
 }
 

@@ -84,15 +84,14 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
           solver2.lookupState<target_slot_analysis::TargetSlotLattice>(
               op->getResult(0));
       if (targetSlotLattice && targetSlotLattice->getValue().isInitialized()) {
-        LLVM_DEBUG({
-          llvm::dbgs() << "Annotating " << *op << " with target slot "
-                       << targetSlotLattice->getValue().getValue() << "\n";
-        });
         op->setAttr(
             "target_slot",
             builder.getIndexAttr(targetSlotLattice->getValue().getValue()));
       }
     });
+
+    LLVM_DEBUG(llvm::dbgs() << "\nIR after attaching target slot attributes:\n"
+                            << *getOperation() << "\n";);
 
     alignment::populateWithGenerated(patterns);
     canonicalization::populateWithGenerated(patterns);
