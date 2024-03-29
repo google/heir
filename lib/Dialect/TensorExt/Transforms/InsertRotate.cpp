@@ -37,6 +37,7 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
   using InsertRotateBase::InsertRotateBase;
 
   void runOnOperation() override {
+    LLVM_DEBUG(llvm::dbgs() << "Starting insert-rotate pass\n";);
     MLIRContext *context = &getContext();
     RewritePatternSet patterns(context);
 
@@ -83,6 +84,10 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
           solver2.lookupState<target_slot_analysis::TargetSlotLattice>(
               op->getResult(0));
       if (targetSlotLattice && targetSlotLattice->getValue().isInitialized()) {
+        LLVM_DEBUG({
+          llvm::dbgs() << "Annotating " << *op << " with target slot "
+                       << targetSlotLattice->getValue().getValue() << "\n";
+        });
         op->setAttr(
             "target_slot",
             builder.getIndexAttr(targetSlotLattice->getValue().getValue()));
