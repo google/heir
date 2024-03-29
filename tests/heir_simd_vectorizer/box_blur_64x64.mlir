@@ -29,6 +29,7 @@ module  {
   // CHECK-NEXT:     secret.yield %[[v15]]
   // CHECK-NEXT:   } -> !secret.secret<tensor<4096xi16>>
   // CHECK-NEXT:   return %[[v0]]
+
   func.func @box_blur(%arg0: tensor<4096xi16>) -> tensor<4096xi16> {
     %c4096 = arith.constant 4096 : index
     %c64 = arith.constant 64 : index
