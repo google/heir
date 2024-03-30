@@ -43,7 +43,7 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
     $(p(x))$, and `root` is 2d-th root of unity of `cmod` where d is the degree
     of `ideal`. Because all ideals in a
     single-variable polynomial ring are principal, the ideal is defined by a
-    single polynomial. `root` is optinally specified to a desired root, if it is
+    single polynomial. `root` is optionally specified to a desired root, if it is
     not provided then a pre-computed value is used instead.
 
       #ring = #_polynomial.ring<cmod=1234, ideal=#_polynomial.polynomial<x**1024 + 1>>

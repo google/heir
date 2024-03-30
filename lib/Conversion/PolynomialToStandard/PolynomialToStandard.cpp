@@ -802,6 +802,125 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   return funcOp;
 }
 
+static APInt pow(const APInt &root, unsigned n, const APInt &cmod) {
+  auto intermediateBitwidth = cmod.getBitWidth() * 2;
+  APInt q = cmod.zext(intermediateBitwidth);
+  APInt rootMult = root.zext(intermediateBitwidth);
+  APInt x = APInt(intermediateBitwidth, 1);
+
+  for (unsigned i = 0; i < n; i++) {
+    x = (x * rootMult).urem(q);
+  }
+  return x.trunc(root.getBitWidth());
+}
+
+static DenseElementsAttr constructNTTMatrix(const ShapedType &type,
+                                            const APInt &root, unsigned degree,
+                                            const APInt &cmod) {
+  SmallVector<APInt> vals(degree * degree);
+  unsigned n;
+  for (unsigned i = 0; i < degree; i++) {
+    for (unsigned j = 0; j < degree; j++) {
+      n = 2 * i * j + i;
+      vals[j * degree + i] = pow(root, n, cmod);
+    }
+  }
+  return DenseElementsAttr::get(type, vals);
+}
+
+struct ConvertNTT : public OpConversionPattern<NTTOp> {
+  ConvertNTT(mlir::MLIRContext *context)
+      : OpConversionPattern<NTTOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      NTTOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // TODO(): Handle tensor of polys.
+    auto polyTy = dyn_cast<PolynomialType>(op.getInput().getType());
+    if (!polyTy) {
+      return failure();
+    }
+
+    RingAttr ring = polyTy.getRing();
+    // Following the same logic as convertPolynomialType
+    uint32_t idealDegree = ring.ideal().getDegree();
+    unsigned eltBitWidth = (ring.coefficientModulus() - 1).getActiveBits();
+    IntegerType elementTy =
+        IntegerType::get(polyTy.getContext(), eltBitWidth,
+                         IntegerType::SignednessSemantics::Signless);
+    // Don't embed the ring
+    auto inputType = RankedTensorType::get({idealDegree}, elementTy);
+    IntegerType intermediateType = polymulIntermediateType(polyTy);
+    auto inputVec = b.create<ToTensorOp>(inputType, adaptor.getOperands()[0]);
+    auto outputVec = b.create<arith::ConstantOp>(
+        inputType, DenseElementsAttr::get(inputType, APInt(eltBitWidth, 0)));
+
+    // Primitive Matrix
+    auto primMatType =
+        RankedTensorType::get({idealDegree, idealDegree}, elementTy);
+    auto primMat = b.create<arith::ConstantOp>(
+        primMatType,
+        constructNTTMatrix(primMatType, ring.root().value(), idealDegree,
+                           ring.coefficientModulus()));
+
+    SmallVector<utils::IteratorType> iteratorTypes(
+        {utils::IteratorType::parallel, utils::IteratorType::reduction});
+    AffineExpr d0, d1;
+    bindDims(b.getContext(), d0, d1);
+    SmallVector<AffineMap> indexingMaps({
+        AffineMap::get(2, 0, {d0, d1}, b.getContext()),  // i, j
+        AffineMap::get(2, 0, {d1}),                      // j
+        AffineMap::get(2, 0, {d0}),                      // i
+    });
+
+    APInt mod = ring.coefficientModulus();
+    bool needToMod = !mod.isPowerOf2();
+    Value cMod;
+    if (needToMod) {
+      cMod = b.create<arith::ConstantOp>(
+          intermediateType,
+          IntegerAttr::get(
+              intermediateType,
+              mod.sextOrTrunc(intermediateType.getIntOrFloatBitWidth())));
+    }
+
+    auto nttOp = b.create<linalg::GenericOp>(
+        /*resultTypes=*/inputType,
+        /*inputs=*/ValueRange{primMat.getResult(), inputVec.getResult()},
+        /*outputs=*/outputVec.getResult(),
+        /*indexingMaps=*/indexingMaps,
+        /*iteratorTypes=*/iteratorTypes,
+        /*bodyBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          auto lhs = b.create<arith::ExtUIOp>(intermediateType, args[0]);
+          auto rhs = b.create<arith::ExtUIOp>(intermediateType, args[1]);
+          auto accum = b.create<arith::ExtUIOp>(intermediateType, args[2]);
+          auto mulOp = b.create<arith::MulIOp>(lhs, rhs);
+          auto addOp = b.create<arith::AddIOp>(mulOp, accum);
+          Value result = addOp.getResult();
+          if (needToMod) {
+            result = b.create<arith::RemUIOp>(addOp, cMod).getResult();
+          }
+          auto truncOp =
+              b.create<arith::TruncIOp>(inputType.getElementType(), result);
+
+          b.create<linalg::YieldOp>(truncOp.getResult());
+        });
+
+    // Place the ring encoding here
+    auto resultType = RankedTensorType::get({idealDegree}, elementTy, ring);
+    auto result = b.create<tensor::CastOp>(resultType, nttOp.getResult(0));
+    rewriter.replaceOp(op, result);
+
+    return success();
+  }
+};
+
 void PolynomialToStandard::runOnOperation() {
   MLIRContext *context = &getContext();
   // generateOpImplementations must be called before the conversion begins to
@@ -831,7 +950,8 @@ void PolynomialToStandard::runOnOperation() {
 
   patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonomialMul,
-               ConvertConstant, ConvertMulScalar>(typeConverter, context);
+               ConvertConstant, ConvertMulScalar, ConvertNTT>(typeConverter,
+                                                              context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
