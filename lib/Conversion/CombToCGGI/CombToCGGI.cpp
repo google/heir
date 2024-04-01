@@ -190,6 +190,37 @@ Operation *convertReadOpInterface(Operation *op, SmallVector<Value> indices,
   return subViewOp;
 }
 
+SmallVector<Value> encodeInputs(Operation *op, ValueRange inputs,
+                                ConversionPatternRewriter &rewriter) {
+  // Get the ciphertext type.
+  lwe::LWECiphertextType ctxtTy;
+  for (auto input : inputs) {
+    if (isa<lwe::LWECiphertextType>(input.getType())) {
+      ctxtTy = cast<lwe::LWECiphertextType>(input.getType());
+      break;
+    }
+  }
+
+  // Encode any plaintexts in the inputs.
+  auto encoding = cast<lwe::LWECiphertextType>(ctxtTy).getEncoding();
+  auto ptxtTy = lwe::LWEPlaintextType::get(rewriter.getContext(), encoding);
+  return llvm::to_vector(llvm::map_range(inputs, [&](auto input) -> Value {
+    if (!isa<lwe::LWECiphertextType>(input.getType())) {
+      IntegerType integerTy = dyn_cast<IntegerType>(input.getType());
+      assert(integerTy && integerTy.getWidth() == 1 &&
+             "LUT inputs should be single-bit integers");
+      return rewriter
+          .create<lwe::TrivialEncryptOp>(
+              op->getLoc(), ctxtTy,
+              rewriter.create<lwe::EncodeOp>(op->getLoc(), ptxtTy, input,
+                                             encoding),
+              lwe::LWEParamsAttr())
+          .getResult();
+    }
+    return input;
+  }));
+}
+
 }  // namespace
 
 class SecretTypeConverter : public TypeConverter {
@@ -293,34 +324,8 @@ class SecretGenericOpLUTConversion
   void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
                  ArrayRef<NamedAttribute> attributes,
                  ConversionPatternRewriter &rewriter) const override {
-    // Get the ciphertext type.
-    lwe::LWECiphertextType ctxtTy;
-    for (auto input : inputs) {
-      if (isa<lwe::LWECiphertextType>(input.getType())) {
-        ctxtTy = cast<lwe::LWECiphertextType>(input.getType());
-        break;
-      }
-    }
-
-    // Encode any plaintexts in the inputs.
-    auto encoding = cast<lwe::LWECiphertextType>(ctxtTy).getEncoding();
-    auto ptxtTy = lwe::LWEPlaintextType::get(rewriter.getContext(), encoding);
     SmallVector<Value> encodedInputs =
-        llvm::to_vector(llvm::map_range(inputs, [&](auto input) -> Value {
-          if (!isa<lwe::LWECiphertextType>(input.getType())) {
-            IntegerType integerTy = dyn_cast<IntegerType>(input.getType());
-            assert(integerTy && integerTy.getWidth() == 1 &&
-                   "LUT inputs should be single-bit integers");
-            return rewriter
-                .create<lwe::TrivialEncryptOp>(
-                    op.getLoc(), ctxtTy,
-                    rewriter.create<lwe::EncodeOp>(op.getLoc(), ptxtTy, input,
-                                                   encoding),
-                    lwe::LWEParamsAttr())
-                .getResult();
-          }
-          return input;
-        }));
+        encodeInputs(op.getOperation(), inputs, rewriter);
 
     // Assemble the lookup table.
     comb::TruthTableOp truthOp =
@@ -358,8 +363,9 @@ class SecretGenericOpGateConversion : public SecretGenericOpConversion<GateOp> {
   void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
                  ArrayRef<NamedAttribute> attributes,
                  ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<CGGIGateOp>(op, outputTypes, inputs,
-                                            attributes);
+    rewriter.replaceOpWithNewOp<CGGIGateOp>(
+        op, outputTypes, encodeInputs(op.getOperation(), inputs, rewriter),
+        attributes);
   }
 };
 
@@ -469,6 +475,18 @@ class SecretGenericOpMemRefAllocConversion
   }
 };
 
+class SecretGenericOpMemRefDeallocConversion
+    : public SecretGenericOpConversion<memref::DeallocOp> {
+  using SecretGenericOpConversion<memref::DeallocOp>::SecretGenericOpConversion;
+
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+                 ArrayRef<NamedAttribute> attributes,
+                 ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<memref::DeallocOp>(op, outputTypes, inputs,
+                                                   attributes);
+  }
+};
+
 // ConvertTruthTableOp converts truth table ops with fully plaintext values.
 struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
   ConvertTruthTableOp(mlir::MLIRContext *context)
@@ -542,6 +560,7 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
 
     patterns
         .add<SecretGenericOpLUTConversion, SecretGenericOpMemRefAllocConversion,
+             SecretGenericOpMemRefDeallocConversion,
              SecretGenericOpMemRefLoadConversion,
              SecretGenericOpAffineStoreConversion,
              SecretGenericOpAffineLoadConversion,
