@@ -1,7 +1,5 @@
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
 
-#include <string>
-
 #include "llvm/include/llvm/ADT/DenseMap.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"      // from @llvm-project

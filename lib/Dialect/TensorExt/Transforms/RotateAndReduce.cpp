@@ -23,6 +23,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 
+#define DEBUG_NAME "rotate-and-reduce"
+
 namespace mlir {
 namespace heir {
 namespace tensor_ext {
@@ -37,95 +39,12 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
   using RotateAndReduceBase::RotateAndReduceBase;
 
   template <typename ArithOp>
-  void tryReplaceRotations(ArithOp op, Value tensor,
-                           DenseSet<Operation *> &visited,
-                           DataFlowSolver &solver) {
-    // The dataflow analysis provides some guarantees, but not enough
-    // to prove that we can replace the op with the rotate-and-reduce trick
-    // while still maintaining program correctness.
-    //
-    // We need to do some more complicated checks to ensure that: the op tree
-    // all contains the same op type (all sum or all mul), and that the
-    // accessed rotations are included only once in the reduction.
-    // This cannot be done during the dataflow analysis itself due to the
-    // monotonicity requirements of the framework.
+  void tryReplaceRotations(
+      ArithOp op, const rotation_analysis::PartialReduction &reduction) {
     LLVM_DEBUG(llvm::dbgs()
                << "Trying to replace rotations ending in " << *op << "\n");
-    SetVector<Operation *> backwardSlice;
-    BackwardSliceOptions options;
-    // asserts that the parent op has a single region with a single block.
-    options.omitBlockArguments = false;
-
-    DenseSet<Operation *> visitedReductionOps;
-    DenseMap<llvm::StringRef, int> opCounts;
-    opCounts[op->getName().getStringRef()]++;
-
-    getBackwardSlice(op.getOperation(), &backwardSlice, options);
-
-    for (Operation *upstreamOpPtr : backwardSlice) {
-      auto result =
-          llvm::TypeSwitch<Operation *, LogicalResult>(upstreamOpPtr)
-              .Case<arith::ConstantOp, tensor_ext::RotateOp>(
-                  [&](auto upstreamOp) { return success(); })
-              // Ignore generic ops
-              .template Case<secret::GenericOp>(
-                  [&](auto upstreamOp) { return success(); })
-              .template Case<arith::AddIOp, arith::MulIOp>([&](auto
-                                                                   upstreamOp) {
-                opCounts[upstreamOp->getName().getStringRef()]++;
-                // More than one reduction op is mixed in the reduction.
-                if (opCounts.size() > 1) {
-                  LLVM_DEBUG(llvm::dbgs()
-                             << "Not replacing op because reduction "
-                                "contains multiple incompatible ops "
-                             << op->getName() << " and "
-                             << upstreamOp->getName() << "\n");
-                  return failure();
-                }
-
-                // Inspect the lattice values at the join point,
-                // and fail if there is any overlap
-                auto *lhsLattice =
-                    solver.lookupState<rotation_analysis::RotationLattice>(
-                        upstreamOp.getLhs());
-                auto *rhsLattice =
-                    solver.lookupState<rotation_analysis::RotationLattice>(
-                        upstreamOp.getRhs());
-                LLVM_DEBUG(llvm::dbgs()
-                           << "Computing overlap of "
-                           << "lhs: " << lhsLattice->getValue() << "\n"
-                           << "rhs: " << rhsLattice->getValue() << "\n");
-                auto mergedLattice = rotation_analysis::RotationSets::overlap(
-                    lhsLattice->getValue(), rhsLattice->getValue());
-                LLVM_DEBUG(llvm::dbgs()
-                           << "Overlap is: " << mergedLattice << "\n");
-                if (!mergedLattice.empty()) {
-                  LLVM_DEBUG(
-                      llvm::dbgs()
-                      << "Not replacing op because reduction "
-                         "may not be a simple reduction of the input tensor\n"
-                      << "lhs: " << lhsLattice->getValue() << "\n"
-                      << "rhs: " << rhsLattice->getValue() << "\n");
-                  return failure();
-                }
-
-                visitedReductionOps.insert(upstreamOp);
-                return success();
-              })
-              .Default([&](Operation *op) {
-                LLVM_DEBUG(llvm::dbgs() << "Not continuing because type switch "
-                                           "encountered unsupported op "
-                                        << op->getName() << "\n");
-                return failure();
-              });
-
-      if (failed(result)) {
-        return;
-      }
-    }
-
-    // From here we know we will succeed.
     auto b = ImplicitLocOpBuilder(op->getLoc(), op);
+    auto tensor = reduction.getTensor();
     Operation *finalOp;
     auto tensorShape = tensor.getType().cast<RankedTensorType>().getShape();
     for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
@@ -140,12 +59,6 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     [[maybe_unused]] auto *parentOp = op->getParentOp();
     op->replaceAllUsesWith(finalOp);
     LLVM_DEBUG(llvm::dbgs() << "Post-replacement: " << *parentOp << "\n");
-
-    // Mark all ops in the reduction as visited so we don't try to replace them
-    // twice.
-    for (Operation *visitedOp : visitedReductionOps) {
-      visited.insert(visitedOp);
-    }
   }
 
   template <typename ArithOp>
@@ -263,6 +176,11 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     // The test for a match is now: does the number of accessed indices exactly
     // match the size of the tensor? I.e., does each tensor element show up
     // exactly once in the reduction?
+    if (inputTensors.empty()) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Not replacing op because it accesses no tensors\n");
+      return;
+    }
     auto tensorShape =
         inputTensors.begin()->getType().cast<RankedTensorType>().getShape();
     if (tensorShape.size() != 1 || tensorShape[0] != accessIndices.size()) {
@@ -308,7 +226,6 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     // https://github.com/llvm/llvm-project/issues/58922
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
-    solver.load<rotation_analysis::RotationAnalysis>();
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run dataflow analysis.\n";
@@ -316,60 +233,29 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
       return;
     }
 
-    LLVM_DEBUG({
-      getOperation()->walk([&](Operation *op) {
-        if (op->getNumResults() == 0) return;
-        auto *targetSlotLattice =
-            solver.lookupState<rotation_analysis::RotationLattice>(
-                op->getResult(0));
-        if (targetSlotLattice->getValue().isOverdetermined()) {
-          llvm::dbgs() << "Rotation lattice for " << *op
-                       << " is overdetermined\n";
-        } else if (targetSlotLattice->getValue().empty()) {
-          llvm::dbgs() << "Rotation lattice for " << *op << " is empty\n";
-        } else {
-          SmallVector<int64_t> sortedRotations(
-              targetSlotLattice->getValue().getAccessedIndices().begin(),
-              targetSlotLattice->getValue().getAccessedIndices().end());
-          llvm::sort(sortedRotations);
-          std::string stringified = llvm::join(
-              llvm::map_range(sortedRotations,
-                              [](int64_t i) { return std::to_string(i); }),
-              ",");
-          llvm::dbgs() << "Rotation lattice for " << *op << ": " << stringified
-                       << "\n";
-        }
-      });
-    });
-
+    rotation_analysis::RotationAnalysis rotationAnalysis(solver);
+    rotationAnalysis.run(getOperation());
     DenseSet<Operation *> visited;
 
     getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
         [&](Operation *op) {
-          if (op->getNumResults() == 0) return;
-          auto *targetSlotLattice =
-              solver.lookupState<rotation_analysis::RotationLattice>(
-                  op->getResult(0));
-          if (targetSlotLattice->getValue().isUninitialized() ||
-              targetSlotLattice->getValue().isOverdetermined()) {
-            return;
-          }
+          for (Value result : op->getResults()) {
+            if (!result.getType().isa<RankedTensorType>()) {
+              continue;
+            }
 
-          auto tensor = targetSlotLattice->getValue().getTensor();
-          auto accessIndices =
-              targetSlotLattice->getValue().getAccessedIndices();
-          int64_t tensorSize =
-              tensor.getType().cast<RankedTensorType>().getShape()[0];
-          if (accessIndices.size() == tensorSize) {
-            llvm::TypeSwitch<Operation &>(*op)
-                .Case<arith::AddIOp>([&](auto arithOp) {
-                  tryReplaceRotations<arith::AddIOp>(arithOp, tensor, visited,
-                                                     solver);
-                })
-                .Case<arith::MulIOp>([&](auto arithOp) {
-                  tryReplaceRotations<arith::MulIOp>(arithOp, tensor, visited,
-                                                     solver);
-                });
+            for (const auto &reduction :
+                 rotationAnalysis.getRootedReductionsAt(result)) {
+              if (reduction.isComplete()) {
+                llvm::TypeSwitch<Operation &>(*op)
+                    .Case<arith::AddIOp>([&](auto arithOp) {
+                      tryReplaceRotations<arith::AddIOp>(arithOp, reduction);
+                    })
+                    .Case<arith::MulIOp>([&](auto arithOp) {
+                      tryReplaceRotations<arith::MulIOp>(arithOp, reduction);
+                    });
+              }
+            }
           }
         });
 

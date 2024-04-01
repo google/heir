@@ -7,9 +7,7 @@
 // CHECK: bgv.sub
 // CHECK-NEXT: bgv.mul
 // CHECK-NEXT: bgv.relinearize
-
-// TODO(#521): After rotate-and-reduce works, only check for 10 bg.rotate
-// CHECK-COUNT-1023: bgv.rotate
+// CHECK-COUNT-10: bgv.rotate
 // CHECK: bgv.extract
 // CHECK-NEXT: return
 

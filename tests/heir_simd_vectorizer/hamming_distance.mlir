@@ -9,14 +9,8 @@
 // CHECK-NEXT: arith.addi
 // CHECK-NEXT: tensor_ext.rotate
 // CHECK-NEXT: arith.addi
-// CHECK-NEXT: tensor_ext.rotate
-// CHECK-NEXT: arith.addi
 // CHECK-NEXT: tensor.extract
 // CHECK-NEXT: secret.yield
-
-// TODO(#521): Fix rotate-and-reduce to work on this IR.
-// The problem is that the lattice identifies the rotate-version of this IR as
-// being overdetermined.
 
 func.func @hamming(%arg0: tensor<4xi16>, %arg1: tensor<4xi16>) -> i16 {
   %c0 = arith.constant 0 : index
