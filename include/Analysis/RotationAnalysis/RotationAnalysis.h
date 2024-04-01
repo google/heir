@@ -228,7 +228,7 @@ class RotationAnalysis {
   // The constructor requires a DataFlowSolver initialized with a sparse
   // constant propagation analysis, which is used to determine the static
   // values of rotation shifts.
-  RotationAnalysis(const DataFlowSolver &solver) : solver(solver) {};
+  RotationAnalysis(const DataFlowSolver &solver) : solver(solver) {}
   ~RotationAnalysis() = default;
 
   void run(Operation *op);
