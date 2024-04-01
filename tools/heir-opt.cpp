@@ -33,6 +33,7 @@
 #include "include/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "include/Transforms/Secretize/Passes.h"
 #include "include/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
+#include "include/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
@@ -326,6 +327,7 @@ int main(int argc, char **argv) {
   registerFullLoopUnrollPasses();
   registerForwardStoreToLoadPasses();
   registerStraightLineVectorizerPasses();
+  registerUnusedMemRefPasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
   const char *abcEnvPath = std::getenv("HEIR_ABC_BINARY");
