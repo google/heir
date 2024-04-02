@@ -181,7 +181,20 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
 void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
   // For now we unroll loops to enable insert-rotate, but we would like to be
   // smarter about this and do an affine loop analysis.
+  // TODO(#589): avoid unrolling loops
   manager.addPass(createFullLoopUnroll());
+
+  // This canonicalize is required in this position for a relatively nuanced
+  // reason. insert-rotate doesn't have general match support. In particular,
+  // if a tensor extract from a secret is combined with a tensor extract from
+  // a constant 2D tensor (e.g., the weight matrix of a convolution), then
+  // insert-rotate won't be able to tell the difference and understand that
+  // the extracted value from the 2D tensor should be splatted. This
+  // canonicalize pass converts a constant weight matrix into the underlying
+  // arith.constant values, which are supported as a splattable non-tensor
+  // input in insert-rotate.
+  // TODO(#586): find a more robust solution
+  manager.addPass(createCanonicalizerPass());
 
   // Insert rotations aligned to slot targets. Future work should provide
   // alternative methods to optimally align rotations, and allow the user to
