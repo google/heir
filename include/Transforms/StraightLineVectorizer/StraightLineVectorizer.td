@@ -9,7 +9,15 @@ def StraightLineVectorizer : Pass<"straight-line-vectorize"> {
   This pass ignores control flow and only vectorizes straight-line programs
   within a given region.
   }];
-  let dependentDialects = [];
+
+  let dependentDialects = [
+    "tensor::TensorDialect",
+  ];
+
+  let options = [
+    Option<"dialect", "dialect", "std::string", "", "Use this to restrict the "
+      "dialect whose ops should be vectorized.">,
+  ];
 }
 
 #endif  // INCLUDE_TRANSFORMS_STRAIGHTLINEVECTORIZER_STRAIGHTLINEVECTORIZER_TD_

@@ -6,6 +6,7 @@
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
@@ -32,10 +33,14 @@ bool areCompatible(Operation *lhs, Operation *rhs) {
   return OpTrait::hasElementwiseMappableTraits(lhs);
 }
 
-bool tryVectorizeBlock(Block *block) {
+bool tryVectorizeBlock(Block *block, Dialect *dialect) {
   graph::Graph<Operation *> graph;
   for (auto &op : block->getOperations()) {
     if (!op.hasTrait<OpTrait::Elementwise>()) {
+      continue;
+    }
+
+    if (dialect && op.getDialect() != dialect) {
       continue;
     }
 
@@ -153,8 +158,10 @@ struct StraightLineVectorizer
   using StraightLineVectorizerBase::StraightLineVectorizerBase;
 
   void runOnOperation() override {
+    Dialect *mlirDialect = getContext().getLoadedDialect(dialect);
+
     getOperation()->walk<WalkOrder::PreOrder>([&](Block *block) {
-      if (tryVectorizeBlock(block)) {
+      if (tryVectorizeBlock(block, mlirDialect)) {
         sortTopologically(block);
       }
     });
