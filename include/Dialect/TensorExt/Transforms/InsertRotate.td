@@ -89,6 +89,8 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
 // rotations, and the simplifications will occur by replacing triples
 // of rotations with pairs.
 // TODO(#514): handle OuterOp with two different InnerOps on the LHS and RHS
+// TODO(#579): determine if these patterns are still necessary after the
+// target slot analysis was improved.
 foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
     // Left associated grouping handles (add (add (rotate t1 i1) (rotate t2 i2)) (rotate t3 i3))
@@ -118,7 +120,7 @@ foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
         (TensorExt_RotateOp:$r1 $t1, (Arith_SubIOp $i1, $i3, DefOverflow)),
         (TensorExt_RotateOp:$r2 $t2, (Arith_SubIOp $i2, $i3, DefOverflow)),
         (InnerOp:$addResult $r1, $r2, $ovf1),
-        (OuterOp:$output $addResult, $t3, $ovf2),
+        (OuterOp:$output $t3, $addResult, $ovf2),
         // Downstream ops are not updated by this pass, so we need to preserve the original
         // rotation and then clean it up in a separate canonicalization pattern.
         (TensorExt_RotateOp $output, $i3),

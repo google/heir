@@ -62,11 +62,21 @@ struct ConvertAlignedExtractInsertToRotate
 
   LogicalResult matchAndRewrite(tensor::InsertOp insertOp,
                                 PatternRewriter &rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs() << "Visiting insert op: " << insertOp << "\n");
     auto extractOp = insertOp.getScalar().getDefiningOp<tensor::ExtractOp>();
-    if (!extractOp) return failure();
+    if (!extractOp) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Insert op " << insertOp
+                 << " is not directly operating on an extract op.\n");
+      return failure();
+    }
 
     auto shiftRes = calculateShift(insertOp, extractOp);
-    if (failed(shiftRes)) return failure();
+    if (failed(shiftRes)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Insert op " << insertOp << " has incalculable shift\n");
+      return failure();
+    }
 
     int64_t shift = shiftRes.value();
     DenseSet<int64_t> accessedIndices;
@@ -85,7 +95,7 @@ struct ConvertAlignedExtractInsertToRotate
     // tensor<4096xi16> %inserted_2 = tensor.insert %extracted_2 into
     // %inserted_1[%c6] : tensor<4096xi16>
     //
-    // Note hwo inserted_1 replaces original_dest for the subsequent insert,
+    // Note how inserted_1 replaces original_dest for the subsequent insert,
     // and inserted_2 will replace inserted_1 for the next one.
     //
     // So we need to traverse the insertions in order to follow the chain. Note
@@ -127,12 +137,28 @@ struct ConvertAlignedExtractInsertToRotate
       if (!foundNext) break;
     }
 
+    LLVM_DEBUG({
+      auto vec = llvm::to_vector(accessedIndices);
+      llvm::sort(vec);
+      llvm::dbgs() << "Chain ending in insert op " << insertOp
+                   << " has access indices: [";
+      for (auto index : vec) {
+        llvm::dbgs() << index << ", ";
+      }
+      llvm::dbgs() << "]\n";
+    });
+
     // We didn't cover the entire tensor, so the downstream user of this tensor
     // may be depending on the original data in the untouched indices being in
     // tact.
-    if (accessedIndices.size() !=
-        extractionSource.getType().cast<RankedTensorType>().getShape()[0])
+    auto tensorSize =
+        extractionSource.getType().cast<RankedTensorType>().getShape()[0];
+    if (accessedIndices.size() != tensorSize) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Chain has only " << accessedIndices.size()
+                 << " accessed indices, but tensor has " << tensorSize << "\n");
       return failure();
+    }
 
     // The last insertion must be replaced because its user is the final end
     // user
