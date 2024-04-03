@@ -8,6 +8,7 @@
 
 #include "include/Dialect/Comb/IR/CombOps.h"
 #include "llvm/include/llvm/ADT/MapVector.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
@@ -58,7 +59,8 @@ llvm::SmallVector<std::string, 10> getTopologicalOrder(
   while (std::getline(torderOutput, line)) {
     auto lineCell = line.find("cell ");
     if (lineCell != std::string::npos) {
-      cells.push_back(line.substr(lineCell + 5, std::string::npos));
+      cells.push_back(Yosys::RTLIL::escape_id(
+          line.substr(lineCell + 5, std::string::npos)));
     }
   }
   return cells;
@@ -181,9 +183,9 @@ func::FuncOp RTLILImporter::importModule(
 
   // Convert cells to Operations according to topological order.
   for (const auto &cellName : cellOrdering) {
-    assert(module->cells_.count("\\" + cellName) != 0 &&
+    assert(module->cells_.count(cellName) != 0 &&
            "expected cell in RTLIL design");
-    auto *cell = module->cells_["\\" + cellName];
+    auto *cell = module->cells_[cellName];
 
     SmallVector<Value> inputValues;
     for (const auto &conn : getInputs(cell)) {
@@ -199,8 +201,12 @@ func::FuncOp RTLILImporter::importModule(
     auto output = conn.first;
     // These must be output wire connections (either an output bit or a bit of a
     // multi-bit output wire).
-    assert(output.is_wire() || output.as_chunk().is_wire() ||
-           output.as_bit().is_wire());
+    assert((output.is_wire() ||
+            (output.is_chunk() && output.as_chunk().is_wire()) ||
+            (output.is_bit() && output.as_bit().is_wire()) ||
+            llvm::all_of(output.chunks(),
+                         [](const auto &chunk) { return chunk.is_wire(); })) &&
+           "expected output to be a wire, chunk, or bit of a wire");
     if ((output.is_chunk() && !output.is_wire()) ||
         ((conn.second.is_chunk() && !conn.second.is_wire()) ||
          conn.second.chunks().size() > 1)) {
