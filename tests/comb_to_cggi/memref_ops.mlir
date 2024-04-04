@@ -112,10 +112,33 @@ module attributes {tf_saved_model.semantics} {
       %20 = affine.load %arg1[0] : memref<1xi1>
       secret.yield %20 : i1
     } -> !secret.secret<i1>
-    // CHECK: affine.store [[V0]], [[V6]][0] : [[OUT]]
+    // CHECK: [[c0:%.*]] = arith.constant 0
+    // CHECK: memref.store [[V0]], [[V6]][[[c0]]] : [[OUT]]
     secret.generic ins(%6, %7 : !secret.secret<memref<1xi1>>, !secret.secret<i1>) {
     ^bb0(%arg1: memref<1xi1>, %arg2: i1):
       affine.store %arg2, %arg1[0] : memref<1xi1>
+      secret.yield
+    }
+    // CHECK: return [[V6]] : [[OUT]]
+    return %6 : !secret.secret<memref<1xi1>>
+  }
+
+  // CHECK: @single_bit_plaintext_memref() -> [[OUT:memref<1x!lwe.lwe_ciphertext<.*>>]]
+  func.func @single_bit_plaintext_memref() -> !secret.secret<memref<1xi1>> {
+    // CHECK: [[TRUE:%.*]] = arith.constant
+    %true = arith.constant true
+    // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : [[OUT]]
+    %6 = secret.generic {
+      %alloc = memref.alloc() {alignment = 64 : i64} : memref<1xi1>
+      secret.yield %alloc : memref<1xi1>
+    } -> !secret.secret<memref<1xi1>>
+    // CHECK: [[c0:%.*]] = arith.constant 0
+    // CHECK: [[ENC:%.*]] = lwe.encode [[TRUE]]
+    // CHECK: [[LWE:%.*]] = lwe.trivial_encrypt [[ENC]]
+    // CHECK: memref.store [[LWE]], [[V6]][[[c0]]] : [[OUT]]
+    secret.generic ins(%6 : !secret.secret<memref<1xi1>>) {
+    ^bb0(%arg1: memref<1xi1>):
+      affine.store %true, %arg1[0] : memref<1xi1>
       secret.yield
     }
     // CHECK: return [[V6]] : [[OUT]]

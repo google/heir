@@ -97,6 +97,13 @@ Operation *convertWriteOpInterface(Operation *op, SmallVector<Value> indices,
         auto encoding = cast<lwe::LWECiphertextType>(ctTy).getEncoding();
         auto ptxtTy = lwe::LWEPlaintextType::get(b.getContext(), encoding);
 
+        if (valType.getWidth() == 1) {
+          auto ctValue = b.create<lwe::TrivialEncryptOp>(
+              ctTy, b.create<lwe::EncodeOp>(ptxtTy, valueToStore, encoding),
+              lwe::LWEParamsAttr());
+          return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
+        }
+
         // Get i-th bit of input and insert the bit into the memref of
         // ciphertexts.
         auto loop = b.create<mlir::affine::AffineForOp>(0, valType.getWidth());
@@ -116,6 +123,9 @@ Operation *convertWriteOpInterface(Operation *op, SmallVector<Value> indices,
 
         indices.push_back(idx);
         return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
+      })
+      .Case<lwe::LWECiphertextType>([&](auto valType) {
+        return b.create<memref::StoreOp>(valueToStore, toMemRef, indices);
       })
       .Case<MemRefType>([&](MemRefType valType) {
         int rank = toMemRefTy.getRank();
@@ -422,12 +432,6 @@ class SecretGenericOpAffineStoreConversion
     affine::AffineStoreOp storeOp =
         cast<affine::AffineStoreOp>(op.getBody()->getOperations().front());
     auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
-    if (auto lweType = dyn_cast<lwe::LWECiphertextType>(inputs[0].getType())) {
-      rewriter.replaceOpWithNewOp<affine::AffineStoreOp>(
-          op, inputs[0], toMemRef, storeOp.getAffineMap(),
-          storeOp.getIndices());
-      return;
-    }
     auto indices = affine::expandAffineMap(
         rewriter, op.getLoc(), storeOp.getAffineMap(), storeOp.getIndices());
     if (!indices) {
@@ -450,11 +454,6 @@ class SecretGenericOpMemRefStoreConversion
     memref::StoreOp storeOp =
         cast<memref::StoreOp>(op.getBody()->getOperations().front());
     auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
-    if (auto lweType = dyn_cast<lwe::LWECiphertextType>(inputs[0].getType())) {
-      rewriter.replaceOpWithNewOp<memref::StoreOp>(op, inputs[0], toMemRef,
-                                                   storeOp.getIndices());
-      return;
-    }
     rewriter.replaceOp(
         op,
         convertWriteOpInterface(
