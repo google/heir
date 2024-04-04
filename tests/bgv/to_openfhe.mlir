@@ -28,34 +28,34 @@ module {
   // CHECK: func.func @test_ops([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*161729713.*]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
-    %negate = bgv.negate(%x) : !ct
+    %negate = bgv.negate %x  : !ct
     // CHECK: %[[v2:.*]] = openfhe.add [[C]], %[[x2:.*]], %[[y2:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
-    %add = bgv.add(%x, %y) : !ct
+    %add = bgv.add %x, %y  : !ct
     // CHECK: %[[v3:.*]] = openfhe.sub [[C]], %[[x3:.*]], %[[y3:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
-    %sub = bgv.sub(%x, %y) : !ct
+    %sub = bgv.sub %x, %y  : !ct
     // CHECK: %[[v4:.*]] = openfhe.mul_no_relin [[C]], %[[x4:.*]], %[[y4:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
-    %mul = bgv.mul(%x, %y) : !ct -> !ct_level3
+    %mul = bgv.mul %x, %y  : (!ct, !ct) -> !ct_level3
     // CHECK: %[[c5:.*]] = arith.index_cast
     //   CHECK-SAME: to i64
     // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]], %[[c5:.*]]: ([[S]], [[T]], i64) -> [[T]]
     %c4 = arith.constant 4 : index
-    %rot = bgv.rotate(%x, %c4): (!ct, index) -> !ct
+    %rot = bgv.rotate %x, %c4 : !ct, index
     return
   }
 
   // CHECK: func.func @test_relin([[C]]: [[S]], [[X:%.+]]: [[T:.*161729713.*]])
   func.func @test_relin(%x : !ct_dim) {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T]]
-    %relin = bgv.relinearize(%x) {
+    %relin = bgv.relinearize %x  {
       from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 1>
-    }: (!ct_dim) -> !ct
+    }: !ct_dim -> !ct
     return
   }
 
   // CHECK: func.func @test_modswitch([[C]]: [[S]], [[X:%.+]]: [[T:.*161729713.*]]) -> [[T1:.*2521.*]] {
   func.func @test_modswitch(%x : !ct) -> !ct_level {
     // CHECK: %[[v7:.*]] = openfhe.mod_reduce [[C]], %[[x7:.*]] : ([[S]], [[T]]) -> [[T1]]
-    %mod_switch = bgv.modulus_switch(%x) { to_ring=#ring2 }: (!ct) -> !ct_level
+    %mod_switch = bgv.modulus_switch %x  { to_ring=#ring2 }: !ct -> !ct_level
     return %mod_switch : !ct_level
   }
 }

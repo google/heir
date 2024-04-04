@@ -171,7 +171,7 @@ struct ConvertRotateOp : public OpConversionPattern<Rotate> {
             });
     rewriter.replaceOp(
         op, rewriter.create<openfhe::RotOp>(op.getLoc(), cryptoContext,
-                                            adaptor.getX(), castOffset));
+                                            adaptor.getInput(), castOffset));
     return success();
   }
 };
@@ -204,7 +204,7 @@ struct ConvertRelinOp : public OpConversionPattern<Relinearize> {
 
     Value cryptoContext = result.value();
     rewriter.replaceOp(op, rewriter.create<openfhe::RelinOp>(
-                               op.getLoc(), cryptoContext, adaptor.getX()));
+                               op.getLoc(), cryptoContext, adaptor.getInput()));
     return success();
   }
 };
@@ -224,7 +224,7 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitch> {
     Value cryptoContext = result.value();
     rewriter.replaceOp(op, rewriter.create<openfhe::ModReduceOp>(
                                op.getLoc(), op.getOutput().getType(),
-                               cryptoContext, adaptor.getX()));
+                               cryptoContext, adaptor.getInput()));
     return success();
   }
 };

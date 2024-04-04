@@ -1,5 +1,4 @@
-// RUN: heir-opt --color %s > %t
-// RUN: FileCheck %s < %t
+// RUN: heir-opt --color %s | FileCheck %s
 
 // This simply tests for syntax.
 
@@ -24,22 +23,22 @@
 module {
   // CHECK-LABEL: @test_multiply
   func.func @test_multiply(%arg0 : !ct, %arg1: !ct) -> !ct {
-    %add = bgv.add(%arg0, %arg1) : !ct
-    %sub = bgv.sub(%arg0, %arg1) : !ct
-    %neg = bgv.negate(%arg0) : !ct
+    %add = bgv.add %arg0, %arg1 : !ct
+    %sub = bgv.sub %arg0, %arg1 : !ct
+    %neg = bgv.negate %arg0 : !ct
 
-    %0 = bgv.mul(%arg0, %arg1) : !ct -> !ct1
-    %1 = bgv.relinearize(%0) {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : (!ct1) -> !ct
-    %2 = bgv.modulus_switch(%1) {to_ring = #ring2} : (!ct) -> !ct2
+    %0 = bgv.mul %arg0, %arg1  : (!ct, !ct) -> !ct1
+    %1 = bgv.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : !ct1 -> !ct
+    %2 = bgv.modulus_switch %1  {to_ring = #ring2} : !ct -> !ct2
     // CHECK: rlwe_params = <dimension = 3, ring = <cmod=161729713, ideal=#polynomial.polynomial<1 + x**1024>>>
     return %arg0 : !ct
   }
 
   // CHECK-LABEL: @test_ciphertext_plaintext
   func.func @test_ciphertext_plaintext(%arg0: !pt, %arg1: !pt, %arg2: !pt, %arg3: !ct) -> !ct {
-    %add = bgv.add_plain(%arg3, %arg0) : !ct
-    %sub = bgv.sub_plain(%add, %arg1) : !ct
-    %mul = bgv.mul_plain(%sub, %arg2) : !ct
+    %add = bgv.add_plain %arg3, %arg0 : (!ct, !pt) -> !ct
+    %sub = bgv.sub_plain %add, %arg1 : (!ct, !pt) -> !ct
+    %mul = bgv.mul_plain %sub, %arg2 : (!ct, !pt) -> !ct
     // CHECK: rlwe_params = <ring = <cmod=161729713, ideal=#polynomial.polynomial<1 + x**1024>>>
     return %mul : !ct
   }
@@ -48,8 +47,8 @@ module {
   func.func @test_rotate_extract(%arg3: !ct) -> !ct {
     %c0 = arith.constant 0 : index
     %c1 = arith.constant 1 : index
-    %add = bgv.rotate(%arg3, %c1) : (!ct, index) -> !ct
-    %sub = bgv.extract(%add, %c0) : (!ct, index) -> !ct
+    %add = bgv.rotate %arg3, %c1 : !ct, index
+    %sub = bgv.extract %add, %c0 : !ct, index
     // CHECK: rlwe_params = <ring = <cmod=161729713, ideal=#polynomial.polynomial<1 + x**1024>>>
     return %sub : !ct
   }

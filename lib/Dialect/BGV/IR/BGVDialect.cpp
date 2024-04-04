@@ -34,8 +34,8 @@ void BGVDialect::initialize() {
 }
 
 LogicalResult MulOp::verify() {
-  auto x = getX().getType();
-  auto y = getY().getType();
+  auto x = getLhs().getType();
+  auto y = getRhs().getType();
   if (x.getRlweParams().getDimension() != y.getRlweParams().getDimension()) {
     return emitOpError() << "input dimensions do not match";
   }
@@ -47,7 +47,7 @@ LogicalResult MulOp::verify() {
   return success();
 }
 LogicalResult Rotate::verify() {
-  auto x = getX().getType();
+  auto x = getInput().getType();
   if (x.getRlweParams().getDimension() != 2) {
     return emitOpError() << "x.dim == 2 does not hold";
   }
@@ -59,7 +59,7 @@ LogicalResult Rotate::verify() {
 }
 
 LogicalResult Relinearize::verify() {
-  auto x = getX().getType();
+  auto x = getInput().getType();
   auto out = getOutput().getType();
   if (x.getRlweParams().getDimension() != getFromBasis().size()) {
     return emitOpError() << "input dimension does not match from_basis";
@@ -71,7 +71,7 @@ LogicalResult Relinearize::verify() {
 }
 
 LogicalResult ModulusSwitch::verify() {
-  auto x = getX().getType();
+  auto x = getInput().getType();
   auto xRing = x.getRlweParams().getRing();
 
   auto out = getOutput().getType();
@@ -94,8 +94,8 @@ LogicalResult ModulusSwitch::verify() {
 LogicalResult MulOp::inferReturnTypes(
     MLIRContext *ctx, std::optional<Location>, MulOp::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {
-  auto x = cast<lwe::RLWECiphertextType>(adaptor.getX().getType());
-  auto y = cast<lwe::RLWECiphertextType>(adaptor.getY().getType());
+  auto x = cast<lwe::RLWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::RLWECiphertextType>(adaptor.getRhs().getType());
   auto newDim =
       x.getRlweParams().getDimension() + y.getRlweParams().getDimension() - 1;
   inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
@@ -107,7 +107,7 @@ LogicalResult MulOp::inferReturnTypes(
 LogicalResult Relinearize::inferReturnTypes(
     MLIRContext *ctx, std::optional<Location>, Relinearize::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {
-  auto x = cast<lwe::RLWECiphertextType>(adaptor.getX().getType());
+  auto x = cast<lwe::RLWECiphertextType>(adaptor.getInput().getType());
   inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
       ctx, x.getEncoding(),
       lwe::RLWEParamsAttr::get(ctx, 2, x.getRlweParams().getRing())));

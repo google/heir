@@ -19,43 +19,41 @@ class BGV_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::bgv";
 
   let assemblyFormat = [{
-    `(` operands `)` attr-dict `:`  `(` qualified(type(operands)) `)` `->` qualified(type(results))
+    operands attr-dict `:`  `(` qualified(type(operands)) `)` `->` qualified(type(results))
   }];
 }
 
 class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
-    [AllTypesMatch<["x", "output"]>,
-    TypesMatchWith<"type of 'y' matches encoding type of 'x'",
-                    "output", "y",
+    [AllTypesMatch<["ciphertextInput", "output"]>,
+    TypesMatchWith<"type of 'plaintextInput' matches encoding type of 'ciphertextInput'",
+                    "ciphertextInput", "plaintextInput",
                     "lwe::RLWEPlaintextType::get($_ctxt, "
                       "::llvm::cast<lwe::RLWECiphertextType>($_self).getEncoding(),"
                       "::llvm::cast<lwe::RLWECiphertextType>($_self).getRlweParams().getRing())">]> :
         BGV_Op<mnemonic, traits> {
   let arguments = (ins
-    RLWECiphertext:$x,
-    RLWEPlaintext:$y
+    RLWECiphertext:$ciphertextInput,
+    RLWEPlaintext:$plaintextInput
   );
 
   let results = (outs
     RLWECiphertext:$output
   );
-
-  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_AddOp : BGV_Op<"add", [Commutative, SameOperandsAndResultType]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
-    RLWECiphertext:$x,
-    RLWECiphertext:$y
+    RLWECiphertext:$lhs,
+    RLWECiphertext:$rhs
   );
 
   let results = (outs
     RLWECiphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain"> {
@@ -66,15 +64,15 @@ def BGV_SubOp : BGV_Op<"sub", [SameOperandsAndResultType]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
-    RLWECiphertext:$x,
-    RLWECiphertext:$y
+    RLWECiphertext:$lhs,
+    RLWECiphertext:$rhs
   );
 
   let results = (outs
     RLWECiphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain"> {
@@ -85,15 +83,13 @@ def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, SameType
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
-    RLWECiphertext:$x,
-    RLWECiphertext:$y
+    RLWECiphertext:$lhs,
+    RLWECiphertext:$rhs
   );
 
   let results = (outs
     RLWECiphertext:$output
   );
-
-  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($x)) `->` qualified(type($output))" ;
 
   let hasVerifier = 1;
 }
@@ -102,11 +98,11 @@ def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain"> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
 }
 
-def BGV_Rotate : BGV_Op<"rotate", [AllTypesMatch<["x", "output"]>]> {
+def BGV_Rotate : BGV_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
-    RLWECiphertext:$x,
+    RLWECiphertext:$input,
     SignlessIntegerLike:$offset
   );
 
@@ -115,9 +111,10 @@ def BGV_Rotate : BGV_Op<"rotate", [AllTypesMatch<["x", "output"]>]> {
   );
 
   let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `,` type($offset)" ;
 }
 
-def BGV_ExtractOp : BGV_Op<"extract", [AllTypesMatch<["x", "output"]>]> {
+def BGV_ExtractOp : BGV_Op<"extract", [AllTypesMatch<["input", "output"]>]> {
   let summary = "Extract the i-th element of a ciphertext.";
 
   let description = [{
@@ -129,27 +126,29 @@ def BGV_ExtractOp : BGV_Op<"extract", [AllTypesMatch<["x", "output"]>]> {
   }];
 
   let arguments = (ins
-    RLWECiphertext:$x,
+    RLWECiphertext:$input,
     SignlessIntegerLike:$offset
   );
 
   let results = (outs
     RLWECiphertext:$output
   );
+
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `,` type($offset)" ;
 }
 
 def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
-    RLWECiphertext:$x
+    RLWECiphertext:$input
   );
 
   let results = (outs
     RLWECiphertext:$output
   );
 
-  let assemblyFormat = "`(` operands `)` attr-dict `:` qualified(type($output))" ;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTypeOpAdaptor]> {
@@ -166,7 +165,7 @@ def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTy
   }];
 
   let arguments = (ins
-    RLWECiphertext:$x,
+    RLWECiphertext:$input,
     DenseI32ArrayAttr:$from_basis,
     DenseI32ArrayAttr:$to_basis
   );
@@ -176,13 +175,14 @@ def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTy
   );
 
   let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 def BGV_ModulusSwitch : BGV_Op<"modulus_switch"> {
   let summary = "Lower the modulus level of the ciphertext.";
 
   let arguments = (ins
-    RLWECiphertext:$x,
+    RLWECiphertext:$input,
     Ring_Attr:$to_ring
   );
 
@@ -191,6 +191,7 @@ def BGV_ModulusSwitch : BGV_Op<"modulus_switch"> {
   );
 
   let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
 #endif  // HEIR_INCLUDE_DIALECT_BGV_IR_BGVOPS_TD_

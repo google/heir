@@ -18,7 +18,7 @@
 func.func @test_relin_to_basis_error(%x: !ct1) {
   // expected-error@+2 {{toBasis must be [0, 1], got [0, 2]}}
   // expected-error@+1 {{failed to legalize operation 'bgv.relinearize' that was explicitly marked illegal}}
-  %relin_error = bgv.relinearize(%x) { from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 2> }: (!ct1) -> !ct
+  %relin_error = bgv.relinearize %x  { from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 2> }: !ct1 -> !ct
   return
 }
 
@@ -38,6 +38,6 @@ func.func @test_relin_to_basis_error(%x: !ct1) {
 
 func.func @test_modswitch_level_error(%x: !ct2) {
   // expected-error@+1 {{output ring should match to_ring}}
-  %relin_error = bgv.modulus_switch(%x) {to_ring=#ring2}: (!ct2) -> !ct1
+  %relin_error = bgv.modulus_switch %x  {to_ring=#ring2}: !ct2 -> !ct1
   return
 }

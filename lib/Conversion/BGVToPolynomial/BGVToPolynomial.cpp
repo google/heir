@@ -103,9 +103,9 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
   LogicalResult matchAndRewrite(
       MulOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    auto x = adaptor.getX();
+    auto x = adaptor.getLhs();
     auto xT = cast<RankedTensorType>(x.getType());
-    auto y = adaptor.getY();
+    auto y = adaptor.getRhs();
     auto yT = cast<RankedTensorType>(y.getType());
 
     if (xT.getNumElements() != 2 || yT.getNumElements() != 2) {
