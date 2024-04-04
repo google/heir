@@ -53,9 +53,9 @@ def NotOp : TfheRustBool_Op<"not", [
 ]> {
   let arguments = (ins
     TfheRustBool_ServerKey:$serverKey,
-    TfheRustBool_Encrypted:$input
+    TfheRustBoolLike:$input
   );
-  let results = (outs TfheRustBool_Encrypted:$output);
+  let results = (outs TfheRustBoolLike:$output);
 }
 
 def MuxOp : TfheRustBool_Op<"mux", [
@@ -70,7 +70,5 @@ def MuxOp : TfheRustBool_Op<"mux", [
   );
   let results = (outs TfheRustBool_Encrypted:$output);
 }
-
-
 
 #endif  // INCLUDE_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLOPS_TD_

@@ -45,9 +45,15 @@ def CGGI_OrOp  : CGGI_BinaryGateOp<"or">  { let summary = "Logical OR of two cip
 def CGGI_XorOp : CGGI_BinaryGateOp<"xor"> { let summary = "Logical XOR of two ciphertexts."; }
 def CGGI_XNorOp : CGGI_BinaryGateOp<"xnor"> { let summary = "Logical XNOR of two ciphertexts."; }
 
-def CGGI_NotOp : CGGI_Op<"not", [Pure, SameOperandsAndResultType, Involution]> {
-  let arguments = (ins LWECiphertext:$input);
-  let results = (outs LWECiphertext:$output);
+def CGGI_NotOp : CGGI_Op<"not", [
+    Pure,
+    Involution,
+    SameOperandsAndResultType,
+    ElementwiseMappable,
+    Scalarizable
+]> {
+  let arguments = (ins LWECiphertextLike:$input);
+  let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
   let summary = "Logical NOT of two ciphertexts";
 }

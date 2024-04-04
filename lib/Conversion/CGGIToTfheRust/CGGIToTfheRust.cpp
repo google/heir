@@ -20,10 +20,12 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
@@ -339,15 +341,25 @@ struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
     if (failed(result)) return result;
     Value serverKey = result.value();
 
-    auto width = widthFromEncodingAttr(op.getInput().getType().getEncoding());
+    auto shapedTy = dyn_cast<ShapedType>(op.getInput().getType());
+    Type eltTy = shapedTy ? shapedTy.getElementType() : op.getInput().getType();
+
+    auto width = widthFromEncodingAttr(
+        cast<lwe::LWECiphertextType>(eltTy).getEncoding());
     auto cleartextType = b.getIntegerType(width);
     auto outputType = encrytpedUIntTypeFromWidth(getContext(), width);
+
     // not(x) == trivial_encryption(1) - x
-    auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
-        op.getLoc(), outputType, serverKey,
+    Value createTrivialOp = b.create<tfhe_rust::CreateTrivialOp>(
+        outputType, serverKey,
         b.create<arith::ConstantOp>(cleartextType,
                                     b.getIntegerAttr(cleartextType, 1))
             .getResult());
+    if (shapedTy) {
+      createTrivialOp = b.create<tensor::FromElementsOp>(
+          shapedTy,
+          SmallVector<Value>(shapedTy.getNumElements(), createTrivialOp));
+    }
     rewriter.replaceOp(op, b.create<tfhe_rust::SubOp>(
                                serverKey, createTrivialOp, adaptor.getInput()));
     return success();
