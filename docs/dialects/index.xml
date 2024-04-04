@@ -6,7 +6,7 @@
 &lt;h3 id="bgvadd-heirbgvaddop">&lt;code>bgv.add&lt;/code> (heir::bgv::AddOp)&lt;/h3>
 &lt;p>&lt;em>Addition operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
@@ -19,11 +19,11 @@
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>y&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -46,7 +46,7 @@
 &lt;h3 id="bgvadd_plain-heirbgvaddplainop">&lt;code>bgv.add_plain&lt;/code> (heir::bgv::AddPlainOp)&lt;/h3>
 &lt;p>&lt;em>Addition operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add_plain` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -58,11 +58,11 @@
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>y&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
 &lt;td>A type for RLWE plaintexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -85,7 +85,7 @@
 &lt;h3 id="bgvextract-heirbgvextractop">&lt;code>bgv.extract&lt;/code> (heir::bgv::ExtractOp)&lt;/h3>
 &lt;p>&lt;em>Extract the i-th element of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.extract` `(` operands `)` attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.extract` operands attr-dict `:` qualified(type($input)) `,` type($offset)
 &lt;/code>&lt;/pre>&lt;p>While this operation is costly to compute in FHE, we represent it so we can
 implement efficient lowerings and folders.&lt;/p>
 &lt;p>This op can be implemented as a plaintext multiplication with a one-hot
@@ -101,7 +101,7 @@ vector and a rotate.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
@@ -128,7 +128,7 @@ vector and a rotate.&lt;/p>
 &lt;h3 id="bgvmodulus_switch-heirbgvmodulusswitch">&lt;code>bgv.modulus_switch&lt;/code> (heir::bgv::ModulusSwitch)&lt;/h3>
 &lt;p>&lt;em>Lower the modulus level of the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` `(` operands `)` attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -144,7 +144,7 @@ vector and a rotate.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -167,7 +167,7 @@ vector and a rotate.&lt;/p>
 &lt;h3 id="bgvmul-heirbgvmulop">&lt;code>bgv.mul&lt;/code> (heir::bgv::MulOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` `(` operands `)` attr-dict `:` qualified(type($x)) `-&amp;gt;` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
@@ -180,11 +180,11 @@ vector and a rotate.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>y&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -207,7 +207,7 @@ vector and a rotate.&lt;/p>
 &lt;h3 id="bgvmul_plain-heirbgvmulplainop">&lt;code>bgv.mul_plain&lt;/code> (heir::bgv::MulPlainOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
@@ -219,11 +219,11 @@ vector and a rotate.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>y&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
 &lt;td>A type for RLWE plaintexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -246,7 +246,7 @@ vector and a rotate.&lt;/p>
 &lt;h3 id="bgvnegate-heirbgvnegate">&lt;code>bgv.negate&lt;/code> (heir::bgv::Negate)&lt;/h3>
 &lt;p>&lt;em>Negate the coefficients of the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
@@ -259,7 +259,7 @@ vector and a rotate.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -282,7 +282,7 @@ vector and a rotate.&lt;/p>
 &lt;h3 id="bgvrelinearize-heirbgvrelinearize">&lt;code>bgv.relinearize&lt;/code> (heir::bgv::Relinearize)&lt;/h3>
 &lt;p>&lt;em>Relinearize the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` `(` operands `)` attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>This op takes integer array attributes &lt;code>from_basis&lt;/code> and &lt;code>to_basis&lt;/code> that are
 used to indicate the key basis from which and to which the ciphertext is
 encrypted against. A ciphertext is canonically encrypted against key basis
@@ -307,7 +307,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -330,7 +330,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="bgvrotate-heirbgvrotate">&lt;code>bgv.rotate&lt;/code> (heir::bgv::Rotate)&lt;/h3>
 &lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` `(` operands `)` attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` operands attr-dict `:` qualified(type($input)) `,` type($offset)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
@@ -342,7 +342,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
@@ -369,7 +369,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="bgvsub-heirbgvsubop">&lt;code>bgv.sub&lt;/code> (heir::bgv::SubOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-9">Operands:&lt;/h4>
@@ -382,11 +382,11 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>y&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -409,7 +409,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="bgvsub_plain-heirbgvsubplainop">&lt;code>bgv.sub_plain&lt;/code> (heir::bgv::SubPlainOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` `(` operands `)` attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
@@ -421,11 +421,11 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>x&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>y&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
 &lt;td>A type for RLWE plaintexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
