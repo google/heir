@@ -3,6 +3,7 @@
 
 #include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "include/Dialect/RNS/IR/RNSTypeInterfaces.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h.inc"

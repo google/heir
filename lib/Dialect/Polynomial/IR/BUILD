@@ -20,6 +20,7 @@ cc_library(
         ":Polynomial",
         ":PolynomialAttributes",
         ":PolynomialOps",
+        ":PolynomialTypes",
         "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
         "@heir//include/Dialect/Polynomial/IR:canonicalize_inc_gen",
         "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
@@ -60,6 +61,7 @@ cc_library(
         "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
         "@heir//include/Dialect/Polynomial/IR:PolynomialOps.h",
         "@heir//include/Dialect/Polynomial/IR:PolynomialTypes.h",
+        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
     ],
     deps = [
         ":PolynomialAttributes",
@@ -67,11 +69,32 @@ cc_library(
         "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
         "@heir//include/Dialect/Polynomial/IR:ops_inc_gen",
         "@heir//include/Dialect/Polynomial/IR:types_inc_gen",
+        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "PolynomialTypes",
+    srcs = [
+        "PolynomialTypes.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Polynomial/IR:PolynomialTypes.h",
+        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
+    ],
+    deps = [
+        ":PolynomialAttributes",
+        "@heir//include/Dialect/Polynomial/IR:types_inc_gen",
+        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
     ],
 )
 

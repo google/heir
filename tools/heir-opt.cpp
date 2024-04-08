@@ -18,6 +18,7 @@
 #include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "include/Dialect/RNS/IR/RNSDialect.h"
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "include/Dialect/Secret/Transforms/Passes.h"
@@ -438,16 +439,17 @@ int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
   registry.insert<bgv::BGVDialect>();
+  registry.insert<cggi::CGGIDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();
-  registry.insert<cggi::CGGIDialect>();
+  registry.insert<openfhe::OpenfheDialect>();
   registry.insert<poly_ext::PolyExtDialect>();
   registry.insert<polynomial::PolynomialDialect>();
+  registry.insert<rns::RNSDialect>();
   registry.insert<secret::SecretDialect>();
+  registry.insert<tensor_ext::TensorExtDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
-  registry.insert<openfhe::OpenfheDialect>();
-  registry.insert<tensor_ext::TensorExtDialect>();
 
   // Add expected MLIR dialects to the registry.
   registry.insert<affine::AffineDialect>();
