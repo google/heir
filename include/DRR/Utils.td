@@ -25,3 +25,6 @@ def IsZeroIntAttr :
 // builder is not compatible with DRR as of 2024-03-11.
 def CreateIndexCastOp : NativeCodeCall<
       "$_builder.create<arith::IndexCastOp>($0.getLoc(), $1.getType(), $0)">;
+
+// Returns true if the given value has a single use.
+def HasOneUse: Constraint<CPred<"$_self.hasOneUse()">, "has one use">;

@@ -61,6 +61,7 @@ cc_binary(
         "@heir//lib/Dialect/TensorExt/Transforms:RotateAndReduce",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
+        "@heir//lib/Transforms/ApplyFolders",
         "@heir//lib/Transforms/ElementwiseToAffine",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",

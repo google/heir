@@ -164,8 +164,7 @@ struct ConvertAlignedExtractInsertToRotate
     // user
     rewriter.replaceOpWithNewOp<tensor_ext::RotateOp>(
         current, extractionSource,
-        rewriter.create<arith::ConstantIntOp>(current.getLoc(), shift,
-                                              /*width=*/32));
+        rewriter.create<arith::ConstantIndexOp>(current.getLoc(), shift));
 
     // The rest of the chain of insertions and extractions itself will be
     // DCE'd by canonicalization if possible.

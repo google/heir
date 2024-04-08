@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <iostream>
 #include <string>
 
 #include "include/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
@@ -28,6 +29,7 @@
 #include "include/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "include/Transforms/ApplyFolders/ApplyFolders.h"
 #include "include/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "include/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -184,16 +186,21 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
   // TODO(#589): avoid unrolling loops
   manager.addPass(createFullLoopUnroll());
 
-  // This canonicalize is required in this position for a relatively nuanced
+  // These two passes are required in this position for a relatively nuanced
   // reason. insert-rotate doesn't have general match support. In particular,
-  // if a tensor extract from a secret is combined with a tensor extract from
-  // a constant 2D tensor (e.g., the weight matrix of a convolution), then
-  // insert-rotate won't be able to tell the difference and understand that
-  // the extracted value from the 2D tensor should be splatted. This
-  // canonicalize pass converts a constant weight matrix into the underlying
-  // arith.constant values, which are supported as a splattable non-tensor
-  // input in insert-rotate.
-  // TODO(#586): find a more robust solution
+  // if a tensor extract from a secret is combined with a tensor extract from a
+  // constant 2D tensor (e.g., the weight matrix of a convolution), then
+  // insert-rotate won't be able to tell the difference and understand that the
+  // extracted value from the 2D tensor should be splatted.
+  //
+  // Canonicalize supports folding these away, but is too slow to run on the
+  // unrolled loop. Instead, this "empty" pass uses the greedy rewrite engine
+  // to apply folding patterns, including for tensor.extract, which converts a
+  // constant weight matrix into the underlying arith.constant values, which
+  // are supported as a splattable non-tensor input in insert-rotate. Then the
+  // canonicalize pass can be run efficiently to achieve the same effect as if
+  // the canonicalize pass were run alone.
+  manager.addPass(createApplyFolders());
   manager.addPass(createCanonicalizerPass());
 
   // Insert rotations aligned to slot targets. Future work should provide
@@ -202,16 +209,17 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
   manager.addPass(tensor_ext::createInsertRotate());
   manager.addPass(createCSEPass());
   manager.addPass(createCanonicalizerPass());
+  manager.addPass(createCSEPass());
 
   manager.addPass(tensor_ext::createCollapseInsertionChains());
-  manager.addPass(createCSEPass());
   manager.addPass(createSCCPPass());
   manager.addPass(createCanonicalizerPass());
+  manager.addPass(createCSEPass());
 
   manager.addPass(tensor_ext::createRotateAndReduce());
-  manager.addPass(createCSEPass());
   manager.addPass(createSCCPPass());
   manager.addPass(createCanonicalizerPass());
+  manager.addPass(createCSEPass());
 }
 
 #ifndef HEIR_NO_YOSYS

@@ -2,8 +2,8 @@
 
 // CHECK-LABEL: @test_collapse_insertion_chains
 // CHECK-SAME: (%[[in:.*]]: tensor<4xi32>, %[[out:.*]]: tensor<4xi32>) -> tensor<4xi32> {
-// CHECK: %[[c2:.*]] = arith.constant 2 : i32
-// CHECK: %[[res:.*]] = tensor_ext.rotate %[[in]], %[[c2]] : tensor<4xi32>, i32
+// CHECK: %[[c2:.*]] = arith.constant 2 : index
+// CHECK: %[[res:.*]] = tensor_ext.rotate %[[in]], %[[c2]] : tensor<4xi32>, index
 // CHECK: return %[[res]] : tensor<4xi32>
 func.func @test_collapse_insertion_chains(%in: tensor<4xi32>, %out: tensor<4xi32>) -> tensor<4xi32> {
   %c0 = arith.constant 0 : index

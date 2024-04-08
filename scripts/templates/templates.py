@@ -48,7 +48,7 @@ class CLI:
 
   To see the help for a subcommand, run
 
-    python templates/templates.py <subcommand> --help
+    python scripts/templates/templates.py <subcommand> --help
   """
 
   def __init__(self):
@@ -116,7 +116,7 @@ class CLI:
           f"Conversion pass directories already exist at {include_path} or"
           f" {lib_path}")
 
-    templates_path = self.root / "templates" / "Conversion"
+    templates_path = self.root / "scripts" / "templates" / "Conversion"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
@@ -202,7 +202,7 @@ class CLI:
       raise ValueError(
           f"Pass directories already exist at {include_path} or {lib_path}")
 
-    templates_path = self.root / "templates" / "DialectTransforms"
+    templates_path = self.root / "scripts" / "templates" / "DialectTransforms"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
@@ -265,7 +265,7 @@ class CLI:
       raise ValueError(
           f"Pass directories already exist at {include_path} or {lib_path}")
 
-    templates_path = self.root / "templates" / "Transforms"
+    templates_path = self.root / "scripts" / "templates" / "Transforms"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
@@ -331,7 +331,7 @@ class CLI:
       raise ValueError(
           f"Dialect directories already exist at {include_path} or {lib_path}")
 
-    templates_path = self.root / "templates" / "Dialect"
+    templates_path = self.root / "scripts" / "templates" / "Dialect"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
