@@ -19,13 +19,15 @@
 
 // CHECK: module
 module {
-  // CHECK: func.func @test_fn([[X:%.+]]: [[T:.*161729713.*]]) -> [[T]]
+  // CHECK-LABEL: @test_fn
+  // CHECK-SAME: ([[X:%.+]]: [[T:.*161729713.*]]) -> [[T]]
   func.func @test_fn(%x : !ct) -> !ct {
     // CHECK: return [[X]] : [[T]]
     return %x : !ct
   }
 
-  // CHECK: func.func @test_ops([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*161729713.*]], [[Y:%.+]]: [[T]])
+  // CHECK-LABEL: @test_ops
+  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*161729713.*]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
     %negate = bgv.negate %x  : !ct
@@ -33,26 +35,28 @@ module {
     %add = bgv.add %x, %y  : !ct
     // CHECK: %[[v3:.*]] = openfhe.sub [[C]], %[[x3:.*]], %[[y3:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
     %sub = bgv.sub %x, %y  : !ct
-    // CHECK: %[[v4:.*]] = openfhe.mul_no_relin [[C]], %[[x4:.*]], %[[y4:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
+    // CHECK: %[[v4:.*]] = openfhe.mul_no_relin [[C]], %[[x4:.*]], %[[y4:.*]]: ([[S]], [[T]], [[T]]) -> [[T2:.*]]
     %mul = bgv.mul %x, %y  : (!ct, !ct) -> !ct_level3
     // CHECK: %[[c5:.*]] = arith.index_cast
     //   CHECK-SAME: to i64
-    // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]], %[[c5:.*]]: ([[S]], [[T]], i64) -> [[T]]
     %c4 = arith.constant 4 : index
+    // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]], %[[c5:.*]]: ([[S]], [[T]], i64) -> [[T]]
     %rot = bgv.rotate %x, %c4 : !ct, index
     return
   }
 
-  // CHECK: func.func @test_relin([[C]]: [[S]], [[X:%.+]]: [[T:.*161729713.*]])
+  // CHECK-LABEL: @test_relin
+  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*dimension = 4.*]])
   func.func @test_relin(%x : !ct_dim) {
-    // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T]]
+    // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
     %relin = bgv.relinearize %x  {
       from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 1>
     }: !ct_dim -> !ct
     return
   }
 
-  // CHECK: func.func @test_modswitch([[C]]: [[S]], [[X:%.+]]: [[T:.*161729713.*]]) -> [[T1:.*2521.*]] {
+  // CHECK-LABEL: @test_modswitch
+  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*161729713.*]]) -> [[T1:.*2521.*]] {
   func.func @test_modswitch(%x : !ct) -> !ct_level {
     // CHECK: %[[v7:.*]] = openfhe.mod_reduce [[C]], %[[x7:.*]] : ([[S]], [[T]]) -> [[T1]]
     %mod_switch = bgv.modulus_switch %x  { to_ring=#ring2 }: !ct -> !ct_level

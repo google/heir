@@ -18,10 +18,9 @@ class Openfhe_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::openfhe";
 }
 
-class Openfhe_UnaryOp<string mnemonic, list<Trait> traits = []>
-  :  Openfhe_Op<mnemonic, traits # [
+class Openfhe_UnaryTypeSwitchOp<string mnemonic, list<Trait> traits = []>
+  : Openfhe_Op<mnemonic, traits # [
     Pure,
-    AllTypesMatch<["ciphertext", "output"]>,
 ]>{
  let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
@@ -30,16 +29,10 @@ class Openfhe_UnaryOp<string mnemonic, list<Trait> traits = []>
   let results = (outs RLWECiphertext:$output);
 }
 
-class Openfhe_UnaryTypeSwitchOp<string mnemonic, list<Trait> traits = []>
-  :  Openfhe_Op<mnemonic, traits # [
-    Pure,
-]>{
- let arguments = (ins
-    Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext
-  );
-  let results = (outs RLWECiphertext:$output);
-}
+class Openfhe_UnaryOp<string mnemonic, list<Trait> traits = []>
+  : Openfhe_UnaryTypeSwitchOp<
+      mnemonic, traits # [AllTypesMatch<["ciphertext", "output"]>]
+    >;
 
 class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
   :  Openfhe_Op<mnemonic, traits # [
@@ -63,11 +56,15 @@ def AddOp : Openfhe_BinaryOp<"add"> { let summary = "OpenFHE add operation of tw
 def SubOp : Openfhe_BinaryOp<"sub"> { let summary = "OpenFHE sub operation of two ciphertexts."; }
 
 def MulOp : Openfhe_BinaryOp<"mul"> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
-def MulNoRelinOp : Openfhe_BinaryOp<"mul_no_relin"> {
+
+def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, AllTypesMatch<["lhs", "rhs"]>]> {
   let summary = "OpenFHE mul operation of two ciphertexts without relinearization.";
-}
-def MulAndRelinOp : Openfhe_BinaryOp<"mul_and_relin"> {
-  let summary = "OpenFHE mul operation of two ciphertexts followed by relinearization to the lowest level.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    RLWECiphertext:$lhs,
+    RLWECiphertext:$rhs
+  );
+  let results = (outs RLWECiphertext:$output);
 }
 
 def MulPlainOp : Openfhe_Op<"mul_plain",[
@@ -98,7 +95,7 @@ def MulConstOp : Openfhe_Op<"mul_const",[
 
 def NegateOp : Openfhe_UnaryOp<"negate"> { let summary = "OpenFHE negate operation of a ciphertext."; }
 def SquareOp : Openfhe_UnaryOp<"square"> { let summary = "OpenFHE square operation of a ciphertext."; }
-def RelinOp : Openfhe_UnaryOp<"relin"> { let summary = "OpenFHE relinearize operation of a ciphertext."; }
+def RelinOp : Openfhe_UnaryTypeSwitchOp<"relin"> { let summary = "OpenFHE relinearize operation of a ciphertext."; }
 
 def ModReduceOp : Openfhe_UnaryTypeSwitchOp<"mod_reduce"> { let summary = "OpenFHE mod_reduce operation of a ciphertext. (used only for BGV/CKKS)"; }
 def LevelReduceOp : Openfhe_UnaryTypeSwitchOp<"level_reduce"> { let summary = "OpenFHE level_reduce operation of a ciphertext."; }

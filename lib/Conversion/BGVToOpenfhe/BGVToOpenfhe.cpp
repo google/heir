@@ -104,9 +104,8 @@ struct ConvertUnaryOp : public OpConversionPattern<UnaryOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(
-        op, rewriter.create<OpenfheUnaryOp>(op.getLoc(), cryptoContext,
-                                            adaptor.getOperands()[0]));
+    rewriter.replaceOp(op, rewriter.create<OpenfheUnaryOp>(
+                               op.getLoc(), cryptoContext, adaptor.getInput()));
     return success();
   }
 };
@@ -122,10 +121,9 @@ struct ConvertBinOp : public OpConversionPattern<BinOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op,
-                       rewriter.create<OpenfheBinOp>(op.getLoc(), cryptoContext,
-                                                     adaptor.getOperands()[0],
-                                                     adaptor.getOperands()[1]));
+    rewriter.replaceOpWithNewOp<OpenfheBinOp>(op, op.getOutput().getType(),
+                                              cryptoContext, adaptor.getLhs(),
+                                              adaptor.getRhs());
     return success();
   }
 };
@@ -203,8 +201,8 @@ struct ConvertRelinOp : public OpConversionPattern<Relinearize> {
     }
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op, rewriter.create<openfhe::RelinOp>(
-                               op.getLoc(), cryptoContext, adaptor.getInput()));
+    rewriter.replaceOpWithNewOp<openfhe::RelinOp>(
+        op, op.getOutput().getType(), cryptoContext, adaptor.getInput());
     return success();
   }
 };

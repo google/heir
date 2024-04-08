@@ -58,14 +58,6 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_mul_and_relin
-  func.func @test_mul_and_relin(%cc : !cc, %pt : !pt, %pk: !pk) {
-    %c1 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
-    %c2 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
-    %out = openfhe.mul_and_relin %cc, %c1, %c2: (!cc, !ct, !ct) -> !ct
-    return
-  }
-
   // CHECK-LABEL: func @test_mul_no_relin
   func.func @test_mul_no_relin(%cc : !cc, %pt : !pt, %pk: !pk) {
     %c1 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct

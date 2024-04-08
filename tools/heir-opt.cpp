@@ -300,6 +300,43 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
 }
 #endif
 
+struct MlirToOpenFheBgvPipelineOptions
+    : public PassPipelineOptions<MlirToOpenFheBgvPipelineOptions> {
+  PassOptions::Option<std::string> entryFunction{
+      *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
+      llvm::cl::init("main")};
+  PassOptions::Option<int> ciphertextDegree{
+      *this, "ciphertext-degree",
+      llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
+                     "equivalently, the number of messages that can be packed "
+                     "into a single ciphertext."),
+      llvm::cl::init(1024)};
+};
+
+void mlirToOpenFheBgvPipelineBuilder(
+    OpPassManager &pm, const MlirToOpenFheBgvPipelineOptions &options) {
+  // Secretize inputs
+  pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
+  pm.addPass(createWrapGeneric());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+
+  // Vectorize and optimize rotations
+  heirSIMDVectorizerPipelineBuilder(pm);
+
+  // Prepare to lower to BGV
+  pm.addPass(secret::createSecretDistributeGeneric());
+  pm.addPass(createCanonicalizerPass());
+
+  // Lower to BGV
+  auto secretToBgvOpts = SecretToBGVOptions{};
+  secretToBgvOpts.polyModDegree = options.ciphertextDegree;
+  pm.addPass(createSecretToBGV(secretToBgvOpts));
+
+  // Lower to openfhe
+  pm.addPass(bgv::createBGVToOpenfhe());
+}
+
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
@@ -380,6 +417,12 @@ int main(int argc, char **argv) {
       "scalar types to equivalent programs that operate on vectors and use "
       "tensor_ext.rotate",
       heirSIMDVectorizerPipelineBuilder);
+
+  PassPipelineRegistration<MlirToOpenFheBgvPipelineOptions>(
+      "mlir-to-openfhe-bgv-pipeline",
+      "Convert a func using standard MLIR dialects to FHE using BGV and export "
+      "to OpenFHE C++ code.",
+      mlirToOpenFheBgvPipelineBuilder);
 
   return asMainReturnCode(
       MlirOptMain(argc, argv, "HEIR Pass Driver", registry));
