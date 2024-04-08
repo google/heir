@@ -1,6 +1,7 @@
 #include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
 
 #include "include/Dialect/Polynomial/IR/Polynomial.h"
+#include "include/Dialect/Polynomial/IR/StaticRoots.h"
 #include "llvm/include/llvm/ADT/SmallSet.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
@@ -145,7 +146,23 @@ void RingAttr::print(AsmPrinter &p) const {
   coefficientModulus().print(p.getStream(), /*isSigned=*/false);
   p << ", ideal=";
   p << PolynomialAttr::get(ideal());
+  if (root()) {
+    p << ", root=";
+    root()->print(p.getStream(), /*isSigned=*/false);
+  }
   p << '>';
+}
+
+static bool is2nthRoot(const APInt &root, const unsigned degree,
+                       const APInt &cmod) {
+  // root bitwidth may be 1 less then cmod
+  APInt a = APInt(root).zext(cmod.getBitWidth());
+  auto len = (size_t)std::log2((double)degree);
+  for (size_t i = 0; i <= len; ++i) {
+    if (a == 1) return false;
+    a = (a * a).urem(cmod);
+  }
+  return a == 1;
 }
 
 mlir::Attribute mlir::heir::polynomial::RingAttr::parse(AsmParser &parser,
@@ -172,10 +189,36 @@ mlir::Attribute mlir::heir::polynomial::RingAttr::parse(AsmParser &parser,
 
   PolynomialAttr polyAttr;
   if (failed(parser.parseAttribute<PolynomialAttr>(polyAttr))) return {};
+  Polynomial poly = polyAttr.getPolynomial();
+
+  unsigned rootBitWidth = (cmod - 1).getActiveBits();
+  APInt root(rootBitWidth, 0);
+  bool hasRoot = succeeded(parser.parseOptionalComma());
+  if (hasRoot) {
+    if (failed(parser.parseKeyword("root"))) return {};
+
+    if (failed(parser.parseEqual())) return {};
+
+    auto result = parser.parseInteger(root);
+    if (failed(result) || cmod.ule(root.zext(cmod.getBitWidth())) ||
+        !is2nthRoot(root, poly.getDegree(), cmod)) {
+      parser.emitError(parser.getCurrentLocation(), "Invalid root of unity.");
+      return {};
+    }
+  } else {
+    auto maybeRoot =
+        cmod.getBitWidth() > 32
+            ? roots::find64BitRoot(cmod, poly.getDegree(), rootBitWidth)
+            : roots::find32BitRoot(cmod, poly.getDegree(), rootBitWidth);
+    if (maybeRoot) {
+      root = *maybeRoot;
+      hasRoot = true;
+    }
+  }
 
   if (failed(parser.parseGreater())) return {};
 
-  return RingAttr::get(cmod, polyAttr.getPolynomial());
+  return hasRoot ? RingAttr::get(cmod, poly, root) : RingAttr::get(cmod, poly);
 }
 
 }  // namespace polynomial

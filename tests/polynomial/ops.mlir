@@ -9,8 +9,7 @@
 #ring1 = #_polynomial.ring<cmod=2837465, ideal=#my_poly>
 #one_plus_x_squared = #_polynomial.polynomial<1 + x**2>
 
-#ideal = #_polynomial.polynomial<-1 + x**1024>
-#ring = #_polynomial.ring<cmod=18, ideal=#ideal>
+#ring = #_polynomial.ring<cmod=256, ideal=#_polynomial.polynomial<x**4 + 1>, root=31>
 !poly_ty = !_polynomial.polynomial<#ring>
 
 module {
@@ -75,12 +74,12 @@ module {
   }
 
   func.func @test_ntt(%0 : !poly_ty) {
-    %1 = _polynomial.ntt %0 : !poly_ty -> tensor<1024xi32, #ring>
+    %1 = _polynomial.ntt %0 : !poly_ty -> tensor<4xi32, #ring>
     return
   }
 
-  func.func @test_intt(%0 : tensor<1024xi32, #ring>) {
-    %1 = _polynomial.intt %0 : tensor<1024xi32, #ring> -> !poly_ty
+  func.func @test_intt(%0 : tensor<4xi32, #ring>) {
+    %1 = _polynomial.intt %0 : tensor<4xi32, #ring> -> !poly_ty
     return
   }
 }

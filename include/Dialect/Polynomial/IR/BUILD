@@ -18,6 +18,11 @@ exports_files(
     ],
 )
 
+cc_library(
+    name = "StaticRoots",
+    hdrs = ["StaticRoots.h"],
+)
+
 td_library(
     name = "td_files",
     srcs = [

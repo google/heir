@@ -40,6 +40,7 @@ cc_library(
     hdrs = [
         "@heir//include/Dialect/Polynomial/IR:PolynomialAttributes.h",
         "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
+        "@heir//include/Dialect/Polynomial/IR:StaticRoots.h",
     ],
     deps = [
         ":Polynomial",
