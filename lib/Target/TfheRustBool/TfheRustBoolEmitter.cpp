@@ -234,7 +234,7 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
       // if not: comes from function definition
       mlir::Operation *opParent = value.getDefiningOp();
       if (opParent) {
-        if (!isa<tensor::FromElementsOp>(value.getDefiningOp()) &
+        if (!isa<tensor::FromElementsOp>(value.getDefiningOp()) &&
             !isa<tensor::ExtractOp>(opParent))
           prefix = "";
 
