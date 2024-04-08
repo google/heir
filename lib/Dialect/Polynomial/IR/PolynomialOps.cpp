@@ -112,6 +112,12 @@ static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
            << "is exactly the degree of the ring's ideal " << ring;
   }
 
+  if (!ring.primitive2NthRoot()) {
+    return op->emitOpError()
+           << "ring type does not provide a primitive root 2n-th primitive root"
+           << "of unity, where n is the polynomial degree: " << polyDegree;
+  }
+
   return success();
 }
 

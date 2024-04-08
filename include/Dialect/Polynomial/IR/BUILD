@@ -15,7 +15,13 @@ exports_files(
         "PolynomialTypes.h",
         "Polynomial.h",
         "PolynomialDetail.h",
+        "NumberTheory.h",
     ],
+)
+
+cc_library(
+    name = "StaticRoots",
+    hdrs = ["StaticRoots.h"],
 )
 
 td_library(

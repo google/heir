@@ -1,6 +1,8 @@
 #include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
 
+#include "include/Dialect/Polynomial/IR/NumberTheory.h"
 #include "include/Dialect/Polynomial/IR/Polynomial.h"
+#include "include/Dialect/Polynomial/IR/StaticRoots.h"
 #include "llvm/include/llvm/ADT/SmallSet.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project
@@ -145,6 +147,10 @@ void RingAttr::print(AsmPrinter &p) const {
   coefficientModulus().print(p.getStream(), /*isSigned=*/false);
   p << ", ideal=";
   p << PolynomialAttr::get(ideal());
+  if (primitive2NthRoot()) {
+    p << ", root=";
+    primitive2NthRoot()->print(p.getStream(), /*isSigned=*/false);
+  }
   p << '>';
 }
 
@@ -172,10 +178,38 @@ mlir::Attribute mlir::heir::polynomial::RingAttr::parse(AsmParser &parser,
 
   PolynomialAttr polyAttr;
   if (failed(parser.parseAttribute<PolynomialAttr>(polyAttr))) return {};
+  Polynomial poly = polyAttr.getPolynomial();
+
+  unsigned rootBitWidth = (cmod - 1).getActiveBits();
+  APInt root(rootBitWidth, 0);
+  bool hasRoot = succeeded(parser.parseOptionalComma());
+  if (hasRoot) {
+    if (failed(parser.parseKeyword("root"))) return {};
+
+    if (failed(parser.parseEqual())) return {};
+
+    auto result = parser.parseInteger(root);
+    if (failed(result) || cmod.ule(root.zext(cmod.getBitWidth())) ||
+        !isPrimitiveNthRootOfUnity(root, 2 * poly.getDegree(), cmod)) {
+      parser.emitError(parser.getCurrentLocation(),
+                       "Invalid 2n-th primitive root of unity.");
+      return {};
+    }
+  } else {
+    // TODO(#643): replace with a pass that computes roots as needed
+    auto maybeRoot =
+        rootBitWidth > 32
+            ? roots::find64BitRoot(cmod, poly.getDegree(), rootBitWidth)
+            : roots::find32BitRoot(cmod, poly.getDegree(), rootBitWidth);
+    if (maybeRoot) {
+      root = *maybeRoot;
+      hasRoot = true;
+    }
+  }
 
   if (failed(parser.parseGreater())) return {};
 
-  return RingAttr::get(cmod, polyAttr.getPolynomial());
+  return hasRoot ? RingAttr::get(cmod, poly, root) : RingAttr::get(cmod, poly);
 }
 
 }  // namespace polynomial
