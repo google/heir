@@ -5,11 +5,13 @@
 #include <numeric>
 #include <string>
 
-#include "mlir/include/mlir/IR/TypeRange.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -49,6 +51,17 @@ std::string bracketEnclosedValues(
       std::next(values.begin()), values.end(),
       "[" + valueToString(values[0]) + "]",
       [&](std::string a, Value b) { return a + "[" + valueToString(b) + "]"; });
+}
+
+std::string flattenIndexExpression(
+    MemRefType memRefType, ValueRange indices,
+    std::function<std::string(Value)> valueToString) {
+  std::string accum = llvm::formatv("{0}", valueToString(indices[0]));
+  for (int i = 1; i < indices.size(); ++i) {
+    accum = llvm::formatv("{0} + {1} * ({2})", valueToString(indices[i]),
+                          memRefType.getShape()[i], accum);
+  }
+  return accum;
 }
 
 }  // namespace heir

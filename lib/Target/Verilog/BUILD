@@ -13,6 +13,7 @@ cc_library(
         "@heir//include/Target/Verilog:verilog_emitter",
         "@heir//lib/Conversion/MemrefToArith:Utils",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Target:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",

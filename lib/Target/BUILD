@@ -10,6 +10,7 @@ cc_library(
     srcs = ["Utils.cpp"],
     hdrs = ["Utils.h"],
     deps = [
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],

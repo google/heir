@@ -298,6 +298,103 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
         pm.addPass(createSCCPPass());
       });
 }
+
+struct TosaToBooleanFpgaTfheOptions
+    : public PassPipelineOptions<TosaToBooleanFpgaTfheOptions> {
+  PassOptions::Option<bool> abcFast{*this, "abc-fast",
+                                    llvm::cl::desc("Run abc in fast mode."),
+                                    llvm::cl::init(false)};
+
+  PassOptions::Option<int> unrollFactor{
+      *this, "unroll-factor",
+      llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
+                     "value of zero (default) prevents unrolling."),
+      llvm::cl::init(0)};
+
+  PassOptions::Option<std::string> entryFunction{
+      *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
+      llvm::cl::init("main")};
+};
+
+void tosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
+                                   const std::string &abcPath) {
+  PassPipelineRegistration<TosaToBooleanFpgaTfheOptions>(
+      "tosa-to-boolean-fpga-tfhe",
+      "Arithmetic modules to boolean tfhe-rs for FPGA backend pipeline.",
+      [yosysFilesPath, abcPath](OpPassManager &pm,
+                                const TosaToBooleanFpgaTfheOptions &options) {
+        // Secretize inputs
+        pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
+
+        // TOSA to linalg
+        tosaToLinalg(pm);
+
+        // Bufferize
+        oneShotBufferize(pm);
+
+        // Affine
+        pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
+        pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+        pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+        pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+        pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+        pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        pm.addPass(createExpandCopyPass());
+        pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+        pm.addNestedPass<FuncOp>(affine::createLoopFusionPass(
+            0, 0, true, affine::FusionMode::Greedy));
+        pm.addPass(affine::createAffineScalarReplacementPass());
+        pm.addPass(createForwardStoreToLoad());
+
+        // Cleanup
+        pm.addPass(createMemrefGlobalReplacePass());
+        arith::ArithIntNarrowingOptions arithOps;
+        arithOps.bitwidthsSupported = {4, 8, 16};
+        pm.addPass(arith::createArithIntNarrowing(arithOps));
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createSCCPPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSymbolDCEPass());
+
+        pm.addPass(createWrapGeneric());
+        auto distributeOpts = secret::SecretDistributeGenericOptions{};
+        distributeOpts.opsToDistribute = {"affine.for",     "affine.load",
+                                          "memref.load",    "memref.store",
+                                          "affine.store",   "memref.get_global",
+                                          "memref.dealloc", "memref.alloc"};
+        pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
+        pm.addPass(createCanonicalizerPass());
+
+        // Booleanize and Yosys Optimize
+        pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
+                                        options.abcFast, options.unrollFactor,
+                                        Mode::Boolean));
+
+        // Lower combinational circuit to CGGI
+        pm.addPass(createForwardStoreToLoad());
+        pm.addPass(mlir::createCSEPass());
+        pm.addPass(secret::createSecretDistributeGeneric());
+        pm.addPass(comb::createCombToCGGI());
+        // Cleanup CombToCGGI
+        pm.addPass(createExpandCopyPass(
+            ExpandCopyPassOptions{.disableAffineLoop = true}));
+        pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        pm.addPass(createForwardStoreToLoad());
+        pm.addPass(createRemoveUnusedMemRef());
+
+        pm.addPass(createStraightLineVectorizer(
+            StraightLineVectorizerOptions{.dialect = "cggi"}));
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSCCPPass());
+
+        // CGGI to Tfhe-Rust exit dialect
+        pm.addPass(createCGGIToTfheRustBool());
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSCCPPass());
+      });
+}
 #endif
 
 struct MlirToOpenFheBgvPipelineOptions
@@ -390,6 +487,7 @@ int main(int argc, char **argv) {
   }
   mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
   tosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
+  tosaToBooleanFpgaTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
 #endif
 
   // Dialect conversion passes in HEIR

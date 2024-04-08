@@ -1,10 +1,15 @@
 #ifndef HEIR_INCLUDE_TARGET_UTIL_H_
 #define HEIR_INCLUDE_TARGET_UTIL_H_
 
+#include <functional>
+#include <string>
+
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
@@ -26,6 +31,11 @@ FailureOr<std::string> commaSeparatedTypes(
 // string by the given mapping function, for example [1][2].
 std::string bracketEnclosedValues(
     ValueRange values, std::function<std::string(Value)> valueToString);
+
+// Returns a string expression for the flattened index of a MemRefType.
+std::string flattenIndexExpression(
+    MemRefType memRefType, ValueRange indices,
+    std::function<std::string(Value)> valueToString);
 
 }  // namespace heir
 }  // namespace mlir

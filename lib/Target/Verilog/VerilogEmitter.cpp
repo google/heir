@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -12,6 +13,7 @@
 #include "include/Dialect/Secret/IR/SecretDialect.h"
 #include "include/Dialect/Secret/IR/SecretOps.h"
 #include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
@@ -95,23 +97,13 @@ void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
   }
 }
 
-llvm::SmallString<128> flattenIndexExpression(
-    const llvm::ArrayRef<StringRef> indices,
-    const llvm::ArrayRef<int64_t> sizes, int width) {
-  llvm::SmallString<128> accum = llvm::formatv("{0}", indices[0]);
-  for (int i = 1; i < indices.size(); ++i) {
-    accum = llvm::formatv("{0} + {1} * ({2})", indices[i], sizes[i], accum);
-  }
-  return indices.size() == 1 ? llvm::formatv("{0} * {1}", width, accum)
-                             : llvm::formatv("{0} * ({1})", width, accum);
-}
-
-llvm::SmallString<128> variableLoadStr(StringRef memref,
-                                       llvm::ArrayRef<StringRef> indices,
-                                       llvm::ArrayRef<int64_t> sizes,
-                                       unsigned int width) {
-  llvm::SmallString<128> index = flattenIndexExpression(indices, sizes, width);
-  return llvm::formatv("{0}[{1} + {2} : {2}]", memref, width - 1, index);
+llvm::SmallString<128> variableLoadStr(
+    MemRefType memRefType, ValueRange indices, unsigned int width,
+    std::function<std::string(Value)> valueToString) {
+  auto idx = flattenIndexExpression(memRefType, indices, valueToString);
+  auto wrappedIdx = indices.size() == 1 ? idx : llvm::formatv("({0})", idx);
+  return llvm::formatv("{0} + {2} * {1} : {2} * {1}", width - 1, wrappedIdx,
+                       width);
 }
 
 struct CtlzValueStruct {
@@ -662,14 +654,12 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineLoadOp op) {
   } else {
     emitAssignPrefix(op.getResult());
 
-    llvm::SmallVector<StringRef, 4> indices;
-    for (auto index : op.getIndices()) {
-      indices.push_back(getOrCreateName(index));
-    }
-
-    os_ << variableLoadStr(memrefStr, indices, op.getMemRefType().getShape(),
-                           width)
-        << ";\n";
+    os_ << memrefStr << "["
+        << variableLoadStr(op.getMemRefType(), op.getIndices(), width,
+                           [&](Value value) -> std::string {
+                             return getOrCreateName(value).str();
+                           })
+        << "];\n";
   }
 
   return success();
@@ -684,14 +674,12 @@ LogicalResult VerilogEmitter::printOperation(memref::LoadOp op) {
 
   emitAssignPrefix(op.getResult());
 
-  llvm::SmallVector<StringRef, 4> indices;
-  for (auto index : op.getIndices()) {
-    indices.push_back(getOrCreateName(index));
-  }
-
-  os_ << variableLoadStr(getOrCreateName(op.getMemref()), indices,
-                         op.getMemRefType().getShape(), iType.getWidth())
-      << ";\n";
+  os_ << getOrCreateName(op.getMemref()) << "["
+      << variableLoadStr(op.getMemRefType(), op.getIndices(), iType.getWidth(),
+                         [&](Value value) -> std::string {
+                           return getOrCreateName(value).str();
+                         })
+      << "];\n";
 
   return success();
 }

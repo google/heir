@@ -12,6 +12,7 @@ glob_lit_tests(
     data = [
         "Cargo.toml",
         "src/main.rs",
+        "src/main_fully_connected.rs",
         "tfhe-rs",
         "@heir//tests:test_utilities",
     ],

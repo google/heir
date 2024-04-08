@@ -8,6 +8,7 @@ namespace heir {
 namespace tfhe_rust_bool {
 
 constexpr std::string_view kModulePrelude = R"rust(
+use std::collections::BTreeMap;
 use tfhe::boolean::prelude::*;
 )rust";
 

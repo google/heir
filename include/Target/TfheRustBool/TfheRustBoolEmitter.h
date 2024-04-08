@@ -7,9 +7,11 @@
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "include/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
@@ -46,16 +48,27 @@ class TfheRustBoolEmitter {
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
-  LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(CreateTrivialOp op);
+  LogicalResult printOperation(affine::AffineForOp op);
+  LogicalResult printOperation(affine::AffineYieldOp op);
+  LogicalResult printOperation(arith::ConstantOp op);
+  LogicalResult printOperation(arith::IndexCastOp op);
+  LogicalResult printOperation(arith::ShLIOp op);
+  LogicalResult printOperation(arith::AndIOp op);
+  LogicalResult printOperation(arith::ShRSIOp op);
+  LogicalResult printOperation(arith::TruncIOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
+  LogicalResult printOperation(memref::AllocOp op);
+  LogicalResult printOperation(memref::LoadOp op);
+  LogicalResult printOperation(memref::StoreOp op);
   LogicalResult printOperation(AndOp op);
   LogicalResult printOperation(NandOp op);
   LogicalResult printOperation(OrOp op);
   LogicalResult printOperation(NorOp op);
+  LogicalResult printOperation(NotOp op);
   LogicalResult printOperation(XorOp op);
   LogicalResult printOperation(XnorOp op);
 
@@ -64,6 +77,8 @@ class TfheRustBoolEmitter {
                                ::mlir::ValueRange nonSksOperands,
                                std::string_view op,
                                SmallVector<std::string> operandTypes = {});
+  LogicalResult printBinaryOp(::mlir::Value result, ::mlir::Value lhs,
+                              ::mlir::Value rhs, std::string_view op);
 
   // Emit a TfheRustBool type
   LogicalResult emitType(Type type);

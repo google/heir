@@ -44,10 +44,12 @@ class CGGIToTfheRustBoolTypeConverter : public TypeConverter {
   }
 };
 
-// /// Returns true if the func's body contains any CGGI ops.
-bool containsCGGIOpsBool(func::FuncOp func) {
+// Returns true if the func's body contains any CGGI or LWE ops.
+bool containsCGGIBoolOrLWEOps(func::FuncOp func) {
   auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<cggi::CGGIDialect>(op->getDialect()))
+    auto dialect = op->getDialect();
+    if (llvm::isa<cggi::CGGIDialect>(dialect) ||
+        llvm::isa<lwe::LWEDialect>(dialect))
       return WalkResult::interrupt();
     return WalkResult::advance();
   });
@@ -101,7 +103,7 @@ struct AddBoolServerKeyArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsCGGIOpsBool(op)) {
+    if (!containsCGGIBoolOrLWEOps(op)) {
       return failure();
     }
 
@@ -247,7 +249,7 @@ class CGGIToTfheRustBool
                                  ->isa<tfhe_rust_bool::ServerKeyType>();
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsCGGIOpsBool(op) || hasServerKeyArg);
+             (!containsCGGIBoolOrLWEOps(op) || hasServerKeyArg);
     });
     target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
                                  memref::StoreOp, memref::LoadOp,
