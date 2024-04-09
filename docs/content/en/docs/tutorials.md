@@ -1,6 +1,6 @@
 <!-- mdformat off(yaml frontmatter) -->
 ---
-title: Tutorials
+title: Tutorials and Talks
 weight: 10
 ---
 <!-- mdformat on -->
@@ -8,6 +8,12 @@ weight: 10
 A list of tutorials by the HEIR community. To add to this list, open an issue or
 submit a pull request
 [on GitHub](https://github.com/google/heir/blob/main/docs/content/en/docs/tutorials.md).
+
+## Talks
+
+-   [HEIR: A foundation for FHE compilers (FHE.org 2023-10 meetup)](https://www.youtube.com/watch?v=kqDFdKUTNA4)
+-   [How to Write Optimizations in HEIR (FHE.org 2024 conference tutorial)](https://www.youtube.com/watch?v=ne5D_kqlxYg&list=PLnbmMskCVh1fZy00EZQnFSezctvwYmlRM&index=4)
+    ([slides](https://docs.google.com/presentation/d/1zRgrkWgLn4FxAWWDTQb8KnS-pqtUbST1AIR8bT_a-E8/edit?usp=sharing))
 
 ## MLIR tutorials
 
