@@ -65,6 +65,17 @@ location of the Yosys' techlib files that are needed to execute the path.
 This pass can be disabled by defining `HEIR_NO_YOSYS`; this will avoid Yosys
 library and ABC binary compilation, and avoid registration of this pass.
 
+### `--tosa-to-boolean-tfhe`
+
+This is an experimental pipeline for end-to-end private inference.
+
+Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a tosa model to optimized boolean circuit using Yosys ABC optimizations. The resultant optimized boolean circuit in comb dialect is then converted to cggi and then to tfhe_rust exit dialect. This pipeline can be used with heir-translate --emit-tfhe-rust to generate code for [`tfhe-rs`](https://docs.zama.ai/tfhe-rs) FHE library.
+
+The pass requires that the environment variable `HEIR_ABC_BINARY` contains the
+location of the ABC binary and that `HEIR_YOSYS_SCRIPTS_DIR` contains the
+location of the Yosys' techlib files that are needed to execute the path.
+
+
 ## `heir-translate`
 
 ### `--emit-tfhe-rust`
