@@ -19,11 +19,6 @@ glob_lit_tests(
             "notap",
             "manual",
         ],
-        "fully_connected.mlir": [
-            "nofastbuild",
-            "notap",
-            "manual",
-        ],
     },
     test_file_exts = ["mlir"],
 )

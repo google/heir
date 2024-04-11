@@ -513,14 +513,6 @@ struct DistributeGeneric
       }
     });
 
-    // TODO(#352): Strings longer than 16 bytes are lost when passing these
-    // arguments.
-    if (llvm::any_of(opsToDistribute, [&](const std::string &s) {
-          return s == "memref.global";
-        })) {
-      opsToDistribute.push_back("memref.get_global");
-    }
-
     patterns.add<SplitGeneric>(context, opsToDistribute);
     // These patterns are shared with canonicalization
     patterns.add<CollapseSecretlessGeneric, RemoveUnusedGenericArgs,

@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 #include "include/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
 #include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
@@ -79,6 +80,10 @@ using namespace mlir;
 using namespace tosa;
 using namespace heir;
 using mlir::func::FuncOp;
+
+static std::vector<std::string> opsToDistribute = {
+    "affine.for", "affine.load", "affine.store", "memref.get_global",
+    "memref.global"};
 
 void tosaToLinalg(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
@@ -277,8 +282,7 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
         // Wrap with secret.generic and then distribute-generic.
         pm.addPass(createWrapGeneric());
         auto distributeOpts = secret::SecretDistributeGenericOptions{};
-        distributeOpts.opsToDistribute = {"affine.for", "affine.load",
-                                          "affine.store", "memref.get_global"};
+        distributeOpts.opsToDistribute = opsToDistribute;
         pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
         pm.addPass(createCanonicalizerPass());
 
@@ -508,10 +512,10 @@ int main(int argc, char **argv) {
   registerCGGIToTfheRustBoolPasses();
   registerSecretToBGVPasses();
 
-  PassPipelineRegistration<>(
-      "heir-tosa-to-arith",
-      "Run passes to lower TOSA models with stripped quant types to arithmetic",
-      tosaPipelineBuilder);
+  PassPipelineRegistration<>("heir-tosa-to-arith",
+                             "Run passes to lower TOSA models with stripped "
+                             "quant types to arithmetic",
+                             tosaPipelineBuilder);
 
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",
@@ -527,7 +531,8 @@ int main(int argc, char **argv) {
 
   PassPipelineRegistration<MlirToOpenFheBgvPipelineOptions>(
       "mlir-to-openfhe-bgv-pipeline",
-      "Convert a func using standard MLIR dialects to FHE using BGV and export "
+      "Convert a func using standard MLIR dialects to FHE using BGV and "
+      "export "
       "to OpenFHE C++ code.",
       mlirToOpenFheBgvPipelineBuilder);
 

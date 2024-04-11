@@ -226,7 +226,8 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
     BlockArgument newArg =
         genericOp.getBody()->addArgument(value.getType(), genericOp.getLoc());
     rewriter.replaceUsesWithIf(value, newArg, [&](mlir::OpOperand &operand) {
-      return operand.getOwner()->getParentOp() == genericOp;
+      return operand.getOwner()->getParentOfType<secret::GenericOp>() ==
+             genericOp;
     });
     genericOp.getInputsMutable().append(value);
   });
