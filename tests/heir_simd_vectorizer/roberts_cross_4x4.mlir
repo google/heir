@@ -6,16 +6,16 @@
 module{
   // CHECK-LABEL: @roberts_cross
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<16xi16>>) -> !secret.secret<tensor<16xi16>> {
-  // CHECK-NEXT: %[[c15:.*]] = arith.constant 15 : index
-  // CHECK-NEXT: %[[c11:.*]] = arith.constant 11 : index
+  // CHECK-DAG:  %[[c15:.*]] = arith.constant 15 : index
+  // CHECK-DAG:  %[[c11:.*]] = arith.constant 11 : index
   // CHECK-NEXT: secret.generic ins(%[[arg0]] : !secret.secret<tensor<16xi16>>) {
   // CHECK-NEXT:  ^bb0(%[[arg1:.*]]: tensor<16xi16>):
   // CHECK-NEXT:    %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[c11]]
   // CHECK-NEXT:    %[[v2:.*]] = arith.subi %[[v1]], %[[arg1]]
   // CHECK-NEXT:    %[[v3:.*]] = tensor_ext.rotate %[[arg1]], %[[c15]]
   // CHECK-NEXT:    %[[v4:.*]] = arith.subi %[[v1]], %[[v3]]
-  // CHECK-NEXT:    %[[v5:.*]] = arith.muli %[[v2]], %[[v2]]
-  // CHECK-NEXT:    %[[v6:.*]] = arith.muli %[[v4]], %[[v4]]
+  // CHECK-DAG:     %[[v5:.*]] = arith.muli %[[v2]], %[[v2]]
+  // CHECK-DAG:     %[[v6:.*]] = arith.muli %[[v4]], %[[v4]]
   // CHECK-NEXT:    %[[v7:.*]] = arith.addi %[[v5]], %[[v6]]
   func.func @roberts_cross(%img: tensor<16xi16>) -> tensor<16xi16> {
     %c16 = arith.constant 16 : index

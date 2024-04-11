@@ -10,13 +10,7 @@ glob_lit_tests(
     data = ["@heir//tests:test_utilities"],
     driver = "@heir//tests:run_lit.sh",
     size_override = {
-        "box_blur_64x64.mlir": "enormous",
-    },
-    tags_override = {
-        "box_blur_64x64.mlir": [
-            "nofastbuild",
-            "manual",
-        ],
+        "box_blur_64x64.mlir": "large",
     },
     test_file_exts = ["mlir"],
 )

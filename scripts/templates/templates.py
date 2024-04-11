@@ -48,7 +48,7 @@ class CLI:
 
   To see the help for a subcommand, run
 
-    python templates/templates.py <subcommand> --help
+    python scripts/templates/templates.py <subcommand> --help
   """
 
   def __init__(self):
@@ -116,7 +116,7 @@ class CLI:
           f"Conversion pass directories already exist at {include_path} or"
           f" {lib_path}")
 
-    templates_path = self.root / "templates" / "Conversion"
+    templates_path = self.root / "scripts" / "templates" / "Conversion"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
@@ -202,7 +202,7 @@ class CLI:
       raise ValueError(
           f"Pass directories already exist at {include_path} or {lib_path}")
 
-    templates_path = self.root / "templates" / "DialectTransforms"
+    templates_path = self.root / "scripts" / "templates" / "DialectTransforms"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
@@ -237,7 +237,6 @@ class CLI:
       shutil.rmtree(lib_path)
       raise
 
-
   def new_transform(
       self,
       pass_name: str = None,
@@ -265,7 +264,7 @@ class CLI:
       raise ValueError(
           f"Pass directories already exist at {include_path} or {lib_path}")
 
-    templates_path = self.root / "templates" / "Transforms"
+    templates_path = self.root / "scripts" / "templates" / "Transforms"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
@@ -331,7 +330,7 @@ class CLI:
       raise ValueError(
           f"Dialect directories already exist at {include_path} or {lib_path}")
 
-    templates_path = self.root / "templates" / "Dialect"
+    templates_path = self.root / "scripts" / "templates" / "Dialect"
     templ_include = templates_path / "include"
     templ_lib = templates_path / "lib"
     path_mapping = {
@@ -343,25 +342,33 @@ class CLI:
     }
 
     if enable_attributes:
-        path_mapping.update({
-            templ_include / "Attributes.h.jinja": include_path / f"{dialect_name}Attributes.h",
-            templ_include / "Attributes.td.jinja": include_path / f"{dialect_name}Attributes.td",
-            templ_lib / "Attributes.cpp.jinja": lib_path / f"{dialect_name}Attributes.cpp",
-        })
+      path_mapping.update({
+          templ_include
+          / "Attributes.h.jinja": include_path / f"{dialect_name}Attributes.h",
+          templ_include
+          / "Attributes.td.jinja": (
+              include_path / f"{dialect_name}Attributes.td"
+          ),
+          templ_lib
+          / "Attributes.cpp.jinja": lib_path / f"{dialect_name}Attributes.cpp",
+      })
 
     if enable_types:
-        path_mapping.update({
-            templ_include / "Types.h.jinja": include_path / f"{dialect_name}Types.h",
-            templ_include / "Types.td.jinja": include_path / f"{dialect_name}Types.td",
-            templ_lib / "Types.cpp.jinja": lib_path / f"{dialect_name}Types.cpp",
-        })
+      path_mapping.update({
+          templ_include
+          / "Types.h.jinja": include_path / f"{dialect_name}Types.h",
+          templ_include
+          / "Types.td.jinja": include_path / f"{dialect_name}Types.td",
+          templ_lib / "Types.cpp.jinja": lib_path / f"{dialect_name}Types.cpp",
+      })
 
     if enable_ops:
-        path_mapping.update({
-            templ_include / "Ops.h.jinja": include_path / f"{dialect_name}Ops.h",
-            templ_include / "Ops.td.jinja": include_path / f"{dialect_name}Ops.td",
-            templ_lib / "Ops.cpp.jinja": lib_path / f"{dialect_name}Ops.cpp",
-        })
+      path_mapping.update({
+          templ_include / "Ops.h.jinja": include_path / f"{dialect_name}Ops.h",
+          templ_include
+          / "Ops.td.jinja": include_path / f"{dialect_name}Ops.td",
+          templ_lib / "Ops.cpp.jinja": lib_path / f"{dialect_name}Ops.cpp",
+      })
 
     try:
       try_create_dirs(include_path, lib_path, force)
@@ -387,7 +394,6 @@ class CLI:
       shutil.rmtree(include_path)
       shutil.rmtree(lib_path)
       raise
-
 
 
 if __name__ == "__main__":
