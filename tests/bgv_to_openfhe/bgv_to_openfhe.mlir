@@ -12,10 +12,10 @@
 #params3 = #lwe.rlwe_params<dimension=2, ring=#ring2>
 #params4 = #lwe.rlwe_params<dimension=3, ring=#ring1>
 
-!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>
-!ct_dim = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2>
-!ct_level = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params3>
-!ct_level3 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params4>
+!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
+!ct_dim = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2, underlying_type=i3>
+!ct_level = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params3, underlying_type=i3>
+!ct_level3 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params4, underlying_type=i3>
 
 // CHECK: module
 module {

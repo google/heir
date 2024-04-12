@@ -10,7 +10,7 @@
 #params = #lwe.rlwe_params<dimension=2, ring=#ring>
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring>
 
-!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params>
+!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i3>
 
 // CHECK: module
 module {
@@ -43,7 +43,7 @@ module {
     // CHECK: [[Z1:%.+]] = polynomial.add([[X0Y1]], [[X1Y0]]) : [[P]]
     // CHECK: [[Z2:%.+]] = polynomial.mul([[X1]], [[Y1]]) : [[P]]
     // CHECK: [[Z:%.+]] = tensor.from_elements [[Z0]], [[Z1]], [[Z2]] : tensor<3x[[P]]>
-    %mul = bgv.mul %x, %y  : (!ct1, !ct1) -> !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>
+    %mul = bgv.mul %x, %y  : (!ct1, !ct1) -> !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
     return
   }
 }

@@ -29,7 +29,8 @@ class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
                     "ciphertextInput", "plaintextInput",
                     "lwe::RLWEPlaintextType::get($_ctxt, "
                       "::llvm::cast<lwe::RLWECiphertextType>($_self).getEncoding(),"
-                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getRlweParams().getRing())">]> :
+                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getRlweParams().getRing(),"
+                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getUnderlyingType())">]> :
         BGV_Op<mnemonic, traits> {
   let arguments = (ins
     RLWECiphertext:$ciphertextInput,
@@ -114,7 +115,7 @@ def BGV_Rotate : BGV_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `,` type($offset)" ;
 }
 
-def BGV_ExtractOp : BGV_Op<"extract", [AllTypesMatch<["input", "output"]>]> {
+def BGV_ExtractOp : BGV_Op<"extract", [SameOperandsAndResultRings]> {
   let summary = "Extract the i-th element of a ciphertext.";
 
   let description = [{
@@ -122,7 +123,12 @@ def BGV_ExtractOp : BGV_Op<"extract", [AllTypesMatch<["input", "output"]>]> {
     implement efficient lowerings and folders.
 
     This op can be implemented as a plaintext multiplication with a one-hot
-    vector and a rotate.
+    vector and a rotate into the zero-th index.
+
+    An extraction op's input ciphertext type is asserted to have an `underlying_type`
+    corresponding to a ranked tensor type, and this op's return type is
+    inferred to have the `underlying_type` corresponding to the element type of
+    that tensor type.
   }];
 
   let arguments = (ins
@@ -134,7 +140,7 @@ def BGV_ExtractOp : BGV_Op<"extract", [AllTypesMatch<["input", "output"]>]> {
     RLWECiphertext:$output
   );
 
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `,` type($offset)" ;
+  let hasVerifier = 1;
 }
 
 def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {

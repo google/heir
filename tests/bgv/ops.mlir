@@ -13,11 +13,12 @@
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring1>
 #params2 = #lwe.rlwe_params<dimension=2, ring=#ring2>
 
-!pt = !lwe.rlwe_plaintext<encoding=#encoding, ring=#ring1>
-
-!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params>
-!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>
-!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2>
+!pt = !lwe.rlwe_plaintext<encoding=#encoding, ring=#ring1, underlying_type=i3>
+!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i3>
+!ct_tensor = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=tensor<32xi16>>
+!ct_scalar = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i16>
+!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
+!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2, underlying_type=i3>
 
 // CHECK: module
 module {
@@ -44,12 +45,12 @@ module {
   }
 
   // CHECK-LABEL: @test_rotate_extract
-  func.func @test_rotate_extract(%arg3: !ct) -> !ct {
+  func.func @test_rotate_extract(%arg3: !ct_tensor) -> !ct_scalar {
     %c0 = arith.constant 0 : index
     %c1 = arith.constant 1 : index
-    %add = bgv.rotate %arg3, %c1 : !ct, index
-    %sub = bgv.extract %add, %c0 : !ct, index
+    %add = bgv.rotate %arg3, %c1 : !ct_tensor, index
+    %ext = bgv.extract %add, %c0 : (!ct_tensor, index) -> !ct_scalar
     // CHECK: rlwe_params = <ring = <cmod=161729713, ideal=#polynomial.polynomial<1 + x**1024>>>
-    return %sub : !ct
+    return %ext : !ct_scalar
   }
 }

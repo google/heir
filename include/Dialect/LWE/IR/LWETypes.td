@@ -43,9 +43,16 @@ def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
 
   let parameters = (ins
     "::mlir::Attribute":$encoding,
-    "RLWEParamsAttr":$rlwe_params
+    "RLWEParamsAttr":$rlwe_params,
+    "Type":$underlying_type
   );
 
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+def RLWESecretKey : LWE_Type<"RLWESecretKey", "rlwe_secret_key"> {
+  let summary = "A secret key for RLWE";
+  let parameters = (ins "RLWEParamsAttr":$rlwe_params);
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
@@ -71,7 +78,8 @@ def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
 
   let parameters = (ins
     "::mlir::Attribute":$encoding,
-    "::mlir::heir::polynomial::RingAttr":$ring
+    "::mlir::heir::polynomial::RingAttr":$ring,
+    "Type":$underlying_type
   );
 
   let assemblyFormat = "`<` struct(params) `>`";

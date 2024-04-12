@@ -1,7 +1,11 @@
 // RUN: heir-opt --bgv-to-openfhe %s | FileCheck %s
 
-!ct_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <cmod=463187969, ideal=#polynomial.polynomial<1 + x**64>>>>
-!ct_sq_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <dimension = 3, ring = <cmod=463187969, ideal=#polynomial.polynomial<1 + x**64>>>>
+#encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
+#ring = #polynomial.ring<cmod=463187969, ideal=#polynomial.polynomial<1 + x**64>>
+#params2 = #lwe.rlwe_params<dimension = 2, ring=#ring>
+#params3 = #lwe.rlwe_params<dimension = 3, ring=#ring>
+!ct_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params2, underlying_type=i3>
+!ct_sq_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params3, underlying_type=i3>
 
 // CHECK-LABEL: @linear_polynomial
 // CHECK-SAME: (%[[cc:.*]]: [[cc_ty:.*crypto_context]], %[[arg0:.*]]: [[T:.*rlwe_ciphertext.*]], %[[arg1:.*]]: [[T]], %[[arg2:.*]]: [[T]], %[[arg3:.*]]: [[T]]) -> [[T]] {

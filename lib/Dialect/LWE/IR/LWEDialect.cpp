@@ -146,30 +146,6 @@ LogicalResult InverseCanonicalEmbeddingEncodingAttr::verifyEncoding(
       getCleartextBitwidth(), getCleartextStart(), emitError);
 }
 
-LogicalResult EncodeOp::verify() {
-  auto encodingAttr = this->getEncodingAttr();
-  auto outEncoding = this->getOutput().getType().getEncoding();
-
-  if (encodingAttr != outEncoding) {
-    return this->emitOpError()
-           << "encoding attr must match output LWE plaintext encoding";
-  }
-
-  return success();
-}
-
-LogicalResult RLWEEncodeOp::verify() {
-  auto encodingAttr = this->getEncodingAttr();
-  auto outEncoding = this->getOutput().getType().getEncoding();
-
-  if (encodingAttr != outEncoding) {
-    return this->emitOpError()
-           << "encoding attr must match output LWE plaintext encoding";
-  }
-
-  return success();
-}
-
 LogicalResult TrivialEncryptOp::verify() {
   auto paramsAttr = this->getParamsAttr();
   auto outParamsAttr = this->getOutput().getType().getLweParams();
@@ -179,14 +155,6 @@ LogicalResult TrivialEncryptOp::verify() {
            << "lwe_params attr must match on the op and "
               "the output type, but found op attr "
            << paramsAttr << " and output type attr " << outParamsAttr;
-  }
-
-  auto inputEncoding = this->getInput().getType().getEncoding();
-  auto outEncoding = this->getOutput().getType().getEncoding();
-
-  if (inputEncoding != outEncoding) {
-    return this->emitOpError() << "LWE plaintext encoding must match output "
-                                  "LWE ciphertext encoding attr";
   }
 
   return success();

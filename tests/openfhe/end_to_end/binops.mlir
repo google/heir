@@ -4,7 +4,7 @@
 #ring = #polynomial.ring<cmod=7917, ideal=#polynomial.polynomial<x**16384 + 1>>
 #params = #lwe.rlwe_params<dimension=1, ring=#ring>
 !cc = !openfhe.crypto_context
-!ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params>
+!ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = i3>
 
 func.func @test_binops(%cc : !cc, %input1 : !ct, %input2 : !ct) -> !ct {
   %add_res = openfhe.add %cc, %input1, %input2 : (!cc, !ct, !ct) -> !ct

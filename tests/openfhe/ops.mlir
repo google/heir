@@ -9,8 +9,8 @@
 !pk = !openfhe.public_key
 !ek = !openfhe.eval_key
 !cc = !openfhe.crypto_context
-!pt = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring>
-!ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params>
+!pt = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring, underlying_type=i3>
+!ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type=i3>
 
 module {
   // CHECK-LABEL: func @test_encrypt

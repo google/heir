@@ -309,8 +309,7 @@ def LWE_RLWEParams : AttrDef<LWE_Dialect, "RLWEParams"> {
 
     - `dimension`: the number of polynomials used in an RLWE sample, analogous
       to LWEParams.dimension.
-    - `polyDegree`: the degree $N$ of the negacyclic polynomial modulus
-      $x^N + 1$.
+    - `ring`: the polynomial ring to use.
   }];
 
   let parameters = (ins

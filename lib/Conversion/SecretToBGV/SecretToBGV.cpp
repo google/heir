@@ -74,7 +74,7 @@ class SecretToBGVTypeConverter : public TypeConverter {
       return lwe::RLWECiphertextType::get(
           ctx,
           lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
-          lwe::RLWEParamsAttr::get(ctx, 2, ring_));
+          lwe::RLWEParamsAttr::get(ctx, 2, ring_), type.getValueType());
     });
 
     ring_ = rlweRing;
@@ -117,14 +117,20 @@ class SecretGenericOpConversion
     }
 
     // Directly convert the op if all operands are ciphertext.
-    replaceOp(op, inputs, rewriter);
+    SmallVector<Type> resultTypes;
+    auto result =
+        getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes);
+    if (failed(result)) return failure();
+
+    replaceOp(op, resultTypes, inputs, rewriter);
     return success();
   }
 
   // Default method for replacing the secret.generic with the target operation.
-  virtual void replaceOp(secret::GenericOp op, ValueRange inputs,
+  virtual void replaceOp(secret::GenericOp op, TypeRange outputTypes,
+                         ValueRange inputs,
                          ConversionPatternRewriter &rewriter) const {
-    rewriter.replaceOpWithNewOp<Y>(op, inputs);
+    rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs);
   }
 };
 
@@ -134,7 +140,7 @@ class SecretGenericOpMulConversion
   using SecretGenericOpConversion<arith::MulIOp,
                                   bgv::MulOp>::SecretGenericOpConversion;
 
-  void replaceOp(secret::GenericOp op, ValueRange inputs,
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
                  ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<bgv::Relinearize>(
         op, rewriter.create<bgv::MulOp>(op.getLoc(), inputs),

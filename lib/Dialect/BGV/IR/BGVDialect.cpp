@@ -13,6 +13,7 @@
 
 // Generated definitions
 #include "include/Dialect/BGV/IR/BGVDialect.cpp.inc"
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #define GET_OP_CLASSES
 #include "include/Dialect/BGV/IR/BGVOps.cpp.inc"
 
@@ -46,6 +47,7 @@ LogicalResult MulOp::verify() {
   }
   return success();
 }
+
 LogicalResult Rotate::verify() {
   auto x = getInput().getType();
   if (x.getRlweParams().getDimension() != 2) {
@@ -100,7 +102,8 @@ LogicalResult MulOp::inferReturnTypes(
       x.getRlweParams().getDimension() + y.getRlweParams().getDimension() - 1;
   inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
       ctx, x.getEncoding(),
-      lwe::RLWEParamsAttr::get(ctx, newDim, x.getRlweParams().getRing())));
+      lwe::RLWEParamsAttr::get(ctx, newDim, x.getRlweParams().getRing()),
+      x.getUnderlyingType()));
   return success();
 }
 
@@ -110,7 +113,27 @@ LogicalResult Relinearize::inferReturnTypes(
   auto x = cast<lwe::RLWECiphertextType>(adaptor.getInput().getType());
   inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
       ctx, x.getEncoding(),
-      lwe::RLWEParamsAttr::get(ctx, 2, x.getRlweParams().getRing())));
+      lwe::RLWEParamsAttr::get(ctx, 2, x.getRlweParams().getRing()),
+      x.getUnderlyingType()));
+  return success();
+}
+
+LogicalResult ExtractOp::verify() {
+  auto inputTy = getInput().getType();
+  auto tensorTy = dyn_cast<RankedTensorType>(inputTy.getUnderlyingType());
+  if (!tensorTy) {
+    return emitOpError() << "input RLWE ciphertext type must have a ranked "
+                            "tensor as its underlying_type, but found "
+                         << inputTy.getUnderlyingType();
+  }
+
+  auto outputScalarType = getOutput().getType().getUnderlyingType();
+  if (tensorTy.getElementType() != outputScalarType) {
+    return emitOpError() << "output RLWE ciphertext's underlying_type must be "
+                            "the element type of the input ciphertext's "
+                            "underlying tensor type, but found tensor type "
+                         << tensorTy << " and output type " << outputScalarType;
+  }
   return success();
 }
 

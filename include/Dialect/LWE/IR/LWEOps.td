@@ -13,9 +13,42 @@ include "mlir/IR/CommonAttrConstraints.td"
 class LWE_Op<string mnemonic, list<Trait> traits = []> :
         Op<LWE_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::lwe";
+  let assemblyFormat = [{
+    operands attr-dict `:`  `(` qualified(type(operands)) `)` `->` qualified(type(results))
+  }];
 }
 
-def LWE_EncodeOp : LWE_Op<"encode", [Pure]> {
+class HasEncoding<
+  string encodingHolder,
+  string encoding,
+  string ty,
+  string comparator = "std::equal_to<>()"
+> : PredOpTrait<
+    "the first arg's type's encoding matches the given encoding",
+    CPred<
+      comparator # "(" #
+      "::llvm::cast<lwe::" # ty # ">($" # encodingHolder # ".getType()).getEncoding(), " #
+      "$" # encoding # ")"
+    >
+  >;
+
+class EncodingsMatch<
+  string encodingHolder1,
+  string ty1,
+  string encodingHolder2,
+  string ty2,
+  string comparator = "std::equal_to<>()"
+> : PredOpTrait<
+    "the first arg's type's encoding matches the given encoding",
+    CPred<
+      comparator # "(" #
+      "::llvm::cast<lwe::" # ty1 # ">($" # encodingHolder1 # ".getType()).getEncoding(), " #
+      "::llvm::cast<lwe::" # ty2 # ">($" # encodingHolder2 # ".getType()).getEncoding())"
+    >
+  >;
+
+def LWE_EncodeOp : LWE_Op<"encode", [
+    Pure, HasEncoding<"output", "encoding", "LWEPlaintextType">]> {
   let summary = "Encode an integer to yield an LWE plaintext";
   let description = [{
     Encode an integer to yield an LWE plaintext.
@@ -37,12 +70,11 @@ def LWE_EncodeOp : LWE_Op<"encode", [Pure]> {
 
   let results = (outs LWEPlaintext:$output);
   let assemblyFormat = "$plaintext attr-dict `:` qualified(type($plaintext)) `to` qualified(type($output))";
-
-  // Verify that the encoding parameter matches the output plaintext attribute.
-  let hasVerifier = 1;
 }
 
-def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [Pure]> {
+def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
+    Pure,
+    EncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
   let summary = "Create a trivial encryption of a plaintext.";
 
   let arguments = (ins
@@ -61,7 +93,7 @@ def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [Pure]> {
   let hasVerifier = 1;
 }
 
-def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [Pure]> {
+def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [Pure, HasEncoding<"output", "encoding", "RLWEPlaintextType">]> {
   let summary = "Encode an integer to yield an RLWE plaintext";
   let description = [{
     Encode an integer to yield an RLWE plaintext.
@@ -77,16 +109,27 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [Pure]> {
   }];
 
   let arguments = (ins
-    SignlessIntegerLike:$plaintext,
+    SignlessIntegerLike:$input,
     AnyRLWEEncodingAttr:$encoding,
     Ring_Attr:$ring
   );
 
   let results = (outs RLWEPlaintext:$output);
-  let assemblyFormat = "$plaintext attr-dict `:` qualified(type($plaintext)) `to` qualified(type($output))";
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
+}
 
-  // Verify that the encoding and ring parameter matches the output plaintext attribute.
-  let hasVerifier = 1;
+def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [
+    Pure, HasEncoding<"output", "encoding", "RLWEPlaintextType">]> {
+  let summary = "Decode an RLWE plaintext to an underlying type";
+
+  let arguments = (ins
+    RLWEPlaintext:$input,
+    AnyRLWEEncodingAttr:$encoding,
+    Ring_Attr:$ring
+  );
+
+  let results = (outs SignlessIntegerLike:$output);
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
 }
 
 

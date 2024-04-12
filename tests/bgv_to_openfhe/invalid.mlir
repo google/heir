@@ -11,9 +11,9 @@
 #params1 = #lwe.rlwe_params<dimension=4, ring=#ring1>
 #params2 = #lwe.rlwe_params<dimension=2, ring=#ring2>
 
-!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params>
-!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>
-!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2>
+!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i3>
+!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
+!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2, underlying_type=i3>
 
 func.func @test_relin_to_basis_error(%x: !ct1) {
   // expected-error@+2 {{toBasis must be [0, 1], got [0, 2]}}
@@ -33,8 +33,8 @@ func.func @test_relin_to_basis_error(%x: !ct1) {
 #params1 = #lwe.rlwe_params<dimension=4, ring=#ring1>
 #params2 = #lwe.rlwe_params<dimension=2, ring=#ring2>
 
-!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1>
-!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2>
+!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
+!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2, underlying_type=i3>
 
 func.func @test_modswitch_level_error(%x: !ct2) {
   // expected-error@+1 {{output ring should match to_ring}}
