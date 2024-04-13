@@ -802,30 +802,98 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   return funcOp;
 }
 
-static APInt pow(const APInt &root, unsigned n, const APInt &cmod) {
-  auto intermediateBitwidth = cmod.getBitWidth() * 2;
-  APInt q = cmod.zext(intermediateBitwidth);
-  APInt rootMult = root.zext(intermediateBitwidth);
-  APInt x = APInt(intermediateBitwidth, 1);
-
-  for (unsigned i = 0; i < n; i++) {
-    x = (x * rootMult).urem(q);
-  }
-  return x.trunc(root.getBitWidth());
+static APInt mulMod(const APInt &_x, const APInt &_y, const APInt &_cmod) {
+  assert(_x.getBitWidth() == _y.getBitWidth() &&
+         "expected same bitwidth of operands");
+  auto intermediateBitwidth = _cmod.getBitWidth() * 2;
+  APInt x = _x.zext(intermediateBitwidth);
+  APInt y = _y.zext(intermediateBitwidth);
+  APInt cmod = _cmod.zext(intermediateBitwidth);
+  APInt res = (x * y).urem(cmod);
+  return res.trunc(_x.getBitWidth());
 }
 
-static DenseElementsAttr constructNTTMatrix(const ShapedType &type,
-                                            const APInt &root, unsigned degree,
-                                            const APInt &cmod) {
-  SmallVector<APInt> vals(degree * degree);
-  unsigned n;
-  for (unsigned i = 0; i < degree; i++) {
-    for (unsigned j = 0; j < degree; j++) {
-      n = 2 * i * j + i;
-      vals[j * degree + i] = pow(root, n, cmod);
-    }
+static DenseElementsAttr constructRoots(const ShapedType &type,
+                                        const APInt &root, unsigned degree,
+                                        const APInt &cmod) {
+  APInt x = root;
+  APInt primRoot = mulMod(root, root, cmod);
+  SmallVector<APInt> vals(degree / 2);
+  for (unsigned i = 0; i < degree / 2; i++) {
+    vals[i] = x;
+    x = mulMod(x, primRoot, cmod);
   }
   return DenseElementsAttr::get(type, vals);
+}
+
+static Value fastNTT(ImplicitLocOpBuilder &b, RankedTensorType &inputType,
+                     Value inputVec, APInt root, APInt cmod) {
+  unsigned degree = inputType.getShape()[0];
+  // Basecase of the algorithm
+  if (degree == 1) {
+    return inputVec;
+  }
+
+  // Type of next iteration
+  auto iterType = inputType.clone({degree / 2});
+
+  // Split the input vector into their odd/even components
+  SmallVector<OpFoldResult> size{b.getIndexAttr(degree / 2)};
+  SmallVector<OpFoldResult> stride{b.getIndexAttr(2)};
+  SmallVector<OpFoldResult> offset{b.getIndexAttr(0)};
+
+  auto evens = b.create<tensor::ExtractSliceOp>(iterType, inputVec, offset,
+                                                size, stride);
+  offset = {b.getIndexAttr(1)};
+  auto odds = b.create<tensor::ExtractSliceOp>(iterType, inputVec, offset, size,
+                                               stride);
+
+  // Recursively iterate with root = root^2 and degree / 2
+  APInt rootSquared = mulMod(root, root, cmod);
+  Value evenNTT = fastNTT(b, iterType, evens.getResult(), rootSquared, cmod);
+  Value oddNTT = fastNTT(b, iterType, odds.getResult(), rootSquared, cmod);
+
+  // Construct a dense cmod to allow for elementwise remainder
+  Value cModVec = b.create<arith::ConstantOp>(
+      iterType,
+      DenseElementsAttr::get(
+          iterType, cmod.sextOrTrunc(iterType.getElementTypeBitWidth())));
+
+  // Implementing Equation 23 from https://ieeexplore.ieee.org/document/10177902
+  //
+  // We have that evenNTT = {A_j}, oddNTT = {B_j} and roots = {root^{2j + 1}}
+  // for all 0 <= j < degree/2
+  auto roots = b.create<arith::ConstantOp>(
+      iterType, constructRoots(iterType, root, degree, cmod));
+
+  // Since roots_j * B_j -> [0, cmod^2) then RemUI will compute the modulus
+  auto rootsB = b.create<arith::MulIOp>(iterType, oddNTT, roots);
+  auto rootsBModded = b.create<arith::RemUIOp>(rootsB, cModVec);
+
+  // Since A + rootsB -> [0, 2 * cmod) then RemUI will compute the modulus
+  auto ctPlus = b.create<arith::AddIOp>(iterType, evenNTT, rootsBModded);
+  auto ctPlusModded = b.create<arith::RemUIOp>(ctPlus, cModVec);
+
+  // Since A - rootsB -> (-cmod, cmod) then we can add cmod such that the
+  // range is shifted to (0, 2 * cmod) and use RemUI to compute the modulus
+  auto ctMinus = b.create<arith::SubIOp>(iterType, evenNTT, rootsBModded);
+  auto ctMinusShifted = b.create<arith::AddIOp>(ctMinus, cModVec);
+  auto ctMinusModded = b.create<arith::RemUIOp>(ctMinusShifted, cModVec);
+
+  // Manually concatenate since tensor::ConcatOp is currently not bufferizable
+  stride = {b.getIndexAttr(1)};
+  offset = {b.getIndexAttr(0)};
+  auto empty = b.create<tensor::EmptyOp>(inputType.getShape(),
+                                         inputType.getElementType());
+
+  // Setting a_j
+  auto insertBottom = b.create<tensor::InsertSliceOp>(
+      ctPlusModded, empty.getResult(), offset, size, stride);
+  offset = {b.getIndexAttr(degree / 2)};
+  // Setting a_{j + n / 2}
+  auto insertTop = b.create<tensor::InsertSliceOp>(
+      ctMinusModded, insertBottom.getResult(), offset, size, stride);
+  return insertTop.getResult();
 }
 
 struct ConvertNTT : public OpConversionPattern<NTTOp> {
@@ -846,75 +914,31 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     }
 
     RingAttr ring = polyTy.getRing();
-    // Following the same logic as convertPolynomialType
+    // Following the same logic as convertPolynomialType, except we will reuse
+    // the values for the resultType when the ring is embedded.
     uint32_t idealDegree = ring.ideal().getDegree();
     unsigned eltBitWidth = (ring.coefficientModulus() - 1).getActiveBits();
-    IntegerType elementTy =
+    IntegerType inputElemTy =
         IntegerType::get(polyTy.getContext(), eltBitWidth,
                          IntegerType::SignednessSemantics::Signless);
-    // Don't embed the ring
-    auto inputType = RankedTensorType::get({idealDegree}, elementTy);
-    IntegerType intermediateType = polymulIntermediateType(polyTy);
+    auto inputType = RankedTensorType::get({idealDegree}, inputElemTy);
+    // Retrieve the coefficients of the polynomial
     auto inputVec = b.create<ToTensorOp>(inputType, adaptor.getOperands()[0]);
-    auto outputVec = b.create<arith::ConstantOp>(
-        inputType, DenseElementsAttr::get(inputType, APInt(eltBitWidth, 0)));
 
-    // Primitive Matrix
-    auto primMatType =
-        RankedTensorType::get({idealDegree, idealDegree}, elementTy);
-    auto primMat = b.create<arith::ConstantOp>(
-        primMatType,
-        constructNTTMatrix(primMatType, ring.root().value(), idealDegree,
-                           ring.coefficientModulus()));
+    // Cast to intermediate type to avoid integer overflow during arithmetic
+    auto intermediateType =
+        RankedTensorType::get({idealDegree}, polymulIntermediateType(polyTy));
+    Value initialValue =
+        b.create<arith::ExtUIOp>(intermediateType, inputVec.getResult());
 
-    SmallVector<utils::IteratorType> iteratorTypes(
-        {utils::IteratorType::parallel, utils::IteratorType::reduction});
-    AffineExpr d0, d1;
-    bindDims(b.getContext(), d0, d1);
-    SmallVector<AffineMap> indexingMaps({
-        AffineMap::get(2, 0, {d0, d1}, b.getContext()),  // i, j
-        AffineMap::get(2, 0, {d1}),                      // j
-        AffineMap::get(2, 0, {d0}),                      // i
-    });
+    auto nttRes = fastNTT(b, intermediateType, initialValue,
+                          ring.root().value(), ring.coefficientModulus());
+    // Truncate back to cmod bitwidth as nttRes will be computed modolus cmod
+    auto truncOp = b.create<arith::TruncIOp>(inputType, nttRes);
 
-    APInt mod = ring.coefficientModulus();
-    bool needToMod = !mod.isPowerOf2();
-    Value cMod;
-    if (needToMod) {
-      cMod = b.create<arith::ConstantOp>(
-          intermediateType,
-          IntegerAttr::get(
-              intermediateType,
-              mod.sextOrTrunc(intermediateType.getIntOrFloatBitWidth())));
-    }
-
-    auto nttOp = b.create<linalg::GenericOp>(
-        /*resultTypes=*/inputType,
-        /*inputs=*/ValueRange{primMat.getResult(), inputVec.getResult()},
-        /*outputs=*/outputVec.getResult(),
-        /*indexingMaps=*/indexingMaps,
-        /*iteratorTypes=*/iteratorTypes,
-        /*bodyBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
-          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-          auto lhs = b.create<arith::ExtUIOp>(intermediateType, args[0]);
-          auto rhs = b.create<arith::ExtUIOp>(intermediateType, args[1]);
-          auto accum = b.create<arith::ExtUIOp>(intermediateType, args[2]);
-          auto mulOp = b.create<arith::MulIOp>(lhs, rhs);
-          auto addOp = b.create<arith::AddIOp>(mulOp, accum);
-          Value result = addOp.getResult();
-          if (needToMod) {
-            result = b.create<arith::RemUIOp>(addOp, cMod).getResult();
-          }
-          auto truncOp =
-              b.create<arith::TruncIOp>(inputType.getElementType(), result);
-
-          b.create<linalg::YieldOp>(truncOp.getResult());
-        });
-
-    // Place the ring encoding here
-    auto resultType = RankedTensorType::get({idealDegree}, elementTy, ring);
-    auto result = b.create<tensor::CastOp>(resultType, nttOp.getResult(0));
+    // Insert the ring encoding here
+    auto resultType = RankedTensorType::get({idealDegree}, inputElemTy, ring);
+    auto result = b.create<tensor::CastOp>(resultType, truncOp.getResult());
     rewriter.replaceOp(op, result);
 
     return success();

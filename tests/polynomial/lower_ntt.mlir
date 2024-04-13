@@ -1,35 +1,61 @@
-// RUN: heir-opt --polynomial-to-standard %s | FileCheck %s
+// RUN: heir-opt --polynomial-to-standard --canonicalize --cse %s | FileCheck %s
+
+// This follows the Fast NTT example of Section 4a, here:
+// https://ieeexplore.ieee.org/document/10177902
 
 #cycl = #polynomial.polynomial<1 + x**4>
 #ring = #polynomial.ring<cmod=7681, ideal=#cycl, root=1925>
 !poly_ty = !polynomial.polynomial<#ring>
 
-// CHECK: #[[MATRIX_MAP:.*]] = affine_map<(d0, d1) -> (d0, d1)>
-// CHECK: #[[VEC_MAP:.*]] = affine_map<(d0, d1) -> (d1)>
-// CHECK: #[[OUTPUT_MAP:.*]] = affine_map<(d0, d1) -> (d0)>
-
 // CHECK:     func.func @lower_ntt() -> [[OUTPUT_TYPE:.*]] {
-// CHECK-DAG:   %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INPUT_TYPE:.*]]
-// CHECK-DAG:   %[[PRIM_MAT:.*]] = arith.constant dense<{{.}}[1, 1925, 3383, -1724], [1, -1724, -3894, 1925], [1, -2436, 3383, 1213], [1, 1213, -3894, -2436]{{.}}> : [[MAT_TYPE:.*]]
-// CHECK-DAG:   %[[NTT_OUTPUT:.*]] = arith.constant dense<0> : [[INPUT_TYPE]]
-// CHECK-DAG:   %[[CMOD:.*]] = arith.constant 7681 : i26
-// CHECK:      %[[GENERIC_RESULT:.*]] = linalg.generic
-// CHECK-SAME:     indexing_maps = [#[[MATRIX_MAP]], #[[VEC_MAP]], #[[OUTPUT_MAP]]]
-// CHECK-SAME:     iterator_types = ["parallel", "reduction"]
-// CHECK-SAME:     ins(%[[generic_arg0:.*]], %[[generic_arg1:.*]] : [[MAT_TYPE]], [[INPUT_TYPE]])
-// CHECK-SAME:     outs(%[[NTT_OUTPUT]] : [[INPUT_TYPE]])
-// CHECK:     ^[[BB0:.*]](%[[LHS_IN:.*]]: i13, %[[RHS_IN:.*]]: i13, %[[OUT:.*]]: i13):
-// CHECK:       %[[LHS_EXT:.*]] = arith.extui %[[LHS_IN]] : i13 to i26
-// CHECK:       %[[RHS_EXT:.*]] = arith.extui %[[RHS_IN]] : i13 to i26
-// CHECK:       %[[OUT_EXT:.*]] = arith.extui %[[OUT]] : i13 to i26
-// CHECK:       %[[MULTED:.*]] = arith.muli %[[LHS_EXT]], %[[RHS_EXT]] : i26
-// CHECK:       %[[SUMMED:.*]] = arith.addi %[[MULTED]], %[[OUT_EXT]] : i26
-// CHECK:       %[[MODDED:.*]] = arith.remui %[[SUMMED]], %[[CMOD]] : i26
-// CHECK:       %[[RESULT:.*]] = arith.trunci %[[MODDED]] : i26 to i13
-// CHECK:       linalg.yield %[[RESULT]] : i13
-// CHECK:     } -> [[INPUT_TYPE]]
-// CHECK:     %[[RES:.*]] = tensor.cast %[[GENERIC_RESULT]] : [[INPUT_TYPE]] to [[OUTPUT_TYPE:.*]]
-// CHECK:     return %[[RES]] : [[OUTPUT_TYPE]]
+// CHECK-DAG:   %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INTER_TYPE:.*]]
+// CHECK-DAG:   %[[CMOD_VEC1:.*]] = arith.constant dense<7681> : [[ITER_TYPE1:tensor<2xi26>]]
+// CHECK-DAG:   %[[CMOD_VEC2:.*]] = arith.constant dense<7681> : [[ITER_TYPE2:tensor<1xi26>]]
+// CHECK-DAG:   %[[ROOTS1:.*]] = arith.constant dense<[1925, 6468]> : [[ITER_TYPE1:.*]]
+// CHECK-DAG:   %[[ROOTS2:.*]] = arith.constant dense<3383> : [[ITER_TYPE2:.*]]
+
+// First iteration split:
+// CHECK:       %[[EVENS_ITER1:.*]] = tensor.extract_slice %[[COEFFS]][0] [2] [2] : [[INTER_TYPE]] to [[ITER_TYPE1]]
+// CHECK:       %[[ODDS_ITER1:.*]] = tensor.extract_slice %[[COEFFS]][1] [2] [2] : [[INTER_TYPE]] to [[ITER_TYPE1]]
+
+// Iteration on the evens:
+// CHECK:       %[[EVENS_ITER2:.*]] = tensor.extract_slice %[[EVENS_ITER1]][0] [1] [2] : [[ITER_TYPE1]] to [[ITER_TYPE2]]
+// CHECK:       %[[ODDS_ITER2:.*]] = tensor.extract_slice %[[EVENS_ITER1]][1] [1] [2] : [[ITER_TYPE1]] to [[ITER_TYPE2]]
+
+// CHECK:       %[[ROOTSB2:.*]] = arith.muli %[[ODDS_ITER2]], %[[ROOTS2]] : [[ITER_TYPE2]]
+// CHECK:       %[[ROOTSB_MOD2:.*]] = arith.remui %[[ROOTSB2]], %[[CMOD_VEC2]] : [[ITER_TYPE2]]
+
+// CHECK:       %[[CTPLUS2:.*]] = arith.addi %[[EVENS_ITER2]], %[[ROOTSB_MOD2]] : [[ITER_TYPE2]]
+// CHECK:       %[[CTPLUS_MOD2:.*]] = arith.remui %[[CTPLUS2]], %[[CMOD_VEC2]] : [[ITER_TYPE2]]
+
+// CHECK:       %[[CTMINUS2:.*]] = arith.subi %[[EVENS_ITER2]], %[[ROOTSB_MOD2]] : [[ITER_TYPE2]]
+// CHECK:       %[[CTMINUS_SHIFT2:.*]] = arith.addi %[[CTMINUS2]], %[[CMOD_VEC2]] : [[ITER_TYPE2]]
+// CHECK:       %[[CTMINUS_MOD2:.*]] = arith.remui %[[CTMINUS_SHIFT2]], %[[CMOD_VEC2]] : [[ITER_TYPE2]]
+
+// CHECK:       %[[CONCAT_EMPTY2:.*]] = tensor.empty() : [[ITER_TYPE1]]
+// CHECK:       %[[INSERT_TOP2:.*]] = tensor.insert_slice %[[CTPLUS_MOD2]] into %[[CONCAT_EMPTY2]][0] [1] [1] : [[ITER_TYPE2]] into [[ITER_TYPE1]]
+// CHECK:       %[[EVENS_RES:.*]] = tensor.insert_slice %[[CTMINUS_MOD2]] into %[[INSERT_TOP2]][1] [1] [1] : [[ITER_TYPE2]] into [[ITER_TYPE1]]
+
+// Iteration on the odds is removed for brevity but it follows the same as above
+// CHECK:       %[[ODDS_RES:.*]] = tensor.insert_slice %{{.*}} into %{{.*}}[1] [1] [1] : [[ITER_TYPE2]] into [[ITER_TYPE1]]
+
+// Merge the iterations:
+// CHECK:       %[[ROOTSB1:.*]] = arith.muli %[[ODDS_RES]], %[[ROOTS1]] : [[ITER_TYPE1]]
+// CHECK:       %[[ROOTSB_MOD1:.*]] = arith.remui %[[ROOTSB1]], %[[CMOD_VEC1]] : [[ITER_TYPE1]]
+
+// CHECK:       %[[CTPLUS1:.*]] = arith.addi %[[EVENS_RES]], %[[ROOTSB_MOD1]] : [[ITER_TYPE1]]
+// CHECK:       %[[CTPLUS_MOD1:.*]] = arith.remui %[[CTPLUS1]], %[[CMOD_VEC1]] : [[ITER_TYPE1]]
+
+// CHECK:       %[[CTMINUS1:.*]] = arith.subi %[[EVENS_RES]], %[[ROOTSB_MOD1]] : [[ITER_TYPE1]]
+// CHECK:       %[[CTMINUS_SHIFT1:.*]] = arith.addi %[[CTMINUS1]], %[[CMOD_VEC1]] : [[ITER_TYPE1]]
+// CHECK:       %[[CTMINUS_MOD1:.*]] = arith.remui %[[CTMINUS_SHIFT1]], %[[CMOD_VEC1]] : [[ITER_TYPE1]]
+
+// CHECK:       %[[CONCAT_EMPTY1:.*]] = tensor.empty() : [[INTER_TYPE]]
+// CHECK:       %[[INSERT_TOP1:.*]] = tensor.insert_slice %[[CTPLUS_MOD1]] into %[[CONCAT_EMPTY1]][0] [2] [1] : [[ITER_TYPE1]] into [[INTER_TYPE]]
+// CHECK:       %[[RES:.*]] = tensor.insert_slice %[[CTMINUS_MOD1]] into %[[INSERT_TOP1]][2] [2] [1] : [[ITER_TYPE1]] into [[INTER_TYPE]]
+// CHECK:       %[[RES_TRUNC:.*]] = arith.trunci %[[RES]] : [[INTER_TYPE]] to [[INPUT_TYPE:.*]]
+// CHECK:       %[[RES_CAST:.*]] = tensor.cast %[[RES_TRUNC]] : [[INPUT_TYPE]] to [[OUTPUT_TYPE]]
+// CHECK:       return %[[RES_CAST]] : [[OUTPUT_TYPE]]
 
 func.func @lower_ntt() -> tensor<4xi13, #ring> {
   %coeffs = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi13>

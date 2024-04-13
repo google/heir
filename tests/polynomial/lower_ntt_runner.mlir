@@ -3,6 +3,9 @@
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_POLY_NTT < %t
 
+// This follows the Fast NTT example of Section 4a, here:
+// https://ieeexplore.ieee.org/document/10177902
+
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
 #cycl = #polynomial.polynomial<1 + x**4>
