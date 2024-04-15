@@ -12,7 +12,7 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 def Polynomial_Dialect : Dialect {
   // The namespace of the dialect.
   // This corresponds to the string provided in `getDialectNamespace`.
-  let name = "polynomial";
+  let name = "_polynomial";
 
   let description = [{
     The Polynomial dialect defines single-variable polynomial types and

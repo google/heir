@@ -2,8 +2,8 @@
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
-#my_poly = #polynomial.polynomial<1 + x**16384>
-#ring= #polynomial.ring<cmod=7917, ideal=#my_poly>
+#my_poly = #_polynomial.polynomial<1 + x**16384>
+#ring= #_polynomial.ring<cmod=7917, ideal=#my_poly>
 #params = #lwe.rlwe_params<dimension=1, ring=#ring>
 !cc = !openfhe.crypto_context
 !ek = !openfhe.eval_key

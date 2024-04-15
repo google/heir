@@ -91,21 +91,21 @@ gentbl_cc_library(
         (
             [
                 "-gen-typedef-decls",
-                "-typedefs-dialect=polynomial",
+                "-typedefs-dialect=_polynomial",
             ],
             "PolynomialTypes.h.inc",
         ),
         (
             [
                 "-gen-typedef-defs",
-                "-typedefs-dialect=polynomial",
+                "-typedefs-dialect=_polynomial",
             ],
             "PolynomialTypes.cpp.inc",
         ),
         (
             [
                 "-gen-typedef-doc",
-                "-typedefs-dialect=polynomial",
+                "-typedefs-dialect=_polynomial",
             ],
             "PolynomialTypes.md",
         ),

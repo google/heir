@@ -1,8 +1,8 @@
 // RUN: heir-opt --polynomial-to-standard --split-input-file %s | FileCheck %s
 
-#cycl_2048 = #polynomial.polynomial<1 + x**1024>
-#ring = #polynomial.ring<cmod=4294967296, ideal=#cycl_2048>
-!poly_ty = !polynomial.polynomial<#ring>
+#cycl_2048 = #_polynomial.polynomial<1 + x**1024>
+#ring = #_polynomial.ring<cmod=4294967296, ideal=#cycl_2048>
+!poly_ty = !_polynomial.polynomial<#ring>
 
 // CHECK: #[[LHS_MAP:.*]] = affine_map<(d0, d1) -> (d0)>
 // CHECK: #[[RHS_MAP:.*]] = affine_map<(d0, d1) -> (d1)>
@@ -86,7 +86,7 @@
 // CHECK: }
 
 func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
-  %poly2 = polynomial.mul(%poly0, %poly1) {ring = #ring} : !poly_ty
+  %poly2 = _polynomial.mul(%poly0, %poly1) {ring = #ring} : !poly_ty
   return %poly2 : !poly_ty
 }
 
@@ -94,9 +94,9 @@ func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
 
 // We then also want to test a non-machine-word sized modulus
 
-#cycl_2048 = #polynomial.polynomial<1 + x**1024>
-#ring = #polynomial.ring<cmod=18, ideal=#cycl_2048>
-!poly_ty = !polynomial.polynomial<#ring>
+#cycl_2048 = #_polynomial.polynomial<1 + x**1024>
+#ring = #_polynomial.ring<cmod=18, ideal=#cycl_2048>
+!poly_ty = !_polynomial.polynomial<#ring>
 
 // CHECK: #[[LHS_MAP:.*]] = affine_map<(d0, d1) -> (d0)>
 // CHECK: #[[RHS_MAP:.*]] = affine_map<(d0, d1) -> (d1)>
@@ -131,6 +131,6 @@ func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
 // CHECK: }
 
 func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
-  %poly = polynomial.mul(%poly0, %poly1) {ring = #ring} : !poly_ty
+  %poly = _polynomial.mul(%poly0, %poly1) {ring = #ring} : !poly_ty
   return %poly : !poly_ty
 }

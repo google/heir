@@ -17,18 +17,18 @@ func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interf
 // REDEFINE: %{check_prefix} = CHECK_TEST_5
 // RUN: %{compile} | %{run} | %{check}
 
-#ideal_5 = #polynomial.polynomial<1 + x**12>
-#ring_5 = #polynomial.ring<cmod=16, ideal=#ideal_5>
-!poly_ty_5 = !polynomial.polynomial<#ring_5>
+#ideal_5 = #_polynomial.polynomial<1 + x**12>
+#ring_5 = #_polynomial.ring<cmod=16, ideal=#ideal_5>
+!poly_ty_5 = !_polynomial.polynomial<#ring_5>
 
 func.func @test_5() {
   %const0 = arith.constant 0 : index
-  %0 = polynomial.constant <1 + x**2> : !poly_ty_5
-  %1 = polynomial.constant <1 + x**3> : !poly_ty_5
-  %2 = polynomial.mul(%0, %1) : !poly_ty_5
+  %0 = _polynomial.constant <1 + x**2> : !poly_ty_5
+  %1 = _polynomial.constant <1 + x**3> : !poly_ty_5
+  %2 = _polynomial.mul(%0, %1) : !poly_ty_5
 
 
-  %3 = polynomial.to_tensor %2 : !poly_ty_5 -> tensor<12xi4>
+  %3 = _polynomial.to_tensor %2 : !poly_ty_5 -> tensor<12xi4>
   %tensor = arith.extsi %3 : tensor<12xi4> to tensor<12xi32>
 
   %ref = bufferization.to_memref %tensor : memref<12xi32>
