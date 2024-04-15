@@ -25,9 +25,10 @@ void PolyExtDialect::initialize() {
 
 polynomial::PolynomialType getPolynomialType(Type t) {
   if (auto tTnsr = t.dyn_cast<RankedTensorType>()) {
-    return tTnsr.getElementType().cast<polynomial::PolynomialType>();
+    return tTnsr.getElementType()
+        .cast<::mlir::heir::polynomial::PolynomialType>();
   }
-  return t.cast<polynomial::PolynomialType>();
+  return t.cast<::mlir::heir::polynomial::PolynomialType>();
 }
 
 LogicalResult CModSwitchOp::verify() {

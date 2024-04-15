@@ -35,8 +35,9 @@ void registerToOpenFhePkeHeaderTranslation() {
         return translateToOpenFhePkeHeader(op, output);
       },
       [](DialectRegistry &registry) {
-        registry.insert<func::FuncDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect, polynomial::PolynomialDialect>();
+        registry
+            .insert<func::FuncDialect, openfhe::OpenfheDialect, lwe::LWEDialect,
+                    ::mlir::heir::polynomial::PolynomialDialect>();
       });
 }
 

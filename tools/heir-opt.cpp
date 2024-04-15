@@ -145,7 +145,7 @@ void tosaPipelineBuilder(OpPassManager &manager) {
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
   manager.addPass(createElementwiseToAffine());
-  manager.addPass(polynomial::createPolynomialToStandard());
+  manager.addPass(::mlir::heir::polynomial::createPolynomialToStandard());
   manager.addPass(createCanonicalizerPass());
 
   // Linalg
@@ -455,7 +455,7 @@ int main(int argc, char **argv) {
   registry.insert<lwe::LWEDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<poly_ext::PolyExtDialect>();
-  registry.insert<polynomial::PolynomialDialect>();
+  registry.insert<::mlir::heir::polynomial::PolynomialDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<secret::SecretDialect>();
   registry.insert<tensor_ext::TensorExtDialect>();
@@ -507,7 +507,7 @@ int main(int argc, char **argv) {
   bgv::registerBGVToPolynomialPasses();
   bgv::registerBGVToOpenfhePasses();
   comb::registerCombToCGGIPasses();
-  polynomial::registerPolynomialToStandardPasses();
+  ::mlir::heir::polynomial::registerPolynomialToStandardPasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
   registerSecretToBGVPasses();

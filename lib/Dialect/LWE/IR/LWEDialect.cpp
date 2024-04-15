@@ -96,13 +96,13 @@ LogicalResult requirePolynomialElementTypeFits(
     Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
     unsigned cleartextStart,
     llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
-  if (!elementType.isa<polynomial::PolynomialType>()) {
+  if (!elementType.isa<::mlir::heir::polynomial::PolynomialType>()) {
     return emitError() << "Tensors with encoding " << encodingName
                        << " must have `poly.poly` element type, but found "
                        << elementType << "\n";
   }
-  polynomial::PolynomialType polyType =
-      llvm::cast<polynomial::PolynomialType>(elementType);
+  ::mlir::heir::polynomial::PolynomialType polyType =
+      llvm::cast<::mlir::heir::polynomial::PolynomialType>(elementType);
   // The coefficient modulus takes the place of the plaintext bitwidth for
   // RLWE.
   unsigned plaintextBitwidth =

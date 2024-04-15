@@ -39,18 +39,18 @@ namespace {
 // modulus degree.
 // TODO(#536): Integrate a general library to compute appropriate prime moduli
 // given any number of bits.
-FailureOr<polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
-                                            int coefficientModBits,
-                                            int polyModDegree) {
-  std::vector<polynomial::Monomial> monomials;
+FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
+    MLIRContext *ctx, int coefficientModBits, int polyModDegree) {
+  std::vector<::mlir::heir::polynomial::Monomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
-  polynomial::Polynomial xnPlusOne =
-      polynomial::Polynomial::fromMonomials(monomials, ctx);
+  ::mlir::heir::polynomial::Polynomial xnPlusOne =
+      ::mlir::heir::polynomial::Polynomial::fromMonomials(monomials, ctx);
   switch (coefficientModBits) {
     case 29:
-      return polynomial::RingAttr::get(
-          APInt(polynomial::APINT_BIT_WIDTH, 463187969), xnPlusOne);
+      return ::mlir::heir::polynomial::RingAttr::get(
+          APInt(::mlir::heir::polynomial::APINT_BIT_WIDTH, 463187969),
+          xnPlusOne);
     default:
       return failure();
   }
@@ -61,7 +61,8 @@ FailureOr<polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
 // Remove this class if no type conversions are necessary
 class SecretToBGVTypeConverter : public TypeConverter {
  public:
-  SecretToBGVTypeConverter(MLIRContext *ctx, polynomial::RingAttr rlweRing) {
+  SecretToBGVTypeConverter(MLIRContext *ctx,
+                           ::mlir::heir::polynomial::RingAttr rlweRing) {
     addConversion([](Type type) { return type; });
 
     // Convert secret types to BGV ciphertext types
@@ -81,7 +82,7 @@ class SecretToBGVTypeConverter : public TypeConverter {
   }
 
  private:
-  polynomial::RingAttr ring_;
+  ::mlir::heir::polynomial::RingAttr ring_;
 };
 
 template <typename T, typename Y>

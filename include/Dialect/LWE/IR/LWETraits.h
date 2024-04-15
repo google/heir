@@ -17,7 +17,7 @@ class SameOperandsAndResultRings
     : public OpTrait::TraitBase<ConcreteType, SameOperandsAndResultRings> {
  public:
   static LogicalResult verifyTrait(Operation *op) {
-    polynomial::RingAttr rings = nullptr;
+    ::mlir::heir::polynomial::RingAttr rings = nullptr;
     for (auto rTy : op->getResultTypes()) {
       auto ct = dyn_cast<lwe::RLWECiphertextType>(rTy);
       if (!ct) continue;

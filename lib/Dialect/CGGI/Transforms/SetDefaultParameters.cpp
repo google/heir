@@ -27,11 +27,12 @@ struct SetDefaultParameters
     MLIRContext &context = getContext();
     unsigned defaultRlweDimension = 1;
     APInt defaultCmod = APInt::getOneBitSet(64, 32);
-    std::vector<polynomial::Monomial> monomials;
-    monomials.push_back(polynomial::Monomial(1, 1024));
-    monomials.push_back(polynomial::Monomial(1, 0));
-    polynomial::Polynomial defaultPolyIdeal =
-        polynomial::Polynomial::fromMonomials(monomials, &context);
+    std::vector<::mlir::heir::polynomial::Monomial> monomials;
+    monomials.push_back(::mlir::heir::polynomial::Monomial(1, 1024));
+    monomials.push_back(::mlir::heir::polynomial::Monomial(1, 0));
+    ::mlir::heir::polynomial::Polynomial defaultPolyIdeal =
+        ::mlir::heir::polynomial::Polynomial::fromMonomials(monomials,
+                                                            &context);
 
     // https://github.com/google/jaxite/blob/main/jaxite/jaxite_bool/bool_params.py
     unsigned defaultBskNoiseVariance = 65536;  // stdev = 2**8, var = 2**16
@@ -43,7 +44,7 @@ struct SetDefaultParameters
 
     lwe::RLWEParamsAttr defaultRlweParams = lwe::RLWEParamsAttr::get(
         &context, defaultRlweDimension,
-        polynomial::RingAttr::get(defaultCmod, defaultPolyIdeal));
+        ::mlir::heir::polynomial::RingAttr::get(defaultCmod, defaultPolyIdeal));
     CGGIParamsAttr defaultParams =
         CGGIParamsAttr::get(&context, defaultRlweParams,
                             defaultBskNoiseVariance, defaultBskGadgetBaseLog,

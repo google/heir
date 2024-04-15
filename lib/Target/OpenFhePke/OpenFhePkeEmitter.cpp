@@ -40,9 +40,10 @@ void registerToOpenFhePkeTranslation() {
         return translateToOpenFhePke(op, output);
       },
       [](DialectRegistry &registry) {
-        registry.insert<func::FuncDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect, polynomial::PolynomialDialect,
-                        arith::ArithDialect, tensor::TensorDialect>();
+        registry
+            .insert<func::FuncDialect, openfhe::OpenfheDialect, lwe::LWEDialect,
+                    ::mlir::heir::polynomial::PolynomialDialect,
+                    arith::ArithDialect, tensor::TensorDialect>();
       });
 }
 
