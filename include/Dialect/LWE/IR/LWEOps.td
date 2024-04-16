@@ -119,7 +119,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [Pure, HasEncoding<"output", "encod
 }
 
 def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [
-    Pure, HasEncoding<"output", "encoding", "RLWEPlaintextType">]> {
+    Pure, HasEncoding<"input", "encoding", "RLWEPlaintextType">]> {
   let summary = "Decode an RLWE plaintext to an underlying type";
 
   let arguments = (ins

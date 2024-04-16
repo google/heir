@@ -11,6 +11,8 @@
 #include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "include/Conversion/SecretToBGV/SecretToBGV.h"
 #include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "include/Dialect/BGV/Transforms/AddClientInterface.h"
+#include "include/Dialect/BGV/Transforms/Passes.h"
 #include "include/Dialect/CGGI/IR/CGGIDialect.h"
 #include "include/Dialect/CGGI/Transforms/Passes.h"
 #include "include/Dialect/Comb/IR/CombDialect.h"
@@ -45,6 +47,7 @@
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
@@ -478,6 +481,7 @@ int main(int argc, char **argv) {
   registerAllPasses();
 
   // Custom passes in HEIR
+  bgv::registerBGVPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   secret::registerSecretPasses();
@@ -530,7 +534,7 @@ int main(int argc, char **argv) {
       heirSIMDVectorizerPipelineBuilder);
 
   PassPipelineRegistration<MlirToOpenFheBgvPipelineOptions>(
-      "mlir-to-openfhe-bgv-pipeline",
+      "mlir-to-openfhe-bgv",
       "Convert a func using standard MLIR dialects to FHE using BGV and "
       "export "
       "to OpenFHE C++ code.",
