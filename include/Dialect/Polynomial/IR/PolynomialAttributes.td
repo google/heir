@@ -14,7 +14,7 @@ class Polynomial_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 def Polynomial_Attr : Polynomial_Attr<"Polynomial", "polynomial"> {
   let summary = "An attribute containing a single-variable polynomial.";
   let description = [{
-     #poly = #polynomial.poly<x**1024 + 1>
+     #poly = #_polynomial.polynomial<x**1024 + 1>
   }];
 
   let parameters = (ins "Polynomial":$value);
@@ -43,7 +43,7 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
     $(p(x))$. Because all ideals in a single-variable polynomial ring are
     principal, the ideal is defined by a single polynomial.
 
-      #ring = #polynomial.ring<cmod=1234, ideal=#polynomial.polynomial<x**1024 + 1>>
+      #ring = #_polynomial.ring<cmod=1234, ideal=#polynomial.polynomial<x**1024 + 1>>
   }];
 
   let parameters = (ins "IntegerAttr": $cmod, "Polynomial":$ideal);
