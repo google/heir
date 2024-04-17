@@ -23,6 +23,7 @@
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"          // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
@@ -826,6 +827,9 @@ static DenseElementsAttr constructRoots(const ShapedType &type,
   return DenseElementsAttr::get(type, vals);
 }
 
+// fastNTT implements the Cooley-Turkey (CT) Algorithm for Fast-NTT algorithm as
+// described by Satriawan et al. in Section IV. Fast NTT, availabe here:
+// https://doi.org/10.1109/ACCESS.2023.3294446
 static Value fastNTT(ImplicitLocOpBuilder &b, RankedTensorType &inputType,
                      Value inputVec, APInt root, APInt cmod) {
   unsigned degree = inputType.getShape()[0];
@@ -880,20 +884,9 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RankedTensorType &inputType,
   auto ctMinusShifted = b.create<arith::AddIOp>(ctMinus, cModVec);
   auto ctMinusModded = b.create<arith::RemUIOp>(ctMinusShifted, cModVec);
 
-  // Manually concatenate since tensor::ConcatOp is currently not bufferizable
-  stride = {b.getIndexAttr(1)};
-  offset = {b.getIndexAttr(0)};
-  auto empty = b.create<tensor::EmptyOp>(inputType.getShape(),
-                                         inputType.getElementType());
-
-  // Setting a_j
-  auto insertBottom = b.create<tensor::InsertSliceOp>(
-      ctPlusModded, empty.getResult(), offset, size, stride);
-  offset = {b.getIndexAttr(degree / 2)};
-  // Setting a_{j + n / 2}
-  auto insertTop = b.create<tensor::InsertSliceOp>(
-      ctMinusModded, insertBottom.getResult(), offset, size, stride);
-  return insertTop.getResult();
+  auto concatOp = b.create<tensor::ConcatOp>(
+      0, ValueRange{ctPlusModded.getResult(), ctMinusModded.getResult()});
+  return concatOp.getResult();
 }
 
 struct ConvertNTT : public OpConversionPattern<NTTOp> {
@@ -907,38 +900,33 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    // TODO(): Handle tensor of polys.
     auto polyTy = dyn_cast<PolynomialType>(op.getInput().getType());
     if (!polyTy) {
+      op.emitError("Unable to handle tensor of polynomials");
       return failure();
     }
 
     RingAttr ring = polyTy.getRing();
-    // Following the same logic as convertPolynomialType, except we will reuse
-    // the values for the resultType when the ring is embedded.
-    uint32_t idealDegree = ring.ideal().getDegree();
-    unsigned eltBitWidth = (ring.coefficientModulus() - 1).getActiveBits();
-    IntegerType inputElemTy =
-        IntegerType::get(polyTy.getContext(), eltBitWidth,
-                         IntegerType::SignednessSemantics::Signless);
-    auto inputType = RankedTensorType::get({idealDegree}, inputElemTy);
+    auto inputType = convertPolynomialType(polyTy);
     // Retrieve the coefficients of the polynomial
     auto inputVec = b.create<ToTensorOp>(inputType, adaptor.getOperands()[0]);
 
     // Cast to intermediate type to avoid integer overflow during arithmetic
     auto intermediateType =
-        RankedTensorType::get({idealDegree}, polymulIntermediateType(polyTy));
+        inputType.clone(inputType.getShape(), polymulIntermediateType(polyTy));
     Value initialValue =
         b.create<arith::ExtUIOp>(intermediateType, inputVec.getResult());
 
     auto nttRes =
         fastNTT(b, intermediateType, initialValue,
                 ring.primitive2NthRoot().value(), ring.coefficientModulus());
-    // Truncate back to cmod bitwidth as nttRes will be computed modolus cmod
+
+    // Truncate back to cmod bitwidth as nttRes < cmod
     auto truncOp = b.create<arith::TruncIOp>(inputType, nttRes);
 
-    // Insert the ring encoding here
-    auto resultType = RankedTensorType::get({idealDegree}, inputElemTy, ring);
+    // Insert the ring encoding here to the input type
+    auto resultType = RankedTensorType::get(inputType.getShape(),
+                                            inputType.getElementType(), ring);
     auto result = b.create<tensor::CastOp>(resultType, truncOp.getResult());
     rewriter.replaceOp(op, result);
 
@@ -965,6 +953,7 @@ void PolynomialToStandard::runOnOperation() {
   PolynomialToStandardTypeConverter typeConverter(context);
 
   target.addIllegalDialect<PolynomialDialect>();
+  target.addIllegalOp<tensor::ConcatOp>();
   RewritePatternSet patterns(context);
 
   // Rewrite Sub as Add, to avoid lowering both
@@ -980,6 +969,7 @@ void PolynomialToStandard::runOnOperation() {
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
+  tensor::populateDecomposeTensorConcatPatterns(patterns);
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();

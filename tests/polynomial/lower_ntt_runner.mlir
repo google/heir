@@ -3,8 +3,8 @@
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_POLY_NTT < %t
 
-// This follows the Fast NTT example of Section 4a, here:
-// https://ieeexplore.ieee.org/document/10177902
+// This follows from example 3.8 (Satriawan et al.) here:
+// https://doi.org/10.1109/ACCESS.2023.3294446
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 

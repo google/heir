@@ -66,20 +66,26 @@ func.func @test_lower_add_tensor() -> tensor<2x!_polynomial.polynomial<#ring>> {
   // CHECK: [[T1:%.+]] = tensor.reshape [[A]]([[S1]]) : ([[T]], [[TI]]) -> [[TEX:tensor<1x1024xi32>]]
   // CHECK: [[S2:%.+]] = arith.constant dense<[1, 1024]> : [[TI]]
   // CHECK: [[T2:%.+]] = tensor.reshape [[B]]([[S2]]) : ([[T]], [[TI]]) -> [[TEX]]
-  // CHECK: [[C1:%.+]] = tensor.concat dim(0) [[T1]], [[T2]] : ([[TEX]], [[TEX]]) -> [[TT:tensor<2x1024xi32>]]
+  // CHECK: [[E1:%.+]] = tensor.empty() : [[TT:tensor<2x1024xi32>]]
+  // CHECK: [[I1:%.+]] = tensor.insert_slice [[T1]]
+  // CHECK: [[C1:%.+]] = tensor.insert_slice [[T2]]
+  // CHECK: [[CAST1:%.+]] = tensor.cast [[C1]]
   // CHECK: [[S3:%.+]] = arith.constant dense<[1, 1024]> : [[TI]]
   // CHECK: [[T3:%.+]] = tensor.reshape [[C]]([[S3]]) : ([[T]], [[TI]]) -> [[TEX]]
   // CHECK: [[S4:%.+]] = arith.constant dense<[1, 1024]> : [[TI]]
   // CHECK: [[T4:%.+]] = tensor.reshape [[D]]([[S4]]) : ([[T]], [[TI]]) -> [[TEX]]
-  // CHECK: [[C2:%.+]] = tensor.concat dim(0) [[T3]], [[T4]] : ([[TEX]], [[TEX]]) -> [[TT:tensor<2x1024xi32>]]
+  // CHECK: [[E2:%.+]] = tensor.empty() : [[TT]]
+  // CHECK: [[I2:%.+]] = tensor.insert_slice [[T3]]
+  // CHECK: [[C2:%.+]] = tensor.insert_slice [[T4]]
+  // CHECK: [[CAST2:%.+]] = tensor.cast [[C2]]
   // CHECK-NOT: _polynomial.from_tensor
   // CHECK-NOT: tensor.from_elements
   %tensor3 = affine.for %i = 0 to 2 iter_args(%t0 = %tensor1) ->  tensor<2x!_polynomial.polynomial<#ring>> {
-      // CHECK: [[FOR:%.]] = affine.for [[I:%.+]] = 0 to 2 iter_args([[T0:%.+]] = [[C1]]) -> ([[TT]]) {
+      // CHECK: [[FOR:%.]] = affine.for [[I:%.+]] = 0 to 2 iter_args([[T0:%.+]] = [[CAST1]]) -> ([[TT]]) {
       %a = tensor.extract %tensor1[%i] :  tensor<2x!_polynomial.polynomial<#ring>>
       %b = tensor.extract %tensor2[%i] :  tensor<2x!_polynomial.polynomial<#ring>>
-      // CHECK: [[AA:%.+]] = tensor.extract_slice [[C1]][[[I]], 0] [1, 1024] [1, 1] : [[TT]]
-      // CHECK: [[BB:%.+]] = tensor.extract_slice [[C2]][[[I]], 0] [1, 1024] [1, 1] : [[TT]]
+      // CHECK: [[AA:%.+]] = tensor.extract_slice [[CAST1]][[[I]], 0] [1, 1024] [1, 1] : [[TT]]
+      // CHECK: [[BB:%.+]] = tensor.extract_slice [[CAST2]][[[I]], 0] [1, 1024] [1, 1] : [[TT]]
       // CHECK-NOT: tensor.extract %
       %s = _polynomial.add(%a, %b) : !_polynomial.polynomial<#ring>
       // CHECK: [[SUM:%.+]] = arith.addi [[AA]], [[BB]] : [[T]]

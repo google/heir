@@ -1,7 +1,7 @@
 // RUN: heir-opt --polynomial-to-standard --canonicalize --cse %s | FileCheck %s
 
-// This follows the Fast NTT example of Section 4a, here:
-// https://ieeexplore.ieee.org/document/10177902
+// This follows from example 3.8 (Satriawan et al.) here:
+// https://doi.org/10.1109/ACCESS.2023.3294446
 
 #cycl = #polynomial.polynomial<1 + x**4>
 #ring = #polynomial.ring<cmod=7681, ideal=#cycl, root=1925>
