@@ -28,7 +28,7 @@ namespace bgv {
 
 /// Adds the client interface for a single func. This should only be used on the
 /// "entry" func for the IR being compiled, but there may be multiple.
-LogicalResult convertFunc(func::FuncOp op) {
+LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
   auto module = op->getParentOfType<ModuleOp>();
   auto argTypes = op.getArgumentTypes();
   auto returnTypes = op.getResultTypes();
@@ -73,8 +73,13 @@ LogicalResult convertFunc(func::FuncOp op) {
     return failure();
   }
 
-  auto skType = lwe::RLWESecretKeyType::get(op.getContext(), rlweParams);
-  encFuncArgTypes.push_back(skType);
+  Type encryptionKeyType =
+      usePublicKey
+          ? (Type)lwe::RLWEPublicKeyType::get(op.getContext(), rlweParams)
+          : (Type)lwe::RLWESecretKeyType::get(op.getContext(), rlweParams);
+  Type decryptionKeyType =
+      lwe::RLWESecretKeyType::get(op.getContext(), rlweParams);
+  encFuncArgTypes.push_back(encryptionKeyType);
 
   // The decryption function is the opposite.
   SmallVector<Type> decFuncArgTypes;
@@ -90,7 +95,7 @@ LogicalResult convertFunc(func::FuncOp op) {
     decFuncArgTypes.push_back(returnTy);
     decFuncResultTypes.push_back(returnTy);
   }
-  decFuncArgTypes.push_back(skType);
+  decFuncArgTypes.push_back(decryptionKeyType);
 
   // Build the encryption function first
   FunctionType encFuncType = FunctionType::get(
@@ -177,7 +182,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   void runOnOperation() override {
     auto result =
         getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-          if (failed(convertFunc(op))) {
+          if (failed(convertFunc(op, usePublicKey))) {
             op->emitError("Failed to add client interface for func");
             return WalkResult::interrupt();
           }

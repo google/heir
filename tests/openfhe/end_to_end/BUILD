@@ -16,3 +16,14 @@ openfhe_end_to_end_test(
     ],
     test_src = "binops_test.cpp",
 )
+
+openfhe_end_to_end_test(
+    name = "simple_sum_test",
+    generated_lib_header = "simple_sum_lib.h",
+    heir_opt_flags = "--mlir-to-openfhe-bgv=entry-function=simple_sum ciphertext-degree=32",
+    mlir_src = "simple_sum.mlir",
+    tags = [
+        "notap",
+    ],
+    test_src = "simple_sum_test.cpp",
+)

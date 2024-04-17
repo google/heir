@@ -16,6 +16,7 @@ cc_library(
     ],
     deps = [
         "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

@@ -13,6 +13,10 @@ def AddClientInterface : Pass<"bgv-add-client-interface"> {
   be encoded as a tensor).
   }];
   let dependentDialects = ["mlir::heir::bgv::BGVDialect"];
+  let options = [
+    Option<"usePublicKey", "use-public-key", "bool", /*default=*/"false",
+           "If true, generate a client interface that uses a public key for encryption.">
+  ];
 }
 
 #endif  // INCLUDE_DIALECT_BGV_TRANSFORMS_PASSES_TD_

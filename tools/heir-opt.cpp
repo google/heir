@@ -445,6 +445,12 @@ void mlirToOpenFheBgvPipelineBuilder(
   secretToBgvOpts.polyModDegree = options.ciphertextDegree;
   pm.addPass(createSecretToBGV(secretToBgvOpts));
 
+  // Add client interface
+  auto addClientInterfaceOptions = bgv::AddClientInterfaceOptions{};
+  // OpenFHE's pke API, which this pipeline generates, is always public-key
+  addClientInterfaceOptions.usePublicKey = true;
+  pm.addPass(bgv::createAddClientInterface(addClientInterfaceOptions));
+
   // Lower to openfhe
   pm.addPass(bgv::createBGVToOpenfhe());
 }
@@ -494,14 +500,23 @@ int main(int argc, char **argv) {
   registerUnusedMemRefPasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
-  const char *abcEnvPath = std::getenv("HEIR_ABC_BINARY");
-  const char *yosysRunfilesEnvPath = std::getenv("HEIR_YOSYS_SCRIPTS_DIR");
-  if (abcEnvPath == nullptr || yosysRunfilesEnvPath == nullptr) {
-    llvm::errs() << "yosys optimizer deps not found, please set "
-                    "HEIR_ABC_PATH and HEIR_YOSYS_LIBS; otherwise, set "
-                    "HEIR_NO_YOSYS=1\n";
-    return EXIT_FAILURE;
-  }
+#ifndef HEIR_ABC_BINARY
+  llvm::errs() << "HEIR_ABC_BINARY #define not properly set";
+  return EXIT_FAILURE;
+#endif
+#ifndef HEIR_YOSYS_SCRIPTS_DIR
+  llvm::errs() << "HEIR_YOSYS_SCRIPTS_DIR #define not properly set";
+  return EXIT_FAILURE;
+#endif
+  const char *abcEnvPath = HEIR_ABC_BINARY;
+  const char *yosysRunfilesEnvPath = HEIR_YOSYS_SCRIPTS_DIR;
+  // When running in a lit test, these #defines must be overridden
+  // by environment variables set in tests/lit.cfg.py
+  char *overriddenAbcEnvPath = std::getenv("HEIR_ABC_BINARY");
+  char *overriddenYosysRunfilesEnvPath = std::getenv("HEIR_YOSYS_SCRIPTS_DIR");
+  if (overriddenAbcEnvPath != nullptr) abcEnvPath = overriddenAbcEnvPath;
+  if (overriddenYosysRunfilesEnvPath != nullptr)
+    yosysRunfilesEnvPath = overriddenYosysRunfilesEnvPath;
   mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
   tosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
   tosaToBooleanFpgaTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);

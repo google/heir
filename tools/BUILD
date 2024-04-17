@@ -12,24 +12,23 @@ cc_binary(
     name = "heir-opt",
     srcs = ["heir-opt.cpp"],
     data = select({
-        "@heir//:disable_yosys": [],
-        "//conditions:default": [
+        "@heir//:config_enable_yosys": [
             "@edu_berkeley_abc//:abc",
             "@heir//lib/Transforms/YosysOptimizer/yosys:share_files",
         ],
-    }),
-    defines = select({
-        "@heir//:disable_yosys": ["HEIR_NO_YOSYS=1"],
         "//conditions:default": [],
     }),
-    # Using the location directive to find share files results in multiple expanded paths.
-    env = select({
-        "@heir//:disable_yosys": {
-        },
-        "//conditions:default": {
-            "HEIR_ABC_BINARY": "$(location @edu_berkeley_abc//:abc)",
-            "HEIR_YOSYS_SCRIPTS_DIR": WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys",
-        },
+    # The strings in these defines are passed through various pre-processors,
+    # including the materializing of quoted strings as done in bash, so to
+    # ensure that the #define'd variables stay quoted strings in the generated
+    # C++, we need to enclose them in `\\\"` (an escaped backslash followed by
+    # an escaped quote).
+    defines = select({
+        "@heir//:config_enable_yosys": [
+            "HEIR_ABC_BINARY=\\\"$(location @edu_berkeley_abc//:abc)\\\"",
+            "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
+        ],
+        "//conditions:default": ["HEIR_NO_YOSYS=1"],
     }),
     includes = ["include"],
     deps = [
@@ -106,10 +105,10 @@ cc_binary(
         "@llvm-project//mlir:TosaToTensor",
         "@llvm-project//mlir:Transforms",
     ] + select({
-        "@heir//:disable_yosys": [],
-        "//conditions:default": [
+        "@heir//:config_enable_yosys": [
             "@heir//lib/Transforms/YosysOptimizer",
         ],
+        "//conditions:default": [],
     }),
 )
 

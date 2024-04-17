@@ -21,9 +21,11 @@ std::string commaSeparatedValues(
   if (values.empty()) {
     return std::string();
   }
-  return std::accumulate(
-      std::next(values.begin()), values.end(), valueToString(values[0]),
-      [&](std::string a, Value b) { return a + ", " + valueToString(b); });
+  return std::accumulate(std::next(values.begin()), values.end(),
+                         valueToString(values[0]),
+                         [&](const std::string& a, Value b) {
+                           return a + ", " + valueToString(b);
+                         });
 }
 
 FailureOr<std::string> commaSeparatedTypes(
@@ -47,10 +49,11 @@ std::string bracketEnclosedValues(
   if (values.empty()) {
     return std::string();
   }
-  return std::accumulate(
-      std::next(values.begin()), values.end(),
-      "[" + valueToString(values[0]) + "]",
-      [&](std::string a, Value b) { return a + "[" + valueToString(b) + "]"; });
+  return std::accumulate(std::next(values.begin()), values.end(),
+                         "[" + valueToString(values[0]) + "]",
+                         [&](const std::string& a, Value b) {
+                           return a + "[" + valueToString(b) + "]";
+                         });
 }
 
 std::string flattenIndexExpression(

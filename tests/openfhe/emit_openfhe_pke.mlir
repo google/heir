@@ -17,21 +17,21 @@
 // CHECK-SAME:    Plaintext [[ARG3:[^,]*]],
 // CHECK-SAME:    EvalKeyT [[ARG4:[^)]*]]
 // CHECK-SAME:  ) {
-// CHECK-NEXT:      auto [[const:.*]] = 4;
-// CHECK-NEXT:      auto [[v3:.*]] = [[CC]]->EvalAdd([[ARG1]], [[ARG2]]);
-// CHECK-NEXT:      auto [[v4:.*]] = [[CC]]->EvalSub([[ARG1]], [[ARG2]]);
-// CHECK-NEXT:      auto [[v5:.*]] = [[CC]]->EvalMult([[v3]], [[v4]]);
-// CHECK-NEXT:      auto [[v6:.*]] = [[CC]]->EvalNegate([[v5]]);
-// CHECK-NEXT:      auto [[v7:.*]] = [[CC]]->EvalSquare([[v6]]);
-// CHECK-NEXT:      auto [[v8:.*]] = [[CC]]->EvalMult([[v7]], [[ARG3]]);
-// CHECK-NEXT:      auto [[v9:.*]] = [[CC]]->EvalMult([[v7]], [[const]]);
-// CHECK-NEXT:      auto [[v10:.*]] = [[CC]]->Relinearize([[v9]]);
-// CHECK-NEXT:      auto [[v11:.*]] = [[CC]]->ModReduce([[v10]]);
-// CHECK-NEXT:      auto [[v12:.*]] = [[CC]]->LevelReduce([[v11]]);
-// CHECK-NEXT:      auto [[v13:.*]] = [[CC]]->EvalRotate([[v12]], [[const]]);
+// CHECK-NEXT:      int64_t [[const:.*]] = 4;
+// CHECK-NEXT:      const auto& [[v3:.*]] = [[CC]]->EvalAdd([[ARG1]], [[ARG2]]);
+// CHECK-NEXT:      const auto& [[v4:.*]] = [[CC]]->EvalSub([[ARG1]], [[ARG2]]);
+// CHECK-NEXT:      const auto& [[v5:.*]] = [[CC]]->EvalMult([[v3]], [[v4]]);
+// CHECK-NEXT:      const auto& [[v6:.*]] = [[CC]]->EvalNegate([[v5]]);
+// CHECK-NEXT:      const auto& [[v7:.*]] = [[CC]]->EvalSquare([[v6]]);
+// CHECK-NEXT:      const auto& [[v8:.*]] = [[CC]]->EvalMult([[v7]], [[ARG3]]);
+// CHECK-NEXT:      const auto& [[v9:.*]] = [[CC]]->EvalMult([[v7]], [[const]]);
+// CHECK-NEXT:      const auto& [[v10:.*]] = [[CC]]->Relinearize([[v9]]);
+// CHECK-NEXT:      const auto& [[v11:.*]] = [[CC]]->ModReduce([[v10]]);
+// CHECK-NEXT:      const auto& [[v12:.*]] = [[CC]]->LevelReduce([[v11]]);
+// CHECK-NEXT:      const auto& [[v13:.*]] = [[CC]]->EvalRotate([[v12]], [[const]]);
 // CHECK-NEXT:      std::map<uint32_t, EvalKeyT> [[v14_evalkeymap:.*]] = {{[{][{]}}0, [[ARG4]]{{[}][}]}};
-// CHECK-NEXT:      auto [[v14:.*]] = [[CC]]->EvalAutomorphism([[v13]], 0, [[v14_evalkeymap]]);
-// CHECK-NEXT:      auto [[v15:.*]] = [[CC]]->KeySwitch([[v14]], [[ARG4]]);
+// CHECK-NEXT:      const auto& [[v14:.*]] = [[CC]]->EvalAutomorphism([[v13]], 0, [[v14_evalkeymap]]);
+// CHECK-NEXT:      const auto& [[v15:.*]] = [[CC]]->KeySwitch([[v14]], [[ARG4]]);
 // CHECK-NEXT:      return [[v15]];
 // CHECK-NEXT:  }
 func.func @test_basic_emitter(%cc : !cc, %input1 : !ct, %input2 : !ct, %input3: !pt, %eval_key : !ek) -> !ct {
@@ -50,4 +50,64 @@ func.func @test_basic_emitter(%cc : !cc, %input1 : !ct, %input2 : !ct, %input3: 
   %automorph_res = openfhe.automorph %cc, %rotate_res, %eval_key : (!cc, !ct, !ek) -> !ct
   %key_switch_res = openfhe.key_switch %cc, %automorph_res, %eval_key : (!cc, !ct, !ek) -> !ct
   return %key_switch_res: !ct
+}
+
+#degree_32_poly = #_polynomial.polynomial<1 + x**32>
+#eval_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
+#ring2 = #_polynomial.ring<cmod=463187969, ideal=#degree_32_poly>
+#params2 = #lwe.rlwe_params<ring = #ring2>
+!tensor_pt_ty = !lwe.rlwe_plaintext<encoding = #eval_encoding, ring = #ring2, underlying_type = tensor<32xi16>>
+!scalar_pt_ty = !lwe.rlwe_plaintext<encoding = #eval_encoding, ring = #ring2, underlying_type = i16>
+!tensor_ct_ty = !lwe.rlwe_ciphertext<encoding = #eval_encoding, rlwe_params = #params2, underlying_type = tensor<32xi16>>
+!scalar_ct_ty = !lwe.rlwe_ciphertext<encoding = #eval_encoding, rlwe_params = #params2, underlying_type = i16>
+
+// CHECK-LABEL: simple_sum(
+// CHECK-COUNT-6: EvalRotate
+// CHECK-LABEL: simple_sum__encrypt(
+// CHECK: MakePackedPlaintext
+// CHECK: Encrypt
+// CHECK-LABEL: simple_sum__decrypt(
+// CHECK: PlaintextT
+// CHECK: Decrypt
+// CHECK: int16_t
+// CHECK-SAME: [0]
+func.func @simple_sum(%arg0: !openfhe.crypto_context, %arg1: !tensor_ct_ty) -> !scalar_ct_ty {
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c4 = arith.constant 4 : index
+  %c8 = arith.constant 8 : index
+  %c16 = arith.constant 16 : index
+  %c31 = arith.constant 31 : index
+  %0 = arith.index_cast %c16 : index to i64
+  %1 = openfhe.rot %arg0, %arg1, %0 : (!openfhe.crypto_context, !tensor_ct_ty, i64) -> !tensor_ct_ty
+  %2 = openfhe.add %arg0, %arg1, %1 : (!openfhe.crypto_context, !tensor_ct_ty, !tensor_ct_ty) -> !tensor_ct_ty
+  %3 = arith.index_cast %c8 : index to i64
+  %4 = openfhe.rot %arg0, %2, %3 : (!openfhe.crypto_context, !tensor_ct_ty, i64) -> !tensor_ct_ty
+  %5 = openfhe.add %arg0, %2, %4 : (!openfhe.crypto_context, !tensor_ct_ty, !tensor_ct_ty) -> !tensor_ct_ty
+  %6 = arith.index_cast %c4 : index to i64
+  %7 = openfhe.rot %arg0, %5, %6 : (!openfhe.crypto_context, !tensor_ct_ty, i64) -> !tensor_ct_ty
+  %8 = openfhe.add %arg0, %5, %7 : (!openfhe.crypto_context, !tensor_ct_ty, !tensor_ct_ty) -> !tensor_ct_ty
+  %9 = arith.index_cast %c2 : index to i64
+  %10 = openfhe.rot %arg0, %8, %9 : (!openfhe.crypto_context, !tensor_ct_ty, i64) -> !tensor_ct_ty
+  %11 = openfhe.add %arg0, %8, %10 : (!openfhe.crypto_context, !tensor_ct_ty, !tensor_ct_ty) -> !tensor_ct_ty
+  %12 = arith.index_cast %c1 : index to i64
+  %13 = openfhe.rot %arg0, %11, %12 : (!openfhe.crypto_context, !tensor_ct_ty, i64) -> !tensor_ct_ty
+  %14 = openfhe.add %arg0, %11, %13 : (!openfhe.crypto_context, !tensor_ct_ty, !tensor_ct_ty) -> !tensor_ct_ty
+  %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<32xi16>
+  %15 = lwe.rlwe_encode %cst {encoding = #eval_encoding, ring = #ring2} : tensor<32xi16> -> !tensor_pt_ty
+  %16 = openfhe.mul_plain %arg0, %14, %15 : (!openfhe.crypto_context, !tensor_ct_ty, !tensor_pt_ty) -> !tensor_ct_ty
+  %17 = arith.index_cast %c31 : index to i64
+  %18 = openfhe.rot %arg0, %16, %17 : (!openfhe.crypto_context, !tensor_ct_ty, i64) -> !tensor_ct_ty
+  %19 = lwe.reinterpret_underlying_type %18 : !tensor_ct_ty to !scalar_ct_ty
+  return %19 : !scalar_ct_ty
+}
+func.func @simple_sum__encrypt(%arg0: !openfhe.crypto_context, %arg1: tensor<32xi16>, %arg2: !openfhe.public_key) -> !tensor_ct_ty {
+  %0 = lwe.rlwe_encode %arg1 {encoding = #eval_encoding, ring = #ring2} : tensor<32xi16> -> !tensor_pt_ty
+  %1 = openfhe.encrypt %arg0, %0, %arg2 : (!openfhe.crypto_context, !tensor_pt_ty, !openfhe.public_key) -> !tensor_ct_ty
+  return %1 : !tensor_ct_ty
+}
+func.func @simple_sum__decrypt(%arg0: !openfhe.crypto_context, %arg1: !scalar_ct_ty, %arg2: !openfhe.private_key) -> i16 {
+  %0 = openfhe.decrypt %arg0, %arg1, %arg2 : (!openfhe.crypto_context, !scalar_ct_ty, !openfhe.private_key) -> !scalar_pt_ty
+  %1 = lwe.rlwe_decode %0 {encoding = #eval_encoding, ring = #ring2} : !scalar_pt_ty -> i16
+  return %1 : i16
 }

@@ -1,6 +1,7 @@
 #include "include/Target/OpenFhePke/OpenFhePkeEmitter.h"
 
 #include <functional>
+#include <numeric>
 #include <string_view>
 
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
@@ -40,10 +41,10 @@ void registerToOpenFhePkeTranslation() {
         return translateToOpenFhePke(op, output);
       },
       [](DialectRegistry &registry) {
-        registry
-            .insert<func::FuncDialect, openfhe::OpenfheDialect, lwe::LWEDialect,
-                    ::mlir::heir::polynomial::PolynomialDialect,
-                    arith::ArithDialect, tensor::TensorDialect>();
+        registry.insert<arith::ArithDialect, func::FuncDialect,
+                        openfhe::OpenfheDialect, lwe::LWEDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect,
+                        arith::ArithDialect, tensor::TensorDialect>();
       });
 }
 
@@ -63,11 +64,17 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
-          .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
+          .Case<arith::ConstantOp, arith::IndexCastOp>(
+              [&](auto op) { return printOperation(op); })
+          // LWE ops
+          .Case<lwe::RLWEEncodeOp, lwe::RLWEDecodeOp,
+                lwe::ReinterpretUnderlyingTypeOp>(
+              [&](auto op) { return printOperation(op); })
           // OpenFHE ops
           .Case<AddOp, SubOp, MulOp, MulPlainOp, SquareOp, NegateOp, MulConstOp,
                 RelinOp, ModReduceOp, LevelReduceOp, RotOp, AutomorphOp,
-                KeySwitchOp>([&](auto op) { return printOperation(op); })
+                KeySwitchOp, EncryptOp, DecryptOp>(
+              [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
           });
@@ -117,8 +124,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   }
 
   os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
-    auto res = convertType(value.getType());
-    return res.value() + " " + variableNames->getNameForValue(value);
+    return convertType(value.getType()).value() + " " +
+           variableNames->getNameForValue(value);
   });
   os.unindent();
   os << ") {\n";
@@ -147,14 +154,24 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
-void OpenFhePkeEmitter::emitAssignPrefix(Value result) {
-  os << "auto " << variableNames->getNameForValue(result) << " = ";
+void OpenFhePkeEmitter::emitAutoAssignPrefix(Value result) {
+  // Use const auto& because most OpenFHE API methods would perform a copy
+  // if using a plain `auto`.
+  os << "const auto& " << variableNames->getNameForValue(result) << " = ";
+}
+
+LogicalResult OpenFhePkeEmitter::emitTypedAssignPrefix(Value result) {
+  if (failed(emitType(result.getType()))) {
+    return failure();
+  }
+  os << " " << variableNames->getNameForValue(result) << " = ";
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printEvalMethod(
     ::mlir::Value result, ::mlir::Value cryptoContext,
     ::mlir::ValueRange nonEvalOperands, std::string_view op) {
-  emitAssignPrefix(result);
+  emitAutoAssignPrefix(result);
 
   os << variableNames->getNameForValue(cryptoContext) << "->" << op << "(";
   os << commaSeparatedValues(nonEvalOperands, [&](Value value) {
@@ -244,7 +261,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
   os << "std::map<uint32_t, " << result << "> " << mapName << " = {{0, "
      << variableNames->getNameForValue(op.getEvalKey()) << "}};\n";
 
-  emitAssignPrefix(op.getResult());
+  emitAutoAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(op.getCryptoContext())
      << "->EvalAutomorphism(";
   os << variableNames->getNameForValue(op.getCiphertext()) << ", 0, " << mapName
@@ -259,13 +276,131 @@ LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
   auto valueAttr = op.getValue();
-  emitAssignPrefix(op.getResult());
   if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
+    if (failed(emitTypedAssignPrefix(op.getResult()))) {
+      return failure();
+    }
     os << intAttr.getValue() << ";\n";
+  } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
+    if (denseElementsAttr.getType().getRank() != 1) {
+      return op.emitError() << "Only 1D dense elements supported";
+    }
+
+    if (failed(emitTypedAssignPrefix(op.getResult()))) {
+      return failure();
+    }
+    os << "{";
+
+    auto cstIter = denseElementsAttr.value_begin<APInt>();
+    auto cstIterEnd = denseElementsAttr.value_end<APInt>();
+    SmallString<10> first;
+    APInt firstVal = *cstIter;
+    firstVal.toStringSigned(first);
+    os << std::accumulate(std::next(cstIter), cstIterEnd, std::string(first),
+                          [&](const std::string &a, const APInt &b) {
+                            SmallString<10> str;
+                            b.toStringSigned(str);
+                            return a + ", " + std::string(str);
+                          });
+    os << "};\n";
   } else {
     return op.emitError() << "Unsupported constant type "
                           << valueAttr.getType();
   }
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::IndexCastOp op) {
+  Type outputType = op.getOut().getType();
+  if (failed(emitTypedAssignPrefix(op.getResult()))) {
+    return failure();
+  }
+  os << "static_cast<";
+  if (failed(emitType(outputType))) {
+    return op.emitOpError() << "Unsupported index_cast op";
+  }
+  os << ">(" << variableNames->getNameForValue(op.getIn()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(
+    lwe::ReinterpretUnderlyingTypeOp op) {
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getInput()) << ";\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEEncodeOp op) {
+  // OpenFHE has a convention that all inputs to MakePackedPlaintext are
+  // std::vector<int64_t>, so we need to cast the input to that type.
+
+  std::string inputVarName = variableNames->getNameForValue(op.getInput());
+  std::string convertedVarName;
+  // If it's a vector<int**_t>, we can use a copy constructor to upcast.
+  // TODO(#647): move type casting to a higher level lowering.
+  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getInput().getType())) {
+    std::string tmpVar = inputVarName + "_cast";
+    os << "std::vector<int64_t> " << tmpVar << "(std::begin(" << inputVarName
+       << "), std::end(" << inputVarName << "));\n";
+    convertedVarName = tmpVar;
+  } else {
+    // TODO(#646): support scalar inputs to encode, probably at a higher level
+    // than the final codegen.
+    return op.emitOpError() << "Unsupported input type";
+  }
+
+  emitAutoAssignPrefix(op.getResult());
+  FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
+  if (failed(resultCC)) return resultCC;
+  os << variableNames->getNameForValue(resultCC.value())
+     << "->MakePackedPlaintext(" << convertedVarName << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
+  // In OpenFHE a plaintext is already decoded by decrypt. The internal OpenFHE
+  // implementation is simple enough (and dependent on currently-hard-coded
+  // encoding choices) that we will eventually need to work at a lower level of
+  // the API to support this operation properly.
+  auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType());
+  if (tensorTy) {
+    if (tensorTy.getRank() != 1) {
+      return op.emitOpError() << "Only 1D tensors supported";
+    }
+    // OpenFHE plaintexts must be manually resized to the decoded output size
+    // via plaintext->SetLength(<size>);
+    auto size = tensorTy.getShape()[0];
+    os << variableNames->getNameForValue(op.getResult()) << "->SetLength("
+       << size << ");\n";
+    emitAutoAssignPrefix(op.getResult());
+    os << variableNames->getNameForValue(op.getInput())
+       << "->GetPackedValue();\n";
+    return success();
+  }
+
+  // By convention, a plaintext stores a scalar value in index 0
+  auto result = emitTypedAssignPrefix(op.getResult());
+  if (failed(result)) return result;
+  os << variableNames->getNameForValue(op.getInput())
+     << "->GetPackedValue()[0];\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(EncryptOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getPublicKey(), op.getPlaintext()}, "Encrypt");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(DecryptOp op) {
+  // Decrypt asks for a pointer to an outparam for the output plaintext
+  os << "PlaintextT " << variableNames->getNameForValue(op.getResult())
+     << ";\n";
+
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->Decrypt(";
+  os << commaSeparatedValues(
+      {op.getPrivateKey(), op.getCiphertext()},
+      [&](Value value) { return variableNames->getNameForValue(value); });
+  os << ", &" << variableNames->getNameForValue(op.getResult()) << ");\n";
   return success();
 }
 

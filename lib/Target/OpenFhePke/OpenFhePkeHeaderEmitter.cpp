@@ -10,6 +10,7 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
@@ -35,9 +36,9 @@ void registerToOpenFhePkeHeaderTranslation() {
         return translateToOpenFhePkeHeader(op, output);
       },
       [](DialectRegistry &registry) {
-        registry
-            .insert<func::FuncDialect, openfhe::OpenfheDialect, lwe::LWEDialect,
-                    ::mlir::heir::polynomial::PolynomialDialect>();
+        registry.insert<arith::ArithDialect, func::FuncDialect,
+                        openfhe::OpenfheDialect, lwe::LWEDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect>();
       });
 }
 
@@ -90,7 +91,6 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
   }
 
   os << " " << funcOp.getName() << "(";
-  os.indent();
 
   for (Value arg : funcOp.getArguments()) {
     if (failed(convertType(arg.getType()))) {
@@ -102,9 +102,7 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
     auto res = convertType(value.getType());
     return res.value() + " " + variableNames->getNameForValue(value);
   });
-  os.unindent();
   os << ");\n";
-  os.indent();
 
   return success();
 }

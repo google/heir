@@ -25,7 +25,7 @@ Some passes in this repository require Yosys as a dependency
 speed up builds, use the following build setting:
 
 ```bash
-bazel build --define=HEIR_NO_YOSYS=1 @heir//tools:heir-opt
+bazel build --//:enable_yosys=0 @heir//tools:heir-opt
 ```
 
 ## Optional: Run the tests
@@ -37,7 +37,7 @@ bazel test @heir//...
 Like above, run the following to skip tests that depend on Yosys:
 
 ```bash
-bazel test --define=HEIR_NO_YOSYS=1 --test_tag_filters=-yosys @heir//...
+bazel test --//:enable_yosys=0 --test_tag_filters=-yosys @heir//...
 ```
 
 ## Run the hello-world example
