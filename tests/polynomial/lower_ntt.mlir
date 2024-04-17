@@ -3,9 +3,9 @@
 // This follows from example 3.8 (Satriawan et al.) here:
 // https://doi.org/10.1109/ACCESS.2023.3294446
 
-#cycl = #polynomial.polynomial<1 + x**4>
-#ring = #polynomial.ring<cmod=7681, ideal=#cycl, root=1925>
-!poly_ty = !polynomial.polynomial<#ring>
+#cycl = #_polynomial.polynomial<1 + x**4>
+#ring = #_polynomial.ring<cmod=7681, ideal=#cycl, root=1925>
+!poly_ty = !_polynomial.polynomial<#ring>
 
 // CHECK:     func.func @lower_ntt() -> [[OUTPUT_TYPE:.*]] {
 // CHECK-DAG:   %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INTER_TYPE:.*]]
@@ -59,7 +59,7 @@
 
 func.func @lower_ntt() -> tensor<4xi13, #ring> {
   %coeffs = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi13>
-  %poly = polynomial.from_tensor %coeffs : tensor<4xi13> -> !poly_ty
-  %ret = polynomial.ntt %poly : !poly_ty -> tensor<4xi13, #ring>
+  %poly = _polynomial.from_tensor %coeffs : tensor<4xi13> -> !poly_ty
+  %ret = _polynomial.ntt %poly : !poly_ty -> tensor<4xi13, #ring>
   return %ret : tensor<4xi13, #ring>
 }
