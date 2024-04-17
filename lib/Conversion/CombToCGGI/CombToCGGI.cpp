@@ -542,15 +542,33 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
   }
 };
 
+int findLUTSize(MLIRContext *context, Operation *module) {
+  int max_int_size = 0;
+  auto processOperation = [&](Operation *op) {
+    if (isa<CombDialect>(op->getDialect())) {
+      int current_size = 0;
+      if (dyn_cast<comb::TruthTableOp>(op))
+        current_size = 3;
+      else
+        current_size = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
+
+      max_int_size = std::max(max_int_size, current_size);
+    }
+  };
+
+  // Walk all operations within the module in post-order (default)
+  module->walk(processOperation);
+
+  return max_int_size;
+}
+
 struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
 
-    // TODO(#250): The lutSize here is fixed on the assumption that the comb
-    // dialect is using ternary LUTs. Generalize lutSize by doing an analysis
-    // pass on the input combinational operations and integers.
-    int lutSize = 3;
+    int lutSize = findLUTSize(context, module);
+
     SecretTypeConverter typeConverter(context, lutSize);
 
     RewritePatternSet patterns(context);
@@ -571,13 +589,15 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
                                                                 context);
     target.addIllegalOp<TruthTableOp, secret::CastOp, secret::GenericOp>();
     target.addDynamicallyLegalOp<memref::StoreOp>([&](memref::StoreOp op) {
-      // Legal only when the memref element type matches the stored type.
+      // Legal only when the memref element type matches the stored
+      // type.
       return op.getMemRefType().getElementType() ==
              op.getValueToStore().getType();
     });
     target.addDynamicallyLegalOp<affine::AffineStoreOp>(
         [&](affine::AffineStoreOp op) {
-          // Legal only when the memref element type matches the stored type.
+          // Legal only when the memref element type matches the stored
+          // type.
           return op.getMemRefType().getElementType() ==
                  op.getValueToStore().getType();
         });
@@ -587,7 +607,8 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
     });
     target.addDynamicallyLegalOp<affine::AffineLoadOp>(
         [&](affine::AffineLoadOp op) {
-          // Legal only when the memref element type matches the loaded type.
+          // Legal only when the memref element type matches the loaded
+          // type.
           return op.getMemRefType().getElementType() ==
                  op.getResult().getType();
         });
