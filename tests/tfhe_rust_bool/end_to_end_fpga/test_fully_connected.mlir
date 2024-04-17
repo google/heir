@@ -1,5 +1,5 @@
 // RUN: heir-opt --tosa-to-boolean-fpga-tfhe="abc-fast=true entry-function=fn_under_test" %s | heir-translate --emit-tfhe-rust-bool > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 --message_bits=3 | FileCheck %s
+// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 | FileCheck %s
 
 // This takes takes the input x and outputs 2 \cdot x + 3.
 // CHECK: 00000111

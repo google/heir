@@ -259,7 +259,9 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
       // if not: comes from function definition
       mlir::Operation *op = value.getDefiningOp();
       if (op) {
-        prefix = isa<tensor::ExtractOp>(op) ? "" : prefix;
+        auto reference_predicate =
+            isa<tensor::ExtractOp>(op) | isa<memref::LoadOp>(op);
+        prefix = reference_predicate ? "" : prefix;
       } else {
         prefix = "";
       }
@@ -274,7 +276,7 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
 
 LogicalResult TfheRustBoolEmitter::printOperation(CreateTrivialOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(), {op.getValue()},
-                        "create_trivial", {"bool"});
+                        "trivial_encrypt", {"bool"});
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(affine::AffineForOp op) {
@@ -404,15 +406,12 @@ LogicalResult TfheRustBoolEmitter::printOperation(memref::StoreOp op) {
   os << ".insert((" << commaSeparatedValues(op.getIndices(), [&](Value value) {
     return variableNames->getNameForValue(value) + std::string(" as usize");
   }) << "), ";
-  auto tfheOp =
-      op.getValueToStore().getDefiningOp()->getDialect()->getNamespace() ==
-      "tfhe_rust_bool";
-  auto prefix = tfheOp ? "" : "*";
+
   // Note: we may not need to clone all the time, but the BTreeMap stores
   // Ciphertexts, not &Ciphertexts. This is because results computed inside for
   // loops will not live long enough.
   auto suffix = ".clone()";
-  os << prefix << variableNames->getNameForValue(op.getValueToStore()) << suffix
+  os << variableNames->getNameForValue(op.getValueToStore()) << suffix
      << ");\n";
   return success();
 }
