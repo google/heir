@@ -124,8 +124,8 @@ ICmpPredicate ICmpOp::getNegatedPredicate(ICmpPredicate predicate) {
 LogicalResult ReplicateOp::verify() {
   // The source must be equal or smaller than the dest type, and an even
   // multiple of it.  Both are already known to be signless integers.
-  auto srcWidth = getOperand().getType().cast<IntegerType>().getWidth();
-  auto dstWidth = getType().cast<IntegerType>().getWidth();
+  auto srcWidth = cast<IntegerType>(getOperand().getType()).getWidth();
+  auto dstWidth = cast<IntegerType>(getType()).getWidth();
   if (srcWidth == 0)
     return emitOpError("replicate does not take zero bit integer");
 
@@ -173,13 +173,13 @@ LogicalResult NorOp::verify() { return verifyUTBinOp(*this); }
 static unsigned getTotalWidth(ValueRange inputs) {
   unsigned resultWidth = 0;
   for (auto input : inputs) {
-    resultWidth += input.getType().cast<IntegerType>().getWidth();
+    resultWidth += cast<IntegerType>(input.getType()).getWidth();
   }
   return resultWidth;
 }
 
 LogicalResult ConcatOp::verify() {
-  unsigned tyWidth = getType().cast<IntegerType>().getWidth();
+  unsigned tyWidth = cast<IntegerType>(getType()).getWidth();
   unsigned operandsTotalWidth = getTotalWidth(getInputs());
   if (tyWidth != operandsTotalWidth)
     return emitOpError(
@@ -195,7 +195,7 @@ void ConcatOp::build(OpBuilder &builder, OperationState &result, Value hd,
                      ValueRange tl) {
   result.addOperands(ValueRange{hd});
   result.addOperands(tl);
-  unsigned hdWidth = hd.getType().cast<IntegerType>().getWidth();
+  unsigned hdWidth = cast<IntegerType>(hd.getType()).getWidth();
   result.addTypes(builder.getIntegerType(getTotalWidth(tl) + hdWidth));
 }
 
@@ -213,8 +213,8 @@ LogicalResult ConcatOp::inferReturnTypes(
 //===----------------------------------------------------------------------===//
 
 LogicalResult ExtractOp::verify() {
-  unsigned srcWidth = getInput().getType().cast<IntegerType>().getWidth();
-  unsigned dstWidth = getType().cast<IntegerType>().getWidth();
+  unsigned srcWidth = cast<IntegerType>(getInput().getType()).getWidth();
+  unsigned dstWidth = cast<IntegerType>(getType()).getWidth();
   if (getLowBit() >= srcWidth || srcWidth - getLowBit() < dstWidth)
     return emitOpError("from bit too large for input"), failure();
 

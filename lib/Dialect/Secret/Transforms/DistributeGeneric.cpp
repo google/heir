@@ -309,7 +309,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       if (operand.get().getParentBlock() == sourceGeneric.getBody()) {
         LLVM_DEBUG(llvm::dbgs() << "opToMove depends on block argument "
                                 << operand.get() << " of source generic\n");
-        assert(operand.get().isa<BlockArgument>() &&
+        assert(isa<BlockArgument>(operand.get()) &&
                "opToMove has a non-block-argument operand defined in the "
                "source generic");
 
@@ -373,7 +373,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // between the two secret.generics, because in this pattern we only
       // invoke this just after splitting a generic into two adjacent ops.
       assert(
-          operand.get().isa<BlockArgument>() ||
+          isa<BlockArgument>(operand.get()) ||
           dom.properlyDominates(operand.get().getDefiningOp(), targetGeneric) &&
               "Invalid use of moveOpToEarlierGeneric");
     }

@@ -50,7 +50,7 @@ FailureOr<Value> getContextualCryptoContext(Operation *op) {
                             .front()
                             .getArguments()
                             .front();
-  if (!cryptoContext.getType().isa<openfhe::CryptoContextType>()) {
+  if (!isa<openfhe::CryptoContextType>(cryptoContext.getType())) {
     return op->emitOpError()
            << "Found BGV op in a function without a public "
               "key argument. Did the AddCryptoContextArg pattern fail to run?";
@@ -242,10 +242,8 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
 
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasCryptoContextArg = op.getFunctionType().getNumInputs() > 0 &&
-                                 op.getFunctionType()
-                                     .getInputs()
-                                     .begin()
-                                     ->isa<openfhe::CryptoContextType>();
+                                 isa<openfhe::CryptoContextType>(
+                                     *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
              (!containsBGVOps(op) || hasCryptoContextArg);

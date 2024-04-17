@@ -46,7 +46,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     auto b = ImplicitLocOpBuilder(op->getLoc(), op);
     auto tensor = reduction.getTensor();
     Operation *finalOp;
-    auto tensorShape = tensor.getType().cast<RankedTensorType>().getShape();
+    auto tensorShape = cast<RankedTensorType>(tensor.getType()).getShape();
     for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
          shiftSize /= 2) {
       auto rotatedTensor = b.create<tensor_ext::RotateOp>(
@@ -145,7 +145,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
                   return failure();
                 }
                 int64_t accessIndex =
-                    indexConstant.getValue().cast<IntegerAttr>().getInt();
+                    cast<IntegerAttr>(indexConstant.getValue()).getInt();
 
                 // If the access index was already seen, then fail because some
                 // tensor element contributes more than once to the reduction.
@@ -182,7 +182,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
       return;
     }
     auto tensorShape =
-        inputTensors.begin()->getType().cast<RankedTensorType>().getShape();
+        cast<RankedTensorType>(inputTensors.begin()->getType()).getShape();
     if (tensorShape.size() != 1 || tensorShape[0] != accessIndices.size()) {
       LLVM_DEBUG(llvm::dbgs()
                  << "Not replacing op because tensor shape ("
@@ -240,7 +240,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
         [&](Operation *op) {
           for (Value result : op->getResults()) {
-            if (!result.getType().isa<RankedTensorType>()) {
+            if (!isa<RankedTensorType>(result.getType())) {
               continue;
             }
 

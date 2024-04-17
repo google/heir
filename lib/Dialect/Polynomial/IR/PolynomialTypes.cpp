@@ -7,7 +7,7 @@ namespace heir {
 namespace polynomial {
 
 bool PolynomialType::isCompatibleWith(Type otherRnsBasisType) const {
-  auto other = otherRnsBasisType.dyn_cast<PolynomialType>();
+  auto other = dyn_cast<PolynomialType>(otherRnsBasisType);
   if (!other) {
     return false;
   }

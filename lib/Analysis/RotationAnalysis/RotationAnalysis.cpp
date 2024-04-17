@@ -21,7 +21,7 @@ void RotationAnalysis::run(Operation *op) {
     // do. The operation may consume a tensor but cannot further reduce it.
     if (op->getNumRegions() == 0 &&
         llvm::none_of(op->getResultTypes(),
-                      [](Type type) { return type.isa<RankedTensorType>(); })) {
+                      [](Type type) { return isa<RankedTensorType>(type); })) {
       return WalkResult::advance();
     }
 
@@ -68,10 +68,9 @@ void RotationAnalysis::run(Operation *op) {
                 << " can't statically determine constant insertion index\n");
             return;
           }
-          auto shiftValue = shiftLattice->getValue()
-                                .getConstantValue()
-                                .dyn_cast<IntegerAttr>()
-                                .getInt();
+          auto shiftValue =
+              dyn_cast<IntegerAttr>(shiftLattice->getValue().getConstantValue())
+                  .getInt();
 
           // For each partial reduction the tensor operand is a root of,
           // rotate the accessed indices appropriately.

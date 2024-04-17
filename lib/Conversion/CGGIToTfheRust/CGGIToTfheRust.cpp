@@ -120,7 +120,7 @@ FailureOr<Value> getContextualServerKey(Operation *op) {
                         .front()
                         .getArguments()
                         .front();
-  if (!serverKey.getType().isa<tfhe_rust::ServerKeyType>()) {
+  if (!isa<tfhe_rust::ServerKeyType>(serverKey.getType())) {
     return op->emitOpError()
            << "Found CGGI op in a function without a server "
               "key argument. Did the AddServerKeyArg pattern fail to run?";
@@ -430,10 +430,8 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
     // legality condition set in that function.
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       bool hasServerKeyArg = op.getFunctionType().getNumInputs() > 0 &&
-                             op.getFunctionType()
-                                 .getInputs()
-                                 .begin()
-                                 ->isa<tfhe_rust::ServerKeyType>();
+                             isa<tfhe_rust::ServerKeyType>(
+                                 *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
              (!containsCGGIOps(op) || hasServerKeyArg);

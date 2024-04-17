@@ -42,9 +42,9 @@ struct ConvertAlignedExtractInsertToRotate
     if (failed(insertIndexRes) || failed(extractionIndexRes)) return failure();
 
     auto insertTensorType =
-        insertOp.getDest().getType().cast<RankedTensorType>();
+        cast<RankedTensorType>(insertOp.getDest().getType());
     auto extractTensorType =
-        extractOp.getTensor().getType().cast<RankedTensorType>();
+        cast<RankedTensorType>(extractOp.getTensor().getType());
     if (insertTensorType.getShape() != extractTensorType.getShape())
       return failure();
 
@@ -152,7 +152,7 @@ struct ConvertAlignedExtractInsertToRotate
     // may be depending on the original data in the untouched indices being in
     // tact.
     auto tensorSize =
-        extractionSource.getType().cast<RankedTensorType>().getShape()[0];
+        cast<RankedTensorType>(extractionSource.getType()).getShape()[0];
     if (accessedIndices.size() != tensorSize) {
       LLVM_DEBUG(llvm::dbgs()
                  << "Chain has only " << accessedIndices.size()

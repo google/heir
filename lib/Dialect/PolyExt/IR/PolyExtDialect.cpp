@@ -24,11 +24,11 @@ void PolyExtDialect::initialize() {
 }
 
 polynomial::PolynomialType getPolynomialType(Type t) {
-  if (auto tTnsr = t.dyn_cast<RankedTensorType>()) {
-    return tTnsr.getElementType()
-        .cast<::mlir::heir::polynomial::PolynomialType>();
+  if (auto tTnsr = dyn_cast<RankedTensorType>(t)) {
+    return cast<::mlir::heir::polynomial::PolynomialType>(
+        tTnsr.getElementType());
   }
-  return t.cast<::mlir::heir::polynomial::PolynomialType>();
+  return cast<::mlir::heir::polynomial::PolynomialType>(t);
 }
 
 LogicalResult CModSwitchOp::verify() {

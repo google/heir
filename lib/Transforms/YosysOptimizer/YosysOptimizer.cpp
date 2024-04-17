@@ -137,7 +137,7 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
 
 Value convertIntegerValue(Value value, Type convertedType, OpBuilder &b,
                           Location loc) {
-  IntegerType argType = value.getType().cast<IntegerType>();
+  IntegerType argType = cast<IntegerType>(value.getType());
   int width = argType.getWidth();
   if (width == 1) {
     return value;
@@ -170,7 +170,7 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
     Type convertedType =
         func.getFunctionType().getInputs()[opOperand.getOperandNumber()];
 
-    if (!opOperand.get().getType().isa<secret::SecretType>()) {
+    if (!isa<secret::SecretType>(opOperand.get().getType())) {
       // The type is not secret, but still must be booleanized
       OpBuilder builder(op);
       auto convertedValue = convertIntegerValue(opOperand.get(), convertedType,
@@ -180,9 +180,9 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
     }
 
     secret::SecretType originalType =
-        opOperand.get().getType().cast<secret::SecretType>();
+        cast<secret::SecretType>(opOperand.get().getType());
 
-    if (!originalType.getValueType().isa<IntegerType, MemRefType>()) {
+    if (!isa<IntegerType, MemRefType>(originalType.getValueType())) {
       op.emitError() << "Unsupported input type to secret.generic: "
                      << originalType.getValueType();
       return failure();
@@ -205,23 +205,23 @@ LogicalResult convertOpResults(secret::GenericOp op,
                                SmallVector<Value> &typeConvertedResults) {
   for (auto opResult : op->getResults()) {
     // The secret.yield verifier ensures generic can only return secret types.
-    assert(opResult.getType().isa<secret::SecretType>());
+    assert(isa<secret::SecretType>(opResult.getType()));
     secret::SecretType secretType =
-        opResult.getType().cast<secret::SecretType>();
+        cast<secret::SecretType>(opResult.getType());
 
     IntegerType elementType;
     if (MemRefType convertedType =
             dyn_cast<MemRefType>(secretType.getValueType())) {
-      if (!convertedType.getElementType().isa<IntegerType>() ||
+      if (!isa<IntegerType>(convertedType.getElementType()) ||
           convertedType.getRank() != 1) {
         op.emitError() << "While booleanizing secret.generic, found converted "
                           "type that cannot be reassembled: "
                        << convertedType;
         return failure();
       }
-      elementType = convertedType.getElementType().cast<IntegerType>();
+      elementType = cast<IntegerType>(convertedType.getElementType());
     } else {
-      elementType = secretType.getValueType().cast<IntegerType>();
+      elementType = cast<IntegerType>(secretType.getValueType());
     }
 
     if (elementType.getWidth() != 1) {

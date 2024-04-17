@@ -36,7 +36,7 @@ class PartialReduction {
   // Returns true if the accessed indices constitute all indices of the reduced
   // tensor.
   bool isComplete() const {
-    auto tensorType = tensor.getType().dyn_cast<RankedTensorType>();
+    auto tensorType = dyn_cast<RankedTensorType>(tensor.getType());
     assert(tensorType &&
            "Internal state of RotationAnalysis is broken; tensor must have a "
            "ranked tensor type");
@@ -242,7 +242,7 @@ class RotationAnalysis {
   /// reduction mappings.
   void initializeFromValueIfTensor(Value value) {
     if (RankedTensorType tensorType =
-            value.getType().dyn_cast<RankedTensorType>()) {
+            dyn_cast<RankedTensorType>(value.getType())) {
       addPartialReduction(PartialReduction::initializeFromValue(value));
     }
   }
