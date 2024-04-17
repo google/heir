@@ -828,7 +828,7 @@ static DenseElementsAttr constructRoots(const ShapedType &type,
 }
 
 // fastNTT implements the Cooley-Turkey (CT) Algorithm for Fast-NTT algorithm as
-// described by Satriawan et al. in Section IV. Fast NTT, availabe here:
+// described by Satriawan et al. in Section IV. Fast NTT, available here:
 // https://doi.org/10.1109/ACCESS.2023.3294446
 static Value fastNTT(ImplicitLocOpBuilder &b, RankedTensorType &inputType,
                      Value inputVec, APInt root, APInt cmod) {
