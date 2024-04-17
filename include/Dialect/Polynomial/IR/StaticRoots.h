@@ -15,6 +15,10 @@ llvm::DenseMap<std::pair<unsigned, unsigned>, unsigned> STATIC_64BIT_ROOTS({
     {{12289, 256}, 3},
     {{12289, 512}, 1321},
     {{12289, 1024}, 7},
+    {{786433, 256}, 335695},
+    {{786433, 512}, 248908},
+    {{786433, 1024}, 19},
+    {{786433, 65536}, 283965},
     {{8380417, 256}, 1239911},
     {{8380417, 512}, 2217225},
     {{8380417, 1024}, 2034135},
@@ -24,11 +28,19 @@ llvm::DenseMap<std::pair<unsigned, unsigned>, unsigned> STATIC_32BIT_ROOTS({
     {{12289, 256}, 3},
     {{12289, 512}, 1321},
     {{12289, 1024}, 7},
+    {{786433, 256}, 335695},
+    {{786433, 512}, 248908},
+    {{786433, 1024}, 19},
+    {{786433, 65536}, 283965},
     {{8380417, 256}, 1239911},
     {{8380417, 512}, 2217225},
     {{8380417, 1024}, 2034135},
 });
 
+// Attempts to find a 64-bit primitive 2n-th root of unity from the pre-computed
+// values, where n is the given degree. find64BitRoot should be used if the
+// required bits to represent cMod is greater than 32 and less than or equal to
+// 64.
 std::optional<llvm::APInt> find64BitRoot(const llvm::APInt& cMod,
                                          unsigned degree, unsigned bitWidth) {
   std::optional<llvm::APInt> root = std::nullopt;
@@ -42,6 +54,9 @@ std::optional<llvm::APInt> find64BitRoot(const llvm::APInt& cMod,
   return root;
 }
 
+// Attempts to find a 32-bit primitive 2n-th root of unity from the pre-computed
+// values, where n is the given degree. find32BitRoot should be used if the
+// required bits to represent cMod is and less than or equal to 32.
 std::optional<llvm::APInt> find32BitRoot(const llvm::APInt& cMod,
                                          unsigned degree, unsigned bitWidth) {
   std::optional<llvm::APInt> root = std::nullopt;

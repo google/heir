@@ -2,8 +2,7 @@ import argparse
 import sys
 import pathlib
 
-from sympy.ntheory import n_order, nthroot_mod, sieve
-from sympy import Pow
+from sympy.ntheory import n_order, nthroot_mod
 
 def generate_roots(q, ns):
   return [ primitive_2nth_root(n, q) for n in ns ]
@@ -45,6 +44,10 @@ CLOSING = """});
 """
 
 FOOTER = """
+// Attempts to find a 64-bit primitive 2n-th root of unity from the pre-computed
+// values, where n is the given degree. find64BitRoot should be used if the
+// required bits to represent cMod is greater than 32 and less than or equal to
+// 64.
 std::optional<llvm::APInt> find64BitRoot(const llvm::APInt& cMod,
                                          unsigned degree, unsigned bitWidth) {
   std::optional<llvm::APInt> root = std::nullopt;
@@ -58,6 +61,9 @@ std::optional<llvm::APInt> find64BitRoot(const llvm::APInt& cMod,
   return root;
 }
 
+// Attempts to find a 32-bit primitive 2n-th root of unity from the pre-computed
+// values, where n is the given degree. find32BitRoot should be used if the
+// required bits to represent cMod is and less than or equal to 32.
 std::optional<llvm::APInt> find32BitRoot(const llvm::APInt& cMod,
                                          unsigned degree, unsigned bitWidth) {
   std::optional<llvm::APInt> root = std::nullopt;
@@ -87,7 +93,7 @@ parser.add_argument(
     type=int,
     nargs='*',
     help='A list of coefficient modulus values that should be computed.'
-         ' Defaults to [12289, 8380417].'
+         ' Defaults to [12289, 786433, 8380417].'
 )
 parser.add_argument(
     'degrees',
@@ -95,7 +101,7 @@ parser.add_argument(
     type=int,
     nargs='*',
     help='A list of degrees that the root should be computed for each cmod.'
-         ' Defaults to [256, 512, 1024].'
+         ' Defaults to [256, 512, 1024, 65536].'
 )
 
 def output_map(outfile, cmod_mapping, size, degrees):
@@ -108,15 +114,15 @@ def output_map(outfile, cmod_mapping, size, degrees):
   outfile.write(CLOSING)
 
 def main(args: argparse.Namespace) -> None:
-  degrees = args.degrees if args.degrees else [256, 512, 1024]
-  cmods = args.cmods if args.cmods else [12289, 8380417]
+  degrees = args.degrees if args.degrees else [256, 512, 1024, 65536]
+  cmods = args.cmods if args.cmods else [12289, 786433, 8380417]
 
   cmods32 = [ x for x in cmods if x < 2**32 ]
   cmod32_mapping = {}
   for q in cmods32:
     cmod32_mapping[q] = [ primitive_2nth_root(d, q) for d in degrees ]
 
-  cmods64 = [ x for x in cmods if 2**32 <= x and x <= 2**64 ]
+  cmods64 = [ x for x in cmods if 2**32 <= x <= 2**64 ]
   cmod64_mapping = {}
   for q in cmods32:
     cmod64_mapping[q] = [ primitive_2nth_root(d, q) for d in degrees ]
