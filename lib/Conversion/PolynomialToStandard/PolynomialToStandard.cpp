@@ -931,8 +931,9 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     Value initialValue =
         b.create<arith::ExtUIOp>(intermediateType, inputVec.getResult());
 
-    auto nttRes = fastNTT(b, intermediateType, initialValue,
-                          ring.root().value(), ring.coefficientModulus());
+    auto nttRes =
+        fastNTT(b, intermediateType, initialValue,
+                ring.primitive2NthRoot().value(), ring.coefficientModulus());
     // Truncate back to cmod bitwidth as nttRes will be computed modolus cmod
     auto truncOp = b.create<arith::TruncIOp>(inputType, nttRes);
 

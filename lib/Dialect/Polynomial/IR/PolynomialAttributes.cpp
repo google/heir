@@ -146,21 +146,21 @@ void RingAttr::print(AsmPrinter &p) const {
   coefficientModulus().print(p.getStream(), /*isSigned=*/false);
   p << ", ideal=";
   p << PolynomialAttr::get(ideal());
-  if (root()) {
+  if (primitive2NthRoot()) {
     p << ", root=";
-    root()->print(p.getStream(), /*isSigned=*/false);
+    primitive2NthRoot()->print(p.getStream(), /*isSigned=*/false);
   }
   p << '>';
 }
 
-static bool is2nthRoot(const APInt &root, const unsigned degree,
+static bool is2nthRoot(const APInt &_root, const unsigned degree,
                        const APInt &cmod) {
   // root bitwidth may be 1 less then cmod
-  APInt a = APInt(root).zext(cmod.getBitWidth());
-  auto len = (size_t)std::log2((double)degree);
-  for (size_t i = 0; i <= len; ++i) {
+  APInt root = APInt(_root).zext(cmod.getBitWidth());
+  APInt a = root;
+  for (size_t n = 1; n < 2 * degree; n++) {
     if (a == 1) return false;
-    a = (a * a).urem(cmod);
+    a = (a * root).urem(cmod);
   }
   return a == 1;
 }
@@ -202,7 +202,8 @@ mlir::Attribute mlir::heir::polynomial::RingAttr::parse(AsmParser &parser,
     auto result = parser.parseInteger(root);
     if (failed(result) || cmod.ule(root.zext(cmod.getBitWidth())) ||
         !is2nthRoot(root, poly.getDegree(), cmod)) {
-      parser.emitError(parser.getCurrentLocation(), "Invalid root of unity.");
+      parser.emitError(parser.getCurrentLocation(),
+                       "Invalid 2n-th primitive root of unity.");
       return {};
     }
   } else {

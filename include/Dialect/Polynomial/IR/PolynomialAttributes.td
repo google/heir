@@ -40,11 +40,13 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
     coefficients, $\mathbb{Z}/n\mathbb{Z}[x] / (p(x))$.
 
     `cmod` is the coefficient modulus $n$, `ideal` is the ring ideal
-    $(p(x))$, and `root` is 2d-th root of unity of `cmod` where d is the degree
-    of `ideal`. Because all ideals in a
-    single-variable polynomial ring are principal, the ideal is defined by a
-    single polynomial. `root` is optionally specified to a desired root, if it is
-    not provided then a pre-computed value is used instead.
+    $(p(x))$, and `root` is a primitive 2d-th root of unity of `cmod` where d is
+    the degree of `p(x)`. Because all ideals in a single-variable polynomial
+    ring are principal, the ideal is defined by a single polynomial. `root` is
+    optionally specified to a desired 2n-th primitive root of unity for the
+    coefficient ring of the polynomial ring. If it is not provided then a
+    pre-computed value is used instead for ops that need it. The semantics of
+    this root (e.g., its degree) are determined by the lowerings.
 
       #ring = #_polynomial.ring<cmod=1234, ideal=#_polynomial.polynomial<x**1024 + 1>>
       #ring = #_polynomial.ring<cmod=256, ideal=#_polynomial.polynomial<x**4 + 1>, root=31>
@@ -53,7 +55,7 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
   let parameters = (ins
     "IntegerAttr": $cmod,
     "Polynomial": $ideal,
-    OptionalParameter<"std::optional<IntegerAttr>">: $root
+    OptionalParameter<"IntegerAttr">: $root
   );
 
   let builders = [
@@ -63,7 +65,7 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
         ideal.getContext(),
         IntegerAttr::get(IntegerType::get(ideal.getContext(), cmod.getBitWidth()), cmod),
         ideal,
-        std::nullopt
+        nullptr
       );
     }]>,
     AttrBuilderWithInferredContext<
@@ -79,9 +81,9 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
   let extraClassDeclaration = [{
     Polynomial ideal() const { return getIdeal(); }
     APInt coefficientModulus() const { return getCmod().getValue(); }
-    std::optional<APInt> root() const {
+    std::optional<APInt> primitive2NthRoot() const {
       auto root = getRoot();
-      return root ? std::optional<APInt>(root->getValue()) : std::nullopt;
+      return root ? std::optional<APInt>(root.getValue()) : std::nullopt;
     }
   }];
 
