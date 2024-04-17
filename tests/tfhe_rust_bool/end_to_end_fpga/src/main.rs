@@ -55,7 +55,7 @@ fn main() {
 
     #[cfg(feature = "fpga")]
     {
-      params = tfhe::boolean::engine::fpga::parameters::DEFAULT_PARAMETERS_KS_PBS;
+      params = tfhe::core_crypto::fpga::parameters::DEFAULT_PARAMETERS_KS_PBS;
       client_key = boolean_engine.create_client_key(*params);
     }
 
@@ -69,7 +69,7 @@ fn main() {
     let server_key = boolean_engine.create_server_key(&client_key);
 
     #[cfg(feature = "fpga")]
-    server_key.enable_fpga(params);
+    server_key.enable_fpga(params, 1);
 
     let ct_1 = encrypt(flags.input1.into(), &client_key);
     let ct_2 = encrypt(flags.input2.into(), &client_key);
@@ -80,7 +80,6 @@ fn main() {
     let result = fn_under_test::fn_under_test(&server_key, &ct_1, &ct_2);
 
     // let run = t.elapsed().as_millis();
-
     // println!("{:?}", run);
 
     let output = decrypt(&result, &client_key);

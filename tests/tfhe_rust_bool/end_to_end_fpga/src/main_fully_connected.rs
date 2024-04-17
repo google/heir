@@ -1,16 +1,18 @@
+#[allow(unused_imports)]
+use std::time::Instant;
+
 use clap::Parser;
-use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
-use tfhe::shortint::*;
+
+use tfhe::boolean::engine::BooleanEngine;
+use tfhe::boolean::prelude::*;
+#[cfg(feature = "fpga")]
+use tfhe::boolean::server_key::FpgaAcceleration;
 
 mod fn_under_test;
 
 // TODO(#235): improve generality
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(id = "message_bits", long)]
-    message_bits: usize,
-    #[arg(id = "carry_bits", long, default_value = "2")]
-    carry_bits: usize,
     /// arguments to forward to function under test
     #[arg(id = "input_1", index = 1)]
     input1: u8,
@@ -45,24 +47,33 @@ fn main() {
 
     #[cfg(feature = "fpga")]
     {
-        params = tfhe::boolean::engine::fpga::parameters::DEFAULT_PARAMETERS_KS_PBS;
-        client_key = boolean_engine.create_client_key(*params);
+      params = tfhe::core_crypto::fpga::parameters::DEFAULT_PARAMETERS_KS_PBS;
+      client_key = boolean_engine.create_client_key(*params);
     }
 
     #[cfg(not(feature = "fpga"))]
     {
-        params = tfhe::boolean::parameters::DEFAULT_PARAMETERS_KS_PBS;
-        client_key = boolean_engine.create_client_key(params);
+      params = tfhe::boolean::parameters::DEFAULT_PARAMETERS_KS_PBS;
+      client_key = boolean_engine.create_client_key(params);
     }
 
     // generate the server key, only the SW needs this
     let server_key = boolean_engine.create_server_key(&client_key);
 
     #[cfg(feature = "fpga")]
-    server_key.enable_fpga(params);
+    server_key.enable_fpga(params, 1);
 
     let ct_1 = encrypt(flags.input1.into(), &client_key);
+
+    // timing placeholders to quickly obtain the measurements of the generated function
+    let t = Instant::now();
+
     let result = fn_under_test::fn_under_test(&server_key, &ct_1);
+
+    let run = t.elapsed().as_millis();
+    println!("{:?}", run);
+
+
     let output = decrypt(&result, &client_key);
 
     println!("{:08b}", output);
