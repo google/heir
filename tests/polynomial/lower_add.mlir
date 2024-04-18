@@ -16,7 +16,7 @@ func.func @test_lower_add_power_of_two_cmod() -> !_polynomial.polynomial<#ring> 
   %poly0 = _polynomial.from_tensor %coeffs1 : tensor<1024xi32> -> !_polynomial.polynomial<#ring>
   %poly1 = _polynomial.from_tensor %coeffs2 : tensor<1024xi32> -> !_polynomial.polynomial<#ring>
   // CHECK-NEXT: [[ADD:%.+]] = arith.addi [[X]], [[Y]]
-  %poly2 = _polynomial.add(%poly0, %poly1) {ring = #ring} : !_polynomial.polynomial<#ring>
+  %poly2 = _polynomial.add(%poly0, %poly1) : !_polynomial.polynomial<#ring>
   // CHECK: return  [[ADD]] : [[T]]
   return %poly2 : !_polynomial.polynomial<#ring>
 }
@@ -39,7 +39,7 @@ func.func @test_lower_add_prime_cmod() -> !_polynomial.polynomial<#ring_prime> {
   // CHECK: [[ADD_RESULT:%.+]] = arith.addi [[XEXT2]], [[YEXT2]]
   // CHECK: [[REM_RESULT:%.+]] = arith.remsi [[ADD_RESULT]], [[MOD]]
   // CHECK: [[TRUNC_RESULT:%.+]] = arith.trunci [[REM_RESULT]] : [[T2]] to [[T]]
-  %poly2 = _polynomial.add(%poly0, %poly1) {ring = #ring_prime} : !_polynomial.polynomial<#ring_prime>
+  %poly2 = _polynomial.add(%poly0, %poly1) : !_polynomial.polynomial<#ring_prime>
 
   // CHECK: return  [[TRUNC_RESULT]] : [[T]]
   return %poly2 : !_polynomial.polynomial<#ring_prime>

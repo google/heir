@@ -7,7 +7,7 @@
 func.func @test_canonicalize_sub_power_of_two_cmod() -> !_polynomial.polynomial<#ring> {
   %poly0 = _polynomial.constant <1 + x**2> : !_polynomial.polynomial<#ring>
   %poly1 = _polynomial.constant <1 + -1x**2> : !_polynomial.polynomial<#ring>
-  %0 = _polynomial.sub(%poly0, %poly1) {ring = #ring} : !_polynomial.polynomial<#ring>
+  %0 = _polynomial.sub(%poly0, %poly1) : !_polynomial.polynomial<#ring>
   // CHECK: %[[minus_one:.+]] = arith.constant -1 : i32
   // CHECK: %[[p1:.+]] = _polynomial.constant
   // CHECK: %[[p2:.+]] = _polynomial.constant

@@ -24,8 +24,7 @@ module {
     %poly1 = _polynomial.from_tensor %coeffs1 : tensor<3xi16> -> !_polynomial.polynomial<#ring1>
     %poly2 = _polynomial.from_tensor %coeffs2 : tensor<3xi16> -> !_polynomial.polynomial<#ring1>
 
-    // CHECK: #_polynomial.ring<cmod=2837465, ideal=#_polynomial.polynomial<1 + x**1024>>
-    %3 = _polynomial.mul(%poly1, %poly2) {ring = #ring1} : !_polynomial.polynomial<#ring1>
+    %3 = _polynomial.mul(%poly1, %poly2) : !_polynomial.polynomial<#ring1>
 
     return %3 : !_polynomial.polynomial<#ring1>
   }

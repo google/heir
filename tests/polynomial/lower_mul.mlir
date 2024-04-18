@@ -86,7 +86,7 @@
 // CHECK: }
 
 func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
-  %poly2 = _polynomial.mul(%poly0, %poly1) {ring = #ring} : !poly_ty
+  %poly2 = _polynomial.mul(%poly0, %poly1) : !poly_ty
   return %poly2 : !poly_ty
 }
 
@@ -131,6 +131,6 @@ func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
 // CHECK: }
 
 func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
-  %poly = _polynomial.mul(%poly0, %poly1) {ring = #ring} : !poly_ty
+  %poly = _polynomial.mul(%poly0, %poly1) : !poly_ty
   return %poly : !poly_ty
 }
