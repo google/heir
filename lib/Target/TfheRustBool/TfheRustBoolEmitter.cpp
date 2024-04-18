@@ -260,7 +260,7 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
       mlir::Operation *op = value.getDefiningOp();
       if (op) {
         auto reference_predicate =
-            isa<tensor::ExtractOp>(op) | isa<memref::LoadOp>(op);
+            isa<tensor::ExtractOp>(op) || isa<memref::LoadOp>(op);
         prefix = reference_predicate ? "" : prefix;
       } else {
         prefix = "";

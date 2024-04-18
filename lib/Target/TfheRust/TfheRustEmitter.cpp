@@ -283,7 +283,7 @@ LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
                             return a + ", i" + std::to_string(++i);
                           }) +
           std::string(")).unwrap().clone()");
-      for (unsigned _ : shape) {
+      for ([[maybe_unused]] unsigned _ : shape) {
         res = llvm::formatv("core::array::from_fn(|i{0}| {1})", i--, res);
       }
       return res;
