@@ -6056,6 +6056,20 @@ useful for target materialization in the dialect conversion framework.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="secretseparator-heirsecretseparatorop">&lt;code>secret.separator&lt;/code> (heir::secret::SeparatorOp)&lt;/h3>
+&lt;p>&lt;em>Convert a non-secret value into a secret&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `secret.separator` attr-dict
+&lt;/code>&lt;/pre>&lt;p>This operation is used as a separation boundary between logical subunits of
+the module. This is used in conjunction with
+&lt;code>--secret-distribute-generic=distribute-through=secret.separator&lt;/code> to break a
+generic around these separators and allow for optimization passses to
+analyze and optimize the sub-units locally.&lt;/p>
+&lt;p>In order to allow bufferization of modules with this operation, we must
+register a (bogus) memory effect that also prevents this operation from
+being trivially dead during operation folding.&lt;/p>
+&lt;p>Interfaces: &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Write on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
 &lt;h3 id="secretyield-heirsecretyieldop">&lt;code>secret.yield&lt;/code> (heir::secret::YieldOp)&lt;/h3>
 &lt;p>&lt;em>Secret yield operation&lt;/em>&lt;/p>
 &lt;p>&lt;code>secret.yield&lt;/code> is a special terminator operation for blocks inside regions
