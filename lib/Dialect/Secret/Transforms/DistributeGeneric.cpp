@@ -49,6 +49,28 @@ std::optional<Value> ofrToValue(std::optional<OpFoldResult> ofr) {
   return std::nullopt;
 }
 
+struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
+  FoldSecretSeparators(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/4) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override {
+    // Erase a generic that only contains a separator operation and no results.
+    auto &operations = op.getBody()->getOperations();
+    if (operations.size() != 2 ||
+        !isa<secret::SeparatorOp>(operations.front())) {
+      return failure();
+    }
+
+    if (op.getNumResults() > 0) {
+      return failure();
+    }
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 // Split a secret.generic containing multiple ops into multiple secret.generics.
 //
 // E.g.,
@@ -305,78 +327,80 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
     IRMapping cloningMp;
     mlir::DominanceInfo dom(sourceGeneric->getParentOfType<func::FuncOp>());
-    for (OpOperand &operand : opToMove.getOpOperands()) {
-      if (operand.get().getParentBlock() == sourceGeneric.getBody()) {
-        LLVM_DEBUG(llvm::dbgs() << "opToMove depends on block argument "
-                                << operand.get() << " of source generic\n");
-        assert(operand.get().isa<BlockArgument>() &&
-               "opToMove has a non-block-argument operand defined in the "
-               "source generic");
+    opToMove.walk([&](Operation *op) {
+      for (OpOperand &operand : op->getOpOperands()) {
+        if (operand.get().getParentBlock() == sourceGeneric.getBody()) {
+          LLVM_DEBUG(llvm::dbgs() << "opToMove depends on block argument "
+                                  << operand.get() << " of source generic\n");
+          assert(operand.get().isa<BlockArgument>() &&
+                 "opToMove has a non-block-argument operand defined in the "
+                 "source generic");
 
-        BlockArgument blockArg = cast<BlockArgument>(operand.get());
-        Value sourceGenericArg =
-            sourceGeneric.getOperand(blockArg.getArgNumber());
-        LLVM_DEBUG(opToMove.emitRemark()
-                   << "Moving op requires adding " << sourceGenericArg
-                   << " to target generic\n");
+          BlockArgument blockArg = cast<BlockArgument>(operand.get());
+          Value sourceGenericArg =
+              sourceGeneric.getOperand(blockArg.getArgNumber());
+          LLVM_DEBUG(opToMove.emitRemark()
+                     << "Moving op requires adding " << sourceGenericArg
+                     << " to target generic\n");
 
-        // The operand may be the result of the generic we'd like to move it to,
-        // in which case the targetGeneric's result corresponds to a yielded
-        // value in targetGeneric, and we can map the op's operand to that
-        // yielded value.
-        auto *definingOp = sourceGenericArg.getDefiningOp();
-        if (definingOp == targetGeneric.getOperation()) {
-          int resultIndex =
-              std::find(targetGeneric.getResults().begin(),
-                        targetGeneric.getResults().end(), sourceGenericArg) -
-              targetGeneric.getResults().begin();
+          // The operand may be the result of the generic we'd like to move it
+          // to, in which case the targetGeneric's result corresponds to a
+          // yielded value in targetGeneric, and we can map the op's operand to
+          // that yielded value.
+          auto *definingOp = sourceGenericArg.getDefiningOp();
+          if (definingOp == targetGeneric.getOperation()) {
+            int resultIndex =
+                std::find(targetGeneric.getResults().begin(),
+                          targetGeneric.getResults().end(), sourceGenericArg) -
+                targetGeneric.getResults().begin();
 
-          assert(resultIndex >= 0 && "unable to find result in yield");
-          Value yieldedValue =
-              targetGeneric.getYieldOp()->getOperand(resultIndex);
-          LLVM_DEBUG(llvm::dbgs()
-                     << "Mapping " << operand.get()
-                     << " to existing yielded value " << yieldedValue << "\n");
-          cloningMp.map(operand.get(), yieldedValue);
-          continue;
-        }
+            assert(resultIndex >= 0 && "unable to find result in yield");
+            Value yieldedValue =
+                targetGeneric.getYieldOp()->getOperand(resultIndex);
+            LLVM_DEBUG(llvm::dbgs() << "Mapping " << operand.get()
+                                    << " to existing yielded value "
+                                    << yieldedValue << "\n");
+            cloningMp.map(operand.get(), yieldedValue);
+            continue;
+          }
 
-        // The operand may correspond to an existing input to the secret
-        // generic, in which case we don't need to add a new value.
-        int foundArgIndex =
-            std::find(targetGeneric.getOperands().begin(),
-                      targetGeneric.getOperands().end(), sourceGenericArg) -
-            targetGeneric.getOperands().begin();
-        if (foundArgIndex < targetGeneric.getOperands().size()) {
-          BlockArgument existingArg =
-              targetGeneric.getBody()->getArgument(foundArgIndex);
+          // The operand may correspond to an existing input to the secret
+          // generic, in which case we don't need to add a new value.
+          int foundArgIndex =
+              std::find(targetGeneric.getOperands().begin(),
+                        targetGeneric.getOperands().end(), sourceGenericArg) -
+              targetGeneric.getOperands().begin();
+          if (foundArgIndex < targetGeneric.getOperands().size()) {
+            BlockArgument existingArg =
+                targetGeneric.getBody()->getArgument(foundArgIndex);
+            LLVM_DEBUG(llvm::dbgs() << "Mapping " << operand.get()
+                                    << " to existing targetGeneric block arg: "
+                                    << existingArg << "\n");
+            cloningMp.map(operand.get(), existingArg);
+            continue;
+          }
+
+          // Otherwise, the operand must be an input to the sourceGeneric, which
+          // must be added to the targetGeneric.
+          targetGeneric.getInputsMutable().append(sourceGenericArg);
+          BlockArgument newBlockArg = targetGeneric.getBody()->addArgument(
+              operand.get().getType(), targetGeneric.getLoc());
           LLVM_DEBUG(llvm::dbgs() << "Mapping " << operand.get()
-                                  << " to existing targetGeneric block arg: "
-                                  << existingArg << "\n");
-          cloningMp.map(operand.get(), existingArg);
-          continue;
+                                  << " to new block arg added to targetGeneric "
+                                  << newBlockArg << "\n");
+          cloningMp.map(operand.get(), newBlockArg);
         }
 
-        // Otherwise, the operand must be an input to the sourceGeneric, which
-        // must be added to the targetGeneric.
-        targetGeneric.getInputsMutable().append(sourceGenericArg);
-        BlockArgument newBlockArg = targetGeneric.getBody()->addArgument(
-            operand.get().getType(), targetGeneric.getLoc());
-        LLVM_DEBUG(llvm::dbgs() << "Mapping " << operand.get()
-                                << " to new block arg added to targetGeneric "
-                                << newBlockArg << "\n");
-        cloningMp.map(operand.get(), newBlockArg);
+        // If the operand is not a sourceGeneric block argument, then it must be
+        // a value defined in the enclosing scope. It cannot be a value defined
+        // between the two secret.generics, because in this pattern we only
+        // invoke this just after splitting a generic into two adjacent ops.
+        assert(operand.get().isa<BlockArgument>() ||
+               dom.properlyDominates(operand.get().getDefiningOp(),
+                                     targetGeneric) &&
+                   "Invalid use of moveOpToEarlierGeneric");
       }
-
-      // If the operand is not a sourceGeneric block argument, then it must be
-      // a value defined in the enclosing scope. It cannot be a value defined
-      // between the two secret.generics, because in this pattern we only
-      // invoke this just after splitting a generic into two adjacent ops.
-      assert(
-          operand.get().isa<BlockArgument>() ||
-          dom.properlyDominates(operand.get().getDefiningOp(), targetGeneric) &&
-              "Invalid use of moveOpToEarlierGeneric");
-    }
+    });
 
     LLVM_DEBUG(llvm::dbgs()
                << "Cloning " << opToMove << " to target generic\n");
@@ -485,7 +509,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     } else {
       splitGenericBeforeOp(op, *opToDistribute, rewriter);
     }
-
     return success();
   }
 
@@ -515,8 +538,8 @@ struct DistributeGeneric
 
     patterns.add<SplitGeneric>(context, opsToDistribute);
     // These patterns are shared with canonicalization
-    patterns.add<CollapseSecretlessGeneric, RemoveUnusedGenericArgs,
-                 RemoveNonSecretGenericArgs>(context);
+    patterns.add<FoldSecretSeparators, CollapseSecretlessGeneric,
+                 RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs>(context);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
   }
 };

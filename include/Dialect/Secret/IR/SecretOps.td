@@ -13,6 +13,25 @@ class Secret_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::secret";
 }
 
+
+def Secret_SeparatorOp : Secret_Op<"separator", [MemoryEffects<[MemWrite]>]> {
+  let summary = "Convert a non-secret value into a secret";
+
+  let description = [{
+    This operation is used as a separation boundary between logical subunits of
+    the module. This is used in conjunction with
+    `--secret-distribute-generic=distribute-through=secret.separator` to break a
+    generic around these separators and allow for optimization passses to
+    analyze and optimize the sub-units locally.
+
+    In order to allow bufferization of modules with this operation, we must
+    register a (bogus) memory effect that also prevents this operation from
+    being trivially dead during operation folding.
+  }];
+
+  let assemblyFormat = "attr-dict";
+}
+
 def Secret_ConcealOp : Secret_Op<"conceal", [Pure]> {
   let summary = "Convert a non-secret value into a secret";
   let description = [{
