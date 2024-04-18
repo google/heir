@@ -160,6 +160,20 @@ LogicalResult TrivialEncryptOp::verify() {
   return success();
 }
 
+LogicalResult ReinterpretUnderlyingTypeOp::verify() {
+  auto inputType = getInput().getType();
+  auto outputType = getOutput().getType();
+  if (inputType.getEncoding() != outputType.getEncoding() ||
+      inputType.getRlweParams() != outputType.getRlweParams()) {
+    return emitOpError()
+           << "the only allowed difference in the input and output are in the "
+              "underlying_type field, but found input type "
+           << inputType << " and output type " << outputType;
+  }
+
+  return success();
+}
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

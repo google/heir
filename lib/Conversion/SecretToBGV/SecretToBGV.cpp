@@ -194,7 +194,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     patterns.add<SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
                  SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
-                 SecretGenericOpConversion<tensor_ext::RotateOp, bgv::Rotate>,
+                 SecretGenericOpConversion<tensor_ext::RotateOp, bgv::RotateOp>,
                  SecretGenericOpMulConversion>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

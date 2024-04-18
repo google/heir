@@ -132,5 +132,21 @@ def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
 }
 
+def ReinterpretUnderlyingTypeOp : LWE_Op<"reinterpret_underlying_type", [Pure]> {
+  let summary = "A placeholder cast from one ciphertext type to another";
+  let description = [{
+    The `cast` op is thus used to translate `underlying_type` between
+    ciphertexts in particular situations , such as when lowering to an API that
+    does not keep track of types for you.
+  }];
+
+  let arguments = (ins RLWECiphertext:$input);
+  let results = (outs RLWECiphertext:$output);
+  let assemblyFormat = [{
+    $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
+  }];
+
+  let hasVerifier = 1;
+}
 
 #endif  // HEIR_INCLUDE_DIALECT_LWE_IR_LWEOPS_TD_

@@ -111,7 +111,7 @@ def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain"> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
 }
 
-def BGV_Rotate : BGV_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
+def BGV_RotateOp : BGV_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
@@ -145,7 +145,7 @@ def BGV_ExtractOp : BGV_Op<"extract", [SameOperandsAndResultRings]> {
 
   let arguments = (ins
     RLWECiphertext:$input,
-    SignlessIntegerLike:$offset
+    AnySignlessIntegerOrIndex:$offset
   );
 
   let results = (outs

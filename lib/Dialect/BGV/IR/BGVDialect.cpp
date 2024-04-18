@@ -48,7 +48,7 @@ LogicalResult MulOp::verify() {
   return success();
 }
 
-LogicalResult Rotate::verify() {
+LogicalResult RotateOp::verify() {
   auto x = getInput().getType();
   if (x.getRlweParams().getDimension() != 2) {
     return emitOpError() << "x.dim == 2 does not hold";
