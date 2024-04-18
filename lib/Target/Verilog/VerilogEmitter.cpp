@@ -87,14 +87,9 @@ void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
   auto iType = dyn_cast<IntegerType>(attr.getElementType());
   assert(iType);
 
-  int32_t hexWidth = iType.getWidth() / 4;
-  os << iType.getWidth() * attr.size() << "'h";
-  auto attrIt = attr.value_end<APInt>();
-  for (uint64_t i = 0; i < attr.size(); ++i) {
-    llvm::SmallString<40> s;
-    (*--attrIt).toStringSigned(s, 16);
-    os << std::string(hexWidth - s.str().size(), '0') << s;
-  }
+  ArrayRef<char> rawData = attr.getRawData();
+  os << iType.getWidth() * attr.size() << "'h"
+     << llvm::toHex(StringRef(rawData.data(), rawData.size()));
 }
 
 llvm::SmallString<128> variableLoadStr(
