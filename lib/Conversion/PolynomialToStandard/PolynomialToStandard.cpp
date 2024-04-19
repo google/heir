@@ -832,30 +832,27 @@ static DenseElementsAttr constructRoots(const ShapedType &type,
 // https://doi.org/10.1109/ACCESS.2023.3294446
 static Value fastNTT(ImplicitLocOpBuilder &b, RankedTensorType &inputType,
                      Value inputVec, const SmallVector<Value> &cModVecs,
-                     const SmallVector<Value> &rootVecs, unsigned stage = 0) {
+                     const SmallVector<Value> &rootVecs, APInt index,
+                     unsigned stage = 0) {
   unsigned degree = inputType.getShape()[0];
   // Basecase of the algorithm
   if (degree == 1) {
-    return inputVec;
+    // index denotes the elements position in normal order of inputvec so we
+    // will reverseBits to get the bit-reversed order
+    Value idx = b.create<arith::ConstantOp>(
+        b.getIndexAttr(index.reverseBits().getZExtValue()));
+    Value elem = b.create<tensor::ExtractOp>(inputVec, ValueRange{idx});
+    return b.create<tensor::FromElementsOp>(ValueRange{elem});
   }
 
   // Type of next iteration
   auto iterType = inputType.clone({degree / 2});
 
-  // Split the input vector into their odd/even components
-  SmallVector<OpFoldResult> size{b.getIndexAttr(degree / 2)};
-  SmallVector<OpFoldResult> stride{b.getIndexAttr(2)};
-  SmallVector<OpFoldResult> offset{b.getIndexAttr(0)};
-
-  auto evens = b.create<tensor::ExtractSliceOp>(iterType, inputVec, offset,
-                                                size, stride);
-  offset = {b.getIndexAttr(1)};
-  auto odds = b.create<tensor::ExtractSliceOp>(iterType, inputVec, offset, size,
-                                               stride);
-
   // Recursively iterate with degree / 2
-  Value evenNTT = fastNTT(b, iterType, evens, cModVecs, rootVecs, stage + 1);
-  Value oddNTT = fastNTT(b, iterType, odds, cModVecs, rootVecs, stage + 1);
+  Value evenNTT =
+      fastNTT(b, iterType, inputVec, cModVecs, rootVecs, index, stage + 1);
+  Value oddNTT = fastNTT(b, iterType, inputVec, cModVecs, rootVecs,
+                         index + degree / 2, stage + 1);
 
   // Construct a dense cmod to allow for elementwise remainder
   Value cModVec = cModVecs[stage];
@@ -920,8 +917,10 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
 
     SmallVector<Value> cModVecs, rootVecs;
     unsigned degree = intermediateType.getShape()[0];
+    unsigned indexBitWidth = 0;
     while (degree != 1) {
       degree = degree / 2;
+      indexBitWidth++;
       auto iterType = intermediateType.clone({degree});
 
       // Construct a dense cmod to allow for elementwise remainder
@@ -938,8 +937,9 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
       root = mulMod(root, root, cmod);
     }
 
+    auto index = APInt(indexBitWidth, 0);
     auto nttRes =
-        fastNTT(b, intermediateType, initialValue, cModVecs, rootVecs);
+        fastNTT(b, intermediateType, initialValue, cModVecs, rootVecs, index);
 
     // Truncate back to cmod bitwidth as nttRes < cmod
     auto truncOp = b.create<arith::TruncIOp>(inputType, nttRes);
