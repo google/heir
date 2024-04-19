@@ -1,4 +1,4 @@
-// RUN: heir-opt --split-input-file --secret-to-bgv=="poly-mod-degree=1024" --verify-diagnostics %s | FileCheck %s
+// RUN: heir-opt --split-input-file --secret-to-bgv="poly-mod-degree=1024" --verify-diagnostics %s | FileCheck %s
 
 // Tests invalid secret types
 
