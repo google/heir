@@ -20,5 +20,8 @@ glob_lit_tests(
     name = "all_tests",
     data = ["@heir//tests:test_utilities"],
     driver = "@heir//tests:run_lit.sh",
+    size_override = {
+        "lower_ntt_perf_runner.mlir": "large",
+    },
     test_file_exts = ["mlir"],
 )
