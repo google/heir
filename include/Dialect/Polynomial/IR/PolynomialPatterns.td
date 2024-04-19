@@ -30,4 +30,26 @@ def SubAsAdd : Pat<
         // FIXME: get this to work
         // (getPolynomialCoefficientIntAttribute $f, -1))))>;
 
+// %0 = _polynomial.ntt %p
+// %1 = _polynomial.intt %0
+// ---> %p
+def INTTAfterNTT : Pat<
+  (Polynomial_INTTOp
+    (Polynomial_NTTOp $poly)
+  ),
+  (replaceWithValue $poly),
+  []
+>;
+
+// %0 = _polynomial.intt %t
+// %1 = _polynomial.ntt %0
+// ---> %t
+def NTTAfterINTT : Pat<
+  (Polynomial_NTTOp
+    (Polynomial_INTTOp $tensor)
+  ),
+  (replaceWithValue $tensor),
+  []
+>;
+
 #endif  // INCLUDE_DIALECT_POLYNOMIAL_IR_POLYNOMIALPATTERNS_TD_

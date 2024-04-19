@@ -157,6 +157,7 @@ def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure]> {
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
 
   let hasVerifier = 1;
+  let hasCanonicalizer = 1;
 }
 
 def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
@@ -178,6 +179,7 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
 
   let hasVerifier = 1;
+  let hasCanonicalizer = 1;
 }
 
 #endif  // INCLUDE_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_

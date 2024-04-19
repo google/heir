@@ -132,6 +132,16 @@ void SubOp::getCanonicalizationPatterns(RewritePatternSet &results,
   populateWithGenerated(results);
 }
 
+void NTTOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                        MLIRContext *context) {
+  populateWithGenerated(results);
+}
+
+void INTTOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                         MLIRContext *context) {
+  populateWithGenerated(results);
+}
+
 }  // namespace polynomial
 }  // namespace heir
 }  // namespace mlir
