@@ -819,8 +819,8 @@ static DenseElementsAttr constructRoots(const ShapedType &type,
                                         const APInt &cmod) {
   APInt x = root;
   APInt primRoot = mulMod(root, root, cmod);
-  SmallVector<APInt> vals(degree / 2);
-  for (unsigned i = 0; i < degree / 2; i++) {
+  SmallVector<APInt> vals(degree);
+  for (unsigned i = 0; i < degree; i++) {
     vals[i] = x;
     x = mulMod(x, primRoot, cmod);
   }
@@ -831,7 +831,8 @@ static DenseElementsAttr constructRoots(const ShapedType &type,
 // described by Satriawan et al. in Section IV. Fast NTT, available here:
 // https://doi.org/10.1109/ACCESS.2023.3294446
 static Value fastNTT(ImplicitLocOpBuilder &b, RankedTensorType &inputType,
-                     Value inputVec, APInt root, APInt cmod) {
+                     Value inputVec, const SmallVector<Value> &cModVecs,
+                     const SmallVector<Value> &rootVecs, unsigned stage = 0) {
   unsigned degree = inputType.getShape()[0];
   // Basecase of the algorithm
   if (degree == 1) {
@@ -852,35 +853,30 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RankedTensorType &inputType,
   auto odds = b.create<tensor::ExtractSliceOp>(iterType, inputVec, offset, size,
                                                stride);
 
-  // Recursively iterate with root = root^2 and degree / 2
-  APInt rootSquared = mulMod(root, root, cmod);
-  Value evenNTT = fastNTT(b, iterType, evens.getResult(), rootSquared, cmod);
-  Value oddNTT = fastNTT(b, iterType, odds.getResult(), rootSquared, cmod);
+  // Recursively iterate with degree / 2
+  Value evenNTT = fastNTT(b, iterType, evens, cModVecs, rootVecs, stage + 1);
+  Value oddNTT = fastNTT(b, iterType, odds, cModVecs, rootVecs, stage + 1);
 
   // Construct a dense cmod to allow for elementwise remainder
-  Value cModVec = b.create<arith::ConstantOp>(
-      iterType,
-      DenseElementsAttr::get(
-          iterType, cmod.sextOrTrunc(iterType.getElementTypeBitWidth())));
+  Value cModVec = cModVecs[stage];
 
   // Implementing Equation 23 from https://ieeexplore.ieee.org/document/10177902
   //
-  // We have that evenNTT = {A_j}, oddNTT = {B_j} and roots = {root^{2j + 1}}
+  // We have that evenNTT = {A_j}, oddNTT = {B_j} and rootVec = {root^{2j + 1}}
   // for all 0 <= j < degree/2
-  auto roots = b.create<arith::ConstantOp>(
-      iterType, constructRoots(iterType, root, degree, cmod));
+  auto rootVec = rootVecs[stage];
 
-  // Since roots_j * B_j -> [0, cmod^2) then RemUI will compute the modulus
-  auto rootsB = b.create<arith::MulIOp>(iterType, oddNTT, roots);
-  auto rootsBModded = b.create<arith::RemUIOp>(rootsB, cModVec);
+  // Since rootVec_j * B_j -> [0, cmod^2) then RemUI will compute the modulus
+  auto rootVecB = b.create<arith::MulIOp>(iterType, oddNTT, rootVec);
+  auto rootVecBModded = b.create<arith::RemUIOp>(rootVecB, cModVec);
 
-  // Since A + rootsB -> [0, 2 * cmod) then RemUI will compute the modulus
-  auto ctPlus = b.create<arith::AddIOp>(iterType, evenNTT, rootsBModded);
+  // Since A + rootVecB -> [0, 2 * cmod) then RemUI will compute the modulus
+  auto ctPlus = b.create<arith::AddIOp>(iterType, evenNTT, rootVecBModded);
   auto ctPlusModded = b.create<arith::RemUIOp>(ctPlus, cModVec);
 
-  // Since A - rootsB -> (-cmod, cmod) then we can add cmod such that the
+  // Since A - rootVecB -> (-cmod, cmod) then we can add cmod such that the
   // range is shifted to (0, 2 * cmod) and use RemUI to compute the modulus
-  auto ctMinus = b.create<arith::SubIOp>(iterType, evenNTT, rootsBModded);
+  auto ctMinus = b.create<arith::SubIOp>(iterType, evenNTT, rootVecBModded);
   auto ctMinusShifted = b.create<arith::AddIOp>(ctMinus, cModVec);
   auto ctMinusModded = b.create<arith::RemUIOp>(ctMinusShifted, cModVec);
 
@@ -917,9 +913,33 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     Value initialValue =
         b.create<arith::ExtUIOp>(intermediateType, inputVec.getResult());
 
+    // Precompute the root and cmod vectors for each stage so that we don't need
+    // to compute it each at each function call.
+    auto root = ring.primitive2NthRoot().value();
+    auto cmod = ring.coefficientModulus();
+
+    SmallVector<Value> cModVecs, rootVecs;
+    unsigned degree = intermediateType.getShape()[0];
+    while (degree != 1) {
+      degree = degree / 2;
+      auto iterType = intermediateType.clone({degree});
+
+      // Construct a dense cmod to allow for elementwise remainder
+      Value cModVec = b.create<arith::ConstantOp>(
+          iterType,
+          DenseElementsAttr::get(
+              iterType, cmod.sextOrTrunc(iterType.getElementTypeBitWidth())));
+      cModVecs.push_back(cModVec);
+
+      Value rootVec = b.create<arith::ConstantOp>(
+          iterType, constructRoots(iterType, root, degree, cmod));
+      rootVecs.push_back(rootVec);
+
+      root = mulMod(root, root, cmod);
+    }
+
     auto nttRes =
-        fastNTT(b, intermediateType, initialValue,
-                ring.primitive2NthRoot().value(), ring.coefficientModulus());
+        fastNTT(b, intermediateType, initialValue, cModVecs, rootVecs);
 
     // Truncate back to cmod bitwidth as nttRes < cmod
     auto truncOp = b.create<arith::TruncIOp>(inputType, nttRes);

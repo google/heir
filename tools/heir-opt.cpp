@@ -150,6 +150,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createElementwiseToAffine());
   manager.addPass(::mlir::heir::polynomial::createPolynomialToStandard());
   manager.addPass(createCanonicalizerPass());
+  manager.addPass(createCSEPass());
 
   // Linalg
   manager.addNestedPass<FuncOp>(createConvertElementwiseToLinalgPass());
