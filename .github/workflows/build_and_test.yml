@@ -60,13 +60,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
 
+      # --noincompatible_strict_action_env is used below to inherit the path
+      # from the parent process, which is required for the build to be cached
+      # and reused in the `Test rust codegen targets` step below, as that step
+      # requires the `PATH` to find the `cargo` binary.
       - name: "Run `bazel build`"
         run: |
-          bazel build -c fastbuild //...
+          bazel build --noincompatible_strict_action_env  -c fastbuild //...
 
       - name: "Run `bazel test`"
         run: |
-          bazel test -c fastbuild //...
+          bazel test --noincompatible_strict_action_env -c fastbuild //...
 
       # Tests specifically for the tfhe-rs codegen
       - name: rustup toolchain install

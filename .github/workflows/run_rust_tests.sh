@@ -3,4 +3,13 @@
 set -eux
 set -o pipefail
 
-bazel query "filter('.mlir.test$', //tests/tfhe_rust/end_to_end/...)" | xargs bazel test -c fastbuild --sandbox_writable_path=$HOME/.cargo "$@"
+# noincompatible_strict_action_env is used to inherit the PATH environment
+# variable from the parent process, which is needed to find the `cargo`
+# executable.
+
+bazel query "filter('.mlir.test$', //tests/tfhe_rust/end_to_end/...)" \
+| xargs bazel test \
+--noincompatible_strict_action_env \
+-c fastbuild \
+--sandbox_writable_path=$HOME/.cargo \
+"$@"
