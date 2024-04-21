@@ -486,9 +486,11 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    // TODO(#143): Handle tensor of polys.
     auto polyTy = dyn_cast<PolynomialType>(op.getResult().getType());
     if (!polyTy) {
+      op.emitError()
+          << "Encountered elementwise polynomial.mul op. The caller must use "
+             "convert-elementwise-to-affine pass before lowering polynomial.";
       return failure();
     }
 
@@ -619,7 +621,9 @@ void PolynomialToStandard::generateOpImplementations() {
   module.walk([&](MulOp op) {
     auto polyTy = dyn_cast<PolynomialType>(op.getResult().getType());
     if (!polyTy) {
-      // TODO(#143): Handle tensor of polys.
+      op.emitError()
+          << "Encountered elementwise polynomial.mul op. The caller must use "
+             "convert-elementwise-to-affine pass before lowering polynomial.";
       return WalkResult::interrupt();
     }
     auto convType = polymulOutputTensorType(polyTy);
