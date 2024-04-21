@@ -15,6 +15,7 @@ exports_files(
         "PolynomialTypes.h",
         "Polynomial.h",
         "PolynomialDetail.h",
+        "NumberTheory.h",
     ],
 )
 

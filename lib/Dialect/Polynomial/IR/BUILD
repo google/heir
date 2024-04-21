@@ -126,3 +126,27 @@ cc_test(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "NumberTheory",
+    srcs = [
+        "NumberTheory.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Polynomial/IR:NumberTheory.h",
+    ],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_test(
+    name = "NumberTheoryTest",
+    size = "small",
+    srcs = ["NumberTheoryTest.cpp"],
+    deps = [
+        ":NumberTheory",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+    ],
+)
