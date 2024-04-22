@@ -119,12 +119,10 @@ def run_verilog(
         format_arg(arg_name, arg_val) for (arg_name, arg_val) in assignment
     )
 
-  script_lines.extend(
-      [
-          EVAL_TEMPLATE.format(setters=format_argset(assignment))
-          for assignment in input_set
-      ]
-  )
+  script_lines.extend([
+      EVAL_TEMPLATE.format(setters=format_argset(assignment))
+      for assignment in input_set
+  ])
   # -Q and -T silence the yosys header/footer.
   cmd = (args.yosys_path, '-Q', '-T', '-p', '; '.join(script_lines))
   try:
@@ -136,7 +134,6 @@ def run_verilog(
     print('\n' + '=' * 25 + 'Captured stderr' + '=' * 25)
     print(f'{e.stderr}')
     sys.exit(e.returncode)
-
   eval_result_lines = [x for x in p.stdout.split('\n') if 'Eval result' in x]
   parsed_results = [parse_result(line) for line in eval_result_lines]
   inputs = [
@@ -146,15 +143,14 @@ def run_verilog(
 
 
 def main(args: argparse.Namespace) -> None:
-  if not args.input:
-    print('No input sets were passed via --input')
-    sys.exit(1)
-
   input_sets = []
-  for input_set in args.input:
-    input_sets.append(
-        [parse_inout_pair(inout_pair) for inout_pair in input_set.split(';')]
-    )
+  if args.input:
+    for input_set in args.input:
+      input_sets.append(
+          [parse_inout_pair(inout_pair) for inout_pair in input_set.split(';')]
+      )
+  else:
+    input_sets.append([])
 
   results = run_verilog(input_sets, args)
   output = ''

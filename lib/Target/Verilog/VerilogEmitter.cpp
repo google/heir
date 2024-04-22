@@ -95,7 +95,14 @@ void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
 llvm::SmallString<128> variableLoadStr(
     MemRefType memRefType, ValueRange indices, unsigned int width,
     std::function<std::string(Value)> valueToString) {
-  auto idx = flattenIndexExpression(memRefType, indices, valueToString);
+  auto idx = flattenIndexExpression(
+      memRefType, indices, [&](Value value) -> std::string {
+        if (auto constOp =
+                dyn_cast_or_null<arith::ConstantOp>(value.getDefiningOp())) {
+          return std::to_string(cast<IntegerAttr>(constOp.getValue()).getInt());
+        }
+        return valueToString(value);
+      });
   auto wrappedIdx = indices.size() == 1 ? idx : llvm::formatv("({0})", idx);
   return llvm::formatv("{0} + {2} * {1} : {2} * {1}", width - 1, wrappedIdx,
                        width);
@@ -217,7 +224,8 @@ LogicalResult VerilogEmitter::translate(
           })
           .Case<memref::LoadOp>([&](auto op) { return printOperation(op); })
           // Affine ops.
-          .Case<affine::AffineLoadOp, affine::AffineStoreOp>(
+          .Case<affine::AffineParallelOp, affine::AffineLoadOp,
+                affine::AffineStoreOp, affine::AffineYieldOp>(
               [&](auto op) { return printOperation(op); })
           .Case<UnrealizedConversionCastOp>(
               [&](auto op) { return printOperation(op); })
@@ -650,13 +658,63 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineLoadOp op) {
     emitAssignPrefix(op.getResult());
 
     os_ << memrefStr << "["
-        << variableLoadStr(op.getMemRefType(), op.getIndices(), width,
-                           [&](Value value) -> std::string {
-                             return getOrCreateName(value).str();
-                           })
+        << variableLoadStr(
+               op.getMemRefType(), op.getIndices(), width,
+               [&](Value value) { return getOrCreateName(value).str(); })
         << "];\n";
   }
 
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(affine::AffineParallelOp op) {
+  // An Affine parallel op can be emitted as a Verilog generate for loop to
+  // replicate the loop body logic. See
+  // https://fpgatutorial.com/verilog-generate/#:~:text=our%20verilog%20designs.-,Generate%20For%20Loop%20in%20Verilog,-We%20can%20use.
+  if (op.getIVs().size() != 1) {
+    op->emitError("only single induction var supported.");
+    return failure();
+  }
+  auto iv = op.getIVs().front();
+  auto min = op.getLowerBoundsMap().getSingleConstantResult();
+  auto max = op.getUpperBoundsMap().getSingleConstantResult();
+  auto step = op.getSteps().front();
+
+  auto ivName = getOrCreateName(iv);
+  os_ << "genvar " << ivName << ";\ngenerate\n";
+  // Declare the wires local to the generate block.
+  WalkResult result = op->walk<WalkOrder::PreOrder>([&](Operation *op) {
+    for (OpResult result : op->getResults()) {
+      if (failed(emitWireDeclaration(result))) {
+        return WalkResult(op->emitError()
+                          << "unable to declare result variable of type "
+                          << result.getType());
+      }
+    }
+    return WalkResult::advance();
+  });
+  if (result.wasInterrupted()) return failure();
+
+  os_ << llvm::formatv("for ({0} = {1}; {0} < {2}; {0} = {0} + {3}) begin\n",
+                       ivName, min, max, step);
+  os_.indent();
+
+  for (auto &operation : op.getBody()->getOperations()) {
+    if (failed(translate(operation, std::nullopt))) {
+      operation.emitError("failed to translate operation.");
+      return failure();
+    }
+  }
+
+  os_.unindent();
+  os_ << "end\nendgenerate\n";
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(affine::AffineYieldOp op) {
+  if (op->getNumResults() > 0) {
+    return failure();
+  }
   return success();
 }
 
@@ -670,10 +728,9 @@ LogicalResult VerilogEmitter::printOperation(memref::LoadOp op) {
   emitAssignPrefix(op.getResult());
 
   os_ << getOrCreateName(op.getMemref()) << "["
-      << variableLoadStr(op.getMemRefType(), op.getIndices(), iType.getWidth(),
-                         [&](Value value) -> std::string {
-                           return getOrCreateName(value).str();
-                         })
+      << variableLoadStr(
+             op.getMemRefType(), op.getIndices(), iType.getWidth(),
+             [&](Value value) { return getOrCreateName(value).str(); })
       << "];\n";
 
   return success();
@@ -697,13 +754,10 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineStoreOp op) {
         << flattenedBitIndex + width - 1 << " : " << flattenedBitIndex
         << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
   } else {
-    if (op.getMemRefType().getRank() > 1) {
-      // TODO(b/284323495): Handle multi-dim variable access.
-      return failure();
-    }
-    os_ << "assign " << getOrCreateName(op.getMemref()) << "[" << width - 1
-        << " + " << width << " * " << getOrCreateName(op.getIndices()[0])
-        << " : " << width << " * " << getOrCreateName(op.getIndices()[0])
+    os_ << "assign " << getOrCreateName(op.getMemref()) << "["
+        << variableLoadStr(
+               op.getMemRefType(), op.getIndices(), width,
+               [&](Value value) { return getOrCreateName(value).str(); })
         << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
   }
 
