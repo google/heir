@@ -19,11 +19,13 @@
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -39,6 +41,21 @@ namespace heir {
 namespace secret {
 
 namespace {
+
+// Returns whether an operation retrieves constant global data.
+bool isConstantGlobal(Operation *op) {
+  auto getGlobal = dyn_cast<memref::GetGlobalOp>(op);
+  if (!getGlobal) return false;
+
+  auto *symbolTableOp = getGlobal->getParentWithTrait<OpTrait::SymbolTable>();
+  if (!symbolTableOp) return false;
+  auto global = dyn_cast_or_null<memref::GlobalOp>(
+      SymbolTable::lookupSymbolIn(symbolTableOp, getGlobal.getNameAttr()));
+  if (!global) return false;
+
+  // Check if the global memref is a constant.
+  return isa<DenseElementsAttr>(global.getConstantInitValue());
+}
 
 llvm::SmallVector<Value> buildResolvedIndices(Operation *op,
                                               OperandRange opIndices,
@@ -602,11 +619,19 @@ void genericAbsorbConstants(secret::GenericOp genericOp,
       // If this is a block argument, get the generic's corresponding operand.
       Value opOperand = operand;
       auto blockArg = dyn_cast<BlockArgument>(operand);
-      if (blockArg) {
+      bool isGenericBlockArg =
+          blockArg && blockArg.getOwner()->getParentOp() == genericOp;
+      // Only get the generic's op operand when the block argument belongs to
+      // the generic. (Otherwise it could be a contained operations'
+      // block argument).
+      if (isGenericBlockArg) {
         opOperand = genericOp.getOpOperandForBlockArgument(blockArg)->get();
       }
       auto *definingOp = opOperand.getDefiningOp();
-      if (definingOp && definingOp->hasTrait<OpTrait::ConstantLike>()) {
+      bool isConstantLike =
+          definingOp && (definingOp->hasTrait<OpTrait::ConstantLike>() ||
+                         isConstantGlobal(definingOp));
+      if (isConstantLike) {
         // If the definingOp is outside of the generic region, then copy it
         // inside the region.
         Region *operandRegion = definingOp->getParentRegion();
@@ -615,7 +640,7 @@ void genericAbsorbConstants(secret::GenericOp genericOp,
           rewriter.replaceAllUsesWith(operand, copiedOp->getResults());
           // If this was a block argument, additionally remove the block
           // argument.
-          if (blockArg) {
+          if (isGenericBlockArg) {
             int index = blockArg.getArgNumber();
             rewriter.modifyOpInPlace(op, [&]() {
               genericOp.getBody()->eraseArgument(index);
