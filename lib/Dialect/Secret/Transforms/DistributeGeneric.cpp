@@ -391,10 +391,20 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           cloningMp.map(operand.get(), newBlockArg);
         }
 
-        // If the operand is not a sourceGeneric block argument, then it must be
-        // a value defined in the enclosing scope. It cannot be a value defined
-        // between the two secret.generics, because in this pattern we only
-        // invoke this just after splitting a generic into two adjacent ops.
+        // The op operand may be defined within a region contained in opToMove
+        // so no need to map it's IR value.
+        if (opToMove.getNumRegions() > 0 &&
+            llvm::any_of(opToMove.getRegions(), [&](Region &region) {
+              return region.isAncestor(operand.get().getParentRegion());
+            })) {
+          continue;
+        }
+
+        // If the operand is not a sourceGeneric block argument or defined
+        // within one of its regions, then it must be a value defined in the
+        // enclosing scope. It cannot be a value defined between the two
+        // secret.generics, because in this pattern we only invoke this just
+        // after splitting a generic into two adjacent ops.
         assert(operand.get().isa<BlockArgument>() ||
                dom.properlyDominates(operand.get().getDefiningOp(),
                                      targetGeneric) &&
