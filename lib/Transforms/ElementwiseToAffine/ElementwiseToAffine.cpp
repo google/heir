@@ -89,7 +89,7 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
     // Generate a `tensor.extract` for each tensor operand
     SmallVector<Value, 4> newOperands;
     for (auto operand : op->getOperands()) {
-      if (operand.getType().isa<RankedTensorType>()) {
+      if (mlir::isa<RankedTensorType>(operand.getType())) {
         // We don't need to check the shape, as ElementwiseMappable
         // requires all tensor operands to have compatible shapes
         auto extractOp = rewriter.create<tensor::ExtractOp>(operand.getLoc(),

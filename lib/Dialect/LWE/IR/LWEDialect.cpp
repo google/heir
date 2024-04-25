@@ -96,7 +96,7 @@ LogicalResult requirePolynomialElementTypeFits(
     Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
     unsigned cleartextStart,
     llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
-  if (!elementType.isa<::mlir::heir::polynomial::PolynomialType>()) {
+  if (!mlir::isa<::mlir::heir::polynomial::PolynomialType>(elementType)) {
     return emitError() << "Tensors with encoding " << encodingName
                        << " must have `poly.poly` element type, but found "
                        << elementType << "\n";

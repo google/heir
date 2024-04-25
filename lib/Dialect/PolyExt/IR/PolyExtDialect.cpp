@@ -9,6 +9,7 @@
 
 // Generated definitions.
 #include "include/Dialect/PolyExt/IR/PolyExtDialect.cpp.inc"
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 #define GET_OP_CLASSES
 #include "include/Dialect/PolyExt/IR/PolyExtOps.cpp.inc"
 
@@ -24,11 +25,11 @@ void PolyExtDialect::initialize() {
 }
 
 polynomial::PolynomialType getPolynomialType(Type t) {
-  if (auto tTnsr = t.dyn_cast<RankedTensorType>()) {
-    return tTnsr.getElementType()
-        .cast<::mlir::heir::polynomial::PolynomialType>();
+  if (auto tTnsr = mlir::dyn_cast<RankedTensorType>(t)) {
+    return mlir::cast<::mlir::heir::polynomial::PolynomialType>(
+        tTnsr.getElementType());
   }
-  return t.cast<::mlir::heir::polynomial::PolynomialType>();
+  return mlir::cast<::mlir::heir::polynomial::PolynomialType>(t);
 }
 
 LogicalResult CModSwitchOp::verify() {

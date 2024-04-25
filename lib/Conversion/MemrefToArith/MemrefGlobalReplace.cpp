@@ -44,13 +44,13 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
       mlir::Operation *op, mlir::ArrayRef<mlir::Value> operands,
       mlir::ConversionPatternRewriter &rewriter) const override {
     auto global = dyn_cast<mlir::memref::GlobalOp>(op);
-    auto memRefType = global.getType().cast<mlir::MemRefType>();
+    auto memRefType = mlir::cast<mlir::MemRefType>(global.getType());
     auto resultElementType = memRefType.getElementType();
 
     // Ensure the global memref is a read-only constant, so that we may
     // trivially forward its constant values to affine loads.
-    auto cstAttr =
-        global.getConstantInitValue().dyn_cast_or_null<DenseElementsAttr>();
+    auto cstAttr = mlir::dyn_cast_or_null<DenseElementsAttr>(
+        global.getConstantInitValue());
     if (!cstAttr) {
       op->emitError(
           "MemrefGlobalLoweringPattern requires global memrefs are read-only "

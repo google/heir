@@ -10,6 +10,7 @@
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/OperationSupport.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 #define DEBUG_TYPE "rotation-analysis"
 
@@ -36,7 +37,7 @@ class PartialReduction {
   // Returns true if the accessed indices constitute all indices of the reduced
   // tensor.
   bool isComplete() const {
-    auto tensorType = tensor.getType().dyn_cast<RankedTensorType>();
+    auto tensorType = mlir::dyn_cast<RankedTensorType>(tensor.getType());
     assert(tensorType &&
            "Internal state of RotationAnalysis is broken; tensor must have a "
            "ranked tensor type");
@@ -242,7 +243,7 @@ class RotationAnalysis {
   /// reduction mappings.
   void initializeFromValueIfTensor(Value value) {
     if (RankedTensorType tensorType =
-            value.getType().dyn_cast<RankedTensorType>()) {
+            mlir::dyn_cast<RankedTensorType>(value.getType())) {
       addPartialReduction(PartialReduction::initializeFromValue(value));
     }
   }

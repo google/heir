@@ -10,6 +10,7 @@
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -20,8 +21,9 @@ void RotationAnalysis::run(Operation *op) {
     // If the op has no tensor results and no regions, then there's nothing to
     // do. The operation may consume a tensor but cannot further reduce it.
     if (op->getNumRegions() == 0 &&
-        llvm::none_of(op->getResultTypes(),
-                      [](Type type) { return type.isa<RankedTensorType>(); })) {
+        llvm::none_of(op->getResultTypes(), [](Type type) {
+          return mlir::isa<RankedTensorType>(type);
+        })) {
       return WalkResult::advance();
     }
 
@@ -68,9 +70,8 @@ void RotationAnalysis::run(Operation *op) {
                 << " can't statically determine constant insertion index\n");
             return;
           }
-          auto shiftValue = shiftLattice->getValue()
-                                .getConstantValue()
-                                .dyn_cast<IntegerAttr>()
+          auto shiftValue = mlir::dyn_cast<IntegerAttr>(
+                                shiftLattice->getValue().getConstantValue())
                                 .getInt();
 
           // For each partial reduction the tensor operand is a root of,

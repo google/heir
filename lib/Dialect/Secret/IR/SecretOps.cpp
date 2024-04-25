@@ -533,7 +533,7 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
   for (auto operand : opToExtract->getOperands()) {
     // If the yielded value is a block argument or ambient, we can just use the
     // original SSA value.
-    auto blockArg = operand.dyn_cast<BlockArgument>();
+    auto blockArg = mlir::dyn_cast<BlockArgument>(operand);
     bool isBlockArgOfGeneric =
         blockArg && blockArg.getOwner() == genericOpWithNewYields.getBody();
     bool isAmbient =

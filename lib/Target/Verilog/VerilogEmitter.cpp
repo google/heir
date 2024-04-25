@@ -357,7 +357,8 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
         if (auto castOp = dyn_cast<UnrealizedConversionCastOp>(op)) {
           auto inputType = (*castOp.getInputs().begin()).getType();
           auto returnType = (*castOp.getResults().begin()).getType();
-          if (!inputType.isa<IntegerType>() || !returnType.isa<IntegerType>()) {
+          if (!mlir::isa<IntegerType>(inputType) ||
+              !mlir::isa<IntegerType>(returnType)) {
             return WalkResult(op->emitError(
                 "unable to support unrealized conversion cast "
                 "op, expected conversion between integer types."));
@@ -399,8 +400,8 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
     for (memref::GetGlobalOp getGlobalOp : getGlobals) {
       auto global = cast<memref::GlobalOp>(
           module.lookupSymbol(getGlobalOp.getNameAttr()));
-      auto cstAttr =
-          global.getConstantInitValue().dyn_cast_or_null<DenseElementsAttr>();
+      auto cstAttr = mlir::dyn_cast_or_null<DenseElementsAttr>(
+          global.getConstantInitValue());
       if (!cstAttr) {
         return failure();
       }
@@ -868,7 +869,7 @@ void VerilogEmitter::emitAssignPrefix(Value result) {
 
 LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
   Type ty = result.getType();
-  if (ty.isa<secret::SecretType>())
+  if (mlir::isa<secret::SecretType>(ty))
     ty = cast<secret::SecretType>(ty).getValueType();
   if (failed(emitType(ty))) {
     return failure();

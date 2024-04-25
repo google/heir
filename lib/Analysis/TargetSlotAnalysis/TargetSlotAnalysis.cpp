@@ -56,7 +56,7 @@ void TargetSlotAnalysis::visitOperation(
         }
         Attribute insertIndexAttr =
             insertIndexLattice->getValue().getConstantValue();
-        auto insertIndexIntAttr = insertIndexAttr.dyn_cast<IntegerAttr>();
+        auto insertIndexIntAttr = mlir::dyn_cast<IntegerAttr>(insertIndexAttr);
         assert(insertIndexIntAttr &&
                "If 1D insertion index is constant, it must be integer");
         int64_t insertIndexConst = insertIndexIntAttr.getInt();

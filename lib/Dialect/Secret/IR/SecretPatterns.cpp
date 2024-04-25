@@ -570,7 +570,7 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
       } else {
         bool isPlaintextAmbient =
             operand.getDefiningOp()->getBlock() != op.getBlock() &&
-            !operand.getType().isa<SecretType>();
+            !mlir::isa<SecretType>(operand.getType());
 
         LLVM_DEBUG(llvm::dbgs()
                    << "operand " << operand << " is a "

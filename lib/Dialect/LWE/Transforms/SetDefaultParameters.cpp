@@ -3,6 +3,7 @@
 #include "include/Dialect/LWE/IR/LWEOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
@@ -13,7 +14,7 @@ namespace lwe {
 #include "include/Dialect/LWE/Transforms/Passes.h.inc"
 
 void setLweParamsAttr(Value value, LWEParamsAttr attr) {
-  LWECiphertextType type = value.getType().cast<LWECiphertextType>();
+  LWECiphertextType type = mlir::cast<LWECiphertextType>(value.getType());
   // Calling setType is not recommended, but this pass is simple enough to do
   // it.
   value.setType(
@@ -43,12 +44,12 @@ struct SetDefaultParameters
           })
           .Default([&](Operation &op) {
             for (OpOperand &operand : op.getOpOperands()) {
-              if (operand.get().getType().isa<lwe::LWECiphertextType>()) {
+              if (mlir::isa<lwe::LWECiphertextType>(operand.get().getType())) {
                 setLweParamsAttr(operand.get(), defaultLweParams);
               }
             }
             for (OpResult result : op.getResults()) {
-              if (result.getType().isa<lwe::LWECiphertextType>()) {
+              if (mlir::isa<lwe::LWECiphertextType>(result.getType())) {
                 setLweParamsAttr(result, defaultLweParams);
               }
             }
@@ -62,8 +63,8 @@ struct SetDefaultParameters
 
             SmallVector<Type> newInputs;
             for (Type ty : funcOp.getArgumentTypes()) {
-              if (ty.isa<lwe::LWECiphertextType>()) {
-                auto lweTy = ty.cast<lwe::LWECiphertextType>();
+              if (mlir::isa<lwe::LWECiphertextType>(ty)) {
+                auto lweTy = mlir::cast<lwe::LWECiphertextType>(ty);
                 newInputs.push_back(LWECiphertextType::get(
                     &context, lweTy.getEncoding(), defaultLweParams));
               } else {
@@ -73,8 +74,8 @@ struct SetDefaultParameters
 
             SmallVector<Type> newResults;
             for (Type ty : funcOp.getResultTypes()) {
-              if (ty.isa<lwe::LWECiphertextType>()) {
-                auto lweTy = ty.cast<lwe::LWECiphertextType>();
+              if (mlir::isa<lwe::LWECiphertextType>(ty)) {
+                auto lweTy = mlir::cast<lwe::LWECiphertextType>(ty);
                 newResults.push_back(LWECiphertextType::get(
                     &context, lweTy.getEncoding(), defaultLweParams));
               } else {

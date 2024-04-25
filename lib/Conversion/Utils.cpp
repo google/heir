@@ -85,9 +85,8 @@ struct ConvertExtract : public OpConversionPattern<tensor::ExtractOp> {
     // replace tensor.extract %t[%i] from tensor<shape x SourceType>
     // with an equivalent tensor.slice from tensor<shape x resultshape>
     auto shape = op.getTensor().getType().getShape();
-    auto resultType = getTypeConverter()
-                          ->convertType(op.getResult().getType())
-                          .cast<RankedTensorType>();
+    auto resultType = mlir::cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
     auto resultShape = resultType.getShape();
 
     // expand op's list of indices by appending as many zeros as there are
@@ -138,9 +137,8 @@ struct ConvertInsert : public OpConversionPattern<tensor::InsertOp> {
     // replace tensor.insert %s into %t[%i] with tensor<shape x SourceType>
     // with an equivalent tensor.insert_slice with tensor<shape x resultshape>
     auto shape = op.getDest().getType().getShape();
-    auto resultType = getTypeConverter()
-                          ->convertType(op.getScalar().getType())
-                          .cast<RankedTensorType>();
+    auto resultType = mlir::cast<RankedTensorType>(
+        getTypeConverter()->convertType(op.getScalar().getType()));
     auto resultShape = resultType.getShape();
 
     // expand op's list of indices by appending as many zeros as there are
@@ -192,7 +190,7 @@ struct ConvertFromElements
     SmallVector<Value> newOperands;
     for (auto o : adaptor.getElements()) {
       // extend tensor<...xT> to tensor<1x...xT>
-      if (auto tensorType = o.getType().dyn_cast<RankedTensorType>()) {
+      if (auto tensorType = mlir::dyn_cast<RankedTensorType>(o.getType())) {
         auto shape = tensorType.getShape();
         SmallVector<int64_t> newShape(1, 1);
         newShape.append(shape.begin(), shape.end());
@@ -231,7 +229,7 @@ void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
       if (auto convertedType =
               typeConverter.convertType(type.getElementType())) {
         if (auto castConvertedType =
-                convertedType.dyn_cast<RankedTensorType>()) {
+                mlir::dyn_cast<RankedTensorType>(convertedType)) {
           //  Create the combined shape
           auto polyShape = castConvertedType.getShape();
           auto tensorShape = type.getShape();

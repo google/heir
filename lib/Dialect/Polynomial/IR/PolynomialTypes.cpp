@@ -1,13 +1,14 @@
 #include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 
-#include "mlir/include/mlir/IR/Types.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace polynomial {
 
 bool PolynomialType::isCompatibleWith(Type otherRnsBasisType) const {
-  auto other = otherRnsBasisType.dyn_cast<PolynomialType>();
+  auto other = mlir::dyn_cast<PolynomialType>(otherRnsBasisType);
   if (!other) {
     return false;
   }
