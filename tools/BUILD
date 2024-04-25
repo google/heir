@@ -47,6 +47,7 @@ cc_binary(
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Transforms",
         "@heir//lib/Dialect/Comb/IR:Dialect",
+        "@heir//lib/Dialect/Jaxite/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
