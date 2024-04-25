@@ -14,7 +14,7 @@ class LWE_Op<string mnemonic, list<Trait> traits = []> :
         Op<LWE_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::lwe";
   let assemblyFormat = [{
-    operands attr-dict `:`  `(` qualified(type(operands)) `)` `->` qualified(type(results))
+    operands attr-dict `:`  functional-type(operands, results)
   }];
 }
 

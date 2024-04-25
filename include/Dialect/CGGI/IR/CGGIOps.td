@@ -15,7 +15,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class CGGI_Op<string mnemonic, list<Trait> traits = []> :
         Op<CGGI_Dialect, mnemonic, traits> {
   let assemblyFormat = [{
-    `(` operands `)` attr-dict `:`  `(` qualified(type(operands)) `)` `->` qualified(type(results))
+    operands attr-dict `:` functional-type(operands, results)
   }];
   let cppNamespace = "::mlir::heir::cggi";
 }
