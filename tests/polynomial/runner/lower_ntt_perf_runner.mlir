@@ -18,13 +18,20 @@ func.func @test_poly_ntt() {
   %poly = _polynomial.from_tensor %insert_rand1 : tensor<65536xi20> -> !poly_ty
   %0 = _polynomial.ntt %poly : !poly_ty -> tensor<65536xi20, #ring>
 
-  %1 = tensor.cast %0 : tensor<65536xi20, #ring> to tensor<65536xi20>
-  %2 = arith.extui %1 : tensor<65536xi20> to tensor<65536xi32>
-  %3 = bufferization.to_memref %2 : memref<65536xi32>
-  %U = memref.cast %3 : memref<65536xi32> to memref<*xi32>
+  // Insert casts so that intt(ntt()) does not get folded away during polynomial
+  // canonicalization
+  %cast = tensor.cast %0 : tensor<65536xi20, #ring> to tensor<65536xi20>
+  %cast_back = tensor.cast %cast : tensor<65536xi20> to tensor<65536xi20, #ring>
+
+  %1 = _polynomial.intt %cast_back : tensor<65536xi20, #ring> -> !poly_ty
+
+  %2 = _polynomial.to_tensor %1 : !poly_ty -> tensor<65536xi20>
+  %3 = arith.extui %2 : tensor<65536xi20> to tensor<65536xi32>
+  %4 = bufferization.to_memref %3 : memref<65536xi32>
+  %U = memref.cast %4 : memref<65536xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }
 // Checking the first and last 8 values:
-// CHECK_TEST_POLY_NTT: [181464, 375126, 733576, 576421, 694893, 367136, 649265, 636611,
-// CHECK_TEST_POLY_NTT: 257260, 481526, 42637, 720167, 396969, 232387, 575107, 195742]
+// CHECK_TEST_POLY_NTT: [82466, 284102, 230668, 726464, 689117, 138714, 365947, 689485,
+// CHECK_TEST_POLY_NTT: 79893, 400573, 206914, 428506, 778137, 563541, 644030, 376996, 612443]
