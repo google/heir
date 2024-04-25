@@ -16,6 +16,7 @@ cc_library(
         "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
         "@heir//lib/Dialect/Polynomial/IR:PolynomialOps",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:FuncDialect",
@@ -28,6 +29,5 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
     ],
 )

@@ -39,14 +39,24 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
     An attribute specifying a polynomial quotient ring with integer
     coefficients, $\mathbb{Z}/n\mathbb{Z}[x] / (p(x))$.
 
-    `cmod` is the coefficient modulus $n$, and `ideal` is the ring ideal
-    $(p(x))$. Because all ideals in a single-variable polynomial ring are
-    principal, the ideal is defined by a single polynomial.
+    `cmod` is the coefficient modulus $n$, `ideal` is the ring ideal
+    $(p(x))$, and `root` is a primitive 2d-th root of unity of `cmod` where d is
+    the degree of `p(x)`. Because all ideals in a single-variable polynomial
+    ring are principal, the ideal is defined by a single polynomial. `root` is
+    optionally specified to a desired 2n-th primitive root of unity for the
+    coefficient ring of the polynomial ring. If it is not provided then a
+    pre-computed value is used instead for ops that need it. The semantics of
+    this root (e.g., its degree) are determined by the lowerings.
 
-      #ring = #_polynomial.ring<cmod=1234, ideal=#polynomial.polynomial<x**1024 + 1>>
+      #ring = #_polynomial.ring<cmod=1234, ideal=#_polynomial.polynomial<x**1024 + 1>>
+      #ring = #_polynomial.ring<cmod=256, ideal=#_polynomial.polynomial<x**4 + 1>, root=31>
   }];
 
-  let parameters = (ins "IntegerAttr": $cmod, "Polynomial":$ideal);
+  let parameters = (ins
+    "IntegerAttr": $cmod,
+    "Polynomial": $ideal,
+    OptionalParameter<"IntegerAttr">: $root
+  );
 
   let builders = [
     AttrBuilderWithInferredContext<
@@ -54,13 +64,27 @@ def Ring_Attr : Polynomial_Attr<"Ring", "ring"> {
       return $_get(
         ideal.getContext(),
         IntegerAttr::get(IntegerType::get(ideal.getContext(), cmod.getBitWidth()), cmod),
-        ideal
+        ideal,
+        nullptr
+      );
+    }]>,
+    AttrBuilderWithInferredContext<
+        (ins "const APInt &": $cmod, "Polynomial":$ideal, "const APInt&": $root), [{
+      return $_get(
+        ideal.getContext(),
+        IntegerAttr::get(IntegerType::get(ideal.getContext(), cmod.getBitWidth()), cmod),
+        ideal,
+        IntegerAttr::get(IntegerType::get(ideal.getContext(), root.getBitWidth()), root)
       );
     }]>
   ];
   let extraClassDeclaration = [{
     Polynomial ideal() const { return getIdeal(); }
     APInt coefficientModulus() const { return getCmod().getValue(); }
+    std::optional<APInt> primitive2NthRoot() const {
+      auto root = getRoot();
+      return root ? std::optional<APInt>(root.getValue()) : std::nullopt;
+    }
   }];
 
   let skipDefaultBuilders = 1;

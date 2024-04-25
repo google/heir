@@ -1,14 +1,14 @@
 // RUN: heir-opt --canonicalize %s | FileCheck %s
 
-#cycl_2048 = #_polynomial.polynomial<1 + x**1024>
-#ring = #_polynomial.ring<cmod=4294967296, ideal=#cycl_2048>
+#cycl_1024 = #_polynomial.polynomial<1 + x**1024>
+#ring = #_polynomial.ring<cmod=3758161921, ideal=#cycl_1024>
 
 !tensor_ty = tensor<1024xi32, #ring>
 !poly_ty = !_polynomial.polynomial<#ring>
 
 // CHECK: module
 module {
-  // CHECK-LABLE: @test_canonicalize_intt_after_ntt
+  // CHECK-LABEL: @test_canonicalize_intt_after_ntt
   // CHECK: (%[[P:.*]]: [[T:.*]]) -> [[T]]
   func.func @test_canonicalize_intt_after_ntt(%p0 : !poly_ty) -> !poly_ty {
     // CHECK-NOT: _polynomial.ntt
@@ -21,7 +21,7 @@ module {
     return %p2 : !poly_ty
   }
 
-  // CHECK-LABLE: @test_canonicalize_ntt_after_intt
+  // CHECK-LABEL: @test_canonicalize_ntt_after_intt
   // CHECK: (%[[X:.*]]: [[T:.*]]) -> [[T]]
   func.func @test_canonicalize_ntt_after_intt(%t0 : !tensor_ty) -> !tensor_ty {
     // CHECK-NOT: _polynomial.intt

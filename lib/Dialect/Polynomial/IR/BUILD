@@ -40,13 +40,14 @@ cc_library(
     hdrs = [
         "@heir//include/Dialect/Polynomial/IR:PolynomialAttributes.h",
         "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
+        "@heir//include/Dialect/Polynomial/IR:StaticRoots.h",
     ],
     deps = [
+        ":NumberTheory",
         ":Polynomial",
         "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
         "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:AsmParser",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
@@ -125,5 +126,29 @@ cc_test(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "NumberTheory",
+    srcs = [
+        "NumberTheory.cpp",
+    ],
+    hdrs = [
+        "@heir//include/Dialect/Polynomial/IR:NumberTheory.h",
+    ],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_test(
+    name = "NumberTheoryTest",
+    size = "small",
+    srcs = ["NumberTheoryTest.cpp"],
+    deps = [
+        ":NumberTheory",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
     ],
 )

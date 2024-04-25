@@ -1,9 +1,17 @@
 #include "include/Dialect/Polynomial/IR/PolynomialOps.h"
 
+#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/APInt.h"               // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 
 namespace mlir {
@@ -110,6 +118,12 @@ static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
            << "tensor type " << tensorType
            << " must be a tensor of shape [d] where d "
            << "is exactly the degree of the ring's ideal " << ring;
+  }
+
+  if (!ring.primitive2NthRoot()) {
+    return op->emitOpError()
+           << "ring type does not provide a primitive root 2n-th primitive root"
+           << "of unity, where n is the polynomial degree: " << polyDegree;
   }
 
   return success();
