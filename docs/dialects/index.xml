@@ -46,7 +46,7 @@
 &lt;h3 id="bgvadd_plain-heirbgvaddplainop">&lt;code>bgv.add_plain&lt;/code> (heir::bgv::AddPlainOp)&lt;/h3>
 &lt;p>&lt;em>Addition operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.add_plain` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -85,7 +85,7 @@
 &lt;h3 id="bgvdecrypt-heirbgvdecryptop">&lt;code>bgv.decrypt&lt;/code> (heir::bgv::DecryptOp)&lt;/h3>
 &lt;p>&lt;em>Decrypt an encoded plaintext into a BGV ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.decrypt` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.decrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -123,7 +123,7 @@
 &lt;h3 id="bgvencrypt-heirbgvencryptop">&lt;code>bgv.encrypt&lt;/code> (heir::bgv::EncryptOp)&lt;/h3>
 &lt;p>&lt;em>Encrypt an encoded plaintext into a BGV ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.encrypt` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.encrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -161,7 +161,7 @@
 &lt;h3 id="bgvextract-heirbgvextractop">&lt;code>bgv.extract&lt;/code> (heir::bgv::ExtractOp)&lt;/h3>
 &lt;p>&lt;em>Extract the i-th element of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.extract` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.extract` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>While this operation is costly to compute in FHE, we represent it so we can
 implement efficient lowerings and folders.&lt;/p>
 &lt;p>This op can be implemented as a plaintext multiplication with a one-hot
@@ -247,7 +247,7 @@ that tensor type.&lt;/p>
 &lt;h3 id="bgvmul-heirbgvmulop">&lt;code>bgv.mul&lt;/code> (heir::bgv::MulOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
@@ -287,7 +287,7 @@ that tensor type.&lt;/p>
 &lt;h3 id="bgvmul_plain-heirbgvmulplainop">&lt;code>bgv.mul_plain&lt;/code> (heir::bgv::MulPlainOp)&lt;/h3>
 &lt;p>&lt;em>Multiplication operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
@@ -489,7 +489,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="bgvsub_plain-heirbgvsubplainop">&lt;code>bgv.sub_plain&lt;/code> (heir::bgv::SubPlainOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` `(` qualified(type(operands)) `)` `-&amp;gt;` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
@@ -4659,7 +4659,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfheadd-heiropenfheaddop">&lt;code>openfhe.add&lt;/code> (heir::openfhe::AddOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE add operation of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -4703,7 +4703,7 @@ does not keep track of types for you.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfheautomorph-heiropenfheautomorphop">&lt;code>openfhe.automorph&lt;/code> (heir::openfhe::AutomorphOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.automorph` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.automorph` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -4747,7 +4747,7 @@ does not keep track of types for you.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhedecrypt-heiropenfhedecryptop">&lt;code>openfhe.decrypt&lt;/code> (heir::openfhe::DecryptOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.decrypt` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.decrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -4791,7 +4791,7 @@ does not keep track of types for you.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfheencrypt-heiropenfheencryptop">&lt;code>openfhe.encrypt&lt;/code> (heir::openfhe::EncryptOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.encrypt` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.encrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -4835,7 +4835,7 @@ does not keep track of types for you.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfhekey_switch-heiropenfhekeyswitchop">&lt;code>openfhe.key_switch&lt;/code> (heir::openfhe::KeySwitchOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.key_switch` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -4880,7 +4880,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhelevel_reduce-heiropenfhelevelreduceop">&lt;code>openfhe.level_reduce&lt;/code> (heir::openfhe::LevelReduceOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE level_reduce operation of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.level_reduce` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.level_reduce` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -4921,7 +4921,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhemod_reduce-heiropenfhemodreduceop">&lt;code>openfhe.mod_reduce&lt;/code> (heir::openfhe::ModReduceOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE mod_reduce operation of a ciphertext. (used only for BGV/CKKS)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mod_reduce` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mod_reduce` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -4962,7 +4962,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhemul_const-heiropenfhemulconstop">&lt;code>openfhe.mul_const&lt;/code> (heir::openfhe::MulConstOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE mul operation of a ciphertext and a constant.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_const` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_const` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5007,7 +5007,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhemul_no_relin-heiropenfhemulnorelinop">&lt;code>openfhe.mul_no_relin&lt;/code> (heir::openfhe::MulNoRelinOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE mul operation of two ciphertexts without relinearization.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_no_relin` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_no_relin` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5052,7 +5052,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhemul-heiropenfhemulop">&lt;code>openfhe.mul&lt;/code> (heir::openfhe::MulOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE mul operation of two ciphertexts with relinearization.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5097,7 +5097,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhemul_plain-heiropenfhemulplainop">&lt;code>openfhe.mul_plain&lt;/code> (heir::openfhe::MulPlainOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE mul operation of a ciphertext and a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_plain` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_plain` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5142,7 +5142,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhenegate-heiropenfhenegateop">&lt;code>openfhe.negate&lt;/code> (heir::openfhe::NegateOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE negate operation of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.negate` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.negate` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5183,7 +5183,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfherelin-heiropenfherelinop">&lt;code>openfhe.relin&lt;/code> (heir::openfhe::RelinOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE relinearize operation of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.relin` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5223,7 +5223,7 @@ does not keep track of types for you.&lt;/p>
 &lt;/table>
 &lt;h3 id="openfherot-heiropenfherotop">&lt;code>openfhe.rot&lt;/code> (heir::openfhe::RotOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.rot` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5268,7 +5268,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhesquare-heiropenfhesquareop">&lt;code>openfhe.square&lt;/code> (heir::openfhe::SquareOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE square operation of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.square` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -5309,7 +5309,7 @@ does not keep track of types for you.&lt;/p>
 &lt;h3 id="openfhesub-heiropenfhesubop">&lt;code>openfhe.sub&lt;/code> (heir::openfhe::SubOp)&lt;/h3>
 &lt;p>&lt;em>OpenFHE sub operation of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7852,7 +7852,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="tfhe_rustadd-heirtfhe_rustaddop">&lt;code>tfhe_rust.add&lt;/code> (heir::tfhe_rust::AddOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.add` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.add` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7896,7 +7896,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rustapply_lookup_table-heirtfhe_rustapplylookuptableop">&lt;code>tfhe_rust.apply_lookup_table&lt;/code> (heir::tfhe_rust::ApplyLookupTableOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.apply_lookup_table` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.apply_lookup_table` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7940,7 +7940,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rustbitand-heirtfhe_rustbitandop">&lt;code>tfhe_rust.bitand&lt;/code> (heir::tfhe_rust::BitAndOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitand` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.bitand` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -7984,7 +7984,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rustcreate_trivial-heirtfhe_rustcreatetrivialop">&lt;code>tfhe_rust.create_trivial&lt;/code> (heir::tfhe_rust::CreateTrivialOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.create_trivial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.create_trivial` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -8024,7 +8024,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rustgenerate_lookup_table-heirtfhe_rustgeneratelookuptableop">&lt;code>tfhe_rust.generate_lookup_table&lt;/code> (heir::tfhe_rust::GenerateLookupTableOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.generate_lookup_table` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.generate_lookup_table` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -8065,7 +8065,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rustscalar_left_shift-heirtfhe_rustscalarleftshiftop">&lt;code>tfhe_rust.scalar_left_shift&lt;/code> (heir::tfhe_rust::ScalarLeftShiftOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_left_shift` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.scalar_left_shift` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -8109,7 +8109,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rustsub-heirtfhe_rustsubop">&lt;code>tfhe_rust.sub&lt;/code> (heir::tfhe_rust::SubOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.sub` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.sub` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -8871,7 +8871,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;h3 id="tfhe_rust_booland-heirtfhe_rust_boolandop">&lt;code>tfhe_rust_bool.and&lt;/code> (heir::tfhe_rust_bool::AndOp)&lt;/h3>
 &lt;p>&lt;em>Logical AND of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.and` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.and` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -8915,7 +8915,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rust_boolcreate_trivial-heirtfhe_rust_boolcreatetrivialop">&lt;code>tfhe_rust_bool.create_trivial&lt;/code> (heir::tfhe_rust_bool::CreateTrivialOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.create_trivial` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.create_trivial` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -8955,7 +8955,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rust_boolmux-heirtfhe_rust_boolmuxop">&lt;code>tfhe_rust_bool.mux&lt;/code> (heir::tfhe_rust_bool::MuxOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.mux` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.mux` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9004,7 +9004,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;h3 id="tfhe_rust_boolnand-heirtfhe_rust_boolnandop">&lt;code>tfhe_rust_bool.nand&lt;/code> (heir::tfhe_rust_bool::NandOp)&lt;/h3>
 &lt;p>&lt;em>Logical NAND of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nand` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nand` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9049,7 +9049,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;h3 id="tfhe_rust_boolnor-heirtfhe_rust_boolnorop">&lt;code>tfhe_rust_bool.nor&lt;/code> (heir::tfhe_rust_bool::NorOp)&lt;/h3>
 &lt;p>&lt;em>Logical NOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9093,7 +9093,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;/table>
 &lt;h3 id="tfhe_rust_boolnot-heirtfhe_rust_boolnotop">&lt;code>tfhe_rust_bool.not&lt;/code> (heir::tfhe_rust_bool::NotOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.not` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.not` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9134,7 +9134,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;h3 id="tfhe_rust_boolor-heirtfhe_rust_boolorop">&lt;code>tfhe_rust_bool.or&lt;/code> (heir::tfhe_rust_bool::OrOp)&lt;/h3>
 &lt;p>&lt;em>Logical OR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.or` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.or` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9179,7 +9179,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;h3 id="tfhe_rust_boolxnor-heirtfhe_rust_boolxnorop">&lt;code>tfhe_rust_bool.xnor&lt;/code> (heir::tfhe_rust_bool::XnorOp)&lt;/h3>
 &lt;p>&lt;em>Logical XNOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xnor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xnor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9224,7 +9224,7 @@ declarations, &lt;code>vector&amp;lt;0x42xi32&amp;gt;&lt;/code> is invalid becau
 &lt;h3 id="tfhe_rust_boolxor-heirtfhe_rust_boolxorop">&lt;code>tfhe_rust_bool.xor&lt;/code> (heir::tfhe_rust_bool::XorOp)&lt;/h3>
 &lt;p>&lt;em>Logical XOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xor` operands attr-dict `:` `(` type(operands) `)` `-&amp;gt;` type(results)
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
