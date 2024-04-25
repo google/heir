@@ -7,7 +7,7 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-// The `// from @openfhe` is a bit of a hack to avoid out default copybara
+// The `// from @openfhe` is a bit of a hack to avoid default copybara
 // transforms for HEIR includes.
 
 // clang-format off
@@ -18,6 +18,9 @@ using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;
 using CryptoContextT = CryptoContext<DCRTPoly>;
 using EvalKeyT = EvalKey<DCRTPoly>;
+using PlaintextT = Plaintext;
+using PrivateKeyT = PrivateKey<DCRTPoly>;
+using PublicKeyT = PublicKey<DCRTPoly>;
 )cpp";
 // clang-format on
 

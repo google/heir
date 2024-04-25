@@ -5,6 +5,8 @@
 #include "include/Dialect/BGV/IR/BGVOps.h"
 #include "include/Dialect/LWE/IR/LWEAttributes.h"
 #include "include/Dialect/LWE/IR/LWETypes.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
@@ -56,6 +58,23 @@ LogicalResult RotateOp::verify() {
   auto out = getOutput().getType();
   if (out.getRlweParams().getDimension() != 2) {
     return emitOpError() << "output.dim == 2 does not hold";
+  }
+  return success();
+}
+
+LogicalResult EncryptOp::verify() {
+  Type keyType = getKey().getType();
+  lwe::RLWEParamsAttr keyParams =
+      llvm::TypeSwitch<Type, lwe::RLWEParamsAttr>(keyType)
+          .Case<lwe::RLWEPublicKeyType, lwe::RLWESecretKeyType>(
+              [](auto key) { return key.getRlweParams(); })
+          .Default([](Type) {
+            llvm_unreachable("impossible by type constraints");
+            return nullptr;
+          });
+
+  if (getOutput().getType().getRlweParams() != keyParams) {
+    return emitOpError() << "input dimensions do not match";
   }
   return success();
 }

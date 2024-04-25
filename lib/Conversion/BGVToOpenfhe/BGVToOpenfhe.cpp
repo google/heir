@@ -37,6 +37,12 @@ class ToOpenfheTypeConverter : public TypeConverter {
  public:
   ToOpenfheTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
+    addConversion([ctx](lwe::RLWEPublicKeyType type) -> Type {
+      return openfhe::PublicKeyType::get(ctx);
+    });
+    addConversion([ctx](lwe::RLWESecretKeyType type) -> Type {
+      return openfhe::PrivateKeyType::get(ctx);
+    });
   }
 };
 
@@ -255,6 +261,53 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitch> {
   }
 };
 
+struct ConvertEncryptOp : public OpConversionPattern<EncryptOp> {
+  ConvertEncryptOp(mlir::MLIRContext *context)
+      : OpConversionPattern<EncryptOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      EncryptOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+
+    auto keyType = dyn_cast<lwe::RLWEPublicKeyType>(op.getKey().getType());
+    if (!keyType)
+      return op.emitError()
+             << "OpenFHE only supports public key encryption for BGV.";
+
+    Value cryptoContext = result.value();
+    rewriter.replaceOp(op,
+                       rewriter.create<openfhe::EncryptOp>(
+                           op.getLoc(), op.getOutput().getType(), cryptoContext,
+                           adaptor.getInput(), adaptor.getKey()));
+    return success();
+  }
+};
+
+struct ConvertDecryptOp : public OpConversionPattern<DecryptOp> {
+  ConvertDecryptOp(mlir::MLIRContext *context)
+      : OpConversionPattern<DecryptOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      DecryptOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+
+    Value cryptoContext = result.value();
+    rewriter.replaceOp(op,
+                       rewriter.create<openfhe::DecryptOp>(
+                           op.getLoc(), op.getOutput().getType(), cryptoContext,
+                           adaptor.getInput(), adaptor.getSecretKey()));
+    return success();
+  }
+};
+
 // Rewrite extract as a multiplication by a one-hot plaintext, followed by a
 // rotate.
 struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
@@ -360,8 +413,8 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
     });
     patterns.add<AddCryptoContextArg, ConvertAddOp, ConvertSubOp, ConvertMulOp,
                  ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,
-                 ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp>(
-        typeConverter, context);
+                 ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp,
+                 ConvertEncryptOp, ConvertDecryptOp>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

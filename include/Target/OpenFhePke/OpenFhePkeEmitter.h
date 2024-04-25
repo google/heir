@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "include/Dialect/LWE/IR/LWEOps.h"
 #include "include/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
@@ -44,21 +45,28 @@ class OpenFhePkeEmitter {
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  LogicalResult printOperation(::mlir::arith::IndexCastOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
+  LogicalResult printOperation(::mlir::heir::lwe::RLWEEncodeOp op);
+  LogicalResult printOperation(::mlir::heir::lwe::RLWEDecodeOp op);
+  LogicalResult printOperation(
+      ::mlir::heir::lwe::ReinterpretUnderlyingTypeOp op);
   LogicalResult printOperation(AddOp op);
-  LogicalResult printOperation(SubOp op);
+  LogicalResult printOperation(AutomorphOp op);
+  LogicalResult printOperation(DecryptOp op);
+  LogicalResult printOperation(EncryptOp op);
+  LogicalResult printOperation(KeySwitchOp op);
+  LogicalResult printOperation(LevelReduceOp op);
+  LogicalResult printOperation(ModReduceOp op);
+  LogicalResult printOperation(MulConstOp op);
   LogicalResult printOperation(MulOp op);
   LogicalResult printOperation(MulPlainOp op);
-  LogicalResult printOperation(MulConstOp op);
   LogicalResult printOperation(NegateOp op);
-  LogicalResult printOperation(SquareOp op);
   LogicalResult printOperation(RelinOp op);
-  LogicalResult printOperation(ModReduceOp op);
-  LogicalResult printOperation(LevelReduceOp op);
   LogicalResult printOperation(RotOp op);
-  LogicalResult printOperation(AutomorphOp op);
-  LogicalResult printOperation(KeySwitchOp op);
+  LogicalResult printOperation(SquareOp op);
+  LogicalResult printOperation(SubOp op);
 
   // Helpers for above
   LogicalResult printEvalMethod(::mlir::Value result,
@@ -69,7 +77,8 @@ class OpenFhePkeEmitter {
   // Emit an OpenFhe type
   LogicalResult emitType(Type type);
 
-  void emitAssignPrefix(::mlir::Value result);
+  void emitAutoAssignPrefix(::mlir::Value result);
+  LogicalResult emitTypedAssignPrefix(::mlir::Value result);
 };
 
 }  // namespace openfhe

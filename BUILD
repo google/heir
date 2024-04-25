@@ -1,5 +1,6 @@
 # HEIR, an MLIR project for homomorphic encryption
 
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_license//rules:license.bzl", "license")
 
 package(
@@ -21,9 +22,22 @@ package_group(
 )
 
 # Disables Yosys deps for CLI tools and tests.
+# use by passing `--//:enable_yosys=0` to `bazel build` or `bazel test`
+string_flag(
+    name = "enable_yosys",
+    build_setting_default = "1",
+)
+
 config_setting(
-    name = "disable_yosys",
-    values = {
-        "define": "HEIR_NO_YOSYS=1",
+    name = "config_enable_yosys",
+    flag_values = {
+        ":enable_yosys": "1",
+    },
+)
+
+config_setting(
+    name = "config_disable_yosys",
+    flag_values = {
+        ":enable_yosys": "0",
     },
 )

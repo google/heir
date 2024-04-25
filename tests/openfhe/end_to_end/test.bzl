@@ -1,8 +1,9 @@
 """A macro providing an end-to-end test for OpenFHE codegen."""
 
+load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 
-def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, data = [], tags = [], deps = [], **kwargs):
+def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = "", data = [], tags = [], deps = [], **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
 
     Args:
@@ -11,6 +12,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, data
       test_src: The C++ test harness source file.
       generated_lib_header: The name of the generated .h file (explicit
         because it needs to be manually #include'd in the test_src file)
+      heir_opt_flags: Flags to pass to heir-opt before heir-translate
       data: Data dependencies to be passed to cc_test
       tags: Tags to pass to cc_test
       deps: Deps to pass to cc_test and cc_library
@@ -20,16 +22,28 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, data
     h_codegen_target = name + ".heir_translate_h"
     cc_lib_target_name = "%s_cc_lib" % name
     generated_cc_filename = "%s_lib.inc.cc" % name
+    heir_opt_name = "%s_heir_opt" % name
+    generated_heir_opt_name = "%s_heir_opt.mlir" % name
+
+    if heir_opt_flags:
+        heir_opt(
+            name = heir_opt_name,
+            src = mlir_src,
+            pass_flag = heir_opt_flags,
+            generated_filename = generated_heir_opt_name,
+        )
+    else:
+        generated_heir_opt_name = mlir_src
 
     heir_translate(
         name = cc_codegen_target,
-        src = mlir_src,
+        src = generated_heir_opt_name,
         pass_flag = "--emit-openfhe-pke",
         generated_filename = generated_cc_filename,
     )
     heir_translate(
         name = h_codegen_target,
-        src = mlir_src,
+        src = generated_heir_opt_name,
         pass_flag = "--emit-openfhe-pke-header",
         generated_filename = generated_lib_header,
     )

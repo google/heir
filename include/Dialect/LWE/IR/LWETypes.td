@@ -12,6 +12,7 @@ include "mlir/IR/AttrTypeBase.td"
 class LWE_Type<string name, string typeMnemonic, list<Trait> traits = []>
     : TypeDef<LWE_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
+  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 // LWE Ciphertexts are ranked tensors of integers representing the LWE samples
@@ -34,27 +35,28 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
     "::mlir::Attribute":$encoding,
     OptionalParameter<"LWEParamsAttr">:$lwe_params
   );
-
-  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
   let summary = "A type for RLWE ciphertexts";
-
   let parameters = (ins
     "::mlir::Attribute":$encoding,
     "RLWEParamsAttr":$rlwe_params,
     "Type":$underlying_type
   );
-
-  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 def RLWESecretKey : LWE_Type<"RLWESecretKey", "rlwe_secret_key"> {
   let summary = "A secret key for RLWE";
   let parameters = (ins "RLWEParamsAttr":$rlwe_params);
-  let assemblyFormat = "`<` struct(params) `>`";
 }
+
+def RLWEPublicKey : LWE_Type<"RLWEPublicKey", "rlwe_public_key"> {
+  let summary = "A public key for RLWE";
+  let parameters = (ins "RLWEParamsAttr":$rlwe_params);
+}
+
+def RLWESecretOrPublicKey : AnyTypeOf<[RLWESecretKey, RLWEPublicKey]>;
 
 def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext"> {
   let summary = "A type for LWE plaintexts";
@@ -69,8 +71,6 @@ def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext"> {
   let parameters = (ins
     "::mlir::Attribute":$encoding
   );
-
-  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
@@ -81,8 +81,6 @@ def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
     "::mlir::heir::polynomial::RingAttr":$ring,
     "Type":$underlying_type
   );
-
-  let assemblyFormat = "`<` struct(params) `>`";
 }
 
 #endif  // INCLUDE_DIALECT_LWE_IR_LWETYPES_TD_

@@ -48,8 +48,21 @@ class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
 }
 
 def EncryptOp : Openfhe_Op<"encrypt", [Pure]> {
-  let arguments = (ins Openfhe_CryptoContext:$cryptoContext, RLWEPlaintext:$plaintext, Openfhe_PublicKey:$publicKey);
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    RLWEPlaintext:$plaintext,
+    Openfhe_PublicKey:$publicKey)
+  ;
   let results = (outs RLWECiphertext:$output);
+}
+
+def DecryptOp : Openfhe_Op<"decrypt", [Pure]> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    RLWECiphertext:$ciphertext,
+    Openfhe_PrivateKey:$privateKey)
+  ;
+  let results = (outs RLWEPlaintext:$plaintext);
 }
 
 def AddOp : Openfhe_BinaryOp<"add"> { let summary = "OpenFHE add operation of two ciphertexts."; }
@@ -112,7 +125,7 @@ def RotOp : Openfhe_Op<"rot",[
   let results = (outs RLWECiphertext:$output);
 }
 
-def AutomorphOp : Openfhe_Op<"automorph",[
+def AutomorphOp : Openfhe_Op<"automorph", [
   Pure,
   AllTypesMatch<["ciphertext", "output"]>
 ]> {
@@ -135,6 +148,5 @@ def KeySwitchOp : Openfhe_Op<"key_switch", [
   );
   let results = (outs RLWECiphertext:$output);
 }
-
 
 #endif  // INCLUDE_DIALECT_OPENFHE_IR_OPENFHEOPS_TD_
