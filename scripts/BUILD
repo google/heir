@@ -1,12 +1,12 @@
-load("//devtools/python/blaze:pytype.bzl", "pytype_strict_binary")
+load("@rules_python//python:py_binary.bzl", "py_binary")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "generate_static_roots",
     srcs = ["generate_static_roots.py"],
-    deps = ["//third_party/py/sympy"],
+    deps = ["@heir_pip_deps_sympy//:pkg"],
 )
