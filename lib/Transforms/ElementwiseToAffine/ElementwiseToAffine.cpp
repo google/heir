@@ -1,4 +1,4 @@
-#include "include/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 
 #include <cstddef>
 #include <utility>
@@ -19,7 +19,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_ELEMENTWISETOAFFINE
-#include "include/Transforms/ElementwiseToAffine/ElementwiseToAffine.h.inc"
+#include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h.inc"
 
 // All of this is based on the ElementwiseToLinalg Pass in
 // mlir/lib/Dialect/Linalg/Transforms/ElementwiseToLinalg.cpp

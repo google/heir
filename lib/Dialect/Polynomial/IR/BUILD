@@ -1,5 +1,7 @@
 # Polynomial dialect
 
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -11,21 +13,21 @@ cc_library(
         "PolynomialDialect.cpp",
     ],
     hdrs = [
-        "@heir//include/Dialect/Polynomial/IR:PolynomialAttributes.h",
-        "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
-        "@heir//include/Dialect/Polynomial/IR:PolynomialOps.h",
-        "@heir//include/Dialect/Polynomial/IR:PolynomialTypes.h",
+        "PolynomialAttributes.h",
+        "PolynomialDialect.h",
+        "PolynomialOps.h",
+        "PolynomialTypes.h",
     ],
     deps = [
         ":Polynomial",
         ":PolynomialAttributes",
         ":PolynomialOps",
         ":PolynomialTypes",
-        "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:canonicalize_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:ops_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:types_inc_gen",
+        ":attributes_inc_gen",
+        ":dialect_inc_gen",
+        ":ops_inc_gen",
+        ":types_inc_gen",
+        "@heir//lib/Dialect/RNS/IR:RNSTypes",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
@@ -38,15 +40,15 @@ cc_library(
         "PolynomialAttributes.cpp",
     ],
     hdrs = [
-        "@heir//include/Dialect/Polynomial/IR:PolynomialAttributes.h",
-        "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
-        "@heir//include/Dialect/Polynomial/IR:StaticRoots.h",
+        "PolynomialAttributes.h",
+        "PolynomialDialect.h",
+        "StaticRoots.h",
     ],
     deps = [
         ":NumberTheory",
         ":Polynomial",
-        "@heir//include/Dialect/Polynomial/IR:attributes_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
+        ":attributes_inc_gen",
+        ":dialect_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -59,18 +61,16 @@ cc_library(
         "PolynomialOps.cpp",
     ],
     hdrs = [
-        "@heir//include/Dialect/Polynomial/IR:PolynomialDialect.h",
-        "@heir//include/Dialect/Polynomial/IR:PolynomialOps.h",
-        "@heir//include/Dialect/Polynomial/IR:PolynomialTypes.h",
-        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
+        "PolynomialDialect.h",
+        "PolynomialOps.h",
+        "PolynomialTypes.h",
     ],
     deps = [
         ":PolynomialAttributes",
-        "@heir//include/Dialect/Polynomial/IR:canonicalize_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:dialect_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:ops_inc_gen",
-        "@heir//include/Dialect/Polynomial/IR:types_inc_gen",
-        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
+        ":canonicalize_inc_gen",
+        ":dialect_inc_gen",
+        ":ops_inc_gen",
+        ":types_inc_gen",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
@@ -82,19 +82,12 @@ cc_library(
 
 cc_library(
     name = "PolynomialTypes",
-    srcs = [
-        "PolynomialTypes.cpp",
-    ],
-    hdrs = [
-        "@heir//include/Dialect/Polynomial/IR:PolynomialTypes.h",
-        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
-    ],
+    srcs = ["PolynomialTypes.cpp"],
+    hdrs = ["PolynomialTypes.h"],
     deps = [
         ":PolynomialAttributes",
-        "@heir//include/Dialect/Polynomial/IR:types_inc_gen",
-        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
+        ":types_inc_gen",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
@@ -102,12 +95,10 @@ cc_library(
 
 cc_library(
     name = "Polynomial",
-    srcs = [
-        "Polynomial.cpp",
-    ],
+    srcs = ["Polynomial.cpp"],
     hdrs = [
-        "@heir//include/Dialect/Polynomial/IR:Polynomial.h",
-        "@heir//include/Dialect/Polynomial/IR:PolynomialDetail.h",
+        "Polynomial.h",
+        "PolynomialDetail.h",
     ],
     deps = [
         "@llvm-project//llvm:Support",
@@ -131,12 +122,8 @@ cc_test(
 
 cc_library(
     name = "NumberTheory",
-    srcs = [
-        "NumberTheory.cpp",
-    ],
-    hdrs = [
-        "@heir//include/Dialect/Polynomial/IR:NumberTheory.h",
-    ],
+    srcs = ["NumberTheory.cpp"],
+    hdrs = ["NumberTheory.h"],
     deps = [
         "@llvm-project//llvm:Support",
     ],
@@ -150,5 +137,147 @@ cc_test(
         ":NumberTheory",
         "@googletest//:gtest_main",
         "@llvm-project//llvm:Support",
+    ],
+)
+
+td_library(
+    name = "td_files",
+    srcs = [
+        "PolynomialAttributes.td",
+        "PolynomialDialect.td",
+        "PolynomialOps.td",
+        "PolynomialPatterns.td",
+        "PolynomialTypes.td",
+    ],
+    # include from the heir-root to enable fully-qualified include-paths
+    includes = ["../../../.."],
+    deps = [
+        "@heir//lib/Dialect/RNS/IR:td_files",
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "dialect_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-dialect-decls"],
+            "PolynomialDialect.h.inc",
+        ),
+        (
+            ["-gen-dialect-defs"],
+            "PolynomialDialect.cpp.inc",
+        ),
+        (
+            ["-gen-dialect-doc"],
+            "PolynomialDialect.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolynomialDialect.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "attributes_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-attrdef-decls"],
+            "PolynomialAttributes.h.inc",
+        ),
+        (
+            ["-gen-attrdef-defs"],
+            "PolynomialAttributes.cpp.inc",
+        ),
+        (
+            ["-gen-attrdef-doc"],
+            "PolynomialAttributes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolynomialAttributes.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "types_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-typedef-decls",
+                "-typedefs-dialect=_polynomial",
+            ],
+            "PolynomialTypes.h.inc",
+        ),
+        (
+            [
+                "-gen-typedef-defs",
+                "-typedefs-dialect=_polynomial",
+            ],
+            "PolynomialTypes.cpp.inc",
+        ),
+        (
+            [
+                "-gen-typedef-doc",
+                "-typedefs-dialect=_polynomial",
+            ],
+            "PolynomialTypes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolynomialTypes.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "ops_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "PolynomialOps.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "PolynomialOps.cpp.inc",
+        ),
+        (
+            ["-gen-op-doc"],
+            "PolynomialOps.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolynomialOps.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+        ":types_inc_gen",
+    ],
+)
+
+gentbl_cc_library(
+    name = "canonicalize_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "PolynomialCanonicalize.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolynomialPatterns.td",
+    deps = [
+        ":td_files",
+        ":types_inc_gen",
+        "@llvm-project//mlir:ArithOpsTdFiles",
     ],
 )

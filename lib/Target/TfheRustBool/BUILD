@@ -9,8 +9,8 @@ cc_library(
     name = "TfheRustBoolEmitter",
     srcs = ["TfheRustBoolEmitter.cpp"],
     hdrs = [
+        "TfheRustBoolEmitter.h",
         "TfheRustBoolTemplates.h",
-        "@heir//include/Target/TfheRustBool:TfheRustBoolEmitter.h",
     ],
     deps = [
         "@heir//lib/Analysis/SelectVariableNames",

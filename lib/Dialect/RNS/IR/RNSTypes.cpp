@@ -1,6 +1,6 @@
-#include "include/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 
-#include "include/Dialect/RNS/IR/RNSTypeInterfaces.h"
+#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project

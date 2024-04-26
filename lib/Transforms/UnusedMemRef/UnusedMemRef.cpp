@@ -1,4 +1,4 @@
-#include "include/Transforms/UnusedMemRef/UnusedMemRef.h"
+#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -10,7 +10,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_REMOVEUNUSEDMEMREF
-#include "include/Transforms/UnusedMemRef/UnusedMemRef.h.inc"
+#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h.inc"
 
 class RemoveUnusedMemrefPattern : public OpRewritePattern<memref::AllocOp> {
  public:

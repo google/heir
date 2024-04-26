@@ -1,4 +1,4 @@
-#include "include/Target/TfheRust/TfheRustEmitter.h"
+#include "lib/Target/TfheRust/TfheRustEmitter.h"
 
 #include <cassert>
 #include <cstdint>
@@ -8,11 +8,11 @@
 #include <string>
 #include <string_view>
 
-#include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
-#include "include/Dialect/TfheRust/IR/TfheRustOps.h"
-#include "include/Dialect/TfheRust/IR/TfheRustTypes.h"
-#include "include/Graph/Graph.h"
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
+#include "lib/Graph/Graph.h"
 #include "lib/Target/TfheRust/TfheRustTemplates.h"
 #include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project

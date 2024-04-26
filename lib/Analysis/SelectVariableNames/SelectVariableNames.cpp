@@ -1,4 +1,4 @@
-#include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 
 #include "llvm/include/llvm/ADT/DenseMap.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project

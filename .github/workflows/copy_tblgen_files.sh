@@ -6,7 +6,7 @@ set -o pipefail
 # enable ** to glob through subdirectories, disabled by default in bash
 shopt -s globstar
 
-SRC_BASE="bazel-bin/include"
+SRC_BASE="bazel-bin/lib"
 DEST_BASE="docs/content/en/docs"
 
 echo "Processing Non-conversion Passes"
@@ -63,7 +63,7 @@ do
   cat <<EOF > "$DEST_PATH"
 ---
 title: $DIALECT_NAME
-github_url: https://github.com/google/heir/edit/main/include/Dialect/$DIALECT_NAME/IR
+github_url: https://github.com/google/heir/edit/main/lib/Dialect/$DIALECT_NAME/IR
 ---
 EOF
 

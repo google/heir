@@ -8,9 +8,8 @@ package(
 cc_library(
     name = "VerilogEmitter",
     srcs = ["VerilogEmitter.cpp"],
-    hdrs = ["@heir//include/Target/Verilog:VerilogEmitter.h"],
+    hdrs = ["VerilogEmitter.h"],
     deps = [
-        "@heir//include/Target/Verilog:verilog_emitter",
         "@heir//lib/Conversion/MemrefToArith:Utils",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Target:Utils",

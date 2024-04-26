@@ -1,4 +1,4 @@
-#include "include/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 
 #include <utility>
 
@@ -11,7 +11,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_APPLYFOLDERS
-#include "include/Transforms/ApplyFolders/ApplyFolders.h.inc"
+#include "lib/Transforms/ApplyFolders/ApplyFolders.h.inc"
 
 struct ApplyFolders : impl::ApplyFoldersBase<ApplyFolders> {
   using ApplyFoldersBase::ApplyFoldersBase;

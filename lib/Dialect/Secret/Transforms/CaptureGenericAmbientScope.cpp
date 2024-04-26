@@ -1,8 +1,8 @@
-#include "include/Dialect/Secret/Transforms/CaptureGenericAmbientScope.h"
+#include "lib/Dialect/Secret/Transforms/CaptureGenericAmbientScope.h"
 
 #include <utility>
 
-#include "include/Dialect/Secret/IR/SecretPatterns.h"
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
@@ -12,7 +12,7 @@ namespace heir {
 namespace secret {
 
 #define GEN_PASS_DEF_SECRETCAPTUREGENERICAMBIENTSCOPE
-#include "include/Dialect/Secret/Transforms/Passes.h.inc"
+#include "lib/Dialect/Secret/Transforms/Passes.h.inc"
 
 struct CaptureGenericAmbientScope
     : impl::SecretCaptureGenericAmbientScopeBase<CaptureGenericAmbientScope> {

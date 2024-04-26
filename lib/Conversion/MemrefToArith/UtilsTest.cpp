@@ -2,7 +2,7 @@
 
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
-#include "include/Conversion/MemrefToArith/Utils.h"
+#include "lib/Conversion/MemrefToArith/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 
 namespace mlir {

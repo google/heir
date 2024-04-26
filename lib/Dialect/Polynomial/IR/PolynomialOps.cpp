@@ -1,7 +1,7 @@
-#include "include/Dialect/Polynomial/IR/PolynomialOps.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 
-#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/APInt.h"               // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"             // from @llvm-project
@@ -19,7 +19,7 @@ namespace heir {
 namespace polynomial {
 
 // Required after PatternMatch.h
-#include "include/Dialect/Polynomial/IR/PolynomialCanonicalize.cpp.inc"
+#include "lib/Dialect/Polynomial/IR/PolynomialCanonicalize.cpp.inc"
 
 void FromTensorOp::build(OpBuilder &builder, OperationState &result,
                          Value input, RingAttr ring) {

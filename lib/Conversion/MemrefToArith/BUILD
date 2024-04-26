@@ -1,5 +1,7 @@
 # MemrefToArith pass eliminates memrefs in favor of inline arithmetic constants.
 
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -8,7 +10,7 @@ package(
 cc_library(
     name = "Utils",
     srcs = ["Utils.cpp"],
-    hdrs = ["@heir//include/Conversion/MemrefToArith:Utils.h"],
+    hdrs = ["Utils.h"],
     deps = [
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
@@ -32,10 +34,10 @@ cc_test(
 cc_library(
     name = "MemrefGlobalReplace",
     srcs = ["MemrefGlobalReplace.cpp"],
-    hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
+    hdrs = ["MemrefToArith.h"],
     deps = [
         ":Utils",
-        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
+        ":pass_inc_gen",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
@@ -52,9 +54,9 @@ cc_library(
 cc_library(
     name = "ExpandCopy",
     srcs = ["ExpandCopy.cpp"],
-    hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
+    hdrs = ["MemrefToArith.h"],
     deps = [
-        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
+        ":pass_inc_gen",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
@@ -71,9 +73,9 @@ cc_library(
 cc_library(
     name = "ExtractLoopBody",
     srcs = ["ExtractLoopBody.cpp"],
-    hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
+    hdrs = ["MemrefToArith.h"],
     deps = [
-        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
+        ":pass_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
@@ -89,10 +91,10 @@ cc_library(
 cc_library(
     name = "UnrollAndForward",
     srcs = ["UnrollAndForward.cpp"],
-    hdrs = ["@heir//include/Conversion/MemrefToArith:MemrefToArith.h"],
+    hdrs = ["MemrefToArith.h"],
     deps = [
         ":Utils",
-        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
+        ":pass_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",
@@ -116,7 +118,30 @@ cc_library(
         ":ExtractLoopBody",
         ":MemrefGlobalReplace",
         ":UnrollAndForward",
-        "@heir//include/Conversion/MemrefToArith:pass_inc_gen",
+        ":pass_inc_gen",
     ],
     alwayslink = 1,
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=MemrefToArith",
+            ],
+            "MemrefToArith.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "MemrefToArith.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "MemrefToArith.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
+    ],
 )

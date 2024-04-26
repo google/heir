@@ -1,6 +1,6 @@
-#include "include/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
+#include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 
-#include "include/Graph/Graph.h"
+#include "lib/Graph/Graph.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
@@ -19,7 +19,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_STRAIGHTLINEVECTORIZER
-#include "include/Transforms/StraightLineVectorizer/StraightLineVectorizer.h.inc"
+#include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h.inc"
 
 /// Returns true if the two operations can be combined into a single vectorized
 /// operation.

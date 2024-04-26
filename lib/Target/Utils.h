@@ -1,5 +1,5 @@
-#ifndef HEIR_INCLUDE_TARGET_UTIL_H_
-#define HEIR_INCLUDE_TARGET_UTIL_H_
+#ifndef HEIR_LIB_TARGET_UTIL_H_
+#define HEIR_LIB_TARGET_UTIL_H_
 
 #include <functional>
 #include <string>
@@ -40,4 +40,4 @@ std::string flattenIndexExpression(
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // HEIR_INCLUDE_TARGET_UTIL_H_
+#endif  // HEIR_LIB_TARGET_UTIL_H_

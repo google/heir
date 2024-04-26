@@ -1,6 +1,6 @@
-#include "include/Analysis/RotationAnalysis/RotationAnalysis.h"
+#include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
 
-#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project

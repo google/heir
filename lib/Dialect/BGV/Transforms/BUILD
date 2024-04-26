@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -6,13 +8,12 @@ package(
 cc_library(
     name = "Transforms",
     hdrs = [
-        "@heir//include/Dialect/BGV/Transforms:Passes.h",
+        "Passes.h",
     ],
     deps = [
         ":AddClientInterface",
-        "@heir//include/Dialect/BGV/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/BGV/IR:Dialect",
-        "@llvm-project//mlir:IR",
     ],
 )
 
@@ -20,10 +21,10 @@ cc_library(
     name = "AddClientInterface",
     srcs = ["AddClientInterface.cpp"],
     hdrs = [
-        "@heir//include/Dialect/BGV/Transforms:AddClientInterface.h",
+        "AddClientInterface.h",
     ],
     deps = [
-        "@heir//include/Dialect/BGV/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//llvm:Support",
@@ -31,5 +32,28 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=BGV",
+            ],
+            "Passes.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "BGVPasses.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "Passes.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

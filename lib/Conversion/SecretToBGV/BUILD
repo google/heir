@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -7,14 +9,13 @@ cc_library(
     name = "SecretToBGV",
     srcs = ["SecretToBGV.cpp"],
     hdrs = [
-        "@heir//include/Conversion/SecretToBGV:SecretToBGV.h",
+        "SecretToBGV.h",
     ],
     deps = [
-        "@heir//include/Conversion/SecretToBGV:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -26,6 +27,28 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=SecretToBGV",
+            ],
+            "SecretToBGV.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "SecretToBGV.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "SecretToBGV.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

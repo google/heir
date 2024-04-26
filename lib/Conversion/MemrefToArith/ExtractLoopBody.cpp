@@ -1,6 +1,6 @@
 #include <queue>
 
-#include "include/Conversion/MemrefToArith/MemrefToArith.h"
+#include "lib/Conversion/MemrefToArith/MemrefToArith.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
@@ -22,7 +22,7 @@ namespace heir {
 
 // This is used to pull in the pass options.
 #define GEN_PASS_DEF_EXTRACTLOOPBODYPASS
-#include "include/Conversion/MemrefToArith/MemrefToArith.h.inc"
+#include "lib/Conversion/MemrefToArith/MemrefToArith.h.inc"
 
 namespace {
 

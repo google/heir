@@ -1,17 +1,17 @@
-#include "include/Dialect/PolyExt/IR/PolyExtDialect.h"
+#include "lib/Dialect/PolyExt/IR/PolyExtDialect.h"
 
-#include "include/Dialect/PolyExt/IR/PolyExtOps.h"
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
-#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/PolyExt/IR/PolyExtOps.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 // Generated definitions.
-#include "include/Dialect/PolyExt/IR/PolyExtDialect.cpp.inc"
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "lib/Dialect/PolyExt/IR/PolyExtDialect.cpp.inc"
 #define GET_OP_CLASSES
-#include "include/Dialect/PolyExt/IR/PolyExtOps.cpp.inc"
+#include "lib/Dialect/PolyExt/IR/PolyExtOps.cpp.inc"
 
 namespace mlir::heir::poly_ext {
 
@@ -20,7 +20,7 @@ namespace mlir::heir::poly_ext {
 void PolyExtDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "include/Dialect/PolyExt/IR/PolyExtOps.cpp.inc"
+#include "lib/Dialect/PolyExt/IR/PolyExtOps.cpp.inc"
       >();
 }
 

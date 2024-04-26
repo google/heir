@@ -1,4 +1,4 @@
-#include "include/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/CGGI/IR/CGGIOps.h"
 
 #include "mlir/include/mlir/IR/ValueRange.h"  // from @llvm-project
 

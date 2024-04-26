@@ -1,16 +1,16 @@
-#include "include/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
 // NOLINTNEXTLINE(misc-include-cleaner): Required to define TensorExtOps
-#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 
 // Generated definitions
-#include "include/Dialect/TensorExt/IR/TensorExtDialect.cpp.inc"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.cpp.inc"
 
 #define GET_OP_CLASSES
-#include "include/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -19,7 +19,7 @@ namespace tensor_ext {
 void TensorExtDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "include/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
       >();
 }
 

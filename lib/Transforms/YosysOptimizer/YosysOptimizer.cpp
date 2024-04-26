@@ -1,4 +1,4 @@
-#include "include/Transforms/YosysOptimizer/YosysOptimizer.h"
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 
 #include <cassert>
 #include <cstdio>
@@ -11,11 +11,11 @@
 #include <utility>
 #include <vector>
 
-#include "include/Dialect/Comb/IR/CombDialect.h"
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretPatterns.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
-#include "include/Target/Verilog/VerilogEmitter.h"
+#include "lib/Dialect/Comb/IR/CombDialect.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Target/Verilog/VerilogEmitter.h"
 #include "lib/Transforms/YosysOptimizer/BooleanGateImporter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
@@ -60,7 +60,7 @@ namespace heir {
 using std::string;
 
 #define GEN_PASS_DEF_YOSYSOPTIMIZER
-#include "include/Transforms/YosysOptimizer/YosysOptimizer.h.inc"
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h.inc"
 
 // $0: verilog filename
 // $1: function name

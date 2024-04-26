@@ -1,15 +1,15 @@
-#include "include/Dialect/CGGI/IR/CGGIDialect.h"
+#include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 
 // NOLINTNEXTLINE(misc-include-cleaner): Required to define CGGIOps
-#include "include/Dialect/CGGI/IR/CGGIAttributes.h"
-#include "include/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/CGGI/IR/CGGIAttributes.h"
+#include "lib/Dialect/CGGI/IR/CGGIOps.h"
 
 // Generated definitions
-#include "include/Dialect/CGGI/IR/CGGIDialect.cpp.inc"
+#include "lib/Dialect/CGGI/IR/CGGIDialect.cpp.inc"
 #define GET_ATTRDEF_CLASSES
-#include "include/Dialect/CGGI/IR/CGGIAttributes.cpp.inc"
+#include "lib/Dialect/CGGI/IR/CGGIAttributes.cpp.inc"
 #define GET_OP_CLASSES
-#include "include/Dialect/CGGI/IR/CGGIOps.cpp.inc"
+#include "lib/Dialect/CGGI/IR/CGGIOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -24,11 +24,11 @@ namespace cggi {
 void CGGIDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "include/Dialect/CGGI/IR/CGGIAttributes.cpp.inc"
+#include "lib/Dialect/CGGI/IR/CGGIAttributes.cpp.inc"
       >();
   addOperations<
 #define GET_OP_LIST
-#include "include/Dialect/CGGI/IR/CGGIOps.cpp.inc"
+#include "lib/Dialect/CGGI/IR/CGGIOps.cpp.inc"
       >();
 
   getContext()->getOrLoadDialect("lwe");

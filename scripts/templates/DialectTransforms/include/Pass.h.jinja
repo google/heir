@@ -1,5 +1,5 @@
-#ifndef INCLUDE_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_{{ pass_name | upper }}_H_
-#define INCLUDE_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_{{ pass_name | upper }}_H_
+#ifndef LIB_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_{{ pass_name | upper }}_H_
+#define LIB_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_{{ pass_name | upper }}_H_
 
 #include "mlir/include/mlir/Pass/Pass.h" // from @llvm-project
 
@@ -14,4 +14,4 @@ namespace {{ dialect_namespace }} {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_{{ pass_name | upper }}_H_
+#endif  // LIB_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_{{ pass_name | upper }}_H_

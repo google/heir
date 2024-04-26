@@ -1,4 +1,4 @@
-#include "include/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/LoopUtils.h"  // from @llvm-project
@@ -8,7 +8,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_FULLLOOPUNROLL
-#include "include/Transforms/FullLoopUnroll/FullLoopUnroll.h.inc"
+#include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h.inc"
 
 struct FullLoopUnroll : impl::FullLoopUnrollBase<FullLoopUnroll> {
   using FullLoopUnrollBase::FullLoopUnrollBase;

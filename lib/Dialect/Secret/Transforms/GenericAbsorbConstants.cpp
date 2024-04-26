@@ -1,7 +1,7 @@
-#include "include/Dialect/Secret/Transforms/GenericAbsorbConstants.h"
+#include "lib/Dialect/Secret/Transforms/GenericAbsorbConstants.h"
 
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretPatterns.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"      // from @llvm-project
 
@@ -10,7 +10,7 @@ namespace heir {
 namespace secret {
 
 #define GEN_PASS_DEF_SECRETGENERICABSORBCONSTANTS
-#include "include/Dialect/Secret/Transforms/Passes.h.inc"
+#include "lib/Dialect/Secret/Transforms/Passes.h.inc"
 
 struct GenericAbsorbConstants
     : impl::SecretGenericAbsorbConstantsBase<GenericAbsorbConstants> {

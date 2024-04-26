@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "include/Dialect/Comb/IR/CombOps.h"
+#include "lib/Dialect/Comb/IR/CombOps.h"
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project

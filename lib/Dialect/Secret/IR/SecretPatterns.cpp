@@ -1,11 +1,11 @@
-#include "include/Dialect/Secret/IR/SecretPatterns.h"
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 
 #include <algorithm>
 #include <cassert>
 #include <optional>
 
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project

@@ -1,7 +1,7 @@
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
-#include "include/Dialect/Polynomial/IR/PolynomialDetail.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialDetail.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/StorageUniquer.h"  // from @llvm-project

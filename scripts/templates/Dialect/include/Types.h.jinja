@@ -1,5 +1,5 @@
-#ifndef INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
-#define INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
+#ifndef LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
+#define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
 
 {% if enable_attributes %}
 #include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.h"
@@ -9,4 +9,4 @@
 #define GET_TYPEDEF_CLASSES
 #include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h.inc"
 
-#endif  // INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
+#endif  // LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_

@@ -1,8 +1,8 @@
-#include "include/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
+#include "lib/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
 
 #include <utility>
 
-#include "include/Dialect/Secret/IR/SecretPatterns.h"
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
@@ -12,7 +12,7 @@ namespace heir {
 namespace secret {
 
 #define GEN_PASS_DEF_SECRETMERGEADJACENTGENERICS
-#include "include/Dialect/Secret/Transforms/Passes.h.inc"
+#include "lib/Dialect/Secret/Transforms/Passes.h.inc"
 
 struct MergeAdjacentGenericsPass
     : impl::SecretMergeAdjacentGenericsBase<MergeAdjacentGenericsPass> {

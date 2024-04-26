@@ -1,21 +1,21 @@
-#include "include/Conversion/SecretToBGV/SecretToBGV.h"
+#include "lib/Conversion/SecretToBGV/SecretToBGV.h"
 
 #include <cassert>
 #include <cstdint>
 #include <utility>
 #include <vector>
 
-#include "include/Dialect/BGV/IR/BGVDialect.h"
-#include "include/Dialect/BGV/IR/BGVOps.h"
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
-#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "include/Dialect/Secret/IR/SecretDialect.h"
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
-#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -31,7 +31,7 @@
 namespace mlir::heir {
 
 #define GEN_PASS_DEF_SECRETTOBGV
-#include "include/Conversion/SecretToBGV/SecretToBGV.h.inc"
+#include "lib/Conversion/SecretToBGV/SecretToBGV.h.inc"
 
 namespace {
 

@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -6,13 +8,12 @@ package(
 cc_library(
     name = "Transforms",
     hdrs = [
-        "@heir//include/Dialect/LWE/Transforms:Passes.h",
+        "Passes.h",
     ],
     deps = [
         ":SetDefaultParameters",
-        "@heir//include/Dialect/LWE/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@llvm-project//mlir:IR",
     ],
 )
 
@@ -20,16 +21,38 @@ cc_library(
     name = "SetDefaultParameters",
     srcs = ["SetDefaultParameters.cpp"],
     hdrs = [
-        "@heir//include/Dialect/LWE/Transforms:SetDefaultParameters.h",
+        "SetDefaultParameters.h",
     ],
     deps = [
-        "@heir//include/Dialect/LWE/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=LWE",
+            ],
+            "Passes.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "LWEPasses.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "Passes.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

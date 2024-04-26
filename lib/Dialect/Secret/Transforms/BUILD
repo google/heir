@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -6,7 +8,7 @@ package(
 cc_library(
     name = "Transforms",
     hdrs = [
-        "@heir//include/Dialect/Secret/Transforms:Passes.h",
+        "Passes.h",
     ],
     deps = [
         ":CaptureGenericAmbientScope",
@@ -14,9 +16,8 @@ cc_library(
         ":ForgetSecrets",
         ":GenericAbsorbConstants",
         ":MergeAdjacentGenerics",
-        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@llvm-project//mlir:IR",
     ],
 )
 
@@ -24,10 +25,10 @@ cc_library(
     name = "ForgetSecrets",
     srcs = ["ForgetSecrets.cpp"],
     hdrs = [
-        "@heir//include/Dialect/Secret/Transforms:ForgetSecrets.h",
+        "ForgetSecrets.h",
     ],
     deps = [
-        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretOps",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
@@ -36,7 +37,6 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 
@@ -44,10 +44,10 @@ cc_library(
     name = "DistributeGeneric",
     srcs = ["DistributeGeneric.cpp"],
     hdrs = [
-        "@heir//include/Dialect/Secret/Transforms:DistributeGeneric.h",
+        "DistributeGeneric.h",
     ],
     deps = [
-        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
@@ -56,7 +56,6 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 
@@ -64,15 +63,14 @@ cc_library(
     name = "CaptureGenericAmbientScope",
     srcs = ["CaptureGenericAmbientScope.cpp"],
     hdrs = [
-        "@heir//include/Dialect/Secret/Transforms:CaptureGenericAmbientScope.h",
+        "CaptureGenericAmbientScope.h",
     ],
     deps = [
-        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 
@@ -80,14 +78,13 @@ cc_library(
     name = "GenericAbsorbConstants",
     srcs = ["GenericAbsorbConstants.cpp"],
     hdrs = [
-        "@heir//include/Dialect/Secret/Transforms:GenericAbsorbConstants.h",
+        "GenericAbsorbConstants.h",
     ],
     deps = [
-        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 
@@ -95,14 +92,45 @@ cc_library(
     name = "MergeAdjacentGenerics",
     srcs = ["MergeAdjacentGenerics.cpp"],
     hdrs = [
-        "@heir//include/Dialect/Secret/Transforms:MergeAdjacentGenerics.h",
+        "MergeAdjacentGenerics.h",
     ],
     deps = [
-        "@heir//include/Dialect/Secret/Transforms:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "absorb_constants_generic",
+    hdrs = ["AbsorbConstantsGeneric.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@llvm-project//mlir:Pass",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=Secret",
+            ],
+            "Passes.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "SecretPasses.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "Passes.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

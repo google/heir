@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include "include/Dialect/Comb/IR/CombOps.h"
+#include "lib/Dialect/Comb/IR/CombOps.h"
 #include "llvm/include/llvm/ADT/MapVector.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project

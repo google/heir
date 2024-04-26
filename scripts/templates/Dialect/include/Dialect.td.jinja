@@ -1,5 +1,5 @@
-#ifndef INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_
-#define INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_
+#ifndef LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_
+#define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
 
@@ -13,4 +13,4 @@ def {{ dialect_name }}_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::{{ dialect_namespace }}";
 }
 
-#endif  // INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_
+#endif  // LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_

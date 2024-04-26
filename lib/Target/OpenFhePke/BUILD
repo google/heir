@@ -9,7 +9,7 @@ cc_library(
     name = "OpenFheUtils",
     srcs = ["OpenFheUtils.cpp"],
     hdrs = [
-        "@heir//include/Target/OpenFhePke:OpenFheUtils.h",
+        "OpenFheUtils.h",
     ],
     deps = [
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -25,8 +25,8 @@ cc_library(
     name = "OpenFhePkeEmitter",
     srcs = ["OpenFhePkeEmitter.cpp"],
     hdrs = [
+        "OpenFhePkeEmitter.h",
         "OpenFhePkeTemplates.h",
-        "@heir//include/Target/OpenFhePke:OpenFhePkeEmitter.h",
     ],
     deps = [
         ":OpenFheUtils",
@@ -49,8 +49,8 @@ cc_library(
     name = "OpenFhePkeHeaderEmitter",
     srcs = ["OpenFhePkeHeaderEmitter.cpp"],
     hdrs = [
+        "OpenFhePkeHeaderEmitter.h",
         "OpenFhePkeTemplates.h",
-        "@heir//include/Target/OpenFhePke:OpenFhePkeHeaderEmitter.h",
     ],
     deps = [
         ":OpenFheUtils",

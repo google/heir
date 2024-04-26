@@ -7,7 +7,7 @@ package(
 cc_library(
     name = "TargetSlotAnalysis",
     srcs = ["TargetSlotAnalysis.cpp"],
-    hdrs = ["@heir//include/Analysis/TargetSlotAnalysis:TargetSlotAnalysis.h"],
+    hdrs = ["TargetSlotAnalysis.h"],
     deps = [
         "@heir//lib/Dialect:Utils",
         "@llvm-project//llvm:Support",

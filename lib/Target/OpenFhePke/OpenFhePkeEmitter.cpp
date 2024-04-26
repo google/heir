@@ -1,4 +1,4 @@
-#include "include/Target/OpenFhePke/OpenFhePkeEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 
 #include <functional>
 #include <iterator>
@@ -6,14 +6,14 @@
 #include <string>
 #include <string_view>
 
-#include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "include/Dialect/LWE/IR/LWEDialect.h"
-#include "include/Dialect/LWE/IR/LWEOps.h"
-#include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
-#include "include/Dialect/Openfhe/IR/OpenfheOps.h"
-#include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
-#include "include/Target/OpenFhePke/OpenFheUtils.h"
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
+#include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project

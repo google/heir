@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "include/Dialect/Comb/IR/CombDialect.h"
+#include "lib/Dialect/Comb/IR/CombDialect.h"
 
-#include "include/Dialect/Comb/IR/CombOps.h"
+#include "lib/Dialect/Comb/IR/CombOps.h"
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
@@ -29,7 +29,7 @@ void CombDialect::initialize() {
   // Register operations.
   addOperations<
 #define GET_OP_LIST
-#include "include/Dialect/Comb/IR/Comb.cpp.inc"
+#include "lib/Dialect/Comb/IR/Comb.cpp.inc"
       >();
 }
 
@@ -38,5 +38,5 @@ void CombDialect::initialize() {
 }  // namespace mlir
 
 // Provide implementations for the enums we use.
-#include "include/Dialect/Comb/IR/CombDialect.cpp.inc"
-#include "include/Dialect/Comb/IR/CombEnums.cpp.inc"
+#include "lib/Dialect/Comb/IR/CombDialect.cpp.inc"
+#include "lib/Dialect/Comb/IR/CombEnums.cpp.inc"

@@ -7,7 +7,7 @@ package(
 cc_library(
     name = "SelectVariableNames",
     srcs = ["SelectVariableNames.cpp"],
-    hdrs = ["@heir//include/Analysis/SelectVariableNames:SelectVariableNames.h"],
+    hdrs = ["SelectVariableNames.h"],
     deps = [
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",

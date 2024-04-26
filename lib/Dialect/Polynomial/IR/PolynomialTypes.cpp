@@ -1,4 +1,4 @@
-#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 
 #include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project

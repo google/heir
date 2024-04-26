@@ -9,13 +9,13 @@ cc_library(
     name = "TfheRustEmitter",
     srcs = ["TfheRustEmitter.cpp"],
     hdrs = [
+        "TfheRustEmitter.h",
         "TfheRustTemplates.h",
-        "@heir//include/Target/TfheRust:TfheRustEmitter.h",
     ],
     deps = [
-        "@heir//include/Graph",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
+        "@heir//lib/Graph",
         "@heir//lib/Target:Utils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",

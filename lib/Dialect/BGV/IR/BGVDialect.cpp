@@ -1,10 +1,10 @@
-#include "include/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
 
 #include <optional>
 
-#include "include/Dialect/BGV/IR/BGVOps.h"
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -14,10 +14,10 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 // Generated definitions
-#include "include/Dialect/BGV/IR/BGVDialect.cpp.inc"
+#include "lib/Dialect/BGV/IR/BGVDialect.cpp.inc"
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #define GET_OP_CLASSES
-#include "include/Dialect/BGV/IR/BGVOps.cpp.inc"
+#include "lib/Dialect/BGV/IR/BGVOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -32,7 +32,7 @@ namespace bgv {
 void BGVDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "include/Dialect/BGV/IR/BGVOps.cpp.inc"
+#include "lib/Dialect/BGV/IR/BGVOps.cpp.inc"
       >();
 }
 

@@ -1,4 +1,4 @@
-#include "include/Analysis/TargetSlotAnalysis/TargetSlotAnalysis.h"
+#include "lib/Analysis/TargetSlotAnalysis/TargetSlotAnalysis.h"
 
 #include "lib/Dialect/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project

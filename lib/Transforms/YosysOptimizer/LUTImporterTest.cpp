@@ -7,8 +7,8 @@
 
 #include "gmock/gmock.h"  // from @googletest
 #include "gtest/gtest.h"  // from @googletest
-#include "include/Dialect/Comb/IR/CombDialect.h"
-#include "include/Dialect/Comb/IR/CombOps.h"
+#include "lib/Dialect/Comb/IR/CombDialect.h"
+#include "lib/Dialect/Comb/IR/CombOps.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project

@@ -1,16 +1,16 @@
-#include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h"
+#include "lib/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 
 #include <cstddef>
 #include <optional>
 
-#include "include/Dialect/BGV/IR/BGVDialect.h"
-#include "include/Dialect/BGV/IR/BGVOps.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
-#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "include/Dialect/Polynomial/IR/PolynomialOps.h"
-#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -20,7 +20,7 @@
 namespace mlir::heir::bgv {
 
 #define GEN_PASS_DEF_BGVTOPOLYNOMIAL
-#include "include/Conversion/BGVToPolynomial/BGVToPolynomial.h.inc"
+#include "lib/Conversion/BGVToPolynomial/BGVToPolynomial.h.inc"
 
 class CiphertextTypeConverter : public TypeConverter {
  public:

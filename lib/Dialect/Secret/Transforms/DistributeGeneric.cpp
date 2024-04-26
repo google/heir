@@ -1,4 +1,4 @@
-#include "include/Dialect/Secret/Transforms/DistributeGeneric.h"
+#include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 
 #include <algorithm>
 #include <cassert>
@@ -6,9 +6,9 @@
 #include <string>
 #include <utility>
 
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretPatterns.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretPatterns.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
@@ -38,7 +38,7 @@ namespace heir {
 namespace secret {
 
 #define GEN_PASS_DEF_SECRETDISTRIBUTEGENERIC
-#include "include/Dialect/Secret/Transforms/Passes.h.inc"
+#include "lib/Dialect/Secret/Transforms/Passes.h.inc"
 
 std::optional<Value> ofrToValue(std::optional<OpFoldResult> ofr) {
   if (ofr.has_value()) {

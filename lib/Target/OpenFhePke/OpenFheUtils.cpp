@@ -1,9 +1,9 @@
-#include "include/Target/OpenFhePke/OpenFheUtils.h"
+#include "lib/Target/OpenFhePke/OpenFheUtils.h"
 
 #include <string>
 
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project

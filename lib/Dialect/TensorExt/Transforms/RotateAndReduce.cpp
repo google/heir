@@ -1,10 +1,10 @@
-#include "include/Dialect/TensorExt/Transforms/RotateAndReduce.h"
+#include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 
 #include <cstdint>
 
-#include "include/Analysis/RotationAnalysis/RotationAnalysis.h"
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
@@ -30,7 +30,7 @@ namespace heir {
 namespace tensor_ext {
 
 #define GEN_PASS_DEF_ROTATEANDREDUCE
-#include "include/Dialect/TensorExt/Transforms/Passes.h.inc"
+#include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
 /// A pass that searches for a length N sequence of binary operations that
 /// reduces a length N vector to a single scalar, and replaces it with a

@@ -1,4 +1,4 @@
-#include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
+#include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 
 #include <utility>
 
@@ -21,7 +21,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_FORWARDSTORETOLOAD
-#include "include/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h.inc"
+#include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h.inc"
 
 /// Apply the affine map from an 'affine.store' operation to its operands, and
 /// feed the results to a newly created 'memref.store' operation (which replaces

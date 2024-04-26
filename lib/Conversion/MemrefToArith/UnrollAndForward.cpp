@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "include/Conversion/MemrefToArith/Utils.h"
+#include "lib/Conversion/MemrefToArith/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
@@ -41,7 +41,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_UNROLLANDFORWARDPASS
-#include "include/Conversion/MemrefToArith/MemrefToArith.h.inc"
+#include "lib/Conversion/MemrefToArith/MemrefToArith.h.inc"
 
 namespace {
 

@@ -2,7 +2,7 @@
 #include <unordered_set>
 
 #include "gtest/gtest.h"  // from @googletest
-#include "include/Dialect/Polynomial/IR/NumberTheory.h"
+#include "lib/Dialect/Polynomial/IR/NumberTheory.h"
 #include "llvm/include/llvm/ADT/APInt.h"  // from @llvm-project
 
 namespace mlir::heir::polynomial {

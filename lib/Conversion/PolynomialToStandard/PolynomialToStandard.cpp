@@ -1,4 +1,4 @@
-#include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h"
+#include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 
 #include <cassert>
 #include <cmath>
@@ -8,12 +8,12 @@
 #include <utility>
 #include <vector>
 
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
-#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "include/Dialect/Polynomial/IR/PolynomialDialect.h"
-#include "include/Dialect/Polynomial/IR/PolynomialOps.h"
-#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -50,7 +50,7 @@ namespace heir {
 namespace polynomial {
 
 #define GEN_PASS_DEF_POLYNOMIALTOSTANDARD
-#include "include/Conversion/PolynomialToStandard/PolynomialToStandard.h.inc"
+#include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h.inc"
 
 // Callback type for getting pre-generated FuncOp implementing
 // helper functions for various lowerings.

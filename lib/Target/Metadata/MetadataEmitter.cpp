@@ -1,4 +1,4 @@
-#include "include/Target/Metadata/MetadataEmitter.h"
+#include "lib/Target/Metadata/MetadataEmitter.h"
 
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project

@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -7,10 +9,10 @@ cc_library(
     name = "BGVToOpenfhe",
     srcs = ["BGVToOpenfhe.cpp"],
     hdrs = [
-        "@heir//include/Conversion/BGVToOpenfhe:BGVToOpenfhe.h",
+        "BGVToOpenfhe.h",
     ],
     deps = [
-        "@heir//include/Conversion/BGVToOpenfhe:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -22,6 +24,28 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=BGVToOpenfhe",
+            ],
+            "BGVToOpenfhe.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "BGVToOpenfhe.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "BGVToOpenfhe.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

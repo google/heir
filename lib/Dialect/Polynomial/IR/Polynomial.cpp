@@ -1,6 +1,6 @@
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
 
-#include "include/Dialect/Polynomial/IR/PolynomialDetail.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialDetail.h"
 #include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"      // from @llvm-project
 #include "llvm/include/llvm/ADT/Twine.h"            // from @llvm-project

@@ -1,9 +1,9 @@
-#include "include/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
+#include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 
 #include <cstdint>
 #include <utility>
 
-#include "include/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Dialect/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -24,7 +24,7 @@ namespace heir {
 namespace tensor_ext {
 
 #define GEN_PASS_DEF_COLLAPSEINSERTIONCHAINS
-#include "include/Dialect/TensorExt/Transforms/Passes.h.inc"
+#include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
 /// A pattern that searches for sequences of extract + insert, where the
 /// indices extracted and inserted have the same offset, and replaced them with

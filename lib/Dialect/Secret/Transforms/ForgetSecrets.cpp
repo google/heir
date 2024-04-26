@@ -1,11 +1,11 @@
-#include "include/Dialect/Secret/Transforms/ForgetSecrets.h"
+#include "lib/Dialect/Secret/Transforms/ForgetSecrets.h"
 
 #include <cassert>
 #include <utility>
 
-#include "include/Dialect/Secret/IR/SecretDialect.h"
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
@@ -22,7 +22,7 @@ namespace heir {
 namespace secret {
 
 #define GEN_PASS_DEF_SECRETFORGETSECRETS
-#include "include/Dialect/Secret/Transforms/Passes.h.inc"
+#include "lib/Dialect/Secret/Transforms/Passes.h.inc"
 
 using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;

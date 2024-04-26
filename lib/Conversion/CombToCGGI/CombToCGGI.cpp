@@ -1,17 +1,17 @@
-#include "include/Conversion/CombToCGGI/CombToCGGI.h"
+#include "lib/Conversion/CombToCGGI/CombToCGGI.h"
 
 #include <cassert>
 #include <cstdint>
 #include <utility>
 
-#include "include/Dialect/CGGI/IR/CGGIOps.h"
-#include "include/Dialect/Comb/IR/CombOps.h"
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/LWE/IR/LWEOps.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/Comb/IR/CombOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
@@ -39,7 +39,7 @@
 namespace mlir::heir::comb {
 
 #define GEN_PASS_DEF_COMBTOCGGI
-#include "include/Conversion/CombToCGGI/CombToCGGI.h.inc"
+#include "lib/Conversion/CombToCGGI/CombToCGGI.h.inc"
 
 namespace {
 

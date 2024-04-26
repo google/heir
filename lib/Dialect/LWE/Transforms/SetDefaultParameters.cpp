@@ -1,6 +1,6 @@
-#include "include/Dialect/LWE/Transforms/SetDefaultParameters.h"
+#include "lib/Dialect/LWE/Transforms/SetDefaultParameters.h"
 
-#include "include/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
@@ -11,7 +11,7 @@ namespace heir {
 namespace lwe {
 
 #define GEN_PASS_DEF_SETDEFAULTPARAMETERS
-#include "include/Dialect/LWE/Transforms/Passes.h.inc"
+#include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
 void setLweParamsAttr(Value value, LWEParamsAttr attr) {
   LWECiphertextType type = mlir::cast<LWECiphertextType>(value.getType());

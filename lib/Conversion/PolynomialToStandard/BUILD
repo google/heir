@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -7,10 +9,10 @@ cc_library(
     name = "PolynomialToStandard",
     srcs = ["PolynomialToStandard.cpp"],
     hdrs = [
-        "@heir//include/Conversion/PolynomialToStandard:PolynomialToStandard.h",
+        "PolynomialToStandard.h",
     ],
     deps = [
-        "@heir//include/Conversion/PolynomialToStandard:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
@@ -29,5 +31,28 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=PolynomialToStandard",
+            ],
+            "PolynomialToStandard.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "PolynomialToStandard.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolynomialToStandard.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

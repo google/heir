@@ -1,12 +1,12 @@
-#include "include/Dialect/BGV/Transforms/AddClientInterface.h"
+#include "lib/Dialect/BGV/Transforms/AddClientInterface.h"
 
 #include <cstddef>
 #include <string>
 
-#include "include/Dialect/BGV/IR/BGVOps.h"
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/LWE/IR/LWEOps.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
@@ -24,7 +24,7 @@ namespace heir {
 namespace bgv {
 
 #define GEN_PASS_DEF_ADDCLIENTINTERFACE
-#include "include/Dialect/BGV/Transforms/Passes.h.inc"
+#include "lib/Dialect/BGV/Transforms/Passes.h.inc"
 
 /// Adds the client interface for a single func. This should only be used on the
 /// "entry" func for the IR being compiled, but there may be multiple.

@@ -1,5 +1,7 @@
 # RNS dialect implementation
 
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -11,18 +13,18 @@ cc_library(
         "RNSDialect.cpp",
     ],
     hdrs = [
-        "@heir//include/Dialect/RNS/IR:RNSDialect.h",
-        "@heir//include/Dialect/RNS/IR:RNSOps.h",
-        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
-        "@heir//include/Dialect/RNS/IR:RNSTypes.h",
+        "RNSDialect.h",
+        "RNSOps.h",
+        "RNSTypeInterfaces.h",
+        "RNSTypes.h",
     ],
     deps = [
         ":RNSOps",
         ":RNSTypes",
-        "@heir//include/Dialect/RNS/IR:dialect_inc_gen",
-        "@heir//include/Dialect/RNS/IR:ops_inc_gen",
-        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
-        "@heir//include/Dialect/RNS/IR:types_inc_gen",
+        ":dialect_inc_gen",
+        ":ops_inc_gen",
+        ":type_interfaces_inc_gen",
+        ":types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
     ],
@@ -34,14 +36,14 @@ cc_library(
         "RNSTypes.cpp",
     ],
     hdrs = [
-        "@heir//include/Dialect/RNS/IR:RNSDialect.h",
-        "@heir//include/Dialect/RNS/IR:RNSTypeInterfaces.h",
-        "@heir//include/Dialect/RNS/IR:RNSTypes.h",
+        "RNSDialect.h",
+        "RNSTypeInterfaces.h",
+        "RNSTypes.h",
     ],
     deps = [
-        "@heir//include/Dialect/RNS/IR:dialect_inc_gen",
-        "@heir//include/Dialect/RNS/IR:type_interfaces_inc_gen",
-        "@heir//include/Dialect/RNS/IR:types_inc_gen",
+        ":dialect_inc_gen",
+        ":type_interfaces_inc_gen",
+        ":types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -54,16 +56,133 @@ cc_library(
         "RNSOps.cpp",
     ],
     hdrs = [
-        "@heir//include/Dialect/RNS/IR:RNSDialect.h",
-        "@heir//include/Dialect/RNS/IR:RNSOps.h",
-        "@heir//include/Dialect/RNS/IR:RNSTypes.h",
+        "RNSDialect.h",
+        "RNSOps.h",
+        "RNSTypes.h",
     ],
     deps = [
         ":RNSTypes",
-        "@heir//include/Dialect/RNS/IR:dialect_inc_gen",
-        "@heir//include/Dialect/RNS/IR:ops_inc_gen",
-        "@heir//include/Dialect/RNS/IR:types_inc_gen",
+        ":dialect_inc_gen",
+        ":ops_inc_gen",
+        ":types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+    ],
+)
+
+td_library(
+    name = "td_files",
+    srcs = [
+        "RNSDialect.td",
+        "RNSOps.td",
+        "RNSTypeInterfaces.td",
+        "RNSTypes.td",
+    ],
+    # include from the heir-root to enable fully-qualified include-paths
+    includes = ["../../../.."],
+    deps = [
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "dialect_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-dialect-decls",
+            ],
+            "RNSDialect.h.inc",
+        ),
+        (
+            [
+                "-gen-dialect-defs",
+            ],
+            "RNSDialect.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "RNSDialect.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "types_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-typedef-decls",
+            ],
+            "RNSTypes.h.inc",
+        ),
+        (
+            [
+                "-gen-typedef-defs",
+            ],
+            "RNSTypes.cpp.inc",
+        ),
+        (
+            ["-gen-typedef-doc"],
+            "RNSTypes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "RNSTypes.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "ops_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "RNSOps.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "RNSOps.cpp.inc",
+        ),
+        (
+            ["-gen-op-doc"],
+            "RNSOps.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "RNSOps.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+        ":types_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "type_interfaces_inc_gen",
+    tbl_outs = [
+        (
+            ["--gen-type-interface-decls"],
+            "RNSTypeInterfaces.h.inc",
+        ),
+        (
+            ["--gen-type-interface-defs"],
+            "RNSTypeInterfaces.cpp.inc",
+        ),
+        (
+            ["-gen-type-interface-docs"],
+            "RNSTypeInterfaces.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "RNSTypeInterfaces.td",
+    deps = [
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
     ],
 )

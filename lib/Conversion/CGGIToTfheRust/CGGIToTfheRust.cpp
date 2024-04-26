@@ -1,17 +1,17 @@
-#include "include/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
+#include "lib/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
 
 #include <utility>
 
-#include "include/Dialect/CGGI/IR/CGGIDialect.h"
-#include "include/Dialect/CGGI/IR/CGGIOps.h"
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/LWE/IR/LWEDialect.h"
-#include "include/Dialect/LWE/IR/LWEOps.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/TfheRust/IR/TfheRustDialect.h"
-#include "include/Dialect/TfheRust/IR/TfheRustOps.h"
-#include "include/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/CGGI/IR/CGGIDialect.h"
+#include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
@@ -32,7 +32,7 @@
 namespace mlir::heir {
 
 #define GEN_PASS_DEF_CGGITOTFHERUST
-#include "include/Conversion/CGGIToTfheRust/CGGIToTfheRust.h.inc"
+#include "lib/Conversion/CGGIToTfheRust/CGGIToTfheRust.h.inc"
 
 constexpr int kBinaryGateLutWidth = 4;
 constexpr int kAndLut = 8;

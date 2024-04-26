@@ -1,5 +1,5 @@
-#include "include/Dialect/Secret/IR/SecretDialect.h"
-#include "include/Transforms/Secretize/Passes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Transforms/Secretize/Passes.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
@@ -8,7 +8,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_SECRETIZE
-#include "include/Transforms/Secretize/Passes.h.inc"
+#include "lib/Transforms/Secretize/Passes.h.inc"
 
 struct Secretize : impl::SecretizeBase<Secretize> {
   using SecretizeBase::SecretizeBase;

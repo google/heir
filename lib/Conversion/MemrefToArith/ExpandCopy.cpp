@@ -1,6 +1,6 @@
 #include <utility>
 
-#include "include/Conversion/MemrefToArith/MemrefToArith.h"
+#include "lib/Conversion/MemrefToArith/MemrefToArith.h"
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/LoopAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -25,7 +25,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_EXPANDCOPYPASS
-#include "include/Conversion/MemrefToArith/MemrefToArith.h.inc"
+#include "lib/Conversion/MemrefToArith/MemrefToArith.h.inc"
 
 namespace {
 

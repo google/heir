@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -7,24 +9,43 @@ cc_library(
     name = "BGVToPolynomial",
     srcs = ["BGVToPolynomial.cpp"],
     hdrs = [
-        "@heir//include/Conversion/BGVToPolynomial:BGVToPolynomial.h",
+        "BGVToPolynomial.h",
     ],
     deps = [
-        "@heir//include/Conversion/BGVToPolynomial:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:DialectUtils",
-        "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:FuncTransforms",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
     ],
     alwayslink = 1,
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=BGVToPolynomial",
+            ],
+            "BGVToPolynomial.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "BGVToPolynomial.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "BGVToPolynomial.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
+    ],
 )

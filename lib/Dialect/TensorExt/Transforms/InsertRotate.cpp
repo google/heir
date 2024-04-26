@@ -1,8 +1,8 @@
-#include "include/Dialect/TensorExt/Transforms/InsertRotate.h"
+#include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 
 #include <utility>
 
-#include "include/Analysis/TargetSlotAnalysis/TargetSlotAnalysis.h"
+#include "lib/Analysis/TargetSlotAnalysis/TargetSlotAnalysis.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
@@ -22,15 +22,15 @@ namespace heir {
 namespace tensor_ext {
 
 #define GEN_PASS_DEF_INSERTROTATE
-#include "include/Dialect/TensorExt/Transforms/Passes.h.inc"
+#include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
 namespace alignment {
 // In an inner namespace to avoid conflicts with canonicalization patterns
-#include "include/Dialect/TensorExt/Transforms/InsertRotate.cpp.inc"
+#include "lib/Dialect/TensorExt/Transforms/InsertRotate.cpp.inc"
 }  // namespace alignment
 
 namespace canonicalization {
-#include "include/Dialect/TensorExt/IR/TensorExtCanonicalization.cpp.inc"
+#include "lib/Dialect/TensorExt/IR/TensorExtCanonicalization.cpp.inc"
 }  // namespace canonicalization
 
 struct InsertRotate : impl::InsertRotateBase<InsertRotate> {

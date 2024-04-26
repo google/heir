@@ -1,5 +1,5 @@
-#ifndef INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_
-#define INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_
+#ifndef LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_
+#define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_
 
 include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.td"
 {% if enable_types %}include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.td"{% endif %}
@@ -10,4 +10,4 @@ class {{ dialect_name }}_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::{{ dialect_namespace }}";
 }
 
-#endif  // INCLUDE_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_
+#endif  // LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_

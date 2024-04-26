@@ -1,6 +1,6 @@
 // Block clang-format from thinking the header is unused
 // IWYU pragma: begin_keep
-#include "include/Dialect/HEIRInterfaces.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 // IWYU pragma: end_keep
 
-#include "include/Dialect/HEIRInterfaces.cpp.inc"
+#include "lib/Dialect/HEIRInterfaces.cpp.inc"

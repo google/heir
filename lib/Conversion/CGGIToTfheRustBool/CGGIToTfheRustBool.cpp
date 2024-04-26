@@ -1,16 +1,16 @@
-#include "include/Conversion/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
+#include "lib/Conversion/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 
 #include <utility>
 
-#include "include/Dialect/CGGI/IR/CGGIDialect.h"
-#include "include/Dialect/CGGI/IR/CGGIOps.h"
-#include "include/Dialect/LWE/IR/LWEDialect.h"
-#include "include/Dialect/LWE/IR/LWEOps.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
-#include "include/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
-#include "include/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/CGGI/IR/CGGIDialect.h"
+#include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -28,7 +28,7 @@
 namespace mlir::heir {
 
 #define GEN_PASS_DEF_CGGITOTFHERUSTBOOL
-#include "include/Conversion/CGGIToTfheRustBool/CGGIToTfheRustBool.h.inc"
+#include "lib/Conversion/CGGIToTfheRustBool/CGGIToTfheRustBool.h.inc"
 
 class CGGIToTfheRustBoolTypeConverter : public TypeConverter {
  public:

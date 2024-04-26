@@ -1,4 +1,4 @@
-#include "include/Target/TfheRustBool/TfheRustBoolEmitter.h"
+#include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
 
 #include <cstdint>
 #include <functional>
@@ -7,10 +7,10 @@
 #include <string>
 #include <string_view>
 
-#include "include/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "include/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
-#include "include/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
-#include "include/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolTemplates.h"
 #include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project

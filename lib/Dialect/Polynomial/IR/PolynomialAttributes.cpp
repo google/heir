@@ -1,12 +1,12 @@
-#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "include/Dialect/Polynomial/IR/NumberTheory.h"
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
-#include "include/Dialect/Polynomial/IR/StaticRoots.h"
+#include "lib/Dialect/Polynomial/IR/NumberTheory.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/StaticRoots.h"
 #include "llvm/include/llvm/ADT/SmallSet.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project

@@ -1,11 +1,11 @@
-#include "include/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 
 #include <cstdint>
 
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/LWE/IR/LWEOps.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
@@ -13,16 +13,16 @@
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
 // Generated definitions
-#include "include/Dialect/LWE/IR/LWEDialect.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWEDialect.cpp.inc"
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #define GET_ATTRDEF_CLASSES
-#include "include/Dialect/LWE/IR/LWEAttributes.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWEAttributes.cpp.inc"
 #define GET_TYPEDEF_CLASSES
-#include "include/Dialect/LWE/IR/LWETypes.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWETypes.cpp.inc"
 #define GET_OP_CLASSES
-#include "include/Dialect/LWE/IR/LWEOps.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWEOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
@@ -31,15 +31,15 @@ namespace lwe {
 void LWEDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "include/Dialect/LWE/IR/LWEAttributes.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWEAttributes.cpp.inc"
       >();
   addTypes<
 #define GET_TYPEDEF_LIST
-#include "include/Dialect/LWE/IR/LWETypes.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWETypes.cpp.inc"
       >();
   addOperations<
 #define GET_OP_LIST
-#include "include/Dialect/LWE/IR/LWEOps.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWEOps.cpp.inc"
       >();
 }
 

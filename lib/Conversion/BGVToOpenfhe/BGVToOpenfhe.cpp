@@ -1,19 +1,19 @@
-#include "include/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
+#include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
 
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
 
-#include "include/Dialect/BGV/IR/BGVDialect.h"
-#include "include/Dialect/BGV/IR/BGVOps.h"
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/LWE/IR/LWEOps.h"
-#include "include/Dialect/LWE/IR/LWETypes.h"
-#include "include/Dialect/Openfhe/IR/OpenfheDialect.h"
-#include "include/Dialect/Openfhe/IR/OpenfheOps.h"
-#include "include/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
@@ -31,7 +31,7 @@
 namespace mlir::heir::bgv {
 
 #define GEN_PASS_DEF_BGVTOOPENFHE
-#include "include/Conversion/BGVToOpenfhe/BGVToOpenfhe.h.inc"
+#include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h.inc"
 
 class ToOpenfheTypeConverter : public TypeConverter {
  public:

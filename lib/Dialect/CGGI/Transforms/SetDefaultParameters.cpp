@@ -1,12 +1,12 @@
-#include "include/Dialect/CGGI/Transforms/SetDefaultParameters.h"
+#include "lib/Dialect/CGGI/Transforms/SetDefaultParameters.h"
 
 #include <vector>
 
-#include "include/Dialect/CGGI/IR/CGGIAttributes.h"
-#include "include/Dialect/CGGI/IR/CGGIOps.h"
-#include "include/Dialect/LWE/IR/LWEAttributes.h"
-#include "include/Dialect/Polynomial/IR/Polynomial.h"
-#include "include/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/CGGI/IR/CGGIAttributes.h"
+#include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"     // from @llvm-project
@@ -16,7 +16,7 @@ namespace heir {
 namespace cggi {
 
 #define GEN_PASS_DEF_SETDEFAULTPARAMETERS
-#include "include/Dialect/CGGI/Transforms/Passes.h.inc"
+#include "lib/Dialect/CGGI/Transforms/Passes.h.inc"
 
 struct SetDefaultParameters
     : impl::SetDefaultParametersBase<SetDefaultParameters> {

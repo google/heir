@@ -8,9 +8,9 @@ package(
 cc_library(
     name = "MetadataEmitter",
     srcs = ["MetadataEmitter.cpp"],
-    hdrs = ["@heir//include/Target/Metadata:MetadataEmitter.h"],
+    hdrs = ["MetadataEmitter.h"],
     deps = [
-        "@heir//include/Target/Metadata:metadata_emitter",
+        ":metadata_emitter",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
@@ -20,5 +20,19 @@ cc_library(
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TranslateLib",
+    ],
+)
+
+# Metadata Emitter
+
+cc_library(
+    name = "metadata_emitter",
+    hdrs = ["MetadataEmitter.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:Support",
     ],
 )

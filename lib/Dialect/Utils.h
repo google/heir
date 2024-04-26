@@ -1,5 +1,5 @@
-#ifndef INCLUDE_DIALECT_UTILS_H_
-#define INCLUDE_DIALECT_UTILS_H_
+#ifndef LIB_DIALECT_UTILS_H_
+#define LIB_DIALECT_UTILS_H_
 
 #include <cstdint>
 
@@ -38,4 +38,4 @@ FailureOr<int64_t> get1DExtractionIndex(Op op) {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_DIALECT_UTILS_H_
+#endif  // LIB_DIALECT_UTILS_H_

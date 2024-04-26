@@ -1,5 +1,5 @@
-#ifndef INCLUDE_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
-#define INCLUDE_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
+#ifndef LIB_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
+#define LIB_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
 
 include "mlir/Pass/PassBase.td"
 
@@ -13,4 +13,4 @@ def {{ pass_name }} : Pass<"{{ pass_flag }}"> {
   ];
 }
 
-#endif  // INCLUDE_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_
+#endif  // LIB_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_TD_

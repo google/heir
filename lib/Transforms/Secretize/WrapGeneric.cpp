@@ -1,9 +1,9 @@
 #include <iostream>
 
-#include "include/Dialect/Secret/IR/SecretDialect.h"
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
-#include "include/Transforms/Secretize/Passes.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Transforms/Secretize/Passes.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
@@ -13,7 +13,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_WRAPGENERIC
-#include "include/Transforms/Secretize/Passes.h.inc"
+#include "lib/Transforms/Secretize/Passes.h.inc"
 
 struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
   WrapWithGeneric(mlir::MLIRContext *context)

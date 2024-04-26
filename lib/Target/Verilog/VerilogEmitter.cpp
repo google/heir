@@ -1,4 +1,4 @@
-#include "include/Target/Verilog/VerilogEmitter.h"
+#include "lib/Target/Verilog/VerilogEmitter.h"
 
 #include <algorithm>
 #include <cassert>
@@ -9,10 +9,10 @@
 #include <string_view>
 #include <utility>
 
-#include "include/Conversion/MemrefToArith/Utils.h"
-#include "include/Dialect/Secret/IR/SecretDialect.h"
-#include "include/Dialect/Secret/IR/SecretOps.h"
-#include "include/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Conversion/MemrefToArith/Utils.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"         // from @llvm-project

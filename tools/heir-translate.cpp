@@ -1,9 +1,9 @@
-#include "include/Target/Metadata/MetadataEmitter.h"
-#include "include/Target/OpenFhePke/OpenFhePkeEmitter.h"
-#include "include/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
-#include "include/Target/TfheRust/TfheRustEmitter.h"
-#include "include/Target/TfheRustBool/TfheRustBoolEmitter.h"
-#include "include/Target/Verilog/VerilogEmitter.h"
+#include "lib/Target/Metadata/MetadataEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
+#include "lib/Target/TfheRust/TfheRustEmitter.h"
+#include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
+#include "lib/Target/Verilog/VerilogEmitter.h"
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
 
