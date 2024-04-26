@@ -213,6 +213,8 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
         // ops. Affine dimensions must be block arguments for affine.for or
         // affine.parallel.
         if (isa<IndexType>(operand.getType())) {
+          auto point = rewriter.saveInsertionPoint();
+          rewriter.setInsertionPointAfter(op);
           llvm::TypeSwitch<Operation *>(op)
               .Case<affine::AffineLoadOp>([&](affine::AffineLoadOp op) {
                 rewriter.replaceOp(op, rewriter.create<memref::LoadOp>(
@@ -227,6 +229,7 @@ LogicalResult CaptureAmbientScope::matchAndRewrite(
                         op->getLoc(), op.getValueToStore(), op.getMemref(),
                         buildResolvedIndices(op, op.getIndices(), rewriter)));
               });
+          rewriter.restoreInsertionPoint(point);
         }
         return WalkResult::interrupt();
       }
@@ -461,14 +464,19 @@ LogicalResult DedupeYieldedValues::matchAndRewrite(
   return success();
 }
 
-bool HoistOpBeforeGeneric::canHoist(Operation &op) const {
+bool HoistOpBeforeGeneric::canHoist(Operation &op, GenericOp genericOp) const {
   bool inConfiguredList =
       std::find(opTypes.begin(), opTypes.end(), op.getName().getStringRef()) !=
       opTypes.end();
   bool allOperandsAreBlockArgsOrAmbient =
       llvm::all_of(op.getOperands(), [&](Value operand) {
-        return isa<BlockArgument>(operand) ||
-               operand.getDefiningOp()->getBlock() != op.getBlock();
+        if (isa<BlockArgument>(operand)) {
+          // This is a block argument defined in a block that contains the
+          // generic.
+          return cast<BlockArgument>(operand).getParentRegion()->isAncestor(
+              &genericOp.getRegion());
+        }
+        return operand.getDefiningOp()->getBlock() != op.getBlock();
       });
   return inConfiguredList && allOperandsAreBlockArgsOrAmbient;
 }
@@ -483,8 +491,9 @@ LogicalResult HoistOpBeforeGeneric::matchAndRewrite(
     return failure();
   }
 
-  auto it = std::find_if(opRange.begin(), opRange.end(),
-                         [&](Operation &op) { return canHoist(op); });
+  auto it = std::find_if(opRange.begin(), opRange.end(), [&](Operation &op) {
+    return canHoist(op, genericOp);
+  });
   if (it == opRange.end()) {
     return failure();
   }

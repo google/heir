@@ -181,7 +181,7 @@ struct HoistOpBeforeGeneric : public OpRewritePattern<GenericOp> {
   LogicalResult matchAndRewrite(GenericOp op,
                                 PatternRewriter &rewriter) const override;
 
-  bool canHoist(Operation &op) const;
+  bool canHoist(Operation &op, GenericOp genericOp) const;
 
  private:
   std::vector<std::string> opTypes;
