@@ -683,7 +683,11 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineParallelOp op) {
 
   auto ivName = getOrCreateName(iv);
   os_ << "genvar " << ivName << ";\ngenerate\n";
-  // Declare the wires local to the generate block.
+  os_ << llvm::formatv("for ({0} = {1}; {0} < {2}; {0} = {0} + {3}) begin\n",
+                       ivName, min, max, step);
+  os_.indent();
+
+  // Declare the wires local to the for loop.
   WalkResult result = op->walk<WalkOrder::PreOrder>([&](Operation *op) {
     for (OpResult result : op->getResults()) {
       if (failed(emitWireDeclaration(result))) {
@@ -695,10 +699,6 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineParallelOp op) {
     return WalkResult::advance();
   });
   if (result.wasInterrupted()) return failure();
-
-  os_ << llvm::formatv("for ({0} = {1}; {0} < {2}; {0} = {0} + {3}) begin\n",
-                       ivName, min, max, step);
-  os_.indent();
 
   for (auto &operation : op.getBody()->getOperations()) {
     if (failed(translate(operation, std::nullopt))) {
