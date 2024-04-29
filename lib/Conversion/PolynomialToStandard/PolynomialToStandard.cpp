@@ -876,6 +876,223 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
   return shuffleOp.getResult(0);
 }
 
+static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder &b, Value A, Value B,
+                                      Value root, Value cMod) {
+  // Since root * B -> [0, cmod^2) then RemUI will compute the modulus
+  auto rootB = b.create<arith::MulIOp>(B, root);
+  auto rootBModded = b.create<arith::RemUIOp>(rootB, cMod);
+
+  // Since A + rootB -> [0, 2 * cmod) then RemUI will
+  // compute the modulus
+  auto ctPlus = b.create<arith::AddIOp>(A, rootBModded);
+  auto ctPlusModded = b.create<arith::RemUIOp>(ctPlus, cMod);
+
+  // Since A - rootB -> (-cmod, cmod) then we can add cmod
+  // such that the range is shifted to (0, 2 * cmod) and use
+  // RemUI to compute the modulus
+  auto ctMinus = b.create<arith::SubIOp>(A, rootBModded);
+  auto ctMinusShifted = b.create<arith::AddIOp>(ctMinus, cMod);
+  auto ctMinusModded = b.create<arith::RemUIOp>(ctMinusShifted, cMod);
+
+  return {ctPlusModded, ctMinusModded};
+}
+
+static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
+                                      Value root, Value cMod) {
+  // Since A + B -> [0, 2 * cmod) then RemUI will
+  // compute the modulus
+  auto gsPlus = b.create<arith::AddIOp>(A, B);
+  auto gsPlusModded = b.create<arith::RemUIOp>(gsPlus, cMod);
+
+  // Since A - rootB -> (-cmod, cmod) then we can add cmod such that the range
+  // is shifted to (0, 2 * cmod) and use RemUI to compute the modulus
+  auto gsMinus = b.create<arith::SubIOp>(A, B);
+  auto gsMinusShifted = b.create<arith::AddIOp>(gsMinus, cMod);
+  auto gsMinusModded = b.create<arith::RemUIOp>(gsMinusShifted, cMod);
+
+  // Since root * (A - B) -> [0, cmod^2) then RemUI will compute the modulus
+  auto gsMinusRoot = b.create<arith::MulIOp>(gsMinusModded, root);
+  auto gsMinusRootModded = b.create<arith::RemUIOp>(gsMinusRoot, cMod);
+
+  return {gsPlusModded, gsMinusRootModded};
+}
+
+template <bool inverse>
+static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
+                     RankedTensorType inputType, Value input) {
+  // Cast to intermediate type to avoid integer overflow during arithmetic
+  auto intermediateElemType =
+      IntegerType::get(b.getContext(), 2 * inputType.getElementTypeBitWidth());
+  auto intermediateType =
+      inputType.clone(inputType.getShape(), intermediateElemType);
+
+  Value initialValue = b.create<arith::ExtUIOp>(intermediateType, input);
+  // Create cmod for modulo arithmetic ops
+  auto cmod = ring.coefficientModulus();
+  Value cMod =
+      b.create<arith::ConstantIntOp>(cmod.getZExtValue(), intermediateElemType);
+
+  // Compute the number of stages required to compute the NTT
+  auto degree = intermediateType.getShape()[0];
+  unsigned stages = (unsigned)std::log2((double)degree);
+
+  // Precompute the roots
+  auto root = ring.primitive2NthRoot().value();
+  root = !inverse ? root
+                  : multiplicativeInverse(root.zext(cmod.getBitWidth()), cmod)
+                        .trunc(root.getBitWidth());
+
+  auto rootsType = intermediateType.clone({degree});
+  auto roots = b.create<arith::ConstantOp>(
+      rootsType,
+      DenseElementsAttr::get(rootsType, precomputeRoots(root, cmod, degree)));
+
+  // Here is a slightly modified implementation of the standard iterative NTT
+  // computation using Cooley-Turkey/Gentleman-Sande butterfly. For reader
+  // reference: https://doi.org/10.1007/978-3-031-46077-7_22, and,
+  // https://doi.org/10.1109/ACCESS.2023.3294446
+  //
+  // We modify the standard implementation by pre-computing the root
+  // exponential values during compilation instead of doing so at runtime.
+  //
+  // Let roots be a tensor of <n x ix> where roots[i] = \psi^i, n be the
+  // degree of the polynomial and inverse denote the direction. Then we
+  // implement the following:
+  //
+  // def fastNTT(coeffs, n, cmod, roots, inverse):
+  //  m = inverse ? n : 2             # m denotes the batchSize or stride
+  //  r = inverse ? 1 : degree / 2    # r denotes the exponent of the root
+  //  for (s = 0; s < log2(n); s++):
+  //    for (k = 0; k < n / m; k++):
+  //      for (j = 0; j < m / 2; j++):
+  //        A = coeffs[k * m + j]
+  //        B = coeffs[k * m + j + m / 2]
+  //        root = roots[(2 * j + 1) * rootExp]
+  //        coeffs[k * m + j], coeffs[k * m + j + m / 2]
+  //          = bflyOp(A, B, root, cmod)
+  //      end
+  //    end
+  //    m = inverse ? m / 2 : m * 2
+  //    r = inverse ? r * 2 : m / 2
+  //  end
+  //
+  //  where bflyOp is one of:
+  //    bflyCT(A, B, root, cmod):
+  //      (A + root * B % cmod, A - root * B % cmod)
+  //
+  //    bflyGS(A, B, root, cmod):
+  //      (A + B % cmod, (A - B) * root % cmod)
+
+  // Initialize the variables
+  Value initialBatchSize =
+      b.create<arith::ConstantIndexOp>(inverse ? degree : 2);
+  Value initialRootExp =
+      b.create<arith::ConstantIndexOp>(inverse ? 1 : degree / 2);
+  Value zero = b.create<arith::ConstantIndexOp>(0);
+  Value two = b.create<arith::ConstantIndexOp>(2);
+  Value n = b.create<arith::ConstantIndexOp>(degree);
+
+  // Define index affine mappings
+  AffineExpr x, y;
+  bindDims(b.getContext(), x, y);
+
+  auto stagesLoop = b.create<affine::AffineForOp>(
+      /*lowerBound=*/0, /* upperBound=*/stages, /*step=*/1,
+      /*iterArgs=*/ValueRange{initialValue, initialBatchSize, initialRootExp},
+      /*bodyBuilder=*/
+      [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
+          ValueRange args) {
+        ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+        Value batchSize = args[1];
+        Value rootExp = args[2];
+
+        auto innerLoop = b.create<affine::AffineForOp>(
+            /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
+            /*ubOperands=*/ValueRange{n, batchSize},
+            /*ubMap=*/AffineMap::get(2, 0, x.floorDiv(y)),
+            /*step=*/1, /*iterArgs=*/args[0],
+            /*bodyBuilder=*/
+            [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
+                ValueRange args) {
+              ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+              Value indexK = b.create<affine::AffineApplyOp>(
+                  x * y, ValueRange{batchSize, index});
+
+              auto arithLoop = b.create<affine::AffineForOp>(
+                  /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
+                  /*ubOperands=*/batchSize,
+                  /*ubMap=*/AffineMap::get(1, 0, x.floorDiv(2)),
+                  /*step=*/1, /*iterArgs=*/args[0],
+                  /*bodyBuilder=*/
+                  [&](OpBuilder &nestedBuilder, Location nestedLoc,
+                      Value indexJ, ValueRange args) {
+                    ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+
+                    Value target = args[0];
+
+                    // Get A
+                    Value indexA = b.create<affine::AffineApplyOp>(
+                        x + y, ValueRange{indexJ, indexK});
+                    Value A = b.create<tensor::ExtractOp>(target, indexA);
+
+                    // Get B
+                    Value indexB = b.create<affine::AffineApplyOp>(
+                        x + y.floorDiv(2), ValueRange{indexA, batchSize});
+                    Value B = b.create<tensor::ExtractOp>(target, indexB);
+
+                    // Get root
+                    Value rootIndex = b.create<affine::AffineApplyOp>(
+                        (2 * x + 1) * y, ValueRange{indexJ, rootExp});
+                    Value root = b.create<tensor::ExtractOp>(roots, rootIndex);
+
+                    auto bflyResult = inverse ? bflyGS(b, A, B, root, cMod)
+                                              : bflyCT(b, A, B, root, cMod);
+
+                    // Store updated values into accumulator
+                    auto insertPlus = b.create<tensor::InsertOp>(
+                        bflyResult.first, target, indexA);
+                    auto insertMinus = b.create<tensor::InsertOp>(
+                        bflyResult.second, insertPlus, indexB);
+
+                    b.create<affine::AffineYieldOp>(insertMinus.getResult());
+                  });
+
+              b.create<affine::AffineYieldOp>(arithLoop.getResult(0));
+            });
+
+        batchSize = inverse
+                        ? b.create<arith::DivUIOp>(batchSize, two).getResult()
+                        : b.create<arith::MulIOp>(batchSize, two).getResult();
+
+        rootExp = inverse ? b.create<arith::MulIOp>(rootExp, two).getResult()
+                          : b.create<arith::DivUIOp>(rootExp, two).getResult();
+
+        b.create<affine::AffineYieldOp>(
+            ValueRange{innerLoop.getResult(0), batchSize, rootExp});
+      });
+
+  Value result = stagesLoop.getResult(0);
+  if (inverse) {
+    APInt degreeInv =
+        multiplicativeInverse(APInt(cmod.getBitWidth(), degree), cmod)
+            .trunc(root.getBitWidth());
+    Value nInv = b.create<arith::ConstantOp>(
+        rootsType, DenseElementsAttr::get(rootsType, degreeInv));
+    Value cModVec = b.create<arith::ConstantOp>(
+        rootsType,
+        DenseElementsAttr::get(rootsType, cmod.trunc(root.getBitWidth() + 1)));
+
+    auto mulOp = b.create<arith::MulIOp>(result, nInv);
+    auto remOp = b.create<arith::RemUIOp>(mulOp, cModVec);
+    result = remOp.getResult();
+  }
+
+  // Truncate back to cmod bitwidth as nttRes < cmod
+  auto truncOp = b.create<arith::TruncIOp>(inputType, result);
+
+  return truncOp.getResult();
+}
+
 struct ConvertNTT : public OpConversionPattern<NTTOp> {
   ConvertNTT(mlir::MLIRContext *context)
       : OpConversionPattern<NTTOp>(context) {}
@@ -897,167 +1114,50 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
 
     RingAttr ring = polyTy.getRing();
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
-
-    // Cast to intermediate type to avoid integer overflow during arithmetic
-    auto intermediateBitWidth = polymulIntermediateType(polyTy);
-    auto intermediateType =
-        inputType.clone(inputType.getShape(), intermediateBitWidth);
-    Value initialValue =
-        b.create<arith::ExtUIOp>(intermediateType, adaptor.getInput());
-
-    // Create cmod for modulo arithmetic ops
-    auto cmod = ring.coefficientModulus();
-    Value cMod = b.create<arith::ConstantIntOp>(cmod.getZExtValue(),
-                                                intermediateBitWidth);
-
-    // Compute the number of stages required to compute the NTT
-    auto degree = intermediateType.getShape()[0];
-    unsigned stages = (unsigned)std::log2((double)degree);
-
-    // Precompute the roots
-    auto root = ring.primitive2NthRoot().value();
-    auto rootsType = intermediateType.clone({degree});
-    auto roots = b.create<arith::ConstantOp>(
-        rootsType,
-        DenseElementsAttr::get(rootsType, precomputeRoots(root, cmod, degree)));
-
-    // Here is a slightly modified implementation of the standard iterative NTT
-    // computation using Cooley-Turkey butterfly. For reader reference:
-    // https://doi.org/10.1007/978-3-031-46077-7_22, and,
-    // https://doi.org/10.1109/ACCESS.2023.3294446
-    //
-    // We modify the standard implementation by pre-computing the root
-    // exponential values during compilation instead of doing so at runtime.
-    //
-    // Let roots be a tensor of <n x ix> where roots[i] = \psi^i, n be the
-    // degree of the polynomial and a be the coefficients. Then we implement the
-    // following:
-    //
-    // def fastNTT(a, n, cmod, roots):
-    //  a = BitReverseOrder(a)
-    //  m = n / 2
-    //  for (s = 0; s < log2(n); s++):
-    //    for (k = 0; k < n / m; k++):
-    //      for (j = 0; j < m / 2; j++):
-    //        A = a[k + j]
-    //        B = roots[(2 * j + 1) * n / m] * a[k + j + m / 2]
-    //        a[k + j] = A + B mod cmod
-    //        a[k + j + m / 2] = A - B mod cmod
-    //      end
-    //    end
-    //    m = m * 2
-    //  end
-
-    // Convert the input into Reverse-Bit Order
-    initialValue = computeReverseBitOrder(b, intermediateType, initialValue);
-
-    // Initialize the variables
-    Value initialBatchSize = b.create<arith::ConstantIndexOp>(2);
-    Value zero = b.create<arith::ConstantIndexOp>(0);
-    Value two = b.create<arith::ConstantIndexOp>(2);
-    Value n = b.create<arith::ConstantIndexOp>(degree);
-
-    // Define index affine mappings
-    AffineExpr x, y;
-    bindDims(b.getContext(), x, y);
-
-    auto stagesLoop = b.create<affine::AffineForOp>(
-        /*lowerBound=*/0, /* upperBound=*/stages, /*step=*/1,
-        /*iterArgs=*/ValueRange{initialValue, initialBatchSize},
-        /*bodyBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
-            ValueRange args) {
-          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-          Value batchSize = args[1];
-
-          // Compute this here as opposed to in the innerLoop as it is used
-          // later
-          Value rootExp = b.create<affine::AffineApplyOp>(
-              x.floorDiv(y), ValueRange{n, batchSize});
-
-          auto innerLoop = b.create<affine::AffineForOp>(
-              /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
-              /*ubOperands=*/rootExp, /*ubMap=*/AffineMap::get(1, 0, x),
-              /*step=*/1, /*iterArgs=*/args[0],
-              /*bodyBuilder=*/
-              [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
-                  ValueRange args) {
-                ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-                Value indexK = b.create<affine::AffineApplyOp>(
-                    x * y, ValueRange{batchSize, index});
-
-                auto arithLoop = b.create<affine::AffineForOp>(
-                    /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
-                    /*ubOperands=*/batchSize,
-                    /*ubMap=*/AffineMap::get(1, 0, x.floorDiv(2)),
-                    /*step=*/1, /*iterArgs=*/args[0],
-                    /*bodyBuilder=*/
-                    [&](OpBuilder &nestedBuilder, Location nestedLoc,
-                        Value indexJ, ValueRange args) {
-                      ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-                      Value target = args[0];
-
-                      // Get A
-                      Value indexA = b.create<affine::AffineApplyOp>(
-                          x + y, ValueRange{indexJ, indexK});
-                      Value A = b.create<tensor::ExtractOp>(target, indexA);
-
-                      // Get B
-                      Value indexB = b.create<affine::AffineApplyOp>(
-                          x + y.floorDiv(2), ValueRange{indexA, batchSize});
-                      Value B = b.create<tensor::ExtractOp>(target, indexB);
-
-                      // Get root
-                      Value rootIndex = b.create<affine::AffineApplyOp>(
-                          (2 * x + 1) * y, ValueRange{indexJ, rootExp});
-                      Value root =
-                          b.create<tensor::ExtractOp>(roots, rootIndex);
-
-                      // Since root_j * B_j -> [0, cmod^2) then RemUI will
-                      // compute the modulus
-                      auto rootB = b.create<arith::MulIOp>(B, root);
-                      auto rootBModded = b.create<arith::RemUIOp>(rootB, cMod);
-
-                      // Since A + rootB -> [0, 2 * cmod) then RemUI will
-                      // compute the modulus
-                      auto ctPlus = b.create<arith::AddIOp>(A, rootBModded);
-                      auto ctPlusModded =
-                          b.create<arith::RemUIOp>(ctPlus, cMod);
-
-                      // Since A - rootB -> (-cmod, cmod) then we can add cmod
-                      // such that the range is shifted to (0, 2 * cmod) and use
-                      // RemUI to compute the modulus
-                      auto ctMinus = b.create<arith::SubIOp>(A, rootBModded);
-                      auto ctMinusShifted =
-                          b.create<arith::AddIOp>(ctMinus, cMod);
-                      auto ctMinusModded =
-                          b.create<arith::RemUIOp>(ctMinusShifted, cMod);
-
-                      auto insertPlus = b.create<tensor::InsertOp>(
-                          ctPlusModded, target, indexA);
-                      auto insertMinus = b.create<tensor::InsertOp>(
-                          ctMinusModded, insertPlus, indexB);
-
-                      b.create<affine::AffineYieldOp>(insertMinus.getResult());
-                    });
-
-                b.create<affine::AffineYieldOp>(arithLoop.getResult(0));
-              });
-
-          batchSize = b.create<arith::MulIOp>(batchSize, two);
-          b.create<affine::AffineYieldOp>(
-              ValueRange{innerLoop.getResult(0), batchSize});
-        });
-
-    // Truncate back to cmod bitwidth as nttRes < cmod
-    auto truncOp =
-        b.create<arith::TruncIOp>(inputType, stagesLoop.getResult(0));
+    auto nttResult = fastNTT<false>(
+        b, ring, inputType,
+        computeReverseBitOrder(b, inputType, adaptor.getInput()));
 
     // Insert the ring encoding here to the input type
     auto resultType = RankedTensorType::get(inputType.getShape(),
                                             inputType.getElementType(), ring);
-    auto result = b.create<tensor::CastOp>(resultType, truncOp);
+    auto result = b.create<tensor::CastOp>(resultType, nttResult);
     rewriter.replaceOp(op, result);
+
+    return success();
+  }
+};
+
+struct ConvertINTT : public OpConversionPattern<INTTOp> {
+  ConvertINTT(mlir::MLIRContext *context)
+      : OpConversionPattern<INTTOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      INTTOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto polyTy = dyn_cast<PolynomialType>(op.getOutput().getType());
+    if (!polyTy) {
+      op.emitError(
+          "Can't directly lower for a tensor of polynomials. "
+          "First run --convert-elementwise-to-affine.");
+      return failure();
+    }
+
+    RingAttr ring = polyTy.getRing();
+
+    auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
+    // Remove the encoded ring from the input tensor type
+    auto resultType =
+        RankedTensorType::get(inputType.getShape(), inputType.getElementType());
+    auto input = b.create<tensor::CastOp>(resultType, adaptor.getInput());
+
+    auto nttResult = fastNTT<true>(b, ring, resultType, input);
+
+    rewriter.replaceOp(op, computeReverseBitOrder(b, resultType, nttResult));
 
     return success();
   }
@@ -1092,8 +1192,8 @@ void PolynomialToStandard::runOnOperation() {
 
   patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonomialMul,
-               ConvertConstant, ConvertMulScalar, ConvertNTT>(typeConverter,
-                                                              context);
+               ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
+      typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);
   addStructuralConversionPatterns(typeConverter, patterns, target);
   addTensorOfTensorConversionPatterns(typeConverter, patterns, target);
