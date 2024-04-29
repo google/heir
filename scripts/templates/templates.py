@@ -1,4 +1,6 @@
+"""A CLI for generating boilerplate MLIR code in HEIR."""
 import os
+import sys
 import pathlib
 import shutil
 
@@ -208,8 +210,8 @@ class CLI:
     path_mapping = {
         templ_include / "BUILD.jinja": include_path / "BUILD",
         templ_include / "Pass.h.jinja": include_path / f"{pass_name}.h",
-        templ_include / "Passes.h.jinja": include_path / f"Passes.h",
-        templ_include / "Passes.td.jinja": include_path / f"Passes.td",
+        templ_include / "Passes.h.jinja": include_path / "Passes.h",
+        templ_include / "Passes.td.jinja": include_path / "Passes.td",
         templ_lib / "BUILD.jinja": lib_path / "BUILD",
         templ_lib / "Pass.cpp.jinja": lib_path / f"{pass_name}.cpp",
     }
@@ -397,4 +399,8 @@ class CLI:
 
 
 if __name__ == "__main__":
+  # TODO(#659): migrate templates script to include-less world
+  print("Template generator is currently broken, see "
+        "https://github.com/google/heir/issues/659")
+  sys.exit(1)
   fire.Fire(CLI)
