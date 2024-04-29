@@ -60,6 +60,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(LevelReduceOp op);
   LogicalResult printOperation(ModReduceOp op);
   LogicalResult printOperation(MulConstOp op);
+  LogicalResult printOperation(MulNoRelinOp op);
   LogicalResult printOperation(MulOp op);
   LogicalResult printOperation(MulPlainOp op);
   LogicalResult printOperation(NegateOp op);

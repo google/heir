@@ -450,6 +450,7 @@ void mlirToOpenFheBgvPipelineBuilder(
   auto addClientInterfaceOptions = bgv::AddClientInterfaceOptions{};
   // OpenFHE's pke API, which this pipeline generates, is always public-key
   addClientInterfaceOptions.usePublicKey = true;
+  addClientInterfaceOptions.oneValuePerHelperFn = true;
   pm.addPass(bgv::createAddClientInterface(addClientInterfaceOptions));
 
   // Lower to openfhe

@@ -74,9 +74,9 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
                 lwe::ReinterpretUnderlyingTypeOp>(
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
-          .Case<AddOp, SubOp, MulOp, MulPlainOp, SquareOp, NegateOp, MulConstOp,
-                RelinOp, ModReduceOp, LevelReduceOp, RotOp, AutomorphOp,
-                KeySwitchOp, EncryptOp, DecryptOp>(
+          .Case<AddOp, SubOp, MulNoRelinOp, MulOp, MulPlainOp, SquareOp,
+                NegateOp, MulConstOp, RelinOp, ModReduceOp, LevelReduceOp,
+                RotOp, AutomorphOp, KeySwitchOp, EncryptOp, DecryptOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -192,6 +192,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(AddOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(SubOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getLhs(), op.getRhs()}, "EvalSub");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(MulNoRelinOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getLhs(), op.getRhs()}, "EvalMultNoRelin");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(MulOp op) {
