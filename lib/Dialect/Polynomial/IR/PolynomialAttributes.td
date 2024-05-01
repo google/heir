@@ -11,7 +11,7 @@ class Polynomial_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let mnemonic = attrMnemonic;
 }
 
-def Polynomial_Attr : Polynomial_Attr<"Polynomial", "polynomial"> {
+def Polynomial_PolynomialAttr : Polynomial_Attr<"Polynomial", "polynomial"> {
   let summary = "An attribute containing a single-variable polynomial.";
   let description = [{
      #poly = #_polynomial.polynomial<x**1024 + 1>
