@@ -12,13 +12,15 @@
 #include "src/pke/include/scheme/bgvrns/gen-cryptocontext-bgvrns.h"  // from @openfhe
 
 // Generated headers (block clang-format from messing up order)
-#include "tests/openfhe/end_to_end/simple_sum_lib.h"
+#include "tests/openfhe/end_to_end/dot_product_8_lib.h"
 
 namespace mlir {
 namespace heir {
 namespace openfhe {
 
-TEST(BinopsTest, TestInput1) {
+TEST(DotProduct8Test, RunTest) {
+  // TODO(#661): Generate a helper function to set up CryptoContext based on
+  // what is used in the generated code.
   CCParams<CryptoContextBGVRNS> parameters;
   parameters.SetMultiplicativeDepth(2);
   parameters.SetPlaintextModulus(65537);
@@ -29,33 +31,36 @@ TEST(BinopsTest, TestInput1) {
 
   KeyPair<DCRTPoly> keyPair;
   keyPair = cryptoContext->KeyGen();
-  cryptoContext->EvalRotateKeyGen(keyPair.secretKey, {1, 2, 4, 8, 16, 31});
+  cryptoContext->EvalMultKeyGen(keyPair.secretKey);
+  cryptoContext->EvalRotateKeyGen(keyPair.secretKey, {1, 2, 4, 7});
 
   int32_t n = cryptoContext->GetCryptoParameters()
                   ->GetElementParams()
                   ->GetCyclotomicOrder() /
               2;
-  std::vector<int16_t> input;
+  int16_t arg0Vals[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  int16_t arg1Vals[8] = {2, 3, 4, 5, 6, 7, 8, 9};
+  int64_t expected = 240;
+
   // TODO(#645): support cyclic repetition in add-client-interface
-  // I want to do this, but MakePackedPlaintext does not repeat the values.
-  // It zero pads, and rotating the zero-padded values will not achieve the
-  // rotate-and-reduce trick required for simple_sum
-  //
-  // = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-  //    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-  //    23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
-  input.reserve(n);
+  std::vector<int16_t> arg0;
+  std::vector<int16_t> arg1;
+  arg0.reserve(n);
+  arg1.reserve(n);
 
   for (int i = 0; i < n; ++i) {
-    input.push_back((i % 32) + 1);
+    arg0.push_back(arg0Vals[i % 8]);
+    arg1.push_back(arg1Vals[i % 8]);
   }
-  int64_t expected = 16 * 33;
 
-  auto inputEncrypted =
-      simple_sum__encrypt__arg0(cryptoContext, input, keyPair.publicKey);
-  auto outputEncrypted = simple_sum(cryptoContext, inputEncrypted);
-  auto actual = simple_sum__decrypt__result0(cryptoContext, outputEncrypted,
-                                             keyPair.secretKey);
+  auto arg0Encrypted =
+      dot_product__encrypt__arg0(cryptoContext, arg0, keyPair.publicKey);
+  auto arg1Encrypted =
+      dot_product__encrypt__arg1(cryptoContext, arg1, keyPair.publicKey);
+  auto outputEncrypted =
+      dot_product(cryptoContext, arg0Encrypted, arg1Encrypted);
+  auto actual = dot_product__decrypt__result0(cryptoContext, outputEncrypted,
+                                              keyPair.secretKey);
 
   EXPECT_EQ(expected, actual);
 }

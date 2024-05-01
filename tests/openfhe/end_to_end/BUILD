@@ -11,9 +11,7 @@ openfhe_end_to_end_test(
     name = "binops_test",
     generated_lib_header = "binops_lib.h",
     mlir_src = "binops.mlir",
-    tags = [
-        "notap",
-    ],
+    tags = ["notap"],
     test_src = "binops_test.cpp",
 )
 
@@ -22,8 +20,15 @@ openfhe_end_to_end_test(
     generated_lib_header = "simple_sum_lib.h",
     heir_opt_flags = "--mlir-to-openfhe-bgv=entry-function=simple_sum ciphertext-degree=32",
     mlir_src = "simple_sum.mlir",
-    tags = [
-        "notap",
-    ],
+    tags = ["notap"],
     test_src = "simple_sum_test.cpp",
+)
+
+openfhe_end_to_end_test(
+    name = "dot_product_8_test",
+    generated_lib_header = "dot_product_8_lib.h",
+    heir_opt_flags = "--mlir-to-openfhe-bgv=entry-function=dot_product ciphertext-degree=8",
+    mlir_src = "dot_product_8.mlir",
+    tags = ["notap"],
+    test_src = "dot_product_8_test.cpp",
 )
