@@ -7,6 +7,7 @@
 #include <numeric>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
@@ -18,6 +19,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/CommandLine.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
@@ -32,6 +34,7 @@
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -48,33 +51,41 @@ namespace tfhe_rust {
 
 namespace {
 
-graph::Graph<Operation *> getGraph(affine::AffineForOp forOp) {
+bool isLevelledOp(Operation *op) {
+  return isa<ApplyLookupTableOp, AddOp, ScalarLeftShiftOp>(op);
+}
+
+bool usedByLevelledOp(Value value) {
+  return llvm::any_of(value.getUsers(),
+                      [](Operation *op) { return isLevelledOp(op); });
+}
+
+bool usedByNonLevelledOp(Value value) {
+  return llvm::any_of(value.getUsers(),
+                      [](Operation *op) { return !isLevelledOp(op); });
+}
+
+std::pair<graph::Graph<Operation *>, Operation *> getGraph(Operation *op) {
   graph::Graph<Operation *> graph;
-  auto block = forOp.getBody();
 
-  // Skip if there isn't any apply_lookup_table
-  if (llvm::none_of(block->getOperations(), [&](Operation &op) {
-        return isa<ApplyLookupTableOp>(op);
-      })) {
-    return graph;
-  }
-
-  for (auto &op : block->getOperations()) {
-    if (!isa<ApplyLookupTableOp, AddOp, ScalarLeftShiftOp>(op)) {
-      continue;
+  auto block = op->getBlock();
+  while (op != nullptr) {
+    if (!isLevelledOp(op)) {
+      return {graph, op};
     }
-    graph.addVertex(&op);
-    for (auto operand : op.getOperands()) {
+    graph.addVertex(op);
+    for (auto operand : op->getOperands()) {
       auto *definingOp = operand.getDefiningOp();
       if (!definingOp || definingOp->getBlock() != block ||
-          !isa<ApplyLookupTableOp, AddOp, ScalarLeftShiftOp>(definingOp)) {
+          !isLevelledOp(definingOp)) {
         continue;
       }
-      graph.addEdge(definingOp, &op);
+      graph.addEdge(definingOp, op);
     }
+    op = op->getNextNode();
   }
 
-  return graph;
+  return {graph, op};
 }
 
 SmallVector<Value> getCiphertextOperands(ValueRange inputs) {
@@ -116,12 +127,19 @@ FailureOr<DenseElementsAttr> getConstantGlobalData(memref::GetGlobalOp op) {
 
 }  // namespace
 
+bool useLevels;
+
+static llvm::cl::opt<bool, true> useLevelsFlag("use-levels",
+                                               llvm::cl::desc("Use levels"),
+                                               llvm::cl::location(useLevels),
+                                               llvm::cl::init(false));
+
 void registerToTfheRustTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust",
       "translate the tfhe_rs dialect to Rust code for tfhe-rs",
       [](Operation *op, llvm::raw_ostream &output) {
-        return translateToTfheRust(op, output);
+        return translateToTfheRust(op, output, useLevels);
       },
       [](DialectRegistry &registry) {
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
@@ -130,11 +148,78 @@ void registerToTfheRustTranslation() {
       });
 }
 
-LogicalResult translateToTfheRust(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToTfheRust(Operation *op, llvm::raw_ostream &os,
+                                  bool useLevels) {
   SelectVariableNames variableNames(op);
-  TfheRustEmitter emitter(os, &variableNames);
+  TfheRustEmitter emitter(os, &variableNames, useLevels);
   LogicalResult result = emitter.translate(*op);
   return result;
+}
+
+LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op) {
+  // Translate ops in the block until we get to a tfhe_rust.ApplyLookupTable,
+  // AddOp, ScalarLeftShitOp
+  while (op != nullptr && !isLevelledOp(op)) {
+    if (failed(translate(*op))) {
+      return failure();
+    }
+    op = op->getNextNode();
+  }
+  if (op == nullptr) {
+    return success();
+  }
+  // Compute a graph of the levelled operations.
+  auto [graph, nextOp] = getGraph(op);
+  if (!graph.empty()) {
+    auto sortedGraph = graph.sortGraphByLevels();
+    if (failed(sortedGraph)) {
+      llvm_unreachable("Only possible failure is a cycle in the SSA graph!");
+    }
+    auto levels = sortedGraph.value();
+    // Print lists of operations per level.
+    for (int level = 0; level < levels.size(); ++level) {
+      os << "static LEVEL_" << level << " : [((OpType, usize), &[GateInput]); "
+         << levels[level].size() << "] = [";
+      for (auto &op : levels[level]) {
+        // Print the operation type and its ciphertext args
+        os << llvm::formatv(
+            "(({0}, {1}), &[{2}]), ", operationType(op),
+            variableNames->getIntForValue(op->getResult(0)),
+            commaSeparatedValues(
+                getCiphertextOperands(op->getOperands()), [&](Value value) {
+                  // TODO(#462): This assumes that all ciphertexts are
+                  // loaded into temp_nodes. Currently, block arguments are
+                  // not supported.
+                  return "Tv(" +
+                         std::to_string(variableNames->getIntForValue(value)) +
+                         ")";
+                }));
+      }
+      os << "];\n";
+    }
+
+    // Execute each task in the level.
+    for (int level = 0; level < levels.size(); ++level) {
+      os << llvm::formatv(
+          "run_level({1}, &mut temp_nodes, &mut luts, &LEVEL_{0});\n", level,
+          serverKeyArg_);
+    }
+  }
+  // Continue to emit the block.
+  return emitBlock(nextOp);
+}
+
+LogicalResult TfheRustEmitter::translateBlock(Block &block) {
+  if (useLevels_) {
+    Operation *op = &block.getOperations().front();
+    return emitBlock(op);
+  }
+  for (Operation &op : block.getOperations()) {
+    if (failed(translate(op))) {
+      return failure();
+    }
+  }
+  return success();
 }
 
 LogicalResult TfheRustEmitter::translate(Operation &op) {
@@ -245,18 +330,18 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   // Create a global temp_nodes hashmap for any created SSA values.
   // TODO(#462): Insert block argument that are encrypted ints into
   // temp_nodes.
-  os << "let mut temp_nodes : HashMap<usize, Ciphertext> = "
-        "HashMap::new();\n";
-  os << "let mut luts : HashMap<&str, LookupTableOwned> = "
-        "HashMap::new();\n";
-
-  os << kRunLevelDefn << "\n";
+  if (useLevels_) {
+    os << "let mut temp_nodes : HashMap<usize, Ciphertext> = "
+          "HashMap::new();\n";
+    os << "let mut luts : HashMap<&str, LookupTableOwned> = "
+          "HashMap::new();\n";
+    os << kRunLevelDefn << "\n";
+  }
 
   for (Block &block : funcOp.getBlocks()) {
-    for (Operation &op : block.getOperations()) {
-      if (failed(translate(op))) {
-        return failure();
-      }
+    if (failed(translateBlock(block))) {
+      return funcOp.emitOpError()
+             << "Failed to translate block of func " << funcOp.getName();
     }
   }
 
@@ -287,6 +372,11 @@ LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
         res = llvm::formatv("core::array::from_fn(|i{0}| {1})", i--, res);
       }
       return res;
+    } else if (isLevelledOp(value.getDefiningOp()) && useLevels_) {
+      // This is from a levelled op stored in temp nodes.
+      return std::string(
+          llvm::formatv("temp_nodes[&{0}]",
+                        std::to_string(variableNames->getIntForValue(value))));
     }
     return variableNames->getNameForValue(value);
   };
@@ -328,7 +418,7 @@ LogicalResult TfheRustEmitter::printSksMethod(
   os << variableNames->getNameForValue(sks) << "." << op << "(";
   os << commaSeparatedValues(nonSksOperands, [&](Value value) {
     auto valueStr = variableNames->getNameForValue(value);
-    if (isa<LookupTableType>(value.getType())) {
+    if (isa<LookupTableType>(value.getType()) && useLevels_) {
       valueStr = "luts[\"" + variableNames->getNameForValue(value) + "\"]";
     }
     std::string prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
@@ -340,8 +430,7 @@ LogicalResult TfheRustEmitter::printSksMethod(
 
   // Insert ciphertext results into temp_nodes so that the levelled ops can
   // reference them.
-  // TODO(#474): Generalize to any encrypted uint.
-  if (isa<EncryptedUInt3Type>(result.getType())) {
+  if (usedByLevelledOp(result) && useLevels_) {
     os << llvm::formatv("temp_nodes.insert({0}, {1}.clone());\n",
                         variableNames->getIntForValue(result),
                         variableNames->getNameForValue(result));
@@ -375,12 +464,18 @@ LogicalResult TfheRustEmitter::printOperation(GenerateLookupTableOp op) {
   uint64_t truthTable = op.getTruthTable().getUInt();
   auto result = op.getResult();
 
-  os << "luts.insert(\"" << variableNames->getNameForValue(result) << "\", ";
-
+  if (useLevels_) {
+    os << "luts.insert(\"" << variableNames->getNameForValue(result) << "\", ";
+  } else {
+    emitAssignPrefix(result);
+  }
   os << variableNames->getNameForValue(sks) << ".generate_lookup_table(";
-  os << "|x| (" << std::to_string(truthTable) << " >> x) & 1";
+  os << "|x| (" << std::to_string(truthTable) << " >> x) & 1)";
 
-  os << "));\n";
+  if (useLevels_) {
+    os << ")";
+  }
+  os << ";\n";
   return success();
 }
 
@@ -407,81 +502,8 @@ LogicalResult TfheRustEmitter::printOperation(affine::AffineForOp forOp) {
      << forOp.getConstantUpperBound() << " {\n";
   os.indent();
 
-  auto graph = getGraph(forOp);
-  if (!graph.empty()) {
-    auto sortedGraph = graph.sortGraphByLevels();
-    if (failed(sortedGraph)) {
-      llvm_unreachable("Only possible failure is a cycle in the SSA graph!");
-    }
-    auto levels = sortedGraph.value();
-    // Print lists of operations per level.
-    for (int level = 0; level < levels.size(); ++level) {
-      os << "static LEVEL_" << level << " : [((OpType, usize), &[GateInput]); "
-         << levels[level].size() << "] = [";
-      for (auto &op : levels[level]) {
-        // Print the operation type and its ciphertext args
-        os << llvm::formatv(
-            "(({0}, {1}), &[{2}]), ", operationType(op),
-            variableNames->getIntForValue(op->getResult(0)),
-            commaSeparatedValues(
-                getCiphertextOperands(op->getOperands()), [&](Value value) {
-                  // TODO(#462): This assumes that all ciphertexts are
-                  // loaded into temp_nodes. Currently, block arguments are
-                  // not supported.
-                  return "Tv(" +
-                         std::to_string(variableNames->getIntForValue(value)) +
-                         ")";
-                }));
-      }
-      os << "];\n";
-    }
-
-    // Walk operations of the for loop body until we hit an op besides
-    // GenerateLookupTable, CreateTrivial, or a memref::LoadOp.
-    forOp.getBody()->walk([&](Operation *op) -> WalkResult {
-      return llvm::TypeSwitch<Operation *, WalkResult>(op)
-          .Case<tfhe_rust::GenerateLookupTableOp, tfhe_rust::CreateTrivialOp>(
-              [&](Operation *op) {
-                if (failed(translate(*op))) {
-                  return WalkResult::interrupt();
-                }
-                return WalkResult::advance();
-              })
-          .Case<memref::LoadOp>([&](memref::LoadOp op) {
-            // Insert the result into the temp_nodes hashmap.
-            os << llvm::formatv("temp_nodes.insert({0}, ",
-                                variableNames->getIntForValue(op.getResult()));
-            printLoadOp(op);
-            os << ".clone());\n";
-
-            return WalkResult::advance();
-          })
-          // Note: if these ops are hoisted before the add, shift, and
-          // apply_lookup_table ops, we could interrupt and stop here.
-          .Default([](Operation *) { return WalkResult::advance(); });
-    });
-
-    // Execute each task in the level.
-    for (int level = 0; level < levels.size(); ++level) {
-      os << llvm::formatv(
-          "run_level({1}, &mut temp_nodes, &mut luts, &LEVEL_{0});\n", level,
-          serverKeyArg_);
-    }
-
-    // Store into memrefs by taking the values from temp_nodes.
-    for (memref::StoreOp op : forOp.getBody()->getOps<memref::StoreOp>()) {
-      std::string valueToStore =
-          llvm::formatv("temp_nodes[&{0}].clone()",
-                        variableNames->getIntForValue(op.getValueToStore()));
-      printStoreOp(op, valueToStore);
-    }
-  } else {
-    // Without levelled execution, trasnslate the body operations.
-    for (Operation &op : forOp.getBody()->getOperations()) {
-      if (failed(translate(op))) {
-        return failure();
-      }
-    }
+  if (failed(translateBlock(*forOp.getBody()))) {
+    return forOp.emitOpError() << "Failed to translate for loop block";
   }
 
   os.unindent();
@@ -654,7 +676,20 @@ void TfheRustEmitter::printStoreOp(memref::StoreOp op,
 }
 
 LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {
-  printStoreOp(op, variableNames->getNameForValue(op.getValueToStore()));
+  auto valueToStore = variableNames->getNameForValue(op.getValueToStore());
+
+  if (isLevelledOp(op.getValueToStore().getDefiningOp()) && useLevels_) {
+    valueToStore =
+        llvm::formatv("temp_nodes[&{0}].clone()",
+                      variableNames->getIntForValue(op.getValueToStore()));
+  } else if (isa<tfhe_rust::TfheRustDialect>(
+                 op.getValueToStore().getType().getDialect()) &&
+             !isa<tfhe_rust::TfheRustDialect>(
+                 op.getValueToStore().getDefiningOp()->getDialect())) {
+    valueToStore += ".clone()";
+  }
+
+  printStoreOp(op, valueToStore);
   return success();
 }
 
@@ -687,15 +722,28 @@ void TfheRustEmitter::printLoadOp(memref::LoadOp op) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(memref::LoadOp op) {
-  emitAssignPrefix(op.getResult());
+  // If the load op result is used in a levelled op, insert it into the
+  // temp_nodes map.
+  if (usedByLevelledOp(op) && useLevels_) {
+    os << llvm::formatv("temp_nodes.insert({0}, ",
+                        variableNames->getIntForValue(op.getResult()));
+    printLoadOp(op);
+    os << ".clone());\n";
+  }
 
-  // TODO(#474): Generalize to any encrypted uint.
-  bool isRef = isa<EncryptedUInt3Type>(op.getResult().getType());
-  os << (isRef ? "&" : "");
+  // If any uses are outside the levelled op, also assign it it's SSA value.
+  if (usedByNonLevelledOp(op) || !useLevels_) {
+    emitAssignPrefix(op.getResult());
+    bool isRef =
+        isa<tfhe_rust::TfheRustDialect>(op.getResult().getType().getDialect());
+    bool storeUse = llvm::all_of(op.getResult().getUsers(), [](Operation *op) {
+      return isa<memref::StoreOp>(*op);
+    });
+    os << ((isRef && !storeUse) ? "&" : "");
+    printLoadOp(op);
+    os << ";\n";
+  }
 
-  printLoadOp(op);
-
-  os << ";\n";
   return success();
 }
 
@@ -766,8 +814,9 @@ LogicalResult TfheRustEmitter::emitType(Type type) {
 }
 
 TfheRustEmitter::TfheRustEmitter(raw_ostream &os,
-                                 SelectVariableNames *variableNames)
-    : os(os), variableNames(variableNames) {}
+                                 SelectVariableNames *variableNames,
+                                 bool useLevels)
+    : useLevels_(useLevels), os(os), variableNames(variableNames) {}
 }  // namespace tfhe_rust
 }  // namespace heir
 }  // namespace mlir

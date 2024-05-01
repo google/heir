@@ -1,4 +1,4 @@
-// RUN: heir-translate %s --emit-tfhe-rust | FileCheck %s
+// RUN: heir-translate %s --emit-tfhe-rust --use-levels=False | FileCheck %s
 
 !sks = !tfhe_rust.server_key
 
@@ -11,8 +11,6 @@
 // CHECK-NEXT:   [[input2:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> Ciphertext {
 // CHECK:      let [[v0:.*]] = [[sks]].bitand(&[[input1]], &[[input2]]);
-// CHECK-NEXT: temp_nodes.insert
-// CHECK-SAME:   [[v0]]
 // CHECK-NEXT:   [[v0]]
 // CHECK-NEXT: }
 func.func @test_bitand(%sks : !sks, %input1 : !eui3, %input2 : !eui3) -> !eui3 {
@@ -25,9 +23,7 @@ func.func @test_bitand(%sks : !sks, %input1 : !eui3, %input2 : !eui3) -> !eui3 {
 // CHECK-NEXT:   [[lut:v[0-9]+]]: &LookupTableOwned,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> Ciphertext {
-// CHECK:      let [[v0:.*]] = [[sks]].apply_lookup_table(&[[input]], &luts["[[lut]]"]);
-// CHECK-NEXT: temp_nodes.insert
-// CHECK-SAME:   [[v0]]
+// CHECK:      let [[v0:.*]] = [[sks]].apply_lookup_table(&[[input]], &[[lut]]);
 // CHECK-NEXT:   [[v0]]
 // CHECK-NEXT: }
 func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !eui3 {
@@ -40,13 +36,11 @@ func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !
 // CHECK-NEXT:   [[lut:v[0-9]+]]: &LookupTableOwned,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> Ciphertext {
-// CHECK:   let [[v1:.*]] = [[sks]].apply_lookup_table(&[[input]], &luts["[[lut]]"]);
+// CHECK:   let [[v1:.*]] = [[sks]].apply_lookup_table(&[[input]], &[[lut]]);
 // CHECK:   let [[v2:.*]] = [[sks]].unchecked_add(&[[input]], &[[v1]]);
 // CHECK:   let [[c1:.*]] = 1;
 // CHECK:   let [[v3:.*]] = [[sks]].scalar_left_shift(&[[v2]], [[c1]] as u8);
-// CHECK:   let [[v4:.*]] = [[sks]].apply_lookup_table(&[[v3]], &luts["[[lut]]"]);
-// CHECK-NEXT: temp_nodes.insert
-// CHECK-SAME:   [[v4]]
+// CHECK:   let [[v4:.*]] = [[sks]].apply_lookup_table(&[[v3]], &[[lut]]);
 // CHECK-NEXT:   [[v4]]
 // CHECK-NEXT: }
 func.func @test_apply_lookup_table2(%sks : !sks, %lut: !lut, %input : !eui3) -> !eui3 {
@@ -106,8 +100,6 @@ func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3
   // CHECK-NEXT: let [[v5:.*]] = [[v4]] >> [[v0]];
   // CHECK-NEXT: let [[v6:.*]] = [[v5]] != 0;
   // CHECK-NEXT: let [[v7:.*]] = [[sks]].create_trivial([[v6]] as u64);
-  // CHECK-NEXT: temp_nodes.insert
-  // CHECK-SAME:   [[v7]]
   // CHECK: [[v7]]
 // CHECK-NEXT: }
 func.func @test_plaintext_arith_ops(%sks : !sks, %input : i64) -> (!eui3) {

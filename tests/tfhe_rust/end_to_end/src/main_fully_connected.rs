@@ -1,4 +1,6 @@
 use clap::Parser;
+#[allow(unused_imports)]
+use std::time::Instant;
 use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
 use tfhe::shortint::*;
 
@@ -42,7 +44,13 @@ fn main() {
         get_parameters_from_message_and_carry((1 << flags.message_bits) - 1, flags.carry_bits);
     let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
     let ct_1 = encrypt(flags.input1.into(), &client_key);
+
+    // Code to compute timing info
+    // let t = Instant::now();
     let result = fn_under_test::fn_under_test(&server_key, &ct_1);
+    // let run = t.elapsed().as_millis();
+    // println!("{:?}", run);
+
     let output = decrypt(&result[0][0][0..8], &client_key);
     println!("{:08b}", output);
 }

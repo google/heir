@@ -30,15 +30,21 @@ void registerToTfheRustTranslation();
 
 /// Translates the given operation to TfheRust.
 ::mlir::LogicalResult translateToTfheRust(::mlir::Operation *op,
-                                          llvm::raw_ostream &os);
+                                          llvm::raw_ostream &os,
+                                          bool useLevels);
 
 class TfheRustEmitter {
  public:
-  TfheRustEmitter(raw_ostream &os, SelectVariableNames *variableNames);
+  TfheRustEmitter(raw_ostream &os, SelectVariableNames *variableNames,
+                  bool useLevels);
 
   LogicalResult translate(::mlir::Operation &operation);
+  LogicalResult translateBlock(::mlir::Block &block);
 
  private:
+  // Whether to execute levelled operations in parallel.
+  bool useLevels_;
+
   /// Output stream to emit to.
   raw_indented_ostream os;
 
@@ -72,6 +78,7 @@ class TfheRustEmitter {
   LogicalResult printOperation(ApplyLookupTableOp op);
   LogicalResult printOperation(GenerateLookupTableOp op);
   LogicalResult printOperation(ScalarLeftShiftOp op);
+  LogicalResult emitBlock(::mlir::Operation *op);
 
   // Helpers for above
   LogicalResult printSksMethod(::mlir::Value result, ::mlir::Value sks,

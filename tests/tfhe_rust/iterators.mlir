@@ -9,10 +9,6 @@ module {
   // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
   // CHECK-NEXT:   [[input:v[0-9]+]]: &[i16; 2],
   // CHECK-NEXT: ) -> {{[[][[]}}i8; 8]; 2] {
-  // CHECK-NEXT: let mut temp_nodes : HashMap<usize, Ciphertext> = HashMap::new();
-  // CHECK-NEXT: let mut luts : HashMap<&str, LookupTableOwned> = HashMap::new();
-  // CHECK:      let mut run_level
-
   // CHECK:      let mut [[v1:.*]] : HashMap<(usize, usize), i8> = HashMap::new();
   // CHECK-NEXT: for [[v2:.*]] in 0..2 {
   // CHECK-NEXT:   let [[v3:.*]] = [[input]][[[v2]]];
@@ -44,10 +40,6 @@ module {
   // CHECK-NEXT:   [[input1:v[0-9]+]]: &{{[[][[]}}i8; 16]; 1],
   // CHECK-NEXT:   [[input2:v[0-9]+]]: &{{[[][[]}}i8; 1]; 16],
   // CHECK-NEXT: ) -> {{[[][[]}}i8; 1]; 1] {
-  // CHECK-NEXT: let mut temp_nodes : HashMap<usize, Ciphertext> = HashMap::new();
-  // CHECK-NEXT: let mut luts : HashMap<&str, LookupTableOwned> = HashMap::new();
-  // CHECK:      let mut run_level
-  //
   // CHECK:      let [[v0:.*]] = 29;
   // CHECK-NEXT: let mut [[v1:.*]] : HashMap<(usize, usize), i8> =
   // CHECK-NEXT: for [[v2:.*]] in 0..1 {
