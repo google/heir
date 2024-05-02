@@ -32,3 +32,12 @@ openfhe_end_to_end_test(
     tags = ["notap"],
     test_src = "dot_product_8_test.cpp",
 )
+
+openfhe_end_to_end_test(
+    name = "box_blur_64x64_test",
+    generated_lib_header = "box_blur_64x64_lib.h",
+    heir_opt_flags = "--mlir-to-openfhe-bgv=entry-function=box_blur ciphertext-degree=4096",
+    mlir_src = "box_blur_64x64.mlir",
+    tags = ["notap"],
+    test_src = "box_blur_test.cpp",
+)

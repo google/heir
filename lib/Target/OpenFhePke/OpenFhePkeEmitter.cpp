@@ -378,11 +378,21 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
     // OpenFHE plaintexts must be manually resized to the decoded output size
     // via plaintext->SetLength(<size>);
     auto size = tensorTy.getShape()[0];
-    os << variableNames->getNameForValue(op.getResult()) << "->SetLength("
-       << size << ");\n";
-    emitAutoAssignPrefix(op.getResult());
-    os << variableNames->getNameForValue(op.getInput())
-       << "->GetPackedValue();\n";
+    auto inputVarName = variableNames->getNameForValue(op.getInput());
+    os << inputVarName << "->SetLength(" << size << ");\n";
+
+    std::string tmpVar =
+        variableNames->getNameForValue(op.getResult()) + "_cast";
+    os << "const auto& " << tmpVar << " = ";
+    os << inputVarName << "->GetPackedValue();\n";
+
+    auto outputVarName = variableNames->getNameForValue(op.getResult());
+    if (failed(emitType(tensorTy))) {
+      return failure();
+    }
+    os << " " << outputVarName << "(std::begin(" << tmpVar << "), std::end("
+       << tmpVar << "));\n";
+
     return success();
   }
 
