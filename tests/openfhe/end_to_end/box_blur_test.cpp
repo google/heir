@@ -24,7 +24,10 @@ namespace openfhe {
 TEST(BinopsTest, TestInput1) {
   CCParams<CryptoContextBGVRNS> parameters;
   parameters.SetMultiplicativeDepth(2);
-  parameters.SetPlaintextModulus(65537);
+  // needs to be large enough to accommodate overflow in the plaintext space
+  // 786433 is the smallest prime p above 2**17 for which (p-1) / 65536 is an
+  // integer.
+  parameters.SetPlaintextModulus(786433);
   CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
   cryptoContext->Enable(PKE);
   cryptoContext->Enable(KEYSWITCH);
@@ -45,16 +48,7 @@ TEST(BinopsTest, TestInput1) {
 
   // TODO(#645): support cyclic repetition in add-client-interface
   for (int i = 0; i < n; ++i) {
-    // TODO(#669): investigate failure due to int16_t overflow
-    //
-    // figure out why tests fail when this changes to
-    //
-    //   input.push_back(i % 4096);
-    //
-    // all unequal values are negative and exactly off-by-one, suggesting
-    // a problem with overflow. Perhaps my use of a cast to int16_t
-    // during decoding?
-    input.push_back(i % 32);
+    input.push_back(i % 4096);
   }
 
   for (int row = 0; row < 64; ++row) {
