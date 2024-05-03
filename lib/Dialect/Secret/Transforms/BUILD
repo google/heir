@@ -103,15 +103,6 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "absorb_constants_generic",
-    hdrs = ["AbsorbConstantsGeneric.h"],
-    deps = [
-        ":pass_inc_gen",
-        "@llvm-project//mlir:Pass",
-    ],
-)
-
 gentbl_cc_library(
     name = "pass_inc_gen",
     tbl_outs = [
