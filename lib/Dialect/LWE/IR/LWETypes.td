@@ -5,7 +5,7 @@ include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWEAttributes.td"
 
 include "mlir/IR/DialectBase.td"
-include "mlir/IR/BuiltinTypes.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 
 // A base class for all types in this dialect

@@ -6,7 +6,6 @@ include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "lib/Dialect/RNS/IR/RNSTypeInterfaces.td"
 
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/DialectBase.td"
 
 // A base class for all types in this dialect

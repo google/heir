@@ -4,7 +4,7 @@
 include "TfheRustBoolDialect.td"
 
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/IR/BuiltinTypes.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
