@@ -41,3 +41,12 @@ openfhe_end_to_end_test(
     tags = ["notap"],
     test_src = "box_blur_test.cpp",
 )
+
+openfhe_end_to_end_test(
+    name = "roberts_cross_64x64_test",
+    generated_lib_header = "roberts_cross_64x64_lib.h",
+    heir_opt_flags = "--mlir-to-openfhe-bgv=entry-function=roberts_cross ciphertext-degree=4096",
+    mlir_src = "roberts_cross_64x64.mlir",
+    tags = ["notap"],
+    test_src = "roberts_cross_test.cpp",
+)
