@@ -4884,7 +4884,7 @@ useful for target materialization in the dialect conversion framework.&lt;/p>
 &lt;h3 id="secretseparator-heirsecretseparatorop">&lt;code>secret.separator&lt;/code> (heir::secret::SeparatorOp)&lt;/h3>
 &lt;p>&lt;em>Convert a non-secret value into a secret&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.separator` attr-dict
+&lt;pre tabindex="0">&lt;code>operation ::= `secret.separator` attr-dict ($inputs^ `:` type($inputs))?
 &lt;/code>&lt;/pre>&lt;p>This operation is used as a separation boundary between logical subunits of
 the module. This is used in conjunction with
 &lt;code>--secret-distribute-generic=distribute-through=secret.separator&lt;/code> to break a
@@ -4893,8 +4893,28 @@ analyze and optimize the sub-units locally.&lt;/p>
 &lt;p>In order to allow bufferization of modules with this operation, we must
 register a (bogus) memory effect that also prevents this operation from
 being trivially dead during operation folding.&lt;/p>
+&lt;p>This operation also accepts operands, which act as boundaries between the
+logical units. This enforces separation of memref and affine optimizations
+between the subunits, preventing optimizations from removing the operand and
+combining the two separated regions. The operand can be thought of as an
+return value of the logical subunit.&lt;/p>
 &lt;p>Interfaces: &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Write on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
+&lt;td>variadic of any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="secretyield-heirsecretyieldop">&lt;code>secret.yield&lt;/code> (heir::secret::YieldOp)&lt;/h3>
 &lt;p>&lt;em>Secret yield operation&lt;/em>&lt;/p>
 &lt;p>&lt;code>secret.yield&lt;/code> is a special terminator operation for blocks inside regions
@@ -4904,7 +4924,7 @@ generic op.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>HasParent&amp;lt;GenericOp&amp;gt;&lt;/code>, &lt;code>ReturnLike&lt;/code>, &lt;code>Terminator&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>RegionBranchTerminatorOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
