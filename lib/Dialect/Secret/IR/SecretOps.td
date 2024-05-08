@@ -27,9 +27,16 @@ def Secret_SeparatorOp : Secret_Op<"separator", [MemoryEffects<[MemWrite]>]> {
     In order to allow bufferization of modules with this operation, we must
     register a (bogus) memory effect that also prevents this operation from
     being trivially dead during operation folding.
-  }];
 
-  let assemblyFormat = "attr-dict";
+    This operation also accepts operands, which act as boundaries between the
+    logical units. This enforces separation of memref and affine optimizations
+    between the subunits, preventing optimizations from removing the operand and
+    combining the two separated regions. The operand can be thought of as an
+    return value of the logical subunit.
+  }];
+  let arguments = (ins Variadic<AnyType>:$inputs);
+
+  let assemblyFormat = "attr-dict ($inputs^ `:` type($inputs))?";
 }
 
 def Secret_ConcealOp : Secret_Op<"conceal", [Pure]> {

@@ -103,6 +103,22 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "BufferizableOpInterface",
+    srcs = [
+        "BufferizableOpInterfaceImpl.cpp",
+    ],
+    hdrs = [
+        "BufferizableOpInterfaceImpl.h",
+    ],
+    deps = [
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//mlir:BufferizationInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 gentbl_cc_library(
     name = "pass_inc_gen",
     tbl_outs = [

@@ -56,6 +56,7 @@ cc_binary(
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/Secret/Transforms",
+        "@heir//lib/Dialect/Secret/Transforms:BufferizableOpInterface",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/Transforms",

@@ -24,6 +24,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Dialect/Secret/Transforms/Passes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -536,6 +537,9 @@ int main(int argc, char **argv) {
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
   registerSecretToBGVPasses();
+
+  // Interfaces in HEIR
+  secret::registerBufferizableOpInterfaceExternalModels(registry);
 
   PassPipelineRegistration<>("heir-tosa-to-arith",
                              "Run passes to lower TOSA models with stripped "
