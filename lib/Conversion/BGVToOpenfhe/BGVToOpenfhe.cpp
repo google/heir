@@ -343,7 +343,7 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
 
     auto ctTy = op.getInput().getType();
     auto ring = ctTy.getRlweParams().getRing();
-    auto degree = ring.getIdeal().getDegree();
+    auto degree = ring.getPolynomialModulus().getPolynomial().getDegree();
     auto elementTy =
         dyn_cast<IntegerType>(op.getOutput().getType().getUnderlyingType());
     if (!elementTy) {

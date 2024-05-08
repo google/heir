@@ -8,19 +8,19 @@
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
-#cycl = #_polynomial.polynomial<1 + x**4>
-#ring = #_polynomial.ring<cmod=7681, ideal=#cycl, root=1925>
-!poly_ty = !_polynomial.polynomial<#ring>
+#cycl = #polynomial.int_polynomial<1 + x**4>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl>
+#root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
+!poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func @test_poly_ntt() {
-  %coeffs = arith.constant dense<[1,2,3,4]> : tensor<4xi13>
-  %poly = _polynomial.from_tensor %coeffs : tensor<4xi13> -> !poly_ty
-  %0 = _polynomial.ntt %poly : !poly_ty -> tensor<4xi13, #ring>
+  %coeffs = arith.constant dense<[1,2,3,4]> : tensor<4xi32>
+  %poly = polynomial.from_tensor %coeffs : tensor<4xi32> -> !poly_ty
+  %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<4xi32, #ring>
 
-  %1 = tensor.cast %0 : tensor<4xi13, #ring> to tensor<4xi13>
-  %2 = arith.extui %1 : tensor<4xi13> to tensor<4xi32>
-  %3 = bufferization.to_memref %2 : memref<4xi32>
-  %U = memref.cast %3 : memref<4xi32> to memref<*xi32>
+  %1 = tensor.cast %0 : tensor<4xi32, #ring> to tensor<4xi32>
+  %2 = bufferization.to_memref %1 : memref<4xi32>
+  %U = memref.cast %2 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }

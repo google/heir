@@ -14,7 +14,7 @@ def PolynomialToStandard : Pass<"polynomial-to-standard", "ModuleOp"> {
     "mlir::LLVM::LLVMDialect",
     "mlir::arith::ArithDialect",
     "mlir::func::FuncDialect",
-    "mlir::heir::polynomial::PolynomialDialect",
+    "mlir::polynomial::PolynomialDialect",
     "mlir::linalg::LinalgDialect",
     "mlir::scf::SCFDialect",
     "mlir::tensor::TensorDialect",

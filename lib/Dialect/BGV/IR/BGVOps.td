@@ -7,7 +7,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 
 include "lib/Dialect/LWE/IR/LWETypes.td"
-include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
+include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
 def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
   let cppNamespace = "::mlir::heir::lwe";
@@ -199,7 +199,7 @@ def BGV_ModulusSwitch : BGV_Op<"modulus_switch"> {
 
   let arguments = (ins
     RLWECiphertext:$input,
-    Ring_Attr:$to_ring
+    Polynomial_RingAttr:$to_ring
   );
 
   let results = (outs

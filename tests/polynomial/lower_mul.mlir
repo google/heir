@@ -1,8 +1,8 @@
 // RUN: heir-opt --polynomial-to-standard --split-input-file %s | FileCheck %s
 
-#cycl_2048 = #_polynomial.polynomial<1 + x**1024>
-#ring = #_polynomial.ring<cmod=4294967296, ideal=#cycl_2048>
-!poly_ty = !_polynomial.polynomial<#ring>
+#cycl_2048 = #polynomial.int_polynomial<1 + x**1024>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 4294967296 : i64, polynomialModulus=#cycl_2048>
+!poly_ty = !polynomial.polynomial<ring=#ring>
 
 // CHECK: #[[LHS_MAP:.*]] = affine_map<(d0, d1) -> (d0)>
 // CHECK: #[[RHS_MAP:.*]] = affine_map<(d0, d1) -> (d1)>
@@ -86,41 +86,41 @@
 // CHECK: }
 
 func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
-  %poly2 = _polynomial.mul(%poly0, %poly1) : !poly_ty
+  %poly2 = polynomial.mul %poly0, %poly1 : !poly_ty
   return %poly2 : !poly_ty
 }
 
 // -----
 
-// We then also want to test a non-machine-word sized modulus
+// Test a non-machine-word sized modulus to ensure it remsi's correctly
 
-#cycl_2048 = #_polynomial.polynomial<1 + x**1024>
-#ring = #_polynomial.ring<cmod=18, ideal=#cycl_2048>
-!poly_ty = !_polynomial.polynomial<#ring>
+#cycl_2048 = #polynomial.int_polynomial<1 + x**1024>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 18 : i32, polynomialModulus=#cycl_2048>
+!poly_ty = !polynomial.polynomial<ring=#ring>
 
 // CHECK: #[[LHS_MAP:.*]] = affine_map<(d0, d1) -> (d0)>
 // CHECK: #[[RHS_MAP:.*]] = affine_map<(d0, d1) -> (d1)>
 // CHECK: #[[OUTPUT_MAP:.*]] = affine_map<(d0, d1) -> (d0 + d1)>
 
-// CHECK: func.func @lower_poly_mul(%[[poly0:.*]]: [[INPUT_TENSOR_TY:tensor<1024xi5>]], %[[poly1:.*]]: [[INPUT_TENSOR_TY]]) -> [[INPUT_TENSOR_TY]] {
-// CHECK:      %[[POLYMUL_OUTPUT:.*]] = arith.constant dense<0> : [[POLYMUL_TENSOR_TY:tensor<2047xi5>]]
-// CHECK:      %[[CMOD:.*]] = arith.constant 18 : i10
+// CHECK: func.func @lower_poly_mul(%[[poly0:.*]]: [[INPUT_TENSOR_TY:tensor<1024xi32>]], %[[poly1:.*]]: [[INPUT_TENSOR_TY]]) -> [[INPUT_TENSOR_TY]] {
+// CHECK:      %[[POLYMUL_OUTPUT:.*]] = arith.constant dense<0> : [[POLYMUL_TENSOR_TY:tensor<2047xi32>]]
+// CHECK:      %[[CMOD:.*]] = arith.constant 18 : i64
 // CHECK:      %[[GENERIC_RESULT:.*]] = linalg.generic
 // CHECK-SAME:     indexing_maps = [#[[LHS_MAP]], #[[RHS_MAP]], #[[OUTPUT_MAP]]]
 // CHECK-SAME:     iterator_types = ["parallel", "parallel"]
 // CHECK-SAME:     ins(%[[generic_arg0:.*]], %[[generic_arg1:.*]] : [[INPUT_TENSOR_TY]], [[INPUT_TENSOR_TY]])
 // CHECK-SAME:     outs(%[[POLYMUL_OUTPUT]] : [[POLYMUL_TENSOR_TY]])
-// CHECK:     ^[[BB0:.*]](%[[LHS_IN:.*]]: i5, %[[RHS_IN:.*]]: i5, %[[OUT:.*]]: i5):
-// CHECK:       %[[LHS_EXT:.*]] = arith.extsi %[[LHS_IN]] : i5 to i10
-// CHECK:       %[[RHS_EXT:.*]] = arith.extsi %[[RHS_IN]] : i5 to i10
-// CHECK:       %[[OUT_EXT:.*]] = arith.extsi %[[OUT]] : i5 to i10
-// CHECK:       %[[MULTED:.*]] = arith.muli %[[LHS_EXT]], %[[RHS_EXT]] : i10
-// CHECK:       %[[SUMMED:.*]] = arith.addi %[[MULTED]], %[[OUT_EXT]] : i10
-// CHECK:       %[[MODDED:.*]] = arith.remsi %[[SUMMED]], %[[CMOD]] : i10
-// CHECK:       %[[ADDCMOD:.*]] = arith.addi %[[MODDED]], %[[CMOD]] : i10
-// CHECK:       %[[CONGRUENT:.*]] = arith.remsi %[[ADDCMOD]], %[[CMOD]] : i10
-// CHECK:       %[[RESULT:.*]] = arith.trunci %[[CONGRUENT]] : i10 to i5
-// CHECK:       linalg.yield %[[RESULT]] : i5
+// CHECK:     ^[[BB0:.*]](%[[LHS_IN:.*]]: i32, %[[RHS_IN:.*]]: i32, %[[OUT:.*]]: i32):
+// CHECK:       %[[LHS_EXT:.*]] = arith.extsi %[[LHS_IN]] : i32 to i64
+// CHECK:       %[[RHS_EXT:.*]] = arith.extsi %[[RHS_IN]] : i32 to i64
+// CHECK:       %[[OUT_EXT:.*]] = arith.extsi %[[OUT]] : i32 to i64
+// CHECK:       %[[MULTED:.*]] = arith.muli %[[LHS_EXT]], %[[RHS_EXT]] : i64
+// CHECK:       %[[SUMMED:.*]] = arith.addi %[[MULTED]], %[[OUT_EXT]] : i64
+// CHECK:       %[[MODDED:.*]] = arith.remsi %[[SUMMED]], %[[CMOD]] : i64
+// CHECK:       %[[ADDCMOD:.*]] = arith.addi %[[MODDED]], %[[CMOD]] : i64
+// CHECK:       %[[CONGRUENT:.*]] = arith.remsi %[[ADDCMOD]], %[[CMOD]] : i64
+// CHECK:       %[[RESULT:.*]] = arith.trunci %[[CONGRUENT]] : i64 to i32
+// CHECK:       linalg.yield %[[RESULT]] : i32
 // CHECK:     } -> [[POLYMUL_TENSOR_TY]]
 // CHECK:     %[[MODDED_RESULT:.*]] = call @__heir_poly_mod_18_1_x1024(%[[GENERIC_RESULT]]) : ([[POLYMUL_TENSOR_TY]]) -> [[INPUT_TENSOR_TY]]
 // CHECK:     return
@@ -131,6 +131,6 @@ func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
 // CHECK: }
 
 func.func @lower_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
-  %poly = _polynomial.mul(%poly0, %poly1) : !poly_ty
+  %poly = polynomial.mul %poly0, %poly1 : !poly_ty
   return %poly : !poly_ty
 }

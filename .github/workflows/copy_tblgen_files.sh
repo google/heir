@@ -112,6 +112,12 @@ EOF
     # Include all other markdown files not included in the grouping above.
     for SRC_PATH in "${!markdown_files[@]}"
     do
+      if [ ! -f $SRC_PATH ]
+      then
+        unset markdown_files[$SRC_PATH]
+        continue
+      fi
+
       cat "$SRC_PATH" >> "$DEST_PATH" && unset markdown_files[$SRC_PATH]
     done
   fi

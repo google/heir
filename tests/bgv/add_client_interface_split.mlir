@@ -1,10 +1,10 @@
 // RUN: heir-opt '--bgv-add-client-interface=use-public-key=true one-value-per-helper-fn=true' %s | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
-#params = #lwe.rlwe_params<ring = <cmod=463187969, ideal=#_polynomial.polynomial<1 + x**8>>>
+#params = #lwe.rlwe_params<ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**8>>>
 !in_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = tensor<8xi16>>
 !out_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = i16>
-!mul_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <dimension = 3, ring = <cmod=463187969, ideal=#_polynomial.polynomial<1 + x**8>>>, underlying_type = tensor<8xi16>>
+!mul_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <dimension = 3, ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**8>>>, underlying_type = tensor<8xi16>>
 
 func.func @dot_product(%arg0: !in_ty, %arg1: !in_ty) -> (!out_ty, !out_ty) {
   %c1 = arith.constant 1 : index

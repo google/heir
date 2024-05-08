@@ -4,7 +4,6 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/PolyExt/IR/PolyExtDialect.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
@@ -14,9 +13,10 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"          // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
-#include "mlir/include/mlir/InitAllDialects.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"  // from @llvm-project
+#include "mlir/include/mlir/InitAllDialects.h"          // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-lsp-server/MlirLspServerMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 
@@ -31,8 +31,6 @@ int main(int argc, char **argv) {
   registry.insert<lwe::LWEDialect>();
   registry.insert<cggi::CGGIDialect>();
   registry.insert<poly_ext::PolyExtDialect>();
-  // Ignored while polynomial is being upstreamed
-  // registry.insert<::mlir::heir::polynomial::PolynomialDialect>();
   registry.insert<secret::SecretDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();

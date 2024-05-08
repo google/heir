@@ -3,7 +3,7 @@
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
-include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
+include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -126,7 +126,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [Pure, HasEncoding<"output", "encod
   let arguments = (ins
     SignlessIntegerLike:$input,
     AnyRLWEEncodingAttr:$encoding,
-    Ring_Attr:$ring
+    Polynomial_RingAttr:$ring
   );
 
   let results = (outs RLWEPlaintext:$output);
@@ -140,7 +140,7 @@ def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [
   let arguments = (ins
     RLWEPlaintext:$input,
     AnyRLWEEncodingAttr:$encoding,
-    Ring_Attr:$ring
+    Polynomial_RingAttr:$ring
   );
 
   let results = (outs SignlessIntegerLike:$output);

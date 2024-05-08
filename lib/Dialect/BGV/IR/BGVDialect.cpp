@@ -100,11 +100,15 @@ LogicalResult ModulusSwitch::verify() {
   if (outRing != getToRing()) {
     return emitOpError() << "output ring should match to_ring";
   }
-  if (xRing.getCmod().getValue().ule(outRing.getCmod().getValue())) {
+  if (xRing.getCoefficientModulus().getValue().ule(
+          outRing.getCoefficientModulus().getValue())) {
     return emitOpError()
            << "output ring modulus should be less than the input ring modulus";
   }
-  if (!xRing.getCmod().getValue().urem(outRing.getCmod().getValue()).isZero()) {
+  if (!xRing.getCoefficientModulus()
+           .getValue()
+           .urem(outRing.getCoefficientModulus().getValue())
+           .isZero()) {
     return emitOpError()
            << "output ring modulus should divide the input ring modulus";
   }

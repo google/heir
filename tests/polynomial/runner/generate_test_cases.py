@@ -43,15 +43,15 @@ def test_setup(i: int):
 #  - expected
 #  - coefficient_list
 TEST_TEMPLATE = """
-#ideal_{{test_number}} = #polynomial.polynomial<{{ideal}}>
-#ring_{{test_number}} = #polynomial.ring<cmod={{cmod}}, ideal=#ideal_{{test_number}}>
-!poly_ty_{{test_number}} = !polynomial.polynomial<#ring_{{test_number}}>
+#ideal_{{test_number}} = #polynomial.int_polynomial<{{ideal}}>
+#ring_{{test_number}} = #polynomial.ring<coefficientType = i32, coefficientModulus={{cmod}} : {{cmod_type}}, polynomialModulus=#ideal_{{test_number}}>
+!poly_ty_{{test_number}} = !polynomial.polynomial<ring=#ring_{{test_number}}>
 
 func.func @test_{{test_number}}() {{{{
   %const0 = arith.constant 0 : index
-  %0 = polynomial.constant <{{p0}}> : !poly_ty_{{test_number}}
-  %1 = polynomial.constant <{{p1}}> : !poly_ty_{{test_number}}
-  %2 = polynomial.mul(%0, %1) : !poly_ty_{{test_number}}
+  %0 = polynomial.constant int<{{p0}}> : !poly_ty_{{test_number}}
+  %1 = polynomial.constant int<{{p1}}> : !poly_ty_{{test_number}}
+  %2 = polynomial.mul %0, %1 : !poly_ty_{{test_number}}
 
 {gen_tensor_op}
   %ref = bufferization.to_memref %tensor : memref<{{degree}}xi32>
@@ -149,13 +149,15 @@ def parse_to_sympy(poly_str: str, var: sympy.Symbol, cmod: int):
     poly += coeff * var**degree
   return poly.as_poly(domain=f'ZZ[{cmod}]')
 
-def emulate_extsi(x, cmod):
-  bitwidth = 1 if cmod == 0 else math.log2(cmod)
-  # bitwidth.is_integer() will denote if bitwidth is a power of 2
-  bitwidth = int(bitwidth) if bitwidth.is_integer() else int(bitwidth) + 1
-  cst = 1 << (bitwidth - 1)
-  negate = (x & cst) > 0 # most significant bit is set so negate
-  return x if not negate else x - (1 << bitwidth)
+
+def make_coset_regex(x, cmod):
+  """Return a regex that matches x or x +/- cmod."""
+  if x == 0:
+      return '0'
+  if x < 0:
+    return '{{' + f'({x}|{cmod + x})' + '}}'
+  return '{{' + f'({x}|{x - cmod})' + '}}'
+
 
 def main(args: argparse.Namespace) -> None:
   if not args.tests_toml_path:
@@ -180,9 +182,9 @@ def main(args: argparse.Namespace) -> None:
   print(f'Generating {test_count} tests...')
   output_tests = []
   for i, test in enumerate(tests):
-    (ideal, cmod, p0, p1, container_type) = (
+    (ideal, cmod, p0, p1, cmod_type, coefficient_type) = (
         get_key_or_err(test, s)
-        for s in ['ideal', 'cmod', 'p0', 'p1', 'container_type']
+        for s in ['ideal', 'cmod', 'p0', 'p1', 'cmod_type', 'coefficient_type']
     )
 
     x = sympy.Symbol('x')
@@ -198,6 +200,7 @@ def main(args: argparse.Namespace) -> None:
     )
     coeff_list_len = parsed_ideal.degree()
     expected_coeffs = list(reversed(expected_remainder.all_coeffs()))
+    container_width = int(coefficient_type[1:])
 
     # For whatever reason, sympy won't preserve the domain of the coefficients
     # after `rem`, so I have to manually convert any fractional coefficients to
@@ -207,17 +210,22 @@ def main(args: argparse.Namespace) -> None:
         domain_p = domain.convert(exp_coeff.p)
         domain_q = domain.convert(sympy.mod_inverse(exp_coeff.q, cmod))
         result = (domain_p * domain_q) % cmod
-        expected_coeffs[j] = result
-      elif exp_coeff.is_integer and 2 * abs(exp_coeff) >= cmod:
-        modded = exp_coeff % cmod
-        expected_coeffs[j] = emulate_extsi(modded, cmod)
+        result = int(str(result))
+      elif exp_coeff.is_integer:
+        result = exp_coeff % cmod
+      expected_coeffs[j] = result
+
+    # Allow tests to produce either of two valid coset representatives: the
+    # positive or negative one.
+    # This is because I can't seem to nail down how remsi instructions produce
+    # an output.
+    expected_coeffs = [make_coset_regex(coeff, cmod) for coeff in expected_coeffs]
+    coefficient_list_regex = ', '.join(expected_coeffs)
 
     if len(expected_coeffs) < coeff_list_len:
       expected_coeffs = expected_coeffs + [0] * (
           coeff_list_len - len(expected_coeffs)
       )
-
-    container_width = int(container_type[1:])
 
     output_tests.append(
         '\n'.join([
@@ -225,13 +233,14 @@ def main(args: argparse.Namespace) -> None:
             make_test_template(container_width).format(
                 ideal=ideal,
                 cmod=cmod,
+                cmod_type=cmod_type,
                 p0=p0,
                 p1=p1,
                 test_number=i,
-                container_type=container_type,
+                container_type=coefficient_type,
                 degree=parsed_ideal.degree(),
                 expected=expected_remainder,
-                coefficient_list=expected_coeffs,
+                coefficient_list=coefficient_list_regex,
             ),
         ])
     )
