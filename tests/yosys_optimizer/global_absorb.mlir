@@ -6,7 +6,7 @@
 
 module attributes {tf_saved_model.semantics} {
   // Use a weight vector with multiple weights to avoid constant folding.
-  memref.global "private" constant @__constant_1xi8 : memref<2xi8> = dense<[2, 3]> {alignment = 64 : i64}
+  memref.global "private" constant @__constant_1xi8 : memref<2xi8> = dense<[3, 2]> {alignment = 64 : i64}
   func.func @global_mul_32(%arg0 : !secret.secret<memref<1xi8>>, %weight : i8) -> (!secret.secret<memref<1xi8>>, !secret.secret<memref<1xi8>>) {
     // Generic 8-bit multiplication
     // CHECK: secret.generic

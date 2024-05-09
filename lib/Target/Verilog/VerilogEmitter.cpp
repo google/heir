@@ -26,6 +26,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
@@ -87,9 +88,14 @@ void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
   auto iType = dyn_cast<IntegerType>(attr.getElementType());
   assert(iType);
 
-  ArrayRef<char> rawData = attr.getRawData();
-  os << iType.getWidth() * attr.size() << "'h"
-     << llvm::toHex(StringRef(rawData.data(), rawData.size()));
+  int32_t hexWidth = iType.getWidth() / 4;
+  os << iType.getWidth() * attr.size() << "'h";
+  auto attrIt = attr.value_end<APInt>();
+  for (uint64_t i = 0; i < attr.size(); ++i) {
+    llvm::SmallString<40> s;
+    (*--attrIt).toString(s, 16, false);
+    os << std::string(hexWidth - s.str().size(), '0') << s;
+  }
 }
 
 llvm::SmallString<128> variableLoadStr(
@@ -657,10 +663,24 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineLoadOp op) {
         << flattenedBitIndex << "];\n";
   } else {
     emitAssignPrefix(op.getResult());
-
+    OpBuilder builder(op->getContext());
+    auto indices = affine::expandAffineMap(builder, op->getLoc(), op.getMap(),
+                                           op.getIndices());
+    if (!indices.has_value()) {
+      return failure();
+    }
+    for (auto index : indices.value()) {
+      // We could avoid this constraint by printing the tree of defining
+      // operations of the indices built by the affine map expander. For now,
+      // this likely suffices.
+      if (!value_to_wire_name_.contains(index) &&
+          !dyn_cast_or_null<arith::ConstantOp>(index.getDefiningOp())) {
+        return failure();
+      }
+    }
     os_ << memrefStr << "["
         << variableLoadStr(
-               op.getMemRefType(), op.getIndices(), width,
+               op.getMemRefType(), indices.value(), width,
                [&](Value value) { return getOrCreateName(value).str(); })
         << "];\n";
   }
@@ -755,9 +775,24 @@ LogicalResult VerilogEmitter::printOperation(affine::AffineStoreOp op) {
         << flattenedBitIndex + width - 1 << " : " << flattenedBitIndex
         << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
   } else {
+    OpBuilder builder(op->getContext());
+    auto indices = affine::expandAffineMap(builder, op->getLoc(), op.getMap(),
+                                           op.getIndices());
+    if (!indices.has_value()) {
+      return failure();
+    }
+    for (auto index : indices.value()) {
+      // We could avoid this constraint by printing the tree of defining
+      // operations of the indices built by the affine map expander. For now,
+      // this likely suffices.
+      if (!value_to_wire_name_.contains(index) &&
+          !dyn_cast_or_null<arith::ConstantOp>(index.getDefiningOp())) {
+        return failure();
+      }
+    }
     os_ << "assign " << getOrCreateName(op.getMemref()) << "["
         << variableLoadStr(
-               op.getMemRefType(), op.getIndices(), width,
+               op.getMemRefType(), indices.value(), width,
                [&](Value value) { return getOrCreateName(value).str(); })
         << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
   }
