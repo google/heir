@@ -3,25 +3,30 @@
 #include <algorithm>
 #include <cassert>
 #include <optional>
+#include <string>
 
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
@@ -661,6 +666,66 @@ void genericAbsorbConstants(secret::GenericOp genericOp,
     }
     return WalkResult::advance();
   });
+}
+
+LogicalResult extractGenericBody(secret::GenericOp genericOp,
+                                 mlir::IRRewriter &rewriter) {
+  auto module = genericOp->getParentOfType<ModuleOp>();
+  if (!module) {
+    return failure();
+  }
+
+  SmallVector<Operation *> opsToCopy;
+  for (auto &op : genericOp.getBody()->getOperations()) {
+    if (isa<secret::YieldOp>(op)) {
+      continue;
+    }
+    opsToCopy.push_back(&op);
+  }
+
+  auto yieldOp = genericOp.getYieldOp();
+  auto inputTypes = genericOp.getBody()->getArgumentTypes();
+  auto inputs = genericOp.getBody()->getArguments();
+  auto resultTypes = genericOp.getBody()->getTerminator()->getOperandTypes();
+
+  OpBuilder builder(module);
+  builder.setInsertionPoint(genericOp->getParentOfType<func::FuncOp>());
+  auto type = builder.getFunctionType(inputTypes, resultTypes);
+  std::string funcName = llvm::formatv(
+      "internal_generic_{0}", mlir::hash_value(yieldOp.getValues()[0]));
+  auto func = builder.create<func::FuncOp>(module.getLoc(), funcName, type);
+
+  // Populate function body by cloning the ops in the inner body and mapping
+  // the func args and func outputs.
+  Block *block = func.addEntryBlock();
+  builder.setInsertionPointToEnd(block);
+
+  // Map the input values to the block arguments.
+  IRMapping mp;
+  for (int index = 0; index < inputs.size(); ++index) {
+    mp.map(inputs[index], block->getArgument(index));
+  }
+
+  for (auto &op : opsToCopy) {
+    builder.clone(*op, mp);
+  }
+
+  auto returnOperands = llvm::to_vector(
+      llvm::map_range(yieldOp.getOperands(),
+                      [&](Value operand) { return mp.lookup(operand); }));
+  builder.create<func::ReturnOp>(func.getLoc(), returnOperands);
+
+  // Call the function.
+  builder.setInsertionPointToStart(genericOp.getBody());
+  auto callOp = builder.create<func::CallOp>(genericOp.getLoc(), func, inputs);
+  rewriter.modifyOpInPlace(
+      yieldOp, [&]() { yieldOp->setOperands(callOp.getResults()); });
+
+  for (auto &op : llvm::reverse(opsToCopy)) {
+    rewriter.eraseOp(op);
+  }
+
+  return success();
 }
 
 }  // namespace secret

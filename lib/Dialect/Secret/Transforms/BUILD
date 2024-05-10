@@ -13,6 +13,7 @@ cc_library(
     deps = [
         ":CaptureGenericAmbientScope",
         ":DistributeGeneric",
+        ":ExtractGenericBody",
         ":ForgetSecrets",
         ":GenericAbsorbConstants",
         ":MergeAdjacentGenerics",
@@ -116,6 +117,22 @@ cc_library(
         "@llvm-project//mlir:BufferizationInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "ExtractGenericBody",
+    srcs = ["ExtractGenericBody.cpp"],
+    hdrs = [
+        "ExtractGenericBody.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 

@@ -70,4 +70,19 @@ def SecretGenericAbsorbConstants : Pass<"secret-generic-absorb-constants"> {
   let dependentDialects = ["mlir::heir::secret::SecretDialect"];
 }
 
+def SecretExtractGenericBody : Pass<"secret-extract-generic-body"> {
+  let summary = "Extract the bodies of all generic ops into functions";
+  let description = [{
+    This pass extracts the body of all generic ops into functions, and
+    replaces the generic bodies with call ops. Used as a sub-operation in
+    some passes, and extracted into its own pass for testing purposes.
+
+    This pass works best when `--secret-generic-absorb-constants` is run
+    before it so that the extracted function contains any constants used
+    in the generic op's body.
+  }];
+  let dependentDialects = ["mlir::heir::secret::SecretDialect"];
+}
+
+
 #endif  // LIB_DIALECT_SECRET_TRANSFORMS_PASSES_TD_
