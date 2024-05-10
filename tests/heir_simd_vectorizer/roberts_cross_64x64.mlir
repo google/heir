@@ -7,16 +7,18 @@ module{
   // CHECK-LABEL: @roberts_cross
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<4096xi16>>) -> !secret.secret<tensor<4096xi16>> {
   // CHECK-NEXT: %[[cMinusOne:.*]] = arith.constant 4095 : index
-  // CHECK-NEXT: %[[cMinusRow:.*]] = arith.constant 4031 : index
+  // CHECK-NEXT: %[[cMinusRow:.*]] = arith.constant 4032 : index
+  // CHECK-NEXT: %[[cMinusRowMinusOne:.*]] = arith.constant 4031 : index
   // CHECK-NEXT: secret.generic ins(%[[arg0]] : !secret.secret<tensor<4096xi16>>) {
   // CHECK-NEXT:  ^bb0(%[[arg1:.*]]: tensor<4096xi16>):
-  // CHECK-NEXT:    %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[cMinusRow]]
+  // CHECK-NEXT:    %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[cMinusRowMinusOne]]
   // CHECK-NEXT:    %[[v2:.*]] = arith.subi %[[v1]], %[[arg1]]
-  // CHECK-NEXT:    %[[v3:.*]] = tensor_ext.rotate %[[arg1]], %[[cMinusOne]]
-  // CHECK-NEXT:    %[[v4:.*]] = arith.subi %[[v1]], %[[v3]]
-  // CHECK-DAG:     %[[v5:.*]] = arith.muli %[[v2]], %[[v2]]
-  // CHECK-DAG:     %[[v6:.*]] = arith.muli %[[v4]], %[[v4]]
-  // CHECK-NEXT:    %[[v7:.*]] = arith.addi %[[v5]], %[[v6]]
+  // CHECK-NEXT:    %[[v3:.*]] = tensor_ext.rotate %[[arg1]], %[[cMinusRow]]
+  // CHECK-NEXT:    %[[v4:.*]] = tensor_ext.rotate %[[arg1]], %[[cMinusOne]]
+  // CHECK-NEXT:    %[[v5:.*]] = arith.subi %[[v3]], %[[v4]]
+  // CHECK-DAG:     %[[v6:.*]] = arith.muli %[[v5]], %[[v5]]
+  // CHECK-DAG:     %[[v7:.*]] = arith.muli %[[v2]], %[[v2]]
+  // CHECK-NEXT:    %[[v8:.*]] = arith.addi %[[v7]], %[[v6]]
   func.func @roberts_cross(%img: tensor<4096xi16>) -> tensor<4096xi16> {
     %c4096 = arith.constant 4096 : index
     %c64 = arith.constant 64 : index
@@ -49,8 +51,7 @@ module{
         // fetch img[x-1][y]
         %15 = arith.addi %x, %c-1 : index
         %16 = arith.muli %15, %c64 : index
-        %17 = arith.addi %y, %c-1 : index
-        %18 = arith.addi %16, %17 : index
+        %18 = arith.addi %16, %y : index
         %19 = arith.remui %18, %c4096 : index
         %20 = tensor.extract %img[%19] : tensor<4096xi16>
 
