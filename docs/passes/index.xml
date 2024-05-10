@@ -327,7 +327,15 @@ limits the distribution to only pass through those ops. If unset, all ops
 are distributed through when possible.&lt;/p>
 &lt;h4 id="options">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
-&lt;/code>&lt;/pre>&lt;h3 id="-secret-forget-secrets">&lt;code>-secret-forget-secrets&lt;/code>&lt;/h3>
+&lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
+&lt;p>This pass extracts the body of all generic ops into functions, and
+replaces the generic bodies with call ops. Used as a sub-operation in
+some passes, and extracted into its own pass for testing purposes.&lt;/p>
+&lt;p>This pass works best when &lt;code>--secret-generic-absorb-constants&lt;/code> is run
+before it so that the extracted function contains any constants used
+in the generic op&amp;rsquo;s body.&lt;/p>
+&lt;h3 id="-secret-forget-secrets">&lt;code>-secret-forget-secrets&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Convert secret types to standard types&lt;/em>&lt;/p>
 &lt;p>Drop the &lt;code>secret&amp;lt;...&amp;gt;&lt;/code> type from the IR, replacing it with the contained
 type and the corresponding cleartext computation.&lt;/p>
