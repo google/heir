@@ -120,6 +120,7 @@ cc_binary(
     srcs = ["heir-translate.cpp"],
     includes = ["include"],
     deps = [
+        "@heir//lib/Target/Jaxite:JaxiteEmitter",
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFhePkeEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFhePkeHeaderEmitter",

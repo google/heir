@@ -1,3 +1,4 @@
+#include "lib/Target/Jaxite/JaxiteEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
@@ -15,6 +16,9 @@ int main(int argc, char **argv) {
   // tfhe-rs output
   mlir::heir::tfhe_rust::registerToTfheRustTranslation();
   mlir::heir::tfhe_rust_bool::registerToTfheRustBoolTranslation();
+
+  // jaxite output
+  mlir::heir::jaxite::registerToJaxiteTranslation();
 
   // OpenFHE
   mlir::heir::openfhe::registerToOpenFhePkeTranslation();
