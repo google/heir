@@ -13,10 +13,26 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":MaterializeRoots",
         ":NTTRewrites",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_library(
+    name = "MaterializeRoots",
+    srcs = ["MaterializeRoots.cpp"],
+    hdrs = [
+        "MaterializeRoots.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
     ],
 )
 

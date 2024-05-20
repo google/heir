@@ -1,7 +1,7 @@
 // RUN: heir-opt --canonicalize %s | FileCheck %s
 
 #cycl_1024 = #_polynomial.polynomial<1 + x**1024>
-#ring = #_polynomial.ring<cmod=3758161921, ideal=#cycl_1024>
+#ring = #_polynomial.ring<cmod=3758161921, ideal=#cycl_1024, root=376008217>
 
 !tensor_ty = tensor<1024xi32, #ring>
 !poly_ty = !_polynomial.polynomial<#ring>

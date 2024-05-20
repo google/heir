@@ -17,4 +17,16 @@ def PolyMulToNTT : Pass<"convert-polynomial-mul-to-ntt"> {
   let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
 }
 
+def MaterializeRoots : Pass<"materialize-roots"> {
+  let summary = "Attempt to materialize roots for required ring types";
+  let description = [{
+    Operations may require a ring to have their primitive 2n-th root of unity
+    to be computed, eg. poly.ntt/intt.
+
+    This pass determines which roots are required to have a root of unity
+    provided and will attempt to materialize roots from a pre-computed table.
+  }];
+  let dependentDialects = ["mlir::heir::polynomial::PolynomialDialect"];
+}
+
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_PASSES_TD_

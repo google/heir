@@ -201,16 +201,6 @@ mlir::Attribute mlir::heir::polynomial::RingAttr::parse(AsmParser &parser,
                        "Invalid 2n-th primitive root of unity.");
       return {};
     }
-  } else {
-    // TODO(#643): replace with a pass that computes roots as needed
-    auto maybeRoot =
-        rootBitWidth > 32
-            ? roots::find64BitRoot(cmod, poly.getDegree(), rootBitWidth)
-            : roots::find32BitRoot(cmod, poly.getDegree(), rootBitWidth);
-    if (maybeRoot) {
-      root = *maybeRoot;
-      hasRoot = true;
-    }
   }
 
   if (failed(parser.parseGreater())) return {};

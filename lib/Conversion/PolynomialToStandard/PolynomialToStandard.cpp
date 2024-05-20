@@ -1113,6 +1113,13 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     }
 
     RingAttr ring = polyTy.getRing();
+    if (!ring.primitive2NthRoot()) {
+      op.emitError(
+          "Ring type does not provide a primitive root 2n-th primitive root"
+          "of unity. First try to run --materialize-roots to see if root is "
+          "precomputed, otherwise, manually provide the root.");
+    }
+
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
     auto nttResult = fastNTT<false>(
         b, ring, inputType,
@@ -1148,6 +1155,12 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
     }
 
     RingAttr ring = polyTy.getRing();
+    if (!ring.primitive2NthRoot()) {
+      op.emitError(
+          "Ring type does not provide a primitive root 2n-th primitive root"
+          "of unity. First try to run --materialize-roots to see if root is "
+          "precomputed, otherwise, manually provide the root.");
+    }
 
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
     // Remove the encoded ring from the input tensor type
