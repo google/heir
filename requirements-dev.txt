@@ -2,3 +2,14 @@ fire==0.5.0
 jinja2==3.1.3
 pre-commit==v3.3.3
 pytest==8.1.1
+
+# Deps needed for jaxite. TODO: check if these can be imported from jaxite repo?
+attrs==23.1.0
+hypothesis==6.79.1
+jax==0.4.24
+jaxlib==0.4.24
+ml-dtypes==0.2.0
+numpy==1.25.1
+opt-einsum==3.3.0
+scipy==1.10.1
+sortedcontainers==2.4.0

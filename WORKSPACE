@@ -241,6 +241,13 @@ git_repository(
     remote = "https://github.com/abseil/abseil-cpp.git",
 )
 
+## Abseil-py
+new_git_repository(
+    name = "com_google_absl_py",
+    commit = "127c98870edf5f03395ce9cf886266fa5f24455e",  # v1.4.0
+    remote = "https://github.com/abseil/abseil-py",
+)
+
 ## Protobuf
 git_repository(
     name = "com_google_protobuf",
@@ -344,4 +351,10 @@ git_repository(
     commit = "94fd76a1d965cfde13f2a540d78ce64146fc2700",
     patches = ["@heir//bazel/openfhe:add_config_core.patch"],
     remote = "https://github.com/openfheorg/openfhe-development.git",
+)
+
+git_repository(
+   name = "jaxite",
+    commit = "4d5e5d4113dd53e55cc4f6d86cf3948e34c726ea",
+    remote = "https://github.com/google/jaxite.git",
 )
