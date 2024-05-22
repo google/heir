@@ -6,7 +6,6 @@
 
 #include "lib/Dialect/Polynomial/IR/NumberTheory.h"
 #include "lib/Dialect/Polynomial/IR/Polynomial.h"
-#include "lib/Dialect/Polynomial/IR/StaticRoots.h"
 #include "llvm/include/llvm/ADT/SmallSet.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"          // from @llvm-project

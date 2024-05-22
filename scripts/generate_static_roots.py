@@ -194,7 +194,7 @@ def main(args: argparse.Namespace) -> None:
     cmod64_mapping[q] = [primitive_2nth_root(d, q) for d in degrees]
 
   heir_root = pathlib.Path(__file__).parent
-  static_roots = '../include/Dialect/Polynomial/IR/StaticRoots.h'
+  static_roots = '../include/Dialect/Polynomial/Transforms/StaticRoots.h'
   output_fn = heir_root / static_roots
   with open(output_fn.resolve(), 'w') as outfile:
     outfile.write(HEADER)

@@ -42,7 +42,6 @@ cc_library(
     hdrs = [
         "PolynomialAttributes.h",
         "PolynomialDialect.h",
-        "StaticRoots.h",
     ],
     deps = [
         ":NumberTheory",

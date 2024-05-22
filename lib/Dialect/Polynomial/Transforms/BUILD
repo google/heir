@@ -26,6 +26,7 @@ cc_library(
     srcs = ["MaterializeRoots.cpp"],
     hdrs = [
         "MaterializeRoots.h",
+        "StaticRoots.h",
     ],
     deps = [
         ":pass_inc_gen",

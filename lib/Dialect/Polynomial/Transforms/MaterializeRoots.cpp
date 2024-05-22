@@ -1,6 +1,7 @@
 #include "lib/Dialect/Polynomial/Transforms/MaterializeRoots.h"
 
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
+#include "lib/Dialect/Polynomial/Transforms/StaticRoots.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
