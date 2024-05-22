@@ -1,8 +1,8 @@
 #ifndef LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_
 #define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}OPS_TD_
 
-include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.td"
-{% if enable_types %}include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.td"{% endif %}
+include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.td"
+{% if enable_types %}include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.td"{% endif %}
 include "mlir/IR/OpBase.td"
 
 class {{ dialect_name }}_Op<string mnemonic, list<Trait> traits = []> :

@@ -6,10 +6,10 @@
 namespace mlir::heir {
 
 #define GEN_PASS_DECL
-#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
+#include "lib/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
 
 #define GEN_PASS_REGISTRATION
-#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
+#include "lib/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
 
 }  // namespace mlir::heir
 

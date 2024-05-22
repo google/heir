@@ -2,11 +2,11 @@
 #define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
 
 {% if enable_attributes %}
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.h"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.h"
 {% endif %}
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
 
 #define GET_TYPEDEF_CLASSES
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h.inc"
 
 #endif  // LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
