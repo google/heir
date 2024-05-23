@@ -42,6 +42,8 @@ class RTLILImporter {
   func::FuncOp importModule(Yosys::RTLIL::Module *module,
                             const SmallVector<std::string, 10> &cellOrdering);
 
+  virtual ~RTLILImporter() = default;
+
  protected:
   // cellToOp converts an RTLIL cell to an MLIR operation.
   virtual Operation *createOp(Yosys::RTLIL::Cell *cell,
