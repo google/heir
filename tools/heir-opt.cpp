@@ -117,34 +117,32 @@ void oneShotBufferize(OpPassManager &manager) {
   manager.addPass(createCanonicalizerPass());
 }
 
-void tosaPipelineBuilder(OpPassManager &manager) {
+void tosaPipelineBuilder(OpPassManager &pm) {
   // TOSA to linalg
-  tosaToLinalg(manager);
+  tosaToLinalg(pm);
+
   // Bufferize
-  manager.addNestedPass<FuncOp>(createLinalgBufferizePass());
-  manager.addNestedPass<FuncOp>(tensor::createTensorBufferizePass());
-  manager.addPass(arith::createArithBufferizePass());
-  manager.addPass(func::createFuncBufferizePass());
-  manager.addNestedPass<FuncOp>(bufferization::createFinalizingBufferizePass());
+  oneShotBufferize(pm);
+
   // Affine
-  manager.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
-  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
-  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
-  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
-  manager.addPass(memref::createFoldMemRefAliasOpsPass());
-  manager.addPass(createExpandCopyPass());
-  manager.addPass(createExtractLoopBodyPass());
-  manager.addPass(createUnrollAndForwardPass());
+  pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
+  pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+  pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+  pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+  pm.addPass(memref::createFoldMemRefAliasOpsPass());
+  pm.addPass(createExpandCopyPass());
+
   // Cleanup
-  manager.addPass(createMemrefGlobalReplacePass());
-  arith::ArithIntNarrowingOptions options;
-  options.bitwidthsSupported = {4, 8, 16};
-  manager.addPass(arith::createArithIntNarrowing(options));
-  manager.addPass(createCanonicalizerPass());
-  manager.addPass(createSCCPPass());
-  manager.addPass(createCSEPass());
-  manager.addPass(createSymbolDCEPass());
+  pm.addPass(createMemrefGlobalReplacePass());
+  arith::ArithIntNarrowingOptions arithOps;
+  arithOps.bitwidthsSupported = {4, 8, 16};
+  pm.addPass(arith::createArithIntNarrowing(arithOps));
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createSCCPPass());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSymbolDCEPass());
 }
 
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
