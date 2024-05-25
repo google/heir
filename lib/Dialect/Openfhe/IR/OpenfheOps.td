@@ -47,13 +47,43 @@ class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
   let results = (outs RLWECiphertext:$output);
 }
 
+def GenParamsOp : Openfhe_Op<"gen_params"> {
+  let arguments = (ins
+    I64Attr:$mulDepth,
+    I64Attr:$plainMod
+  );
+  let results = (outs Openfhe_CCParams:$params);
+}
+
+def GenContextOp : Openfhe_Op<"gen_context"> {
+  let arguments = (ins
+    Openfhe_CCParams:$params
+  );
+  let results = (outs Openfhe_CryptoContext:$context);
+}
+
+def GenMulKeyOp : Openfhe_Op<"gen_mulkey"> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_PrivateKey:$privateKey
+  );
+}
+
+def GenRotKeyOp : Openfhe_Op<"gen_rotkey"> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_PrivateKey:$privateKey,
+    DenseI64ArrayAttr:$indices
+  );
+}
+
 def EncryptOp : Openfhe_Op<"encrypt", [Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     RLWEPlaintext:$plaintext,
     Openfhe_PublicKey:$publicKey)
   ;
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs RLWECiphertext:$ciphertext);
 }
 
 def DecryptOp : Openfhe_Op<"decrypt", [Pure]> {

@@ -14,6 +14,7 @@
 #include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Target/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
@@ -76,7 +77,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           // OpenFHE ops
           .Case<AddOp, SubOp, MulNoRelinOp, MulOp, MulPlainOp, SquareOp,
                 NegateOp, MulConstOp, RelinOp, ModReduceOp, LevelReduceOp,
-                RotOp, AutomorphOp, KeySwitchOp, EncryptOp, DecryptOp>(
+                RotOp, AutomorphOp, KeySwitchOp, EncryptOp, DecryptOp,
+                GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -419,6 +421,50 @@ LogicalResult OpenFhePkeEmitter::printOperation(DecryptOp op) {
       {op.getPrivateKey(), op.getCiphertext()},
       [&](Value value) { return variableNames->getNameForValue(value); });
   os << ", &" << variableNames->getNameForValue(op.getResult()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
+  auto paramsName = variableNames->getNameForValue(op.getResult());
+  int64_t mulDepth = op.getMulDepthAttr().getValue().getSExtValue();
+  int64_t plainMod = op.getPlainModAttr().getValue().getSExtValue();
+
+  os << "CCParamsT " << paramsName << ";\n";
+  os << paramsName << ".SetMultiplicativeDepth(" << mulDepth << ");\n";
+  os << paramsName << ".SetPlaintextModulus(" << plainMod << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(GenContextOp op) {
+  auto paramsName = variableNames->getNameForValue(op.getParams());
+  auto contextName = variableNames->getNameForValue(op.getResult());
+
+  os << "CryptoContextT " << contextName << " = GenCryptoContext(" << paramsName
+     << ");\n";
+  os << contextName << "->Enable(PKE);\n";
+  os << contextName << "->Enable(KEYSWITCH);\n";
+  os << contextName << "->Enable(LEVELEDSHE);\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(GenMulKeyOp op) {
+  auto contextName = variableNames->getNameForValue(op.getCryptoContext());
+  auto privateKeyName = variableNames->getNameForValue(op.getPrivateKey());
+  os << contextName << "->EvalMultKeyGen(" << privateKeyName << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(GenRotKeyOp op) {
+  auto contextName = variableNames->getNameForValue(op.getCryptoContext());
+  auto privateKeyName = variableNames->getNameForValue(op.getPrivateKey());
+
+  std::vector<std::string> rotIndices;
+  llvm::transform(op.getIndices(), std::back_inserter(rotIndices),
+                  [](int64_t value) { return std::to_string(value); });
+
+  os << contextName << "->EvalRotateKeyGen(" << privateKeyName << ", {";
+  os << llvm::join(rotIndices, ", ");
+  os << "});\n";
   return success();
 }
 

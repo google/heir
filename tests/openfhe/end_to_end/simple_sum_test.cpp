@@ -19,17 +19,12 @@ namespace heir {
 namespace openfhe {
 
 TEST(BinopsTest, TestInput1) {
-  CCParams<CryptoContextBGVRNS> parameters;
-  parameters.SetMultiplicativeDepth(2);
-  parameters.SetPlaintextModulus(65537);
-  CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
-  cryptoContext->Enable(PKE);
-  cryptoContext->Enable(KEYSWITCH);
-  cryptoContext->Enable(LEVELEDSHE);
-
-  KeyPair<DCRTPoly> keyPair;
-  keyPair = cryptoContext->KeyGen();
-  cryptoContext->EvalRotateKeyGen(keyPair.secretKey, {1, 2, 4, 8, 16, 31});
+  auto cryptoContext = simple_sum__generate_crypto_context();
+  auto keyPair = cryptoContext->KeyGen();
+  auto publicKey = keyPair.publicKey;
+  auto secretKey = keyPair.secretKey;
+  cryptoContext =
+      simple_sum__configure_crypto_context(cryptoContext, secretKey);
 
   int32_t n = cryptoContext->GetCryptoParameters()
                   ->GetElementParams()
