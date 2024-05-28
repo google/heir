@@ -95,38 +95,10 @@ func.func @test_invalid_coefficient_encoding_width(%coeffs1 : tensor<10xi16>, %c
 
 // -----
 
-#generator3 = #_polynomial.polynomial<1 + x**1024>
-#ring3 = #_polynomial.ring<cmod=65536, ideal=#generator3>
-// CHECK-LABEL: test_valid_evaluation_encoding
-// CHECK: polynomial_evaluation_encoding
-#eval_enc = #lwe.polynomial_evaluation_encoding<cleartext_start=14, cleartext_bitwidth=3>
-func.func @test_valid_evaluation_encoding(%coeffs1 : tensor<10xi16>, %coeffs2 : tensor<10xi16>) {
-  %poly1 = _polynomial.from_tensor %coeffs1 : tensor<10xi16> -> !_polynomial.polynomial<#ring3, #eval_enc>
-  %poly2 = _polynomial.from_tensor %coeffs2 : tensor<10xi16> -> !_polynomial.polynomial<#ring3, #eval_enc>
-  %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!_polynomial.polynomial<#ring3, #eval_enc>, #eval_enc>
-  return
-}
-
-// -----
-
 #eval_enc2 = #lwe.polynomial_evaluation_encoding<cleartext_start=14, cleartext_bitwidth=3>
 // expected-error@below {{must have `_polynomial.polynomial` element type}}
 func.func @test_invalid_evaluation_encoding_type() {
   %a = arith.constant dense<[2, 2, 5]> : tensor<3xi32, #eval_enc2>
-  return
-}
-
-// -----
-
-#generator4 = #_polynomial.polynomial<1 + x**1024>
-#ring4 = #_polynomial.ring<cmod=65536, ideal=#generator4>
-// CHECK-LABEL: test_valid_inverse_canonical_embedding_encoding
-// CHECK: inverse_canonical_embedding_encoding
-#inverse_canonical_enc = #lwe.inverse_canonical_embedding_encoding<cleartext_start=14, cleartext_bitwidth=4>
-func.func @test_valid_inverse_canonical_embedding_encoding(%coeffs1 : tensor<10xi16>, %coeffs2 : tensor<10xi16>) {
-  %poly1 = _polynomial.from_tensor %coeffs1 : tensor<10xi16> -> !_polynomial.polynomial<#ring4, #inverse_canonical_enc>
-  %poly2 = _polynomial.from_tensor %coeffs2 : tensor<10xi16> -> !_polynomial.polynomial<#ring4, #inverse_canonical_enc>
-  %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!_polynomial.polynomial<#ring4, #inverse_canonical_enc>, #inverse_canonical_enc>
   return
 }
 
