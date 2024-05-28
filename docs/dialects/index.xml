@@ -4076,8 +4076,7 @@ this root (e.g., its degree) are determined by the lowerings.&lt;/p>
 &lt;p>An element of a polynomial quotient ring&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>!_polynomial.polynomial&amp;lt;
-::mlir::heir::polynomial::RingAttr, # ring
-Attribute # encoding
+::mlir::heir::polynomial::RingAttr # ring
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>A type for polynomials in a polynomial quotient ring.&lt;/p>
 &lt;h4 id="parameters-2">Parameters:&lt;/h4>
@@ -4094,11 +4093,6 @@ Attribute # encoding
 &lt;td style="text-align:center">ring&lt;/td>
 &lt;td style="text-align:center">&lt;code>::mlir::heir::polynomial::RingAttr&lt;/code>&lt;/td>
 &lt;td>An attribute specifying a ring.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">encoding&lt;/td>
-&lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
