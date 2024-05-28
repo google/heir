@@ -22,6 +22,8 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
+#include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
@@ -497,6 +499,7 @@ int main(int argc, char **argv) {
   bgv::registerBGVPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
+  ::mlir::heir::polynomial::registerPolynomialPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
   registerElementwiseToAffinePasses();
