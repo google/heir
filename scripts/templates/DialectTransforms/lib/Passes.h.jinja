@@ -1,15 +1,15 @@
 #ifndef LIB_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_PASSES_H_
 #define LIB_DIALECT_{{ dialect_name | upper }}_TRANSFORMS_PASSES_H_
 
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
-#include "include/Dialect/{{ dialect_name }}/Transforms/{{ pass_name }}.h"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
+#include "lib/Dialect/{{ dialect_name }}/Transforms/{{ pass_name }}.h"
 
 namespace mlir {
 namespace heir {
 namespace {{ dialect_namespace }} {
 
 #define GEN_PASS_REGISTRATION
-#include "include/Dialect/{{ dialect_name }}/Transforms/Passes.h.inc"
+#include "lib/Dialect/{{ dialect_name }}/Transforms/Passes.h.inc"
 
 }  // namespace {{ dialect_namespace }}
 }  // namespace heir

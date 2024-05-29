@@ -1,9 +1,9 @@
 #ifndef LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_TD_
 #define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_TD_
 
-include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.td"
+include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.td"
 {% if enable_attributes %}
-include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.td"
+include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.td"
 {% endif %}
 
 include "mlir/IR/DialectBase.td"
