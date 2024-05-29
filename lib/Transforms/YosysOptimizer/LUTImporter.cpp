@@ -54,7 +54,7 @@ SmallVector<Yosys::RTLIL::SigSpec> LUTImporter::getInputs(
   }
   // Alphabetical order gives LSB to MSB, but LUT operations order their inputs
   // from MSB to LSB.
-  SmallVector<Yosys::RTLIL::SigSpec, 4> reversed;
+  SmallVector<Yosys::RTLIL::SigSpec> reversed;
   reversed.reserve(inputs.size());
   for (unsigned i = 0; i < inputs.size(); i++) {
     reversed.push_back(inputs[inputs.size() - i - 1]);
