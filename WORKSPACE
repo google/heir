@@ -333,10 +333,8 @@ git_repository(
 git_repository(
     name = "openfhe",
     build_file = "//bazel/openfhe:openfhe.BUILD",
-    # TODO(#424): update to v1.1.3, which fixes issues with scheme switching
-    # that show up when run with sanitizers enabled
-    # Currently v1.1.2, 2023-12-26
-    commit = "b2869aef5cf61afd364b3eaea748dcc8a7020b9c",
+    # Currently v1.1.4, 2024-03-08
+    commit = "94fd76a1d965cfde13f2a540d78ce64146fc2700",
     patches = ["@heir//bazel/openfhe:add_config_core.patch"],
     remote = "https://github.com/openfheorg/openfhe-development.git",
 )
