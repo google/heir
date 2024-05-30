@@ -123,11 +123,7 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   // TOSA to linalg
   tosaToLinalg(manager);
   // Bufferize
-  manager.addNestedPass<FuncOp>(createLinalgBufferizePass());
-  manager.addNestedPass<FuncOp>(tensor::createTensorBufferizePass());
-  manager.addPass(arith::createArithBufferizePass());
-  manager.addPass(func::createFuncBufferizePass());
-  manager.addNestedPass<FuncOp>(bufferization::createFinalizingBufferizePass());
+  oneShotBufferize(manager);
   // Affine
   manager.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
