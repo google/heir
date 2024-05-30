@@ -129,7 +129,7 @@ def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure]> {
 
 def Polynomial_ConstantOp : Polynomial_Op<"constant", [Pure]> {
   let summary = "Define a constant polynomial via an attribute.";
-  let arguments = (ins Polynomial_Attr:$input);
+  let arguments = (ins Polynomial_PolynomialAttr:$input);
   let results = (outs Polynomial:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($output))";
 }
