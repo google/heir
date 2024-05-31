@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include "lib/Conversion/ArithExtToArith/ArithExtToArith.h"
 #include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
 #include "lib/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 #include "lib/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
@@ -535,6 +536,7 @@ int main(int argc, char **argv) {
 #endif
 
   // Dialect conversion passes in HEIR
+  arith_ext::registerArithExtToArithPasses();
   bgv::registerBGVToPolynomialPasses();
   bgv::registerBGVToOpenfhePasses();
   comb::registerCombToCGGIPasses();
