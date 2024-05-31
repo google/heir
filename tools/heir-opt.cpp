@@ -12,6 +12,7 @@
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
+#include "lib/Dialect/ArithExt/Transforms/Passes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/Transforms/AddClientInterface.h"
 #include "lib/Dialect/BGV/Transforms/Passes.h"
@@ -499,6 +500,7 @@ int main(int argc, char **argv) {
   registerAllPasses();
 
   // Custom passes in HEIR
+  arith_ext::registerArithExtPasses();
   bgv::registerBGVPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
