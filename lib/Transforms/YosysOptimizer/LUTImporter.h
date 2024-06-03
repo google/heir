@@ -20,6 +20,7 @@ namespace heir {
 class LUTImporter : public RTLILImporter {
  public:
   LUTImporter(MLIRContext *context) : RTLILImporter(context) {}
+  ~LUTImporter() override = default;
 
  protected:
   Operation *createOp(Yosys::RTLIL::Cell *cell, SmallVector<Value> &inputs,
