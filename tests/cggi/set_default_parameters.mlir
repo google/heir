@@ -19,6 +19,6 @@ func.func @test_adds_attribute(%arg0 : !ciphertext) -> !ciphertext {
   // CHECK: cggi.lut3
   // Testing that the pass adds the right kind of attribute to the op
   // CHECK: cggi_params = #cggi.cggi_params
-  %6 = cggi.lut3 (%arg0, %4, %5) {lookup_table = 127 : index} : !ciphertext
+  %6 = cggi.lut3 %arg0, %4, %5 {lookup_table = 127 : index} : !ciphertext
   return %4 : !ciphertext
 }
