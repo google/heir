@@ -92,7 +92,8 @@ void ArithExtToArith::runOnOperation() {
   target.addLegalDialect<arith::ArithDialect>();
 
   RewritePatternSet patterns(context);
-  patterns.add<rewrites::ConvertSubIfGE, ConvertBarrettReduce>(context);
+  patterns.add<ConvertBarrettReduce, rewrites::ConvertNormalised,
+               rewrites::ConvertSubIfGE>(context);
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();

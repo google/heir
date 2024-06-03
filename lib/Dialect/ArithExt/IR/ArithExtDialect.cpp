@@ -23,27 +23,6 @@ void ArithExtDialect::initialize() {
       >();
 }
 
-LogicalResult BarrettReduceOp::verify() {
-  auto inputType = getInput().getType();
-  unsigned bitWidth;
-  if (auto tensorType = dyn_cast<RankedTensorType>(inputType)) {
-    bitWidth = tensorType.getElementTypeBitWidth();
-  } else if (auto integerType = dyn_cast<IntegerType>(inputType)) {
-    bitWidth = integerType.getWidth();
-  }
-  auto cmod = APInt(64, getModulus());
-  auto expectedBitWidth = (cmod - 1).getActiveBits();
-  if (bitWidth < expectedBitWidth || 2 * expectedBitWidth < bitWidth) {
-    return emitOpError()
-           << "input bitwidth is required to be in the range [w, 2w], where w "
-              "is the smallest bit-width that contains the range [0, modulus). "
-              "Got "
-           << bitWidth << " but w is " << expectedBitWidth << ".";
-  }
-
-  return success();
-}
-
 }  // namespace arith_ext
 }  // namespace heir
 }  // namespace mlir

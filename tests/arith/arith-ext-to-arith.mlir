@@ -13,6 +13,28 @@ func.func @test_lower_subifge(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tenso
 
 // -----
 
+// CHECK-LABEL: @test_lower_normalised
+// CHECK-SAME: (%[[ARG:.*]]: [[TENSOR_TYPE:.*]]) -> [[TENSOR_TYPE]] {
+func.func @test_lower_normalised(%arg : tensor<4xi8>) -> tensor<4xi8> {
+  %res = arith_ext.normalised %arg { q = 17 } : tensor<4xi8>
+
+  // CHECK: return %[[ARG]] : [[TENSOR_TYPE]]
+  return %res : tensor<4xi8>
+}
+
+// -----
+
+// CHECK-LABEL: @test_lower_normalised_int
+// CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
+func.func @test_lower_normalised_int(%arg : i8) -> i8 {
+  %res = arith_ext.normalised %arg { q = 17 } : i8
+
+  // CHECK: return %[[ARG]] : i8
+  return %res : i8
+}
+
+// -----
+
 // CHECK-LABEL: @test_lower_subifge_int
 // CHECK-SAME: (%[[LHS:.*]]: [[INT_TYPE:.*]], %[[RHS:.*]]: [[INT_TYPE]]) -> [[INT_TYPE]] {
 func.func @test_lower_subifge_int(%lhs : i8, %rhs : i8) -> i8 {

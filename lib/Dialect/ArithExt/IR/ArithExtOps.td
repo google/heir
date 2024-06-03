@@ -5,6 +5,7 @@ include "lib/Dialect/ArithExt/IR/ArithExtDialect.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/InferIntRangeInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -14,7 +15,9 @@ class ArithExt_Op<string mnemonic, list<Trait> traits = [Pure]> :
   let cppNamespace = "::mlir::heir::arith_ext";
 }
 
-def ArithExt_BarrettReduceOp : ArithExt_Op<"barrett_reduce", [SameOperandsAndResultType]> {
+def ArithExt_BarrettReduceOp : ArithExt_Op<"barrett_reduce", [
+  SameOperandsAndResultType, DeclareOpInterfaceMethods<InferIntRangeInterface>
+]> {
   let summary = "Compute the first step of the Barrett reduction.";
   let description = [{
     Let $q$ denote a statically known modulus and $b = 4^{w}$, where $w$ is the
@@ -34,7 +37,21 @@ def ArithExt_BarrettReduceOp : ArithExt_Op<"barrett_reduce", [SameOperandsAndRes
   let hasVerifier = 1;
 }
 
-def ArithExt_SubIfGEOp : ArithExt_Op<"subifge", [SameOperandsAndResultType]> {
+def ArithExt_NormalisedOp : ArithExt_Op<"normalised", [
+  SameOperandsAndResultType, DeclareOpInterfaceMethods<InferIntRangeInterface>
+]> {
+  let summary = "Denotes that the output value is in the range [0, q).";
+  let arguments = (ins
+    SignlessIntegerLike:$input,
+    I64Attr:$q
+  );
+  let results = (outs SignlessIntegerLike:$output);
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input))";
+}
+
+def ArithExt_SubIfGEOp : ArithExt_Op<"subifge", [
+  SameOperandsAndResultType, DeclareOpInterfaceMethods<InferIntRangeInterface>
+]> {
   let summary = "Compute (x >= y) ? x - y : x.";
 
   let arguments = (ins

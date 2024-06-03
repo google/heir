@@ -22,6 +22,13 @@ def ArithExtToArith : Pass<"arith-ext-to-arith", "ModuleOp"> {
 
 // Using DRR to generate the lowering patterns for specific operations
 
+def ConvertNormalised : Pattern<
+  (ArithExt_NormalisedOp $arg, $q),
+  [
+    (replaceWithValue $arg)
+  ]
+>;
+
 defvar DefGE = ConstantEnumCase<Arith_CmpIPredicateAttr, "uge">;
 
 def ConvertSubIfGE : Pattern<

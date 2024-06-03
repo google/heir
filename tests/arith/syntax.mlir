@@ -12,6 +12,11 @@ func.func @test_arith_syntax() {
   %barrett = arith_ext.barrett_reduce %zero { modulus = 17 } : i10
   %barrett_vec = arith_ext.barrett_reduce %c_vec { modulus = 17 } : tensor<4xi10>
 
+  // CHECK: arith_ext.normalised
+  // CHECK: arith_ext.normalised
+  %normalised = arith_ext.normalised %zero { q = 17 } : i10
+  %normalised_vec = arith_ext.normalised %c_vec { q = 17 } : tensor<4xi10>
+
   // CHECK: arith_ext.subifge
   // CHECK: arith_ext.subifge
   %subifge = arith_ext.subifge %zero, %cmod : i10
