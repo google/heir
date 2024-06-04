@@ -95,6 +95,13 @@ http_archive(
     ],
 )
 
+http_archive(
+    name = "google_benchmark",
+    sha256 = "3e7059b6b11fb1bbe28e33e02519398ca94c1818874ebed18e504dc6f709be45",
+    strip_prefix = "benchmark-1.8.4",
+    url = "https://github.com/google/benchmark/archive/refs/tags/v1.8.4.tar.gz",  # 2024-05-23
+)
+
 # googletest comes with abseil as @com_google_absl, see
 # https://github.com/google/googletest/blob/23f642ab2317c632d93326c65efd44671c1d9985/googletest_deps.bzl
 load("@googletest//:googletest_deps.bzl", "googletest_deps")
