@@ -32,6 +32,7 @@ cc_binary(
     }),
     includes = ["include"],
     deps = [
+        "@heir//lib/Conversion/ArithExtToArith",
         "@heir//lib/Conversion/BGVToOpenfhe",
         "@heir//lib/Conversion/BGVToPolynomial",
         "@heir//lib/Conversion/CGGIToTfheRust",
@@ -41,6 +42,9 @@ cc_binary(
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Conversion/PolynomialToStandard",
         "@heir//lib/Conversion/SecretToBGV",
+        "@heir//lib/Dialect/ArithExt/IR:Dialect",
+        "@heir//lib/Dialect/ArithExt/Transforms",
+        "@heir//lib/Dialect/ArithExt/Transforms:RemToArithExt",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/BGV/Transforms",
         "@heir//lib/Dialect/BGV/Transforms:AddClientInterface",
