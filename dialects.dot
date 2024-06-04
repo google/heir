@@ -1,0 +1,99 @@
+digraph G {
+    // Note: Remember to run `dot -Tsvg dialects.dot > images/dialects.svg` after
+    // modifying this file to regenerate the .svg render of the graph.
+    rankdir = TB // Top to bottom graph layout
+    splines = spline // Curved edges
+    node [shape=box, style=filled fillcolor="white"]
+    nodesep=0.2 // horizontal compression
+    ranksep=0.5 // vertical compression
+    compound=true
+
+    subgraph cluster_inputs {
+        label = "Upstream Frontends"
+        Python
+        Polygeist
+        TOSA
+    }
+
+    // MLIR dialects
+    subgraph cluster_mlir {
+        label = "Upstream MLIR"
+        node [fillcolor="#beaed4"]
+        Arith
+        Affine
+        Func
+        Memref
+    }
+
+    lower_from_mlir [shape=point label="" fillcolor=black]
+    {Arith Affine Func Memref} -> lower_from_mlir [arrowhead=none]
+
+    TOSA -> Memref [lhead=cluster_mlir]
+    Polygeist -> Func [lhead=cluster_mlir]
+
+    // External tools
+    subgraph external_tools {
+      node [shape=octagon fillcolor="#ffff99"]
+      Yosys
+    }
+
+    Secret [URL="https://heir.dev/docs/dialects/secret/"]
+    Comb [URL="https://heir.dev/docs/dialects/comb/"]
+
+    lower_from_mlir -> Secret
+    Secret -> Yosys -> Comb
+
+    Verilog [ fillcolor="#7fc97f" shape="note"]
+    Secret -> Verilog
+
+
+    subgraph cluster_fhe {
+        label = "Core Dialects"
+        LWE [URL="https://heir.dev/docs/dialects/lwe/"]
+        subgraph cluster_fhe_schemes {
+            label = "FHE Schemes"
+            BGV [URL="https://heir.dev/docs/dialects/bgv/"]
+            CGGI [URL="https://heir.dev/docs/dialects/cggi/"]
+        }
+    }
+
+    Secret -> BGV [lhead=cluster_fhe]
+    Comb -> CGGI:ne // change e to use the right port of the destination node
+
+
+
+    subgraph cluster_poly {
+        label="Polynomial Dialects"
+        Polynomial [URL="https://heir.dev/docs/dialects/polynomial/"]
+        RNS [URL="https://heir.dev/docs/dialects/rns/"]
+    }
+
+    OpenFHE  [URL="https://heir.dev/docs/dialects/openfhe/"]
+    Standard [fillcolor="#beaed4"]  //Tensor, Linalg, Affine etc.
+    Jaxite [URL="https://heir.dev/docs/dialects/jaxite/"]
+    TfheRust [URL="https://heir.dev/docs/dialects/tfherust/"]
+    TfheRustBool [URL="https://heir.dev/docs/dialects/tfherustbool/"]
+
+    LLVM [fillcolor="gray"]
+
+    BGV -> Polynomial [lhead=cluster_poly]
+    BGV ->  OpenFHE
+    lower_from_cggi [shape=point label="" fillcolor=black]
+    CGGI -> lower_from_cggi [arrowhead=none]
+    lower_from_cggi -> {Jaxite TfheRust TfheRustBool}
+
+    Polynomial -> Standard
+    Standard -> LLVM
+
+
+    // Invisible edges for layout adjustments
+    edge [style=invis]
+    //This is a real edge but invisible now for simplicity
+    Arith -> Yosys
+    // Keep RNS below FHE Schemes
+    LWE -> RNS
+    // Keep Poly above Targets
+    Polynomial -> {OpenFHE TfheRust TfheRustBool Jaxite}
+    // Keep Verilog below Targets: LeftmostTarget -> Verilog
+    OpenFHE -> Verilog
+}
