@@ -10,6 +10,7 @@
 #include "lib/Conversion/MemrefToArith/MemrefToArith.h"
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
+#include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/Transforms/AddClientInterface.h"
 #include "lib/Dialect/BGV/Transforms/Passes.h"
@@ -462,6 +463,7 @@ void mlirToOpenFheBgvPipelineBuilder(
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
+  registry.insert<arith_ext::ArithExtDialect>();
   registry.insert<bgv::BGVDialect>();
   registry.insert<cggi::CGGIDialect>();
   registry.insert<comb::CombDialect>();
