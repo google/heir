@@ -1138,10 +1138,10 @@ whenever possible. The output is suitable as an input to <code>heir-translate --
 removed (e.g., reading from the input and writing to the output, or loading from
 a memref with a variable index).</p><p>The pass pipeline assumes that the input is a valid TOSA MLIR model with
 stripped quantized types. The
-<a href=https://openxla.github.io/iree/getting-started/tflite/>iree-import-tflite</a>
+<a href=https://iree.dev/guides/ml-frameworks/tflite>iree-import-tflite</a>
 tool can lower a TFLite FlatBuffer to textual MLIR with
 <code>--output-format=mlir-ir</code>. See
-<a href=https://github.com/google/heir/blob/main/tests/hello_world.tosa.mlir>hello_world.tosa.mlir</a>
+<a href=https://github.com/google/heir/blob/main/tests/verilog/hello_world.tosa.mlir>hello_world.tosa.mlir</a>
 for an example.</p><h3 id=--yosys-optimizer><code>--yosys-optimizer</code></h3><p>Uses Yosys to booleanize and optimize MLIR functions.</p><p>This pass pipeline requires inputs to be in standard MLIR (<code>arith</code>, <code>affine</code>,
 <code>func</code>, <code>memref</code>). The pass imports the model to Yosys and runs passes to
 booleanize the circuit and then uses ABC to perform optimizations. We use
