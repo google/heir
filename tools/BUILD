@@ -140,6 +140,7 @@ cc_binary(
     srcs = ["heir-lsp.cpp"],
     includes = ["include"],
     deps = [
+        "@heir//lib/Dialect/ArithExt/IR:Dialect",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/Comb/IR:Dialect",
