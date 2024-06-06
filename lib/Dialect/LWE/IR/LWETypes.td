@@ -78,7 +78,7 @@ def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
 
   let parameters = (ins
     "::mlir::Attribute":$encoding,
-    "::mlir::heir::polynomial::RingAttr":$ring,
+    "::mlir::polynomial::RingAttr":$ring,
     "Type":$underlying_type
   );
 }

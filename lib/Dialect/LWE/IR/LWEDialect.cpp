@@ -5,10 +5,10 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
-#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
@@ -96,17 +96,20 @@ LogicalResult requirePolynomialElementTypeFits(
     Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
     unsigned cleartextStart,
     llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
-  if (!mlir::isa<::mlir::heir::polynomial::PolynomialType>(elementType)) {
-    return emitError() << "Tensors with encoding " << encodingName
-                       << " must have `poly.poly` element type, but found "
-                       << elementType << "\n";
+  if (!mlir::isa<::mlir::polynomial::PolynomialType>(elementType)) {
+    return emitError()
+           << "Tensors with encoding " << encodingName
+           << " must have `polynomial.polynomial` element type, but found "
+           << elementType << "\n";
   }
-  ::mlir::heir::polynomial::PolynomialType polyType =
-      llvm::cast<::mlir::heir::polynomial::PolynomialType>(elementType);
+  ::mlir::polynomial::PolynomialType polyType =
+      llvm::cast<::mlir::polynomial::PolynomialType>(elementType);
   // The coefficient modulus takes the place of the plaintext bitwidth for
   // RLWE.
-  unsigned plaintextBitwidth =
-      polyType.getRing().coefficientModulus().getBitWidth();
+  unsigned plaintextBitwidth = polyType.getRing()
+                                   .getCoefficientModulus()
+                                   .getType()
+                                   .getIntOrFloatBitWidth();
 
   if (plaintextBitwidth < cleartextBitwidth)
     return emitError() << "The polys in this tensor have a coefficient "

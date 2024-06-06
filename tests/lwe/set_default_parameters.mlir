@@ -1,7 +1,7 @@
 // RUN: heir-opt --lwe-set-default-parameters %s
 
 #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
-#poly = #_polynomial.polynomial<1 + x**1024>
+#poly = #polynomial.int_polynomial<1 + x**1024>
 !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding>
 

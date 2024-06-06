@@ -5,11 +5,13 @@
 #include "lib/Dialect/CGGI/IR/CGGIAttributes.h"
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/Polynomial.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"           // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -27,12 +29,11 @@ struct SetDefaultParameters
     MLIRContext &context = getContext();
     unsigned defaultRlweDimension = 1;
     APInt defaultCmod = APInt::getOneBitSet(64, 32);
-    std::vector<::mlir::heir::polynomial::Monomial> monomials;
-    monomials.push_back(::mlir::heir::polynomial::Monomial(1, 1024));
-    monomials.push_back(::mlir::heir::polynomial::Monomial(1, 0));
-    ::mlir::heir::polynomial::Polynomial defaultPolyIdeal =
-        ::mlir::heir::polynomial::Polynomial::fromMonomials(monomials,
-                                                            &context);
+    std::vector<::mlir::polynomial::IntMonomial> monomials;
+    monomials.emplace_back(1, 1024);
+    monomials.emplace_back(1, 0);
+    ::mlir::polynomial::IntPolynomial defaultPolyIdeal =
+        ::mlir::polynomial::IntPolynomial::fromMonomials(monomials).value();
 
     // https://github.com/google/jaxite/blob/main/jaxite/jaxite_bool/bool_params.py
     unsigned defaultBskNoiseVariance = 65536;  // stdev = 2**8, var = 2**16
@@ -41,10 +42,13 @@ struct SetDefaultParameters
     unsigned defaultKskNoiseVariance = 268435456;  // stdev = 2**14, var = 2**28
     unsigned defaultKskGadgetBaseLog = 4;
     unsigned defaultKskGadgetNumLevels = 5;
+    auto intType = IntegerType::get(&context, 64);
 
     lwe::RLWEParamsAttr defaultRlweParams = lwe::RLWEParamsAttr::get(
         &context, defaultRlweDimension,
-        ::mlir::heir::polynomial::RingAttr::get(defaultCmod, defaultPolyIdeal));
+        ::mlir::polynomial::RingAttr::get(
+            intType, IntegerAttr::get(intType, defaultCmod),
+            polynomial::IntPolynomialAttr::get(&context, defaultPolyIdeal)));
     CGGIParamsAttr defaultParams =
         CGGIParamsAttr::get(&context, defaultRlweParams,
                             defaultBskNoiseVariance, defaultBskGadgetBaseLog,

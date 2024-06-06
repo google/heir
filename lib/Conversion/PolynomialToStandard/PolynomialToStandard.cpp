@@ -1,5 +1,6 @@
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -9,12 +10,8 @@
 #include <vector>
 
 #include "lib/Conversion/Utils.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
@@ -23,8 +20,13 @@
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMAttrs.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"          // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/Polynomial.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialDialect.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialTypes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
@@ -49,6 +51,10 @@ namespace mlir {
 namespace heir {
 namespace polynomial {
 
+using namespace mlir::polynomial;
+
+#define DEBUG_TYPE "polynomial-to-standard"
+
 #define GEN_PASS_DEF_POLYNOMIALTOSTANDARD
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h.inc"
 
@@ -58,17 +64,44 @@ using GetFuncCallbackTy = function_ref<func::FuncOp(FunctionType, RingAttr)>;
 
 RankedTensorType convertPolynomialType(PolynomialType type) {
   RingAttr attr = type.getRing();
-  uint32_t idealDegree = attr.ideal().getDegree();
-  // We subtract one because the maximum value of a coefficient is one less
-  // than the modulus. When the modulus is an exact power of 2 this matters.
-  unsigned eltBitWidth = (attr.coefficientModulus() - 1).getActiveBits();
-  IntegerType elementTy =
-      IntegerType::get(type.getContext(), eltBitWidth,
-                       IntegerType::SignednessSemantics::Signless);
   // We must remove the ring attribute on the tensor, since the
   // unrealized_conversion_casts cannot carry the poly.ring attribute
   // through.
-  return RankedTensorType::get({idealDegree}, elementTy);
+  auto degree = attr.getPolynomialModulus().getPolynomial().getDegree();
+  return RankedTensorType::get({degree}, attr.getCoefficientType());
+}
+
+std::pair<APInt, APInt> extendWidthsToLargest(const APInt &a, const APInt &b) {
+  unsigned width = std::max(a.getBitWidth(), b.getBitWidth());
+  return {a.zextOrTrunc(width), b.zextOrTrunc(width)};
+}
+
+/// Return the natural container type modulus if wraparound is used.
+/// e.g., i32 -> APInt(33, 2**32)
+/// e.g., i64 -> APInt(65, 2**64)
+APInt intTypeModValue(Type type) {
+  auto intType = dyn_cast<IntegerType>(type);
+  assert(intType && "Expected an integer type");
+  int64_t width = intType.getIntOrFloatBitWidth();
+  APInt value(width + 1, 0);
+  value.setBit(width);
+  return value;
+}
+
+bool needToMod(Type containerType, const APInt &cmod) {
+  APInt containerTypeMod = intTypeModValue(containerType);
+
+  // The container type may be smaller than the cmod (e.g., an i32 coefficient
+  // type and 2**32 (i64) cmod)
+  auto [cmodExt, containerTypeModExt] =
+      extendWidthsToLargest(cmod, containerTypeMod);
+
+  // The only situation in which we DON'T need to mod is when the cmod is
+  // exactly the natural container type modulus. Op verification should ensure
+  // it is never larger.
+  assert(cmodExt.ule(containerTypeModExt) &&
+         "Op verification should prevent this");
+  return cmodExt.ne(containerTypeModExt);
 }
 
 /// Cloned after upstream removal in
@@ -212,7 +245,8 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       ConversionPatternRewriter &rewriter) const override {
     RankedTensorType tensorType = cast<RankedTensorType>(
         typeConverter->convertType(op.getResult().getType()));
-    PolynomialAttr attr = op.getInput();
+    auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getValue());
+    if (!attr) return failure();
     SmallVector<Attribute> coeffs;
     auto eltTy = tensorType.getElementType();
     unsigned numTerms = tensorType.getShape()[0];
@@ -222,9 +256,17 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
     for (size_t i = 0; i < numTerms; ++i) {
       coeffs.push_back(rewriter.getIntegerAttr(eltTy, 0));
     }
-    for (const auto &term : attr.getPolynomial().getTerms()) {
-      coeffs[term.exponent.getSExtValue()] = rewriter.getIntegerAttr(
-          eltTy, term.coefficient.sextOrTrunc(eltTy.getIntOrFloatBitWidth()));
+
+    // WARNING: if you don't store the IntPolynomial as an intermediate value
+    // before iterating over the terms, you will get a user-after-free bug. See
+    // the "Temporary range expression" section in
+    // https://en.cppreference.com/w/cpp/language/range-for
+    const IntPolynomial &poly = attr.getValue().getPolynomial();
+    for (const auto &term : poly.getTerms()) {
+      int64_t idx = term.getExponent().getSExtValue();
+      auto coeff =
+          term.getCoefficient().sextOrTrunc(eltTy.getIntOrFloatBitWidth());
+      coeffs[idx] = rewriter.getIntegerAttr(eltTy, coeff);
     }
     rewriter.replaceOpWithNewOp<arith::ConstantOp>(
         op, DenseElementsAttr::get(tensorType, coeffs));
@@ -265,32 +307,70 @@ struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto tensorType = cast<RankedTensorType>(adaptor.getPolynomial().getType());
     Value scalar = adaptor.getScalar();
-    if (scalar.getType().getIntOrFloatBitWidth() <
-        tensorType.getElementTypeBitWidth()) {
-      scalar = b.create<arith::ExtSIOp>(tensorType.getElementType(), scalar)
-                   .getResult();
-    } else if (scalar.getType().getIntOrFloatBitWidth() >
-               tensorType.getElementTypeBitWidth()) {
-      scalar = b.create<arith::TruncIOp>(tensorType.getElementType(), scalar)
-                   .getResult();
-    }
+    // MulScaparOp verifier enforces that the input has the same type as the
+    // polynomial ring's coefficient type.
     auto tensor = b.create<tensor::SplatOp>(tensorType, scalar);
-    rewriter.replaceOpWithNewOp<arith::MulIOp>(op, adaptor.getPolynomial(),
-                                               tensor);
+    auto mulOp = b.create<arith::MulIOp>(adaptor.getPolynomial(), tensor);
+    Operation *finalOp = mulOp;
+
+    RingAttr ring =
+        cast<PolynomialType>(op.getPolynomial().getType()).getRing();
+    if (ring.getCoefficientModulus()) {
+      APInt mod = ring.getCoefficientModulus().getValue();
+      if (needToMod(ring.getCoefficientType(), mod)) {
+        auto modValue = b.create<arith::ConstantOp>(
+            tensorType.getElementType(),
+            IntegerAttr::get(
+                tensorType.getElementType(),
+                mod.zextOrTrunc(
+                    tensorType.getElementType().getIntOrFloatBitWidth())));
+        finalOp = b.create<arith::RemSIOp>(adaptor.getPolynomial(), modValue);
+      }
+    }
+
+    rewriter.replaceOp(op, finalOp);
     return success();
   }
 };
 
+/// Returns true if and only if the polynomial modulus of the ring for this op
+/// is of the form x^n - 1 for some n. This is "cyclic" in the sense that
+/// multiplication by a monomial corresponds to a cyclic shift of the
+/// coefficients.
+bool hasCyclicModulus(MonicMonomialMulOp op) {
+  auto ring = cast<PolynomialType>(op.getInput().getType()).getRing();
+  IntPolynomial ideal = ring.getPolynomialModulus().getPolynomial();
+  auto idealTerms = ideal.getTerms();
+  APInt constantCoeff = idealTerms[0].getCoefficient();
+  return idealTerms.size() == 2 &&
+         (constantCoeff == APInt(constantCoeff.getBitWidth(), -1) &&
+          idealTerms[0].getExponent().isZero()) &&
+         (idealTerms[1].getCoefficient().isOne());
+}
+
 // Implement rotation via tensor.insert_slice
-struct ConvertMonomialMul : public OpConversionPattern<MonomialMulOp> {
-  ConvertMonomialMul(mlir::MLIRContext *context)
-      : OpConversionPattern<MonomialMulOp>(context) {}
+struct ConvertMonicMonomialMul
+    : public OpConversionPattern<MonicMonomialMulOp> {
+  ConvertMonicMonomialMul(mlir::MLIRContext *context)
+      : OpConversionPattern<MonicMonomialMulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      MonomialMulOp op, OpAdaptor adaptor,
+      MonicMonomialMulOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
+    if (!hasCyclicModulus(op)) {
+      // When upstreaming, this should be expanded to support all inputs.
+      InFlightDiagnostic diag =
+          op.emitError()
+          << "unsupported ideal for monic monomial multiplication:"
+          << cast<PolynomialType>(op.getInput().getType())
+                 .getRing()
+                 .getPolynomialModulus();
+      diag.attachNote() << "expected x**n - 1 for some n";
+      return diag;
+    }
+
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     // In general, a rotation would correspond to multiplication by x^n,
     // which requires a modular reduction step. But because the verifier
@@ -421,13 +501,26 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
     auto type = cast<ShapedType>(adaptor.getLhs().getType());
+    Type coeffType = cast<PolynomialType>(op.getResult().getType())
+                         .getRing()
+                         .getCoefficientType();
+    auto intCoeffType = dyn_cast<IntegerType>(coeffType);
+    if (!intCoeffType) {
+      op.emitError()
+          << "Unsupported coefficient type for lowering polynomial add";
+      return failure();
+    }
+    APInt coeffTypeMod = intTypeModValue(coeffType);
 
+    // When upstreaming, this needs to be adapted to support rings that don't
+    // specify a modulus.
     APInt mod = cast<PolynomialType>(op.getResult().getType())
                     .getRing()
-                    .coefficientModulus();
-    bool needToExtend = !mod.isPowerOf2();
+                    .getCoefficientModulus()
+                    .getValue();
+    bool needToExtend =
+        mod.zextOrTrunc(coeffTypeMod.getBitWidth()).ult(coeffTypeMod);
 
     if (!needToExtend) {
       auto result = b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs());
@@ -442,7 +535,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     auto modIntTensorType = RankedTensorType::get(type.getShape(), modIntType);
 
     auto cmod = b.create<arith::ConstantOp>(DenseIntElementsAttr::get(
-        modIntTensorType, {mod.trunc(nextHigherBitWidth)}));
+        modIntTensorType, {mod.zextOrTrunc(nextHigherBitWidth)}));
 
     auto signExtensionLhs =
         b.create<arith::ExtSIOp>(modIntTensorType, adaptor.getLhs());
@@ -451,6 +544,9 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 
     auto higherBitwidthAdd =
         b.create<arith::AddIOp>(signExtensionLhs, signExtensionRhs);
+
+    // Does MLIR already optimize this to a trunci if the cmod is a power of
+    // two?
     auto remOp = b.create<arith::RemSIOp>(higherBitwidthAdd, cmod);
     auto truncOp = b.create<arith::TruncIOp>(type, remOp);
 
@@ -461,15 +557,17 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 };
 
 RankedTensorType polymulOutputTensorType(PolynomialType type) {
-  auto convNumBits = (type.getRing().coefficientModulus() - 1).getActiveBits();
+  auto convNumBits =
+      type.getRing().getCoefficientType().getIntOrFloatBitWidth();
   auto eltType = IntegerType::get(type.getContext(), convNumBits);
-  auto convDegree = 2 * type.getRing().getIdeal().getDegree() - 1;
+  auto convDegree =
+      2 * type.getRing().getPolynomialModulus().getPolynomial().getDegree() - 1;
   return RankedTensorType::get({convDegree}, eltType);
 }
 
 IntegerType polymulIntermediateType(PolynomialType type) {
   auto convNumBits =
-      (type.getRing().coefficientModulus() - 1).getActiveBits() * 2;
+      type.getRing().getCoefficientType().getIntOrFloatBitWidth() * 2;
   return IntegerType::get(type.getContext(), convNumBits);
 }
 
@@ -520,16 +618,14 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
             polymulTensorType,
             APInt(polymulTensorType.getElementTypeBitWidth(), 0L)));
 
-    // When our modulus is not a machine-word size (power of 2) we can not rely
-    // on the natural overflow behaviour during the computation of
-    // acc = a[i] * b[j] + c[i+j]. If we compute acc mod cmod then we are able
-    // to ensure that we will not overflow the intermediate type sized integer.
-    // This is because a[i] * b[j] + c[i+j] < cmod^2 + cmod < maximum of
-    // intermediate type. Which lets us not have to compute the modulus after
-    // the multiplication step and the addition step.
-    //
-    // Eg: cmod = 7, then the intermediate type is i6 and 7 + 7^2 = 56 < 64 =
-    // 2^6.
+    // When our coefficient modulus (cmod) is not the same power of two
+    // corresponding to the integer coefficient type size, we can not rely on
+    // the natural overflow behaviour during the computation of acc = a[i] *
+    // b[j] + c[i+j]. If we compute acc mod cmod then we are able to ensure
+    // that we will not overflow the intermediate type sized integer. This is
+    // because a[i] * b[j] + c[i+j] < cmod^2 + cmod < maximum of intermediate
+    // type. Which lets us not have to compute the modulus after the
+    // multiplication step and the addition step.
     //
     // Further, when we truncate from the intermediate type back to the
     // polynomial type, we can't rely on the truncation behaviour to ensure that
@@ -540,15 +636,15 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
     // arith.trunci -5 : i6 -> i3 = 3. -5 is not congruent with 3 mod 7. So we
     // will need to compute -5 + 7 mod 7 = 2, such that acc is in [0,7) before
     // truncating.
-    APInt mod = polyTy.getRing().coefficientModulus();
-    bool needToMod = !mod.isPowerOf2();
+    APInt mod = polyTy.getRing().getCoefficientModulus().getValue();
+    bool doMod = needToMod(polyTy.getRing().getCoefficientType(), mod);
     Value polyCMod;
-    if (needToMod) {
+    if (doMod) {
       polyCMod = b.create<arith::ConstantOp>(
           intermediateType,
           IntegerAttr::get(
               intermediateType,
-              mod.sextOrTrunc(intermediateType.getIntOrFloatBitWidth())));
+              mod.zextOrTrunc(intermediateType.getIntOrFloatBitWidth())));
     }
 
     auto polyMul = b.create<linalg::GenericOp>(
@@ -566,7 +662,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
           auto mulOp = b.create<arith::MulIOp>(lhs, rhs);
           auto addOp = b.create<arith::AddIOp>(mulOp, accum);
           Value result = addOp.getResult();
-          if (needToMod) {
+          if (doMod) {
             // Compute the congruent integer within cmod and the truncation type
             auto remOp = b.create<arith::RemSIOp>(addOp, polyCMod);
             auto addCModOp = b.create<arith::AddIOp>(remOp, polyCMod);
@@ -667,9 +763,9 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   // TODO(#202): this function name probably also needs the input tensor type in
   // the name, or it could conflict with other implementations that have the
   // same cmod+ideal.
-  std::string funcName =
-      llvm::formatv("__heir_poly_mod_{0}_{1}", ring.coefficientModulus(),
-                    ring.getIdeal().toIdentifier());
+  std::string funcName = llvm::formatv(
+      "__heir_poly_mod_{0}_{1}", ring.getCoefficientModulus().getValue(),
+      ring.getPolynomialModulus().getPolynomial().toIdentifier());
 
   auto funcOp = builder.create<func::FuncOp>(funcName, funcType);
   LLVM::linkage::Linkage inlineLinkage = LLVM::linkage::Linkage::LinkonceODR;
@@ -709,18 +805,23 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   // ring of polynomials mod (x^n - 1) with sufficiently large coefficient
   // modulus to encapsulate the input element type.
 
-  std::vector<Monomial> monomials;
+  std::vector<IntMonomial> monomials;
   // If the input has size N as a tensor, then as a polynomial its max degree is
   // N-1, and we want the ring to be mod (x^N - 1).
   unsigned remRingDegree = inputType.getShape()[0];
   monomials.emplace_back(1, remRingDegree);
-  monomials.emplace_back(Monomial(-1, 0));
-  Polynomial xnMinusOne = Polynomial::fromMonomials(monomials, &getContext());
+  monomials.emplace_back(-1, 0);
+  IntPolynomial xnMinusOne = IntPolynomial::fromMonomials(monomials).value();
+  IntPolynomialAttr xnMinusOneAttr =
+      IntPolynomialAttr::get(&getContext(), xnMinusOne);
   // e.g., need to represent 2^64, which requires 65 bits, the highest one set.
   unsigned remCmodWidth =
       1 + inputType.getElementType().getIntOrFloatBitWidth();
   APInt remCmod = APInt::getOneBitSet(remCmodWidth, remCmodWidth - 1);
-  auto remRing = RingAttr::get(remCmod, xnMinusOne);
+  IntegerType remIntType = IntegerType::get(&getContext(), remCmodWidth);
+  auto remRing =
+      RingAttr::get(ring.getCoefficientType(),
+                    IntegerAttr::get(remIntType, remCmod), xnMinusOneAttr);
   auto remRingPolynomialType = PolynomialType::get(&getContext(), remRing);
 
   // Start by converting the input tensor back to a poly.
@@ -728,10 +829,11 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
 
   // If the leading coefficient of the divisor has no inverse, we can't do
   // division. The lowering must fail:
-  auto divisor = ring.getIdeal();
-  auto leadingCoef = divisor.getTerms().back().coefficient;
-  auto leadingCoefInverse =
-      multiplicativeInverse(leadingCoef, ring.coefficientModulus());
+  auto divisor = ring.getPolynomialModulus().getPolynomial();
+  auto [leadingCoef, coeffMod] =
+      extendWidthsToLargest(divisor.getTerms().back().getCoefficient(),
+                            ring.getCoefficientModulus().getValue());
+  auto leadingCoefInverse = multiplicativeInverse(leadingCoef, coeffMod);
   // APInt signals no inverse by returning zero.
   if (leadingCoefInverse.isZero()) {
     signalPassFailure();
@@ -768,7 +870,8 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
         Value remainder = args[0];
         // TODO(#97): move this out of the loop when it has ConstantLike trait
         auto divisorOp = builder.create<ConstantOp>(
-            remRingPolynomialType, PolynomialAttr::get(divisor));
+            remRingPolynomialType,
+            TypedIntPolynomialAttr::get(remRingPolynomialType, divisor));
 
         // monomialExponent = remainder.degree() - divisorDeg
         auto ltOp = b.create<LeadingTermOp>(
@@ -783,7 +886,7 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
 
         // remainder -= monomialDivisor * divisor
         auto scaledDivisor = b.create<MulScalarOp>(divisorOp, monomialLc);
-        auto remainderIncrement = b.create<MonomialMulOp>(
+        auto remainderIncrement = b.create<MonicMonomialMulOp>(
             scaledDivisor, monomialExponentOp.getResult());
         auto nextRemainder = b.create<SubOp>(remainder, remainderIncrement);
 
@@ -792,10 +895,29 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
 
   // The result remainder is still in the larger ring, so we need to convert to
   // the smaller ring.
-  auto toTensorOp = builder.create<ToTensorOp>(inputType, whileOp.getResult(0));
+  Operation *preTruncOp =
+      builder.create<ToTensorOp>(inputType, whileOp.getResult(0));
+
+  // Smaller ring has a coefficient modulus that needs to be accounted for.
+  // Probably a better way to define a splatted dense elements attr, but either
+  // way this should be folded/canonicalized into a single op.
+  if (needToMod(ring.getCoefficientType(),
+                ring.getCoefficientModulus().getValue())) {
+    APInt cmod = ring.getCoefficientModulus().getValue().zextOrTrunc(
+        inputType.getElementType().getIntOrFloatBitWidth());
+
+    auto remModulus = builder.create<arith::ConstantOp>(
+        inputType.getElementType(),
+        builder.getIntegerAttr(inputType.getElementType(), cmod));
+    auto remModulusSplat =
+        builder.create<tensor::SplatOp>(remModulus, inputType.getShape());
+    preTruncOp = builder.create<arith::RemSIOp>(
+        inputType, preTruncOp->getResult(0), remModulusSplat);
+  }
+
   auto truncedTensor = builder.create<arith::TruncIOp>(
       RankedTensorType::get(inputType.getShape(), resultType.getElementType()),
-      toTensorOp);
+      preTruncOp->getResult(0));
 
   SmallVector<OpFoldResult> offsets{builder.getIndexAttr(0)};
   SmallVector<OpFoldResult> sizes{
@@ -919,7 +1041,8 @@ static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
 
 template <bool inverse>
 static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
-                     RankedTensorType inputType, Value input) {
+                     PrimitiveRootAttr rootAttr, RankedTensorType inputType,
+                     Value input) {
   // Cast to intermediate type to avoid integer overflow during arithmetic
   auto intermediateElemType =
       IntegerType::get(b.getContext(), 2 * inputType.getElementTypeBitWidth());
@@ -928,7 +1051,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
 
   Value initialValue = b.create<arith::ExtUIOp>(intermediateType, input);
   // Create cmod for modulo arithmetic ops
-  auto cmod = ring.coefficientModulus();
+  APInt cmod = ring.getCoefficientModulus().getValue();
   Value cMod =
       b.create<arith::ConstantIntOp>(cmod.getZExtValue(), intermediateElemType);
 
@@ -937,7 +1060,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
   unsigned stages = (unsigned)std::log2((double)degree);
 
   // Precompute the roots
-  auto root = ring.primitive2NthRoot().value();
+  APInt root = rootAttr.getValue().getValue();
   root = !inverse ? root
                   : multiplicativeInverse(root.zext(cmod.getBitWidth()), cmod)
                         .trunc(root.getBitWidth());
@@ -1079,8 +1202,8 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
     Value nInv = b.create<arith::ConstantOp>(
         rootsType, DenseElementsAttr::get(rootsType, degreeInv));
     Value cModVec = b.create<arith::ConstantOp>(
-        rootsType,
-        DenseElementsAttr::get(rootsType, cmod.trunc(root.getBitWidth() + 1)));
+        rootsType, DenseElementsAttr::get(
+                       rootsType, cmod.zextOrTrunc(root.getBitWidth() + 1)));
 
     auto mulOp = b.create<arith::MulIOp>(result, nInv);
     auto remOp = b.create<arith::RemUIOp>(mulOp, cModVec);
@@ -1112,10 +1235,15 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
       return failure();
     }
 
+    if (!op.getRoot()) {
+      op.emitError("missing root attribute");
+      return failure();
+    }
+
     RingAttr ring = polyTy.getRing();
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
     auto nttResult = fastNTT<false>(
-        b, ring, inputType,
+        b, ring, op.getRoot().value(), inputType,
         computeReverseBitOrder(b, inputType, adaptor.getInput()));
 
     // Insert the ring encoding here to the input type
@@ -1147,6 +1275,11 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
       return failure();
     }
 
+    if (!op.getRoot()) {
+      op.emitError("missing root attribute");
+      return failure();
+    }
+
     RingAttr ring = polyTy.getRing();
 
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
@@ -1155,7 +1288,8 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
         RankedTensorType::get(inputType.getShape(), inputType.getElementType());
     auto input = b.create<tensor::CastOp>(resultType, adaptor.getInput());
 
-    auto nttResult = fastNTT<true>(b, ring, resultType, input);
+    auto nttResult =
+        fastNTT<true>(b, ring, op.getRoot().value(), resultType, input);
 
     rewriter.replaceOp(op, computeReverseBitOrder(b, resultType, nttResult));
 
@@ -1191,7 +1325,7 @@ void PolynomialToStandard::runOnOperation() {
                                      std::move(canonicalizationPatterns));
 
   patterns.add<ConvertFromTensor, ConvertToTensor, ConvertAdd,
-               ConvertLeadingTerm, ConvertMonomial, ConvertMonomialMul,
+               ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
                ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
       typeConverter, context);
   patterns.add<ConvertMul>(typeConverter, patterns.getContext(), getDivmodOp);

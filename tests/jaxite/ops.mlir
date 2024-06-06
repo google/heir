@@ -6,7 +6,7 @@
 !params = !jaxite.params
 #unspecified_encoding = #lwe.unspecified_bit_field_encoding<
   cleartext_bitwidth=3>
-#params = #lwe.lwe_params<cmod=7917, dimension=10>
+#params = #lwe.lwe_params<cmod = 7917, dimension = 10>
 !ciphertext = !lwe.lwe_ciphertext<encoding = #unspecified_encoding, lwe_params = #params>
 
 module {

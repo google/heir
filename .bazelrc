@@ -8,3 +8,12 @@ common -c dbg
 common --noenable_bzlmod
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
+
+# run with --config=asan to enable
+build:asan --strip=never
+build:asan --copt -fsanitize=address
+build:asan --copt -DADDRESS_SANITIZER
+build:asan --copt -O1
+build:asan --copt -g
+build:asan --copt -fno-omit-frame-pointer
+build:asan --linkopt -fsanitize=address

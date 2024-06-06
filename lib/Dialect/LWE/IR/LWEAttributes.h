@@ -5,7 +5,7 @@
 #include "mlir/include/mlir/IR/TensorEncoding.h"  // from @llvm-project
 
 // Required to pull in poly's Ring_Attr
-#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
 
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/LWE/IR/LWEAttributes.h.inc"

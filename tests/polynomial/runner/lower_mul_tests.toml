@@ -3,70 +3,89 @@ ideal = "1 + x**12"
 cmod = 4294967296  # 2**32
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i32"
+cmod_type = "i64"
+coefficient_type = "i32"
 
+# This one is a bit weird. I want to test a modulus of 2**32 - 1, but that
+# causes remsi to treat it as a negative number, and the result is x % -1 == 0.
+# Using arith.remui avoids this, but instead causes a negative x to be treated
+# as a large positive number with respect to the wrong modulus (e.g., -2 : i32
+# is treated as 2**32 - 2). So to compensate, we test by using a modulus that
+# is 1 less than the max signed value for i32. Anything larger and you'd need
+# to use a larger cmod type.
 [[test]]
 ideal = "1 + x**12"
-cmod = 4294967295  # 2**32 - 1
+cmod = 2147483647 # 2**31 - 1
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i32"
+cmod_type = "i32"
+coefficient_type = "i32"
 
 [[test]]
 ideal = "1 + x**12"
 cmod = 16
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i4"
+cmod_type = "i32"
+coefficient_type = "i32"
 
 [[test]]
 ideal = "1 + x**12"
 cmod = 15
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i4"
+cmod_type = "i32"
+coefficient_type = "i32"
 
 [[test]]
 ideal = "1 + x**12"
 cmod = 17
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i5"
+cmod_type = "i32"
+coefficient_type = "i32"
 
 [[test]]
 ideal = "1 + x**12"
 cmod = 16
 p0 = "1 + x**2"
 p1 = "1 + x**3"
-container_type = "i4"
+cmod_type = "i32"
+coefficient_type = "i32"
 
 [[test]]
 ideal = "3 + x**12"
 cmod = 16
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i4"
+cmod_type = "i32"
+coefficient_type = "i32"
 
 [[test]]
 ideal = "3 + 5 x**12"
 cmod = 16
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i4"
+cmod_type = "i32"
+coefficient_type = "i32"
 
+# in this test, the polynomial modulus should be a no-op
 [[test]]
 ideal = "1 + x**3"
 cmod = 7
 p0 = "-4 + x**1"
 p1 = "-1 + 3x**1"
-container_type = "i3"
+cmod_type = "i32"
+coefficient_type = "i32"
 
+# in this test, the polynomial modulus should be a no-op
 [[test]]
 ideal = "1 + x**3"
 cmod = 8
 p0 = "-4 + x**1"
 p1 = "-1 + 3x**1"
-container_type = "i3"
+cmod_type = "i32"
+coefficient_type = "i32"
 
 # TODO(#220): restore once we can use emulate-wide-int in the pipeline
 # [[test]]
@@ -74,4 +93,4 @@ container_type = "i3"
 # cmod = 4294967297  # 2**32 + 1
 # p0 = "1 + x**10"
 # p1 = "1 + x**11"
-# container_type = "i33"
+# cmod_type = "i33"

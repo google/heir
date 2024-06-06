@@ -3,9 +3,10 @@
 // This follows from example 3.8 (Satriawan et al.) here:
 // https://doi.org/10.1109/ACCESS.2023.3294446
 
-#cycl = #_polynomial.polynomial<1 + x**4>
-#ring = #_polynomial.ring<cmod=7681, ideal=#cycl, root=1925>
-!poly_ty = !_polynomial.polynomial<#ring>
+#cycl = #polynomial.int_polynomial<1 + x**4>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl>
+#root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
+!poly_ty = !polynomial.polynomial<ring=#ring>
 
 // CHECK-DAG: #[[ID_MAP:.*]] = affine_map<(d0) -> (d0)>
 // CHECK-DAG: #[[C_DIV_MAP:.*]] = affine_map<(d0) -> (d0 floordiv 2)>
@@ -19,7 +20,7 @@
 // CHECK:      %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INPUT_TYPE:.*]]
 // CHECK:      %[[CAST:.*]] = tensor.cast %[[COEFFS]] : [[INPUT_TYPE]] to [[OUTPUT_TYPE]]
 // CHECK-DAG:  %[[INITIAL_VALUE:.*]] = arith.extui %[[CAST]] : [[OUTPUT_TYPE]] to [[INTER_TYPE:.*]]
-// CHECK-DAG:  %[[CMOD:.*]] = arith.constant 7681 : [[ELEM_TYPE:i26]]
+// CHECK-DAG:  %[[CMOD:.*]] = arith.constant 7681 : [[ELEM_TYPE:i64]]
 // CHECK-DAG:  %[[ROOTS:.*]] = arith.constant dense<[1, 1213, 4298, 5756]> : [[INTER_TYPE]]
 
 // CHECK-DAG:    %[[ZERO:.*]] = arith.constant 0 : index
@@ -71,15 +72,15 @@
 // CHECK:      %[[OUTPUT_VEC:.*]] = arith.constant dense<0> : [[OUTPUT_TYPE]]
 // CHECK:      %[[ORDERED_OUTPUT:.*]] = linalg.generic {indexing_maps = [#[[ID_MAP]], #[[ID_MAP]]], iterator_types = ["parallel"]}
 // CHECK-SAME:   ins(%[[REVERSE_BIT_ORDER_COEFFS]] : tensor<4xindex>) outs(%[[OUTPUT_VEC]] : [[OUTPUT_TYPE]]) {
-// CHECK:       ^bb0(%[[REV_INDEX:.*]]: index, %[[OUT:.*]]: i13):
+// CHECK:       ^bb0(%[[REV_INDEX:.*]]: index, %[[OUT:.*]]: i32):
 // CHECK:         %[[EXTRACTED:.*]] = tensor.extract %[[RES_TRUNC]][%[[REV_INDEX]]] : [[OUTPUT_TYPE]]
-// CHECK:         linalg.yield %[[EXTRACTED]] : i13
+// CHECK:         linalg.yield %[[EXTRACTED]] : i32
 // CHECK:       } -> [[OUTPUT_TYPE]]
 
 // CHECK:       return %[[ORDERED_OUTPUT]] : [[OUTPUT_TYPE]]
 
 func.func @lower_intt() -> !poly_ty {
-  %ntt_coeffs = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi13, #ring>
-  %ret = _polynomial.intt %ntt_coeffs: tensor<4xi13, #ring> -> !poly_ty
+  %ntt_coeffs = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi32, #ring>
+  %ret = polynomial.intt %ntt_coeffs {root=#root} : tensor<4xi32, #ring> -> !poly_ty
   return %ret : !poly_ty
 }

@@ -44,8 +44,8 @@ func.func @test_invalid_lwe_encode() {
 }
 
 // -----
-#params = #lwe.lwe_params<cmod=7917, dimension=10>
-#mismatch_params = #lwe.lwe_params<cmod=7917, dimension=11>
+#params = #lwe.lwe_params<coefficientType = i32, coefficientModulus = 7917 : i32, dimension=10>
+#mismatch_params = #lwe.lwe_params<coefficientType = i32, coefficientModulus = 7917 : i32, dimension=11>
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
 
 // expected-error@below {{LWE params attr must match output LWE ciphertext LWE params attr}}

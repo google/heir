@@ -88,6 +88,6 @@ gentbl_cc_library(
     deps = [
         ":dialect_inc_gen",
         ":td_files",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        "@llvm-project//mlir:PolynomialTdFiles",
     ],
 )

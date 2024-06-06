@@ -10,15 +10,16 @@
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/Polynomial.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -39,18 +40,22 @@ namespace {
 // modulus degree.
 // TODO(#536): Integrate a general library to compute appropriate prime moduli
 // given any number of bits.
-FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
-    MLIRContext *ctx, int coefficientModBits, int polyModDegree) {
-  std::vector<::mlir::heir::polynomial::Monomial> monomials;
+FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
+                                                    int coefficientModBits,
+                                                    int polyModDegree) {
+  std::vector<::mlir::polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
-  ::mlir::heir::polynomial::Polynomial xnPlusOne =
-      ::mlir::heir::polynomial::Polynomial::fromMonomials(monomials, ctx);
+  auto result = ::mlir::polynomial::IntPolynomial::fromMonomials(monomials);
+  if (failed(result)) return failure();
+  ::mlir::polynomial::IntPolynomial xnPlusOne = result.value();
   switch (coefficientModBits) {
-    case 29:
-      return ::mlir::heir::polynomial::RingAttr::get(
-          APInt(::mlir::heir::polynomial::APINT_BIT_WIDTH, 463187969),
-          xnPlusOne);
+    case 29: {
+      auto type = IntegerType::get(ctx, 32);
+      return ::mlir::polynomial::RingAttr::get(
+          type, IntegerAttr::get(type, APInt(32, 463187969)),
+          polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
+    }
     default:
       return failure();
   }
@@ -62,7 +67,7 @@ FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
 class SecretToBGVTypeConverter : public TypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
-                           ::mlir::heir::polynomial::RingAttr rlweRing) {
+                           ::mlir::polynomial::RingAttr rlweRing) {
     addConversion([](Type type) { return type; });
 
     // Convert secret types to BGV ciphertext types
@@ -82,7 +87,7 @@ class SecretToBGVTypeConverter : public TypeConverter {
   }
 
  private:
-  ::mlir::heir::polynomial::RingAttr ring_;
+  ::mlir::polynomial::RingAttr ring_;
 };
 
 template <typename T, typename Y>
@@ -167,9 +172,11 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       for (auto value : op->getOperands()) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
           auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (tensorTy &&
-              tensorTy.getShape() !=
-                  ArrayRef<int64_t>{rlweRing.value().getIdeal().getDegree()}) {
+          if (tensorTy && tensorTy.getShape() !=
+                              ArrayRef<int64_t>{rlweRing.value()
+                                                    .getPolynomialModulus()
+                                                    .getPolynomial()
+                                                    .getDegree()}) {
             return WalkResult::interrupt();
           }
         }

@@ -314,7 +314,7 @@ def LWE_RLWEParams : AttrDef<LWE_Dialect, "RLWEParams"> {
 
   let parameters = (ins
     DefaultValuedParameter<"unsigned", "2">:$dimension,
-    "::mlir::heir::polynomial::RingAttr":$ring
+    "::mlir::polynomial::RingAttr":$ring
   );
 
   let assemblyFormat = "`<` struct(params) `>`";

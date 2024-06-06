@@ -2,7 +2,7 @@
 #define HEIR_LIB_DIALECT_LWE_IR_LWETRAITS_H_
 
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
@@ -17,7 +17,7 @@ class SameOperandsAndResultRings
     : public OpTrait::TraitBase<ConcreteType, SameOperandsAndResultRings> {
  public:
   static LogicalResult verifyTrait(Operation *op) {
-    ::mlir::heir::polynomial::RingAttr rings = nullptr;
+    ::mlir::polynomial::RingAttr rings = nullptr;
     for (auto rTy : op->getResultTypes()) {
       auto ct = dyn_cast<lwe::RLWECiphertextType>(rTy);
       if (!ct) continue;
