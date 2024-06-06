@@ -1,3 +1,4 @@
+#include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
@@ -26,6 +27,7 @@ using namespace heir;
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
+  registry.insert<arith_ext::ArithExtDialect>();
   registry.insert<bgv::BGVDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();
