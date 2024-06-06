@@ -503,6 +503,7 @@ int main(int argc, char **argv) {
   registerElementwiseToAffinePasses();
   registerSecretizePasses();
   registerFullLoopUnrollPasses();
+  registerApplyFoldersPasses();
   registerForwardStoreToLoadPasses();
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
