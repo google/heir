@@ -19,7 +19,7 @@ module {
         secret.yield %1 : tensor<1024xi1>
     } -> !eui1
     // CHECK: return
-    // CHECK-SAME: cmod=463187969, ideal=#_polynomial.polynomial<1 + x**1024>
+    // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
     return %1 : !eui1
   }
 }

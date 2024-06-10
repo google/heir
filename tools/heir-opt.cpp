@@ -10,6 +10,7 @@
 #include "lib/Conversion/MemrefToArith/MemrefToArith.h"
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
+#include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/Transforms/AddClientInterface.h"
 #include "lib/Dialect/BGV/Transforms/Passes.h"
@@ -21,8 +22,10 @@
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/PolyExt/IR/PolyExtDialect.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
+#include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
+#include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
@@ -65,6 +68,7 @@
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
@@ -121,11 +125,7 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   // TOSA to linalg
   tosaToLinalg(manager);
   // Bufferize
-  manager.addNestedPass<FuncOp>(createLinalgBufferizePass());
-  manager.addNestedPass<FuncOp>(tensor::createTensorBufferizePass());
-  manager.addPass(arith::createArithBufferizePass());
-  manager.addPass(func::createFuncBufferizePass());
-  manager.addNestedPass<FuncOp>(bufferization::createFinalizingBufferizePass());
+  oneShotBufferize(manager);
   // Affine
   manager.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
@@ -464,6 +464,7 @@ void mlirToOpenFheBgvPipelineBuilder(
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
+  registry.insert<arith_ext::ArithExtDialect>();
   registry.insert<bgv::BGVDialect>();
   registry.insert<cggi::CGGIDialect>();
   registry.insert<comb::CombDialect>();
@@ -471,7 +472,6 @@ int main(int argc, char **argv) {
   registry.insert<lwe::LWEDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<poly_ext::PolyExtDialect>();
-  registry.insert<::mlir::heir::polynomial::PolynomialDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<secret::SecretDialect>();
   registry.insert<tensor_ext::TensorExtDialect>();
@@ -497,11 +497,13 @@ int main(int argc, char **argv) {
   bgv::registerBGVPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
+  ::mlir::heir::polynomial::registerPolynomialPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
   registerElementwiseToAffinePasses();
   registerSecretizePasses();
   registerFullLoopUnrollPasses();
+  registerApplyFoldersPasses();
   registerForwardStoreToLoadPasses();
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
@@ -540,6 +542,7 @@ int main(int argc, char **argv) {
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
+  rns::registerExternalRNSTypeInterfaces(registry);
 
   PassPipelineRegistration<>("heir-tosa-to-arith",
                              "Run passes to lower TOSA models with stripped "

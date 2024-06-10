@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -6,16 +8,37 @@ package(
 cc_library(
     name = "{{ pass_name }}",
     srcs = ["{{ pass_name }}.cpp"],
-    hdrs = [
-        "@heir//include/Conversion/{{ pass_name }}:{{ pass_name }}.h",
-    ],
+    hdrs = ["{{ pass_name }}.h"],
     deps = [
-        "@heir//include/Conversion/{{ pass_name }}:pass_inc_gen",
+        ":pass_inc_gen",
         "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect/{{ source_dialect_name }}/IR:Dialect",
         "@heir//lib/Dialect/{{ target_dialect_name }}/IR:Dialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Transforms",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name={{ pass_name }}",
+            ],
+            "{{ pass_name }}.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "{{ pass_name }}.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "{{ pass_name }}.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

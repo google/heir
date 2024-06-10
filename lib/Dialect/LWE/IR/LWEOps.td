@@ -3,7 +3,7 @@
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
-include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
+include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -93,6 +93,21 @@ def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
   let hasVerifier = 1;
 }
 
+def LWE_AddOp : LWE_Op<"add", [
+    Pure, Commutative, SameOperandsAndResultType]> {
+  let summary = "Add two LWE ciphertexts";
+  let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
+  let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def LWE_MulScalarOp : LWE_Op<"mul_scalar", [
+    Pure, Commutative, AllTypesMatch<["ciphertext", "output"]>]> {
+  let summary = "Multiply an LWE ciphertext by a scalar";
+  let arguments = (ins LWECiphertextLike:$ciphertext, AnyInteger:$scalar);
+  let results = (outs LWECiphertextLike:$output);
+}
+
 def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [Pure, HasEncoding<"output", "encoding", "RLWEPlaintextType">]> {
   let summary = "Encode an integer to yield an RLWE plaintext";
   let description = [{
@@ -111,7 +126,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [Pure, HasEncoding<"output", "encod
   let arguments = (ins
     SignlessIntegerLike:$input,
     AnyRLWEEncodingAttr:$encoding,
-    Ring_Attr:$ring
+    Polynomial_RingAttr:$ring
   );
 
   let results = (outs RLWEPlaintext:$output);
@@ -125,7 +140,7 @@ def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [
   let arguments = (ins
     RLWEPlaintext:$input,
     AnyRLWEEncodingAttr:$encoding,
-    Ring_Attr:$ring
+    Polynomial_RingAttr:$ring
   );
 
   let results = (outs SignlessIntegerLike:$output);

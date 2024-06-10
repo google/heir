@@ -1,7 +1,7 @@
 // RUN: heir-opt --bgv-to-openfhe %s | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
-#ring = #_polynomial.ring<cmod=463187969, ideal=#_polynomial.polynomial<1 + x**64>>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**64>>
 #params2 = #lwe.rlwe_params<dimension = 2, ring=#ring>
 #params3 = #lwe.rlwe_params<dimension = 3, ring=#ring>
 !ct_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params2, underlying_type=i3>

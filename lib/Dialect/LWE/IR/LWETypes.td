@@ -30,12 +30,12 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
   }];
 
   let parameters = (ins
-  // FIXME: Encoding attrs belong on ops and types, should the encoding
-  //   attributes be a different class?
     "::mlir::Attribute":$encoding,
     OptionalParameter<"LWEParamsAttr">:$lwe_params
   );
 }
+
+def LWECiphertextLike : TypeOrContainer<LWECiphertext, "ciphertext-like">;
 
 def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
   let summary = "A type for RLWE ciphertexts";
@@ -78,7 +78,7 @@ def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
 
   let parameters = (ins
     "::mlir::Attribute":$encoding,
-    "::mlir::heir::polynomial::RingAttr":$ring,
+    "::mlir::polynomial::RingAttr":$ring,
     "Type":$underlying_type
   );
 }

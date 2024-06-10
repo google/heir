@@ -2,8 +2,7 @@
 #define HEIR_LIB_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_
 
 include "PolyExtDialect.td"
-include "lib/Dialect/Polynomial/IR/PolynomialDialect.td"
-include "lib/Dialect/Polynomial/IR/PolynomialTypes.td"
+include "mlir/Dialect/Polynomial/IR/PolynomialTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -20,7 +19,8 @@ def PolyExt_CModSwitchOp : PolyExt_Op<"cmod_switch", traits = [Pure, Elementwise
 
   let description = [{
     `poly_ext.cmod_switch` "moves" polynomial $x$ from ring $Z/QZ[X]/(f(x))$ to the ring $Z/qZ[X]/(f(x))$.
-    The move is done by scaling the polynomial coefficients by $q/Q$ and "rounding" so input and output coufficients are congruent modulo `congruence_modulus` $t$.
+    The move is done by scaling the polynomial coefficients by $q/Q$ and "rounding" so input
+    and output coefficients are congruent modulo `congruence_modulus` $t$.
     The resulting polynomial $\tilde{x} \approx (q/Q)x$ and $\tilde{x} \equiv x \mod t$.
   }];
   let arguments = (ins

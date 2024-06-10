@@ -7,14 +7,16 @@
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
-#include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/Polynomial.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir::bgv {
@@ -30,7 +32,7 @@ class CiphertextTypeConverter : public TypeConverter {
     addConversion([ctx](lwe::RLWECiphertextType type) -> Type {
       auto rlweParams = type.getRlweParams();
       auto ring = rlweParams.getRing();
-      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = ::mlir::polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
     });
@@ -53,7 +55,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOp(op, rewriter.create<::mlir::heir::polynomial::AddOp>(
+    rewriter.replaceOp(op, rewriter.create<::mlir::polynomial::AddOp>(
                                op.getLoc(), adaptor.getOperands()[0],
                                adaptor.getOperands()[1]));
     return success();
@@ -69,7 +71,7 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
   LogicalResult matchAndRewrite(
       SubOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOp(op, rewriter.create<::mlir::heir::polynomial::SubOp>(
+    rewriter.replaceOp(op, rewriter.create<::mlir::polynomial::SubOp>(
                                op.getLoc(), adaptor.getOperands()[0],
                                adaptor.getOperands()[1]));
     return success();
@@ -87,10 +89,12 @@ struct ConvertNegate : public OpConversionPattern<Negate> {
       ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
     auto arg = adaptor.getOperands()[0];
-    auto neg = rewriter.create<arith::ConstantIntOp>(loc, -1, /*width=*/8);
-    rewriter.replaceOp(op,
-                       rewriter.create<::mlir::heir::polynomial::MulScalarOp>(
-                           loc, arg.getType(), arg, neg));
+    polynomial::PolynomialType polyType = cast<polynomial::PolynomialType>(
+        cast<RankedTensorType>(arg.getType()).getElementType());
+    auto neg = rewriter.create<arith::ConstantIntOp>(
+        loc, -1, polyType.getRing().getCoefficientType());
+    rewriter.replaceOp(op, rewriter.create<::mlir::polynomial::MulScalarOp>(
+                               loc, arg.getType(), arg, neg));
     return success();
   }
 };
@@ -135,11 +139,11 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
     auto y1 =
         b.create<tensor::ExtractOp>(yT.getElementType(), y, ValueRange{i1});
 
-    auto z0 = b.create<::mlir::heir::polynomial::MulOp>(x0, y0);
-    auto x0y1 = b.create<::mlir::heir::polynomial::MulOp>(x0, y1);
-    auto x1y0 = b.create<::mlir::heir::polynomial::MulOp>(x1, y0);
-    auto z1 = b.create<::mlir::heir::polynomial::AddOp>(x0y1, x1y0);
-    auto z2 = b.create<::mlir::heir::polynomial::MulOp>(x1, y1);
+    auto z0 = b.create<::mlir::polynomial::MulOp>(x0, y0);
+    auto x0y1 = b.create<::mlir::polynomial::MulOp>(x0, y1);
+    auto x1y0 = b.create<::mlir::polynomial::MulOp>(x1, y0);
+    auto z1 = b.create<::mlir::polynomial::AddOp>(x0y1, x1y0);
+    auto z2 = b.create<::mlir::polynomial::MulOp>(x1, y1);
 
     auto z = b.create<tensor::FromElementsOp>(ArrayRef<Value>({z0, z1, z2}));
 

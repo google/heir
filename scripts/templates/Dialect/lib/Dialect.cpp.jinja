@@ -1,31 +1,31 @@
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
 
 #include "mlir/include/mlir/IR/DialectImplementation.h" // from @llvm-project
 
 // NOLINTNEXTLINE(misc-include-cleaner): Required to define {{ dialect_name }}Ops
 {% if enable_attributes %}
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.h"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.h"
 {% endif %}
 {% if enable_ops %}
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Ops.h"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Ops.h"
 {% endif %}
 {% if enable_types %}
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h"
 {% endif %}
 
 // Generated definitions
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.cpp.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.cpp.inc"
 {% if enable_attributes %}
 #define GET_ATTRDEF_CLASSES
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.cpp.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.cpp.inc"
 {% endif %}
 {% if enable_types %}
 #define GET_TYPEDEF_CLASSES
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.cpp.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.cpp.inc"
 {% endif %}
 {% if enable_ops %}
 #define GET_OP_CLASSES
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Ops.cpp.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Ops.cpp.inc"
 {% endif %}
 
 namespace mlir {
@@ -36,19 +36,19 @@ void {{ dialect_name }}Dialect::initialize() {
   {% if enable_attributes %}
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.cpp.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.cpp.inc"
       >();
   {% endif %}
   {% if enable_types %}
   addTypes<
 #define GET_TYPEDEF_LIST
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.cpp.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.cpp.inc"
       >();
   {% endif %}
   {% if enable_ops %}
   addOperations<
 #define GET_OP_LIST
-#include "include/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Ops.cpp.inc"
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Ops.cpp.inc"
       >();
   {% endif %}
 }

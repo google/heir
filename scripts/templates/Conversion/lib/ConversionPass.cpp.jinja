@@ -1,14 +1,14 @@
-#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h"
+#include "lib/Conversion/{{ pass_name }}/{{ pass_name }}.h"
 
-#include "include/Dialect/{{ source_dialect_name }}/IR/{{ source_dialect_name }}Dialect.h"
-#include "include/Dialect/{{ target_dialect_name }}/IR/{{ target_dialect_name }}Dialect.h"
+#include "lib/Dialect/{{ source_dialect_name }}/IR/{{ source_dialect_name }}Dialect.h"
+#include "lib/Dialect/{{ target_dialect_name }}/IR/{{ target_dialect_name }}Dialect.h"
 #include "lib/Conversion/Utils.h"
 #include "mlir/include/mlir/Transforms/DialectConversion.h" // from @llvm-project
 
 namespace mlir::heir {
 
 #define GEN_PASS_DEF_{{ pass_name | upper }}
-#include "include/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
+#include "lib/Conversion/{{ pass_name }}/{{ pass_name }}.h.inc"
 
 // Remove this class if no type conversions are necessary
 class {{ pass_name }}TypeConverter : public TypeConverter {

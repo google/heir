@@ -2,8 +2,8 @@
 
 // These two types differ only on their underlying_type. The IR stays as the !in_ty
 // for the entire computation until the final extract op.
-!in_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <cmod=463187969, ideal=#_polynomial.polynomial<1 + x**32>>>, underlying_type = tensor<32xi16>>
-!out_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <cmod=463187969, ideal=#_polynomial.polynomial<1 + x**32>>>, underlying_type = i16>
+!in_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**32>>>, underlying_type = tensor<32xi16>>
+!out_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**32>>>, underlying_type = i16>
 
 func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
   %c2 = arith.constant 2 : index

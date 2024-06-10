@@ -13,9 +13,10 @@ welcome! {{% /blocks/feature %}}
 
 {{% blocks/feature icon="fa fa-comments" title="Discuss" %}} We use
 [GitHub discussions](https://github.com/google/heir/discussions) for general
-async discussions, and
-[Discord](https://discord.com/channels/901152454077452399/1226892677887426560)
-for informal live chat. {{% /blocks/feature %}}
+async discussions. For informal chat, join the [FHE.org community
+Discord](https://discord.com/invite/fhe-org) and use the
+[#heir](https://discord.com/channels/901152454077452399/1226892677887426560)
+channel. {{% /blocks/feature %}}
 
 {{% blocks/feature icon="fa fa-people-group" title="Meet" %}} Join our open
 design meetings to discuss project direction (see calendar below).

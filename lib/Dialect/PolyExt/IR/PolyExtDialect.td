@@ -16,7 +16,7 @@ def PolyExt_Dialect : Dialect {
 
   let description = [{
     The PolyExt dialect is a place for "external" operations on
-    `mlir::heir::polynomial::Polynomial`.
+    `mlir::polynomial::Polynomial`.
   }];
 
   let cppNamespace = "::mlir::heir::poly_ext";

@@ -95,6 +95,13 @@ http_archive(
     ],
 )
 
+http_archive(
+    name = "google_benchmark",
+    sha256 = "3e7059b6b11fb1bbe28e33e02519398ca94c1818874ebed18e504dc6f709be45",
+    strip_prefix = "benchmark-1.8.4",
+    url = "https://github.com/google/benchmark/archive/refs/tags/v1.8.4.tar.gz",  # 2024-05-23
+)
+
 # googletest comes with abseil as @com_google_absl, see
 # https://github.com/google/googletest/blob/23f642ab2317c632d93326c65efd44671c1d9985/googletest_deps.bzl
 load("@googletest//:googletest_deps.bzl", "googletest_deps")
@@ -333,10 +340,8 @@ git_repository(
 git_repository(
     name = "openfhe",
     build_file = "//bazel/openfhe:openfhe.BUILD",
-    # TODO(#424): update to v1.1.3, which fixes issues with scheme switching
-    # that show up when run with sanitizers enabled
-    # Currently v1.1.2, 2023-12-26
-    commit = "b2869aef5cf61afd364b3eaea748dcc8a7020b9c",
+    # Currently v1.1.4, 2024-03-08
+    commit = "94fd76a1d965cfde13f2a540d78ce64146fc2700",
     patches = ["@heir//bazel/openfhe:add_config_core.patch"],
     remote = "https://github.com/openfheorg/openfhe-development.git",
 )

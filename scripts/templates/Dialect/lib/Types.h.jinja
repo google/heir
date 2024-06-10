@@ -1,0 +1,12 @@
+#ifndef LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
+#define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_
+
+{% if enable_attributes %}
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Attributes.h"
+{% endif %}
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Dialect.h"
+
+#define GET_TYPEDEF_CLASSES
+#include "lib/Dialect/{{ dialect_name }}/IR/{{ dialect_name }}Types.h.inc"
+
+#endif  // LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}TYPES_H_

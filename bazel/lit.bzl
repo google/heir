@@ -65,6 +65,7 @@ def glob_lit_tests(
         name = None,  # buildifier: disable=unused-variable
         data = None,
         driver = None,  # buildifier: disable=unused-variable
+        exclude = None,
         size_override = None,
         test_file_exts = None,
         default_tags = None,
@@ -76,17 +77,19 @@ def glob_lit_tests(
       data: the data to pass to the test, e.g., targets containing binaries
         used by the lit test in a RUN command.
       driver: unused
+      exclude: a list of glob patterns to exclude
       size_override: a dictionary giving per-source-file test size overrides
       test_file_exts: a list of file extensions to use for globbing for files
         that should be defined as tests.
       default_tags: [str] tags to add to each test
       tags_override: tags to pass to each generated target.
     """
+    exclude = exclude or []
     test_file_exts = test_file_exts or _DEFAULT_FILE_EXTS
     size_override = size_override or dict()
     tags_override = tags_override or dict()
     default_tags = default_tags or []
-    tests = native.glob(["*." + ext for ext in test_file_exts])
+    tests = native.glob(["*." + ext for ext in test_file_exts], exclude = exclude)
 
     for curr_test in tests:
         lit_test(

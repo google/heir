@@ -1,7 +1,7 @@
 // RUN: heir-opt --lwe-set-default-parameters %s
 
 #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
-#poly = #_polynomial.polynomial<1 + x**1024>
+#poly = #polynomial.int_polynomial<1 + x**1024>
 !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding>
 
@@ -19,6 +19,6 @@ func.func @test_adds_attribute(%arg0 : !ciphertext) -> !ciphertext {
   %5 = lwe.trivial_encrypt %3 : !plaintext to !ciphertext
   // CHECK: lwe.lwe_ciphertext
   // CHECK-SAME: lwe_params
-  %7 = cggi.lut3 (%arg0, %4, %5) {lookup_table = 127 : index} : !ciphertext
+  %7 = cggi.lut3 %arg0, %4, %5 {lookup_table = 127 : index} : !ciphertext
   return %7 : !ciphertext
 }

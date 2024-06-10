@@ -22,9 +22,10 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -129,7 +130,7 @@ gentbl_cc_library(
         ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":td_files",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        "@llvm-project//mlir:PolynomialTdFiles",
     ],
 )
 
@@ -155,6 +156,6 @@ gentbl_cc_library(
         ":dialect_inc_gen",
         ":td_files",
         ":types_inc_gen",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        "@llvm-project//mlir:PolynomialTdFiles",
     ],
 )

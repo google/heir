@@ -21,7 +21,7 @@ class BooleanGateImporter : public RTLILImporter {
  public:
   BooleanGateImporter(MLIRContext *context) : RTLILImporter(context) {}
 
-  virtual ~BooleanGateImporter() = default;
+  ~BooleanGateImporter() override = default;
 
  protected:
   Operation *createOp(Yosys::RTLIL::Cell *cell, SmallVector<Value> &inputs,

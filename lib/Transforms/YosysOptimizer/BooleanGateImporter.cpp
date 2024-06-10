@@ -40,7 +40,7 @@ mlir::Operation *BooleanGateImporter::createOp(Yosys::RTLIL::Cell *cell,
 SmallVector<Yosys::RTLIL::SigSpec> BooleanGateImporter::getInputs(
     Yosys::RTLIL::Cell *cell) const {
   // Return all non-Y named attributes.
-  SmallVector<Yosys::RTLIL::SigSpec, 4> inputs;
+  SmallVector<Yosys::RTLIL::SigSpec> inputs;
   for (auto &conn : cell->connections()) {
     if (conn.first.contains("Y")) {
       continue;

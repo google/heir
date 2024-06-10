@@ -17,19 +17,18 @@ func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interf
 // REDEFINE: %{check_prefix} = CHECK_TEST_8
 // RUN: %{compile} | %{run} | %{check}
 
-#ideal_8 = #_polynomial.polynomial<1 + x**3>
-#ring_8 = #_polynomial.ring<cmod=7, ideal=#ideal_8>
-!poly_ty_8 = !_polynomial.polynomial<#ring_8>
+#ideal_8 = #polynomial.int_polynomial<1 + x**3>
+#ring_8 = #polynomial.ring<coefficientType = i32, coefficientModulus=7 : i32, polynomialModulus=#ideal_8>
+!poly_ty_8 = !polynomial.polynomial<ring=#ring_8>
 
 func.func @test_8() {
   %const0 = arith.constant 0 : index
-  %0 = _polynomial.constant <-4 + x**1> : !poly_ty_8
-  %1 = _polynomial.constant <-1 + 3x**1> : !poly_ty_8
-  %2 = _polynomial.mul(%0, %1) : !poly_ty_8
+  %0 = polynomial.constant int<-4 + x**1> : !poly_ty_8
+  %1 = polynomial.constant int<-1 + 3x**1> : !poly_ty_8
+  %2 = polynomial.mul %0, %1 : !poly_ty_8
 
 
-  %3 = _polynomial.to_tensor %2 : !poly_ty_8 -> tensor<3xi3>
-  %tensor = arith.extsi %3 : tensor<3xi3> to tensor<3xi32>
+  %tensor = polynomial.to_tensor %2 : !poly_ty_8 -> tensor<3xi32>
 
   %ref = bufferization.to_memref %tensor : memref<3xi32>
   %U = memref.cast %ref : memref<3xi32> to memref<*xi32>
@@ -37,4 +36,4 @@ func.func @test_8() {
   return
 }
 // expected_result: Poly(3*x**2 - 13*x + 4, x, domain='ZZ[7]')
-// CHECK_TEST_8: [-4, 1, 3]
+// CHECK_TEST_8: {{(4|-3)}}, {{(1|-6)}}, {{(3|-4)}}

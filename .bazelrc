@@ -1,8 +1,5 @@
-# TODO(#424): revert to -std=c++17 once openfhe supports it
-# gnu++17 is needed to avoid issues with openfhe support for __int128_t
-# see https://github.com/openfheorg/openfhe-development/issues/669
-common --action_env=BAZEL_CXXOPTS=-std=gnu++17
-common --cxxopt='-std=gnu++17'
+common --action_env=BAZEL_CXXOPTS=-std=c++17
+common --cxxopt='-std=c++17'
 common --copt=-fdiagnostics-color=always
 common --test_output=errors
 # compilation_mode options below are `dbg` (debug symbols) `fastbuild`
@@ -11,3 +8,12 @@ common -c dbg
 common --noenable_bzlmod
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
+
+# run with --config=asan to enable
+build:asan --strip=never
+build:asan --copt -fsanitize=address
+build:asan --copt -DADDRESS_SANITIZER
+build:asan --copt -O1
+build:asan --copt -g
+build:asan --copt -fno-omit-frame-pointer
+build:asan --linkopt -fsanitize=address

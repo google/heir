@@ -25,6 +25,7 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
     ],
 )
 
@@ -90,7 +91,7 @@ gentbl_cc_library(
         ":td_files",
         "@heir//lib/Dialect:td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        "@llvm-project//mlir:PolynomialTdFiles",
     ],
 )
 

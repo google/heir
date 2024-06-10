@@ -9,7 +9,6 @@
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
 
 
-
 // CHECK-LABEL: test_valid_lwe_ciphertext
 func.func @test_valid_lwe_ciphertext(%arg0 : !ciphertext) -> !ciphertext {
   return %arg0 : !ciphertext
@@ -24,8 +23,8 @@ func.func @test_valid_lwe_ciphertext_unspecified(%arg0 : !ciphertext_noparams) -
 }
 
 
-#my_poly = #_polynomial.polynomial<1 + x**1024>
-#ring = #_polynomial.ring<cmod=7917, ideal=#my_poly>
+#my_poly = #polynomial.int_polynomial<1 + x**1024>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7917 : i32, polynomialModulus=#my_poly>
 #rlwe_params = #lwe.rlwe_params<dimension=10, ring=#ring>
 !ciphertext_rlwe = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params, underlying_type=i3>
 

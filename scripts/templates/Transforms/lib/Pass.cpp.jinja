@@ -1,4 +1,4 @@
-#include "include/Transforms/{{ pass_name }}/{{ pass_name }}.h"
+#include "lib/Transforms/{{ pass_name }}/{{ pass_name }}.h"
 
 #include "mlir/include/mlir/Transforms/Passes.h" // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h" // from @llvm-project
@@ -7,7 +7,7 @@ namespace mlir {
 namespace heir {
 
 #define GEN_PASS_DEF_{{ pass_name | upper }}
-#include "include/Transforms/{{ pass_name }}/{{ pass_name }}.h.inc"
+#include "lib/Transforms/{{ pass_name }}/{{ pass_name }}.h.inc"
 
 struct {{ pass_name }} : impl::{{ pass_name }}Base<{{ pass_name }}> {
   using {{ pass_name }}Base::{{ pass_name }}Base;

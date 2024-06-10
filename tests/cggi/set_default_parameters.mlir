@@ -1,7 +1,7 @@
 // RUN: heir-opt --cggi-set-default-parameters %s
 
 #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
-#poly = #_polynomial.polynomial<1 + x**1024>
+#poly = #polynomial.int_polynomial<1 + x**1024>
 #params = #lwe.lwe_params<cmod=7917, dimension=4>
 !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
@@ -19,6 +19,6 @@ func.func @test_adds_attribute(%arg0 : !ciphertext) -> !ciphertext {
   // CHECK: cggi.lut3
   // Testing that the pass adds the right kind of attribute to the op
   // CHECK: cggi_params = #cggi.cggi_params
-  %6 = cggi.lut3 (%arg0, %4, %5) {lookup_table = 127 : index} : !ciphertext
+  %6 = cggi.lut3 %arg0, %4, %5 {lookup_table = 127 : index} : !ciphertext
   return %4 : !ciphertext
 }

@@ -19,11 +19,10 @@ cc_library(
     deps = [
         ":dialect_inc_gen",
         ":ops_inc_gen",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
-        "@heir//lib/Dialect/Polynomial/IR:Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -35,10 +34,10 @@ td_library(
         "PolyExtOps.td",
     ],
     deps = [
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PolynomialTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",
     ],
 )

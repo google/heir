@@ -4,10 +4,10 @@
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
-#my_poly = #_polynomial.polynomial<1 + x**1024>
+#my_poly = #polynomial.int_polynomial<1 + x**1024>
 // cmod is 64153 * 2521
-#ring1 = #_polynomial.ring<cmod=161729713, ideal=#my_poly>
-#ring2 = #_polynomial.ring<cmod=2521, ideal=#my_poly>
+#ring1 = #polynomial.ring<coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus=#my_poly>
+#ring2 = #polynomial.ring<coefficientType = i32, coefficientModulus = 2521 : i32, polynomialModulus=#my_poly>
 
 #params = #lwe.rlwe_params<dimension=2, ring=#ring1>
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring1>
@@ -31,7 +31,7 @@ module {
     %0 = bgv.mul %arg0, %arg1  : (!ct, !ct) -> !ct1
     %1 = bgv.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : !ct1 -> !ct
     %2 = bgv.modulus_switch %1  {to_ring = #ring2} : !ct -> !ct2
-    // CHECK: rlwe_params = <dimension = 3, ring = <cmod=161729713, ideal=#_polynomial.polynomial<1 + x**1024>>>
+    // CHECK: rlwe_params = <dimension = 3, ring = <coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus = <1 + x**1024>>>
     return %arg0 : !ct
   }
 
@@ -40,7 +40,7 @@ module {
     %add = bgv.add_plain %arg3, %arg0 : (!ct, !pt) -> !ct
     %sub = bgv.sub_plain %add, %arg1 : (!ct, !pt) -> !ct
     %mul = bgv.mul_plain %sub, %arg2 : (!ct, !pt) -> !ct
-    // CHECK: rlwe_params = <ring = <cmod=161729713, ideal=#_polynomial.polynomial<1 + x**1024>>>
+    // CHECK: rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus = <1 + x**1024>>>
     return %mul : !ct
   }
 
@@ -50,7 +50,7 @@ module {
     %c1 = arith.constant 1 : index
     %add = bgv.rotate %arg3, %c1 : !ct_tensor, index
     %ext = bgv.extract %add, %c0 : (!ct_tensor, index) -> !ct_scalar
-    // CHECK: rlwe_params = <ring = <cmod=161729713, ideal=#_polynomial.polynomial<1 + x**1024>>>
+    // CHECK: rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus = <1 + x**1024>>>
     return %ext : !ct_scalar
   }
 }

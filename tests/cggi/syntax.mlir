@@ -2,7 +2,7 @@
 
 // This simply tests for syntax.
 #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
-#poly = #_polynomial.polynomial<1 + x**1024>
+#poly = #polynomial.int_polynomial<1 + x**1024>
 #params = #lwe.lwe_params<cmod=7917, dimension=4>
 !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
@@ -15,7 +15,11 @@ module {
     %3 = lwe.encode %1 { encoding = #encoding }: i1 to !plaintext
     %4 = lwe.trivial_encrypt %2 { params = #params } : !plaintext to !ciphertext
     %5 = lwe.trivial_encrypt %3 { params = #params } : !plaintext to !ciphertext
-    %6 = cggi.lut3 (%arg0, %4, %5) {lookup_table = 127 : index} : !ciphertext
+    %6 = cggi.lut3 %arg0, %4, %5 {lookup_table = 127 : index} : !ciphertext
+    %c3 = arith.constant 3 : i3
+    %7 = lwe.mul_scalar %4, %c3 : (!ciphertext, i3) -> !ciphertext
+    %8 = lwe.add %7, %5 : !ciphertext
+    %9 = cggi.lut_lincomb %4, %5, %6, %7 {coefficients = array<i32: 1, 1, 1, 2>, lookup_table = 68 : index} : !ciphertext
     return %4 : !ciphertext
   }
 }

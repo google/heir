@@ -27,20 +27,21 @@ ideal = "1 + x**12"
 cmod = 4294967296
 p0 = "1 + x**10"
 p1 = "1 + x**11"
-container_type = "i32"
+cmod_type = "i64"
+coefficient_type = "i32"
 ```
 
 Creates a test equivalent to
 
 ```
-#ideal = #polynomial.polynomial<1 + x**12>
-#ring = #polynomial.ring<cmod=4294967296, ideal=#ideal>
-!poly_ty = !polynomial.polynomial<#ring>
+#ideal = #polynomial.int_polynomial<1 + x**12>
+#ring = #polynomial.ring<coefficientType=i32 coefficientModulus=4294967296:i64, polynomialModulus=#ideal>
+!poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func @test() {
-  %0 = polynomial.constant <1 + x**10> : !poly_ty
-  %1 = polynomial.constant <1 + x**11> : !poly_ty
-  %2 = polynomial.mul(%0, %1) : !poly_ty
+  %0 = polynomial.constant int<1 + x**10> : !poly_ty
+  %1 = polynomial.constant int<1 + x**11> : !poly_ty
+  %2 = polynomial.mul %0, %1 : !poly_ty
 
   %tensor = polynomial.to_tensor %2 : !poly_ty -> tensor<12xi32>
   %ref = bufferization.to_memref %tensor : memref<12xi32>

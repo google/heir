@@ -1,0 +1,18 @@
+#ifndef LIB_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_H_
+#define LIB_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_H_
+
+#include "mlir/include/mlir/Pass/Pass.h" // from @llvm-project
+
+namespace mlir {
+namespace heir {
+
+#define GEN_PASS_DECL
+#include "lib/Transforms/{{ pass_name }}/{{ pass_name }}.h.inc"
+
+#define GEN_PASS_REGISTRATION
+#include "lib/Transforms/{{ pass_name }}/{{ pass_name }}.h.inc"
+
+}  // namespace heir
+}  // namespace mlir
+
+#endif  // LIB_TRANSFORMS_{{ pass_name | upper }}_{{ pass_name | upper }}_H_

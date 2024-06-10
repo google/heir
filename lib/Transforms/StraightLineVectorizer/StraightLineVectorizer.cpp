@@ -1,9 +1,10 @@
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 
 #include "lib/Graph/Graph.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "mlir/include/mlir/Analysis/SliceAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/TopologicalSortUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
@@ -11,7 +12,6 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/TopologicalSortUtils.h"  // from @llvm-project
 
 #define DEBUG_TYPE "straight-line-vectorizer"
 
