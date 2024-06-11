@@ -44,8 +44,8 @@ LogicalResult MulOp::verify() {
   }
   auto out = getOutput().getType();
   if (out.getRlweParams().getDimension() !=
-      1 + x.getRlweParams().getDimension()) {
-    return emitOpError() << "output.dim == x.dim + 1 does not hold";
+      y.getRlweParams().getDimension() + x.getRlweParams().getDimension() - 1) {
+    return emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
   }
   return success();
 }
