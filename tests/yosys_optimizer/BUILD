@@ -23,6 +23,14 @@ glob_lit_tests(
     driver = "@heir//tests:run_lit.sh",
     size_override = {
         "micro_speech_for.mlir": "large",
+        "64_bit_mul.mlir": "large",
+    },
+    tags_override = {
+        "64_bit_mul.mlir": [
+            "nofastbuild",
+            "notap",
+            "manual",
+        ],
     },
     test_file_exts = ["mlir"],
 )
