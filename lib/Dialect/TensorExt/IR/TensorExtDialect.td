@@ -15,6 +15,8 @@ def TensorExt_Dialect : Dialect {
   let dependentDialects = [
     "tensor::TensorDialect",
   ];
+
+  let useDefaultAttributePrinterParser = 1;
 }
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTDIALECT_TD_

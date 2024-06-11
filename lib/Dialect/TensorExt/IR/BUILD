@@ -13,15 +13,19 @@ cc_library(
         "TensorExtDialect.cpp",
     ],
     hdrs = [
+        "TensorExtAttributes.h",
         "TensorExtDialect.h",
         "TensorExtOps.h",
     ],
     deps = [
         ":TensorExtOps",
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],
 )
@@ -50,6 +54,7 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "TensorExtAttributes.td",
         "TensorExtCanonicalization.td",
         "TensorExtDialect.td",
         "TensorExtOps.td",
@@ -89,6 +94,30 @@ gentbl_cc_library(
 )
 
 gentbl_cc_library(
+    name = "attributes_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-attrdef-decls"],
+            "TensorExtAttributes.h.inc",
+        ),
+        (
+            ["-gen-attrdef-defs"],
+            "TensorExtAttributes.cpp.inc",
+        ),
+        (
+            ["-gen-attrdef-doc"],
+            "TensorExtAttributes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "TensorExtAttributes.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
     name = "ops_inc_gen",
     tbl_outs = [
         (
@@ -107,6 +136,7 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "TensorExtOps.td",
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":td_files",
         "@llvm-project//mlir:PolynomialTdFiles",
