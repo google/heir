@@ -12,13 +12,15 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class ArithExt_Op<string mnemonic, list<Trait> traits = [Pure]> :
         Op<ArithExt_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::arith_ext";
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
 
 class ArithExt_BinaryOp<string mnemonic, list<Trait> traits = []> :
     ArithExt_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
-    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs, I64Attr:$modulus)>,
+    Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs, APIntAttr:$modulus)>,
     Results<(outs SignlessIntegerLike:$output)> {
-  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` qualified(type($output))";
+  let hasVerifier = 1;
+  let assemblyFormat ="operands attr-dict `:` type($output)";
 }
 
 def ArithExt_AddOp : ArithExt_BinaryOp<"add", [Commutative]> {
@@ -42,6 +44,17 @@ def ArithExt_MulOp : ArithExt_BinaryOp<"mul", [Commutative]> {
   }];
 }
 
+def ArithExt_MacOp : ArithExt_Op<"mac", [SameOperandsAndResultType, Pure, ElementwiseMappable]> {
+  let summary = "modular multiplication-and-accumulation operation";
+
+  let description = [{
+    `arith_ext.mac x, y, z {modulus = q}` computes $(x * y) + z \mod q$
+  }];
+  let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs, SignlessIntegerLike:$acc, APIntAttr:$modulus);
+  let results = (outs SignlessIntegerLike:$output);
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
 
 def ArithExt_BarrettReduceOp : ArithExt_Op<"barrett_reduce", [SameOperandsAndResultType]> {
   let summary = "Compute the first step of the Barrett reduction.";
@@ -55,7 +68,7 @@ def ArithExt_BarrettReduceOp : ArithExt_Op<"barrett_reduce", [SameOperandsAndRes
 
   let arguments = (ins
     SignlessIntegerLike:$input,
-    I64Attr:$modulus
+    APIntAttr:$modulus
   );
   let results = (outs SignlessIntegerLike:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($input))";
