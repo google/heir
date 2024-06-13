@@ -1,6 +1,7 @@
 #include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 
 #include <cassert>
+#include <cstdint>
 #include <cstdio>
 #include <iostream>
 #include <memory>
@@ -32,6 +33,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
@@ -67,15 +69,20 @@ using std::string;
 // $2: yosys runfiles
 // $3: abc path
 // $4: abc fast option -fast
+// This template uses LUTs to optimize logic. It handles Verilog modules that
+// may call submodules, utilizing splitnets to split output ports of the
+// submodule into individual bits. Note that the splitnets command uses %n to
+// target all submodules besides the main function.
 constexpr std::string_view kYosysLutTemplate = R"(
-read_verilog {0};
+read_verilog -sv {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
 techmap -map {2}/techmap.v; stat;
-opt; stat;
+splitnets -ports \{1} %n;
+flatten; opt_expr; opt; opt_clean -purge;
+rename -hide */w:*; rename -enumerate */w:*;
 abc -exe {3} -lut 3 {4}; stat;
 opt_clean -purge; stat;
-rename -hide */c:*; rename -enumerate */c:*;
 techmap -map {2}/map_lut_to_lut3.v; opt_clean -purge;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
@@ -99,6 +106,30 @@ hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
 stat;
 )";
+
+namespace {
+
+int64_t countArithOps(Operation *op, ModuleOp moduleOp) {
+  int64_t numArithOps = 0;
+  auto isArithOp = [](Operation *op) -> bool {
+    return isa<arith::ArithDialect>(op->getDialect()) &&
+           !isa<arith::ConstantOp>(op);
+  };
+
+  op->walk([&](Operation *op) {
+    if (isArithOp(op)) {
+      numArithOps++;
+    }
+    if (auto callOp = dyn_cast<func::CallOp>(op)) {
+      auto funcOp = moduleOp.lookupSymbol<func::FuncOp>(callOp.getCallee());
+      numArithOps += countArithOps(funcOp, moduleOp);
+    }
+  });
+
+  return numArithOps;
+}
+
+}  // namespace
 
 struct RelativeOptimizationStatistics {
   std::string originalOp;
@@ -347,15 +378,11 @@ LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
 LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   std::string moduleName = "generic_body";
   MLIRContext *context = op->getContext();
+  auto moduleOp = op->getParentOfType<ModuleOp>();
+  if (!moduleOp) return failure();
 
   // Count number of arith ops in the generic body
-  int64_t numArithOps = 0;
-  op->walk([&](Operation *op) {
-    if (isa<arith::ArithDialect>(op->getDialect()) &&
-        !isa<arith::ConstantOp>(op)) {
-      numArithOps++;
-    }
-  });
+  int64_t numArithOps = countArithOps(op, moduleOp);
   if (numArithOps == 0) return success();
 
   optStatistics.push_back(RelativeOptimizationStatistics());

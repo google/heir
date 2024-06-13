@@ -110,6 +110,7 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::affine::AffineYieldOp op);
   LogicalResult printOperation(mlir::func::CallOp op);
   LogicalResult printOperation(mlir::math::CountLeadingZerosOp op);
+  LogicalResult printOperation(mlir::memref::StoreOp op);
   LogicalResult printOperation(mlir::memref::LoadOp op);
 
   // Helpers for above

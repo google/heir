@@ -189,7 +189,7 @@ LogicalResult VerilogEmitter::translate(
           .Case<func::ReturnOp, secret::YieldOp>(
               [&](auto op) { return printReturnLikeOp(op.getOperands()); })
           // Arithmetic ops.
-          .Case<arith::ConstantOp>([&](auto op) {
+          .Case<arith::ConstantOp>([&](arith::ConstantOp op) {
             if (auto iAttr = dyn_cast<IndexType>(op.getValue().getType())) {
               // We can skip translating declarations of index constants. If the
               // index is used in a subsequent load, e.g.
@@ -199,6 +199,9 @@ LogicalResult VerilogEmitter::translate(
               // when translating the load operation, and we do not need to
               // declare the constant. For example, this would translate to
               //   v2 = vFoo[15:8];
+              value_to_wire_name_.insert(std::make_pair(
+                  op.getResult(),
+                  std::to_string(cast<IntegerAttr>(op.getValue()).getInt())));
               return success();
             }
             return printOperation(op);
@@ -212,6 +215,7 @@ LogicalResult VerilogEmitter::translate(
           .Case<math::CountLeadingZerosOp>(
               [&](auto op) { return printOperation(op); })
           // Memref ops.
+          .Case<memref::DeallocOp>([&](auto op) { return success(); })
           .Case<memref::GlobalOp>([&](auto op) {
             // This is a no-op: Globals are not translated inherently, rather
             // their users get_globals are translated at the function level.
@@ -228,7 +232,8 @@ LogicalResult VerilogEmitter::translate(
             // declaration during FuncOp translation.
             return success();
           })
-          .Case<memref::LoadOp>([&](auto op) { return printOperation(op); })
+          .Case<memref::LoadOp, memref::StoreOp>(
+              [&](auto op) { return printOperation(op); })
           // Affine ops.
           .Case<affine::AffineParallelOp, affine::AffineLoadOp,
                 affine::AffineStoreOp, affine::AffineYieldOp>(
@@ -757,6 +762,22 @@ LogicalResult VerilogEmitter::printOperation(memref::LoadOp op) {
   return success();
 }
 
+LogicalResult VerilogEmitter::printOperation(memref::StoreOp op) {
+  // This extracts the indexed bits from the flattened memref.
+  auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
+  if (!iType) {
+    return failure();
+  }
+
+  os_ << "assign " << getOrCreateName(op.getMemref()) << "["
+      << variableLoadStr(
+             op.getMemRefType(), op.getIndices(), iType.getWidth(),
+             [&](Value value) { return getOrCreateName(value).str(); })
+      << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
+
+  return success();
+}
+
 LogicalResult VerilogEmitter::printOperation(affine::AffineStoreOp op) {
   // This extracts the indexed bits from the flattened memref.
   auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
@@ -835,6 +856,20 @@ LogicalResult VerilogEmitter::printOperation(math::CountLeadingZerosOp op) {
 LogicalResult VerilogEmitter::printOperation(
     mlir::heir::secret::GenericOp op,
     std::optional<llvm::StringRef> moduleName) {
+  // Translate all the functions called in the module.
+  auto module = op->getParentOfType<ModuleOp>();
+  SetVector<Operation *> funcs;
+  op->walk([&](func::CallOp callOp) {
+    auto func = module.lookupSymbol<func::FuncOp>(callOp.getCallee());
+    funcs.insert(func.getOperation());
+  });
+
+  for (auto func : funcs) {
+    if (failed(translate(*func, std::nullopt))) {
+      return op->emitError() << "failed to translate function.";
+    }
+  }
+
   llvm::StringRef name;
   if (moduleName.has_value()) {
     name = moduleName.value();
@@ -858,6 +893,12 @@ LogicalResult VerilogEmitter::emitType(Type type) {
 }
 
 LogicalResult VerilogEmitter::emitType(Type type, raw_ostream &os) {
+  if (auto idxType =
+          dyn_cast<IndexType>(type)) {  // emit index types as 32-bit integers
+    int32_t width = 32;
+    IntegerType intTy = IntegerType::get(idxType.getContext(), width);
+    return (os << wireDeclaration(intTy, width)), success();
+  }
   if (auto iType = dyn_cast<IntegerType>(type)) {
     int32_t width = iType.getWidth();
     return (os << wireDeclaration(iType, width)), success();
