@@ -4,6 +4,7 @@
 
 #include "lib/Conversion/MemrefToArith/MemrefToArith.h"
 #include "lib/Conversion/MemrefToArith/Utils.h"
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineMemoryOpInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -22,6 +23,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+#define DEBUG_TYPE "memref-global-replace"
 
 namespace mlir {
 namespace heir {
@@ -75,10 +78,11 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
         // are unrolled) are sufficient to ensure we can statically
         // compute the load's input index.
         if (!isa<affine::AffineReadOpInterface>(user)) {
-          getGlobal.emitRemark()
+          LLVM_DEBUG(
+              getGlobal.emitRemark()
               << "MemrefGlobalLoweringPattern requires all global memref "
                  "readers to be affine reads, but got "
-              << user;
+              << user);
           getGlobalRemoveable = false;
           continue;
         }
@@ -91,8 +95,9 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
         auto flattenedIndex =
             getFlattenedAccessIndex(readAccess, readOp.getMemRefType());
         if (!flattenedIndex.has_value()) {
-          readOp->emitRemark() << "MemrefGlobalLoweringPattern requires "
-                                  "constant memref accessors";
+          LLVM_DEBUG(readOp->emitRemark()
+                     << "MemrefGlobalLoweringPattern requires "
+                        "constant memref accessors");
           getGlobalRemoveable = false;
           continue;
         }
