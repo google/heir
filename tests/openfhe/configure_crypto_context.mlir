@@ -17,19 +17,19 @@ func.func @simple_sum(%arg0: !ctxt_ty, %arg1: !in_ty) -> !out_ty {
   %c8_i64 = arith.constant 8 : i64
   %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<32xi16>
   %c16_i64 = arith.constant 16 : i64
-  %0 = openfhe.rot %arg0, %arg1, %c16_i64 : (!ctxt_ty, !in_ty, i64) -> !in_ty
+  %0 = openfhe.rot %arg0, %arg1 { index = 16 } : (!ctxt_ty, !in_ty) -> !in_ty
   %1 = openfhe.add %arg0, %arg1, %0 : (!ctxt_ty, !in_ty, !in_ty) -> !in_ty
-  %2 = openfhe.rot %arg0, %1, %c8_i64 : (!ctxt_ty, !in_ty, i64) -> !in_ty
+  %2 = openfhe.rot %arg0, %1 { index = 8 } : (!ctxt_ty, !in_ty) -> !in_ty
   %3 = openfhe.add %arg0, %1, %2 : (!ctxt_ty, !in_ty, !in_ty) -> !in_ty
-  %4 = openfhe.rot %arg0, %3, %c4_i64 : (!ctxt_ty, !in_ty, i64) -> !in_ty
+  %4 = openfhe.rot %arg0, %3 { index = 4 } : (!ctxt_ty, !in_ty) -> !in_ty
   %5 = openfhe.add %arg0, %3, %4 : (!ctxt_ty, !in_ty, !in_ty) -> !in_ty
-  %6 = openfhe.rot %arg0, %5, %c2_i64 : (!ctxt_ty, !in_ty, i64) -> !in_ty
+  %6 = openfhe.rot %arg0, %5 { index = 2 } : (!ctxt_ty, !in_ty) -> !in_ty
   %7 = openfhe.add %arg0, %5, %6 : (!ctxt_ty, !in_ty, !in_ty) -> !in_ty
-  %8 = openfhe.rot %arg0, %7, %c1_i64 : (!ctxt_ty, !in_ty, i64) -> !in_ty
+  %8 = openfhe.rot %arg0, %7 { index = 1 } : (!ctxt_ty, !in_ty) -> !in_ty
   %9 = openfhe.add %arg0, %7, %8 : (!ctxt_ty, !in_ty, !in_ty) -> !in_ty
   %10 = lwe.rlwe_encode %cst {encoding = #encoding, ring = #ring} : tensor<32xi16> -> !plain_ty
   %11 = openfhe.mul_plain %arg0, %9, %10 : (!ctxt_ty, !in_ty, !plain_ty) -> !in_ty
-  %12 = openfhe.rot %arg0, %11, %c31_i64 : (!ctxt_ty, !in_ty, i64) -> !in_ty
+  %12 = openfhe.rot %arg0, %11 { index = 31 } : (!ctxt_ty, !in_ty) -> !in_ty
   %13 = lwe.reinterpret_underlying_type %12 : !in_ty to !out_ty
   return %13 : !out_ty
 }

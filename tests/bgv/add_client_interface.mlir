@@ -6,21 +6,16 @@
 !out_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**32>>>, underlying_type = i16>
 
 func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
-  %c2 = arith.constant 2 : index
-  %c4 = arith.constant 4 : index
-  %c8 = arith.constant 8 : index
-  %c16 = arith.constant 16 : index
-  %c1 = arith.constant 1 : index
   %c31 = arith.constant 31 : index
-  %0 = bgv.rotate %arg0, %c16 : !in_ty, index
+  %0 = bgv.rotate %arg0 { offset = 16 } : !in_ty
   %1 = bgv.add %arg0, %0 : !in_ty
-  %2 = bgv.rotate %1, %c8 : !in_ty, index
+  %2 = bgv.rotate %1 { offset = 8 } : !in_ty
   %3 = bgv.add %1, %2 : !in_ty
-  %4 = bgv.rotate %3, %c4 : !in_ty, index
+  %4 = bgv.rotate %3 { offset = 4 } : !in_ty
   %5 = bgv.add %3, %4 : !in_ty
-  %6 = bgv.rotate %5, %c2 : !in_ty, index
+  %6 = bgv.rotate %5 { offset = 2 } : !in_ty
   %7 = bgv.add %5, %6 : !in_ty
-  %8 = bgv.rotate %7, %c1 : !in_ty, index
+  %8 = bgv.rotate %7 { offset = 1 } : !in_ty
   %9 = bgv.add %7, %8 : !in_ty
   %10 = bgv.extract %9, %c31 : (!in_ty, index) -> !out_ty
   return %10 : !out_ty

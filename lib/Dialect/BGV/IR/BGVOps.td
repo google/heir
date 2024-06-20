@@ -114,7 +114,7 @@ def BGV_RotateOp : BGV_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
 
   let arguments = (ins
     RLWECiphertext:$input,
-    SignlessIntegerLike:$offset
+    Builtin_IntegerAttr:$offset
   );
 
   let results = (outs
@@ -122,7 +122,7 @@ def BGV_RotateOp : BGV_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
   );
 
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `,` type($offset)" ;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
 }
 
 def BGV_ExtractOp : BGV_Op<"extract", [SameOperandsAndResultRings]> {

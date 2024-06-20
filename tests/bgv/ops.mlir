@@ -47,8 +47,7 @@ module {
   // CHECK-LABEL: @test_rotate_extract
   func.func @test_rotate_extract(%arg3: !ct_tensor) -> !ct_scalar {
     %c0 = arith.constant 0 : index
-    %c1 = arith.constant 1 : index
-    %add = bgv.rotate %arg3, %c1 : !ct_tensor, index
+    %add = bgv.rotate %arg3 { offset = 1 } : !ct_tensor
     %ext = bgv.extract %add, %c0 : (!ct_tensor, index) -> !ct_scalar
     // CHECK: rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus = <1 + x**1024>>>
     return %ext : !ct_scalar

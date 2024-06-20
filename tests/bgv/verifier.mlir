@@ -12,9 +12,8 @@
 !ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
 
 func.func @test_input_dimension_error(%input: !ct) {
-  %offset = arith.constant 4 : index
   // expected-error@+1 {{x.dim == 2 does not hold}}
-  %out = bgv.rotate  %input, %offset  : !ct, index
+  %out = bgv.rotate  %input { offset = 4 }  : !ct
   return
 }
 

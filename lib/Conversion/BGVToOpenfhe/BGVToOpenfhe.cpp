@@ -180,29 +180,9 @@ struct ConvertRotateOp : public OpConversionPattern<RotateOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    Value castOffset =
-        llvm::TypeSwitch<Type, Value>(adaptor.getOffset().getType())
-            .Case<IndexType>([&](auto ty) {
-              return rewriter
-                  .create<arith::IndexCastOp>(
-                      op.getLoc(), rewriter.getI64Type(), adaptor.getOffset())
-                  .getResult();
-            })
-            .Case<IntegerType>([&](IntegerType ty) {
-              if (ty.getWidth() < 64) {
-                return rewriter
-                    .create<arith::ExtUIOp>(op.getLoc(), rewriter.getI64Type(),
-                                            adaptor.getOffset())
-                    .getResult();
-              }
-              return rewriter
-                  .create<arith::TruncIOp>(op.getLoc(), rewriter.getI64Type(),
-                                           adaptor.getOffset())
-                  .getResult();
-            });
-    rewriter.replaceOp(
-        op, rewriter.create<openfhe::RotOp>(op.getLoc(), cryptoContext,
-                                            adaptor.getInput(), castOffset));
+    rewriter.replaceOp(op, rewriter.create<openfhe::RotOp>(
+                               op.getLoc(), cryptoContext, adaptor.getInput(),
+                               adaptor.getOffset()));
     return success();
   }
 };
@@ -376,7 +356,7 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
     auto plainMul =
         b.create<bgv::MulPlainOp>(adaptor.getInput(), oneHotPlaintext)
             .getResult();
-    auto rotated = b.create<bgv::RotateOp>(plainMul, adaptor.getOffset());
+    auto rotated = b.create<bgv::RotateOp>(plainMul, offsetAttr);
     // It might make sense to move this op to the add-client-interface pass,
     // but it also seems like an implementation detail of OpenFHE, and not part
     // of BGV generally.

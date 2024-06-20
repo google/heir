@@ -44,11 +44,7 @@ bool hasMulOp(func::FuncOp op) {
 SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
   std::set<int64_t> distinctRotIndices;
   op.walk([&](openfhe::RotOp rotOp) {
-    auto indexAttr =
-        dyn_cast<arith::ConstantOp>(rotOp.getIndex().getDefiningOp())
-            .getValue();
-    int64_t rotIndex = dyn_cast<IntegerAttr>(indexAttr).getInt();
-    distinctRotIndices.insert(rotIndex);
+    distinctRotIndices.insert(rotOp.getIndex().getInt());
     return WalkResult::advance();
   });
   SmallVector<int64_t> rotIndicesResult(distinctRotIndices.begin(),

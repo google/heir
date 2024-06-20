@@ -75,9 +75,8 @@ module {
 
   // CHECK-LABEL: func @test_rot
   func.func @test_rot(%cc : !cc, %pt : !pt, %pk: !pk) {
-    %0 = arith.constant 2 : i64
     %ct = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
-    %out = openfhe.rot %cc, %ct, %0: (!cc, !ct, i64) -> !ct
+    %out = openfhe.rot %cc, %ct { index = 2 }: (!cc, !ct) -> !ct
     return
   }
 

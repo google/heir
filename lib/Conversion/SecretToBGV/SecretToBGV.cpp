@@ -15,6 +15,7 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/Polynomial.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
@@ -155,6 +156,25 @@ class SecretGenericOpMulConversion
   }
 };
 
+class SecretGenericOpRotateConversion
+    : public SecretGenericOpConversion<tensor_ext::RotateOp, bgv::RotateOp> {
+ public:
+  using SecretGenericOpConversion<tensor_ext::RotateOp,
+                                  bgv::RotateOp>::SecretGenericOpConversion;
+
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+                 ConversionPatternRewriter &rewriter) const override {
+    // Check that the offset is a constant.
+    auto offset = inputs[1];
+    auto constantOffset = dyn_cast<arith::ConstantOp>(offset.getDefiningOp());
+    if (!constantOffset) {
+      op.emitError("expected constant offset for rotate");
+    }
+    auto offsetAttr = llvm::dyn_cast<IntegerAttr>(constantOffset.getValue());
+    rewriter.replaceOpWithNewOp<bgv::RotateOp>(op, inputs[0], offsetAttr);
+  }
+};
+
 struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
   using SecretToBGVBase::SecretToBGVBase;
 
@@ -201,8 +221,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     patterns.add<SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
                  SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
-                 SecretGenericOpConversion<tensor_ext::RotateOp, bgv::RotateOp>,
-                 SecretGenericOpMulConversion>(typeConverter, context);
+                 SecretGenericOpRotateConversion, SecretGenericOpMulConversion>(
+        typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

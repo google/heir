@@ -249,8 +249,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(LevelReduceOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(RotOp op) {
-  return printEvalMethod(op.getResult(), op.getCryptoContext(),
-                         {op.getCiphertext(), op.getIndex()}, "EvalRotate");
+  emitAutoAssignPrefix(op.getResult());
+
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "EvalRotate" << "("
+     << variableNames->getNameForValue(op.getCiphertext()) << ", "
+     << op.getIndex().getValue() << ");\n";
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
