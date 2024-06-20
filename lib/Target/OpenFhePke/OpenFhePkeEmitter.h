@@ -56,6 +56,10 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(AutomorphOp op);
   LogicalResult printOperation(DecryptOp op);
   LogicalResult printOperation(EncryptOp op);
+  LogicalResult printOperation(GenParamsOp op);
+  LogicalResult printOperation(GenContextOp op);
+  LogicalResult printOperation(GenMulKeyOp op);
+  LogicalResult printOperation(GenRotKeyOp op);
   LogicalResult printOperation(KeySwitchOp op);
   LogicalResult printOperation(LevelReduceOp op);
   LogicalResult printOperation(ModReduceOp op);

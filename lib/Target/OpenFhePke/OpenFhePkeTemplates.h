@@ -16,6 +16,7 @@ constexpr std::string_view kModulePrelude = R"cpp(
 
 using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;
+using CCParamsT = CCParams<CryptoContextBGVRNS>;
 using CryptoContextT = CryptoContext<DCRTPoly>;
 using EvalKeyT = EvalKey<DCRTPoly>;
 using PlaintextT = Plaintext;

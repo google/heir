@@ -22,6 +22,8 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Openfhe/Transforms/Passes.h"
 #include "lib/Dialect/PolyExt/IR/PolyExtDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
@@ -460,6 +462,11 @@ void mlirToOpenFheBgvPipelineBuilder(
 
   // Lower to openfhe
   pm.addPass(bgv::createBGVToOpenfhe());
+  pm.addPass(createCanonicalizerPass());
+  auto configureCryptoContextOptions = openfhe::ConfigureCryptoContextOptions{};
+  configureCryptoContextOptions.entryFunction = options.entryFunction;
+  pm.addPass(
+      openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
 }
 
 int main(int argc, char **argv) {
@@ -501,6 +508,7 @@ int main(int argc, char **argv) {
   ::mlir::heir::polynomial::registerPolynomialPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
+  openfhe::registerOpenfhePasses();
   registerElementwiseToAffinePasses();
   registerSecretizePasses();
   registerFullLoopUnrollPasses();

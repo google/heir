@@ -53,6 +53,8 @@ cc_binary(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Dialect/Openfhe/Transforms",
+        "@heir//lib/Dialect/Openfhe/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/PolyExt/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/Transforms",
         "@heir//lib/Dialect/Polynomial/Transforms:NTTRewrites",

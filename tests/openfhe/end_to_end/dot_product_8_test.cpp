@@ -21,18 +21,12 @@ namespace openfhe {
 TEST(DotProduct8Test, RunTest) {
   // TODO(#661): Generate a helper function to set up CryptoContext based on
   // what is used in the generated code.
-  CCParams<CryptoContextBGVRNS> parameters;
-  parameters.SetMultiplicativeDepth(2);
-  parameters.SetPlaintextModulus(65537);
-  CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
-  cryptoContext->Enable(PKE);
-  cryptoContext->Enable(KEYSWITCH);
-  cryptoContext->Enable(LEVELEDSHE);
-
-  KeyPair<DCRTPoly> keyPair;
-  keyPair = cryptoContext->KeyGen();
-  cryptoContext->EvalMultKeyGen(keyPair.secretKey);
-  cryptoContext->EvalRotateKeyGen(keyPair.secretKey, {1, 2, 4, 7});
+  auto cryptoContext = dot_product__generate_crypto_context();
+  auto keyPair = cryptoContext->KeyGen();
+  auto publicKey = keyPair.publicKey;
+  auto secretKey = keyPair.secretKey;
+  cryptoContext =
+      dot_product__configure_crypto_context(cryptoContext, secretKey);
 
   int32_t n = cryptoContext->GetCryptoParameters()
                   ->GetElementParams()
@@ -54,13 +48,13 @@ TEST(DotProduct8Test, RunTest) {
   }
 
   auto arg0Encrypted =
-      dot_product__encrypt__arg0(cryptoContext, arg0, keyPair.publicKey);
+      dot_product__encrypt__arg0(cryptoContext, arg0, publicKey);
   auto arg1Encrypted =
-      dot_product__encrypt__arg1(cryptoContext, arg1, keyPair.publicKey);
+      dot_product__encrypt__arg1(cryptoContext, arg1, publicKey);
   auto outputEncrypted =
       dot_product(cryptoContext, arg0Encrypted, arg1Encrypted);
-  auto actual = dot_product__decrypt__result0(cryptoContext, outputEncrypted,
-                                              keyPair.secretKey);
+  auto actual =
+      dot_product__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
 
   EXPECT_EQ(expected, actual);
 }

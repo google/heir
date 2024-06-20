@@ -21,21 +21,13 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-TEST(BinopsTest, TestInput1) {
-  CCParams<CryptoContextBGVRNS> parameters;
-  parameters.SetMultiplicativeDepth(2);
-  // needs to be large enough to accommodate overflow in the plaintext space
-  // pick a 32-bit prime for which (p-1) / 65536 is an integer.
-  parameters.SetPlaintextModulus(4295294977);
-  CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
-  cryptoContext->Enable(PKE);
-  cryptoContext->Enable(KEYSWITCH);
-  cryptoContext->Enable(LEVELEDSHE);
-
-  KeyPair<DCRTPoly> keyPair;
-  keyPair = cryptoContext->KeyGen();
-  cryptoContext->EvalMultKeyGen(keyPair.secretKey);
-  cryptoContext->EvalRotateKeyGen(keyPair.secretKey, {4031, 4032, 4095});
+TEST(RobertsCrossTest, TestInput1) {
+  auto cryptoContext = roberts_cross__generate_crypto_context();
+  auto keyPair = cryptoContext->KeyGen();
+  auto publicKey = keyPair.publicKey;
+  auto secretKey = keyPair.secretKey;
+  cryptoContext =
+      roberts_cross__configure_crypto_context(cryptoContext, secretKey);
 
   int32_t n = cryptoContext->GetCryptoParameters()
                   ->GetElementParams()

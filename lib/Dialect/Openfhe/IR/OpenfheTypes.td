@@ -26,6 +26,10 @@ def Openfhe_EvalKey : Openfhe_Type<"EvalKey", "eval_key"> {
   let summary = "The evaluation key required to keyswitch/relinearize/rotate/automorphism operation in OpenFHE.";
 }
 
+def Openfhe_CCParams : Openfhe_Type<"CCParams", "cc_params"> {
+  let summary = "The CCParams required to create CryptoContext.";
+}
+
 def Openfhe_CryptoContext : Openfhe_Type<"CryptoContext", "crypto_context"> {
   let summary = "The CryptoContext required to perform homomorphic operations in OpenFHE.";
 }
