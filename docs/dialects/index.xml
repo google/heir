@@ -689,8 +689,13 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;h3 id="bgvrotate-heirbgvrotateop">&lt;code>bgv.rotate&lt;/code> (heir::bgv::RotateOp)&lt;/h3>
 &lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` operands attr-dict `:` qualified(type($input)) `,` type($offset)
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` operands attr-dict `:` qualified(type($input))
 &lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -703,10 +708,6 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>offset&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4351,6 +4352,11 @@ does not keep track of types for you.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>index&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4367,10 +4373,6 @@ does not keep track of types for you.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>index&lt;/code>&lt;/td>
-&lt;td>64-bit signless integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
