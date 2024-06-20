@@ -841,20 +841,17 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
-&lt;p>The fourth HEIR meeting was 2023-08-01
-(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
-&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
-&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
-fun!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
 &lt;p>The second HEIR meeting was 2023-05-30
 (&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
 and
@@ -881,7 +878,7 @@ loops.&lt;/p></description></item><item><title>Docs: ArithExt</title><link>https
 &lt;h3 id="arith_extadd-heirarith_extaddop">&lt;code>arith_ext.add&lt;/code> (heir::arith_ext::AddOp)&lt;/h3>
 &lt;p>&lt;em>Modular addition operation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.add` $lhs `,` $rhs attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.add` operands attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>Computes addition modulo a statically known modulus $q$.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -889,7 +886,7 @@ loops.&lt;/p></description></item><item><title>Docs: ArithExt</title><link>https
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
@@ -938,7 +935,7 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -970,18 +967,18 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="arith_extmul-heirarith_extmulop">&lt;code>arith_ext.mul&lt;/code> (heir::arith_ext::MulOp)&lt;/h3>
-&lt;p>&lt;em>Modular multiplication operation&lt;/em>&lt;/p>
+&lt;h3 id="arith_extmac-heirarith_extmacop">&lt;code>arith_ext.mac&lt;/code> (heir::arith_ext::MacOp)&lt;/h3>
+&lt;p>&lt;em>Modular multiplication-and-accumulation operation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.mul` $lhs `,` $rhs attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Computes multiplication modulo a statically known modulus $q$.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.mac` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>&lt;code>arith_ext.mac x, y, z {modulus = q}&lt;/code> computes $(x * y) + z \mod q$&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
@@ -998,6 +995,10 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>acc&lt;/code>&lt;/td>
 &lt;td>signless-integer-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -1017,12 +1018,19 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="arith_extsubifge-heirarith_extsubifgeop">&lt;code>arith_ext.subifge&lt;/code> (heir::arith_ext::SubIfGEOp)&lt;/h3>
-&lt;p>&lt;em>Compute (x &amp;gt;= y) ? x - y : x.&lt;/em>&lt;/p>
+&lt;h3 id="arith_extmul-heirarith_extmulop">&lt;code>arith_ext.mul&lt;/code> (heir::arith_ext::MulOp)&lt;/h3>
+&lt;p>&lt;em>Modular multiplication operation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.subifge` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.mul` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>Computes multiplication modulo a statically known modulus $q$.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1057,19 +1065,12 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="arith_extsub-heirarith_extsubop">&lt;code>arith_ext.sub&lt;/code> (heir::arith_ext::SubOp)&lt;/h3>
-&lt;p>&lt;em>Modular subtraction operation&lt;/em>&lt;/p>
+&lt;h3 id="arith_extsubifge-heirarith_extsubifgeop">&lt;code>arith_ext.subifge&lt;/code> (heir::arith_ext::SubIfGEOp)&lt;/h3>
+&lt;p>&lt;em>Compute (x &amp;gt;= y) ? x - y : x.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.sub` $lhs `,` $rhs attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Computes subtraction modulo a statically known modulus $q$.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-3">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
-&lt;/table>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.subifge` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1090,6 +1091,53 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="arith_extsub-heirarith_extsubop">&lt;code>arith_ext.sub&lt;/code> (heir::arith_ext::SubOp)&lt;/h3>
+&lt;p>&lt;em>Modular subtraction operation&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.sub` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>Computes subtraction modulo a statically known modulus $q$.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>

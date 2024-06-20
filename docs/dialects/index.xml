@@ -4,7 +4,7 @@
 &lt;h3 id="arith_extadd-heirarith_extaddop">&lt;code>arith_ext.add&lt;/code> (heir::arith_ext::AddOp)&lt;/h3>
 &lt;p>&lt;em>Modular addition operation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.add` $lhs `,` $rhs attr-dict `:` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.add` operands attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>Computes addition modulo a statically known modulus $q$.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
@@ -12,7 +12,7 @@
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
@@ -61,7 +61,7 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -93,18 +93,18 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="arith_extmul-heirarith_extmulop">&lt;code>arith_ext.mul&lt;/code> (heir::arith_ext::MulOp)&lt;/h3>
-&lt;p>&lt;em>Modular multiplication operation&lt;/em>&lt;/p>
+&lt;h3 id="arith_extmac-heirarith_extmacop">&lt;code>arith_ext.mac&lt;/code> (heir::arith_ext::MacOp)&lt;/h3>
+&lt;p>&lt;em>Modular multiplication-and-accumulation operation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.mul` $lhs `,` $rhs attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Computes multiplication modulo a statically known modulus $q$.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.mac` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>&lt;code>arith_ext.mac x, y, z {modulus = q}&lt;/code> computes $(x * y) + z \mod q$&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
@@ -121,6 +121,10 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>acc&lt;/code>&lt;/td>
 &lt;td>signless-integer-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -140,12 +144,19 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="arith_extsubifge-heirarith_extsubifgeop">&lt;code>arith_ext.subifge&lt;/code> (heir::arith_ext::SubIfGEOp)&lt;/h3>
-&lt;p>&lt;em>Compute (x &amp;gt;= y) ? x - y : x.&lt;/em>&lt;/p>
+&lt;h3 id="arith_extmul-heirarith_extmulop">&lt;code>arith_ext.mul&lt;/code> (heir::arith_ext::MulOp)&lt;/h3>
+&lt;p>&lt;em>Modular multiplication operation&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.subifge` operands attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.mul` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>Computes multiplication modulo a statically known modulus $q$.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -180,19 +191,12 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="arith_extsub-heirarith_extsubop">&lt;code>arith_ext.sub&lt;/code> (heir::arith_ext::SubOp)&lt;/h3>
-&lt;p>&lt;em>Modular subtraction operation&lt;/em>&lt;/p>
+&lt;h3 id="arith_extsubifge-heirarith_extsubifgeop">&lt;code>arith_ext.subifge&lt;/code> (heir::arith_ext::SubIfGEOp)&lt;/h3>
+&lt;p>&lt;em>Compute (x &amp;gt;= y) ? x - y : x.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.sub` $lhs `,` $rhs attr-dict `:` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Computes subtraction modulo a statically known modulus $q$.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-3">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
-&lt;/table>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.subifge` operands attr-dict `:` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -213,6 +217,53 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="arith_extsub-heirarith_extsubop">&lt;code>arith_ext.sub&lt;/code> (heir::arith_ext::SubOp)&lt;/h3>
+&lt;p>&lt;em>Modular subtraction operation&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `arith_ext.sub` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>Computes subtraction modulo a statically known modulus $q$.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-4">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>modulus&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
