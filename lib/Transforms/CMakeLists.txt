@@ -1,0 +1,14 @@
+add_subdirectory(ApplyFolders)
+add_subdirectory(ConvertIfToSelect)
+add_subdirectory(ElementwiseToAffine)
+add_subdirectory(ForwardStoreToLoad)
+add_subdirectory(FullLoopUnroll)
+add_subdirectory(Secretize)
+add_subdirectory(StraightLineVectorizer)
+add_subdirectory(UnusedMemRef)
+
+if(ENABLE_YOSYS)
+    # TODO (#797): Support Yosys in cmake build.
+    message(FATAL_ERROR "Yosys transforms not supported in CMake build yet; use Bazel instead.")
+    add_subdirectory(YosysOptimizer)
+endif()
