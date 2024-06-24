@@ -2,6 +2,7 @@
 #define LIB_DIALECT_POLYNOMIAL_TRANSFORMS_NTTREWRITES_TD_
 
 include "lib/DRR/Utils.td"
+include "lib/Dialect/ArithExt/IR/ArithExtOps.td"
 include "mlir/Dialect/Polynomial/IR/Polynomial.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/IR/PatternBase.td"
@@ -9,16 +10,13 @@ include "mlir/IR/PatternBase.td"
 def GetRingAttr : NativeCodeCall<
       "(dyn_cast<::mlir::polynomial::PolynomialType>($0.getType())).getRing()">;
 
+def GetRingModAttr : NativeCodeCall<
+      "(dyn_cast<::mlir::polynomial::PolynomialType>($0.getType())).getRing().getCoefficientModulus()">;
+
 def InputTensorType : NativeCodeCall<
       "RankedTensorType::get({$0.getPolynomialModulus().getPolynomial().getDegree()},"
       " IntegerType::get($_builder.getContext(),"
       "  ($0.getCoefficientModulus().getValue() - 1).getActiveBits()),"
-      " $0)">;
-
-def IntermediateTensorType : NativeCodeCall<
-      "RankedTensorType::get({$0.getPolynomialModulus().getPolynomial().getDegree()},"
-      " IntegerType::get($_builder.getContext(),"
-      "  2 * ($0.getCoefficientModulus().getValue() - 1).getActiveBits()),"
       " $0)">;
 
 def CreateCModConstant : NativeCodeCall<
@@ -44,20 +42,10 @@ def NTTRewritePolyMul : Pattern<
       (returnType (InputTensorType (GetRingAttr $p2)))),
 
     // Compute elementwise multiplication modulo cmod
-    (Arith_MulIOp:$mulNTT
-      (Arith_ExtUIOp $p1NTT,
-        (returnType (IntermediateTensorType (GetRingAttr $p1)))),
-      (Arith_ExtUIOp $p2NTT,
-        (returnType (IntermediateTensorType (GetRingAttr $p2)))),
-      DefOverflow),
-    (Arith_TruncIOp:$resNTT
-      (Arith_RemUIOp $mulNTT,
-        (CreateCModConstant $mulNTT,
-          (GetRingAttr $p1), (IntermediateTensorType (GetRingAttr $p2)))),
-      (returnType (InputTensorType (GetRingAttr $p1)))),
+    (ArithExt_MulOp:$mulNTT $p1NTT, $p2NTT, (GetRingModAttr $p1)),
 
     // Compute inverse transform back to coefficient representation
-    (Polynomial_INTTOp:$res $resNTT, (Nullptr))
+    (Polynomial_INTTOp:$res $mulNTT, (Nullptr))
   ],
   [
     (HasDegreePowerOfTwo $p1)

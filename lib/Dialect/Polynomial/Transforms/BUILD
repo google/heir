@@ -29,6 +29,7 @@ cc_library(
     deps = [
         ":ntt_rewrites_inc_gen",
         ":pass_inc_gen",
+        "@heir//lib/Dialect/ArithExt/IR:Dialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
@@ -73,6 +74,7 @@ gentbl_cc_library(
     td_file = "NTTRewrites.td",
     deps = [
         "@heir//lib/DRR",
+        "@heir//lib/Dialect/ArithExt/IR:td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:PolynomialTdFiles",
     ],
