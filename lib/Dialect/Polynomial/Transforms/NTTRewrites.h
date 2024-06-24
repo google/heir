@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_POLYNOMIAL_TRANSFORMS_NTTREWRITES_H_
 #define LIB_DIALECT_POLYNOMIAL_TRANSFORMS_NTTREWRITES_H_
 
+#include "lib/Dialect/ArithExt/IR/ArithExtOps.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/Pass.h"               // from @llvm-project
 
