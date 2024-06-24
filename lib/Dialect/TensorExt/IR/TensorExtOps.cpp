@@ -5,6 +5,7 @@
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -17,6 +18,14 @@ namespace tensor_ext {
 void RotateOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                            MLIRContext *context) {
   populateWithGenerated(results);
+}
+
+LogicalResult RotateOp::verify() {
+  auto x = getTensor().getType();
+  if (x.getRank() != 1) {
+    return emitOpError() << "requires a 1-D input tensor, but found " << x;
+  }
+  return success();
 }
 
 }  // namespace tensor_ext

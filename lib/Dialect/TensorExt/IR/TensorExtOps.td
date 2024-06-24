@@ -36,6 +36,7 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
   let results = (outs AnyTensor:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($tensor)) `,` type($shift)";
   let hasCanonicalizer = 1;
+  let hasVerifier = 1;
 }
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_

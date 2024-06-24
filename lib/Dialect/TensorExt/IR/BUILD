@@ -46,6 +46,7 @@ cc_library(
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],
 )
