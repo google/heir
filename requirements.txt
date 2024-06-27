@@ -4,3 +4,7 @@ lit==16.0.6
 tomli==2.0.1
 sympy==1.12
 mpmath==1.3.0
+
+# Deps needed for jaxite. TODO: check if these can be imported from jaxite repo?
+jax~=0.4.25
+jaxlib~=0.4.25
