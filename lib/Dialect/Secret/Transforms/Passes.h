@@ -7,6 +7,7 @@
 #include "lib/Dialect/Secret/Transforms/ExtractGenericBody.h"
 #include "lib/Dialect/Secret/Transforms/ForgetSecrets.h"
 #include "lib/Dialect/Secret/Transforms/GenericAbsorbConstants.h"
+#include "lib/Dialect/Secret/Transforms/GenericAbsorbDealloc.h"
 #include "lib/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
 
 namespace mlir {

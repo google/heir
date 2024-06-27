@@ -93,9 +93,7 @@ using namespace tosa;
 using namespace heir;
 using mlir::func::FuncOp;
 
-static std::vector<std::string> opsToDistribute = {
-    "affine.for",   "affine.load",       "memref.load",    "memref.store",
-    "affine.store", "memref.get_global", "memref.dealloc", "memref.alloc"};
+static std::vector<std::string> opsToDistribute = {"secret.separator"};
 
 void tosaToLinalg(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
@@ -259,6 +257,7 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
       "tosa-to-boolean-tfhe", "Arithmetic modules to boolean tfhe-rs pipeline.",
       [yosysFilesPath, abcPath](OpPassManager &pm,
                                 const TosaToBooleanTfheOptions &options) {
+        /*
         // Secretize inputs
         pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
 
@@ -278,6 +277,21 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
         pm.addPass(memref::createFoldMemRefAliasOpsPass());
         pm.addPass(createExpandCopyPass());
 
+        // Affine loop optimizations
+        pm.addPass(affine::createAffineLoopNormalizePass(true));
+        pm.addPass(affine::createLoopFusionPass(
+            0, 0, false, affine::FusionMode::ProducerConsumer));
+        pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+        pm.addNestedPass<FuncOp>(affine::createAffineScalarReplacementPass());
+        pm.addPass(affine::createAffineParallelizePass());
+        pm.addPass(createFullLoopUnroll());
+        pm.addNestedPass<FuncOp>(createForwardStoreToLoad());
+        pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createSCCPPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSymbolDCEPass());
+
         // Cleanup
         pm.addPass(createMemrefGlobalReplacePass());
         arith::ArithIntNarrowingOptions arithOps;
@@ -294,18 +308,33 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
             .opsToDistribute = opsToDistribute};
         pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
         pm.addPass(createCanonicalizerPass());
-
+*/
         // Booleanize and Yosys Optimize
         pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
-                                        options.abcFast, options.unrollFactor));
+                                        options.abcFast, options.unrollFactor,
+                                        Mode::Boolean));
 
         // Lower combinational circuit to CGGI
         pm.addPass(createCanonicalizerPass());
         pm.addPass(createSCCPPass());
 
         pm.addPass(mlir::createCSEPass());
+        return;
         pm.addPass(secret::createSecretDistributeGeneric());
         pm.addPass(comb::createCombToCGGI());
+
+        // Cleanup combtocggi
+        pm.addPass(createExpandCopyPass(
+            ExpandCopyPassOptions{.disableAffineLoop = true}));
+        pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        pm.addPass(createForwardStoreToLoad());
+        pm.addPass(createRemoveUnusedMemRef());
+
+        pm.addPass(createStraightLineVectorizer(
+            StraightLineVectorizerOptions{.dialect = "cggi"}));
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSCCPPass());
 
         // CGGI to Tfhe-Rust exit dialect
         pm.addPass(createCGGIToTfheRust());

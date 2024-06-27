@@ -78,6 +78,7 @@ read_verilog -sv {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
 techmap -map {2}/techmap.v; stat;
+opt_expr; opt; opt_clean -purge; stat;
 splitnets -ports \{1} %n;
 flatten; opt_expr; opt; opt_clean -purge;
 rename -hide */w:*; rename -enumerate */w:*;
@@ -95,13 +96,16 @@ stat;
 // $3: yosys runfiles path
 // $4: abc fast option -fast
 constexpr std::string_view kYosysBooleanTemplate = R"(
-read_verilog {0};
+read_verilog -sv {0};
 hierarchy -check -top \{1};
 proc; memory; stat;
 techmap -map {3}/techmap.v; opt; stat;
+opt_expr; opt; opt_clean -purge; stat;
+splitnets -ports \{1} %n;
+flatten; opt_expr; opt; opt_clean -purge;
+rename -hide */w:*; rename -enumerate */w:*;
 abc -exe {2} -g AND,NAND,OR,NOR,XOR,XNOR {4};
 opt_clean -purge; stat;
-rename -hide */c:*; rename -enumerate */c:*;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
 stat;
@@ -446,6 +450,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
 
   // Translate Yosys result back to MLIR and insert into the func
   LLVM_DEBUG(Yosys::run_pass("dump;"));
+  Yosys::log_streams.clear();
   std::stringstream cellOrder;
   Yosys::log_streams.push_back(&cellOrder);
   Yosys::run_pass("torder -stop * P*;");
@@ -528,6 +533,8 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
 
 // Optimize the body of a secret.generic op.
 void YosysOptimizer::runOnOperation() {
+  LLVM_DEBUG({ llvm::dbgs() << "Running Yosys optimizer\n"; });
+
   Yosys::yosys_setup();
   auto *ctx = &getContext();
   auto *op = getOperation();
@@ -541,16 +548,6 @@ void YosysOptimizer::runOnOperation() {
 
   // Cleanup after unrollAndMergeGenerics
   mlir::RewritePatternSet cleanupPatterns(ctx);
-  // We lift loads/stores into their own generics if possible, to avoid putting
-  // the entire memref in the verilog module. Some loads would be hoistable but
-  // they depend on arithmetic of index accessors that are otherwise secret.
-  // Hence we need the HoistPlaintextOps provided by
-  // populateGenericCanonicalizers in addition to special patterns that lift
-  // loads and stores into their own generics.
-  cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
-      ctx, std::vector<std::string>{"memref.load", "affine.load"});
-  cleanupPatterns.add<secret::HoistOpAfterGeneric>(
-      ctx, std::vector<std::string>{"memref.store", "affine.store"});
   secret::populateGenericCanonicalizers(cleanupPatterns, ctx);
   if (failed(applyPatternsAndFoldGreedily(op, std::move(cleanupPatterns)))) {
     signalPassFailure();
@@ -572,19 +569,72 @@ void YosysOptimizer::runOnOperation() {
     return;
   }
 
+  mlir::IRRewriter builder(&getContext());
+  op->walk([&](secret::GenericOp op) {
+    // Now pass through any constants used after capturing the ambient scope.
+    // This way Yosys can optimize constants away instead of treating them as
+    // variables to the optimized body. We also absorb any memref deallocations
+    // into the generic body when the memref is only used internally within the
+    // generic body.
+    genericAbsorbDealloc(op, builder);
+  });
+
+  // Remove unused values after absorbing the deallocs.
+  mlir::RewritePatternSet unusedYieldPatterns(ctx);
+  unusedYieldPatterns.add<secret::RemoveUnusedYieldedValues>(ctx);
+  if (failed(
+          applyPatternsAndFoldGreedily(op, std::move(unusedYieldPatterns)))) {
+    signalPassFailure();
+    getOperation()->emitError()
+        << "Failed to merge generic ops before yosys optimizer";
+    return;
+  }
+
+  // Extract generics into function calls.
+  auto result = op->walk([&](secret::GenericOp op) {
+    genericAbsorbConstants(op, builder);
+
+    auto isTrivial = op.getBody()->walk([&](Operation *body) {
+      if (isa<arith::ArithDialect>(body->getDialect()) &&
+          !isa<arith::ConstantOp>(body)) {
+        return WalkResult::interrupt();
+      }
+      return WalkResult::advance();
+    });
+    if (isTrivial.wasInterrupted()) {
+      if (failed(extractGenericBody(op, builder))) {
+        return WalkResult::interrupt();
+      }
+    }
+
+    return WalkResult::advance();
+  });
+
+  if (result.wasInterrupted()) {
+    signalPassFailure();
+  }
+
+  // Merge generics after the function bodies are extracted.
+  mlir::RewritePatternSet mergePatterns(ctx);
+  mergePatterns.add<secret::MergeAdjacentGenerics>(ctx);
+  if (failed(applyPatternsAndFoldGreedily(op, std::move(mergePatterns)))) {
+    signalPassFailure();
+    getOperation()->emitError()
+        << "Failed to merge generic ops before yosys optimizer";
+    return;
+  }
+
+  // Ensure that each generic only has one return value
   LLVM_DEBUG({
     llvm::dbgs() << "IR after cleanup in preparation for yosys optimizer\n";
     getOperation()->dump();
   });
 
-  mlir::IRRewriter builder(&getContext());
-  auto result = op->walk([&](secret::GenericOp op) {
+  result = op->walk([&](secret::GenericOp op) {
     // Now pass through any constants used after capturing the ambient scope.
-    // This
-    // way Yosys can optimize constants away instead of treating them as
+    // This way Yosys can optimize constants away instead of treating them as
     // variables to the optimized body.
     genericAbsorbConstants(op, builder);
-
     if (failed(runOnGenericOp(op))) {
       return WalkResult::interrupt();
     }
