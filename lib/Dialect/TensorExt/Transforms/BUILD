@@ -11,6 +11,7 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":AlignTensorSizes",
         ":CollapseInsertionChains",
         ":InsertRotate",
         ":RotateAndReduce",
@@ -80,6 +81,29 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "AlignTensorSizes",
+    srcs = ["AlignTensorSizes.cpp"],
+    hdrs = [
+        "AlignTensorSizes.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Conversion:Utils",
+        "@heir//lib/Dialect:Utils",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 # TensorExt pass tablegen and headers.

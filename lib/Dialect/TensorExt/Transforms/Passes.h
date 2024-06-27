@@ -2,6 +2,7 @@
 #define LIB_DIALECT_TENSOREXT_TRANSFORMS_PASSES_H_
 
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/Transforms/AlignTensorSizes.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"

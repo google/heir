@@ -102,5 +102,59 @@ def RotateAndReduce : Pass<"rotate-and-reduce"> {
   let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
 }
 
+def AlignTensorSizes : Pass<"align-tensor-sizes"> {
+  let summary = "Resize tensors into tensors with a fixed size final dimension";
+
+  let description = [{ This pass resizes input tensors with arbitrary sizes into
+  tensors with whose final dimensions has a fixed size. All input tensors are
+  required to be one-dimensional. The `--size` option specifies the size of the
+  final dimension of the output tensors, and is required to be a power of two.
+
+  To align the tensors in the input IR, the pass first zero pads the input to
+  the nearest power of two before replicating or splitting it into the output
+  shape determined by `size`. The resulting transformation is described in a
+  `SIMDPackingAttr` encoding attribute on the final tensor.
+
+  For example, with `size=16`,a tensor with 7 elements will be zero-padded to 8
+  elements, and then replicated twice to fill a tensor with size 16. The
+  `SIMDPackingAttr` will encode the input shape, the number of elements that
+  were zero-padded, and the output shape.
+
+  Input:
+  ```mlir
+  %0 = tensor.empty() : tensor<7xi32>
+  ```
+
+  Output:
+  ```mlir
+  %0 = tensor.empty() : tensor<16xi32, #tensor_ext.simd_packing<in = [7], padding = [1], out = [16]>>
+  ```
+
+  A tensor with 30 elements will be zero padded with 2 elements and split into
+  two tensors of size 16.
+
+  Input:
+  ```mlir
+  %0 = tensor.empty() : tensor<30xi32>
+  ```
+
+  Output:
+  ```mlir
+  %0 = tensor.empty() : tensor<2x16xi32, #tensor_ext.simd_packing<in = [30], padding = [2], out = [16]>>
+  ```
+
+  Note that this pass does not insert any new operations like `reshape`, but
+  rather transforms the IR to use tensors with a fixed dimension. This pass may
+  be used to align the sizes of tensors that represent plaintexts and
+  ciphertexts in RLWE schemes that support SIMD slots and operations.
+  }];
+
+  let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
+
+  let options = [
+    Option<"size", "size", "int",
+           /*default=*/"1024", "Power of two size of the final dimension of the output tensors.">
+  ];
+}
 
 #endif  // LIB_DIALECT_TENSOREXT_TRANSFORMS_PASSES_TD_
