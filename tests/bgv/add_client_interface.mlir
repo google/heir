@@ -30,13 +30,13 @@ func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
 // CHECK-SAME:     %[[sk:.*]]: !lwe.rlwe_secret_key
 // CHECK-SAME:     -> [[in_ty]] {
 // CHECK-NEXT:   %[[encoded:.*]] = lwe.rlwe_encode %[[arg0]]
-// CHECK-NEXT:   %[[encrypted:.*]] = bgv.encrypt %[[encoded]], %[[sk]]
+// CHECK-NEXT:   %[[encrypted:.*]] = lwe.rlwe_encrypt %[[encoded]], %[[sk]]
 // CHECK-NEXT:   return %[[encrypted]]
 
 // CHECK: @simple_sum__decrypt
 // CHECK-SAME: (%[[arg1:[^:]*]]: [[out_ty]]
 // CHECK-SAME:     %[[sk2:.*]]: !lwe.rlwe_secret_key
 // CHECK-SAME:     -> i16 {
-// CHECK-NEXT:   %[[decrypted:.*]] = bgv.decrypt %[[arg1]], %[[sk2]]
+// CHECK-NEXT:   %[[decrypted:.*]] = lwe.rlwe_decrypt %[[arg1]], %[[sk2]]
 // CHECK-NEXT:   %[[decoded:.*]] = lwe.rlwe_decode %[[decrypted]]
 // CHECK-NEXT:   return %[[decoded]]
