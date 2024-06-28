@@ -127,6 +127,7 @@ cc_binary(
     srcs = ["heir-translate.cpp"],
     includes = ["include"],
     deps = [
+        "@heir//lib/Source/AutoHog:AutoHogImporter",
         "@heir//lib/Target/Jaxite:JaxiteEmitter",
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFhePkeEmitter",

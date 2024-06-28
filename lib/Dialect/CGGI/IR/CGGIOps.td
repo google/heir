@@ -143,4 +143,57 @@ def CGGI_LutLinCombOp : CGGI_Op<"lut_lincomb", [
   let hasVerifier = 1;
 }
 
+def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
+  Pure,
+  Commutative,
+  ElementwiseMappable,
+  Scalarizable
+]> {
+  let summary = "A multi-output version of lut_lincomb with one LUT per output.";
+  let description = [{
+    An op representing multiple lookup tables applied to a shared input, which
+    is prepared via a static linear combination. This is equivalent to
+    `cggi.lut_lincomb`, but where the linear combination is given to multiple
+    lookup tables, each producing a separate output.
+
+    This can be achieved by a special implementation of blind rotate in the CGGI
+    scheme. See [AutoHoG](https://ieeexplore.ieee.org/document/10413195).
+
+    Example:
+
+    ```mlir
+    #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
+    #params = #lwe.lwe_params<cmod=7917, dimension=4>
+    !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
+
+    %4 = cggi.multi_lut_lincomb %c0, %c1, %c2, %c3 {
+        coefficients = array<i32: 1, 2, 3, 2>,
+        lookup_tables = array<index: 68, 70, 4, 8>
+    } : (!ciphertext, !ciphertext, !ciphertext, !ciphertext) -> (!ciphertext, !ciphertext, !ciphertext, !ciphertext)
+    ```
+
+    Represents applying the following LUTs. Performance-wise, this is
+    comparable to applying a single LUT to a linear combination.
+
+    ```
+    x = (1 * c0 + 2 * c1 + 3 * c2 + 2 * c3)
+    return (
+      (68 >> x) & 1,
+      (70 >> x) & 1,
+      (4 >> x) & 1,
+      (8 >> x) & 1
+    )
+    ```
+  }];
+
+  let arguments = (ins
+    Variadic<LWECiphertext>:$inputs,
+    DenseI32ArrayAttr:$coefficients,
+    DenseI32ArrayAttr:$lookup_tables
+  );
+  let results = (outs Variadic<LWECiphertext>:$outputs);
+  let assemblyFormat = "operands attr-dict `:` functional-type($inputs, $outputs)" ;
+  let hasVerifier = 1;
+}
+
 #endif  // HEIR_LIB_DIALECT_CGGI_IR_CGGIOPS_TD_

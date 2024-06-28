@@ -30,7 +30,7 @@ LogicalResult LutLinCombOp::verify() {
   auto encoding = dyn_cast<lwe::BitFieldEncodingAttr>(type.getEncoding());
 
   if (encoding) {
-    unsigned maxCoeff = (1 << encoding.getCleartextBitwidth()) - 1;
+    int64_t maxCoeff = (1 << encoding.getCleartextBitwidth()) - 1;
     for (auto c : getCoefficients()) {
       if (c > maxCoeff) {
         InFlightDiagnostic diag =
@@ -49,6 +49,44 @@ LogicalResult LutLinCombOp::verify() {
                         << " active bits";
       diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
       return diag;
+    }
+  }
+
+  return success();
+}
+
+LogicalResult MultiLutLinCombOp::verify() {
+  if (getInputs().size() != getCoefficients().size())
+    return emitOpError("number of coefficients must match number of inputs");
+  if (getOutputs().size() != getLookupTables().size())
+    return emitOpError("number of outputs must match number of LUTs");
+
+  lwe::LWECiphertextType type =
+      cast<lwe::LWECiphertextType>(getOutputs().front().getType());
+  auto encoding = dyn_cast<lwe::BitFieldEncodingAttr>(type.getEncoding());
+
+  if (encoding) {
+    int64_t maxCoeff = (1 << encoding.getCleartextBitwidth()) - 1;
+    for (auto c : getCoefficients()) {
+      if (c > maxCoeff) {
+        InFlightDiagnostic diag =
+            emitOpError("coefficient pushes error bits into message space");
+        diag.attachNote() << "coefficient is " << c;
+        diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
+        return diag;
+      }
+    }
+
+    for (int64_t lut : getLookupTables()) {
+      APInt apintLut = APInt(64, lut);
+      if (apintLut.getActiveBits() > maxCoeff + 1) {
+        InFlightDiagnostic diag =
+            emitOpError("LUT is larger than available cleartext bit width");
+        diag.attachNote() << "LUT has " << apintLut.getActiveBits()
+                          << " active bits";
+        diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
+        return diag;
+      }
     }
   }
 
