@@ -48,6 +48,8 @@ command above.
 
 ## Tips for working with Bazel
 
+### Avoiding rebuilds
+
 Bazel is notoriously fickle when it comes to deciding whether a full rebuild is
 necessary, which is bad for HEIR because rebuilding LLVM from scratch takes 15
 minutes or more.
@@ -65,3 +67,47 @@ The main things that cause a rebuild are:
 Bazel compilation flags are set by default in the project root's `.bazelrc` in
 such a way as to avoid rebuilds during development as much as possible. This
 includes setting `-c dbg` and `--incompatible_strict_action_env`.
+
+### Pointing HEIR to a local clone of `llvm-project`
+
+Occasionally changes in HEIR will need to be made in tandem with upstream
+changes in MLIR. In particular, we occasionally find upstream bugs that only
+occur with HEIR passes, and we are the primary owners/users of the upstream
+`polynomial` dialect.
+
+To tell `bazel` to use a local clone of `llvm-project` instead of a pinned
+commit hash, replace `bazel/import_llvm.bzl` with the following file:
+
+```bash
+cat > bazel/import_llvm.bzl << EOF
+"""Provides the repository macro to import LLVM."""
+
+def import_llvm(name):
+    """Imports LLVM."""
+    native.new_local_repository(
+        name = name,
+        # this BUILD file is intentionally empty, because the LLVM project
+        # internally contains a set of bazel BUILD files overlaying the project.
+        build_file_content = "# empty",
+        path = "/path/to/llvm-project",
+    )
+EOF
+```
+
+The next `bazel build` will require a full rebuild if the checked-out LLVM
+commit differs from the pinned commit hash in `bazel/import_llvm.bzl`.
+
+Note that you cannot reuse the LLVM CMake build artifacts in the bazel build.
+Based on what you're trying to do, this may require some extra steps.
+
+- If you just want to run existing MLIR and HEIR tests against local `llvm-project`
+  changes, you can run the tests from HEIR using `bazel test @llvm-project//mlir/...:all`.
+  New `lit` tests can be added in `llvm-project`'s existing directories and
+  tested this way without a rebuild.
+- If you add new CMake targets in `llvm-project`, then to incorporate them into
+  HEIR you need to add new bazel targets in
+  `llvm-project/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel`. This is
+  required if, for example, a new dialect or pass is added in MLIR upstream.
+
+Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun)
+who has LLVM commit access and can also suggest additional MLIR reviewers.
