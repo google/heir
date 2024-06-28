@@ -177,6 +177,18 @@ LogicalResult ReinterpretUnderlyingTypeOp::verify() {
   return success();
 }
 
+// Verification for RLWE_EncryptOp
+LogicalResult RLWEEncryptOp::verify() {
+  // Placeholder verification
+  return success();
+}
+
+// Verification for RLWE_DecryptOp
+LogicalResult RLWEDecryptOp::verify() {
+  // Placeholder verification
+  return success();
+}
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

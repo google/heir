@@ -147,6 +147,36 @@ def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
 }
 
+def LWE_RLWEEncryptOp : LWE_Op<"rlwe_encrypt", [Pure,
+    EncodingsMatch<"input", "RLWEPlaintextType", "output", "RLWECiphertextType">]> {
+  let summary = "Encrypt an RLWE plaintext to a RLWE ciphertext";
+  let description = [{
+    Encrypt an RLWE plaintext to yield a RLWE ciphertext.
+  }];
+
+  let arguments = (ins
+    RLWEPlaintext:$input,
+    RLWESecretOrPublicKey:$key
+  );
+  let results = (outs RLWECiphertext:$output);
+  let hasVerifier = 1;
+}
+
+def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [Pure,
+    EncodingsMatch<"input", "RLWECiphertextType", "output", "RLWEPlaintextType">]> {
+  let summary = "Decrypt an RLWE ciphertext to a RLWE plaintext";
+  let description = [{
+    Decrypt an RLWE ciphertext to yield a RLWE plaintext
+  }];
+
+  let arguments = (ins
+    RLWECiphertext:$input,
+    RLWESecretKey:$secret_key
+  );
+  let results = (outs RLWEPlaintext:$output);
+  let hasVerifier = 1;
+}
+
 def ReinterpretUnderlyingTypeOp : LWE_Op<"reinterpret_underlying_type", [Pure]> {
   let summary = "A placeholder cast from one ciphertext type to another";
   let description = [{
