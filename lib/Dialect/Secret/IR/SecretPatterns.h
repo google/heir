@@ -226,6 +226,10 @@ struct HoistPlaintextOps : public OpRewritePattern<GenericOp> {
 void genericAbsorbConstants(secret::GenericOp genericOp,
                             mlir::IRRewriter &rewriter);
 
+// Absorbs any memref deallocations into the generic body.
+void genericAbsorbDealloc(secret::GenericOp genericOp,
+                          mlir::IRRewriter &rewriter);
+
 // Extract the body of a secret.generic into a function and replace the generic
 // body with a call to the created function.
 LogicalResult extractGenericBody(secret::GenericOp genericOp,

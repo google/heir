@@ -29,6 +29,7 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -65,21 +66,18 @@ Value buildSelectTruthTable(Location loc, OpBuilder &b, Value t, Value f,
                                    selectFalse);
 }
 
-// equivalentMultiBitAndMemRefchecks whether the candidateMultiBit integer type
-// is equivalent to the candidateMemRef type.
-// Return true if the candidateMemRef is a memref of single bits with
-// size equal to the number of bits of the candidateMultiBit.
-bool equivalentMultiBitAndMemRef(Type candidateMultiBit, Type candidateMemRef) {
-  if (auto multiBitTy = dyn_cast<IntegerType>(candidateMultiBit)) {
-    if (auto memrefTy = dyn_cast<MemRefType>(candidateMemRef)) {
-      auto eltTy = dyn_cast<IntegerType>(memrefTy.getElementType());
-      if (eltTy && multiBitTy.getWidth() ==
-                       memrefTy.getNumElements() * eltTy.getWidth()) {
-        return true;
-      }
-    }
+// equivalentMultiBitAndMemRef checks if a the types hold the same number of
+// bits.
+bool equivalentMultiBitAndMemRef(Type lhsType, Type rhsType) {
+  int lhsBits = getElementTypeOrSelf(lhsType).getIntOrFloatBitWidth();
+  int rhsBits = getElementTypeOrSelf(rhsType).getIntOrFloatBitWidth();
+  if (auto lhsTensorTy = dyn_cast<ShapedType>(lhsType)) {
+    lhsBits *= lhsTensorTy.getNumElements();
   }
-  return false;
+  if (auto rhsTensorTy = dyn_cast<ShapedType>(rhsType)) {
+    rhsBits *= rhsTensorTy.getNumElements();
+  }
+  return lhsBits == rhsBits;
 }
 
 Operation *convertWriteOpInterface(Operation *op, SmallVector<Value> indices,
@@ -533,8 +531,7 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
     auto outputTy =
         cast<secret::SecretType>(op.getOutput().getType()).getValueType();
 
-    if (equivalentMultiBitAndMemRef(inputTy, outputTy) ||
-        equivalentMultiBitAndMemRef(outputTy, inputTy)) {
+    if (equivalentMultiBitAndMemRef(inputTy, outputTy)) {
       rewriter.replaceOp(op, adaptor.getInput());
       return success();
     }
