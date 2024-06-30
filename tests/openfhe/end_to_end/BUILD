@@ -2,10 +2,7 @@
 
 # load("@heir//tests/openfhe/end_to_end:test.bzl", "openfhe_end_to_end_test")
 
-package(
-    default_applicable_licenses = ["@heir//:license"],
-    default_visibility = ["//visibility:public"],
-)
+package(default_applicable_licenses = ["@heir//:license"])
 
 # TODO(#729): Re-enable tests when upstream dialect loader is fixed
 # openfhe_end_to_end_test(
