@@ -1,3 +1,4 @@
+#include "lib/Source/AutoHog/AutoHogImporter.h"
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
@@ -23,6 +24,9 @@ int main(int argc, char **argv) {
   // OpenFHE
   mlir::heir::openfhe::registerToOpenFhePkeTranslation();
   mlir::heir::openfhe::registerToOpenFhePkeHeaderTranslation();
+
+  // AutoHOG input
+  mlir::heir::registerFromAutoHogTranslation();
 
   return failed(mlir::mlirTranslateMain(argc, argv, "HEIR Translation Tool"));
 }

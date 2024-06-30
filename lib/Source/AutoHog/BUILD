@@ -1,0 +1,22 @@
+# AutoHoG importer library
+
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "AutoHogImporter",
+    srcs = ["AutoHogImporter.cpp"],
+    hdrs = ["AutoHogImporter.h"],
+    deps = [
+        "@heir//lib/Dialect/CGGI/IR:Dialect",
+        "@heir//lib/Target:Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TranslateLib",
+        "@rapidjson",
+    ],
+)
