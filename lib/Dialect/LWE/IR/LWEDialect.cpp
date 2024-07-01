@@ -8,6 +8,7 @@
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
@@ -179,7 +180,19 @@ LogicalResult ReinterpretUnderlyingTypeOp::verify() {
 
 // Verification for RLWE_EncryptOp
 LogicalResult RLWEEncryptOp::verify() {
-  // Placeholder verification
+  Type keyType = getKey().getType();
+  lwe::RLWEParamsAttr keyParams =
+      llvm::TypeSwitch<Type, lwe::RLWEParamsAttr>(keyType)
+          .Case<lwe::RLWEPublicKeyType, lwe::RLWESecretKeyType>(
+              [](auto key) { return key.getRlweParams(); })
+          .Default([](Type) {
+            llvm_unreachable("impossible by type constraints");
+            return nullptr;
+          });
+
+  if (getOutput().getType().getRlweParams() != keyParams) {
+    return emitOpError() << "input dimensions do not match";
+  }
   return success();
 }
 
