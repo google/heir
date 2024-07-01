@@ -34,6 +34,10 @@ func.func @simple_sum(%arg0: !ctxt_ty, %arg1: !in_ty) -> !out_ty {
   return %13 : !out_ty
 }
 
-// CHECK-LABEL: @simple_sum
+// CHECK: @simple_sum
 // CHECK: @simple_sum__generate_crypto_context
+// CHECK: mulDepth = 1
+
 // CHECK: @simple_sum__configure_crypto_context
+// CHECK: openfhe.gen_mulkey
+// CHECK: openfhe.gen_rotkey

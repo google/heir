@@ -1,0 +1,62 @@
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"  // from @llvm-project
+
+#include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
+
+#define DEBUG_TYPE "openfhe-muldepth-analysis"
+
+namespace mlir {
+namespace heir {
+
+void MulDepthAnalysis::visitOperation(
+    Operation *op, ArrayRef<const MulDepthLattice *> operands,
+    ArrayRef<MulDepthLattice *> results) {
+  llvm::TypeSwitch<Operation &>(*op)
+      .Case<openfhe::MulOp, openfhe::MulPlainOp, openfhe::MulConstOp,
+            openfhe::MulNoRelinOp>([&](auto mulOp) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Visiting Mul: " << mulOp->getName() << "\n");
+        // There should be only one result.
+        assert(results.size() == 1);
+        MulDepthLattice *r = results[0];
+        MulDepth lhsMulDepth = operands[1]->getValue();
+        if (lhsMulDepth.isInitialized()) {
+          lhsMulDepth = MulDepth{lhsMulDepth.getValue() + 1};
+        } else {
+          lhsMulDepth = MulDepth{1};
+        }
+        MulDepth rhsMulDepth = operands[2]->getValue();
+        if (rhsMulDepth.isInitialized()) {
+          rhsMulDepth = MulDepth{rhsMulDepth.getValue() + 1};
+        } else {
+          rhsMulDepth = MulDepth{1};
+        }
+        LLVM_DEBUG({
+          llvm::dbgs() << "lhsMulDepth: " << lhsMulDepth << "\n";
+          llvm::dbgs() << "rhsMulDepth: " << rhsMulDepth << "\n";
+        });
+        ChangeResult result = r->join(MulDepth::join(lhsMulDepth, rhsMulDepth));
+        propagateIfChanged(r, result);
+        LLVM_DEBUG({
+          llvm::dbgs() << "MulDepth: " << results[0]->getValue() << "\n";
+        });
+      })
+      .Default([&](Operation &defaultOp) {
+        LLVM_DEBUG(
+            { llvm::dbgs() << "Visiting: " << defaultOp.getName() << "\n"; });
+        for (const MulDepthLattice *operand : operands) {
+          for (MulDepthLattice *r : results) {
+            ChangeResult result = r->join(*operand);
+            propagateIfChanged(r, result);
+          }
+        }
+      });
+}
+
+}  // namespace heir
+}  // namespace mlir
