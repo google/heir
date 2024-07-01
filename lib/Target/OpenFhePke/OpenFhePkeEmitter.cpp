@@ -51,7 +51,7 @@ void registerToOpenFhePkeTranslation() {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         openfhe::OpenfheDialect, lwe::LWEDialect,
                         ::mlir::polynomial::PolynomialDialect,
-                        arith::ArithDialect, tensor::TensorDialect>();
+                        tensor::TensorDialect>();
       });
 }
 
