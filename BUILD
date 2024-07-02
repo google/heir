@@ -25,7 +25,7 @@ package_group(
 # use by passing `--//:enable_yosys=0` to `bazel build` or `bazel test`
 string_flag(
     name = "enable_yosys",
-    build_setting_default = "1",
+    build_setting_default = "0",
 )
 
 config_setting(
