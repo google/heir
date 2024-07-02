@@ -82,14 +82,40 @@ clangd.</p><p>Add the following snippet to your VS Code user settings found in
 </span></span></code></pre></div><p>This will need to be regenerated every time you want tooling to see new <code>BUILD</code>
 file changes.</p><p>If you encounter errors like <code>*.h.inc</code> not found, or syntax errors inside these
 files, you may need to build those targets and then re-run the <code>refresh_all</code>
-command above.</p><h2 id=tips-for-working-with-bazel>Tips for working with Bazel</h2><p>Bazel is notoriously fickle when it comes to deciding whether a full rebuild is
+command above.</p><h2 id=tips-for-working-with-bazel>Tips for working with Bazel</h2><h3 id=avoiding-rebuilds>Avoiding rebuilds</h3><p>Bazel is notoriously fickle when it comes to deciding whether a full rebuild is
 necessary, which is bad for HEIR because rebuilding LLVM from scratch takes 15
 minutes or more.</p><p>The main things that cause a rebuild are:</p><ul><li>A change to the command-line flags passed to bazel, e.g., <code>-c opt</code> vs <code>-c dbg</code> for optimization level and debug symbols.</li><li>A change to the <code>.bazelrc</code> that implicitly causes a flag change. Note HEIR
 has its own project-specific <code>.bazelrc</code> in the root directory.</li><li>A change to relevant command-line variables, such as <code>PATH</code>, which is
 avoided by the <code>incompatible_strict_action_env</code> flag. Note activating a
 python virtualenv triggers a <code>PATH</code> change.</li></ul><p>Bazel compilation flags are set by default in the project root&rsquo;s <code>.bazelrc</code> in
 such a way as to avoid rebuilds during development as much as possible. This
-includes setting <code>-c dbg</code> and <code>--incompatible_strict_action_env</code>.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-590f1588f601079eeacfc7cb11dc5115>3 - Dialects</h1><p>This section contains the reference documentation for all of the dialects
+includes setting <code>-c dbg</code> and <code>--incompatible_strict_action_env</code>.</p><h3 id=pointing-heir-to-a-local-clone-of-llvm-project>Pointing HEIR to a local clone of <code>llvm-project</code></h3><p>Occasionally changes in HEIR will need to be made in tandem with upstream
+changes in MLIR. In particular, we occasionally find upstream bugs that only
+occur with HEIR passes, and we are the primary owners/users of the upstream
+<code>polynomial</code> dialect.</p><p>To tell <code>bazel</code> to use a local clone of <code>llvm-project</code> instead of a pinned
+commit hash, replace <code>bazel/import_llvm.bzl</code> with the following file:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>cat &gt; bazel/import_llvm.bzl <span style=color:#4e9a06>&lt;&lt; EOF
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>&#34;&#34;&#34;Provides the repository macro to import LLVM.&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>def import_llvm(name):
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>    &#34;&#34;&#34;Imports LLVM.&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>    native.new_local_repository(
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>        name = name,
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>        # this BUILD file is intentionally empty, because the LLVM project
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>        # internally contains a set of bazel BUILD files overlaying the project.
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>        build_file_content = &#34;# empty&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>        path = &#34;/path/to/llvm-project&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>    )
+</span></span></span><span style=display:flex><span><span style=color:#4e9a06>EOF</span>
+</span></span></code></pre></div><p>The next <code>bazel build</code> will require a full rebuild if the checked-out LLVM
+commit differs from the pinned commit hash in <code>bazel/import_llvm.bzl</code>.</p><p>Note that you cannot reuse the LLVM CMake build artifacts in the bazel build.
+Based on what you&rsquo;re trying to do, this may require some extra steps.</p><ul><li>If you just want to run existing MLIR and HEIR tests against local <code>llvm-project</code>
+changes, you can run the tests from HEIR using <code>bazel test @llvm-project//mlir/...:all</code>.
+New <code>lit</code> tests can be added in <code>llvm-project</code>&rsquo;s existing directories and
+tested this way without a rebuild.</li><li>If you add new CMake targets in <code>llvm-project</code>, then to incorporate them into
+HEIR you need to add new bazel targets in
+<code>llvm-project/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel</code>. This is
+required if, for example, a new dialect or pass is added in MLIR upstream.</li></ul><p>Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun)
+who has LLVM commit access and can also suggest additional MLIR reviewers.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-590f1588f601079eeacfc7cb11dc5115>3 - Dialects</h1><p>This section contains the reference documentation for all of the dialects
 defined in HEIR.</p></div><div class=td-content><h1 id=pg-7edb6db9a7c1e9cd1b88e7f261615363>3.1 - ArithExt</h1><h2 id=arithext-ops>ArithExt ops</h2><h3 id=arith_extadd-heirarith_extaddop><code>arith_ext.add</code> (heir::arith_ext::AddOp)</h3><p><em>Modular addition operation</em></p><p>Syntax:</p><pre tabindex=0><code>operation ::= `arith_ext.add` operands attr-dict `:` type($output)
 </code></pre><p>Computes addition modulo a statically known modulus $q$.</p><p>Traits: <code>AlwaysSpeculatableImplTrait</code>, <code>Commutative</code>, <code>Elementwise</code>, <code>SameOperandsAndResultType</code>, <code>Scalarizable</code>, <code>Tensorizable</code>, <code>Vectorizable</code></p><p>Interfaces: <code>ConditionallySpeculatable</code>, <code>InferTypeOpInterface</code>, <code>NoMemoryEffect (MemoryEffectOpInterface)</code></p><p>Effects: <code>MemoryEffects::Effect{}</code></p><h4 id=attributes>Attributes:</h4><table><tr><th>Attribute</th><th>MLIR Type</th><th>Description</th></tr><tr><td><code>modulus</code></td><td>::mlir::IntegerAttr</td><td>arbitrary integer attribute</td></tr></table><h4 id=operands>Operands:</h4><table><thead><tr><th style=text-align:center>Operand</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center><code>lhs</code></td><td>signless-integer-like</td></tr><tr><td style=text-align:center><code>rhs</code></td><td>signless-integer-like</td></tr></tbody></table><h4 id=results>Results:</h4><table><thead><tr><th style=text-align:center>Result</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center><code>output</code></td><td>signless-integer-like</td></tr></tbody></table><h3 id=arith_extbarrett_reduce-heirarith_extbarrettreduceop><code>arith_ext.barrett_reduce</code> (heir::arith_ext::BarrettReduceOp)</h3><p><em>Compute the first step of the Barrett reduction.</em></p><p>Syntax:</p><pre tabindex=0><code>operation ::= `arith_ext.barrett_reduce` operands attr-dict `:` qualified(type($input))
 </code></pre><p>Let $q$ denote a statically known modulus and $b = 4^{w}$, where $w$ is the

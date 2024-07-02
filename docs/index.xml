@@ -187,6 +187,7 @@ file changes.&lt;/p>
 files, you may need to build those targets and then re-run the &lt;code>refresh_all&lt;/code>
 command above.&lt;/p>
 &lt;h2 id="tips-for-working-with-bazel">Tips for working with Bazel&lt;/h2>
+&lt;h3 id="avoiding-rebuilds">Avoiding rebuilds&lt;/h3>
 &lt;p>Bazel is notoriously fickle when it comes to deciding whether a full rebuild is
 necessary, which is bad for HEIR because rebuilding LLVM from scratch takes 15
 minutes or more.&lt;/p>
@@ -201,7 +202,43 @@ python virtualenv triggers a &lt;code>PATH&lt;/code> change.&lt;/li>
 &lt;/ul>
 &lt;p>Bazel compilation flags are set by default in the project root&amp;rsquo;s &lt;code>.bazelrc&lt;/code> in
 such a way as to avoid rebuilds during development as much as possible. This
-includes setting &lt;code>-c dbg&lt;/code> and &lt;code>--incompatible_strict_action_env&lt;/code>.&lt;/p></description></item><item><title>Docs: Pipelines</title><link>https://heir.dev/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/pipelines/</guid><description>
+includes setting &lt;code>-c dbg&lt;/code> and &lt;code>--incompatible_strict_action_env&lt;/code>.&lt;/p>
+&lt;h3 id="pointing-heir-to-a-local-clone-of-llvm-project">Pointing HEIR to a local clone of &lt;code>llvm-project&lt;/code>&lt;/h3>
+&lt;p>Occasionally changes in HEIR will need to be made in tandem with upstream
+changes in MLIR. In particular, we occasionally find upstream bugs that only
+occur with HEIR passes, and we are the primary owners/users of the upstream
+&lt;code>polynomial&lt;/code> dialect.&lt;/p>
+&lt;p>To tell &lt;code>bazel&lt;/code> to use a local clone of &lt;code>llvm-project&lt;/code> instead of a pinned
+commit hash, replace &lt;code>bazel/import_llvm.bzl&lt;/code> with the following file:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>cat &amp;gt; bazel/import_llvm.bzl &lt;span style="color:#4e9a06">&amp;lt;&amp;lt; EOF
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&amp;#34;&amp;#34;&amp;#34;Provides the repository macro to import LLVM.&amp;#34;&amp;#34;&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">def import_llvm(name):
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> &amp;#34;&amp;#34;&amp;#34;Imports LLVM.&amp;#34;&amp;#34;&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> native.new_local_repository(
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> name = name,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> # this BUILD file is intentionally empty, because the LLVM project
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> # internally contains a set of bazel BUILD files overlaying the project.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> build_file_content = &amp;#34;# empty&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> path = &amp;#34;/path/to/llvm-project&amp;#34;,
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06"> )
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">EOF&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The next &lt;code>bazel build&lt;/code> will require a full rebuild if the checked-out LLVM
+commit differs from the pinned commit hash in &lt;code>bazel/import_llvm.bzl&lt;/code>.&lt;/p>
+&lt;p>Note that you cannot reuse the LLVM CMake build artifacts in the bazel build.
+Based on what you&amp;rsquo;re trying to do, this may require some extra steps.&lt;/p>
+&lt;ul>
+&lt;li>If you just want to run existing MLIR and HEIR tests against local &lt;code>llvm-project&lt;/code>
+changes, you can run the tests from HEIR using &lt;code>bazel test @llvm-project//mlir/...:all&lt;/code>.
+New &lt;code>lit&lt;/code> tests can be added in &lt;code>llvm-project&lt;/code>&amp;rsquo;s existing directories and
+tested this way without a rebuild.&lt;/li>
+&lt;li>If you add new CMake targets in &lt;code>llvm-project&lt;/code>, then to incorporate them into
+HEIR you need to add new bazel targets in
+&lt;code>llvm-project/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel&lt;/code>. This is
+required if, for example, a new dialect or pass is added in MLIR upstream.&lt;/li>
+&lt;/ul>
+&lt;p>Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun)
+who has LLVM commit access and can also suggest additional MLIR reviewers.&lt;/p></description></item><item><title>Docs: Pipelines</title><link>https://heir.dev/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/pipelines/</guid><description>
 &lt;h2 id="heir-opt">&lt;code>heir-opt&lt;/code>&lt;/h2>
 &lt;h3 id="--heir-simd-vectorizer">&lt;code>--heir-simd-vectorizer&lt;/code>&lt;/h3>
 &lt;p>Run scheme-agnostic passes to convert FHE programs that operate on scalar types
@@ -841,27 +878,20 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/">Negacyclic Polynomial Multiplication by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;/ul></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1nOlAhul4DwZU8UQPpTF1i3OldSY9EmwaWG3EPSZIhHs/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1I7aIipm54CCcDcLyRYXI_gARfT1z93cN/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-11-07.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video
-recording&lt;/a>
-from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
-&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
-IRs.&lt;/p>
-&lt;p>Our initial meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
-Stay tuned for future updates while we work out a meeting schedule.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-12-12.&lt;/p>
+&lt;p>This is the last meeting for 2023. Please respond to &lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this
+poll&lt;/a> for 2024 scheduling preferences.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
+&lt;p>The third HEIR meeting was 2023-07-18
+(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
+&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
+on MLIR and Hardware. See the
+&lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to join.
+(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="-apply-folders">&lt;code>-apply-folders&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Apply all folding patterns from canonicalize&lt;/em>&lt;/p>
