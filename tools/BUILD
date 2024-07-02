@@ -76,6 +76,7 @@ cc_binary(
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/StraightLineVectorizer",
+        "@heir//lib/Transforms/TensorToScalars",
         "@heir//lib/Transforms/UnusedMemRef",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
