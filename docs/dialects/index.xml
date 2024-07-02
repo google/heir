@@ -3521,24 +3521,14 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="lwerlwe_encode-heirlwerlweencodeop">&lt;code>lwe.rlwe_encode&lt;/code> (heir::lwe::RLWEEncodeOp)&lt;/h3>
-&lt;p>&lt;em>Encode an integer to yield an RLWE plaintext&lt;/em>&lt;/p>
+&lt;h3 id="lwerlwe_decrypt-heirlwerlwedecryptop">&lt;code>lwe.rlwe_decrypt&lt;/code> (heir::lwe::RLWEDecryptOp)&lt;/h3>
+&lt;p>&lt;em>Decrypt an RLWE ciphertext to a RLWE plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an RLWE plaintext.&lt;/p>
-&lt;p>This op uses a an encoding attribute to encode the bits of the integer into
-an RLWE plaintext value that can then be encrypted.&lt;/p>
-&lt;p>Examples:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i1 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_decrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Decrypt an RLWE ciphertext to yield a RLWE plaintext&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded RLWE plaintexts via coefficients. or An attribute describing encoded RLWE plaintexts via evaluations at fixed points. or An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/td>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
-&lt;/table>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -3550,7 +3540,11 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>secret_key&lt;/code>&lt;/td>
+&lt;td>A secret key for RLWE&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -3569,6 +3563,96 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lwerlwe_encode-heirlwerlweencodeop">&lt;code>lwe.rlwe_encode&lt;/code> (heir::lwe::RLWEEncodeOp)&lt;/h3>
+&lt;p>&lt;em>Encode an integer to yield an RLWE plaintext&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an RLWE plaintext.&lt;/p>
+&lt;p>This op uses a an encoding attribute to encode the bits of the integer into
+an RLWE plaintext value that can then be encrypted.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i1 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded RLWE plaintexts via coefficients. or An attribute describing encoded RLWE plaintexts via evaluations at fixed points. or An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>signless-integer-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lwerlwe_encrypt-heirlwerlweencryptop">&lt;code>lwe.rlwe_encrypt&lt;/code> (heir::lwe::RLWEEncryptOp)&lt;/h3>
+&lt;p>&lt;em>Encrypt an RLWE plaintext to a RLWE ciphertext&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encrypt` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Encrypt an RLWE plaintext to yield a RLWE ciphertext.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>key&lt;/code>&lt;/td>
+&lt;td>A secret key for RLWE or A public key for RLWE&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lwetrivial_encrypt-heirlwetrivialencryptop">&lt;code>lwe.trivial_encrypt&lt;/code> (heir::lwe::TrivialEncryptOp)&lt;/h3>
 &lt;p>&lt;em>Create a trivial encryption of a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -3581,7 +3665,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>params&lt;/code>&lt;/td>&lt;td>::mlir::heir::lwe::LWEParamsAttr&lt;/td>&lt;td>&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3596,7 +3680,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3621,7 +3705,7 @@ does not keep track of types for you.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3636,7 +3720,7 @@ does not keep track of types for you.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-8">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
