@@ -13,7 +13,7 @@ concurrency:
 jobs:
   check-cache:
     runs-on:
-      labels: ubuntu-20.04-8core
+      labels: ubuntu-22.04-8core
     outputs:
       runner: ${{ steps.runner.outputs.runner }}
     steps:
@@ -38,9 +38,9 @@ jobs:
           set -euo pipefail
 
           if [[ "${CACHE_HIT}" == "true" ]]; then
-            echo "runner=ubuntu-20.04-8core" >> "$GITHUB_OUTPUT"
+            echo "runner=ubuntu-22.04-8core" >> "$GITHUB_OUTPUT"
           else
-            echo "runner=ubuntu-20.04-16core" >> "$GITHUB_OUTPUT"
+            echo "runner=ubuntu-22.04-32core" >> "$GITHUB_OUTPUT"
           fi
 
   build-and-test:
