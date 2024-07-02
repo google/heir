@@ -420,8 +420,8 @@ void tosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
 }
 #endif
 
-struct MlirToOpenFheBgvPipelineOptions
-    : public PassPipelineOptions<MlirToOpenFheBgvPipelineOptions> {
+struct MlirToBgvPipelineOptions
+    : public PassPipelineOptions<MlirToBgvPipelineOptions> {
   PassOptions::Option<std::string> entryFunction{
       *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
       llvm::cl::init("main")};
@@ -433,8 +433,8 @@ struct MlirToOpenFheBgvPipelineOptions
       llvm::cl::init(1024)};
 };
 
-void mlirToOpenFheBgvPipelineBuilder(
-    OpPassManager &pm, const MlirToOpenFheBgvPipelineOptions &options) {
+void mlirToBgvPipelineBuilder(OpPassManager &pm,
+                              const MlirToBgvPipelineOptions &options) {
   // Secretize inputs
   pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
   pm.addPass(createWrapGeneric());
@@ -452,6 +452,12 @@ void mlirToOpenFheBgvPipelineBuilder(
   auto secretToBgvOpts = SecretToBGVOptions{};
   secretToBgvOpts.polyModDegree = options.ciphertextDegree;
   pm.addPass(createSecretToBGV(secretToBgvOpts));
+}
+
+void mlirToOpenFheBgvPipelineBuilder(OpPassManager &pm,
+                                     const MlirToBgvPipelineOptions &options) {
+  // lower to BGV
+  mlirToBgvPipelineBuilder(pm, options);
 
   // Add client interface
   auto addClientInterfaceOptions = bgv::AddClientInterfaceOptions{};
@@ -571,7 +577,13 @@ int main(int argc, char **argv) {
       "tensor_ext.rotate",
       heirSIMDVectorizerPipelineBuilder);
 
-  PassPipelineRegistration<MlirToOpenFheBgvPipelineOptions>(
+  PassPipelineRegistration<MlirToBgvPipelineOptions>(
+      "mlir-to-bgv",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "BGV.",
+      mlirToBgvPipelineBuilder);
+
+  PassPipelineRegistration<MlirToBgvPipelineOptions>(
       "mlir-to-openfhe-bgv",
       "Convert a func using standard MLIR dialects to FHE using BGV and "
       "export "
