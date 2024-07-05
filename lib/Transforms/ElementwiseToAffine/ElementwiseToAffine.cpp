@@ -27,9 +27,7 @@ namespace heir {
 static bool isElementwiseMappableOpOnRankedTensors(Operation *op) {
   if (!OpTrait::hasElementwiseMappableTraits(op)) return false;
 
-  // TODO(#534): Test ElementwiseToAffine with `any_of` constraints
-  // as the pass should (in theory) support scalar operands, too
-  return llvm::all_of(op->getOperandTypes(),
+  return llvm::any_of(op->getOperandTypes(),
                       [](Type type) { return isa<RankedTensorType>(type); });
 }
 
@@ -133,6 +131,8 @@ struct ElementwiseToAffine
 
     patterns.add<ConvertAnyElementwiseMappableOpOnRankedTensors>(context);
     target.markUnknownOpDynamicallyLegal([](Operation *op) {
+      // TODO (#768): to make this pass more widely applicable, it should take
+      // a dialect and/or list of operations to restrict the conversion to
       return !isElementwiseMappableOpOnRankedTensors(op);
     });
 
