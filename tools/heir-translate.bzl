@@ -16,17 +16,26 @@ def _heir_translate_impl(ctx):
     args = ctx.actions.args()
     args.add(ctx.attr.pass_flag)
     args.add_all(["-o", generated_file.path])
-    args.add(ctx.file.src)
+
+    # TODO(#729): Remove after upstream dialect loader is fixed
+    tmp = ctx.actions.declare_file("dummy_prepended_" + ctx.file.src.basename)
+    args.add(tmp)
+    ctx.actions.run_shell(
+        inputs = [ctx.file.src],
+        outputs = [tmp],
+        command = "printf '%s\n%s\n' \"#dummy = #polynomial.ring<coefficientType = i32>\" \"$(cat \"$1\")\" > \"$2\"",
+        arguments = [ctx.file.src.path, tmp.path],
+    )
 
     ctx.actions.run(
-        inputs = ctx.attr.src.files,
+        inputs = [tmp],
         outputs = [generated_file],
         arguments = [args],
         executable = ctx.executable._heir_translate_binary,
         toolchain = None,
     )
     return [
-        DefaultInfo(files = depset([generated_file, ctx.file.src])),
+        DefaultInfo(files = depset([generated_file, tmp, ctx.file.src])),
     ]
 
 heir_translate = rule(
