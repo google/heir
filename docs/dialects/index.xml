@@ -484,7 +484,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvmodulus_switch-heirbgvmodulusswitch">&lt;code>bgv.modulus_switch&lt;/code> (heir::bgv::ModulusSwitch)&lt;/h3>
+&lt;h3 id="bgvmodulus_switch-heirbgvmodulusswitchop">&lt;code>bgv.modulus_switch&lt;/code> (heir::bgv::ModulusSwitchOp)&lt;/h3>
 &lt;p>&lt;em>Lower the modulus level of the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.modulus_switch` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
@@ -602,7 +602,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvnegate-heirbgvnegate">&lt;code>bgv.negate&lt;/code> (heir::bgv::Negate)&lt;/h3>
+&lt;h3 id="bgvnegate-heirbgvnegateop">&lt;code>bgv.negate&lt;/code> (heir::bgv::NegateOp)&lt;/h3>
 &lt;p>&lt;em>Negate the coefficients of the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.negate` operands attr-dict `:` qualified(type($output))
@@ -638,7 +638,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvrelinearize-heirbgvrelinearize">&lt;code>bgv.relinearize&lt;/code> (heir::bgv::Relinearize)&lt;/h3>
+&lt;h3 id="bgvrelinearize-heirbgvrelinearizeop">&lt;code>bgv.relinearize&lt;/code> (heir::bgv::RelinearizeOp)&lt;/h3>
 &lt;p>&lt;em>Relinearize the ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.relinearize` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
