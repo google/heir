@@ -1,23 +1,28 @@
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <set>
 #include <string>
 
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -54,7 +59,7 @@ SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
 
 // function that generates the crypto context with proper parameters
 LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
-                              ImplicitLocOpBuilder &builder) {
+                              int64_t mulDepth, ImplicitLocOpBuilder &builder) {
   Type openfheContextType =
       openfhe::CryptoContextType::get(builder.getContext());
   SmallVector<Type> funcArgTypes;
@@ -67,7 +72,6 @@ LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
   builder.setInsertionPointToEnd(genFuncOp.addEntryBlock());
 
   // TODO(#661) : Calculate the appropriate values by analyzing the function
-  int64_t mulDepth = 2;
   int64_t plainMod = 4295294977;
   Type openfheParamsType = openfhe::CCParamsType::get(builder.getContext());
   Value ccParams = builder.create<openfhe::GenParamsOp>(openfheParamsType,
@@ -115,7 +119,7 @@ LogicalResult generateConfigFunc(func::FuncOp op,
   return success();
 }
 
-LogicalResult convertFunc(func::FuncOp op) {
+LogicalResult convertFunc(func::FuncOp op, int64_t mulDepth) {
   auto module = op->getParentOfType<ModuleOp>();
   std::string genFuncName("");
   llvm::raw_string_ostream genNameOs(genFuncName);
@@ -128,7 +132,7 @@ LogicalResult convertFunc(func::FuncOp op) {
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
 
-  if (failed(generateGenFunc(op, genFuncName, builder))) {
+  if (failed(generateGenFunc(op, genFuncName, mulDepth, builder))) {
     return failure();
   }
 
@@ -148,10 +152,35 @@ struct ConfigureCryptoContext
   using ConfigureCryptoContextBase::ConfigureCryptoContextBase;
 
   void runOnOperation() override {
+    // Analyse the operations to find the MulDepth
+    DataFlowSolver solver;
+    solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
+    solver.load<MulDepthAnalysis>();
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+    int64_t maxMulDepth = 0;
+    // walk the operations to find the max MulDepth
+    getOperation()->walk([&](Operation *op) {
+      // if the lengths of the operands is 0, then return
+      if (op->getNumResults() == 0) return WalkResult::advance();
+      const MulDepthLattice *resultLattice =
+          solver.lookupState<MulDepthLattice>(op->getResult(0));
+      if (resultLattice->getValue().isInitialized()) {
+        maxMulDepth =
+            std::max(maxMulDepth, resultLattice->getValue().getValue());
+      }
+      return WalkResult::advance();
+    });
+
     auto result =
         getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
           auto funcName = op.getSymName();
-          if ((funcName == entryFunction) && failed(convertFunc(op))) {
+          if ((funcName == entryFunction) &&
+              failed(convertFunc(op, maxMulDepth))) {
             op->emitError("Failed to configure the crypto context for func");
             return WalkResult::interrupt();
           }
