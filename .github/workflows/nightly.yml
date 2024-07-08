@@ -1,0 +1,35 @@
+name: Nightly release
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+jobs:
+  build-and-test:
+    runs-on:
+      labels: ubuntu-20.04-8core
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
+      - name: "Run `bazel build`"
+        run: |
+          bazel build -c opt //tools:all
+
+      - name: Ensure binaries can run
+        shell: bash
+        run: |
+            bazel-bin/tools/heir-opt --help
+            bazel-bin/tools/heir-translate --help
+            bazel-bin/tools/heir-lsp --help
+
+      - name: GH Release
+        uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 #pin@v2.0.6
+        with:
+          prerelease: true
+          tag_name: nightly
+          files: |
+            bazel-bin/tools/heir-opt
+            bazel-bin/tools/heir-translate
+            bazel-bin/tools/heir-lsp
