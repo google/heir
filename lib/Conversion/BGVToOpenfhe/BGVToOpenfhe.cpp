@@ -140,7 +140,7 @@ struct ConvertBinOp : public OpConversionPattern<BinOp> {
   }
 };
 
-using ConvertNegateOp = ConvertUnaryOp<Negate, openfhe::NegateOp>;
+using ConvertNegateOp = ConvertUnaryOp<NegateOp, openfhe::NegateOp>;
 
 using ConvertAddOp = ConvertBinOp<AddOp, openfhe::AddOp>;
 using ConvertSubOp = ConvertBinOp<SubOp, openfhe::SubOp>;
@@ -192,14 +192,14 @@ bool checkRelinToBasis(llvm::ArrayRef<int> toBasis) {
   return toBasis[0] == 0 && toBasis[1] == 1;
 }
 
-struct ConvertRelinOp : public OpConversionPattern<Relinearize> {
+struct ConvertRelinOp : public OpConversionPattern<RelinearizeOp> {
   ConvertRelinOp(mlir::MLIRContext *context)
-      : OpConversionPattern<Relinearize>(context) {}
+      : OpConversionPattern<RelinearizeOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      Relinearize op, OpAdaptor adaptor,
+      RelinearizeOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
@@ -221,14 +221,14 @@ struct ConvertRelinOp : public OpConversionPattern<Relinearize> {
   }
 };
 
-struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitch> {
+struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
   ConvertModulusSwitchOp(mlir::MLIRContext *context)
-      : OpConversionPattern<ModulusSwitch>(context) {}
+      : OpConversionPattern<ModulusSwitchOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      ModulusSwitch op, OpAdaptor adaptor,
+      ModulusSwitchOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;

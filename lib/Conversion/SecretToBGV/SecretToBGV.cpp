@@ -149,7 +149,7 @@ class SecretGenericOpMulConversion
 
   void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
                  ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<bgv::Relinearize>(
+    rewriter.replaceOpWithNewOp<bgv::RelinearizeOp>(
         op, rewriter.create<bgv::MulOp>(op.getLoc(), inputs),
         rewriter.getDenseI32ArrayAttr({0, 1, 2}),
         rewriter.getDenseI32ArrayAttr({0, 1}));

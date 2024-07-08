@@ -153,7 +153,7 @@ def BGV_ExtractOp : BGV_Op<"extract", [SameOperandsAndResultRings]> {
   let hasVerifier = 1;
 }
 
-def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {
+def BGV_NegateOp : BGV_Op<"negate", [SameOperandsAndResultType]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
@@ -167,7 +167,7 @@ def BGV_Negate : BGV_Op<"negate", [SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Relinearize the ciphertext.";
 
   let description = [{
@@ -194,7 +194,7 @@ def BGV_Relinearize : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTy
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_ModulusSwitch : BGV_Op<"modulus_switch"> {
+def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
   let summary = "Lower the modulus level of the ciphertext.";
 
   let arguments = (ins

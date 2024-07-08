@@ -79,7 +79,7 @@ LogicalResult EncryptOp::verify() {
   return success();
 }
 
-LogicalResult Relinearize::verify() {
+LogicalResult RelinearizeOp::verify() {
   auto x = getInput().getType();
   auto out = getOutput().getType();
   if (x.getRlweParams().getDimension() != getFromBasis().size()) {
@@ -91,7 +91,7 @@ LogicalResult Relinearize::verify() {
   return success();
 }
 
-LogicalResult ModulusSwitch::verify() {
+LogicalResult ModulusSwitchOp::verify() {
   auto x = getInput().getType();
   auto xRing = x.getRlweParams().getRing();
 
@@ -130,8 +130,8 @@ LogicalResult MulOp::inferReturnTypes(
   return success();
 }
 
-LogicalResult Relinearize::inferReturnTypes(
-    MLIRContext *ctx, std::optional<Location>, Relinearize::Adaptor adaptor,
+LogicalResult RelinearizeOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, RelinearizeOp::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {
   auto x = cast<lwe::RLWECiphertextType>(adaptor.getInput().getType());
   inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(

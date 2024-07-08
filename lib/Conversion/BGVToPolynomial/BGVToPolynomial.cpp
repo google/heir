@@ -78,14 +78,14 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
   }
 };
 
-struct ConvertNegate : public OpConversionPattern<Negate> {
+struct ConvertNegate : public OpConversionPattern<NegateOp> {
   ConvertNegate(mlir::MLIRContext *context)
-      : OpConversionPattern<Negate>(context) {}
+      : OpConversionPattern<NegateOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      Negate op, OpAdaptor adaptor,
+      NegateOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
     auto arg = adaptor.getOperands()[0];
@@ -165,7 +165,7 @@ struct BGVToPolynomial : public impl::BGVToPolynomialBase<BGVToPolynomial> {
 
     patterns.add<ConvertAdd, ConvertSub, ConvertNegate, ConvertMul>(
         typeConverter, context);
-    target.addIllegalOp<AddOp, SubOp, Negate, MulOp>();
+    target.addIllegalOp<AddOp, SubOp, NegateOp, MulOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
