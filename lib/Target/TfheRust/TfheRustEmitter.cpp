@@ -91,8 +91,7 @@ std::pair<graph::Graph<Operation *>, Operation *> getGraph(Operation *op) {
 SmallVector<Value> getCiphertextOperands(ValueRange inputs) {
   SmallVector<Value> vals;
   for (Value val : inputs) {
-    // TODO(#474): Generalize to any encrypted uint.
-    if (isa<tfhe_rust::EncryptedUInt3Type>(val.getType())) {
+    if (val.getType().hasTrait<EncryptedInteger>()) {
       vals.push_back(val);
     }
   }
@@ -177,7 +176,7 @@ LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op) {
     }
     auto levels = sortedGraph.value();
     // Print lists of operations per level.
-    for (int level = 0; level < levels.size(); ++level) {
+    for (size_t level = 0; level < levels.size(); ++level) {
       os << "static LEVEL_" << level << " : [((OpType, usize), &[GateInput]); "
          << levels[level].size() << "] = [";
       for (auto &op : levels[level]) {
@@ -199,7 +198,7 @@ LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op) {
     }
 
     // Execute each task in the level.
-    for (int level = 0; level < levels.size(); ++level) {
+    for (size_t level = 0; level < levels.size(); ++level) {
       os << llvm::formatv(
           "run_level({1}, &mut temp_nodes, &mut luts, &LEVEL_{0});\n", level,
           serverKeyArg_);
@@ -701,7 +700,7 @@ void TfheRustEmitter::printLoadOp(memref::LoadOp op) {
     const auto [strides, offset] =
         getStridesAndOffset(cast<MemRefType>(op.getMemRefType()));
     os << "[" << std::to_string(offset);
-    for (int i = 0; i < strides.size(); ++i) {
+    for (size_t i = 0; i < strides.size(); ++i) {
       os << llvm::formatv(" + {0} * {1}",
                           variableNames->getNameForValue(op.getIndices()[i]),
                           strides[i]);
@@ -751,6 +750,11 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
   // Note: these are probably not the right type names to use exactly, and
   // they will need to chance to the right values once we try to compile it
   // against a specific API version.
+
+  if (type.hasTrait<EncryptedInteger>()) {
+    return std::string("Ciphertext");
+  }
+
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<RankedTensorType>(
           [&](RankedTensorType type) -> FailureOr<std::string> {
@@ -778,9 +782,6 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
         return (type.isUnsigned() ? std::string("u") : "") + "i" +
                std::to_string(width.value());
       })
-      // TODO(#474): Generalize to any encrypted uint.
-      .Case<EncryptedUInt3Type>(
-          [&](auto type) { return std::string("Ciphertext"); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
       .Case<LookupTableType>(
           [&](auto type) { return std::string("LookupTableOwned"); })
@@ -788,14 +789,13 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
 }
 
 FailureOr<std::string> TfheRustEmitter::defaultValue(Type type) {
+  if (type.hasTrait<EncryptedInteger>()) {
+    if (serverKeyArg_.empty()) return failure();
+    return std::string(
+        llvm::formatv("{0}.create_trivial(0 as u64)", serverKeyArg_));
+  };
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<IntegerType>([&](IntegerType type) { return std::string("0"); })
-      // TODO(#474): Generalize to any encrypted uint.
-      .Case<EncryptedUInt3Type>([&](auto type) -> FailureOr<std::string> {
-        if (serverKeyArg_.empty()) return failure();
-        return std::string(
-            llvm::formatv("{0}.create_trivial(0 as u64)", serverKeyArg_));
-      })
       .Default([&](Type &) { return failure(); });
 }
 
