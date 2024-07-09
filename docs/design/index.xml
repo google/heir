@@ -260,6 +260,27 @@ values, which is tedious to organize.&lt;/li>
 &lt;li>Attaching attributes to ops that should be grouped together: this would not
 be preserved by upstream lowerings and optimization passes.&lt;/li>
 &lt;/ul>
+&lt;h2 id="generic-operands">&lt;code>generic&lt;/code> operands&lt;/h2>
+&lt;p>&lt;code>secret.generic&lt;/code> takes any SSA values as legal operands. They may be &lt;code>secret&lt;/code>
+types or non-secret. Canonicalizing &lt;code>secret.generic&lt;/code> removes non-secret operands
+and leaves them to be referenced via the enclosing scope (&lt;code>secret.generic&lt;/code> is
+not &lt;code>IsolatedFromAbove&lt;/code>).&lt;/p>
+&lt;p>This may be unintuitive, as one might expect that only secret types are valid
+arguments to &lt;code>secret.generic&lt;/code>, and that a verifier might assert non-secret args
+are not present.&lt;/p>
+&lt;p>However, we allow non-secret operands because it provides a convenient scope
+encapsulation mechanism, which is useful for the &lt;code>--yosys-optimizer&lt;/code> pass that
+runs a circuit optimizer on individual &lt;code>secret.generic&lt;/code> ops and needs to have
+access to all SSA values used as inputs. The following passes are related to
+this functionality:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>secret-capture-generic-ambient-scope&lt;/code>&lt;/li>
+&lt;li>&lt;code>secret-generic-absorb-constants&lt;/code>&lt;/li>
+&lt;li>&lt;code>secret-extract-generic-body&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Due to the canonicalization rules for &lt;code>secret.generic&lt;/code>, anyone using these
+passes as an IR organization mechanism must be sure not to canonicalize before
+accomplishing the intended task.&lt;/p>
 &lt;h2 id="limitations">Limitations&lt;/h2>
 &lt;h3 id="bufferization">Bufferization&lt;/h3>
 &lt;p>Secret types cannot participate in bufferization passes. In particular,
