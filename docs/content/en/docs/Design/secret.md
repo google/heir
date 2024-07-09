@@ -305,6 +305,31 @@ We decided to use the `separator` op over a few alternatives:
 -   Attaching attributes to ops that should be grouped together: this would not
     be preserved by upstream lowerings and optimization passes.
 
+## `generic` operands
+
+`secret.generic` takes any SSA values as legal operands. They may be `secret`
+types or non-secret. Canonicalizing `secret.generic` removes non-secret operands
+and leaves them to be referenced via the enclosing scope (`secret.generic` is
+not `IsolatedFromAbove`).
+
+This may be unintuitive, as one might expect that only secret types are valid
+arguments to `secret.generic`, and that a verifier might assert non-secret args
+are not present.
+
+However, we allow non-secret operands because it provides a convenient scope
+encapsulation mechanism, which is useful for the `--yosys-optimizer` pass that
+runs a circuit optimizer on individual `secret.generic` ops and needs to have
+access to all SSA values used as inputs. The following passes are related to
+this functionality:
+
+- `secret-capture-generic-ambient-scope`
+- `secret-generic-absorb-constants`
+- `secret-extract-generic-body`
+
+Due to the canonicalization rules for `secret.generic`, anyone using these
+passes as an IR organization mechanism must be sure not to canonicalize before
+accomplishing the intended task.
+
 ## Limitations
 
 ### Bufferization
