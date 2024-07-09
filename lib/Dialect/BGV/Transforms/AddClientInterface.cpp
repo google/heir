@@ -81,7 +81,7 @@ LogicalResult generateEncryptionFunc(
       auto encoded = builder.create<lwe::RLWEEncodeOp>(
           plaintextTy, encFuncOp.getArgument(i), resultCtTy.getEncoding(),
           resultCtTy.getRlweParams().getRing());
-      auto encrypted = builder.create<bgv::EncryptOp>(
+      auto encrypted = builder.create<lwe::RLWEEncryptOp>(
           resultCtTy, encoded.getResult(), secretKey);
       encValuesToReturn.push_back(encrypted.getResult());
       continue;
@@ -127,7 +127,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
       auto plaintextTy = lwe::RLWEPlaintextType::get(
           op.getContext(), argCtTy.getEncoding(),
           argCtTy.getRlweParams().getRing(), resultTy);
-      auto decrypted = builder.create<bgv::DecryptOp>(
+      auto decrypted = builder.create<lwe::RLWEDecryptOp>(
           plaintextTy, decFuncOp.getArgument(i), secretKey);
       auto decoded = builder.create<lwe::RLWEDecodeOp>(
           resultTy, decrypted.getResult(), argCtTy.getEncoding(),

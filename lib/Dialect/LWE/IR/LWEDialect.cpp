@@ -8,6 +8,7 @@
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
@@ -179,13 +180,23 @@ LogicalResult ReinterpretUnderlyingTypeOp::verify() {
 
 // Verification for RLWE_EncryptOp
 LogicalResult RLWEEncryptOp::verify() {
-  // Placeholder verification
-  return success();
-}
+  Type keyType = getKey().getType();
+  lwe::RLWEParamsAttr keyParams =
+      llvm::TypeSwitch<Type, lwe::RLWEParamsAttr>(keyType)
+          .Case<lwe::RLWEPublicKeyType, lwe::RLWESecretKeyType>(
+              [](auto key) { return key.getRlweParams(); })
+          .Default([](Type) {
+            llvm_unreachable("impossible by type constraints");
+            return nullptr;
+          });
 
-// Verification for RLWE_DecryptOp
-LogicalResult RLWEDecryptOp::verify() {
-  // Placeholder verification
+  lwe::RLWEParamsAttr outputParams = getOutput().getType().getRlweParams();
+  if (outputParams != keyParams) {
+    return emitOpError()
+           << "RLWEEncryptOp input dimensions do not match. Keyparams: "
+           << keyParams << ". Output ciphertext params: " << outputParams
+           << ".";
+  }
   return success();
 }
 

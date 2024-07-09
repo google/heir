@@ -47,6 +47,18 @@ class EncodingsMatch<
     >
   >;
 
+class RlweParametersMatch<
+  string v1, string ty1, string v2, string ty2,
+  string comparator = "std::equal_to<>()"
+> : PredOpTrait<
+    "the first value's RLWE parameters matches the second value's",
+    CPred<
+      comparator # "(" #
+      "::llvm::cast<lwe::" # ty1 # ">($" # v1 # ".getType()).getRlweParams(), " #
+      "::llvm::cast<lwe::" # ty2 # ">($" # v2 # ".getType()).getRlweParams())"
+    >
+  >;
+
 def LWE_EncodeOp : LWE_Op<"encode", [
     Pure, HasEncoding<"output", "encoding", "LWEPlaintextType">]> {
   let summary = "Encode an integer to yield an LWE plaintext";
@@ -163,7 +175,8 @@ def LWE_RLWEEncryptOp : LWE_Op<"rlwe_encrypt", [Pure,
 }
 
 def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [Pure,
-    EncodingsMatch<"input", "RLWECiphertextType", "output", "RLWEPlaintextType">]> {
+    EncodingsMatch<"input", "RLWECiphertextType", "output", "RLWEPlaintextType">,
+    RlweParametersMatch<"secret_key", "RLWESecretKeyType", "input", "RLWECiphertextType">]> {
   let summary = "Decrypt an RLWE ciphertext to a RLWE plaintext";
   let description = [{
     Decrypt an RLWE ciphertext to yield a RLWE plaintext
@@ -174,7 +187,6 @@ def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [Pure,
     RLWESecretKey:$secret_key
   );
   let results = (outs RLWEPlaintext:$output);
-  let hasVerifier = 1;
 }
 
 def ReinterpretUnderlyingTypeOp : LWE_Op<"reinterpret_underlying_type", [Pure]> {

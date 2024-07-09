@@ -13,18 +13,6 @@ def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
   let cppNamespace = "::mlir::heir::lwe";
 }
 
-class RlweParametersMatch<
-  string v1, string ty1, string v2, string ty2,
-  string comparator = "std::equal_to<>()"
-> : PredOpTrait<
-    "the first value's RLWE parameters matches the second value's",
-    CPred<
-      comparator # "(" #
-      "::llvm::cast<lwe::" # ty1 # ">($" # v1 # ".getType()).getRlweParams(), " #
-      "::llvm::cast<lwe::" # ty2 # ">($" # v2 # ".getType()).getRlweParams())"
-    >
-  >;
-
 class BGV_Op<string mnemonic, list<Trait> traits = []> :
         Op<BGV_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::heir::bgv";
@@ -208,21 +196,6 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
 
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
-}
-
-def BGV_EncryptOp : BGV_Op<"encrypt"> {
-  let summary = "Encrypt an encoded plaintext into a BGV ciphertext.";
-  let arguments = (ins RLWEPlaintext:$input, RLWESecretOrPublicKey:$key);
-  let results = (outs RLWECiphertext:$output);
-  let hasVerifier = 1;
-}
-
-def BGV_DecryptOp : BGV_Op<"decrypt", [
-  RlweParametersMatch<"secret_key", "RLWESecretKeyType", "input", "RLWECiphertextType">
-]> {
-  let summary = "Decrypt an encoded plaintext into a BGV ciphertext.";
-  let arguments = (ins RLWECiphertext:$input, RLWESecretKey:$secret_key);
-  let results = (outs RLWEPlaintext:$output);
 }
 
 #endif  // HEIR_LIB_DIALECT_BGV_IR_BGVOPS_TD_

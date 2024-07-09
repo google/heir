@@ -48,7 +48,8 @@ class ToOpenfheTypeConverter : public TypeConverter {
 
 bool containsBGVOps(func::FuncOp func) {
   auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<bgv::BGVDialect>(op->getDialect()))
+    if (llvm::isa<bgv::BGVDialect>(op->getDialect()) ||
+        llvm::isa<lwe::RLWEEncryptOp>(op) || llvm::isa<lwe::RLWEDecryptOp>(op))
       return WalkResult::interrupt();
     return WalkResult::advance();
   });
@@ -241,14 +242,14 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
   }
 };
 
-struct ConvertEncryptOp : public OpConversionPattern<EncryptOp> {
+struct ConvertEncryptOp : public OpConversionPattern<lwe::RLWEEncryptOp> {
   ConvertEncryptOp(mlir::MLIRContext *context)
-      : OpConversionPattern<EncryptOp>(context) {}
+      : OpConversionPattern<lwe::RLWEEncryptOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      EncryptOp op, OpAdaptor adaptor,
+      lwe::RLWEEncryptOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
@@ -267,14 +268,14 @@ struct ConvertEncryptOp : public OpConversionPattern<EncryptOp> {
   }
 };
 
-struct ConvertDecryptOp : public OpConversionPattern<DecryptOp> {
+struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
   ConvertDecryptOp(mlir::MLIRContext *context)
-      : OpConversionPattern<DecryptOp>(context) {}
+      : OpConversionPattern<lwe::RLWEDecryptOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      DecryptOp op, OpAdaptor adaptor,
+      lwe::RLWEDecryptOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
@@ -377,6 +378,7 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
     ConversionTarget target(*context);
     target.addLegalDialect<openfhe::OpenfheDialect>();
     target.addIllegalDialect<bgv::BGVDialect>();
+    target.addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);

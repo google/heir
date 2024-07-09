@@ -62,23 +62,6 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-LogicalResult EncryptOp::verify() {
-  Type keyType = getKey().getType();
-  lwe::RLWEParamsAttr keyParams =
-      llvm::TypeSwitch<Type, lwe::RLWEParamsAttr>(keyType)
-          .Case<lwe::RLWEPublicKeyType, lwe::RLWESecretKeyType>(
-              [](auto key) { return key.getRlweParams(); })
-          .Default([](Type) {
-            llvm_unreachable("impossible by type constraints");
-            return nullptr;
-          });
-
-  if (getOutput().getType().getRlweParams() != keyParams) {
-    return emitOpError() << "input dimensions do not match";
-  }
-  return success();
-}
-
 LogicalResult RelinearizeOp::verify() {
   auto x = getInput().getType();
   auto out = getOutput().getType();
