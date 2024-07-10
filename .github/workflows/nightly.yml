@@ -24,6 +24,13 @@ jobs:
             bazel-bin/tools/heir-translate --help
             bazel-bin/tools/heir-lsp --help
 
+      - name: Delete previous existing nightly tag and release
+        env:
+          GH_TOKEN: $${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+            gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
+
       - name: GH Release
         uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 #pin@v2.0.6
         with:
