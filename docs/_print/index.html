@@ -1630,7 +1630,13 @@ how he IR changes with each pass), use <code>python scripts/lit_to_bazel.py</cod
 </span></span></span><span style=display:flex><span><span style=color:#4e9a06></span>--secretize<span style=color:#ce5c00;font-weight:700>=</span>entry-function<span style=color:#ce5c00;font-weight:700>=</span>box_blur --wrap-generic --canonicalize --cse --full-loop-unroll <span style=color:#4e9a06>\
 </span></span></span><span style=display:flex><span><span style=color:#4e9a06></span>--insert-rotate --cse --canonicalize --collapse-insertion-chains <span style=color:#4e9a06>\
 </span></span></span><span style=display:flex><span><span style=color:#4e9a06></span>--canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
-</span></span></code></pre></div><h2 id=developing-in-heir>Developing in HEIR</h2><p>We use <a href=https://pre-commit.com/>pre-commit</a> to manage a series of git
+</span></span></code></pre></div><h2 id=using-a-pre-built-nightly-binary>Using a pre-built nightly binary</h2><p>HEIR releases a <a href=https://github.com/google/heir/releases/tag/nightly>nightly</a>
+binary for Linux x86-64. This is intended for testing compiler passes and not
+for production use.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>wget https://github.com/google/heir/releases/download/nightly/heir-opt
+</span></span><span style=display:flex><span>chmod +x heir-opt
+</span></span><span style=display:flex><span>./heir-opt --help
+</span></span></code></pre></div><p>Then you can run the examples above, replacing <code>bazel run //tools:heir-opt --</code> with
+<code>./heir-opt</code>. HEIR also publishes <code>heir-translate</code> and <code>heir-lsp</code> in the same way.</p><h2 id=developing-in-heir>Developing in HEIR</h2><p>We use <a href=https://pre-commit.com/>pre-commit</a> to manage a series of git
 pre-commit hooks for the project; for example, each time you commit code, the
 hooks will make sure that your C++ is formatted properly. If your code isn&rsquo;t,
 the hook will format it, so when you try to commit the second time you&rsquo;ll get
