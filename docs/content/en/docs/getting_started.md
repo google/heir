@@ -333,6 +333,21 @@ bazel run --noallow_analysis_cache_discard //tools:heir-opt -- \
 --canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
 ```
 
+## Using a pre-built nightly binary
+
+HEIR releases a [nightly](https://github.com/google/heir/releases/tag/nightly)
+binary for Linux x86-64. This is intended for testing compiler passes and not
+for production use.
+
+```bash
+wget https://github.com/google/heir/releases/download/nightly/heir-opt
+chmod +x heir-opt
+./heir-opt --help
+```
+
+Then you can run the examples above, replacing `bazel run //tools:heir-opt --` with
+`./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the same way.
+
 ## Developing in HEIR
 
 We use [pre-commit](https://pre-commit.com/) to manage a series of git
