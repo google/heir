@@ -11,7 +11,9 @@ cc_library(
     hdrs = ["ConvertIfToSelect.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",

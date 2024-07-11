@@ -171,3 +171,46 @@ func.func @speculatable_divison(%inp: !secret.secret<i16>, %cond :!secret.secret
   } -> !secret.secret<i16>
   return %0 : !secret.secret<i16>
 }
+
+// CHECK-LABEL: @nested_secret_condition_with_secret_int
+func.func @nested_secret_condition_with_secret_int(%inp: !secret.secret<i16>, %cond: !secret.secret<i1>) -> !secret.secret<i16> {
+  // CHECK-NEXT: %[[C_2:.*]] = arith.constant 2 : i16
+  // CHECK-NEXT: %[[C_10:.*]] = arith.constant 10 : i16
+  // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : !secret.secret<[[T:.*]]>, !secret.secret<i1>) {
+  // CHECK-NEXT:   ^[[bb0:.*]](%[[SCRT_INP:.*]]: [[T]], %[[SCRT_COND:.*]]: i1):
+  // CHECK-NEXT:     %[[SUB:.*]] = arith.subi %[[SCRT_INP]], %[[C_10]] : [[T]]
+  // CHECK-NEXT:     %[[CMP:.*]] = arith.cmpi slt, %[[SCRT_INP]], %[[C_10]] : [[T]]
+  // CHECK-NEXT:      %[[SQR:.*]] = arith.muli %[[SCRT_INP]], %[[SCRT_INP]] : [[T]]
+  // CHECK-NEXT:      %[[DBL:.*]] = arith.muli %[[SCRT_INP]], %[[C_2]] : [[T]]
+  // CHECK-NEXT:     %[[SEL_CMP:.*]] = arith.select %[[CMP]], %[[SQR]], %[[DBL]] : [[T]]
+
+  // CHECK-NEXT:     %[[ADD:.*]] = arith.addi %[[SEL_CMP]], %[[SUB]] : [[T]]
+  // CHECK-NEXT:     %[[SEL_IF:.*]] = arith.select %[[SCRT_COND]], %[[ADD]], %[[SCRT_INP]] : [[T]]
+  // CHECK-NEXT:     secret.yield %[[SEL_IF]] : [[T]]
+  // CHECK-NEXT:  } -> !secret.secret<[[T]]>
+  // CHECK-NEXT: return %[[RESULT]] : !secret.secret<[[T]]>
+  %c2_i16 = arith.constant 2 : i16
+  %c10_i16 = arith.constant 10 : i16
+  %0 = secret.generic ins(%inp, %cond : !secret.secret<i16>, !secret.secret<i1>) {
+  ^bb0(%secret_inp: i16, %secret_cond: i1):
+    %1 = scf.if %secret_cond -> (i16) {
+      %2 = arith.subi %secret_inp, %c10_i16 : i16
+      %3 = arith.cmpi slt, %secret_inp, %c10_i16 : i16
+      %4 = scf.if %3 -> (i16) {
+        // square the input if it is less than 10
+        %6 = arith.muli %secret_inp, %secret_inp : i16
+        scf.yield %6 : i16
+      } else {
+        // double the input if it is greater than or equal to 10
+        %6 = arith.muli %c2_i16, %secret_inp : i16
+        scf.yield %6 : i16
+      }
+      %5 = arith.addi %4, %2 : i16
+      scf.yield %5 : i16
+    } else {
+      scf.yield %secret_inp : i16
+    }
+    secret.yield %1 : i16
+  } -> !secret.secret<i16>
+  return %0 : !secret.secret<i16>
+}
