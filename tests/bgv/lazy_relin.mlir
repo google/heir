@@ -21,7 +21,7 @@
 
 // CHECK-LABEL: test_lazy_relin
 // CHECK-SAME: %[[ARG0:.*]] : !ct,  %[[ARG1:.*]] : !ct) -> !ct{
-// [[V0.*]] = bgv.mul %[[ARG0:.*]],  %[[ARG1:.*]]
+// CHECK: [[V0.*]] = bgv.mul %[[ARG0:.*]],  %[[ARG1:.*]]
 // CHECK: bgv.mul
 // CHECK-NEXT: bgv.mul
 // CHECK-NEXT: bgv.add

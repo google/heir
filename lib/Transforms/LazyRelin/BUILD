@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -19,10 +19,11 @@ cc_library(
         "@com_google_ortools//ortools/linear_solver",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+
         # "@llvm-project//mlir:AffineDialect",
         # "@llvm-project//mlir:AffineUtils",
-        # "@llvm-project//mlir:Pass",
-        # "@llvm-project//mlir:Transforms",
     ],
 )
 # LazyRelin tablegen and headers.
