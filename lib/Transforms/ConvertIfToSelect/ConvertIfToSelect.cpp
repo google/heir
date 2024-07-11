@@ -2,8 +2,12 @@
 
 #include <utility>
 
-#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"          // from @llvm-project
@@ -24,8 +28,19 @@ namespace heir {
 struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
   using OpRewritePattern<scf::IfOp>::OpRewritePattern;
 
+ public:
+  IfToSelectConversion(DataFlowSolver *solver, MLIRContext *context)
+      : OpRewritePattern(context), solver(solver){};
+
   LogicalResult matchAndRewrite(scf::IfOp ifOp,
                                 PatternRewriter &rewriter) const override {
+    auto isConditionSecret =
+        solver->lookupState<SecretnessLattice>(ifOp.getOperand())
+            ->getValue()
+            .getSecretness();
+    // No conversion if condition is not secret
+    if (!isConditionSecret) return failure();
+
     // Hoist instructions in the 'then' and 'else' regions
     auto thenOps = ifOp.getThenRegion().getOps();
     auto elseOps = ifOp.getElseRegion().getOps();
@@ -34,10 +49,16 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
     for (auto &operation : llvm::make_early_inc_range(
              llvm::concat<Operation>(thenOps, elseOps))) {
       if (!isPure(&operation)) {
-        ifOp->emitError()
-            << "Can't convert scf.if to arith.select operation. If-operation "
-               "contains code that can't be safely hoisted on line "
-            << operation.getLoc();
+        // Using custom error message, as default looks bad with multiple ops
+        InFlightDiagnostic diag = mlir::emitError(
+            operation.getLoc(),
+            "Cannot convert scf.if to arith.select, "
+            "as it contains code that cannot be safely hoisted:");
+        if (getContext()->shouldPrintOpOnDiagnostic()) {
+          diag.attachNote(ifOp->getLoc())
+              .append("containing scf.if operation:")
+              .appendOp(*ifOp, OpPrintingFlags().printGenericOpForm());
+        }
         return failure();
       }
       if (!llvm::isa<scf::YieldOp>(operation)) {
@@ -66,6 +87,9 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
 
     return success();
   }
+
+ private:
+  DataFlowSolver *solver;
 };
 
 struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
@@ -73,10 +97,23 @@ struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
+
     RewritePatternSet patterns(context);
 
-    patterns.add<IfToSelectConversion>(context);
+    DataFlowSolver solver;
+    solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
+    solver.load<SecretnessAnalysis>();
 
+    auto result = solver.initializeAndRun(getOperation());
+
+    if (failed(result)) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+
+    patterns.add<IfToSelectConversion>(&solver, context);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
   }
 };

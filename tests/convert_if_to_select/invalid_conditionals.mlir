@@ -2,12 +2,12 @@
 
 func.func private @printer(%inp: tensor<16xi16>) -> ()
 
-func.func @impure_operation(%inp: !secret.secret<tensor<16xi16>>, %cond: i1) -> !secret.secret<tensor<16xi16>> {
-  %0 = secret.generic ins(%inp, %cond : !secret.secret<tensor<16xi16>>, i1) {
+func.func @impure_operation(%inp: !secret.secret<tensor<16xi16>>, %cond:  !secret.secret<i1>) -> !secret.secret<tensor<16xi16>> {
+  %0 = secret.generic ins(%inp, %cond : !secret.secret<tensor<16xi16>>, !secret.secret<i1>) {
   ^bb0(%secret_inp: tensor<16xi16>, %copy_cond: i1):
-// expected-error@below {{Can't convert scf.if to arith.select operation. If-operation contains code that can't be safely hoisted on line }}
     %1 = scf.if %copy_cond -> (tensor<16xi16>) {
       %2 = arith.addi %secret_inp, %secret_inp : tensor<16xi16>
+      // expected-error@below {{Cannot convert scf.if to arith.select, as it contains code that cannot be safely hoisted:}}
       func.call @printer(%2) : (tensor<16xi16>) -> ()
       scf.yield %2 : tensor<16xi16>
     } else {
@@ -25,8 +25,8 @@ func.func @non_speculative_code(%inp: !secret.secret<i16>, %divisor: !secret.sec
   ^bb0(%secret_inp: i16, %secret_divisor: i16):
     %zero = arith.constant 0 : i16
     %secret_cond = arith.cmpi eq, %zero, %secret_divisor : i16
-// expected-error@below {{Can't convert scf.if to arith.select operation. If-operation contains code that can't be safely hoisted on line }}
     %1 = scf.if %secret_cond -> (i16) {
+      // expected-error@below {{Cannot convert scf.if to arith.select, as it contains code that cannot be safely hoisted:}}
       %2 = arith.divui %secret_inp, %secret_divisor : i16 // non-pure
       scf.yield %2 : i16
     } else {
@@ -43,8 +43,8 @@ func.func @conditionally_speculative_code(%inp: !secret.secret<i16>, %cond :!sec
   %divisor = arith.constant 0 : i16
   %0 = secret.generic ins(%inp, %cond : !secret.secret<i16>, !secret.secret<i1>) {
   ^bb0(%secret_inp: i16, %secret_cond: i1):
-// expected-error@below {{Can't convert scf.if to arith.select operation. If-operation contains code that can't be safely hoisted on line }}
     %1 = scf.if %secret_cond -> (i16) {
+      // expected-error@below {{Cannot convert scf.if to arith.select, as it contains code that cannot be safely hoisted:}}
       %2 = arith.divui %secret_inp, %divisor : i16
       scf.yield %2 : i16
     } else {
