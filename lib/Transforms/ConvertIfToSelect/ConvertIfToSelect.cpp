@@ -31,7 +31,7 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
 
  public:
   IfToSelectConversion(DataFlowSolver *solver, MLIRContext *context)
-      : OpRewritePattern(context), solver(solver) {};
+      : OpRewritePattern(context), solver(solver) {}
 
   LogicalResult matchAndRewrite(scf::IfOp ifOp,
                                 PatternRewriter &rewriter) const override {
