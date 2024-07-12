@@ -241,6 +241,13 @@ git_repository(
     remote = "https://github.com/abseil/abseil-cpp.git",
 )
 
+## Abseil-py
+new_git_repository(
+    name = "com_google_absl_py",
+    commit = "127c98870edf5f03395ce9cf886266fa5f24455e",  # v1.4.0
+    remote = "https://github.com/abseil/abseil-py",
+)
+
 ## Protobuf
 git_repository(
     name = "com_google_protobuf",
