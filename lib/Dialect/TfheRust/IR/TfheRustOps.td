@@ -17,13 +17,8 @@ class TfheRust_Op<string mnemonic, list<Trait> traits = []> :
   let cppNamespace = "::mlir::heir::tfhe_rust";
 }
 
-def CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
-  let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
-  let results = (outs TfheRust_CiphertextType:$output);
-  let hasCanonicalizer = 1;
-}
-
-def BitAndOp : TfheRust_Op<"bitand", [
+class TfheRust_BinaryOp<string mnemonic>
+  : TfheRust_Op<mnemonic, [
     Pure,
     AllTypesMatch<["lhs", "rhs", "output"]>
 ]> {
@@ -34,6 +29,17 @@ def BitAndOp : TfheRust_Op<"bitand", [
   );
   let results = (outs TfheRust_CiphertextType:$output);
 }
+
+def CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
+  let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
+  let results = (outs TfheRust_CiphertextType:$output);
+  let hasCanonicalizer = 1;
+}
+
+def TfheRust_BitAndOp : TfheRust_BinaryOp<"bitand"> { let summary = "Logical AND of two tfhe ciphertexts."; }
+def TfheRust_AddOp : TfheRust_BinaryOp<"add"> { let summary = "Arithmetic add of two tfhe ciphertexts."; }
+def TfheRust_SubOp : TfheRust_BinaryOp<"sub"> { let summary = "Arithmetic sub of two tfhe ciphertexts."; }
+
 
 def ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
     Pure,
@@ -43,30 +49,6 @@ def ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
     TfheRust_ServerKey:$serverKey,
     TfheRust_CiphertextType:$ciphertext,
     AnyI8:$shiftAmount
-  );
-  let results = (outs TfheRust_CiphertextType:$output);
-}
-
-def AddOp : TfheRust_Op<"add", [
-    Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>
-]> {
-  let arguments = (ins
-    TfheRust_ServerKey:$serverKey,
-    TfheRust_CiphertextType:$lhs,
-    TfheRust_CiphertextType:$rhs
-  );
-  let results = (outs TfheRust_CiphertextType:$output);
-}
-
-def SubOp : TfheRust_Op<"sub", [
-    Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>
-]> {
-  let arguments = (ins
-    TfheRust_ServerKey:$serverKey,
-    TfheRust_CiphertextType:$lhs,
-    TfheRust_CiphertextType:$rhs
   );
   let results = (outs TfheRust_CiphertextType:$output);
 }
