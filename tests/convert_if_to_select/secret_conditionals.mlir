@@ -214,3 +214,36 @@ func.func @nested_secret_condition_with_secret_int(%inp: !secret.secret<i16>, %c
   } -> !secret.secret<i16>
   return %0 : !secret.secret<i16>
 }
+// CHECK-LABEL: @set_secretness_for_constant
+func.func @set_secretness_for_constant(%arg0: !secret.secret<tensor<32xi16>>) -> !secret.secret<i16> {
+  // CHECK-NEXT: %[[TEMP:.*]] = arith.constant 0 : [[C_T:.*]]
+  // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]] : !secret.secret<tensor<[[T:.*]]>>) {
+  // CHECK-NEXT:   ^[[bb0:.*]](%[[ARG1:.*]]: tensor<[[T]]>):
+  // CHECK-NEXT:     %[[FOR:.*]] = affine.for %[[ARG2:.*]] = 0 to 32 iter_args(%[[ARG3:.*]] = %[[TEMP]]) -> (i16) {
+  // CHECK-NEXT:       %[[EXTRACTED:.*]] = tensor.extract %[[ARG1]][%[[ARG2]]] : tensor<[[T]]>
+  // CHECK-NEXT:       %[[COND:.*]] = arith.cmpi eq, %[[EXTRACTED]], %[[ARG3]] : [[C_T]]
+  // CHECK-NEXT:       %[[ADD:.*]] = arith.addi %[[EXTRACTED]], %[[ARG3]] : [[C_T]]
+  // CHECK-NEXT:       %[[SELECT:.*]] = arith.select %[[COND]], %[[ADD]], %[[EXTRACTED]] : [[C_T]]
+  // CHECK-NEXT:       affine.yield %[[SELECT]] : [[C_T]]
+  // CHECK-NEXT:     }
+  // CHECK-NEXT:     secret.yield %[[FOR]] : [[C_T]]
+  // CHECK-NEXT:   } -> !secret.secret<[[C_T]]>
+  // CHECK-NEXT: return %[[RESULT]] : !secret.secret<[[C_T]]>
+  %temp = arith.constant 0 : i16
+  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) {
+  ^bb0(%arg1: tensor<32xi16>):
+      %result = affine.for %arg2 = 0 to 32 iter_args(%arg3 = %temp) -> (i16) {
+          %extracted = tensor.extract %arg1[%arg2] : tensor<32xi16>
+          %cond = arith.cmpi eq, %extracted, %arg3 : i16
+          %1 = scf.if %cond -> (i16) {
+              %2 = arith.addi %extracted, %arg3 : i16
+              scf.yield %2 : i16
+          } else {
+              scf.yield %extracted : i16
+          }
+          affine.yield %1 : i16
+      }
+      secret.yield %result : i16
+  } -> !secret.secret<i16>
+  return %0 : !secret.secret<i16>
+}
