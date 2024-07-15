@@ -108,6 +108,20 @@ struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
 
     auto result = solver.initializeAndRun(getOperation());
 
+    getOperation()->walk([&](Operation *op) {
+      llvm::errs() << "Operation: " << *op << "\n";
+      for (auto operand : op->getOperands()) {
+        Secretness secretness =
+            solver.lookupState<SecretnessLattice>(operand)->getValue();
+        llvm::errs() << "\tOperand : " << operand << "; " << secretness << "\n";
+      }
+      for (auto result : op->getResults()) {
+        Secretness secretness =
+            solver.lookupState<SecretnessLattice>(result)->getValue();
+        llvm::errs() << "\tResult : " << result << "; " << secretness << "\n";
+      }
+    });
+
     if (failed(result)) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();

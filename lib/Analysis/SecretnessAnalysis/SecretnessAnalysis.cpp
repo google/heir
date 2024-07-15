@@ -36,13 +36,29 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
 void SecretnessAnalysis::visitOperation(
     Operation *operation, ArrayRef<const SecretnessLattice *> operands,
     ArrayRef<SecretnessLattice *> results) {
-  Secretness resultSecretness;
+  auto resultSecretness = Secretness();
+  bool isUninitializedOpFound = false;
+
   for (const SecretnessLattice *operand : operands) {
     const Secretness operandSecretness = operand->getValue();
-    if (operandSecretness.isInitialized()) {
-      resultSecretness = Secretness::join(resultSecretness, operandSecretness);
-      if (resultSecretness.getSecretness()) break;
+    if (!operandSecretness.isInitialized()) {
+      // Keep record if operand is uninitialized
+      isUninitializedOpFound = true;
     }
+    resultSecretness = Secretness::join(resultSecretness, operandSecretness);
+    if (resultSecretness.isInitialized() && resultSecretness.getSecretness())
+      break;
+  }
+
+  if (resultSecretness.isInitialized()) {
+    // Uninitialized operand: theoretically this should not happen, but it's
+    // easy to catch it this way if it does
+    if (isUninitializedOpFound && !resultSecretness.getSecretness()) {
+      resultSecretness = Secretness();
+    }
+  } else {
+    // A constant operation
+    resultSecretness.setSecretness(false);
   }
 
   for (SecretnessLattice *result : results) {
