@@ -1,11 +1,12 @@
 #ifndef LIB_GRAPH_GRAPH_H_
 #define LIB_GRAPH_GRAPH_H_
 
+#include <algorithm>
+#include <cstdint>
+#include <map>
+#include <set>
 #include <vector>
 
-#include "llvm/include/llvm/ADT/ArrayRef.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/DenseMap.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallSet.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
@@ -25,7 +26,7 @@ class Graph {
   // if either the source or target is not a previously inserted vertex, and
   // returns true otherwise. The graph is unchanged if false is returned.
   bool addEdge(V source, V target) {
-    if (!vertices.contains(source) || !vertices.contains(target)) {
+    if (vertices.count(source) == 0 || vertices.count(target) == 0) {
       return false;
     }
     outEdges[source].insert(target);
@@ -35,15 +36,15 @@ class Graph {
 
   // Returns true iff the given vertex has previously been added to the graph
   // using `AddVertex`.
-  bool contains(V vertex) { return vertices.contains(vertex); }
+  bool contains(V vertex) { return vertices.count(vertex) > 0; }
 
   bool empty() { return vertices.empty(); }
 
-  const llvm::SmallSet<V, 4>& getVertices() { return vertices; }
+  const std::set<V>& getVertices() { return vertices; }
 
   // Returns the edges that point out of the given vertex.
   std::vector<V> edgesOutOf(V vertex) {
-    if (vertices.contains(vertex)) {
+    if (vertices.count(vertex)) {
       std::vector<V> result(outEdges[vertex].begin(), outEdges[vertex].end());
       // Note: The vertices are sorted to ensure determinism in the output.
       std::sort(result.begin(), result.end());
@@ -54,7 +55,7 @@ class Graph {
 
   // Returns the edges that point into the given vertex.
   std::vector<V> edgesInto(V vertex) {
-    if (vertices.contains(vertex)) {
+    if (vertices.count(vertex)) {
       std::vector<V> result(inEdges[vertex].begin(), inEdges[vertex].end());
       // Note: The vertices are sorted to ensure determinism in the output.
       std::sort(result.begin(), result.end());
@@ -70,7 +71,7 @@ class Graph {
 
     // Kahn's algorithm
     std::vector<V> active;
-    llvm::DenseMap<V, int64_t> edgeCount;
+    std::map<V, int64_t> edgeCount;
     for (const V& vertex : vertices) {
       edgeCount[vertex] = edgesInto(vertex).size();
       if (edgeCount.at(vertex) == 0) {
@@ -118,7 +119,7 @@ class Graph {
     }
     auto topoOrder = result.value();
     std::reverse(topoOrder.begin(), topoOrder.end());
-    llvm::DenseMap<V, int> levels;
+    std::map<V, int> levels;
 
     // Assign levels to the nodes:
     // Traverse through the reversed topologically sorted nodes
@@ -148,9 +149,9 @@ class Graph {
   }
 
  private:
-  llvm::SmallSet<V, 4> vertices;
-  llvm::DenseMap<V, llvm::SmallSet<V, 4>> outEdges;
-  llvm::DenseMap<V, llvm::SmallSet<V, 4>> inEdges;
+  std::set<V> vertices;
+  std::map<V, std::set<V>> outEdges;
+  std::map<V, std::set<V>> inEdges;
 };
 
 }  // namespace graph

@@ -20,6 +20,12 @@ module {
     %7 = lwe.mul_scalar %4, %c3 : (!ciphertext, i3) -> !ciphertext
     %8 = lwe.add %7, %5 : !ciphertext
     %9 = cggi.lut_lincomb %4, %5, %6, %7 {coefficients = array<i32: 1, 1, 1, 2>, lookup_table = 68 : index} : !ciphertext
-    return %4 : !ciphertext
+
+    %10, %11, %12, %13, %14 = cggi.multi_lut_lincomb %4, %5, %6, %7 {
+      coefficients = array<i32: 1, 1, 1, 2>,
+      lookup_tables = array<i32: 68, 70, 4, 8, 1>
+    } : (!ciphertext, !ciphertext, !ciphertext, !ciphertext) -> (!ciphertext, !ciphertext, !ciphertext, !ciphertext, !ciphertext)
+
+    return %14 : !ciphertext
   }
 }
