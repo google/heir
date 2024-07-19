@@ -16,12 +16,19 @@
 namespace mlir {
 namespace heir {
 
+// Currently, this analysis targets the OpenFHE configuration.
+// Since OpenFHE conservatively calculates multiplicative depth, it considers
+// MulPlain and MulConst operations to consume a depth of 1. Therefore, the same
+// approach has been applied here.
+
 void MulDepthAnalysis::visitOperation(
     Operation *op, ArrayRef<const MulDepthLattice *> operands,
     ArrayRef<MulDepthLattice *> results) {
   llvm::TypeSwitch<Operation &>(*op)
       .Case<openfhe::MulOp, openfhe::MulPlainOp, openfhe::MulConstOp,
             openfhe::MulNoRelinOp>([&](auto mulOp) {
+        // In this case, 1 + (the maximum multiplicative depth among the
+        // operands) becomes the multiplicative depth of the operation.
         LLVM_DEBUG(llvm::dbgs()
                    << "Visiting Mul: " << mulOp->getName() << "\n");
         // There should be only one result.
@@ -31,12 +38,14 @@ void MulDepthAnalysis::visitOperation(
         if (lhsMulDepth.isInitialized()) {
           lhsMulDepth = MulDepth{lhsMulDepth.getValue() + 1};
         } else {
+          // if lhs is not initialized, consider it as 0 (and then add 1).
           lhsMulDepth = MulDepth{1};
         }
         MulDepth rhsMulDepth = operands[2]->getValue();
         if (rhsMulDepth.isInitialized()) {
           rhsMulDepth = MulDepth{rhsMulDepth.getValue() + 1};
         } else {
+          // if rhs is not initialized, consider it as 0 (and then add 1).
           rhsMulDepth = MulDepth{1};
         }
         LLVM_DEBUG({
@@ -50,6 +59,8 @@ void MulDepthAnalysis::visitOperation(
         });
       })
       .Default([&](Operation &defaultOp) {
+        // In this case, the maximum multiplicative depth among the operands
+        // becomes the multiplicative depth of the operation.
         LLVM_DEBUG(
             { llvm::dbgs() << "Visiting: " << defaultOp.getName() << "\n"; });
         for (const MulDepthLattice *operand : operands) {
