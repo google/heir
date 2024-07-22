@@ -6,26 +6,30 @@
 #include <string>
 #include <utility>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Dominance.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Dominance.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"               // from @llvm-project
 #include "mlir/include/mlir/Interfaces/LoopLikeInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -101,13 +105,15 @@ struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
 // block, and will always create two secret.generics.
 struct SplitGeneric : public OpRewritePattern<GenericOp> {
   SplitGeneric(mlir::MLIRContext *context,
-               llvm::ArrayRef<std::string> opsToDistribute)
+               llvm::ArrayRef<std::string> opsToDistribute,
+               DataFlowSolver *solver)
       : OpRewritePattern<GenericOp>(context, /*benefit=*/1),
-        opsToDistribute(opsToDistribute) {}
+        opsToDistribute(opsToDistribute),
+        solver(solver) {}
 
-  void distributeThroughRegionHoldingOp(GenericOp genericOp,
-                                        Operation &opToDistribute,
-                                        PatternRewriter &rewriter) const {
+  LogicalResult distributeThroughRegionHoldingOp(
+      GenericOp genericOp, Operation &opToDistribute,
+      PatternRewriter &rewriter) const {
     assert(opToDistribute.getNumRegions() > 0 &&
            "opToDistribute must have at least one region");
     assert(genericOp.getBody()->getOperations().size() == 2 &&
@@ -137,8 +143,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       //     scf.yield %2 : ...
       //   }
       //
-      // Terminators of the region are not part of the secret, since they just
-      // handle control flow.
+      // Terminators of the region may include secret loop-carried values. Their
+      // initial values are promoted to secrets (using secret.conceal).
 
       rewriter.startOpModification(genericOp);
 
@@ -161,13 +167,60 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           mp.map(iterInit, genericOperand->get());
         }
       }
+      // Ensure that the loop bound operands are also validated. If they are
+      // secret types, then return a failure - we cannot distribute through a
+      // loop with secret bounds.
+      auto isSecret = [&](OpFoldResult v) {
+        if (auto value = dyn_cast<Value>(v)) {
+          if (auto *genericOperand =
+                  genericOp.getOpOperandForBlockArgument(value)) {
+            return isa<SecretType>(genericOperand->get().getType());
+          }
+          return isa<SecretType>(value.getType());
+        }
+        // This is a constant attribute.
+        return false;
+      };
+      if ((loop.getLoopLowerBounds().has_value() &&
+           llvm::any_of(loop.getLoopLowerBounds().value(), isSecret)) ||
+          (loop.getLoopUpperBounds().has_value() &&
+           llvm::any_of(loop.getLoopUpperBounds().value(), isSecret))) {
+        LLVM_DEBUG(genericOp.emitRemark()
+                   << "cannot distribute through a LoopLikeInterface with "
+                      "secret bounds");
+        return failure();
+      }
+
       LoopLikeOpInterface clonedLoop =
           dyn_cast<LoopLikeOpInterface>(rewriter.clone(opToDistribute, mp));
-      for (auto [operand, blockArg] :
-           llvm::zip(clonedLoop.getInits(), clonedLoop.getRegionIterArgs())) {
-        if (isa<SecretType>(operand.getType()))
-          blockArg.setType(operand.getType());
+
+      // Update the cloned loop's iter_args to be secret types if corresponded
+      // to secret types in the original generic.
+      DenseMap<Value, Value> newInitsToOperands;
+      for (auto [operand, blockArg] : llvm::zip(
+               clonedLoop.getInitsMutable(), clonedLoop.getRegionIterArgs())) {
+        auto yieldedIterValue = clonedLoop.getTiedLoopYieldedValue(blockArg);
+        if (isa<SecretType>(operand.get().getType())) {
+          blockArg.setType(operand.get().getType());
+        } else if (solver
+                       ->lookupState<SecretnessLattice>(
+                           loop.getYieldedValues()[yieldedIterValue
+                                                       ->getOperandNumber()])
+                       ->getValue()
+                       .getSecretness() &&
+                   !isa<SecretType>(operand.get().getType())) {
+          // The initial value of an iter_arg yielded by the original loop must
+          // be promoted to a secret and added to the new generic's operands if
+          // the loop was yielding a secret value.
+          rewriter.setInsertionPoint(clonedLoop);
+          auto newInit = rewriter.create<secret::ConcealOp>(genericOp.getLoc(),
+                                                            operand.get());
+          clonedLoop->setOperand(operand.getOperandNumber(), newInit);
+          blockArg.setType(operand.get().getType());
+          newInitsToOperands.insert({blockArg, operand.get()});
+        }
       }
+      rewriter.setInsertionPoint(genericOp);
 
       LLVM_DEBUG(genericOp->getParentOp()->emitRemark()
                  << "after cloning loop before generic "
@@ -176,8 +229,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       Block &clonedLoopBody = clonedLoop->getRegion(0).getBlocks().front();
       rewriter.setInsertionPoint(&clonedLoopBody.getOperations().front());
 
-      // The secret generic is replacing the loop body, which means its outputs
-      // must correspond exactly to the loop's yielded values.
+      // The secret generic is replacing the loop body, which means its
+      // outputs must correspond exactly to the loop's yielded values.
       //
       // It is possible that the yield was yielding, say, a memref that the
       // loop body modified. In this case, we need to trace that back to a
@@ -187,8 +240,9 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           llvm::map_range(clonedLoop->getResults().getTypes(),
                           [](Type t) -> Type { return SecretType::get(t); }));
 
-      // If the original loop's iter arg was a generic block argument, then the
-      // new generic should take as input the loop's corresponding iter arg.
+      // If the original loop's iter arg was a generic block argument, then
+      // the new generic should take as input the loop's corresponding iter
+      // arg.
       SmallVector<Value> newGenericOperands;
       for (OpOperand &oldGenericOperand : genericOp->getOpOperands()) {
         auto blockArg = genericOp.getBody()->getArgument(
@@ -203,6 +257,11 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
         newGenericOperands.push_back(oldGenericOperand.get());
       }
+      // The new generic should also take any newly secretized initial values of
+      // iter_args as input..
+      for (auto [newInit, operand] : newInitsToOperands) {
+        newGenericOperands.push_back(newInit);
+      }
 
       SmallVector<Operation *> opsToErase;
       GenericOp newGenericOp = rewriter.create<GenericOp>(
@@ -212,6 +271,9 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
             IRMapping mp;
             for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
               mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
+            }
+            for (auto [newInit, operand] : newInitsToOperands) {
+              mp.map(operand, newInit);
             }
             int index = 0;
             for (Value value : newGenericOperands) {
@@ -246,16 +308,13 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
       Operation *clonedLoopTerminator = clonedLoopBody.getTerminator();
       // This should not introduce a type conflict because we ensured that the
-      // generic yielded the cleartext analogue of what the original terminator
-      // yielded.
+      // generic yielded the cleartext analogue of what the original
+      // terminator yielded.
       clonedLoopTerminator->setOperands(newGenericOp.getResults());
-      auto resultValues = clonedLoop.getLoopResults();
-      if (resultValues.has_value()) {
-        for (auto [yieldType, resultVal] :
-             llvm::zip(clonedLoopTerminator->getOperandTypes(),
-                       resultValues.value())) {
-          resultVal.setType(yieldType);
-        }
+      for (auto [yieldType, resultVal] :
+           llvm::zip(clonedLoopTerminator->getOperandTypes(),
+                     clonedLoop->getOpResults())) {
+        resultVal.setType(yieldType);
       }
 
       LLVM_DEBUG(genericOp->getParentOp()->emitRemark()
@@ -266,14 +325,15 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // To replace the original secret.generic, we need to find a suitable
       // replacement for any of its result values. There are two cases:
       //
-      // 1. The generic yielded result values from the contained loop, in which
-      // case the loop now yields the secret generic's result. In this case, we
-      // can replace with the loop's results.
+      // 1. The generic yielded result values from the contained loop, in
+      // which case the loop now yields the secret generic's result. In this
+      // case, we can replace with the loop's results.
       //
       // 2. The generic yielded values modified in the affine loop scope, in
       // which case we need to find the original secret operand and replace
       // with that.
-      if (loop.getLoopResults() == genericOp.getYieldOp().getValues()) {
+      // Note: loop.getLoopResults() is not implemented for affine::ForOp
+      if (loop->getOpResults() == genericOp.getYieldOp().getValues()) {
         // Case 1:
         rewriter.replaceOp(genericOp, clonedLoop);
       } else {
@@ -300,15 +360,16 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       LLVM_DEBUG(clonedLoop->getParentOp()->emitRemark()
                  << "after erasing loop ops cloned into new generic");
 
-      return;
+      return success();
     }
 
     // TODO(#307): handle RegionBranchOpInterface (scf.while, scf.if).
+    return failure();
   }
 
   /// Move an op from the body of one secret.generic to an earlier
-  /// secret.generic in the same block. Updates the yielded values and operands
-  /// of the secret.generics appropriately.
+  /// secret.generic in the same block. Updates the yielded values and
+  /// operands of the secret.generics appropriately.
   ///
   /// `opToMove` must not depend on the results of any other ops in the source
   /// generic, only its block arguments.
@@ -345,8 +406,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
           // The operand may be the result of the generic we'd like to move it
           // to, in which case the targetGeneric's result corresponds to a
-          // yielded value in targetGeneric, and we can map the op's operand to
-          // that yielded value.
+          // yielded value in targetGeneric, and we can map the op's operand
+          // to that yielded value.
           auto *definingOp = sourceGenericArg.getDefiningOp();
           if (definingOp == targetGeneric.getOperation()) {
             int resultIndex =
@@ -380,8 +441,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
             continue;
           }
 
-          // Otherwise, the operand must be an input to the sourceGeneric, which
-          // must be added to the targetGeneric.
+          // Otherwise, the operand must be an input to the sourceGeneric,
+          // which must be added to the targetGeneric.
           targetGeneric.getInputsMutable().append(sourceGenericArg);
           BlockArgument newBlockArg = targetGeneric.getBody()->addArgument(
               operand.get().getType(), targetGeneric.getLoc());
@@ -457,8 +518,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     }
   }
 
-  // Splits a generic op after a given opToDistribute. A newly created GenericOp
-  // contains the opToDistribute
+  // Splits a generic op after a given opToDistribute. A newly created
+  // GenericOp contains the opToDistribute
   GenericOp splitGenericAfterFirstOp(GenericOp genericOp,
                                      PatternRewriter &rewriter) const {
     Operation &firstOp = genericOp.getBody()->front();
@@ -510,8 +571,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       LLVM_DEBUG(opToDistribute->emitRemark()
                  << "Distributing through region holding op isolated in its "
                     "own generic\n");
-      distributeThroughRegionHoldingOp(op, *opToDistribute, rewriter);
-      return success();
+      return distributeThroughRegionHoldingOp(op, *opToDistribute, rewriter);
     }
 
     if (first) {
@@ -524,6 +584,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
 
  private:
   llvm::ArrayRef<std::string> opsToDistribute;
+  DataFlowSolver *solver;
 };
 
 struct DistributeGeneric
@@ -546,7 +607,20 @@ struct DistributeGeneric
       }
     });
 
-    patterns.add<SplitGeneric>(context, opsToDistribute);
+    DataFlowSolver solver;
+    solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
+    solver.load<SecretnessAnalysis>();
+
+    auto result = solver.initializeAndRun(getOperation());
+
+    if (failed(result)) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+
+    patterns.add<SplitGeneric>(context, opsToDistribute, &solver);
     // These patterns are shared with canonicalization
     patterns.add<FoldSecretSeparators, CollapseSecretlessGeneric,
                  RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs>(context);
