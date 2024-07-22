@@ -32,10 +32,10 @@
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
 // JSON headers separated to prevent copybara reordering.
-#include "include/rapidjson/document.h"      // from @rapidjson
-#include "include/rapidjson/reader.h"        // from @rapidjson
-#include "include/rapidjson/stringbuffer.h"  // from @rapidjson
-#include "include/rapidjson/writer.h"        // from @rapidjson
+#include "rapidjson/document.h"      // from @rapidjson
+#include "rapidjson/reader.h"        // from @rapidjson
+#include "rapidjson/stringbuffer.h"  // from @rapidjson
+#include "rapidjson/writer.h"        // from @rapidjson
 
 #define DEBUG_TYPE "autohog-importer"
 
