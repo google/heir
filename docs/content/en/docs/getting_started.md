@@ -134,8 +134,8 @@ Next, we use the `heir-translate` tool to run code generation for the
 OpenFHE `pke` API.
 
 ```bash
-bazel run //tools:heir-translate -- emit-openfhe-pke-header $PWD/output.mlir > heir_output.h
-bazel run //tools:heir-translate -- emit-openfhe-pke $PWD/output.mlir > heir_output.cpp
+bazel run //tools:heir-translate -- --emit-openfhe-pke-header $PWD/output.mlir > heir_output.h
+bazel run //tools:heir-translate -- --emit-openfhe-pke $PWD/output.mlir > heir_output.cpp
 ```
 
 The results:
@@ -205,15 +205,29 @@ int16_t dot_product__decrypt__result0(CryptoContextT v34, CiphertextT v35, Priva
 ```
 
 At this point we can compile the program as we would a normal OpenFHE program.
-In the bazel build system, this would look like
+Note that the above two files just contain the compiled function and
+encryption/decryption helpers, and does not include any code that provides
+specific inputs or calls these functions.
+
+Next we'll create a harness that provides sample inputs, encrypts them, runs
+the compiled function, and decrypts the result. Once you have the generated
+header and cpp files, you can do this with any build system. We will use bazel
+for consistency.
+
+Create a file called `BUILD` in the same directory as the header and cpp files
+above, with the following contents:
 
 ```BUILD
+# A library build target that encapsulates the HEIR-generated code.
 cc_library(
     name = "dot_product_codegen",
     srcs = ["heir_output.cpp"],
     hdrs = ["heir_output.h"],
     deps = ["@openfhe//:pke"],
 )
+
+# An executable build target that contains your main function and links
+# against the above.
 cc_binary(
     name = "dot_product_main",
     srcs = ["dot_product_main.cpp"],
@@ -225,7 +239,7 @@ cc_binary(
 )
 ```
 
-Where `dot_product_main.cpp` contains
+Where `dot_product_main.cpp` is a new file containing
 
 ```cpp
 #include <cstdint>
