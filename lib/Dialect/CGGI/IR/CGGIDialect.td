@@ -3,7 +3,8 @@
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
-include "mlir/IR/CommonTypeConstraints.td"
+include "mlir/IR/CommonAttrConstraints.td"
+
 
 def CGGI_Dialect : Dialect {
   let name = "cggi";

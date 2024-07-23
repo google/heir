@@ -3,12 +3,14 @@
 
 include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/CGGI/IR/CGGIDialect.td"
+include "lib/Dialect/CGGI/IR/CGGIAttributes.td"
 
 include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -55,6 +57,19 @@ def CGGI_NotOp : CGGI_Op<"not", [
   let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
   let summary = "Logical NOT of two ciphertexts";
+}
+
+def CGGI_PackedOp : CGGI_Op<"packed_gates", [
+    Pure,
+    SameOperandsAndResultType
+]> {
+  let arguments = (ins
+    CGGIGate_Attr:$gates,
+    LWECiphertextLike:$lhs,
+    LWECiphertextLike:$rhs
+  );
+
+  let results = (outs LWECiphertextLike:$output);
 }
 
 class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
