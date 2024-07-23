@@ -8,12 +8,12 @@ include "mlir/IR/EnumAttr.td"
 
 include "lib/Dialect/CGGI/IR/BooleanGates.td"
 
-def BOOL_GATE_AND: I32EnumAttrCase<"bg_and", AND_GATE>;
-def BOOL_GATE_NAND: I32EnumAttrCase<"bg_nand", NAND_GATE>;
-def BOOL_GATE_OR: I32EnumAttrCase<"bg_or", OR_GATE>;
-def BOOL_GATE_NOR: I32EnumAttrCase<"bg_nor", NOR_GATE>;
-def BOOL_GATE_XOR: I32EnumAttrCase<"bg_xor", XOR_GATE>;
-def BOOL_GATE_XNOR: I32EnumAttrCase<"bg_xnor", XNOR_GATE>;
+def BOOL_GATE_AND: I32EnumAttrCase<"AND", AND_GATE>;
+def BOOL_GATE_NAND: I32EnumAttrCase<"NAND", NAND_GATE>;
+def BOOL_GATE_OR: I32EnumAttrCase<"OR", OR_GATE>;
+def BOOL_GATE_NOR: I32EnumAttrCase<"NOR", NOR_GATE>;
+def BOOL_GATE_XOR: I32EnumAttrCase<"XOR", XOR_GATE>;
+def BOOL_GATE_XNOR: I32EnumAttrCase<"XNOR", XNOR_GATE>;
 
 // Enum definition is done in CGGIEnums.td
 def TfheRustBool_BooleanGateEnumAttr : I32EnumAttr<"TfheRustBoolGateEnum",

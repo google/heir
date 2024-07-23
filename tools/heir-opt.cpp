@@ -18,6 +18,7 @@
 #include "lib/Dialect/BGV/Transforms/AddClientInterface.h"
 #include "lib/Dialect/BGV/Transforms/Passes.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
+#include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"

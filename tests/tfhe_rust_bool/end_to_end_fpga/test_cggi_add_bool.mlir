@@ -2,7 +2,7 @@
 // This function evaluates the addition of two 8bit unsigned integers using a boolean circuit.
 // The bool circuit first consists of a half adder, then seven full adders
 
-// RUN: heir-opt --straight-line-vectorize --cggi-to-tfhe-rust-bool -cse -remove-dead-values %s | heir-translate --emit-tfhe-rust-bool > %S/src/fn_under_test.rs
+// RUN: heir-opt --straight-line-vectorize --cggi-to-tfhe-rust-bool -cse -remove-dead-values %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
 // RUN: cargo run --release --manifest-path %S/Cargo.toml -- 1 1 | FileCheck %s
 
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 1>

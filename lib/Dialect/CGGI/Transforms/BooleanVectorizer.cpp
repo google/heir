@@ -31,7 +31,8 @@ namespace cggi {
 bool areCompatibleBool(Operation *lhs, Operation *rhs) {
   if (lhs->getDialect() != rhs->getDialect() ||
       lhs->getResultTypes() != rhs->getResultTypes() ||
-      lhs->getAttrs() != rhs->getAttrs()) {
+      lhs->getAttrs() != rhs->getAttrs() || isa<NotOp>(rhs) ||
+      isa<NotOp>(lhs)) {
     return false;
   }
   // TODO: Check if can be made better with a BooleanPackableGate trait
@@ -126,17 +127,16 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context) {
         auto gateStr =
             llvm::TypeSwitch<Operation *, FailureOr<CGGIBoolGateEnum>>(op)
                 .Case<cggi::AndOp>(
-                    [](AndOp op) { return CGGIBoolGateEnum::bg_and; })
+                    [](AndOp op) { return CGGIBoolGateEnum::AND; })
                 .Case<cggi::NandOp>(
-                    [](NandOp op) { return CGGIBoolGateEnum::bg_nand; })
+                    [](NandOp op) { return CGGIBoolGateEnum::NAND; })
                 .Case<cggi::XorOp>(
-                    [](XorOp op) { return CGGIBoolGateEnum::bg_xor; })
+                    [](XorOp op) { return CGGIBoolGateEnum::XOR; })
                 .Case<cggi::XNorOp>(
-                    [](XNorOp op) { return CGGIBoolGateEnum::bg_xnor; })
-                .Case<cggi::OrOp>(
-                    [](OrOp op) { return CGGIBoolGateEnum::bg_or; })
+                    [](XNorOp op) { return CGGIBoolGateEnum::XNOR; })
+                .Case<cggi::OrOp>([](OrOp op) { return CGGIBoolGateEnum::OR; })
                 .Case<cggi::NorOp>(
-                    [](NorOp op) { return CGGIBoolGateEnum::bg_nor; })
+                    [](NorOp op) { return CGGIBoolGateEnum::NOR; })
                 .Default([op](Operation *) {
                   LLVM_DEBUG(llvm::dbgs()
                              << "parsing unsupported boolean operation" << op);

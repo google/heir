@@ -3,10 +3,9 @@
 These tests exercise Rust codegen for the
 [tfhe-rs](https://github.com/zama-ai/tfhe-rs) backend library, including
 compiling the generated Rust source and running the resulting binary. This sets
-tests are specifically of the boolean plaintexts, accompanying COSIC-KU Leuven version of the library,
-and the [FPT-accelerator](https://eprint.iacr.org/2022/1635).
+tests are specifically of the boolean plaintexts, accompanying [Belfort](https://belfort.eu/) version of the library, and the [FPT-accelerator](https://eprint.iacr.org/2022/1635).
 
-> :warning: Not possible to run these tests without the COSIC extension of TFHE-rs and FPT-accelerator
+> :warning: Not possible to run these tests without the Belfort extension of TFHE-rs and FPT-accelerator
 
 To avoid introducing these large dependencies into the entire project, these
 tests are manual, and require the system they're running on to have
@@ -25,7 +24,7 @@ if you overrode the default option when installing Cargo.
 
 Manually generate the Rust code for the CGGI lowering:
 ```bash
-  bazel run //tools:heir-opt -- -cse --straight-line-vectorize --cggi-to-tfhe-rust-bool -cse $(pwd)/tests/cggi_to_tfhe_rust_bool/add_bool.mlir | bazel run //tools:heir-translate -- --emit-tfhe-rust-bool
+  bazel run //tools:heir-opt -- -cse --cggi-boolean-vectorize --cggi-to-tfhe-rust-bool -cse $(pwd)/tests/cggi_to_tfhe_rust_bool/add_bool.mlir | bazel run //tools:heir-translate -- --emit-tfhe-rust-bool-packed
 ```
 
 

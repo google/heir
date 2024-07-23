@@ -13,6 +13,7 @@ glob_lit_tests(
         "Cargo.toml",
         "src/main.rs",
         "src/main_fully_connected.rs",
+        "src/server_key_enum.rs",
         "tfhe-rs",
         "@heir//tests:test_utilities",
     ],
