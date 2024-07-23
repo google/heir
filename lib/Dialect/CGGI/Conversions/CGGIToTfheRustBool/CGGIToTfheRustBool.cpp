@@ -7,6 +7,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolAttributes.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolEnums.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"

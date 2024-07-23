@@ -1,4 +1,4 @@
-// RUN: heir-translate %s --emit-tfhe-rust-bool > %S/src/fn_under_test.rs
+// RUN: heir-translate %s --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
 // RUN: cargo run --release --manifest-path %S/Cargo.toml -- 1 1 | FileCheck %s
 
 !bsks = !tfhe_rust_bool.server_key

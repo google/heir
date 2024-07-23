@@ -41,7 +41,8 @@ bool areCompatibleBool(Operation *lhs, Operation *rhs) {
       lhs->getResultTypes() != rhs->getResultTypes() ||
       lhs->getNumOperands() != rhs->getNumOperands() ||
       // Attributes do not need to match for Lut3
-      (!llvm::isa<cggi::Lut3Op>(lhs) && lhs->getAttrs() != rhs->getAttrs())) {
+      (!llvm::isa<cggi::Lut3Op>(lhs) && lhs->getAttrs() != rhs->getAttrs()) ||
+      isa<NotOp>(rhs) || isa<NotOp>(lhs)) {
     return false;
   }
   // TODO: Check if can be made better with a BooleanPackableGate trait
@@ -56,28 +57,24 @@ FailureOr<SmallVector<Attribute>> BuildGateOperands(
     FailureOr<Attribute> attr =
         llvm::TypeSwitch<Operation &, FailureOr<Attribute>>(*op)
             .Case<cggi::AndOp>([&context](AndOp op) {
-              return CGGIBoolGateEnumAttr::get(&context,
-                                               CGGIBoolGateEnum::bg_and);
+              return CGGIBoolGateEnumAttr::get(&context, CGGIBoolGateEnum::AND);
             })
             .Case<cggi::NandOp>([&context](NandOp op) {
               return CGGIBoolGateEnumAttr::get(&context,
-                                               CGGIBoolGateEnum::bg_nand);
+                                               CGGIBoolGateEnum::NAND);
             })
             .Case<cggi::XorOp>([&context](XorOp op) {
-              return CGGIBoolGateEnumAttr::get(&context,
-                                               CGGIBoolGateEnum::bg_xor);
+              return CGGIBoolGateEnumAttr::get(&context, CGGIBoolGateEnum::XOR);
             })
             .Case<cggi::XNorOp>([&context](XNorOp op) {
               return CGGIBoolGateEnumAttr::get(&context,
-                                               CGGIBoolGateEnum::bg_xnor);
+                                               CGGIBoolGateEnum::XNOR);
             })
             .Case<cggi::OrOp>([&context](OrOp op) {
-              return CGGIBoolGateEnumAttr::get(&context,
-                                               CGGIBoolGateEnum::bg_or);
+              return CGGIBoolGateEnumAttr::get(&context, CGGIBoolGateEnum::OR);
             })
             .Case<cggi::NorOp>([&context](NorOp op) {
-              return CGGIBoolGateEnumAttr::get(&context,
-                                               CGGIBoolGateEnum::bg_nor);
+              return CGGIBoolGateEnumAttr::get(&context, CGGIBoolGateEnum::NOR);
             })
             .Case<cggi::Lut3Op>(
                 [&](cggi::Lut3Op op) { return op.getLookupTable(); })

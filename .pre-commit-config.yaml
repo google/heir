@@ -38,6 +38,8 @@ repos:
     rev: "v2.2.5"
     hooks:
       - id: codespell
+        args: ["-L", "crate"]
+
 
 # Changes tabs to spaces
 -   repo: https://github.com/Lucas-C/pre-commit-hooks

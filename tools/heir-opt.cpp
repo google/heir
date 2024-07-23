@@ -11,6 +11,7 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
+#include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToOpenfhe/CKKSToOpenfhe.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
