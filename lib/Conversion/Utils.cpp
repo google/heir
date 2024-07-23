@@ -51,7 +51,7 @@ LogicalResult ConvertAny::matchAndRewrite(
   SmallVector<std::unique_ptr<Region>, 1> regions;
   IRMapping mapping;
   for (auto &r : op->getRegions()) {
-    Region *newRegion = new Region();
+    Region *newRegion = new Region(op);
     rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
     if (failed(rewriter.convertRegionTypes(newRegion, *this->typeConverter)))
       return failure();
