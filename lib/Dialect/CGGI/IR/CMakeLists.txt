@@ -12,3 +12,8 @@ set(LLVM_TARGET_DEFINITIONS CGGIAttributes.td)
 mlir_tablegen(CGGIAttributes.cpp.inc -gen-attrdef-defs -attrdefs-dialect="cggi")
 mlir_tablegen(CGGIAttributes.h.inc -gen-attrdef-decls -attrdefs-dialect="cggi")
 add_public_tablegen_target(MLIRCGGIAttributesIncGen)
+
+set(LLVM_TARGET_DEFINITIONS CGGIEnums.td)
+mlir_tablegen(CGGIEnums.cpp.inc -gen-enum-defs)
+mlir_tablegen(CGGIEnums.h.inc -gen-enum-decls)
+add_public_tablegen_target(MLIRCGGIEnumsIncGen)

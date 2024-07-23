@@ -8,16 +8,21 @@
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolEnums.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
 #include "lib/Utils/ConversionUtils/ConversionUtils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "mlir/include/mlir/Analysis/SliceAnalysis.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
@@ -166,6 +171,46 @@ struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
   }
 };
 
+struct ConvertPackedOp : public OpConversionPattern<cggi::PackedOp> {
+  ConvertPackedOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::PackedOp>(context, /*benefit=*/1) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::PackedOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    FailureOr<Value> result = getContextualBoolServerKey(op);
+    if (failed(result)) return result;
+
+    Value serverKey = result.value();
+    auto *context = getContext();
+    SmallVector<tfhe_rust_bool::TfheRustBoolGateEnumAttr, 4>
+        vectorizedGateOperands;
+
+    auto cggiGates = op.getGates().getGates();
+
+    for (auto gate : cggiGates) {
+      auto tfheGate = tfhe_rust_bool::symbolizeTfheRustBoolGateEnum(
+          static_cast<uint32_t>(gate.getValue()));
+      vectorizedGateOperands.push_back(
+          tfhe_rust_bool::TfheRustBoolGateEnumAttr::get(context,
+                                                        tfheGate.value()));
+    }
+
+    auto oplist = tfhe_rust_bool::TfheRustBoolGatesAttr::get(
+        context, vectorizedGateOperands);
+
+    auto outputType = adaptor.getLhs().getType();
+
+    rewriter.replaceOp(op, b.create<tfhe_rust_bool::PackedOp>(
+                               outputType, serverKey, oplist, adaptor.getLhs(),
+                               adaptor.getRhs()));
+    return success();
+  }
+};
+
 struct ConvertBoolTrivialEncryptOp
     : public OpConversionPattern<lwe::TrivialEncryptOp> {
   ConvertBoolTrivialEncryptOp(mlir::MLIRContext *context)
@@ -252,7 +297,7 @@ class CGGIToTfheRustBool
         AddBoolServerKeyArg, ConvertBoolAndOp, ConvertBoolEncodeOp,
         ConvertBoolOrOp, ConvertBoolTrivialEncryptOp, ConvertBoolXorOp,
         ConvertBoolNorOp, ConvertBoolXNorOp, ConvertBoolNandOp,
-        ConvertBoolNotOp, GenericOpPattern<memref::AllocOp>,
+        ConvertBoolNotOp, ConvertPackedOp, GenericOpPattern<memref::AllocOp>,
         GenericOpPattern<memref::DeallocOp>, GenericOpPattern<memref::StoreOp>,
         GenericOpPattern<memref::LoadOp>, GenericOpPattern<memref::SubViewOp>,
         GenericOpPattern<memref::CopyOp>,

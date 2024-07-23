@@ -6,15 +6,14 @@ include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinDialect.td"
 include "mlir/IR/CommonAttrConstraints.td"
 
+
 class CGGI_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<CGGI_Dialect, name, traits> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def CGGI_CGGIParams : AttrDef<CGGI_Dialect, "CGGIParams"> {
-  let mnemonic = "cggi_params";
-
+def CGGI_CGGIParams : CGGI_Attr<"CGGIParams", "cggi_params"> {
   // TODO(#276): migrate the gadget params
   // to lwe dialect?
   let parameters = (ins
@@ -26,30 +25,27 @@ def CGGI_CGGIParams : AttrDef<CGGI_Dialect, "CGGIParams"> {
     "unsigned": $ksk_gadget_base_log,
     "unsigned": $ksk_gadget_num_levels
   );
-
-  let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def CGGIGate_Attr : CGGI_Attr<"CGGIGate", "cggi_gate"> {
-  let summary = "An Attribute containing an array of strings to store bool gates";
+def CGGI_CGGIBoolGates : CGGI_Attr<"CGGIBoolGates", "cggi_bool_gates"> {
+  let summary = "An attribute containing an array of strings to store bool gates";
 
   let description = [{
-    This attributes stores a list of string identifiers for Boolean gates.
+         This attributes stores a list of integer identifiers for Boolean gates.
 
-     This used in the `cggi.packed` operation to indicate the boolean gate that applies pairwise between elements of two ciphertext arrays. For example,
-
-     %0 = cggi.packed %a, %b {gates = #cggi.cggi_gate<"and", "xor">} : tensor<2x!lwe.lwe_ciphertext>
-
-     applies an "and" gate between the first elements of %a and %b and an xor gate between the second elements.
+     Uses following mapping:
+     AND_GATE = 0;
+     NAND_GATE = 1;
+     OR_GATE = 2;
+     NOR_GATE = 3;
+     XOR_GATE = 4;
+     XNOR_GATE = 5;
   }];
 
   let parameters = (ins
-      ArrayRefParameter<"mlir::StringAttr">: $gate);
+      ArrayRefParameter<"::mlir::heir::cggi::CGGIBoolGateEnumAttr">: $gates);
 
-  let assemblyFormat = "`<` $gate `>`";
+  let assemblyFormat = "`<` $gates `>`";
 }
-
-
-
 
 #endif  // LIB_DIALECT_CGGI_IR_CGGIATTRIBUTES_TD_

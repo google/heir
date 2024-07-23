@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_CGGI_IR_CGGIDIALECT_H_
 #define LIB_DIALECT_CGGI_IR_CGGIDIALECT_H_
 
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project

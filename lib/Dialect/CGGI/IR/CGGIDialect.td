@@ -5,7 +5,6 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/CommonAttrConstraints.td"
 
-
 def CGGI_Dialect : Dialect {
   let name = "cggi";
   let summary = "A dialect for types and operations in the CGGI cryptosystem";

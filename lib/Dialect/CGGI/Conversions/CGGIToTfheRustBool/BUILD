@@ -18,6 +18,8 @@ cc_library(
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
         "@heir//lib/Utils/ConversionUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
