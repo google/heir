@@ -1,4 +1,5 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
@@ -29,7 +30,9 @@ struct Secretize : impl::SecretizeBase<Secretize> {
     auto secretArgAttr =
         StringAttr::get(ctx, secret::SecretDialect::kArgSecretAttrName);
     for (unsigned i = 0; i < mainFunction.getNumArguments(); i++) {
-      mainFunction.setArgAttr(i, secretArgAttr, UnitAttr::get(ctx));
+      if (!isa<secret::SecretType>(mainFunction.getArgument(i).getType())) {
+        mainFunction.setArgAttr(i, secretArgAttr, UnitAttr::get(ctx));
+      }
     }
   }
 };
