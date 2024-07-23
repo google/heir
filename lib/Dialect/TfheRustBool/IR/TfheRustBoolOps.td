@@ -1,14 +1,16 @@
 #ifndef LIB_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLOPS_TD_
 #define LIB_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLOPS_TD_
 
-include "TfheRustBoolDialect.td"
-include "TfheRustBoolTypes.td"
+include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.td"
+include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.td"
+include "lib/Dialect/TfheRustBool/IR/TfheRustBoolAttributes.td"
 
-include "mlir/IR/BuiltinAttributes.td"
-include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/BuiltinTypes.td"
+include "mlir/IR/CommonTypeConstraints.td"
+include "mlir/IR/CommonAttrConstraints.td"
 
 
 class TfheRustBool_Op<string mnemonic, list<Trait> traits = []> :
@@ -49,6 +51,38 @@ def TfheRustBool_NorOp  : TfheRustBool_BinaryGateOp<"nor">  { let summary = "Log
 def TfheRustBool_XorOp : TfheRustBool_BinaryGateOp<"xor"> { let summary = "Logical XOR of two TFHE-rs Bool ciphertexts."; }
 def TfheRustBool_XnorOp : TfheRustBool_BinaryGateOp<"xnor"> { let summary = "Logical XNOR of two TFHE-rs Bool ciphertexts."; }
 
+
+def TfheRustBool_PackedOp : TfheRustBool_Op<"gates_packed", [
+    Pure,
+    AllTypesMatch<["lhs", "rhs", "output"]>
+  ]> {
+  let arguments = (ins
+    TfheRustBool_ServerKey:$serverKey,
+    TfheRustBoolGates_Attr: $gates,
+    TfheRustBoolLike:$lhs,
+    TfheRustBoolLike:$rhs
+  );
+
+    let description = [{
+     Operation to where different Boolean gates are executed pairwise between elements of two ciphertext arrays.
+
+     For example,
+
+     ```mlir
+     %0 = tfhe_rust_bool.packed_gates %a, %b {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<0 : i32, 4 : i32>} :
+         (!tfhe_rust_bool.server_key,
+          tensor<2x!tfhe_rust_bool.eb>,
+          tensor<2x!tfhe_rust_bool.eb>) -> tensor<2x!tfhe_rust_bool.eb>
+     ```
+     applies an "and" gate to the first elements of %a and %b and an xor gate to the
+     second elements.
+
+     Mapping is defined in the BooleanGates.td file.
+  }];
+
+  let results = (outs TfheRustBoolLike:$output);
+}
+
 def TfheRustBool_NotOp : TfheRustBool_Op<"not", [
     Pure,
     AllTypesMatch<["input", "output"]>
@@ -59,6 +93,8 @@ def TfheRustBool_NotOp : TfheRustBool_Op<"not", [
   );
   let results = (outs TfheRustBoolLike:$output);
 }
+
+
 
 def TfheRustBool_MuxOp : TfheRustBool_Op<"mux", [
     Pure,
@@ -71,21 +107,6 @@ def TfheRustBool_MuxOp : TfheRustBool_Op<"mux", [
     TfheRustBool_Encrypted:$rhs
   );
   let results = (outs TfheRustBool_Encrypted:$output);
-}
-
-
-// ToDo: Change to an only tensor type?
-def TfheRustBool_PackedOp : TfheRustBool_Op<"packed", [
-    Pure,
-    AllTypesMatch<["gates", "lhs", "rhs", "output"]>
-]> {
-  let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
-    TfheRustBoolGates:$gates,
-    TfheRustBoolLike:$lhs,
-    TfheRustBoolLike:$rhs
-  );
-  let results = (outs TfheRustBoolLike:$output);
 }
 
 #endif  // LIB_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLOPS_TD_

@@ -11,6 +11,7 @@ include "lib/Dialect/LWE/IR/LWETypes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonAttrConstraints.td"
+include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -59,15 +60,27 @@ def CGGI_NotOp : CGGI_Op<"not", [
   let summary = "Logical NOT of two ciphertexts";
 }
 
-def CGGI_PackedOp : CGGI_Op<"packed_gates", [
-    Pure,
-    SameOperandsAndResultType
-]> {
+def CGGI_PackedOp : CGGI_Op<"packed_gates",
+  [Pure, AllTypesMatch<["lhs", "rhs", "output"]>]>{
   let arguments = (ins
-    CGGIGate_Attr:$gates,
+    CGGI_CGGIBoolGates:$gates,
     LWECiphertextLike:$lhs,
     LWECiphertextLike:$rhs
   );
+
+      let description = [{
+     Operation to where different Boolean gates are executed pairwise between elements of two ciphertext arrays.
+
+     For example,
+
+     ```mlir
+     %0 = cggi.packed_gates %a, %b {gates = #cggi.cggi_gate<"and", "xor">} : tensor<2x!lwe.lwe_ciphertext>
+     ```
+     applies an "and" gate to the first elements of %a and %b and an xor gate to the
+     second elements.
+
+     Mapping is defined in the BooleanGates.td file.
+  }];
 
   let results = (outs LWECiphertextLike:$output);
 }

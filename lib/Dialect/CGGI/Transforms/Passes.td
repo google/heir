@@ -19,11 +19,12 @@ def SetDefaultParameters : Pass<"cggi-set-default-parameters"> {
   let dependentDialects = ["mlir::heir::cggi::CGGIDialect"];
 }
 
-def BooleanLineVectorizer : Pass<"cggi-boolean-line-vectorize"> {
+def BooleanVectorizer : Pass<"cggi-boolean-vectorize"> {
   let summary = "Group different logic gates with the packed API";
   let description = [{
     This pass groups independent logic gates into a single call of the packed
-    operations.
+    operations. Pass is based on the straight-line-vectorizer, but is fundamentally different.
+    This pass combines any type of boolean gates and is not restricted to combining the same type of gate operand.
 
     Pass is intended for the `FPT` tfhe-rs API, where `packed_gates` function get a
     the boolean gates are passed as a string vector and a left and right vector of ciphertexts.
@@ -37,8 +38,6 @@ def BooleanLineVectorizer : Pass<"cggi-boolean-line-vectorize"> {
   let dependentDialects = [
     "tensor::TensorDialect",
   ];
-
-  // let dependentDialects = ["mlir::heir::cggi::CGGIDialect"];
 }
 
 #endif  // LIB_DIALECT_CGGI_TRANSFORMS_PASSES_TD_
