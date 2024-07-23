@@ -1,0 +1,25 @@
+From 0309709a6786653da7164334c83b09c9f37b943a Mon Sep 17 00:00:00 2001
+From: Chenguang Wang <w3cing@gmail.com>
+Date: Mon, 15 Jul 2024 08:44:56 -0700
+Subject: [PATCH] [bazel] Add missing dependency for mlir:SCFTransformOps
+ (#98919)
+
+Bazel build failure was introduced in commit acc159ae.
+---
+ utils/bazel/llvm-project-overlay/mlir/BUILD.bazel | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+index ab3757342c76..af542bba57d5 100644
+--- a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
++++ b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+@@ -2900,6 +2900,7 @@ cc_library(
+         ":IR",
+         ":LoopLikeInterface",
+         ":SCFDialect",
++        ":SCFToControlFlow",
+         ":SCFTransformOpsIncGen",
+         ":SCFTransforms",
+         ":SCFUtils",
+--
+2.45.2.1089.g2a221341d9-goog
