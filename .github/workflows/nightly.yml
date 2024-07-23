@@ -1,6 +1,8 @@
 name: Nightly release
 permissions:
   contents: write
+  # Packages write permission required to update a release
+  packages: write
 on:
   workflow_dispatch:
   schedule:
