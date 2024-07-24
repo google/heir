@@ -16,6 +16,7 @@ cc_library(
         ":ExtractGenericBody",
         ":ForgetSecrets",
         ":GenericAbsorbConstants",
+        ":GenericAbsorbDealloc",
         ":MergeAdjacentGenerics",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -82,6 +83,20 @@ cc_library(
     srcs = ["GenericAbsorbConstants.cpp"],
     hdrs = [
         "GenericAbsorbConstants.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+    ],
+)
+
+cc_library(
+    name = "GenericAbsorbDealloc",
+    srcs = ["GenericAbsorbDealloc.cpp"],
+    hdrs = [
+        "GenericAbsorbDealloc.h",
     ],
     deps = [
         ":pass_inc_gen",

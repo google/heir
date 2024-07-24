@@ -668,6 +668,40 @@ void genericAbsorbConstants(secret::GenericOp genericOp,
   });
 }
 
+void genericAbsorbDealloc(secret::GenericOp genericOp,
+                          mlir::IRRewriter &rewriter) {
+  // Check the generic's returned memrefs. If their only use outside the generic
+  // is a dealloc, then move the dealloc inside the generic body.
+  for (auto result : genericOp.getResults()) {
+    if (auto memrefTy = dyn_cast<MemRefType>(
+            cast<secret::SecretType>(result.getType()).getValueType())) {
+      if (!result.hasOneUse()) {
+        continue;
+      }
+      // Ensure that the single user is a secret.generic.
+      auto &memrefUse = *result.getUses().begin();
+      auto genericUseOp = dyn_cast<secret::GenericOp>(memrefUse.getOwner());
+      if (!genericUseOp) {
+        continue;
+      }
+      auto blockArg =
+          genericUseOp.getBody()->getArgument(memrefUse.getOperandNumber());
+      auto blockArgUser = *blockArg.getUsers().begin();
+      if (!blockArg.hasOneUse() || !isa<memref::DeallocOp>(blockArgUser)) {
+        continue;
+      }
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Found dealloc op to absorb into generic:" << blockArgUser);
+      rewriter.setInsertionPoint(genericOp.getYieldOp());
+      IRMapping mp;
+      mp.map(blockArg,
+             genericOp.getYieldOp()->getOperand(result.getResultNumber()));
+      rewriter.clone(*blockArgUser, mp);
+      rewriter.eraseOp(blockArgUser);
+    }
+  }
+}
+
 LogicalResult extractGenericBody(secret::GenericOp genericOp,
                                  mlir::IRRewriter &rewriter) {
   auto module = genericOp->getParentOfType<ModuleOp>();

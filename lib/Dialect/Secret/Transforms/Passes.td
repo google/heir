@@ -70,6 +70,15 @@ def SecretGenericAbsorbConstants : Pass<"secret-generic-absorb-constants"> {
   let dependentDialects = ["mlir::heir::secret::SecretDialect"];
 }
 
+def SecretGenericAbsorbDealloc : Pass<"secret-generic-absorb-dealloc"> {
+  let summary = "Copy deallocs of internal memrefs into a secret.generic body";
+  let description = [{
+    For each memref allocated and used only within a body of a `secret.generic`
+    op, add it's dealloc of the memref into its `generic` body.
+  }];
+  let dependentDialects = ["mlir::heir::secret::SecretDialect"];
+}
+
 def SecretExtractGenericBody : Pass<"secret-extract-generic-body"> {
   let summary = "Extract the bodies of all generic ops into functions";
   let description = [{
