@@ -368,6 +368,10 @@ type and the corresponding cleartext computation.&lt;/p>
 &lt;p>For each constant value used in the body of a &lt;code>secret.generic&lt;/code> op, which is
 defined in the ambient scope outside the &lt;code>generic&lt;/code>, add it&amp;rsquo;s definition into
 the &lt;code>generic&lt;/code> body.&lt;/p>
+&lt;h3 id="-secret-generic-absorb-dealloc">&lt;code>-secret-generic-absorb-dealloc&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Copy deallocs of internal memrefs into a secret.generic body&lt;/em>&lt;/p>
+&lt;p>For each memref allocated and used only within a body of a &lt;code>secret.generic&lt;/code>
+op, add it&amp;rsquo;s dealloc of the memref into its &lt;code>generic&lt;/code> body.&lt;/p>
 &lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Merge two adjacent generics into a single generic&lt;/em>&lt;/p>
 &lt;p>This pass merges two immedaitely sequential generics into a single
