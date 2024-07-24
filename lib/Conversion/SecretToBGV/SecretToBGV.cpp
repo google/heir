@@ -23,6 +23,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
@@ -73,11 +74,7 @@ class SecretToBGVTypeConverter : public TypeConverter {
 
     // Convert secret types to BGV ciphertext types
     addConversion([ctx, this](secret::SecretType type) -> Type {
-      int bitWidth =
-          llvm::TypeSwitch<Type, int>(type.getValueType())
-              .Case<RankedTensorType>(
-                  [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
-              .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
+      int bitWidth = getElementTypeOrSelf(type).getIntOrFloatBitWidth();
       return lwe::RLWECiphertextType::get(
           ctx,
           lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
@@ -172,6 +169,7 @@ class SecretGenericOpSelectConversion
     rewriter.replaceOpWithNewOp<bgv::RelinearizeOp>(
         op, add, rewriter.getDenseI32ArrayAttr({0, 1, 2}),
         rewriter.getDenseI32ArrayAttr({0, 1}));
+    op->getParentOp()->dump();
   }
 };
 
