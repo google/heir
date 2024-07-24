@@ -74,11 +74,11 @@ class SecretToBGVTypeConverter : public TypeConverter {
 
     // Convert secret types to BGV ciphertext types
     addConversion([ctx, this](secret::SecretType type) -> Type {
-      int bitWidth = getElementTypeOrSelf(type).getIntOrFloatBitWidth();
+      int bitWidth = 32;
       return lwe::RLWECiphertextType::get(
           ctx,
           lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
-          lwe::RLWEParamsAttr::get(ctx, 2, ring_), type.getValueType());
+          lwe::RLWEParamsAttr::get(ctx, 2, ring_), IntegerType::get(ctx, 32));
     });
 
     ring_ = rlweRing;
