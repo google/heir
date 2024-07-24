@@ -156,6 +156,25 @@ class SecretGenericOpMulConversion
   }
 };
 
+class SecretGenericOpSelectConversion
+    : public SecretGenericOpConversion<arith::SelectOp, bgv::MulOp> {
+ public:
+  using SecretGenericOpConversion<arith::SelectOp,
+                                  bgv::MulOp>::SecretGenericOpConversion;
+
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+                 ConversionPatternRewriter &rewriter) const override {
+    // inputs = [condition, true_value, false_value]
+    auto t = rewriter.create<bgv::MulOp>(op.getLoc(), inputs[0], inputs[1]);
+    auto neg = rewriter.create<bgv::NegateOp>(op.getLoc(), inputs[0]);
+    auto f = rewriter.create<bgv::MulOp>(op.getLoc(), neg, inputs[2]);
+    auto add = rewriter.create<bgv::AddOp>(op.getLoc(), t, f);
+    rewriter.replaceOpWithNewOp<bgv::RelinearizeOp>(
+        op, add, rewriter.getDenseI32ArrayAttr({0, 1, 2}),
+        rewriter.getDenseI32ArrayAttr({0, 1}));
+  }
+};
+
 class SecretGenericOpRotateConversion
     : public SecretGenericOpConversion<tensor_ext::RotateOp, bgv::RotateOp> {
  public:
@@ -221,8 +240,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     patterns.add<SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
                  SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
-                 SecretGenericOpRotateConversion, SecretGenericOpMulConversion>(
-        typeConverter, context);
+                 SecretGenericOpRotateConversion, SecretGenericOpMulConversion,
+                 SecretGenericOpSelectConversion>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
