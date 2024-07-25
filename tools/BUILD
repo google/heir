@@ -38,6 +38,7 @@ cc_binary(
         "@heir//lib/Conversion/CGGIToTfheRust",
         "@heir//lib/Conversion/CGGIToTfheRustBool",
         "@heir//lib/Conversion/CombToCGGI",
+        "@heir//lib/Conversion/LWEToPolynomial",
         "@heir//lib/Conversion/MemrefToArith:ExpandCopy",
         "@heir//lib/Conversion/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Conversion/PolynomialToStandard",

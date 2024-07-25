@@ -8,6 +8,7 @@
 #include "lib/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Conversion/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "lib/Conversion/CombToCGGI/CombToCGGI.h"
+#include "lib/Conversion/LWEToPolynomial/LWEToPolynomial.h"
 #include "lib/Conversion/MemrefToArith/MemrefToArith.h"
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
@@ -553,6 +554,7 @@ int main(int argc, char **argv) {
   bgv::registerBGVToPolynomialPasses();
   bgv::registerBGVToOpenfhePasses();
   comb::registerCombToCGGIPasses();
+  lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::polynomial::registerPolynomialToStandardPasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
