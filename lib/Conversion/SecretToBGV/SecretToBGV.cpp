@@ -9,6 +9,7 @@
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -162,10 +163,16 @@ class SecretGenericOpSelectConversion
   void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
                  ConversionPatternRewriter &rewriter) const override {
     // inputs = [condition, true_value, false_value]
-    // TODO: This should use mul_scalar if one of the sides is plaintext!
+    auto ctxtType = llvm::cast<lwe::RLWECiphertextType>(inputs[0].getType());
     auto t = rewriter.create<bgv::MulOp>(op.getLoc(), inputs[0], inputs[1]);
-    // TODO: this should not be `negate` (which would give -c) but sub (1-c)
-    auto neg = rewriter.create<bgv::NegateOp>(op.getLoc(), inputs[0]);
+    auto c1 = rewriter.create<arith::ConstantOp>(
+        op.getLoc(), 1,
+        rewriter.getIntegerType(
+            ctxtType.getUnderlyingType().getIntOrFloatBitWidth()));
+    auto one = rewriter.create<lwe::EncodeOp>(op.getLoc(), inputs[0].getType(),
+                                              c1, ctxtType.getEncoding());
+    auto oneCtxt = rewriter.create<lwe::TrivialEncryptOp>();  // TODO
+    auto neg = rewriter.create<bgv::SubOp>(op.getLoc(), oneCtxt, inputs[0]);
     auto f = rewriter.create<bgv::MulOp>(op.getLoc(), neg, inputs[2]);
     auto add = rewriter.create<bgv::AddOp>(op.getLoc(), t, f);
     rewriter.replaceOpWithNewOp<bgv::RelinearizeOp>(
