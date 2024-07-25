@@ -162,7 +162,9 @@ class SecretGenericOpSelectConversion
   void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
                  ConversionPatternRewriter &rewriter) const override {
     // inputs = [condition, true_value, false_value]
+    // TODO: This should use mul_scalar if one of the sides is plaintext!
     auto t = rewriter.create<bgv::MulOp>(op.getLoc(), inputs[0], inputs[1]);
+    // TODO: this should not be `negate` (which would give -c) but sub (1-c)
     auto neg = rewriter.create<bgv::NegateOp>(op.getLoc(), inputs[0]);
     auto f = rewriter.create<bgv::MulOp>(op.getLoc(), neg, inputs[2]);
     auto add = rewriter.create<bgv::AddOp>(op.getLoc(), t, f);
