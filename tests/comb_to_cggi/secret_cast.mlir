@@ -1,6 +1,6 @@
 // This test ensures that secret casting before and after generics lowers to CGGI properly.
 
-// RUN: heir-opt --secret-distribute-generic --comb-to-cggi -cse %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic --comb-to-cggi -cse --split-input-file %s | FileCheck %s
 
 // CHECK: module
 module attributes {tf_saved_model.semantics} {
@@ -56,5 +56,38 @@ module attributes {tf_saved_model.semantics} {
     }
     // CHECK: return [[V0]] : [[OUT]]
     return %0 : !secret.secret<memref<1x1xi4>>
+  }
+}
+
+// -----
+
+// These casts occur when converting op operands and results from yosys optimized blocks.
+
+module {
+  // CHECK-NOT: secret
+  // CHECK: @cast_multidim([[ARG:%.*]]: memref<1x1x8x[[LWET:!lwe.lwe_ciphertext<.*>]]>)
+  func.func @cast_multidim(%arg0: !secret.secret<memref<1x1xi8, strided<[?, ?], offset: ?>>>) -> !secret.secret<memref<1x2xi8>> {
+    %c0 = arith.constant 0 : index
+    // CHECK: memref.collapse_shape
+    // CHECK-SAME: memref<1x1x8x[[LWET]]> into memref<8x[[LWET]]>
+    %0 = secret.cast %arg0 : !secret.secret<memref<1x1xi8, strided<[?, ?], offset: ?>>> to !secret.secret<memref<8xi1>>
+    %1 = secret.generic ins(%0 : !secret.secret<memref<8xi1>>) {
+    ^bb0(%arg1: memref<8xi1>):
+      %10824 = memref.load %arg1[%c0] : memref<8xi1>
+      secret.yield %10824 : i1
+    } -> !secret.secret<i1>
+    %2 = secret.generic {
+      %alloc = memref.alloc() : memref<16xi1>
+      secret.yield %alloc : memref<16xi1>
+    } -> !secret.secret<memref<16xi1>>
+    secret.generic ins(%1, %2 : !secret.secret<i1>, !secret.secret<memref<16xi1>>) {
+    ^bb0(%arg1: i1, %arg2: memref<16xi1>):
+      memref.store %arg1, %arg2[%c0] : memref<16xi1>
+      secret.yield
+    }
+    // CHECK: memref.expand_shape
+    // CHECK-SAME: memref<16x[[LWET]]> into memref<1x2x8x[[LWET]]>
+    %3 = secret.cast %2 : !secret.secret<memref<16xi1>> to !secret.secret<memref<1x2xi8>>
+    return %3 : !secret.secret<memref<1x2xi8>>
   }
 }

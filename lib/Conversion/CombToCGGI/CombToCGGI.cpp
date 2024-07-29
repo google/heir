@@ -13,6 +13,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
@@ -20,6 +21,7 @@
 #include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -29,6 +31,7 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -63,23 +66,6 @@ Value buildSelectTruthTable(Location loc, OpBuilder &b, Value t, Value f,
       buildSelectTruthTable(loc, b, t, f, lastHalf, lutInputs.drop_back());
   return b.create<arith::SelectOp>(loc, lutInputs.back(), selectTrue,
                                    selectFalse);
-}
-
-// equivalentMultiBitAndMemRefchecks whether the candidateMultiBit integer type
-// is equivalent to the candidateMemRef type.
-// Return true if the candidateMemRef is a memref of single bits with
-// size equal to the number of bits of the candidateMultiBit.
-bool equivalentMultiBitAndMemRef(Type candidateMultiBit, Type candidateMemRef) {
-  if (auto multiBitTy = dyn_cast<IntegerType>(candidateMultiBit)) {
-    if (auto memrefTy = dyn_cast<MemRefType>(candidateMemRef)) {
-      auto eltTy = dyn_cast<IntegerType>(memrefTy.getElementType());
-      if (eltTy && multiBitTy.getWidth() ==
-                       memrefTy.getNumElements() * eltTy.getWidth()) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 Operation *convertWriteOpInterface(Operation *op, SmallVector<Value> indices,
@@ -528,16 +514,82 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
       ConversionPatternRewriter &rewriter) const override {
     // If this is a cast from secret<i8> to secret<tensor<8xi1>> or vice
     // versa, replace with the cast's input.
-    auto inputTy =
+    auto lhsType =
         cast<secret::SecretType>(op.getInput().getType()).getValueType();
-    auto outputTy =
+    auto rhsType =
         cast<secret::SecretType>(op.getOutput().getType()).getValueType();
 
-    if (equivalentMultiBitAndMemRef(inputTy, outputTy) ||
-        equivalentMultiBitAndMemRef(outputTy, inputTy)) {
+    int lhsBits = getElementTypeOrSelf(lhsType).getIntOrFloatBitWidth();
+    int rhsBits = getElementTypeOrSelf(rhsType).getIntOrFloatBitWidth();
+    auto lhsMemRefTy = dyn_cast<MemRefType>(lhsType);
+    if (lhsMemRefTy) {
+      lhsBits *= lhsMemRefTy.getNumElements();
+    }
+    auto rhsMemRefTy = dyn_cast<MemRefType>(rhsType);
+    if (rhsMemRefTy) {
+      rhsBits *= rhsMemRefTy.getNumElements();
+    }
+
+    if (lhsBits != rhsBits) {
+      return op->emitOpError() << "expected cast between secrets holding the "
+                                  "same number of total bits, got "
+                               << lhsType << " and " << rhsType;
+    }
+
+    if ((lhsMemRefTy == nullptr) != (rhsMemRefTy == nullptr)) {
+      // If they both contain the same bits but only one is a memref, then
+      // simply replace with the input.
       rewriter.replaceOp(op, adaptor.getInput());
       return success();
     }
+
+    // If the input and output are memrefs contain the same number of bits,
+    // resolve them by reshaping or replacing with the input. This can happen
+    // when converting op results or operands in Yosys Optimizer when the
+    // original result or operand was also a memref.
+    if (lhsMemRefTy && rhsMemRefTy) {
+      auto outRhsType = cast<MemRefType>(
+          this->typeConverter->convertType(op.getOutput().getType()));
+      if (lhsMemRefTy.getRank() > rhsMemRefTy.getRank() &&
+          rhsMemRefTy.getRank() == 1) {
+        // This case happens when converting a high dimension memref into a flat
+        // memref of single bits as an operand to a Yosys optimized body, e.g.
+        // secret<memref<1x1xi8>> (memref<1x1x8xlwe_ciphertext>) to
+        // secret<memref<8xi1>> (memref<8xlwe_ciphertext>). In this case,
+        // collapse the memref shape.
+        SmallVector<mlir::ReassociationIndices> reassociation;
+        auto range = llvm::seq<unsigned>(0, lhsMemRefTy.getRank() + 1);
+        reassociation.emplace_back(range.begin(), range.end());
+        rewriter.replaceOpWithNewOp<memref::CollapseShapeOp>(
+            op, adaptor.getInput(), reassociation);
+        return success();
+      } else if (lhsMemRefTy.getRank() < rhsMemRefTy.getRank() &&
+                 lhsMemRefTy.getRank() == 1) {
+        // This is the case of converting results of Yosys optimized bodies,
+        // flat memrefs of single bits, into a high dimensional memref, e.g.
+        // secret<memref<8xi1>> (memref<8xlwe_ciphertext>) to
+        // secret<memref<1x2xi4>> (memref<1x2x4xlwe_ciphertext>).
+        SmallVector<mlir::ReassociationIndices> reassociation;
+        auto range = llvm::seq<unsigned>(0, rhsMemRefTy.getRank() + 1);
+        reassociation.emplace_back(range.begin(), range.end());
+        rewriter.replaceOpWithNewOp<memref::ExpandShapeOp>(
+            op, outRhsType, adaptor.getInput(), reassociation);
+        return success();
+      } else if (lhsMemRefTy.getShape() != rhsMemRefTy.getShape()) {
+        // In other cases, use a reinterpret cast to resolve the memref shapes.
+        int64_t offset;
+        SmallVector<int64_t> strides;
+        if (failed(getStridesAndOffset(outRhsType, strides, offset)))
+          return rewriter.notifyMatchFailure(
+              op, "failed to get stride and offset exprs");
+        auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+            op.getLoc(), outRhsType, adaptor.getInput(), offset,
+            outRhsType.getShape(), strides);
+        rewriter.replaceOp(op, castOp);
+        return success();
+      }
+    }
+
     return failure();
   }
 };
