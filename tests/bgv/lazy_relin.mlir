@@ -1,4 +1,4 @@
-// RUN: heir-opt --lazy-relin %s | FileCheck %s
+// RUN: heir-opt --secret-to-bgv --lazy-relin %s | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
@@ -19,9 +19,9 @@
 !ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2, underlying_type=i3>
 
 
-// CHECK-LABEL: test_lazy_relin
-// CHECK-SAME: %[[ARG0:.*]] : !ct,  %[[ARG1:.*]] : !ct) -> !ct{
-// CHECK: [[V0.*]] = bgv.mul %[[ARG0:.*]],  %[[ARG1:.*]]
+// CHECK-LABEL: @test_lazy_relin
+// CHECK-SAME: (%[[ARG0:.*]] : !ct,  %[[ARG1:.*]] : !ct) -> !ct{
+// CHECK: [[V0:.*]] = bgv.mul %[[ARG0:.*]],  %[[ARG1:.*]]
 // CHECK: bgv.mul
 // CHECK-NEXT: bgv.mul
 // CHECK-NEXT: bgv.add
@@ -29,9 +29,9 @@
 
 func.func @test_lazy_relin(%arg0 : !ct, %arg1 : !ct) -> !ct { 
     %x = bgv.mul %arg0, %arg1 : (!ct, !ct) -> !ct1
-    %x_relin = bgv.relinearize %x  { from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 2> } :!ct1 -> !ct
+    %x_relin = bgv.relinearize %x  { from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } :!ct1 -> !ct
     %y = bgv.mul %arg0, %arg1 : (!ct, !ct) -> !ct1
-    %y_relin = bgv.relinearize %y  { from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 2> } :!ct1 -> !ct
+    %y_relin = bgv.relinearize %y  { from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } :!ct1 -> !ct
     %z = bgv.add %x_relin, %y_relin :!ct
     return %z : !ct
 }
