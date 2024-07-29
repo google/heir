@@ -739,10 +739,7 @@ LogicalResult TfheRustEmitter::printOperation(memref::LoadOp op) {
     emitAssignPrefix(op.getResult());
     bool isRef =
         isa<tfhe_rust::TfheRustDialect>(op.getResult().getType().getDialect());
-    bool storeUse = llvm::all_of(op.getResult().getUsers(), [](Operation *op) {
-      return isa<memref::StoreOp>(*op);
-    });
-    os << ((isRef && !storeUse) ? "&" : "");
+    os << (isRef ? "&" : "");
     printLoadOp(op);
     os << ";\n";
   }
