@@ -46,16 +46,6 @@ class ToOpenfheTypeConverter : public TypeConverter {
   }
 };
 
-bool containsBGVOps(func::FuncOp func) {
-  auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<bgv::BGVDialect>(op->getDialect()) ||
-        llvm::isa<lwe::RLWEEncryptOp>(op) || llvm::isa<lwe::RLWEDecryptOp>(op))
-      return WalkResult::interrupt();
-    return WalkResult::advance();
-  });
-  return walkResult.wasInterrupted();
-}
-
 FailureOr<Value> getContextualCryptoContext(Operation *op) {
   Value cryptoContext = op->getParentOfType<func::FuncOp>()
                             .getBody()
@@ -80,7 +70,7 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsBGVOps(op)) {
+    if (!containsSchemeOrLWEOps<bgv::BGVDialect>(op)) {
       return failure();
     }
 
@@ -389,7 +379,8 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
                                      *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsBGVOps(op) || hasCryptoContextArg);
+             (!containsSchemeOrLWEOps<bgv::BGVDialect>(op) ||
+              hasCryptoContextArg);
     });
     patterns.add<AddCryptoContextArg, ConvertAddOp, ConvertSubOp, ConvertMulOp,
                  ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,

@@ -1,11 +1,13 @@
 #include "lib/Conversion/CombToCGGI/CombToCGGI.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <utility>
 
 #include "lib/Conversion/Utils.h"
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Comb/IR/CombOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -472,6 +474,19 @@ class SecretGenericOpMemRefDeallocConversion
   }
 };
 
+class SecretGenericOpMemRefCollapseShapeConversion
+    : public SecretGenericOpConversion<memref::CollapseShapeOp> {
+  using SecretGenericOpConversion<
+      memref::CollapseShapeOp>::SecretGenericOpConversion;
+
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+                 ArrayRef<NamedAttribute> attributes,
+                 ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<memref::CollapseShapeOp>(op, outputTypes,
+                                                         inputs, attributes);
+  }
+};
+
 // ConvertTruthTableOp converts truth table ops with fully plaintext values.
 struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
   ConvertTruthTableOp(mlir::MLIRContext *context)
@@ -595,23 +610,23 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
 };
 
 int findLUTSize(MLIRContext *context, Operation *module) {
-  int max_int_size = 0;
+  int maxIntSize = 1;
   auto processOperation = [&](Operation *op) {
     if (isa<CombDialect>(op->getDialect())) {
-      int current_size = 0;
+      int currentSize = 0;
       if (dyn_cast<comb::TruthTableOp>(op))
-        current_size = 3;
+        currentSize = 3;
       else
-        current_size = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
+        currentSize = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
 
-      max_int_size = std::max(max_int_size, current_size);
+      maxIntSize = std::max(maxIntSize, currentSize);
     }
   };
 
   // Walk all operations within the module in post-order (default)
   module->walk(processOperation);
 
-  return max_int_size;
+  return maxIntSize;
 }
 
 struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
@@ -630,6 +645,7 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
     patterns
         .add<SecretGenericOpLUTConversion, SecretGenericOpMemRefAllocConversion,
              SecretGenericOpMemRefDeallocConversion,
+             SecretGenericOpMemRefCollapseShapeConversion,
              SecretGenericOpMemRefLoadConversion,
              SecretGenericOpAffineStoreConversion,
              SecretGenericOpAffineLoadConversion,

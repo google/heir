@@ -13,6 +13,7 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -26,6 +27,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+#define DEBUG_TYPE "cggi-to-tfhe-rust"
 
 namespace mlir::heir {
 
@@ -41,6 +44,12 @@ Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
   // Only supporting unsigned types because the LWE dialect does not have a
   // notion of signedness.
   switch (width) {
+    case 1:
+      // The minimum bit width of the integer tfhe_rust API is UInt2
+      // https://docs.rs/tfhe/latest/tfhe/index.html#types
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Upgrading ciphertext with bit width 1 to UInt2");
+      [[fallthrough]];
     case 2:
       return tfhe_rust::EncryptedUInt2Type::get(ctx);
     case 3:
@@ -84,16 +93,6 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
     });
   }
 };
-
-/// Returns true if the func's body contains any CGGI ops.
-bool containsCGGIOps(func::FuncOp func) {
-  auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<cggi::CGGIDialect>(op->getDialect()))
-      return WalkResult::interrupt();
-    return WalkResult::advance();
-  });
-  return walkResult.wasInterrupted();
-}
 
 /// Returns the Value corresponding to a server key in the FuncOp containing
 /// this op.
@@ -142,7 +141,7 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsCGGIOps(op)) {
+    if (!containsSchemeOrLWEOps<cggi::CGGIDialect>(op)) {
       return failure();
     }
 
@@ -418,7 +417,8 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
                                  *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsCGGIOps(op) || hasServerKeyArg);
+             (!containsSchemeOrLWEOps<cggi::CGGIDialect>(op) ||
+              hasServerKeyArg);
     });
     target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
                                  memref::StoreOp, memref::LoadOp,

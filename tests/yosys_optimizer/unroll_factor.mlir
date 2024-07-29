@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-distribute-generic=distribute-through="affine.for" --yosys-optimizer="unroll-factor=3" --canonicalize %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic=distribute-through="affine.for" --yosys-optimizer="unroll-factor=3 use-submodules=false" --canonicalize %s | FileCheck %s
 
 // Regression test for #444 testing the RTLIL imported through an unroll factor
 // larger than the loop size.
