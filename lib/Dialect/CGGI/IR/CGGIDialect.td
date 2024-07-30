@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_
-#define HEIR_LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_
+#ifndef LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_
+#define LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
@@ -12,4 +12,4 @@ def CGGI_Dialect : Dialect {
   let useDefaultAttributePrinterParser = 1;
 }
 
-#endif  // HEIR_LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_
+#endif  // LIB_DIALECT_CGGI_IR_CGGIDIALECT_TD_

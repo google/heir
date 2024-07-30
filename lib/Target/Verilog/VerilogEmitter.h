@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_TARGET_VERILOG_VERILOGEMITTER_H_
-#define HEIR_LIB_TARGET_VERILOG_VERILOGEMITTER_H_
+#ifndef LIB_TARGET_VERILOG_VERILOGEMITTER_H_
+#define LIB_TARGET_VERILOG_VERILOGEMITTER_H_
 
 #include <cstdint>
 #include <optional>
@@ -144,4 +144,4 @@ class VerilogEmitter {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // HEIR_LIB_TARGET_VERILOG_VERILOGEMITTER_H_
+#endif  // LIB_TARGET_VERILOG_VERILOGEMITTER_H_

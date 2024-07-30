@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HEIR_LIB_DIALECT_COMB_COMBDIALECT_H
-#define HEIR_LIB_DIALECT_COMB_COMBDIALECT_H
+#ifndef LIB_DIALECT_COMB_COMBDIALECT_H
+#define LIB_DIALECT_COMB_COMBDIALECT_H
 
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"            // from @llvm-project
@@ -22,4 +22,4 @@
 // Pull in all enum type definitions and utility function declarations.
 #include "lib/Dialect/Comb/IR/CombEnums.h.inc"
 
-#endif  // HEIR_LIB_DIALECT_COMB_COMBDIALECT_H
+#endif  // LIB_DIALECT_COMB_COMBDIALECT_H

@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_LWE_IR_LWETRAITS_H_
-#define HEIR_LIB_DIALECT_LWE_IR_LWETRAITS_H_
+#ifndef LIB_DIALECT_LWE_IR_LWETRAITS_H_
+#define LIB_DIALECT_LWE_IR_LWETRAITS_H_
 
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
@@ -51,4 +51,4 @@ class SameOperandsAndResultRings
 
 }  // namespace mlir::heir::lwe
 
-#endif  // HEIR_LIB_DIALECT_LWE_IR_LWETRAITS_H_
+#endif  // LIB_DIALECT_LWE_IR_LWETRAITS_H_

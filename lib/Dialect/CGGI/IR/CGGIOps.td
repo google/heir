@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_CGGI_IR_CGGIOPS_TD_
-#define HEIR_LIB_DIALECT_CGGI_IR_CGGIOPS_TD_
+#ifndef LIB_DIALECT_CGGI_IR_CGGIOPS_TD_
+#define LIB_DIALECT_CGGI_IR_CGGIOPS_TD_
 
 include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/CGGI/IR/CGGIDialect.td"
@@ -196,4 +196,4 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
   let hasVerifier = 1;
 }
 
-#endif  // HEIR_LIB_DIALECT_CGGI_IR_CGGIOPS_TD_
+#endif  // LIB_DIALECT_CGGI_IR_CGGIOPS_TD_

@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_LWE_IR_LWEOPS_TD_
-#define HEIR_LIB_DIALECT_LWE_IR_LWEOPS_TD_
+#ifndef LIB_DIALECT_LWE_IR_LWEOPS_TD_
+#define LIB_DIALECT_LWE_IR_LWEOPS_TD_
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
@@ -206,4 +206,4 @@ def ReinterpretUnderlyingTypeOp : LWE_Op<"reinterpret_underlying_type", [Pure]> 
   let hasVerifier = 1;
 }
 
-#endif  // HEIR_LIB_DIALECT_LWE_IR_LWEOPS_TD_
+#endif  // LIB_DIALECT_LWE_IR_LWEOPS_TD_

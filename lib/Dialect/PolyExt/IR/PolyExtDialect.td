@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_POLYEXT_IR_POLYEXTDIALECT_TD_
-#define HEIR_LIB_DIALECT_POLYEXT_IR_POLYEXTDIALECT_TD_
+#ifndef LIB_DIALECT_POLYEXT_IR_POLYEXTDIALECT_TD_
+#define LIB_DIALECT_POLYEXT_IR_POLYEXTDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
@@ -22,4 +22,4 @@ def PolyExt_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::poly_ext";
 }
 
-#endif  // HEIR_LIB_DIALECT_POLYEXT_IR_POLYEXTDIALECT_TD_
+#endif  // LIB_DIALECT_POLYEXT_IR_POLYEXTDIALECT_TD_

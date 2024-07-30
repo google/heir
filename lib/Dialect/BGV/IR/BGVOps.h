@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_BGV_IR_BGVOPS_H_
-#define HEIR_LIB_DIALECT_BGV_IR_BGVOPS_H_
+#ifndef LIB_DIALECT_BGV_IR_BGVOPS_H_
+#define LIB_DIALECT_BGV_IR_BGVOPS_H_
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/LWE/IR/LWETraits.h"
@@ -11,4 +11,4 @@
 #define GET_OP_CLASSES
 #include "lib/Dialect/BGV/IR/BGVOps.h.inc"
 
-#endif  // HEIR_LIB_DIALECT_BGV_IR_BGVOPS_H_
+#endif  // LIB_DIALECT_BGV_IR_BGVOPS_H_

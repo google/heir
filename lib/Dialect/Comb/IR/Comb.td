@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HEIR_LIB_DIALECT_COMB_COMB_TD
-#define HEIR_LIB_DIALECT_COMB_COMB_TD
+#ifndef LIB_DIALECT_COMB_COMB_TD
+#define LIB_DIALECT_COMB_COMB_TD
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -39,4 +39,4 @@ class CombOp<string mnemonic, list<Trait> traits = []> :
 
 include "lib/Dialect/Comb/IR/Combinational.td"
 
-#endif // HEIR_LIB_DIALECT_COMB_COMB_TD
+#endif // LIB_DIALECT_COMB_COMB_TD

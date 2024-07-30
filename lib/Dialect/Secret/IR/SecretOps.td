@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_SECRET_IR_SECRETOPS_TD_
-#define HEIR_LIB_DIALECT_SECRET_IR_SECRETOPS_TD_
+#ifndef LIB_DIALECT_SECRET_IR_SECRETOPS_TD_
+#define LIB_DIALECT_SECRET_IR_SECRETOPS_TD_
 
 include "SecretDialect.td"
 include "SecretTypes.td"
@@ -281,4 +281,4 @@ def CastOp : Secret_Op<"cast", [Pure]> {
 }
 
 
-#endif  // HEIR_LIB_DIALECT_SECRET_IR_SECRETOPS_TD_
+#endif  // LIB_DIALECT_SECRET_IR_SECRETOPS_TD_

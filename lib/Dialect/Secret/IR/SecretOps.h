@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_SECRET_IR_SECRETOPS_H_
-#define HEIR_LIB_DIALECT_SECRET_IR_SECRETOPS_H_
+#ifndef LIB_DIALECT_SECRET_IR_SECRETOPS_H_
+#define LIB_DIALECT_SECRET_IR_SECRETOPS_H_
 
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
@@ -44,4 +44,4 @@ void populateGenericCanonicalizers(RewritePatternSet &patterns,
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // HEIR_LIB_DIALECT_SECRET_IR_SECRETOPS_H_
+#endif  // LIB_DIALECT_SECRET_IR_SECRETOPS_H_

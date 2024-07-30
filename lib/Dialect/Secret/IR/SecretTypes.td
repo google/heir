@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_SECRET_IR_SECRETTYPES_TD_
-#define HEIR_LIB_DIALECT_SECRET_IR_SECRETTYPES_TD_
+#ifndef LIB_DIALECT_SECRET_IR_SECRETTYPES_TD_
+#define LIB_DIALECT_SECRET_IR_SECRETTYPES_TD_
 
 include "SecretDialect.td"
 
@@ -32,4 +32,4 @@ def Secret : Secret_Type<"Secret", "secret"> {
   let assemblyFormat = "`<` $valueType `>`";
 }
 
-#endif  // HEIR_LIB_DIALECT_SECRET_IR_SECRETTYPES_TD_
+#endif  // LIB_DIALECT_SECRET_IR_SECRETTYPES_TD_
