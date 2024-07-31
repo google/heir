@@ -1,10 +1,14 @@
 <!-- mdformat off(yaml frontmatter) -->
 --- title: Getting Started
-weight: 1
+weight: 100
 ---
 <!-- mdformat on -->
 
-## Prerequisites
+## Getting HEIR
+
+### Building From Source
+
+#### Prerequisites
 
 -   [Git](https://git-scm.com/)
 -   Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk), or version
@@ -12,7 +16,7 @@ weight: 1
 -   A C compiler (like [gcc](https://gcc.gnu.org/) or
     [clang](https://clang.llvm.org/))
 
-## Clone and build the project
+#### Clone and build the project
 
 ```bash
 git clone git@github.com:google/heir.git && cd heir
@@ -27,7 +31,7 @@ speed up builds, use the following build setting:
 bazel build --//:enable_yosys=0 @heir//tools:heir-opt
 ```
 
-## Optional: Run the tests
+#### Optional: Run the tests
 
 ```bash
 bazel test @heir//...
@@ -39,7 +43,26 @@ Like above, run the following to skip tests that depend on Yosys:
 bazel test --//:enable_yosys=0 --test_tag_filters=-yosys @heir//...
 ```
 
-## Run the `dot-product` example
+### Using a pre-built nightly binary
+
+HEIR releases a [nightly](https://github.com/google/heir/releases/tag/nightly)
+binary for Linux x86-64. This is intended for testing compiler passes and not
+for production use.
+
+```bash
+wget https://github.com/google/heir/releases/download/nightly/heir-opt
+chmod +x heir-opt
+./heir-opt --help
+```
+
+Then you can run the examples below, replacing `bazel run //tools:heir-opt --` with
+`./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the same way.
+
+
+
+## Using HEIR
+
+### Run the `dot-product` example
 
 The `dot-product` program computes the dot product of two length-8
 vectors of 16-bit integers (`i16` in MLIR parlance).
@@ -306,7 +329,7 @@ Expected: 240
 Actual: 240
 ```
 
-## Optional: Run a custom `heir-opt` pipeline
+### Optional: Run a custom `heir-opt` pipeline
 
 HEIR comes with two central binaries, `heir-opt` for running optimization passes
 and dialect conversions, and `heir-translate` for backend code generation. To
@@ -345,93 +368,4 @@ bazel run --noallow_analysis_cache_discard //tools:heir-opt -- \
 --secretize=entry-function=box_blur --wrap-generic --canonicalize --cse --full-loop-unroll \
 --insert-rotate --cse --canonicalize --collapse-insertion-chains \
 --canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
-```
-
-## Using a pre-built nightly binary
-
-HEIR releases a [nightly](https://github.com/google/heir/releases/tag/nightly)
-binary for Linux x86-64. This is intended for testing compiler passes and not
-for production use.
-
-```bash
-wget https://github.com/google/heir/releases/download/nightly/heir-opt
-chmod +x heir-opt
-./heir-opt --help
-```
-
-Then you can run the examples above, replacing `bazel run //tools:heir-opt --` with
-`./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the same way.
-
-## Developing in HEIR
-
-We use [pre-commit](https://pre-commit.com/) to manage a series of git
-pre-commit hooks for the project; for example, each time you commit code, the
-hooks will make sure that your C++ is formatted properly. If your code isn't,
-the hook will format it, so when you try to commit the second time you'll get
-past the hook.
-
-All hooks are defined in `.pre-commit-config.yaml`. To install these hooks, run
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-Then install the hooks to run automatically on `git commit`:
-
-```bash
-pre-commit install
-```
-
-To run them manually, run
-
-```bash
-pre-commit run --all-files
-```
-
-## Creating a New Pass
-
-The `scripts/templates` folder contains Python scripts to create boilerplate
-for new conversion or (dialect-specific) transform passes. These should be used
-when the tablegen files containing existing pass definitions in the expected
-filepaths are not already present. Otherwise, you should modify the existing
-tablegen files directly.
-
-### Conversion Pass
-
-To create a new conversion pass, run a command similar to the following:
-
-```
-python scripts/templates/templates.py new_conversion_pass \
---source_dialect_name=CGGI \
---source_dialect_namespace=cggi \
---source_dialect_mnemonic=cggi \
---target_dialect_name=TfheRust \
---target_dialect_namespace=tfhe_rust \
---target_dialect_mnemonic=tfhe_rust
-```
-
-In order to build the resulting code, you must fix the labeled `FIXME`s in the
-type converter and the op conversion patterns.
-
-### Transform Passes
-
-To create a transform or rewrite pass that operates on a dialect, run a command
-similar to the following:
-
-```
-python scripts/templates/templates.py new_dialect_transform \
---pass_name=ForgetSecrets \
---pass_flag=forget-secrets \
---dialect_name=Secret \
---dialect_namespace=secret \
---force=false
-```
-
-If the transform does not operate from and to a specific dialect, use
-
-```
-python scripts/templates/templates.py new_transform \
---pass_name=ForgetSecrets \
---pass_flag=forget-secrets \
---force=false
 ```
