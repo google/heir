@@ -4,7 +4,6 @@ add_subdirectory(LWE)
 
 
 add_subdirectory(Jaxite)
-add_subdirectory(PolyExt)
 add_subdirectory(Openfhe)
 add_subdirectory(RNS)
 add_subdirectory(TfheRust)

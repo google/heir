@@ -37,7 +37,6 @@ function(make_heirlsp_exec  TARGET_NAME SOURCES)
         MLIRCGGI
         MLIRBGV
         MLIRLWE
-        MLIRPolyExt
         MLIRSecret
         MLIRArithExtDialect
         MLIRTensorExt
@@ -87,7 +86,6 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRJaxite
         MLIRLWE
         MLIROpenfhe
-        MLIRPolyExt
         MLIRRNS
         MLIRSecret
         MLIRTensorExt
