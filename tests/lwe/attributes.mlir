@@ -2,6 +2,34 @@
 
 // This simply tests for syntax.
 
+#encoding = #lwe.bit_field_encoding<
+  cleartext_start=14,
+  cleartext_bitwidth=3>
+!plaintext = !lwe.lwe_plaintext<encoding = #encoding>
+
+// CHECK-LABEL: test_valid_lwe_encode
+func.func @test_valid_lwe_encode() {
+    %0 = arith.constant 0 : i1
+    // CHECK: bit_field_encoding
+    %2 = lwe.encode %0 { encoding = #encoding }: i1 to !plaintext
+  return
+}
+
+// -----
+
+#unspecified_encoding = #lwe.unspecified_bit_field_encoding<
+  cleartext_bitwidth=3>
+!plaintext_unspecified = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
+
+// CHECK-LABEL: test_valid_lwe_unspecified_encode
+func.func @test_valid_lwe_unspecified_encode() {
+    %0 = arith.constant 0 : i1
+    // CHECK: unspecified_bit_field_encoding
+    %2 = lwe.encode %0 { encoding = #unspecified_encoding }: i1 to !plaintext_unspecified
+  return
+}
+
+// -----
 
 #encoding0 = #lwe.unspecified_bit_field_encoding<
   cleartext_bitwidth=3>
