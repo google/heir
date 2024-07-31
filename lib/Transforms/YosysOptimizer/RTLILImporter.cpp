@@ -1,7 +1,9 @@
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 
 #include <cassert>
+#include <cstdint>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -9,22 +11,28 @@
 #include "lib/Dialect/Comb/IR/CombOps.h"
 #include "llvm/include/llvm/ADT/MapVector.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/Sequence.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/FoldUtils.h"      // from @llvm-project
 
 // Block clang-format from reordering
 // clang-format off
+#include "kernel/rtlil.h" // from @at_clifford_yosys
 #include "kernel/yosys.h" // from @at_clifford_yosys
 // clang-format on
 
@@ -127,7 +135,8 @@ void RTLILImporter::addResultBit(
 }
 
 func::FuncOp RTLILImporter::importModule(
-    Module *module, const SmallVector<std::string, 10> &cellOrdering) {
+    Module *module, const SmallVector<std::string, 10> &cellOrdering,
+    std::optional<SmallVector<Type>> resultTypes) {
   // Gather input and output wires of the module to match up with the block
   // arguments.
   std::map<int, Wire *> wireArgs;
@@ -225,6 +234,11 @@ func::FuncOp RTLILImporter::importModule(
   }
 
   // Concatenate result bits if needed, and return result.
+  if (resultTypes.has_value()) {
+    assert(resultTypes.value().size() == retTypes.size() &&
+           "expected result types to match size of return types");
+  }
+
   SmallVector<Value, 4> returnValues;
   for (unsigned i = 0; i < retTypes.size(); i++) {
     auto *resultWire = wireRet[numInputs + i];  // Indexed after input ports
@@ -234,16 +248,43 @@ func::FuncOp RTLILImporter::importModule(
     if (wireNameToValue.contains(resultWire->name.str())) {
       returnValues.push_back(getWireValue(resultWire));
     } else {
-      // We are in a multi-bit scenario.
+      // We are in a multi-bit scenario and require a memref to hold the result
+      // bits.
       assert(retBits.size() > 1);
-      auto allocOp = b.create<memref::AllocOp>(
-          cast<MemRefType>(getTypeForWire(b, resultWire)));
+      memref::AllocOp allocOp;
+      TypedValue<MemRefType> memRefToStore;
+      if (resultTypes.has_value() &&
+          dyn_cast<ShapedType>(resultTypes.value()[i])) {
+        auto shapedResultType = cast<ShapedType>(resultTypes.value()[i]);
+        // The original generic returned a memref, so use it's shape as the
+        // allocated memref. This way, even though we return a flattened bit
+        // vector and secret cast it back to the original shape, this alloc op
+        // preserves that original shape, allowing the intermediate stores and
+        // cast to be folded away.
+        SmallVector<int64_t> shape =
+            llvm::to_vector(shapedResultType.getShape());
+        shape.push_back(shapedResultType.getElementTypeBitWidth());
+        allocOp =
+            b.create<memref::AllocOp>(MemRefType::get(shape, b.getI1Type()));
+        // Store the result bits after flattening this memref. The collapse op
+        // can be folded away with --fold-memref-alias-ops.
+        SmallVector<mlir::ReassociationIndices> reassociation;
+        auto range = llvm::seq<unsigned>(0, shapedResultType.getRank() + 1);
+        reassociation.emplace_back(range.begin(), range.end());
+        auto collapseOp =
+            b.create<memref::CollapseShapeOp>(allocOp, reassociation);
+        memRefToStore = collapseOp.getResult();
+      } else {
+        allocOp = b.create<memref::AllocOp>(
+            cast<MemRefType>(getTypeForWire(b, resultWire)));
+        memRefToStore = allocOp.getResult();
+      }
       for (unsigned j = 0; j < retBits.size(); j++) {
         b.create<memref::StoreOp>(
-            retBits[j], allocOp.getResult(),
+            retBits[j], memRefToStore,
             ValueRange{b.create<arith::ConstantIndexOp>(j)});
       }
-      returnValues.push_back(allocOp.getResult());
+      returnValues.push_back(memRefToStore);
     }
   }
   b.create<func::ReturnOp>(returnValues);

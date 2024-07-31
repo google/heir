@@ -75,7 +75,9 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //
 //   The order of use of the two allocs seem arbitrary and nondeterministic,
 //   so check the stores without the memref names
-//   CHECK-DAG:    %[[alloc:.*]] = memref.alloc() : memref<16xi1>
+//   CHECK-DAG:    %[[allocShape:.*]] = memref.alloc() : memref<2x8xi1>
+//   CHECK-DAG:    %[[alloc:.*]] = memref.collapse_shape %[[allocShape]]
+//   CHECK-SAME:      memref<2x8xi1> into memref<16xi1>
 //   CHECK-DAG:    memref.alloc() : memref<8xi1>
 //   CHECK-DAG:    memref.alloc() : memref<8xi1>
 //   CHECK-DAG:    memref.store %[[false]], %{{.*}}[%[[c0]]] : memref<8xi1>

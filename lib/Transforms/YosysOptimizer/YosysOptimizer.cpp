@@ -20,6 +20,7 @@
 #include "lib/Transforms/YosysOptimizer/BooleanGateImporter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Statistic.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
@@ -465,8 +466,11 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   } else {
     importer = std::make_unique<BooleanGateImporter>(context);
   }
-  func::FuncOp func =
-      importer->importModule(design->top_module(), topologicalOrder);
+  func::FuncOp func = importer->importModule(
+      design->top_module(), topologicalOrder,
+      llvm::to_vector(llvm::map_range(op.getResultTypes(), [](Type ty) {
+        return cast<secret::SecretType>(ty).getValueType();
+      })));
   Yosys::run_pass("delete;");
 
   LLVM_DEBUG(llvm::dbgs() << "Done importing RTLIL, now type-coverting ops\n");
@@ -532,30 +536,32 @@ void YosysOptimizer::runOnOperation() {
   auto *ctx = &getContext();
   auto *op = getOperation();
 
-  if (unrollFactor > 1 && failed(unrollAndMergeGenerics(
-                              op, unrollFactor, getAnalysis<DominanceInfo>(),
-                              getAnalysis<PostDominanceInfo>()))) {
-    signalPassFailure();
-    return;
+  mlir::RewritePatternSet cleanupPatterns(ctx);
+  if (unrollFactor > 1) {
+    if (failed(unrollAndMergeGenerics(op, unrollFactor,
+                                      getAnalysis<DominanceInfo>(),
+                                      getAnalysis<PostDominanceInfo>()))) {
+      signalPassFailure();
+      return;
+    }
+
+    // Cleanup after unrollAndMergeGenerics
+    // We lift loads/stores into their own generics if possible, to avoid
+    // putting the entire memref in the verilog module. Some loads would be
+    // hoistable but they depend on arithmetic of index accessors that are
+    // otherwise secret. Hence we need the HoistPlaintextOps provided by
+    // populateGenericCanonicalizers in addition to special patterns that lift
+    // loads and stores into their own generics.
+    cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
+        ctx, std::vector<std::string>{"memref.load", "affine.load"});
+    cleanupPatterns.add<secret::HoistOpAfterGeneric>(
+        ctx, std::vector<std::string>{"memref.store", "affine.store"});
   }
 
-  // Cleanup after unrollAndMergeGenerics
-  mlir::RewritePatternSet cleanupPatterns(ctx);
-  // We lift loads/stores into their own generics if possible, to avoid putting
-  // the entire memref in the verilog module. Some loads would be hoistable but
-  // they depend on arithmetic of index accessors that are otherwise secret.
-  // Hence we need the HoistPlaintextOps provided by
-  // populateGenericCanonicalizers in addition to special patterns that lift
-  // loads and stores into their own generics.
-  cleanupPatterns.add<secret::HoistOpBeforeGeneric>(
-      ctx, std::vector<std::string>{"memref.load", "affine.load"});
-  cleanupPatterns.add<secret::HoistOpAfterGeneric>(
-      ctx, std::vector<std::string>{"memref.store", "affine.store"});
   secret::populateGenericCanonicalizers(cleanupPatterns, ctx);
   if (failed(applyPatternsAndFoldGreedily(op, std::move(cleanupPatterns)))) {
     signalPassFailure();
-    getOperation()->emitError()
-        << "Failed to cleanup generic ops after unrollAndMergeGenerics";
+    getOperation()->emitError() << "Failed to cleanup generic ops";
     return;
   }
 
@@ -580,8 +586,7 @@ void YosysOptimizer::runOnOperation() {
   mlir::IRRewriter builder(&getContext());
   auto result = op->walk([&](secret::GenericOp op) {
     // Now pass through any constants used after capturing the ambient scope.
-    // This
-    // way Yosys can optimize constants away instead of treating them as
+    // This way Yosys can optimize constants away instead of treating them as
     // variables to the optimized body.
     genericAbsorbConstants(op, builder);
 
