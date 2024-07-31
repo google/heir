@@ -14,8 +14,8 @@
 // Arithmetic and Logical Operations
 //===----------------------------------------------------------------------===//
 
-#ifndef HEIR_LIB_DIALECT_COMB_COMBINATIONAL_TD
-#define HEIR_LIB_DIALECT_COMB_COMBINATIONAL_TD
+#ifndef LIB_DIALECT_COMB_COMBINATIONAL_TD
+#define LIB_DIALECT_COMB_COMBINATIONAL_TD
 
 include "lib/Dialect/HEIRInterfaces.td"
 
@@ -315,4 +315,4 @@ def TruthTableOp : CombOp<"truth_table", [Pure, DeclareOpInterfaceMethods<LUTOpI
   let hasVerifier = 1;
 }
 
-#endif // HEIR_LIB_DIALECT_COMB_COMBINATIONAL_TD
+#endif // LIB_DIALECT_COMB_COMBINATIONAL_TD

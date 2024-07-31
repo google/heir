@@ -13,3 +13,14 @@
 # Same for llvm paths.
 - search: '/^#include ("llvm\/.*")$/'
   replacement: '#include \1 // from @llvm-project'
+
+# consistent include guards
+# Cf. https://github.com/google/heir/issues/843
+# Note the trailing underscore which helps avoid matching other #defines that
+# might start with HEIR_
+- search: '/^#ifndef HEIR_(.*)_$/'
+  replacement: '#ifndef \1_'
+- search: '/^#define HEIR_(.*)_$/'
+  replacement: '#define \1_'
+- search: '/^#endif *\/\/ HEIR_(.*)_$/'
+  replacement: '#endif  // \1_'

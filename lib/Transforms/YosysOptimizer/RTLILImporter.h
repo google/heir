@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_
-#define HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_
+#ifndef LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_
+#define LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_
 
 #include "llvm/include/llvm/ADT/MapVector.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/StringMap.h"            // from @llvm-project
@@ -79,4 +79,4 @@ class RTLILImporter {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // HEIR_LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_
+#endif  // LIB_TRANSFORMS_YOSYSOPTIMIZER_RTLILIMPORTER_H_

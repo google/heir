@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_SECRET_IR_SECRETDIALECT_TD_
-#define HEIR_LIB_DIALECT_SECRET_IR_SECRETDIALECT_TD_
+#ifndef LIB_DIALECT_SECRET_IR_SECRETDIALECT_TD_
+#define LIB_DIALECT_SECRET_IR_SECRETDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
@@ -26,4 +26,4 @@ def Secret_Dialect : Dialect {
   let useDefaultTypePrinterParser = 1;
 }
 
-#endif  // HEIR_LIB_DIALECT_SECRET_IR_SECRETDIALECT_TD_
+#endif  // LIB_DIALECT_SECRET_IR_SECRETDIALECT_TD_

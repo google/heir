@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HEIR_LIB_DIALECT_COMB_COMBOPS_H
-#define HEIR_LIB_DIALECT_COMB_COMBOPS_H
+#ifndef LIB_DIALECT_COMB_COMBOPS_H
+#define LIB_DIALECT_COMB_COMBOPS_H
 
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/HEIRInterfaces.h"
@@ -34,4 +34,4 @@ class PatternRewriter;
 #define GET_OP_CLASSES
 #include "lib/Dialect/Comb/IR/Comb.h.inc"
 
-#endif  // HEIR_LIB_DIALECT_COMB_COMBOPS_H
+#endif  // LIB_DIALECT_COMB_COMBOPS_H

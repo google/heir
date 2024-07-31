@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_BGV_IR_BGVOPS_TD_
-#define HEIR_LIB_DIALECT_BGV_IR_BGVOPS_TD_
+#ifndef LIB_DIALECT_BGV_IR_BGVOPS_TD_
+#define LIB_DIALECT_BGV_IR_BGVOPS_TD_
 
 include "BGVDialect.td"
 
@@ -198,4 +198,4 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-#endif  // HEIR_LIB_DIALECT_BGV_IR_BGVOPS_TD_
+#endif  // LIB_DIALECT_BGV_IR_BGVOPS_TD_

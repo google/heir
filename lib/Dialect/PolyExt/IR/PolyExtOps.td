@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_
-#define HEIR_LIB_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_
+#ifndef LIB_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_
+#define LIB_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_
 
 include "PolyExtDialect.td"
 include "mlir/Dialect/Polynomial/IR/PolynomialTypes.td"
@@ -39,4 +39,4 @@ def PolyExt_CModSwitchOp : PolyExt_Op<"cmod_switch", traits = [Pure, Elementwise
 }
 
 
-#endif  // HEIR_LIB_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_
+#endif  // LIB_DIALECT_POLYEXT_IR_POLYEXTOPS_TD_

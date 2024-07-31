@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_DIALECT_LWE_IR_LWEATTRIBUTES_H_
-#define HEIR_LIB_DIALECT_LWE_IR_LWEATTRIBUTES_H_
+#ifndef LIB_DIALECT_LWE_IR_LWEATTRIBUTES_H_
+#define LIB_DIALECT_LWE_IR_LWEATTRIBUTES_H_
 
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "mlir/include/mlir/IR/TensorEncoding.h"  // from @llvm-project
@@ -10,4 +10,4 @@
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/LWE/IR/LWEAttributes.h.inc"
 
-#endif  // HEIR_LIB_DIALECT_LWE_IR_LWEATTRIBUTES_H_
+#endif  // LIB_DIALECT_LWE_IR_LWEATTRIBUTES_H_

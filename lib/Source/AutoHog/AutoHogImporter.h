@@ -1,5 +1,5 @@
-#ifndef HEIR_LIB_SOURCE_AUTOHOG_AUTOHOGIMPORTER_H_
-#define HEIR_LIB_SOURCE_AUTOHOG_AUTOHOGIMPORTER_H_
+#ifndef LIB_SOURCE_AUTOHOG_AUTOHOGIMPORTER_H_
+#define LIB_SOURCE_AUTOHOG_AUTOHOGIMPORTER_H_
 
 #include <optional>
 #include <string>
@@ -46,4 +46,4 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // HEIR_LIB_SOURCE_AUTOHOG_AUTOHOGIMPORTER_H_
+#endif  // LIB_SOURCE_AUTOHOG_AUTOHOGIMPORTER_H_
