@@ -5,6 +5,7 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -19,6 +20,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "convert-if-to-select"
 
 namespace mlir {
 namespace heir {
@@ -108,18 +111,21 @@ struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
 
     auto result = solver.initializeAndRun(getOperation());
 
-    getOperation()->walk([&](Operation *op) {
-      llvm::errs() << "Operation: " << *op << "\n";
-      for (auto operand : op->getOperands()) {
-        Secretness secretness =
-            solver.lookupState<SecretnessLattice>(operand)->getValue();
-        llvm::errs() << "\tOperand : " << operand << "; " << secretness << "\n";
-      }
-      for (auto result : op->getResults()) {
-        Secretness secretness =
-            solver.lookupState<SecretnessLattice>(result)->getValue();
-        llvm::errs() << "\tResult : " << result << "; " << secretness << "\n";
-      }
+    LLVM_DEBUG({
+      getOperation()->walk([&](Operation *op) {
+        llvm::errs() << "Operation: " << *op << "\n";
+        for (auto operand : op->getOperands()) {
+          Secretness secretness =
+              solver.lookupState<SecretnessLattice>(operand)->getValue();
+          llvm::errs() << "\tOperand : " << operand << "; " << secretness
+                       << "\n";
+        }
+        for (auto result : op->getResults()) {
+          Secretness secretness =
+              solver.lookupState<SecretnessLattice>(result)->getValue();
+          llvm::errs() << "\tResult : " << result << "; " << secretness << "\n";
+        }
+      });
     });
 
     if (failed(result)) {
