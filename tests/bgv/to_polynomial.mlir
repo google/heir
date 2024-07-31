@@ -1,7 +1,5 @@
-// RUN: heir-opt --bgv-to-polynomial %s > %t
+// RUN: heir-opt --bgv-to-lwe --lwe-to-polynomial %s > %t
 // RUN: FileCheck %s < %t
-
-// This simply tests for syntax.
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
@@ -11,6 +9,7 @@
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring>
 
 !ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i3>
+!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
 
 // CHECK: module
 module {
@@ -21,8 +20,8 @@ module {
   }
 
 
-  // CHECK: func.func @test_bin_ops([[X:%.+]]: [[T:tensor<2x!polynomial.*33538049.*]], [[Y:%.+]]: [[T]]) {
-  func.func @test_bin_ops(%x : !ct1, %y : !ct1) {
+  // CHECK: func.func @test_bin_ops([[X:%.+]]: [[T:tensor<2x!polynomial.*33538049.*]], [[Y:%.+]]: [[T]])
+  func.func @test_bin_ops(%x : !ct1, %y : !ct1) -> (!ct1, !ct1, !ct1, !ct2) {
     // CHECK: polynomial.add [[X]], [[Y]] : [[T]]
     %add = bgv.add %x, %y  : !ct1
     // CHECK: polynomial.sub [[X]], [[Y]] : [[T]]
@@ -43,7 +42,7 @@ module {
     // CHECK: [[Z1:%.+]] = polynomial.add [[X0Y1]], [[X1Y0]] : [[P]]
     // CHECK: [[Z2:%.+]] = polynomial.mul [[X1]], [[Y1]] : [[P]]
     // CHECK: [[Z:%.+]] = tensor.from_elements [[Z0]], [[Z1]], [[Z2]] : tensor<3x[[P]]>
-    %mul = bgv.mul %x, %y  : (!ct1, !ct1) -> !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
-    return
+    %mul = bgv.mul %x, %y  : (!ct1, !ct1) -> !ct2
+    return %add, %sub, %negate, %mul : !ct1, !ct1, !ct1, !ct2
   }
 }

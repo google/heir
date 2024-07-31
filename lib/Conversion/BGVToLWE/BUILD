@@ -6,10 +6,10 @@ package(
 )
 
 cc_library(
-    name = "BGVToPolynomial",
-    srcs = ["BGVToPolynomial.cpp"],
+    name = "BGVToLWE",
+    srcs = ["BGVToLWE.cpp"],
     hdrs = [
-        "BGVToPolynomial.h",
+        "BGVToLWE.h",
     ],
     deps = [
         ":pass_inc_gen",
@@ -33,17 +33,17 @@ gentbl_cc_library(
         (
             [
                 "-gen-pass-decls",
-                "-name=BGVToPolynomial",
+                "-name=BGVToLWE",
             ],
-            "BGVToPolynomial.h.inc",
+            "BGVToLWE.h.inc",
         ),
         (
             ["-gen-pass-doc"],
-            "BGVToPolynomial.md",
+            "BGVToLWE.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVToPolynomial.td",
+    td_file = "BGVToLWE.td",
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",

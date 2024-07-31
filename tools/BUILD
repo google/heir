@@ -33,8 +33,8 @@ cc_binary(
     includes = ["include"],
     deps = [
         "@heir//lib/Conversion/ArithExtToArith",
+        "@heir//lib/Conversion/BGVToLWE",
         "@heir//lib/Conversion/BGVToOpenfhe",
-        "@heir//lib/Conversion/BGVToPolynomial",
         "@heir//lib/Conversion/CGGIToTfheRust",
         "@heir//lib/Conversion/CGGIToTfheRustBool",
         "@heir//lib/Conversion/CombToCGGI",

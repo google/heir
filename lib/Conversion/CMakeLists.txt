@@ -22,7 +22,7 @@ add_mlir_dialect_library(MLIRHEIRUtils
 
 add_subdirectory(ArithExtToArith)
 add_subdirectory(BGVToOpenfhe)
-add_subdirectory(BGVToPolynomial)
+add_subdirectory(BGVToLWE)
 add_subdirectory(CGGIToTfheRust)
 add_subdirectory(CGGIToTfheRustBool)
 add_subdirectory(CombToCGGI)
