@@ -40,6 +40,8 @@ class Secretness {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
+    if (lhs.getSecretness() == rhs.getSecretness()) return lhs;
+
     return Secretness{lhs.getSecretness() || rhs.getSecretness()};
   }
 

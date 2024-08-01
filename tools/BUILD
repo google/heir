@@ -73,6 +73,7 @@ cc_binary(
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
         "@heir//lib/Transforms/ApplyFolders",
         "@heir//lib/Transforms/ConvertIfToSelect",
+        "@heir//lib/Transforms/ConvertSecretForToStaticFor",
         "@heir//lib/Transforms/ElementwiseToAffine",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
