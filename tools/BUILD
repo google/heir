@@ -25,7 +25,7 @@ cc_binary(
     # an escaped quote).
     defines = select({
         "@heir//:config_enable_yosys": [
-            "HEIR_ABC_BINARY=\\\"$(location @edu_berkeley_abc//:abc)\\\"",
+            "HEIR_ABC_BINARY=\\\"$(rootpath @edu_berkeley_abc//:abc)\\\"",
             "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
         ],
         "//conditions:default": ["HEIR_NO_YOSYS=1"],
