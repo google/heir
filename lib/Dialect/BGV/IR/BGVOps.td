@@ -7,11 +7,8 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 
 include "lib/Dialect/LWE/IR/LWETypes.td"
+include "lib/Dialect/LWE/IR/LWETraits.td"
 include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
-
-def SameOperandsAndResultRings:  NativeOpTrait<"SameOperandsAndResultRings"> {
-  let cppNamespace = "::mlir::heir::lwe";
-}
 
 class BGV_Op<string mnemonic, list<Trait> traits = []> :
         Op<BGV_Dialect, mnemonic, traits> {

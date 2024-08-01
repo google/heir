@@ -46,6 +46,8 @@ def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
   );
 }
 
+def RLWECiphertextLike : TypeOrContainer<RLWECiphertext, "ciphertext-like">;
+
 def RLWESecretKey : LWE_Type<"RLWESecretKey", "rlwe_secret_key"> {
   let summary = "A secret key for RLWE";
   let parameters = (ins "RLWEParamsAttr":$rlwe_params);

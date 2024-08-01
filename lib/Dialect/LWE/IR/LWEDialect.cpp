@@ -1,6 +1,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 
 #include <cstdint>
+#include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -15,6 +16,7 @@
 
 // Generated definitions
 #include "lib/Dialect/LWE/IR/LWEDialect.cpp.inc"
+#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -42,6 +44,34 @@ void LWEDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/LWE/IR/LWEOps.cpp.inc"
       >();
+}
+
+LogicalResult RMulOp::verify() {
+  auto x = getLhs().getType();
+  auto y = getRhs().getType();
+  if (x.getRlweParams().getDimension() != y.getRlweParams().getDimension()) {
+    return emitOpError() << "input dimensions do not match";
+  }
+  auto out = getOutput().getType();
+  if (out.getRlweParams().getDimension() !=
+      y.getRlweParams().getDimension() + x.getRlweParams().getDimension() - 1) {
+    return emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
+  }
+  return success();
+}
+
+LogicalResult RMulOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  auto x = cast<lwe::RLWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::RLWECiphertextType>(adaptor.getRhs().getType());
+  auto newDim =
+      x.getRlweParams().getDimension() + y.getRlweParams().getDimension() - 1;
+  inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
+      ctx, x.getEncoding(),
+      lwe::RLWEParamsAttr::get(ctx, newDim, x.getRlweParams().getRing()),
+      x.getUnderlyingType()));
+  return success();
 }
 
 LogicalResult BitFieldEncodingAttr::verifyEncoding(

@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "lib/Conversion/ArithExtToArith/ArithExtToArith.h"
+#include "lib/Conversion/BGVToLWE/BGVToLWE.h"
 #include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
-#include "lib/Conversion/BGVToPolynomial/BGVToPolynomial.h"
 #include "lib/Conversion/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Conversion/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "lib/Conversion/CombToCGGI/CombToCGGI.h"
@@ -549,7 +549,7 @@ int main(int argc, char **argv) {
 
   // Dialect conversion passes in HEIR
   arith_ext::registerArithExtToArithPasses();
-  bgv::registerBGVToPolynomialPasses();
+  bgv::registerBGVToLWEPasses();
   bgv::registerBGVToOpenfhePasses();
   comb::registerCombToCGGIPasses();
   lwe::registerLWEToPolynomialPasses();

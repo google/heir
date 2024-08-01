@@ -36,6 +36,7 @@ td_library(
         "LWEAttributes.td",
         "LWEDialect.td",
         "LWEOps.td",
+        "LWETraits.td",
         "LWETypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths

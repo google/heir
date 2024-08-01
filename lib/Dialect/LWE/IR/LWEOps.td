@@ -2,6 +2,7 @@
 #define LIB_DIALECT_LWE_IR_LWEOPS_TD_
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
+include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
 include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
@@ -111,6 +112,38 @@ def LWE_AddOp : LWE_Op<"add", [
   let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
   let results = (outs LWECiphertextLike:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def LWE_RAddOp : LWE_Op<"radd", [
+    Pure, Commutative, SameOperandsAndResultType]> {
+  let summary = "Add two RLWE ciphertexts";
+  let arguments = (ins RLWECiphertextLike:$lhs, RLWECiphertextLike:$rhs);
+  let results = (outs RLWECiphertextLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def LWE_RSubOp : LWE_Op<"rsub", [
+    Pure, Commutative, SameOperandsAndResultType]> {
+  let summary = "Subtract two RLWE ciphertexts";
+  let arguments = (ins RLWECiphertextLike:$lhs, RLWECiphertextLike:$rhs);
+  let results = (outs RLWECiphertextLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def LWE_RNegateOp : LWE_Op<"rnegate", [
+    Pure, Commutative, SameOperandsAndResultType]> {
+  let summary = "Negate a RLWE ciphertexts";
+  let arguments = (ins RLWECiphertextLike:$input);
+  let results = (outs RLWECiphertextLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def LWE_RMulOp : LWE_Op<"rmul", [
+    Pure, Commutative, SameOperandsAndResultRings, SameTypeOperands, InferTypeOpAdaptor]> {
+  let summary = "Multiplies two RLWE ciphertexts";
+  let arguments = (ins RLWECiphertext:$lhs, RLWECiphertext:$rhs);
+  let results = (outs RLWECiphertext:$output);
+  let hasVerifier = 1;
 }
 
 def LWE_MulScalarOp : LWE_Op<"mul_scalar", [
