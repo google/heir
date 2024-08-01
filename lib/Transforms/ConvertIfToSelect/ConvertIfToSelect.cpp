@@ -72,7 +72,7 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
     auto thenYieldArgs = ifOp.thenYield().getOperands();
     auto elseYieldArgs = ifOp.elseYield().getOperands();
 
-    SmallVector<Value> newIfResults(ifOp->getNumResults());
+    SmallVector<Value> newResults(ifOp->getNumResults());
     if (ifOp->getNumResults() > 0) {
       rewriter.setInsertionPoint(ifOp);
 
@@ -80,10 +80,11 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
            llvm::enumerate(llvm::zip(thenYieldArgs, elseYieldArgs))) {
         Value trueVal = std::get<0>(it.value());
         Value falseVal = std::get<1>(it.value());
-        newIfResults[it.index()] = rewriter.create<arith::SelectOp>(
+        newResults[it.index()] = rewriter.create<arith::SelectOp>(
             ifOp.getLoc(), cond, trueVal, falseVal);
       }
-      rewriter.replaceOp(ifOp, newIfResults);
+
+      rewriter.replaceOp(ifOp, newResults);
     }
 
     return success();
@@ -107,20 +108,6 @@ struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
     solver.load<SecretnessAnalysis>();
 
     auto result = solver.initializeAndRun(getOperation());
-
-    getOperation()->walk([&](Operation *op) {
-      llvm::errs() << "Operation: " << *op << "\n";
-      for (auto operand : op->getOperands()) {
-        Secretness secretness =
-            solver.lookupState<SecretnessLattice>(operand)->getValue();
-        llvm::errs() << "\tOperand : " << operand << "; " << secretness << "\n";
-      }
-      for (auto result : op->getResults()) {
-        Secretness secretness =
-            solver.lookupState<SecretnessLattice>(result)->getValue();
-        llvm::errs() << "\tResult : " << result << "; " << secretness << "\n";
-      }
-    });
 
     if (failed(result)) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";

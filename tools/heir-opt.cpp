@@ -42,6 +42,7 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
+#include "lib/Transforms/ConvertSecretForToStaticFor/ConvertSecretForToStaticFor.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -519,6 +520,7 @@ int main(int argc, char **argv) {
   registerSecretizePasses();
   registerFullLoopUnrollPasses();
   registerConvertIfToSelectPasses();
+  registerConvertSecretForToStaticForPasses();
   registerApplyFoldersPasses();
   registerForwardStoreToLoadPasses();
   registerStraightLineVectorizerPasses();
