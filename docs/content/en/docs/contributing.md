@@ -1,7 +1,7 @@
 <!-- mdformat off(yaml frontmatter) -->
 ---
 title: Contributing to HEIR
-weight: 80
+weight: 20
 ---
 <!-- mdformat on -->
 
@@ -26,44 +26,65 @@ For new proposals, please open a GitHub
 [issue](https://github.com/google/heir/issues) or start a
 [discussion](https://github.com/google/heir/discussions) for feedback.
 
-## Contributing to code using pull requests
-
-### Preparing a pull request
+## Contributing code to HEIR
 
 The following steps should look familiar to typical workflows for pull request
 contributions. Feel free to consult
 [GitHub Help](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests)
-if you need more information using pull requests. HEIR-specific processes begin
+if you need more information using pull requests.
+HEIR-specific processes begin
 at the [pull request review stage](#pull-request-review-flow).
 
-1. Sign the
-   [Contributor License Agreement](https://cla.developers.google.com/about)
-   (CLA). See more
-   [here](https://github.com/google/heir/blob/main/CONTRIBUTING.md#sign-our-contributor-license-agreement).
 
+### Setup
 1. Fork the HEIR repository by clicking the **Fork** button on the
-   [repository page](https://github.com/google/heir). This creates a copy of the
-   HEIR repository on your own GitHub account.
+  [repository page](https://github.com/google/heir). This creates a copy of the
+  HEIR repository on your own GitHub account, where you can make changes.
 
-1. See [Getting Started](https://heir.dev/docs/getting_started/) to
-   install developer dependencies to build and run tests.
+   <details>
+   <summary>Setting up git to work with fork and upstream remotes.</summary>
+    If you have cloned your fork, you will want to
+     add the HEIR repository as an upstream remote:
 
-1. Add the HEIR repository as an upstream remote, so you can sync your changes
-   against it.
+    ```bash
+    git remote add upstream https://www.github.com/google/heir
+    ```
 
-   ```bash
-   git remote add upstream https://www.github.com/google/heir
-   ```
+    Alternatively, if you have cloned the main HEIR repo,
+    you can add your fork as a remote like this:
+    ```bash
+    git remote rename origin upstream
+    git remote add origin https://www.github.com/<USERNAME>/heir
+    ```
 
-1. Create a development branch for your change:
+    Either way, you will want to create
+    a development branch for your change:
 
-   ```bash
+    ```bash
     git checkout -b name-of-change
-   ```
+    ```
 
-   And implement your changes using your favorite IDE. See
-   [IDE Configuration](https://heir.dev/docs/ide_configuration/)
-   for more.
+    In the remainder of this document,
+    we will assume `origin` is your fork,
+    and `upstream` is the main HEIR repo.
+    </details>
+
+1. See [Development](https://heir.dev/docs/development/) for information
+   on installing developer dependencies, building and running tests,
+   and adding new dialects or passes.
+
+1. Sign the
+  [Contributor License Agreement](https://cla.developers.google.com/about)
+  (CLA). If you are working on HEIR as part of your employment,
+  you might have to instead sign a Corporate CLA.
+  See more [here](https://github.com/google/heir/blob/main/CONTRIBUTING.md#sign-our-contributor-license-agreement).
+
+### Preparing a pull request
+
+1. Sync your changes against the upstream HEIR repository,
+   i.e., make sure your contributions are (re)based of the
+   most recent `upstream/main` commit.
+
 
 1. Check HEIR's lint and style checks by running the following from the top of
    the repository:
@@ -78,7 +99,7 @@ at the [pull request review stage](#pull-request-review-flow).
     bazel test @heir//...
    ```
 
-1. Once you are ready with your change, create a commit as follows.
+1. Once you are ready with your change, create a commit, e.g.:
 
    ```bash
    git add change.cpp
@@ -105,7 +126,7 @@ at the [pull request review stage](#pull-request-review-flow).
   - Once the PR is approved, a GitHub workflow will
     [check](https://github.com/google/heir/blob/main/.github/workflows/pr_review.yml)
     your PR for multiple commits. You may use the `git rebase -i` to squash the
-    commits. Pull requests must comprise of a single git commit before merging.
+    commits. Pull requests must consist of a single git commit before merging.
 4. **Pull Ready**
   - Once the PR is squashed into a single git commit, a maintainer will apply the
     `pull ready` label.
