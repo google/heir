@@ -3554,6 +3554,47 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lweradd-heirlweraddop">&lt;code>lwe.radd&lt;/code> (heir::lwe::RAddOp)&lt;/h3>
+&lt;p>&lt;em>Add two RLWE ciphertexts&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.radd` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lwerlwe_decode-heirlwerlwedecodeop">&lt;code>lwe.rlwe_decode&lt;/code> (heir::lwe::RLWEDecodeOp)&lt;/h3>
 &lt;p>&lt;em>Decode an RLWE plaintext to an underlying type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -3567,7 +3608,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded RLWE plaintexts via coefficients. or An attribute describing encoded RLWE plaintexts via evaluations at fixed points. or An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3582,7 +3623,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3605,7 +3646,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3624,7 +3665,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3657,7 +3698,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded RLWE plaintexts via coefficients. or An attribute describing encoded RLWE plaintexts via evaluations at fixed points. or An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3672,7 +3713,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3695,7 +3736,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3714,7 +3755,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3726,6 +3767,125 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lwermul-heirlwermulop">&lt;code>lwe.rmul&lt;/code> (heir::lwe::RMulOp)&lt;/h3>
+&lt;p>&lt;em>Multiplies two RLWE ciphertexts&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rmul` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lwernegate-heirlwernegateop">&lt;code>lwe.rnegate&lt;/code> (heir::lwe::RNegateOp)&lt;/h3>
+&lt;p>&lt;em>Negate a RLWE ciphertexts&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rnegate` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lwersub-heirlwersubop">&lt;code>lwe.rsub&lt;/code> (heir::lwe::RSubOp)&lt;/h3>
+&lt;p>&lt;em>Subtract two RLWE ciphertexts&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.rsub` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -3741,7 +3901,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>params&lt;/code>&lt;/td>&lt;td>::mlir::heir::lwe::LWEParamsAttr&lt;/td>&lt;td>&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3756,7 +3916,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3781,7 +3941,7 @@ does not keep track of types for you.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3796,7 +3956,7 @@ does not keep track of types for you.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-12">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
