@@ -130,10 +130,16 @@ struct ElementwiseToAffine
     RewritePatternSet patterns(context);
 
     patterns.add<ConvertAnyElementwiseMappableOpOnRankedTensors>(context);
-    target.markUnknownOpDynamicallyLegal([](Operation *op) {
-      // TODO (#768): to make this pass more widely applicable, it should take
-      // a dialect and/or list of operations to restrict the conversion to
-      return !isElementwiseMappableOpOnRankedTensors(op);
+    target.markUnknownOpDynamicallyLegal([&](Operation *op) {
+      bool convertAll = convertDialects.empty() && convertOps.empty();
+      bool convertDialect = llvm::is_contained(
+          convertDialects, op->getDialect()->getNamespace().str());
+      bool convertOp =
+          llvm::is_contained(convertOps, op->getName().getStringRef().str());
+
+      if (convertAll || convertDialect || convertOp)
+        return !isElementwiseMappableOpOnRankedTensors(op);
+      return true;
     });
 
     if (failed(applyPartialConversion(getOperation(), target,
