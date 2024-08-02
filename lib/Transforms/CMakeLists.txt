@@ -6,6 +6,7 @@ add_subdirectory(FullLoopUnroll)
 add_subdirectory(Secretize)
 add_subdirectory(StraightLineVectorizer)
 add_subdirectory(UnusedMemRef)
+add_subdirectory(ConvertSecretForToStaticFor)
 
 if(ENABLE_YOSYS)
     # TODO (#797): Support Yosys in cmake build.
