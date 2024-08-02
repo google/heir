@@ -945,17 +945,34 @@ into HEIR without at least two Googlers approving it, and the project is held
 to a specific set of code quality standards, namely Google&amp;rsquo;s. We acknowledge
 these quirks, and look forward to the day when HEIR is useful enough and
 important enough that we can revisit this governance structure with the
-community.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
+community.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-25</title><link>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</link><pubDate>Thu, 25 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</guid><description>
+&lt;p>Here are the
+&lt;a href="google3/third_party/heir/g3doc/content/en/blog/heir_meeting_2024-07-18.md">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1_1CbRJeNr5NqcwEMXnfkxOqy9u5wJPyq/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1o2-I03DJtNJQDupSHn8LtOXLmxsd3WO1fjvqLbT-SIc/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1bCMuuKnBVf6HP7R2SiZgo1C1vsG6FzF2/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-18. This special discussion was focused on the modular arithmetic dialect.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
+from the HEIR meeting on 2024-07-18. This special discussion was focused on the modular arithmetic dialect.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-12-12.&lt;/p>
+&lt;p>This is the last meeting for 2023. Please respond to &lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this
+poll&lt;/a> for 2024 scheduling preferences.&lt;/p></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
+&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
+IRs.&lt;/p>
+&lt;p>Our initial meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
+Stay tuned for future updates while we work out a meeting schedule.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="-apply-folders">&lt;code>-apply-folders&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Apply all folding patterns from canonicalize&lt;/em>&lt;/p>
@@ -7850,33 +7867,4 @@ using the boolean parameter set.&lt;/p>
 &lt;td>eb-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table></description></item><item><title>Docs: UnusedMemRefPasses</title><link>https://heir.dev/docs/passes/unusedmemrefpasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/unusedmemrefpasses/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="-remove-unused-memref">&lt;code>-remove-unused-memref&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Cleanup any unused memrefs&lt;/em>&lt;/p>
-&lt;p>Scan the IR for unused memrefs and remove them.&lt;/p>
-&lt;p>This pass looks for locally allocated memrefs that are never used and
-deletes them. This pass can be used as a cleanup pass from other IR
-simplifications that forward stores to loads.&lt;/p></description></item><item><title>Docs: YosysOptimizerPasses</title><link>https://heir.dev/docs/passes/yosysoptimizerpasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/yosysoptimizerpasses/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="-yosys-optimizer">&lt;code>-yosys-optimizer&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Invoke Yosys to perform circuit optimization.&lt;/em>&lt;/p>
-&lt;p>This pass invokes Yosys to convert an arithmetic circuit to an optimized
-boolean circuit that uses the arith and comb dialects.&lt;/p>
-&lt;p>Note that booleanization changes the function signature: multi-bit integers
-are transformed to a tensor of booleans, for example, an &lt;code>i8&lt;/code> is converted
-to &lt;code>tensor&amp;lt;8xi1&amp;gt;&lt;/code>.&lt;/p>
-&lt;p>The optimizer will be applied to each &lt;code>secret.generic&lt;/code> op containing
-arithmetic ops that can be optimized.&lt;/p>
-&lt;p>Optional parameters:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>abc-fast&lt;/code>: Run the abc optimizer in &amp;ldquo;fast&amp;rdquo; mode, getting faster compile
-time at the expense of a possibly larger output circuit.&lt;/li>
-&lt;li>&lt;code>unroll-factor&lt;/code>: Before optimizing the circuit, unroll loops by a given
-factor. If unset, this pass will not unroll any loops.&lt;/li>
-&lt;li>&lt;code>print-stats&lt;/code>: Prints statistics about the optimized circuits.&lt;/li>
-&lt;li>&lt;code>mode={Boolean,LUT}&lt;/code>: Map gates to boolean gates or lookup table gates.&lt;/li>
-&lt;/ul>
-&lt;h4 id="statistics">Statistics&lt;/h4>
-&lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item></channel></rss>
+&lt;/table></description></item></channel></rss>
