@@ -35,6 +35,11 @@ def TensorToScalars : Pass<"convert-tensor-to-scalars"> {
   let dependentDialects = [
     "tensor::TensorDialect"
   ];
+
+  let options = [
+    Option<"maxSize", "max-size", "int", /*default=*/"8",
+           "Limits `unrolling` to tensors with at most max-size elements">,
+  ];
 }
 
 #endif  // LIB_TRANSFORMS_TENSORTOSCALARS_TENSORTOSCALARS_TD_

@@ -54,6 +54,9 @@ class ConvertFromElementsOp
   LogicalResult matchAndRewrite(
       tensor::FromElementsOp op, OpAdaptor adaptor,
       OneToNPatternRewriter &rewriter) const override {
+    // OneToNConversion has no Conversion-level illegality handling
+    if (typeConverter->isLegal(op)) return failure();
+
     // This pass only operates on tensors of static shape,
     // but no check is necessary here as from_elements' shape is always static
 
@@ -72,6 +75,9 @@ class ConvertInsertOp : public OneToNOpConversionPattern<tensor::InsertOp> {
   LogicalResult matchAndRewrite(
       tensor::InsertOp op, OpAdaptor adaptor,
       OneToNPatternRewriter &rewriter) const override {
+    // OneToNConversion has no Conversion-level illegality handling
+    if (typeConverter->isLegal(op)) return failure();
+
     // This pass only operates on tensors of static shape
     if (!op.getResult().getType().hasStaticShape()) return failure();
 
@@ -104,12 +110,16 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
 
+    // do not unroll tensors with more than maxSize elements
+    int maxSizeInt = maxSize.getValue();
     OneToNTypeConverter typeConverter;
     typeConverter.addConversion([](Type type) { return type; });
     typeConverter.addConversion(
-        [](RankedTensorType tensorType,
-           SmallVectorImpl<Type> &types) -> std::optional<LogicalResult> {
+        [maxSizeInt](
+            RankedTensorType tensorType,
+            SmallVectorImpl<Type> &types) -> std::optional<LogicalResult> {
           if (!tensorType.hasStaticShape()) return std::nullopt;
+          if (tensorType.getNumElements() > maxSizeInt) return std::nullopt;
           types = SmallVector<Type>(tensorType.getNumElements(),
                                     tensorType.getElementType());
           return success();
