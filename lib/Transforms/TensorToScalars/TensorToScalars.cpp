@@ -110,11 +110,8 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
         [](RankedTensorType tensorType,
            SmallVectorImpl<Type> &types) -> std::optional<LogicalResult> {
           if (!tensorType.hasStaticShape()) return std::nullopt;
-          int count = 1;
-          for (auto dim : tensorType.getShape()) {
-            if (dim > 0) count *= dim;
-          }
-          types = SmallVector<Type>(count, tensorType.getElementType());
+          types = SmallVector<Type>(tensorType.getNumElements(),
+                                    tensorType.getElementType());
           return success();
         });
     typeConverter.addArgumentMaterialization(buildFromElementsOp);
