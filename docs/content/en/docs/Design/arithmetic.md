@@ -57,9 +57,50 @@ We assume the program has already been transformed to the SIMD paradigm,
 either manually or through the `-heir-simd-vectorizer` pipeline
 (See [SIMD Optimizations](https://heir.dev/docs/design/simd/)).
 
-1. Secret Annotation
+1. **Secret Annotation & Wrapping**
+   See also the [Secret](https://heir.dev/docs/design/secret) Design documentation,
    In the input IR, function arguments that should be secret are annotated with `{{secret.secret}}`,
    either manually or via the `entry-function=...` option of the `--secretize` pass
    (this option is also present on pipelines that internally use the `secretize` pass).
    <!-- TODO: I think we should change this, and make the secretize step an explicit step,
               to allow better reuse of the mlir-to-... pipelines for frontends/advanced inputs -->
+    These function arguments are then converted to `secret.secret<original-type>` types,
+    and the function body wrapped in a `secret.generic` operation.
+
+1. **Distribute Secret**
+   In order to determine which operations actually need to be translated to FHE,
+   and which can remain (e.g., computation of indices in the clear, helper code, etc),
+   the `--distribute-generic` pass transforms the code so that all operations
+   that must be translated to FHE are isolated into their own `secret.generic` wrapper.
+
+1. **Parameter Selection**
+   HEIR can do basic automatic parameter selection based on the MultDepth of a program.
+   However, at the moment, this is available only when targeting OpenFHE
+   and uses the OpenFHE parameter selection internally.
+
+   At the moment, parameter selection for other targets must be done manually,
+   with the desired polynomial degree and coefficient moduli passed in as pass options
+   (`poly-mod-degree=...` and `coefficient-mod-bits=...`).
+   <!-- TODO: this is insufficient for real-world parameter sets.
+              We should support passing in exact moduli,
+              both for bignum and RNS based settings -->
+
+1. **Translation to FHE Scheme**
+   Each operation is translated to the native operations of the FHE scheme.
+   As mentioned above, this pass requires that, at the very least, the polynomial degree is specified,
+   as this is necessary to determine how `tensor` types are translated to ciphertexts.
+   As mentioned in the introduction, non-arithmetic operations (e.g., `arith.select` or `arith.cmpi`),
+   where supported, will produce significant amounts of FHE operations for each such operation.
+   This can quickly make a program infeasible to run under FHE.
+
+1. **Noise Management**
+   As part of the basic translation, HEIR naively inserts relinearizations after each multiplication.
+   <!-- TODO: And I guess we should also issue a modswitch or rescale? -->
+   <!-- TODO: Can the type system even handle RNS, where the type changes? -->
+
+
+1. **Translation to LWE**
+  Each `bgv` operation is then translated to the common (R)LWE abstraction,
+  which models common components/gadgets used in lattice cryptography.
+
+1. **Translation to Polynomial**
