@@ -5,6 +5,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/PISA/IR/PISADialect.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -34,6 +35,7 @@ int main(int argc, char **argv) {
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();
   registry.insert<cggi::CGGIDialect>();
+  registry.insert<pisa::PISADialect>();
   registry.insert<random::RandomDialect>();
   registry.insert<secret::SecretDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
