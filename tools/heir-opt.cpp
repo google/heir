@@ -27,6 +27,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
+#include "lib/Dialect/Polynomial/Transforms/ExpandRNS.h"
 #include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
