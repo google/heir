@@ -20,7 +20,13 @@
 # might start with HEIR_
 - search: '/^#ifndef HEIR_(.*)_$/'
   replacement: '#ifndef \1_'
+- search: '/^#ifndef THIRD_PARTY_HEIR_(.*)_$/'
+  replacement: '#ifndef \1_'
 - search: '/^#define HEIR_(.*)_$/'
   replacement: '#define \1_'
+- search: '/^#define THIRD_PARTY_HEIR_(.*)_$/'
+  replacement: '#define \1_'
 - search: '/^#endif *\/\/ HEIR_(.*)_$/'
+  replacement: '#endif  // \1_'
+- search: '/^#endif *\/\/ THIRD_PARTY_HEIR_(.*)_$/'
   replacement: '#endif  // \1_'

@@ -1,5 +1,5 @@
-#ifndef THIRD_PARTY_HEIR_TESTS_BENCHMARK_MEMREF_H_
-#define THIRD_PARTY_HEIR_TESTS_BENCHMARK_MEMREF_H_
+#ifndef TESTS_BENCHMARK_MEMREF_H_
+#define TESTS_BENCHMARK_MEMREF_H_
 
 #include <stdlib.h>
 
@@ -51,4 +51,4 @@ class Memref {
 }  // namespace test
 }  // namespace heir
 
-#endif  // THIRD_PARTY_HEIR_TESTS_BENCHMARK_MEMREF_H_
+#endif  // TESTS_BENCHMARK_MEMREF_H_
