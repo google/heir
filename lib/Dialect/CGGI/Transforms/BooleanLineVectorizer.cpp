@@ -1,5 +1,10 @@
-#include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
+#include "lib/Dialect/CGGI/Transforms/BooleanLineVectorizer.h"
 
+#include <string>
+
+#include "lib/Dialect/CGGI/IR/CGGIAttributes.h"
+#include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Graph/Graph.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
@@ -13,34 +18,30 @@
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
-#define DEBUG_TYPE "straight-line-vectorizer"
+#define DEBUG_TYPE "bool-line-vectorizer"
 
 namespace mlir {
 namespace heir {
+namespace cggi {
 
-#define GEN_PASS_DEF_STRAIGHTLINEVECTORIZER
-#include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h.inc"
+#define GEN_PASS_DEF_BOOLEANLINEVECTORIZER
+#include "lib/Dialect/CGGI/Transforms/Passes.h.inc"
 
-/// Returns true if the two operations can be combined into a single vectorized
-/// operation.
-bool areCompatible(Operation *lhs, Operation *rhs) {
-  if (lhs->getName() != rhs->getName() ||
-      lhs->getDialect() != rhs->getDialect() ||
+bool areCompatibleBool(Operation *lhs, Operation *rhs) {
+  if (lhs->getDialect() != rhs->getDialect() ||
       lhs->getResultTypes() != rhs->getResultTypes() ||
       lhs->getAttrs() != rhs->getAttrs()) {
     return false;
   }
+  // TODO: Check if can be made better with a BooleanPackableGate trait
+  // on the CGGI_BinaryGateOp's?
   return OpTrait::hasElementwiseMappableTraits(lhs);
 }
 
-bool tryVectorizeBlock(Block *block, Dialect *dialect) {
+bool tryBoolVectorizeBlock(Block *block, MLIRContext &context) {
   graph::Graph<Operation *> graph;
   for (auto &op : block->getOperations()) {
     if (!op.hasTrait<OpTrait::Elementwise>()) {
-      continue;
-    }
-
-    if (dialect && op.getDialect() != dialect) {
       continue;
     }
 
@@ -84,7 +85,7 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
     for (auto *op : level) {
       bool foundCompatible = false;
       for (auto &[key, bucket] : compatibleOps) {
-        if (areCompatible(key, op)) {
+        if (areCompatibleBool(key, op)) {
           compatibleOps[key].push_back(op);
           foundCompatible = true;
         }
@@ -97,13 +98,15 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
                << "Partitioned level of size " << level.size() << " into "
                << compatibleOps.size() << " groups of compatible ops\n");
 
+    // Loop over all the compatibleOp groups
+    // Each loop will have the key and a bucket with all the operations in
     for (auto &[key, bucket] : compatibleOps) {
       if (bucket.size() < 2) {
         continue;
       }
 
       LLVM_DEBUG({
-        llvm::dbgs() << "Vectorizing ops:\n";
+        llvm::dbgs() << "[START] Bucket \t Vectorizing ops:\n";
         for (auto op : bucket) {
           llvm::dbgs() << " - " << *op << "\n";
         }
@@ -116,23 +119,72 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
           {static_cast<int64_t>(bucket.size())}, elementType);
 
       SmallVector<Value, 4> vectorizedOperands;
+      SmallVector<StringAttr, 4> vectorizedGateOperands;
+
+      for (auto *op : bucket) {
+        std::string str;
+        if (isa<cggi::AndOp>(op)) {
+          str = "and";
+        } else if (isa<cggi::NandOp>(op)) {
+          str = "nand";
+        } else if (isa<cggi::XorOp>(op)) {
+          str = "xor";
+        } else if (isa<cggi::XNorOp>(op)) {
+          str = "xnor";
+        } else if (isa<cggi::OrOp>(op)) {
+          str = "or";
+        } else if (isa<cggi::NorOp>(op)) {
+          str = "nor";
+        } else {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "Try to parse boolean operation that does not exist.");
+        }
+        vectorizedGateOperands.push_back(StringAttr::get(&context, str));
+      }
+
+      // Group the independent operands over the operations
       for (uint operandIndex = 0; operandIndex < key->getNumOperands();
            ++operandIndex) {
         SmallVector<Value, 4> operands;
+        LLVM_DEBUG({
+          llvm::dbgs() << "For: " << key->getName()
+                       << " Number of ops: " << key->getNumOperands() << "\n";
+        });
+
         operands.reserve(bucket.size());
+        ///------------------------------------------
         for (auto *op : bucket) {
+          LLVM_DEBUG(llvm::dbgs() << "getOperand for [" << operandIndex << "]: "
+                                  << op->getOperand(operandIndex) << "\n");
           operands.push_back(op->getOperand(operandIndex));
         }
+        ///------------------------------------------
+
         auto fromElementsOp = builder.create<tensor::FromElementsOp>(
             key->getLoc(), tensorType, operands);
         vectorizedOperands.push_back(fromElementsOp.getResult());
       }
 
-      Operation *vectorizedOp = builder.clone(*key);
-      vectorizedOp->setOperands(vectorizedOperands);
-      vectorizedOp->getResult(0).setType(tensorType);
+      LLVM_DEBUG({
+        llvm::dbgs() << "Go over vectorizedOps:\n";
+        for (auto op : vectorizedOperands) {
+          llvm::dbgs() << " - " << op << "\n";
+        }
+        llvm::dbgs() << "Go over vectorizedGateOps:\n";
+        for (auto op : vectorizedGateOperands) {
+          llvm::dbgs() << " - " << op;
+        }
+        llvm::dbgs() << "\n";
+      });
+
+      auto oplist = CGGIGateAttr::get(&context, vectorizedGateOperands);
+
+      auto vectorizedOp = builder.create<cggi::PackedOp>(
+          key->getLoc(), tensorType, oplist, vectorizedOperands[0],
+          vectorizedOperands[1]);
 
       int bucketIndex = 0;
+
       for (auto *op : bucket) {
         auto extractionIndex = builder.create<arith::ConstantOp>(
             op->getLoc(), builder.getIndexAttr(bucketIndex));
@@ -153,20 +205,21 @@ bool tryVectorizeBlock(Block *block, Dialect *dialect) {
   return madeReplacement;
 }
 
-struct StraightLineVectorizer
-    : impl::StraightLineVectorizerBase<StraightLineVectorizer> {
-  using StraightLineVectorizerBase::StraightLineVectorizerBase;
+struct BooleanLineVectorizer
+    : impl::BooleanLineVectorizerBase<BooleanLineVectorizer> {
+  using BooleanLineVectorizerBase::BooleanLineVectorizerBase;
 
   void runOnOperation() override {
-    Dialect *mlirDialect = getContext().getLoadedDialect(dialect);
+    MLIRContext &context = getContext();
 
     getOperation()->walk<WalkOrder::PreOrder>([&](Block *block) {
-      if (tryVectorizeBlock(block, mlirDialect)) {
+      if (tryBoolVectorizeBlock(block, context)) {
         sortTopologically(block);
       }
     });
   }
 };
 
+}  // namespace cggi
 }  // namespace heir
 }  // namespace mlir

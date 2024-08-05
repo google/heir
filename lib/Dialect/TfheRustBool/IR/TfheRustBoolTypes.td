@@ -28,4 +28,27 @@ def TfheRustBool_ServerKey : TfheRustBool_Type<"ServerKey", "server_key", [PassB
   let summary = "The boolean server key required to perform homomorphic operations.";
 }
 
+
+class TfheRustBool_BooleanGate<string gate>
+  : TfheRustBool_Type<"BooleanGate" # gate, "bin_gate" # gate> {
+  let summary = "Enum placeholder to define the binary gate" # gate # " to perform as homomoprhic operation.";
+}
+
+foreach i = ["And", "Or", "Xor", "Nand", "Nor", "Xnor"] in {
+  def TfheRustBool_BooleanGate # i : TfheRustBool_BooleanGate<i>;
+}
+
+def TfheRustBoolGates :
+  AnyTypeOf<[
+    TfheRustBool_BooleanGateAnd,
+    TfheRustBool_BooleanGateOr,
+    TfheRustBool_BooleanGateXor,
+    TfheRustBool_BooleanGateNand,
+    TfheRustBool_BooleanGateNor,
+    TfheRustBool_BooleanGateXnor,
+  ]>;
+
+
+
+
 #endif  // LIB_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLTYPES_TD_
