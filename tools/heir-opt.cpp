@@ -31,6 +31,7 @@
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
@@ -489,6 +490,7 @@ int main(int argc, char **argv) {
   registry.insert<comb::CombDialect>();
   registry.insert<jaxite::JaxiteDialect>();
   registry.insert<lwe::LWEDialect>();
+  registry.insert<random::RandomDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
   registry.insert<secret::SecretDialect>();

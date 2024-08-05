@@ -4,6 +4,7 @@
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
@@ -31,6 +32,7 @@ int main(int argc, char **argv) {
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();
   registry.insert<cggi::CGGIDialect>();
+  registry.insert<random::RandomDialect>();
   registry.insert<secret::SecretDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
