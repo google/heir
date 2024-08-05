@@ -14,6 +14,7 @@ py_library(
 
 jaxite_end_to_end_test(
     name = "add_one_lut3",
+    heir_opt_flags = "--cggi-to-jaxite",
     mlir_src = "add_one_lut3.mlir",
     test_src = "add_one_lut3_test.py",
     deps = [":test_utils"],

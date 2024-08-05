@@ -35,6 +35,7 @@ cc_binary(
         "@heir//lib/Conversion/ArithExtToArith",
         "@heir//lib/Conversion/BGVToLWE",
         "@heir//lib/Conversion/BGVToOpenfhe",
+        "@heir//lib/Conversion/CGGIToJaxite",
         "@heir//lib/Conversion/CGGIToTfheRust",
         "@heir//lib/Conversion/CGGIToTfheRustBool",
         "@heir//lib/Conversion/CombToCGGI",

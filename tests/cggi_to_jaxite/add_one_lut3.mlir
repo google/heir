@@ -1,11 +1,15 @@
-// RUN: heir-opt --cggi-to-jaxite | heir-translate --emit-jaxite %s | FileCheck %s
+// RUN: heir-opt --cggi-to-jaxite %s | FileCheck %s
 
 #unspecified_encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #unspecified_encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
 
 
-
+// CHECK-LABEL: test_add_one_lut3
+// CHECK-COUNT-2: jaxite.constant
+// CHECK-NOT: lwe.trivial_encrypt
+// CHECK-COUNT-11: jaxite.lut3
+// CHECK-NOT: cggi.lut3
 func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %c7 = arith.constant 7 : index
   %c6 = arith.constant 6 : index

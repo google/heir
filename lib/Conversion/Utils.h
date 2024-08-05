@@ -33,6 +33,12 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
                                      RewritePatternSet &patterns,
                                      ConversionTarget &target);
 
+// Seems like this would be better as a method on the
+// LWE_EncodingAttrWithScalingFactor class, but I still have the problem of the
+// type returned by getEncoding being a vanilla Attribute. Probably we need a
+// common interface for LWE_EncodingAttrWithScalingFactor, and cast to that?
+int widthFromEncodingAttr(Attribute encoding);
+
 }  // namespace heir
 }  // namespace mlir
 
