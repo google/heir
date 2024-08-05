@@ -33,12 +33,14 @@ jobs:
       run: |
         bash .github/workflows/copy_tblgen_files.sh
 
+    # Please update the local install instructions at docs/README.md if changing hugo version
     - name: Setup Hugo
       uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # pin@v2.6.0
       with:
         hugo-version: '0.113.0'
         extended: true
 
+    # Please update the local install instructions at docs/README.md if changing node version
     - name: Setup Node
       uses: actions/setup-node@v3
       with:

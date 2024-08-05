@@ -1,6 +1,7 @@
 <!-- mdformat off(yaml frontmatter) -->
---- title: Getting Started
-weight: 100
+---
+title: Getting Started
+weight: 10
 ---
 <!-- mdformat on -->
 
@@ -11,12 +12,47 @@ weight: 100
 #### Prerequisites
 
 -   [Git](https://git-scm.com/)
+-   A C++ compiler and linker ([clang](https://clang.llvm.org/) and [lld](https://lld.llvm.org/) are recommended).
 -   Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk), or version
     `>=5.5`
--   A C compiler (like [gcc](https://gcc.gnu.org/) or
-    [clang](https://clang.llvm.org/))
+-   See [Development](https://heir.dev/docs/development) for additional prerequisites for active development
+
+  <details>
+  <summary>Detailed Instructions</summary>
+  The first two requirements are frequently pre-installed
+  or can be installed via the system package manager.
+  For example, on Ubuntu, these can be installed with
+
+  ```bash
+  sudo apt-get update && sudo apt-get install clang lld
+  ```
+
+  You can download the latest Bazelisk release, e.g.,
+  for linux-amd64 (see the
+  [Bazelisk Release Page](https://github.com/bazelbuild/bazelisk/releases/latest)
+  for a list of available binaries):
+  ```bash
+  wget -c https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+  mv bazelisk-linux-amd64 bazel
+  chmod +x bazel
+  ```
+  You will then likely want to move `bazel` to a location on your PATH,
+  or add its location to your PATH, e.g.:
+  ```bash
+  mkdir ~/bin
+  echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
+  mv bazel ~/bin/bazel
+  ```
+
+  Note that on linux systems, your OS user must **not** be `root` as bazel might refuse to work if run as root.
+  </details>
+
 
 #### Clone and build the project
+
+You can clone and build HEIR from the terminal as described below.
+Please see [Development](https://heir.dev/docs/development) for information on
+IDE configuration if you want to use an IDE to build HEIR.
 
 ```bash
 git clone git@github.com:google/heir.git && cd heir

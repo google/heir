@@ -1,54 +1,130 @@
 <!-- mdformat off(yaml frontmatter) -->
 ---
 title: Development
-weight: 70
+weight: 30
 ---
 <!-- mdformat on -->
 
-# Development
+## IDE Configuration (VS Code)
+While a wide variety of IDEs and editors
+can be used for HEIR development, we
+currently only provide support
+for [VSCode](https://code.visualstudio.com/).
 
-## IDE Configuration
+### Setup
 
-### VS Code
+For the best experience, we recommend following these steps:
 
-For an out-of-tree MLIR project built with Bazel, install the following VS Code
-extensions:
+* Install the [MLIR](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-mlir),
+   [clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd)
+    and [Bazel](https://marketplace.visualstudio.com/items?itemName=BazelBuild.vscode-bazel) extensions
 
-- **llvm-vs-code-extensions.vscode-mlir**: Adds language support for MLIR, PDLL,
-  and TableGen.
-- **llvm-vs-code-extensions.vscode-clangd**: Adds clangd code completion using a
-  generated
-  [compile_commands.json](https://clang.llvm.org/docs/JSONCompilationDatabase.html)
-  file.
-- **bazelbuild.vscode-bazel**: Support for Bazel.
+* Install and rename Buildifier:
 
-You will also need to disable **ms-vscode.cpptools** to avoid a conflict with
-clangd.
+  You can download the latest Buildifier release, e.g.,
+  for linux-amd64 (see the
+  [Bazelisk Release Page](https://github.com/bazelbuild/buildtools/releases/latest/)
+  for a list of available binaries):
+    ```bash
+    wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
+    mv buildifier-linux-amd64 buildifier
+    chmod +x buildifier
+    ```
 
-Add the following snippet to your VS Code user settings found in
-`.vscode/settings.json` to enable autocomplete based on the
-`compile_commands.json` file.
+    Just as with bazel, you will want to move this somewhere on your PATH, e.g.:
+    ```bash
+    mkdir ~/bin
+    echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
+    mv buildifier ~/bin/buildifier
+    ```
 
-```json
-   "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/",
-        "--completion-style=detailed",
-        "--query-driver=**"
-      ],
-```
+    VS Code should automatically detect buildifier.
+    If this is not successful, you can manually set
+    the "Buildifier Executable" setting
+    for the Bazel extension (`bazel.buildifierExecutable`).
 
-To generate the `compile_commands.json` file, run
+* Disable the [C/C++ (aka 'cpptools')](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) extension (either completely, or in the current workspace).
 
-```shell
-bazel run @hedron_compile_commands//:refresh_all
-```
+* Add the following snippet to your VS Code user settings
+found in .vscode/settings.json to enable autocomplete
+based on the compile_commands.json file.
+  ```json
+    "clangd.arguments": [
+      "--compile-commands-dir=${workspaceFolder}/",
+      "--completion-style=detailed",
+      "--query-driver=**"
+    ],
+  ```
 
-This will need to be regenerated every time you want tooling to see new `BUILD`
-file changes.
+* To generate the `compile_commands.json` file, run
+  ```shell
+  bazel run @hedron_compile_commands//:refresh_all
+  ```
 
-If you encounter errors like `*.h.inc` not found, or syntax errors inside these
-files, you may need to build those targets and then re-run the `refresh_all`
+  This will need to be regenerated every time you want tooling to see new `BUILD`
+  file changes.
+
+  If you encounter errors like `*.h.inc` not found, or syntax errors inside these
+  files, you may need to build those targets and then re-run the `refresh_all`
 command above.
+
+
+* NOTE: In order to share bazel's build cache between invocations from VScode's GUI and the terminal, you need to create a `.bazelrc` in your home directory that sets the compilation toolchain to clang. Alternatively, you can set this in your vscode settings to only apply to the current workspace, but this means switching between compilation from terminal and from VSCode will trigger rebuilds.
+    ```bash
+    echo -e "# enforces clang use\ncommon --repo_env=CC=clang" > ~/.bazelrc
+    ```
+*  It might be necesssary to add the path to your buildifier to VSCode, though it should be auto-detected.
+    - Open the heir folder in VSCode
+    - Go to 'Settings' and set it on the 'Workspace'
+    - Search for "Bazel Buildifier Executable"
+    - Once you find it, write ```[home-directory]/bin/buildifier ``` for your specific [home-directory].
+
+### Building, Testing, Running and Debugging with VSCode
+
+#### Building
+1. Open the "Explorer" (File Overview) in the left panel.
+1. Find "Bazel Build Targets" towards the bottom of the "Explorer" panel and click the dropdown button.
+1. Unfold the heir folder
+1. Right-click on "//tools" and click the "Build Package Recursively" option
+
+#### Testing
+1. Open the "Explorer" (File Overview) in the left panel.
+1. Find "Bazel Build Targets" towards the bottom of the "Explorer" panel and click the dropdown button.
+1. Unfold the heir folder
+1. Right-click on "//test" and click the "Test Package Recursively" option
+
+#### Running and Debugging
+1. Create a `launch.json` file in the `.vscode` folder, changing the `"name"` and `"args"` as required:
+    ```json
+    {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Debug Secret->BGV",
+                "preLaunchTask": "build",
+                "type": "lldb",
+                "request": "launch",
+                "program": "${workspaceFolder}/bazel-bin/tools/heir-opt",
+                "args": [
+                    "--secret-to-bgv",
+                    "--debug",
+                    "${workspaceFolder}/tests/secret_to_bgv/ops.mlir"
+                ],
+                "relativePathBase": "${workspaceFolder}",
+                "sourceMap": {
+                    "proc/self/cwd": "${workspaceFolder}",
+                    "/proc/self/cwd": "${workspaceFolder}"
+                }
+            },
+        ]
+   }
+   ```
+    You can add as many different configurations as necessary.
+
+1. Add Breakpoints to your program as desired.
+1. Open the Run/Debug panel on the left, select the desired configuration and run/debug it.
+  * Note that you might have to hit "Enter" to proceed past the Bazel build.
+    It might take several seconds between hitting "Enter" and the debug terminal opening.
 
 ## Tips for working with Bazel
 
