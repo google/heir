@@ -1,7 +1,7 @@
-#ifndef LIB_DIALECT_BGV_IR_BGVOPS_TD_
-#define LIB_DIALECT_BGV_IR_BGVOPS_TD_
+#ifndef LIB_DIALECT_CKKS_IR_CKKSOPS_TD_
+#define LIB_DIALECT_CKKS_IR_CKKSOPS_TD_
 
-include "BGVDialect.td"
+include "CKKSDialect.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -11,15 +11,15 @@ include "lib/Dialect/LWE/IR/LWETraits.td"
 include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-class BGV_Op<string mnemonic, list<Trait> traits = []> :
-        Op<BGV_Dialect, mnemonic, traits> {
-  let cppNamespace = "::mlir::heir::bgv";
+class CKKS_Op<string mnemonic, list<Trait> traits = []> :
+        Op<CKKS_Dialect, mnemonic, traits> {
+  let cppNamespace = "::mlir::heir::ckks";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)
   }];
 }
 
-class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
+class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
     [Pure, AllTypesMatch<["ciphertextInput", "output"]>,
     TypesMatchWith<"type of 'plaintextInput' matches encoding type of 'ciphertextInput'",
                     "ciphertextInput", "plaintextInput",
@@ -27,7 +27,7 @@ class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
                       "::llvm::cast<lwe::RLWECiphertextType>($_self).getEncoding(),"
                       "::llvm::cast<lwe::RLWECiphertextType>($_self).getRlweParams().getRing(),"
                       "::llvm::cast<lwe::RLWECiphertextType>($_self).getUnderlyingType())">]> :
-        BGV_Op<mnemonic, traits> {
+        CKKS_Op<mnemonic, traits> {
   let arguments = (ins
     RLWECiphertext:$ciphertextInput,
     RLWEPlaintext:$plaintextInput
@@ -38,7 +38,7 @@ class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
   );
 }
 
-def BGV_AddOp : BGV_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> {
+def CKKS_AddOp : CKKS_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
@@ -53,11 +53,11 @@ def BGV_AddOp : BGV_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain"> {
+def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain"> {
   let summary = "Addition operation between ciphertext-plaintext.";
 }
 
-def BGV_SubOp : BGV_Op<"sub", [Pure, SameOperandsAndResultType]> {
+def CKKS_SubOp : CKKS_Op<"sub", [SameOperandsAndResultType]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
@@ -72,11 +72,11 @@ def BGV_SubOp : BGV_Op<"sub", [Pure, SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain"> {
+def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain"> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
-def BGV_MulOp : BGV_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, SameTypeOperands, InferTypeOpAdaptor]> {
+def CKKS_MulOp : CKKS_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, SameTypeOperands, InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
@@ -91,11 +91,11 @@ def BGV_MulOp : BGV_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, Sa
   let hasVerifier = 1;
 }
 
-def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain"> {
+def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain"> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
 }
 
-def BGV_RotateOp : BGV_Op<"rotate", [Pure, AllTypesMatch<["input", "output"]>]> {
+def CKKS_RotateOp : CKKS_Op<"rotate", [Pure, AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
@@ -111,7 +111,7 @@ def BGV_RotateOp : BGV_Op<"rotate", [Pure, AllTypesMatch<["input", "output"]>]> 
   let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
 }
 
-def BGV_ExtractOp : BGV_Op<"extract", [Pure, SameOperandsAndResultRings]> {
+def CKKS_ExtractOp : CKKS_Op<"extract", [SameOperandsAndResultRings]> {
   let summary = "Extract the i-th element of a ciphertext.";
 
   let description = [{
@@ -139,7 +139,7 @@ def BGV_ExtractOp : BGV_Op<"extract", [Pure, SameOperandsAndResultRings]> {
   let hasVerifier = 1;
 }
 
-def BGV_NegateOp : BGV_Op<"negate", [Pure, Involution, SameOperandsAndResultType]> {
+def CKKS_NegateOp : CKKS_Op<"negate", [Pure, SameOperandsAndResultType, Involution]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
@@ -153,7 +153,7 @@ def BGV_NegateOp : BGV_Op<"negate", [Pure, Involution, SameOperandsAndResultType
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [Pure, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Relinearize the ciphertext.";
 
   let description = [{
@@ -180,8 +180,8 @@ def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings, Infer
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
-  let summary = "Lower the modulus level of the ciphertext.";
+def CKKS_RescaleOp : CKKS_Op<"rescale", [Pure]> {
+  let summary = "Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.";
 
   let arguments = (ins
     RLWECiphertext:$input,
@@ -196,4 +196,4 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-#endif  // LIB_DIALECT_BGV_IR_BGVOPS_TD_
+#endif  // LIB_DIALECT_CKKS_IR_CKKSOPS_TD_

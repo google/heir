@@ -28,6 +28,17 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "FHEHelpers",
+    hdrs = ["FHEHelpers.h"],
+    deps = [
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 td_library(
     name = "td_files",
     srcs = ["HEIRInterfaces.td"],

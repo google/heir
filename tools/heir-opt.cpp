@@ -19,6 +19,7 @@
 #include "lib/Dialect/BGV/Transforms/Passes.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
@@ -483,6 +484,7 @@ int main(int argc, char **argv) {
 
   registry.insert<arith_ext::ArithExtDialect>();
   registry.insert<bgv::BGVDialect>();
+  registry.insert<ckks::CKKSDialect>();
   registry.insert<cggi::CGGIDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<jaxite::JaxiteDialect>();

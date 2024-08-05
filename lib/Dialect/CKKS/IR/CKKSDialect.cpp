@@ -1,12 +1,10 @@
-#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 
 #include <optional>
 
-#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/FHEHelpers.h"
-#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
@@ -15,25 +13,25 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 // Generated definitions
-#include "lib/Dialect/BGV/IR/BGVDialect.cpp.inc"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.cpp.inc"
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #define GET_OP_CLASSES
-#include "lib/Dialect/BGV/IR/BGVOps.cpp.inc"
+#include "lib/Dialect/CKKS/IR/CKKSOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
-namespace bgv {
+namespace ckks {
 
 //===----------------------------------------------------------------------===//
-// BGV dialect.
+// CKKS dialect.
 //===----------------------------------------------------------------------===//
 
 // Dialect construction: there is one instance per context and it registers its
 // operations, types, and interfaces here.
-void BGVDialect::initialize() {
+void CKKSDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "lib/Dialect/BGV/IR/BGVOps.cpp.inc"
+#include "lib/Dialect/CKKS/IR/CKKSOps.cpp.inc"
       >();
 }
 
@@ -43,7 +41,7 @@ LogicalResult RotateOp::verify() { return verifyRotateOp(this); }
 
 LogicalResult RelinearizeOp::verify() { return verifyRelinearizeOp(this); }
 
-LogicalResult ModulusSwitchOp::verify() {
+LogicalResult RescaleOp::verify() {
   return verifyModulusSwitchOrRescaleOp(this);
 }
 
@@ -61,6 +59,6 @@ LogicalResult RelinearizeOp::inferReturnTypes(
 
 LogicalResult ExtractOp::verify() { return verifyExtractOp(this); }
 
-}  // namespace bgv
+}  // namespace ckks
 }  // namespace heir
 }  // namespace mlir

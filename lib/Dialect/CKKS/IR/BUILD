@@ -1,4 +1,4 @@
-# BGV dialect
+# CKKS dialect
 
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
@@ -10,11 +10,11 @@ package(
 cc_library(
     name = "Dialect",
     srcs = [
-        "BGVDialect.cpp",
+        "CKKSDialect.cpp",
     ],
     hdrs = [
-        "BGVDialect.h",
-        "BGVOps.h",
+        "CKKSDialect.h",
+        "CKKSOps.h",
     ],
     deps = [
         ":dialect_inc_gen",
@@ -31,8 +31,8 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
-        "BGVDialect.td",
-        "BGVOps.td",
+        "CKKSDialect.td",
+        "CKKSOps.td",
     ],
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
@@ -47,23 +47,23 @@ gentbl_cc_library(
             [
                 "-gen-dialect-decls",
             ],
-            "BGVDialect.h.inc",
+            "CKKSDialect.h.inc",
         ),
         (
             [
                 "-gen-dialect-defs",
             ],
-            "BGVDialect.cpp.inc",
+            "CKKSDialect.cpp.inc",
         ),
         (
             [
                 "-gen-dialect-doc",
             ],
-            "BGVDialect.md",
+            "CKKSDialect.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVDialect.td",
+    td_file = "CKKSDialect.td",
     deps = [
         ":td_files",
     ],
@@ -74,19 +74,19 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-op-decls"],
-            "BGVOps.h.inc",
+            "CKKSOps.h.inc",
         ),
         (
             ["-gen-op-defs"],
-            "BGVOps.cpp.inc",
+            "CKKSOps.cpp.inc",
         ),
         (
             ["-gen-op-doc"],
-            "BGVOps.md",
+            "CKKSOps.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVOps.td",
+    td_file = "CKKSOps.td",
     deps = [
         ":dialect_inc_gen",
         ":td_files",
