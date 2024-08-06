@@ -9,6 +9,7 @@
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -23,6 +24,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
@@ -73,15 +75,11 @@ class SecretToBGVTypeConverter : public TypeConverter {
 
     // Convert secret types to BGV ciphertext types
     addConversion([ctx, this](secret::SecretType type) -> Type {
-      int bitWidth =
-          llvm::TypeSwitch<Type, int>(type.getValueType())
-              .Case<RankedTensorType>(
-                  [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
-              .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
+      int bitWidth = 32;
       return lwe::RLWECiphertextType::get(
           ctx,
           lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
-          lwe::RLWEParamsAttr::get(ctx, 2, ring_), type.getValueType());
+          lwe::RLWEParamsAttr::get(ctx, 2, ring_), IntegerType::get(ctx, 32));
     });
 
     ring_ = rlweRing;
@@ -156,6 +154,34 @@ class SecretGenericOpMulConversion
   }
 };
 
+class SecretGenericOpSelectConversion
+    : public SecretGenericOpConversion<arith::SelectOp, bgv::MulOp> {
+ public:
+  using SecretGenericOpConversion<arith::SelectOp,
+                                  bgv::MulOp>::SecretGenericOpConversion;
+
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+                 ConversionPatternRewriter &rewriter) const override {
+    // inputs = [condition, true_value, false_value]
+    auto ctxtType = llvm::cast<lwe::RLWECiphertextType>(inputs[0].getType());
+    auto t = rewriter.create<bgv::MulOp>(op.getLoc(), inputs[0], inputs[1]);
+    auto c1 = rewriter.create<arith::ConstantOp>(
+        op.getLoc(), 1,
+        rewriter.getIntegerType(
+            ctxtType.getUnderlyingType().getIntOrFloatBitWidth()));
+    auto one = rewriter.create<lwe::EncodeOp>(op.getLoc(), inputs[0].getType(),
+                                              c1, ctxtType.getEncoding());
+    auto oneCtxt = rewriter.create<lwe::TrivialEncryptOp>();  // TODO
+    auto neg = rewriter.create<bgv::SubOp>(op.getLoc(), oneCtxt, inputs[0]);
+    auto f = rewriter.create<bgv::MulOp>(op.getLoc(), neg, inputs[2]);
+    auto add = rewriter.create<bgv::AddOp>(op.getLoc(), t, f);
+    rewriter.replaceOpWithNewOp<bgv::RelinearizeOp>(
+        op, add, rewriter.getDenseI32ArrayAttr({0, 1, 2}),
+        rewriter.getDenseI32ArrayAttr({0, 1}));
+    op->getParentOp()->dump();
+  }
+};
+
 class SecretGenericOpRotateConversion
     : public SecretGenericOpConversion<tensor_ext::RotateOp, bgv::RotateOp> {
  public:
@@ -221,8 +247,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     patterns.add<SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
                  SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
                  SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
-                 SecretGenericOpRotateConversion, SecretGenericOpMulConversion>(
-        typeConverter, context);
+                 SecretGenericOpRotateConversion, SecretGenericOpMulConversion,
+                 SecretGenericOpSelectConversion>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
