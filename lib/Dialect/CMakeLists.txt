@@ -13,6 +13,8 @@ add_subdirectory(Polynomial)
 add_subdirectory(BGV)
 add_subdirectory(CGGI)
 add_subdirectory(Secret)
+add_subdirectory(Random)
+add_subdirectory(CKKS)
 
 set(LLVM_TARGET_DEFINITIONS HEIRInterfaces.td)
 mlir_tablegen(HEIRInterfaces.h.inc  --gen-op-interface-decls  -name heir)

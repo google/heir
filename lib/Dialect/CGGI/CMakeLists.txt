@@ -4,6 +4,7 @@ add_mlir_dialect_library(MLIRCGGI
         IR/CGGIDialect.cpp
         IR/CGGIOps.cpp
         Transforms/SetDefaultParameters.cpp
+    Transforms/BooleanLineVectorizer.cpp
 
         ADDITIONAL_HEADER_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/IR
