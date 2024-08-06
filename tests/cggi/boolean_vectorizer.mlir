@@ -1,11 +1,14 @@
-// RUN: heir-opt --cggi-boolean-line-vectorize %s
+// RUN: heir-opt --cggi-boolean-vectorize -cse %s
 
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 1>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
 // CHECK-LABEL: add_one
-// CHECK-COUNT-1: cggi.packed_gates %[[*]], %[[*]] {gates = #cggi.cggi_gate<"and", "xor">} : (tensor<2x!lwe.lwe_ciphertext
+// CHECK-COUNT-1: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_gate<"and", "xor">} : (tensor<2x!lwe.lwe_ciphertext
+// CHECK-COUNT-6: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_gate<"xor", "xor">} : (tensor<2x!lwe.lwe_ciphertext
+// CHECK-COUNT-7: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_gate<"and", "and">} : (tensor<2x!lwe.lwe_ciphertext
+// CHECK-COUNT-1: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_gate<"xor", "xor", "xor", "xor", "xor", "xor", "xor", "xor", "xor">} : (tensor<9x!lwe.lwe_ciphertext
 func.func @add_one(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %true = arith.constant true
   %false = arith.constant false

@@ -8,6 +8,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolAttributes.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
@@ -178,6 +179,35 @@ struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
   }
 };
 
+struct ConvertPackedOp : public OpConversionPattern<cggi::PackedOp> {
+  ConvertPackedOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::PackedOp>(context, /*benefit=*/1) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::PackedOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    FailureOr<Value> result = getContextualBoolServerKey(op);
+    if (failed(result)) return result;
+
+    Value serverKey = result.value();
+    cggi::CGGIGateAttr gateAtrr = adaptor.getGatesAttr();
+    auto context = getContext();
+
+    auto oplist =
+        tfhe_rust_bool::TfheRustBoolGateAttr::get(context, gateAtrr.getGate());
+
+    auto outputType = adaptor.getLhs().getType();
+
+    rewriter.replaceOp(op, b.create<tfhe_rust_bool::PackedOp>(
+                               outputType, serverKey, oplist, adaptor.getLhs(),
+                               adaptor.getRhs()));
+    return success();
+  }
+};
+
 struct ConvertBoolTrivialEncryptOp
     : public OpConversionPattern<lwe::TrivialEncryptOp> {
   ConvertBoolTrivialEncryptOp(mlir::MLIRContext *context)
@@ -264,7 +294,7 @@ class CGGIToTfheRustBool
         AddBoolServerKeyArg, ConvertBoolAndOp, ConvertBoolEncodeOp,
         ConvertBoolOrOp, ConvertBoolTrivialEncryptOp, ConvertBoolXorOp,
         ConvertBoolNorOp, ConvertBoolXNorOp, ConvertBoolNandOp,
-        ConvertBoolNotOp, GenericOpPattern<memref::AllocOp>,
+        ConvertBoolNotOp, ConvertPackedOp, GenericOpPattern<memref::AllocOp>,
         GenericOpPattern<memref::DeallocOp>, GenericOpPattern<memref::StoreOp>,
         GenericOpPattern<memref::LoadOp>, GenericOpPattern<memref::SubViewOp>,
         GenericOpPattern<memref::CopyOp>,

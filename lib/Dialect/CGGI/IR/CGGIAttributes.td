@@ -36,9 +36,9 @@ def CGGIGate_Attr : CGGI_Attr<"CGGIGate", "cggi_gate"> {
   let description = [{
     This attributes stores a list of string identifiers for Boolean gates.
 
-     This used in the `cggi.packed` operation to indicate the boolean gate that applies pairwise between elements of two ciphertext arrays. For example,
+     This used in the `cggi.packed_gates` operation to indicate the boolean gate that applies pairwise between elements of two ciphertext arrays. For example,
 
-     %0 = cggi.packed %a, %b {gates = #cggi.cggi_gate<"and", "xor">} : tensor<2x!lwe.lwe_ciphertext>
+     %0 = cggi.packed_gates %a, %b {gates = #cggi.cggi_gate<"and", "xor">} : tensor<2x!lwe.lwe_ciphertext>
 
      applies an "and" gate between the first elements of %a and %b and an xor gate between the second elements.
   }];

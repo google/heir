@@ -70,6 +70,7 @@ def CGGI_PackedOp : CGGI_Op<"packed_gates", [
   );
 
   let results = (outs LWECiphertextLike:$output);
+  let hasVerifier = 1;
 }
 
 class CGGI_LutOp<string mnemonic, list<Trait> traits = []>

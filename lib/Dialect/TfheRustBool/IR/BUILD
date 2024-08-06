@@ -11,11 +11,13 @@ cc_library(
         "TfheRustBoolDialect.cpp",
     ],
     hdrs = [
+        "TfheRustBoolAttributes.h",
         "TfheRustBoolDialect.h",
         "TfheRustBoolOps.h",
         "TfheRustBoolTypes.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
@@ -29,6 +31,7 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "TfheRustBoolAttributes.td",
         "TfheRustBoolDialect.td",
         "TfheRustBoolOps.td",
         "TfheRustBoolTypes.td",
@@ -96,6 +99,39 @@ gentbl_cc_library(
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "TfheRustBoolTypes.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "attributes_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-attrdef-decls",
+                "-typedefs-dialect=tfhe_rust_bool",
+            ],
+            "TfheRustBoolAttributes.h.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-defs",
+                "-typedefs-dialect=tfhe_rust_bool",
+            ],
+            "TfheRustBoolAttributes.cpp.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-doc",
+                "-typedefs-dialect=tfhe_rust_bool",
+            ],
+            "TfheRustBoolAttributes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "TfheRustBoolAttributes.td",
     deps = [
         ":dialect_inc_gen",
         ":td_files",
