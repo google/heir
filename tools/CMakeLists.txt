@@ -147,6 +147,12 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRBGVOpenfheTransforms
         MLIRLWEToPolynomial
         MLIRHeirConvertSecretForToStaticFor
+
+    MLIRRandom
+    MLIRCGGIToJaxiteTransforms
+
+
+    MLIRCKKS
 )
 add_dependencies(${TARGET_NAME} MLIRPolynomialPassesIncGen)
 add_dependencies(${TARGET_NAME} MLIRPolynomialNTTRewritePassesIncGen)
