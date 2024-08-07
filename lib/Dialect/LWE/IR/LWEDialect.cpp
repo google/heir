@@ -16,6 +16,7 @@
 
 // Generated definitions
 #include "lib/Dialect/LWE/IR/LWEDialect.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWEEnums.cpp.inc"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project

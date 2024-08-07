@@ -3,6 +3,7 @@
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 
+include "mlir/IR/EnumAttr.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
@@ -318,6 +319,126 @@ def LWE_RLWEParams : AttrDef<LWE_Dialect, "RLWEParams"> {
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
+}
+
+def LWE_ApplicationDataInfoAttr : AttrDef<LWE_Dialect, "ApplicationDataInfo"> {
+  let mnemonic = "application_data_info";
+  let description = [{
+    An attribute describing the semantics of the underlying application data.
+
+    For example, this attribute can be used to describe the type and bits of the
+    original application data, e.g. i1, i32, f32. This space is later mapped
+    into the plaintext space of an FHE scheme by embedding, scaling, or other
+    techniques.
+  }];
+
+  let parameters = (ins
+    "mlir::Type":$applicationType
+  );
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$applicationType), [{
+      return $_get(applicationType.getContext(), applicationType);
+    }]>
+  ];
+
+  let assemblyFormat = "`<` $applicationType `>`";
+}
+
+def LWE_PlaintextEncodingInfoAttr : AttrDef<LWE_Dialect, "PlaintextEncodingInfo"> {
+  let mnemonic = "plaintext_encoding_info";
+  let description = [{
+    An attribute describing the plaintext encoding.
+
+    This describes the transformation from the application data space to the
+    plaintext space of an FHE scheme.
+
+    For RLWE schemes, this will include the type of encoding of application data
+    integers to a plaintext space `Z_p[X]/X^N + 1`. This may be a constant
+    coefficient encoding, CRT-based packing for SIMD semantics, or other slot
+    packing. The CKKS scheme will also include attributes describing the complex
+    encoding, including the scaling factor, which will change after
+    multiplication and rescaling.
+
+    LWE plaintexts in TFHE schemes will use this to describe the full plaintext
+    space (padding + carry + message bits).
+  }];
+
+  let parameters = (ins
+    "::mlir::IntegerAttr":$plaintextModulus,
+    "::mlir::Attribute":$encoding,
+    // Note: always a power of two?
+    OptionalParameter<"::mlir::IntegerAttr">:$scaling
+  );
+
+  let assemblyFormat = "`<` `p` `=` $plaintextModulus`,` `encoding` `=` $encoding`,` `delta` `=` $scaling `>`";
+
+  // let genVerifyDecl = 1;
+}
+
+def LWE_KeyInfoAttr : AttrDef<LWE_Dialect, "KeyInfo"> {
+  let mnemonic = "key_info";
+  let description = [{
+    An attribute describing the key used for encrypting the ciphertext.
+
+    This attribute includes a key identifier for the original key used to
+    encrypt the secret key. For RLWE schemes, this will also include the basis.
+    A ciphertext is canonically encrypted against key basis `(1, s)`. After a
+    multiplication, its size will increase and the basis will be `(1, s, s^2)`.
+    The array that represents the key basis is constructed by listing the powers
+    of `s` at each position of the array. For example, `(1, s, s^2)` corresponds
+    to `[0, 1, 2]`, while `(1, s^2)` corresponds to `[0, 2]`.
+  }];
+
+  let parameters = (ins
+    "::mlir::StringAttr":$keyIdentifier, // or hash(key_id) : int64
+     ArrayRefParameter<"mlir::IntegerAttr">:$basis
+  );
+
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+def LWE_MSBEncoding  : I32EnumAttrCase<"MSB", 0>;
+def LWE_LSBEncoding  : I32EnumAttrCase<"LSB", 1>;
+def LWE_MixEncoding  : I32EnumAttrCase<"MIX", 2>;
+
+def LWE_EncryptionTypeEnum : I32EnumAttr<"LWE_EncryptionType",
+      "encryption type kind", [LWE_MSBEncoding, LWE_LSBEncoding, LWE_MixEncoding]> {
+  let genSpecializedAttr = 0;
+  let cppNamespace = "::mlir::heir::lwe";
+}
+
+def LWE_EncryptionInfoAttr : AttrDef<LWE_Dialect, "EncryptionInfo"> {
+  let mnemonic = "encryption_info";
+  let description = [{
+    An attribute describing how plaintext data is encrypted.
+
+    The encryption info includes the ciphertext modulus `q`, and the way the
+    plaintext data is encoded into the ciphertext (in the MSB, LSB, or mixed).
+  }];
+
+  let parameters = (ins
+    "::mlir::IntegerAttr":$ciphertextModulus,
+    "::mlir::heir::lwe::LWE_EncryptionType":$encryptionType
+  );
+
+  let assemblyFormat = "`<` `q` `=` $ciphertextModulus`,` `type` `=` $encryptionType `>`";
+}
+
+def LWE_ModulusChainInfoAttr : AttrDef<LWE_Dialect, "ModulusChainInfo"> {
+  let mnemonic = "modulus_chain_info";
+  let description = [{
+    An attribute describing the modulus chain of an RLWE ciphertext.
+  }];
+
+  let parameters = (ins
+    ArrayRefParameter<"mlir::IntegerAttr">:$modulusChain,
+    "int":$current
+  );
+
+  let assemblyFormat = "`<` `current` `=` $current`,` `chain` `=` $modulusChain `>`";
+
+  // let genVerifyDecl = 1; // Verify index into list
 }
 
 #endif  // LIB_DIALECT_LWE_IR_LWEATTRIBUTES_TD_
