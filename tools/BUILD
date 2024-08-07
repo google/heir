@@ -76,6 +76,7 @@ cc_binary(
         "@heir//lib/Transforms/ApplyFolders",
         "@heir//lib/Transforms/ConvertIfToSelect",
         "@heir//lib/Transforms/ConvertSecretForToStaticFor",
+        "@heir//lib/Transforms/ConvertSecretWhileToStaticFor",
         "@heir//lib/Transforms/ElementwiseToAffine",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
