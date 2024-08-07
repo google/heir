@@ -104,12 +104,14 @@ class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
 def CGGI_Lut2Op : CGGI_LutOp<"lut2", [AllTypesMatch<["a", "b", "output"]>]> {
   let summary = "A lookup table on two inputs.";
   let arguments = (ins LWECiphertextLike:$b, LWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
+  let hasCanonicalizeMethod = 1;
 }
 
 def CGGI_Lut3Op : CGGI_LutOp<"lut3", [AllTypesMatch<["a", "b", "c", "output"]>]> {
   let summary = "A lookup table on three inputs.";
   let arguments = (ins LWECiphertextLike:$c, LWECiphertextLike:$b, LWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
   let results = (outs LWECiphertextLike:$output);
+  let hasCanonicalizeMethod = 1;
 }
 
 def CGGI_LutLinCombOp : CGGI_Op<"lut_lincomb", [
