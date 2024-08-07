@@ -46,6 +46,7 @@
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
 #include "lib/Transforms/ConvertSecretForToStaticFor/ConvertSecretForToStaticFor.h"
+#include "lib/Transforms/ConvertSecretWhileToStaticFor/ConvertSecretWhileToStaticFor.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -526,6 +527,7 @@ int main(int argc, char **argv) {
   registerFullLoopUnrollPasses();
   registerConvertIfToSelectPasses();
   registerConvertSecretForToStaticForPasses();
+  registerConvertSecretWhileToStaticForPasses();
   registerApplyFoldersPasses();
   registerForwardStoreToLoadPasses();
   registerStraightLineVectorizerPasses();
