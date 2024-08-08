@@ -472,6 +472,19 @@ class SecretGenericOpMemRefDeallocConversion
   }
 };
 
+class SecretGenericOpMemRefCollapseShapeConversion
+    : public SecretGenericOpConversion<memref::CollapseShapeOp> {
+  using SecretGenericOpConversion<
+      memref::CollapseShapeOp>::SecretGenericOpConversion;
+
+  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+                 ArrayRef<NamedAttribute> attributes,
+                 ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<memref::CollapseShapeOp>(op, outputTypes,
+                                                         inputs, attributes);
+  }
+};
+
 // ConvertTruthTableOp converts truth table ops with fully plaintext values.
 struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
   ConvertTruthTableOp(mlir::MLIRContext *context)
@@ -595,7 +608,7 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
 };
 
 int findLUTSize(MLIRContext *context, Operation *module) {
-  int max_int_size = 0;
+  int maxIntSize = 1;
   auto processOperation = [&](Operation *op) {
     if (isa<CombDialect>(op->getDialect())) {
       int current_size = 0;
@@ -604,14 +617,14 @@ int findLUTSize(MLIRContext *context, Operation *module) {
       else
         current_size = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
 
-      max_int_size = std::max(max_int_size, current_size);
+      maxIntSize = std::max(maxIntSize, current_size);
     }
   };
 
   // Walk all operations within the module in post-order (default)
   module->walk(processOperation);
 
-  return max_int_size;
+  return maxIntSize;
 }
 
 struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
@@ -630,6 +643,7 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
     patterns
         .add<SecretGenericOpLUTConversion, SecretGenericOpMemRefAllocConversion,
              SecretGenericOpMemRefDeallocConversion,
+             SecretGenericOpMemRefCollapseShapeConversion,
              SecretGenericOpMemRefLoadConversion,
              SecretGenericOpAffineStoreConversion,
              SecretGenericOpAffineLoadConversion,

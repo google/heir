@@ -41,6 +41,9 @@ Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
   // Only supporting unsigned types because the LWE dialect does not have a
   // notion of signedness.
   switch (width) {
+    case 1:
+      // The minimum bit width of the integer tfhe_rust API is UInt2
+      // https://docs.rs/tfhe/latest/tfhe/index.html#types
     case 2:
       return tfhe_rust::EncryptedUInt2Type::get(ctx);
     case 3:
@@ -88,7 +91,8 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
 /// Returns true if the func's body contains any CGGI ops.
 bool containsCGGIOps(func::FuncOp func) {
   auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<cggi::CGGIDialect>(op->getDialect()))
+    if (llvm::isa<cggi::CGGIDialect>(op->getDialect()) ||
+        llvm::isa<lwe::TrivialEncryptOp>(op))
       return WalkResult::interrupt();
     return WalkResult::advance();
   });

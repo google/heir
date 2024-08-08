@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-distribute-generic=distribute-through="affine.for" --yosys-optimizer="unroll-factor=2" --canonicalize %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic=distribute-through="affine.for" --yosys-optimizer="unroll-factor=2 use-submodules=false" --canonicalize %s | FileCheck %s
 
 !in_ty = !secret.secret<memref<10xi8>>
 !out_ty = !secret.secret<memref<10xi8>>
