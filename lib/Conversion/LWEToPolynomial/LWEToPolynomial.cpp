@@ -43,6 +43,18 @@ class CiphertextTypeConverter : public TypeConverter {
 
       return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
     });
+    addConversion([ctx](lwe::RNSRLWECiphertextType type) -> Type {
+      auto rlweParams = type.getRlweParams();
+      auto rings = rlweParams.getRing().getBasisTypes();
+      SmallVector<Type> ps;
+      for (auto r : rings) {
+        auto p = ::mlir::polynomial::PolynomialType::get(ctx, r);
+        ps.push_back(p);
+      }
+      auto polyTy = ::mlir::polynomial::RNSType::get(ctx, ps);
+
+      return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
+    });
     addConversion([ctx](lwe::RLWEPlaintextType type) -> Type {
       auto ring = type.getRing();
       auto polyTy = ::mlir::polynomial::PolynomialType::get(ctx, ring);
