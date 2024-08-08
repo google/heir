@@ -247,3 +247,74 @@ func.func @set_secretness_for_constant(%arg0: !secret.secret<tensor<32xi16>>) ->
   } -> !secret.secret<i16>
   return %0 : !secret.secret<i16>
 }
+
+
+// CHECK-LABEL: @test_mixed_conditionals
+// CHECK-SAME: ([[P:%.+]]: i1, [[S:%.+]]: !secret.secret<i1>, [[COND:%.+]]: i1)
+func.func @test_mixed_conditionals(%p: i1, %s: !secret.secret<i1>, %cond: i1) -> !secret.secret<i1> {
+  //CHECK: secret.generic ins([[S]]
+  %0 = secret.generic ins(%s : !secret.secret<i1>) {
+    //CHECK: ^[[bb0:.*]](%[[S_:.*]]: i1):
+  ^bb0(%s_: i1):
+    //CHECK-NEXT: [[IF:%.+]] = scf.if [[COND]]
+    %1 = scf.if %cond -> (i1) {
+      %ss = arith.addi %s_, %s_ : i1
+      scf.yield %ss : i1
+    } else {
+      scf.yield %s_ : i1
+    }
+    //CHECK-NOT: scf.if
+    //CHECK: [[ADD:%.+]] = arith.addi [[P]], [[P]]
+    //CHECK: [[SEL:%.+]] = arith.select [[IF]], [[ADD]], [[P]]
+      %2 = scf.if %1 -> (i1) {
+      %pp = arith.addi %p, %p : i1
+      scf.yield %pp : i1
+    } else {
+      scf.yield %p : i1
+    }
+    // CHECK-NOT: scf.if
+    // CHECK: [[MUL:%.+]] = arith.muli [[P]], [[P]] : i1
+    // CHECK: [[SEL2:%.+]] = arith.select [[SEL]], [[MUL]], [[P]]
+    %3 = scf.if %2 -> (i1) {
+      %pp = arith.muli %p, %p : i1
+      scf.yield %pp : i1
+    } else {
+      scf.yield %p : i1
+    }
+    // CHECK: secret.yield [[SEL2]] : i1
+    secret.yield %3 : i1
+  } -> !secret.secret<i1>
+  return %0 : !secret.secret<i1>
+}
+
+// CHECK-LABEL: @unknown_region
+// CHECK-SAME: ([[P:%.+]]: i1, [[S:%.+]]: !secret.secret<i1>)
+func.func @unknown_region(%p : i1, %s: !secret.secret<i1>) -> !secret.secret<i1> {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  // CHECK: secret.generic ins([[S]]
+  %0 = secret.generic ins(%s: !secret.secret<i1>) {
+    //CHECK: ^[[bb0:.*]](%[[S_:.*]]: i1):
+  ^bb0(%s_: i1):
+    // CHECK: [[T:%.+]] = tensor.generate
+    %t = tensor.generate %c1 {
+      ^bb1(%i : index):
+        %sp = arith.muli %p, %s_ : i1
+        tensor.yield %sp : i1
+    } : tensor<?xi1>
+    // CHECK: [[T0:%.+]] = tensor.extract [[T]]
+    %t0 = tensor.extract %t[%c0] : tensor<?xi1>
+    // CHECK-NOT: scf.if
+    // CHECK: [[ADD:%.+]] = arith.addi [[P]], [[P]]
+    // CHECK: [[SEL:%.+]] = arith.select [[T0]], [[ADD]], [[P]]
+    %if = scf.if %t0 -> (i1) {
+      %pp = arith.addi %p, %p : i1
+      scf.yield %pp : i1
+    } else {
+      scf.yield %p : i1
+    }
+    // CHECK: secret.yield [[SEL]]
+    secret.yield %if : i1
+  } -> !secret.secret<i1>
+  return %0 : !secret.secret<i1>
+}

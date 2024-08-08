@@ -5,6 +5,7 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -19,6 +20,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "convert-if-to-select"
 
 namespace mlir {
 namespace heir {
@@ -35,12 +38,13 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
 
   LogicalResult matchAndRewrite(scf::IfOp ifOp,
                                 PatternRewriter &rewriter) const override {
-    auto isConditionSecret =
-        solver->lookupState<SecretnessLattice>(ifOp.getOperand())
-            ->getValue()
-            .getSecretness();
-    // No conversion if condition is not secret
-    if (!isConditionSecret) return failure();
+    auto *lattice = solver->lookupState<SecretnessLattice>(ifOp.getOperand());
+    Secretness secretness = lattice ? lattice->getValue() : Secretness();
+
+    // Convert ops with "secret" and, conservatively, "unknown" (uninitialized)
+    // conditions but skip conversion if the condition is known to be non-secret
+    if (secretness.isInitialized() && !secretness.getSecretness())
+      return failure();
 
     // Hoist instructions in the 'then' and 'else' regions
     auto thenOps = ifOp.getThenRegion().getOps();
@@ -84,6 +88,13 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
             ifOp.getLoc(), cond, trueVal, falseVal);
       }
 
+      // Update the secretness of the new results, using the "secretness" of
+      // the condition which could have been either "secret" or "uninitialized"
+      for (auto &r : newResults) {
+        auto *lattice = solver->getOrCreateState<SecretnessLattice>(r);
+        solver->propagateIfChanged(lattice, lattice->join(secretness));
+      }
+
       rewriter.replaceOp(ifOp, newResults);
     }
 
@@ -117,6 +128,28 @@ struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
 
     patterns.add<IfToSelectConversion>(&solver, context);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+
+    LLVM_DEBUG({
+      // Add an attribute to the operations to show determined secretness
+      OpBuilder builder(context);
+      getOperation()->walk([&](Operation *op) {
+        if (op->getNumResults() == 0) return;
+        auto *secretnessLattice =
+            solver.lookupState<SecretnessLattice>(op->getResult(0));
+        if (!secretnessLattice) {
+          op->setAttr("secretness", builder.getStringAttr("null"));
+          return;
+        }
+        if (!secretnessLattice->getValue().isInitialized()) {
+          op->setAttr("secretness", builder.getStringAttr("unknown"));
+          return;
+        }
+        op->setAttr(
+            "secretness",
+            builder.getBoolAttr(secretnessLattice->getValue().getSecretness()));
+        return;
+      });
+    });
   }
 };
 
