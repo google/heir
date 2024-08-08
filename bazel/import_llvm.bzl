@@ -7,7 +7,7 @@ load(
 
 def import_llvm(name):
     """Imports LLVM."""
-    LLVM_COMMIT = "0c25f85e5b88102363c0cd55e1946053d5827e99"
+    LLVM_COMMIT = "28727812fbf7ac5223aa9418a2ba8dd0e86fb2e9"
 
     new_git_repository(
         name = name,
@@ -16,5 +16,5 @@ def import_llvm(name):
         build_file_content = "# empty",
         commit = LLVM_COMMIT,
         init_submodules = False,
-        remote = "https://github.com/llvm/llvm-project.git",
+        remote = "https://github.com/AlexanderViand-Intel/llvm-project.git",
     )
