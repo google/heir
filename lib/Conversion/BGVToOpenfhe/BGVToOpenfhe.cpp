@@ -322,17 +322,18 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
     }
     int64_t offset = offsetAttr.getInt();
 
-    auto ctTy = op.getInput().getType();
+    // FIXME: add RNS support to OpenFHE lowering!
+    auto ctTy = cast<lwe::RLWECiphertextType>(op.getInput().getType());
+    auto outTy = cast<lwe::RLWECiphertextType>(op.getOutput().getType());
     auto ring = ctTy.getRlweParams().getRing();
     auto degree = ring.getPolynomialModulus().getPolynomial().getDegree();
-    auto elementTy =
-        dyn_cast<IntegerType>(op.getOutput().getType().getUnderlyingType());
+    auto elementTy = dyn_cast<IntegerType>(outTy.getUnderlyingType());
     if (!elementTy) {
       op.emitError() << "Expected extract op to extract scalar from tensor "
                         "type, but found input underlying type "
-                     << op.getInput().getType().getUnderlyingType()
+                     << ctTy.getUnderlyingType()
                      << " and output underlying type "
-                     << op.getOutput().getType().getUnderlyingType();
+                     << outTy.getUnderlyingType();
     }
     auto tensorTy = RankedTensorType::get({degree}, elementTy);
 

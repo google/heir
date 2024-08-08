@@ -438,6 +438,11 @@ struct MlirToBgvPipelineOptions
                      "equivalently, the number of messages that can be packed "
                      "into a single ciphertext."),
       llvm::cl::init(1024)};
+  PassOptions::ListOption<int> coefficientModuli{
+      *this, "coefficient-moduli",
+      llvm::cl::desc("Ciphertext space modulus or moduli")};
+  // TODO: figure out default value
+  // (ideally, access pass default value somehow)
 };
 
 void mlirToBgvPipelineBuilder(OpPassManager &pm,
@@ -458,6 +463,7 @@ void mlirToBgvPipelineBuilder(OpPassManager &pm,
   // Lower to BGV
   auto secretToBgvOpts = SecretToBGVOptions{};
   secretToBgvOpts.polyModDegree = options.ciphertextDegree;
+  secretToBgvOpts.coefficientModuli = options.coefficientModuli;
   pm.addPass(createSecretToBGV(secretToBgvOpts));
 }
 
