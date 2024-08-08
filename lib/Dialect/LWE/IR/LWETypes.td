@@ -46,7 +46,17 @@ def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
   );
 }
 
-def RLWECiphertextLike : TypeOrContainer<RLWECiphertext, "ciphertext-like">;
+def RNSRLWECiphertext : LWE_Type<"RNSRLWECiphertext", "rns_rlwe_ciphertext"> {
+  let summary = "A type for RLWE ciphertexts";
+  let parameters = (ins
+    "::mlir::Attribute":$encoding,
+    "RNSRLWEParamsAttr":$rlwe_params,
+    "Type":$underlying_type
+  );
+}
+
+def RNSorNonRNSRLWECiphertext : AnyTypeOf<[RLWECiphertext,RNSRLWECiphertext], "rns or non-rns rlwe ctxt">;
+def RLWECiphertextLike : TypesOrContainer<[RLWECiphertext,RNSRLWECiphertext], "ciphertext-like">;
 
 def RLWESecretKey : LWE_Type<"RLWESecretKey", "rlwe_secret_key"> {
   let summary = "A secret key for RLWE";

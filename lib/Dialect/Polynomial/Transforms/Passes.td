@@ -17,4 +17,12 @@ def PolyMulToNTT : Pass<"convert-polynomial-mul-to-ntt"> {
   let dependentDialects = ["mlir::polynomial::PolynomialDialect", "heir::arith_ext::ArithExtDialect"];
 }
 
+def ExpandRNS : Pass<"expand-rns"> {
+  // FIXME: add add summary/description
+  let summary = "";
+  let description = [{
+  }];
+  let dependentDialects = ["mlir::polynomial::PolynomialDialect"];
+}
+
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_PASSES_TD_

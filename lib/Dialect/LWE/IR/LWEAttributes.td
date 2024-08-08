@@ -320,4 +320,22 @@ def LWE_RLWEParams : AttrDef<LWE_Dialect, "RLWEParams"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
+def LWE_RNSRLWEParams : AttrDef<LWE_Dialect, "RNSRLWEParams"> {
+  let mnemonic = "rns_rlwe_params";
+  let description = [{
+    An attribute describing classical RLWE parameters:
+
+    - `dimension`: the number of polynomials used in an RLWE sample, analogous
+      to LWEParams.dimension.
+    - `ring`: the polynomial ring to use.
+  }];
+
+  let parameters = (ins
+    DefaultValuedParameter<"unsigned", "2">:$dimension,
+    "::mlir::polynomial::RNSRingAttr":$ring
+  );
+
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
 #endif  // LIB_DIALECT_LWE_IR_LWEATTRIBUTES_TD_

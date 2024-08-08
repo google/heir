@@ -13,6 +13,7 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":ExpandRNS",
         ":NTTRewrites",
         ":pass_inc_gen",
         "@llvm-project//mlir:IR",
@@ -35,6 +36,22 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "ExpandRNS",
+    srcs = ["ExpandRNS.cpp"],
+    hdrs = ["ExpandRNS.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Conversion:Utils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:PolynomialDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
     ],
 )
 

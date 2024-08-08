@@ -45,7 +45,7 @@ namespace {
 // TODO(#536): Integrate a general library to compute appropriate prime moduli
 // given any number of bits.
 FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
-                                                    int coefficientModBits,
+                                                    int coefficientModulus,
                                                     int polyModDegree) {
   std::vector<::mlir::polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
@@ -53,16 +53,32 @@ FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
   auto result = ::mlir::polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
   ::mlir::polynomial::IntPolynomial xnPlusOne = result.value();
-  switch (coefficientModBits) {
-    case 29: {
-      auto type = IntegerType::get(ctx, 32);
-      return ::mlir::polynomial::RingAttr::get(
-          type, IntegerAttr::get(type, APInt(32, 463187969)),
-          polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
-    }
-    default:
-      return failure();
+
+  auto type = IntegerType::get(ctx, 32);
+  return ::mlir::polynomial::RingAttr::get(
+      type, IntegerAttr::get(type, APInt(32, coefficientModulus)),
+      polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
+}
+
+FailureOr<::mlir::polynomial::RNSRingAttr> getRlweRNSRing(
+    MLIRContext *ctx, ::mlir::Pass::ListOption<int> &coefficientModuli,
+    int polyModDegree) {
+  std::vector<::mlir::polynomial::IntMonomial> monomials;
+  monomials.emplace_back(1, polyModDegree);
+  monomials.emplace_back(1, 0);
+  auto result = ::mlir::polynomial::IntPolynomial::fromMonomials(monomials);
+  if (failed(result)) return failure();
+  ::mlir::polynomial::IntPolynomial xnPlusOne = result.value();
+
+  std::vector<::mlir::polynomial::RingAttr> rings;
+  for (auto m : coefficientModuli) {
+    auto type = IntegerType::get(ctx, 32);
+    auto ring = ::mlir::polynomial::RingAttr::get(
+        type, IntegerAttr::get(type, APInt(32, m)),
+        polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
+    rings.push_back(ring);
   }
+  return ::mlir::polynomial::RNSRingAttr::get(ctx, rings);
 }
 
 }  // namespace
@@ -71,7 +87,8 @@ FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
 class SecretToBGVTypeConverter : public TypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
-                           ::mlir::polynomial::RingAttr rlweRing) {
+                           ::mlir::polynomial::RNSRingAttr *rlweRNSRing,
+                           ::mlir::polynomial::RingAttr *rlweRing) {
     addConversion([](Type type) { return type; });
 
     // Convert secret types to BGV ciphertext types
@@ -81,17 +98,27 @@ class SecretToBGVTypeConverter : public TypeConverter {
               .Case<RankedTensorType>(
                   [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
               .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
-      return lwe::RLWECiphertextType::get(
-          ctx,
-          lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
-          lwe::RLWEParamsAttr::get(ctx, 2, ring_), type.getValueType());
+
+      if (ring_)
+        return lwe::RLWECiphertextType::get(
+            ctx,
+            lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
+            lwe::RLWEParamsAttr::get(ctx, 2, *ring_), type.getValueType());
+      if (rns_ring_)
+        return lwe::RNSRLWECiphertextType::get(
+            ctx,
+            lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
+            lwe::RNSRLWEParamsAttr::get(ctx, 2, *rns_ring_),
+            type.getValueType());
     });
 
     ring_ = rlweRing;
+    rns_ring_ = rlweRNSRing;
   }
 
  private:
-  ::mlir::polynomial::RingAttr ring_;
+  ::mlir::polynomial::RNSRingAttr *rns_ring_;
+  ::mlir::polynomial::RingAttr *ring_;
 };
 
 template <typename T, typename Y>
@@ -254,10 +281,17 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
+    if (coefficientModuli.size() == 0) coefficientModuli.push_back(463187969);
+    // TODO: also support non-rns rings again!
+    FailureOr<::mlir::polynomial::RNSRingAttr> rlweRNSRing = failure();
+    FailureOr<::mlir::polynomial::RingAttr> rlweRing = failure();
 
-    auto rlweRing = getRlweRing(context, coefficientModBits, polyModDegree);
-    if (failed(rlweRing)) {
-      return signalPassFailure();
+    if (coefficientModuli.size() == 1) {
+      rlweRing = getRlweRing(context, coefficientModuli.front(), polyModDegree);
+      if (failed(rlweRing)) return signalPassFailure();
+    } else {
+      rlweRNSRing = getRlweRNSRing(context, coefficientModuli, polyModDegree);
+      if (failed(rlweRNSRing)) return signalPassFailure();
     }
     // Ensure that all secret types are uniform and matching the ring
     // parameter size.
@@ -265,11 +299,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       for (auto value : op->getOperands()) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
           auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (tensorTy && tensorTy.getShape() !=
-                              ArrayRef<int64_t>{rlweRing.value()
-                                                    .getPolynomialModulus()
-                                                    .getPolynomial()
-                                                    .getDegree()}) {
+          if (tensorTy &&
+              tensorTy.getShape() != ArrayRef<int64_t>{polyModDegree}) {
             return WalkResult::interrupt();
           }
         }
@@ -283,7 +314,9 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       return signalPassFailure();
     }
 
-    SecretToBGVTypeConverter typeConverter(context, rlweRing.value());
+    auto rlweRing_ = failed(rlweRing) ? nullptr : &rlweRing.value();
+    auto rlweRNSRing_ = failed(rlweRNSRing) ? nullptr : &rlweRNSRing.value();
+    SecretToBGVTypeConverter typeConverter(context, rlweRNSRing_, rlweRing_);
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     target.addLegalDialect<bgv::BGVDialect>();
