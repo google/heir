@@ -15,14 +15,13 @@
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
-#include "lib/Dialect/BGV/Transforms/AddClientInterface.h"
-#include "lib/Dialect/BGV/Transforms/Passes.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
@@ -466,11 +465,11 @@ void mlirToOpenFheBgvPipelineBuilder(OpPassManager &pm,
   mlirToBgvPipelineBuilder(pm, options);
 
   // Add client interface
-  auto addClientInterfaceOptions = bgv::AddClientInterfaceOptions{};
+  auto addClientInterfaceOptions = lwe::AddClientInterfaceOptions{};
   // OpenFHE's pke API, which this pipeline generates, is always public-key
   addClientInterfaceOptions.usePublicKey = true;
   addClientInterfaceOptions.oneValuePerHelperFn = true;
-  pm.addPass(bgv::createAddClientInterface(addClientInterfaceOptions));
+  pm.addPass(lwe::createAddClientInterface(addClientInterfaceOptions));
 
   // Lower to openfhe
   pm.addPass(bgv::createBGVToOpenfhe());
@@ -515,7 +514,6 @@ int main(int argc, char **argv) {
   registerAllPasses();
 
   // Custom passes in HEIR
-  bgv::registerBGVPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   ::mlir::heir::polynomial::registerPolynomialPasses();
