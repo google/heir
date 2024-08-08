@@ -5,8 +5,16 @@
 #include <utility>
 
 #include "lib/Conversion/Utils.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Random/IR/RandomDialect.h"
+#include "lib/Dialect/Random/IR/RandomEnums.h"
+#include "lib/Dialect/Random/IR/RandomOps.h"
+#include "lib/Dialect/Random/IR/RandomTypes.h"
+#include "llvm/include/llvm/ADT/ArrayRef.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/Polynomial.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
@@ -88,9 +96,9 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
       op.emitError() << "Expected 2 dimensional ciphertext, found ciphertext "
                         "tensor dimension = "
                      << inputDimension;
-      // TODO: For TFHE, which can support higher dimensional keys, plaintexts,
-      // and ciphertexts, we need to add support for encrypt and decrypt for
-      // those cases.
+      // TODO (#882): For TFHE, which can support higher dimensional keys,
+      // plaintexts, and ciphertexts, we need to add support for encrypt and
+      // decrypt for those cases.
       return failure();
     }
 
@@ -112,6 +120,192 @@ struct ConvertRLWEDecrypt : public OpConversionPattern<RLWEDecryptOp> {
     auto plaintext = builder.create<polynomial::AddOp>(index1sk, extractOp1);
 
     rewriter.replaceOp(op, plaintext);
+    return success();
+  }
+};
+
+struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
+  ConvertRLWEEncrypt(mlir::MLIRContext *context)
+      : OpConversionPattern<RLWEEncryptOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RLWEEncryptOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto input = adaptor.getInput();
+    auto key = adaptor.getKey();
+
+    // TODO (#785): Migrate to new LWE types and plaintext modulus.
+    auto inputT = cast<lwe::RLWEPlaintextType>(op.getInput().getType());
+    auto inputEncoding = inputT.getEncoding();
+    auto cleartextBitwidthOrFailure =
+        llvm::TypeSwitch<Attribute, FailureOr<int>>(inputEncoding)
+            .Case<lwe::BitFieldEncodingAttr,
+                  lwe::UnspecifiedBitFieldEncodingAttr,
+                  lwe::PolynomialEvaluationEncodingAttr,
+                  lwe::PolynomialCoefficientEncodingAttr>(
+                [](auto attr) -> FailureOr<int> {
+                  return attr.getCleartextBitwidth();
+                })
+            .Default([](Attribute attr) -> FailureOr<int> {
+              llvm_unreachable(
+                  "Unsupported encoding attribute for cleartext bitwidth");
+              return failure();
+            });
+    auto cleartextStartOrFailure =
+        llvm::TypeSwitch<Attribute, FailureOr<int>>(inputEncoding)
+            .Case<lwe::BitFieldEncodingAttr,
+                  lwe::PolynomialEvaluationEncodingAttr,
+                  lwe::PolynomialCoefficientEncodingAttr>(
+                [](auto attr) -> FailureOr<int> {
+                  return attr.getCleartextStart();
+                })
+            .Case<lwe::UnspecifiedBitFieldEncodingAttr>(
+                [](auto attr) -> FailureOr<int> {
+                  llvm_unreachable(
+                      "Upsecified Bit Field Encoding Attribute for cleartext "
+                      "start");
+                  return failure();
+                })
+            .Default([](Attribute attr) -> FailureOr<int> {
+              llvm_unreachable(
+                  "Unsupported encoding attribute for cleartext start");
+              return failure();
+            });
+
+    // Should return failure if cleartextBitwidth or cleartextStart fail.
+    if (failed(cleartextBitwidthOrFailure) || failed(cleartextStartOrFailure)) {
+      return failure();
+    }
+    auto cleartextBitwidth = cleartextBitwidthOrFailure.value();
+    auto cleartextStart = cleartextStartOrFailure.value();
+
+    // Check that cleartext_start = cleartext_bitwidth for BGV encryption.
+    if (cleartextBitwidth != cleartextStart) {
+      // TODO (#882): Add support for other encryption schemes besides BGV. Left
+      // as future work.
+      op.emitError() << "`lwe.rlwe_encrypt` expects BGV encryption"
+                     << " with cleartext_start = cleartext_bitwidth, but"
+                     << " found cleartext_start = " << cleartextStart
+                     << " and cleartext_bitwidth = " << cleartextBitwidth
+                     << ".";
+      return failure();
+    }
+
+    auto isPublicKey =
+        llvm::TypeSwitch<Type, bool>(op.getKey().getType())
+            .Case<lwe::RLWEPublicKeyType>([](auto key) -> bool { return true; })
+            .Case<lwe::RLWESecretKeyType>(
+                [](auto key) -> bool { return false; })
+            .Default([](Type key) -> bool {
+              llvm_unreachable(
+                  "Unsupported key type: Neither public key nor secret key");
+              return false;
+            });
+
+    ImplicitLocOpBuilder builder(loc, rewriter);
+    if (isPublicKey) {
+      auto index0 = builder.create<arith::ConstantIndexOp>(0);
+      tensor::ExtractOp publicKey0 =
+          builder.create<tensor::ExtractOp>(key, ValueRange{index0});
+      auto index1 = builder.create<arith::ConstantIndexOp>(1);
+      tensor::ExtractOp publicKey1 =
+          builder.create<tensor::ExtractOp>(key, ValueRange{index1});
+
+      auto dimension =
+          inputT.getRing().getPolynomialModulus().getPolynomial().getDegree();
+
+      auto elementType = rewriter.getIntegerType(inputT.getRing()
+                                                     .getCoefficientModulus()
+                                                     .getType()
+                                                     .getIntOrFloatBitWidth());
+
+      auto tensorParams = RankedTensorType::get({dimension}, elementType);
+
+      // constantT is 2**(cleartextBitwidth), and is used for scalar
+      // multiplication.
+      // TODO(#876): Migrate to using the plaintext modulus of the encoding info
+      // attributes.
+      auto constantT = builder.create<arith::ConstantOp>(
+          builder.getI32IntegerAttr(1 << cleartextBitwidth));
+
+      // TODO (#881): Add pass options to change the seed (which is currently
+      // hardcoded to 0 with index0).
+      // TODO (#873) : Clean up usage of Random Dialect below using num_bits
+      // (currently hardcoded to 32).
+
+      // Initialize random number generator with seed.
+      auto generateRandom =
+          builder.create<random::InitOp>(index0, builder.getI32IntegerAttr(32));
+
+      // Create a uniform discrete random distribution with generated values of
+      // -1, 0, 1.
+      auto uniformDistributionType = random::DistributionType::get(
+          getContext(), random::Distribution::uniform);
+
+      auto uniformDistribution =
+          builder.create<random::DiscreteUniformDistributionOp>(
+              uniformDistributionType, generateRandom,
+              builder.getI32IntegerAttr(-1), builder.getI32IntegerAttr(2));
+
+      // generate random u polynomial from uniform random ternary distribution
+      auto uTensor =
+          builder.create<random::SampleOp>(tensorParams, uniformDistribution);
+      auto u =
+          builder.create<polynomial::FromTensorOp>(uTensor, inputT.getRing());
+
+      // Create a discrete Gaussian distribution
+      auto discreteGaussianDistributionType = random::DistributionType::get(
+          getContext(), random::Distribution::gaussian);
+
+      auto discreteGaussianDistribution =
+          builder.create<random::DiscreteGaussianDistributionOp>(
+              discreteGaussianDistributionType, generateRandom,
+              builder.getI32IntegerAttr(0),
+              builder.getI32IntegerAttr(
+                  5));  // TODO (#881): Add pass options to configure stdev
+                        // (which is currently hardcoded to 5)
+
+      // generate random e0 polynomial from discrete gaussian distribution
+      auto e0Tensor = builder.create<random::SampleOp>(
+          tensorParams, discreteGaussianDistribution);
+      auto e0 =
+          builder.create<polynomial::FromTensorOp>(e0Tensor, inputT.getRing());
+
+      // generate random e1 polynomial from discrete gaussian distribution
+      auto e1Tensor = builder.create<random::SampleOp>(
+          tensorParams, discreteGaussianDistribution);
+      auto e1 =
+          builder.create<polynomial::FromTensorOp>(e1Tensor, inputT.getRing());
+
+      // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
+      // noise or key differently. Add support for those cases.
+      // Computing ciphertext0 = publicKey0 * u + e0 *
+      // constantT + input
+      auto publicKey0U = builder.create<polynomial::MulOp>(publicKey0, u);
+      auto tE0 = builder.create<polynomial::MulScalarOp>(e0, constantT);
+      auto pK0UtE0 = builder.create<polynomial::AddOp>(publicKey0U, tE0);
+      auto ciphertext0 = builder.create<polynomial::AddOp>(pK0UtE0, input);
+
+      // Computing ciphertext1 = publicKey1 * u + e1 * constantT
+      auto publicKey1U = builder.create<polynomial::MulOp>(publicKey1, u);
+      auto tE1 = builder.create<polynomial::MulScalarOp>(e1, constantT);
+      auto ciphertext1 = builder.create<polynomial::AddOp>(publicKey1U, tE1);
+
+      // ciphertext = (ciphertext0, ciphertext1)
+      auto ciphertext = builder.create<tensor::FromElementsOp>(
+          llvm::ArrayRef<Value>({ciphertext0, ciphertext1}));
+      rewriter.replaceOp(op, ciphertext);
+    } else {  // secret key
+      // TODO (#880): Add support for secret key encryption. Left as future
+      // work.
+      op.emitError()
+          << "`lwe.rlwe_encrypt` doesn't yet support secret key encryption.";
+      return failure();
+    }
+
     return success();
   }
 };
@@ -231,9 +425,11 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
 
     RewritePatternSet patterns(context);
 
-    patterns.add<ConvertRLWEDecrypt, ConvertRAdd, ConvertRSub, ConvertRNegate,
-                 ConvertRMul>(typeConverter, context);
-    target.addIllegalOp<RLWEDecryptOp, RAddOp, RSubOp, RNegateOp, RMulOp>();
+    patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd,
+                 ConvertRSub, ConvertRNegate, ConvertRMul>(typeConverter,
+                                                           context);
+    target.addIllegalOp<RLWEDecryptOp, RLWEEncryptOp, RAddOp, RSubOp, RNegateOp,
+                        RMulOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
