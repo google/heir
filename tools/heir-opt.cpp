@@ -50,6 +50,7 @@
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/LazyRelin/LazyRelin.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
@@ -516,6 +517,7 @@ int main(int argc, char **argv) {
 
   // Custom passes in HEIR
   bgv::registerBGVPasses();
+  registerLazyRelinPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   ::mlir::heir::polynomial::registerPolynomialPasses();
