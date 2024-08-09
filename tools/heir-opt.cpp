@@ -528,7 +528,6 @@ int main(int argc, char **argv) {
 
   // Upstream passes used by HEIR
   // Converting to LLVM
-  registerTransformsPasses();  // canonicalize, cse, etc.
   arith::registerConvertArithToLLVMInterface(registry);
   cf::registerConvertControlFlowToLLVMInterface(registry);
   func::registerAllExtensions(registry);
@@ -538,6 +537,10 @@ int main(int argc, char **argv) {
   registerConvertMathToLLVMInterface(registry);
   registerConvertMemRefToLLVMInterface(registry);
   ub::registerConvertUBToLLVMInterface(registry);
+
+  // Misc
+  registerTransformsPasses();      // canonicalize, cse, etc.
+  affine::registerAffinePasses();  // loop unrolling
 
   // Bufferization and external models
   bufferization::registerBufferizationPasses();
