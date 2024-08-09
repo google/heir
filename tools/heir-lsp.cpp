@@ -17,7 +17,6 @@
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"  // from @llvm-project
-#include "mlir/include/mlir/InitAllDialects.h"          // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-lsp-server/MlirLspServerMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 
@@ -38,9 +37,6 @@ int main(int argc, char **argv) {
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<tensor_ext::TensorExtDialect>();
-
-  // Add expected MLIR dialects to the registry.
-  registerAllDialects(registry);
 
   return mlir::failed(mlir::MlirLspServerMain(argc, argv, registry));
 }
