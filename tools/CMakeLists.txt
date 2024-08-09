@@ -147,12 +147,12 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRBGVOpenfheTransforms
         MLIRLWEToPolynomial
         MLIRHeirConvertSecretForToStaticFor
+        MLIRHeirConvertSecretWhileToStaticFor
 
-    MLIRRandom
-    MLIRCGGIToJaxiteTransforms
+        MLIRRandom
+        MLIRCGGIToJaxiteTransforms
 
-
-    MLIRCKKS
+        MLIRCKKS
 )
 add_dependencies(${TARGET_NAME} MLIRPolynomialPassesIncGen)
 add_dependencies(${TARGET_NAME} MLIRPolynomialNTTRewritePassesIncGen)
@@ -162,10 +162,8 @@ endfunction()
 message(STATUS "Configuring heir-translate")
 make_heirtx_exec(heir-translate heir-translate.cpp)
 
-
 message(STATUS "Configuring heir-lsp")
 make_heirlsp_exec(heir-lsp heir-lsp.cpp)
-
 
 message(STATUS "Configuring heir-opt")
 make_heiropt_exec(heir-opt heir-opt.cpp)
