@@ -39,6 +39,11 @@ void SecretnessAnalysis::visitOperation(
   auto resultSecretness = Secretness();
   bool isUninitializedOpFound = false;
 
+  // Handle operations without operands (e.g. arith.constant)
+  if (operands.empty()) {
+    resultSecretness.setSecretness(false);
+  }
+
   for (const SecretnessLattice *operand : operands) {
     const Secretness operandSecretness = operand->getValue();
     if (!operandSecretness.isInitialized()) {
@@ -50,15 +55,16 @@ void SecretnessAnalysis::visitOperation(
       break;
   }
 
-  if (resultSecretness.isInitialized()) {
-    // Uninitialized operand: theoretically this should not happen, but it's
-    // easy to catch it this way if it does
-    if (isUninitializedOpFound && !resultSecretness.getSecretness()) {
+  // Uninitialized operand: "false" needs to be reverted to "unknown"
+  // "secret" can remain, as "unknown + secret = secret"
+  // As region-bearing ops are not yet supported in the secretness analysis
+  // (except for control-flow, which the analysis framework handles directly),
+  // we apply the same conservative logic if any regions are detected
+  // TODO (#888): Handle region-bearing ops via visitNonControlFlowArguments
+  if (isUninitializedOpFound || operation->getNumRegions()) {
+    if (resultSecretness.isInitialized() && !resultSecretness.getSecretness()) {
       resultSecretness = Secretness();
     }
-  } else {
-    // A constant operation
-    resultSecretness.setSecretness(false);
   }
 
   for (SecretnessLattice *result : results) {
