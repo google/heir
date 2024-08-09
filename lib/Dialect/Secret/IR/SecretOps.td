@@ -153,8 +153,8 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
     ```mlir
     %y = arith.constant 7: i32
-    %Z = secret.generic ins(%Y : !secret.secret<i32>) {
-      ^bb0(%y: i32):
+    %Z = secret.generic ins(%X : !secret.secret<i32>) {
+      ^bb0(%x: i32):
         %z = arith.addi %x, %y: i32
         secret.yield %z : i32
       } -> (!secret.secret<i32>)
