@@ -1,4 +1,4 @@
-// RUN: heir-opt '--bgv-add-client-interface=use-public-key=true one-value-per-helper-fn=true' %s | FileCheck %s
+// RUN: heir-opt '--lwe-add-client-interface=use-public-key=true one-value-per-helper-fn=true' %s | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
 #params = #lwe.rlwe_params<ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**8>>>

@@ -11,9 +11,28 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":AddClientInterface",
         ":SetDefaultParameters",
         ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+    ],
+)
+
+cc_library(
+    name = "AddClientInterface",
+    srcs = ["AddClientInterface.cpp"],
+    hdrs = [
+        "AddClientInterface.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 

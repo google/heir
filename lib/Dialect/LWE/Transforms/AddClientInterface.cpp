@@ -1,9 +1,8 @@
-#include "lib/Dialect/BGV/Transforms/AddClientInterface.h"
+#include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 
 #include <cstddef>
 #include <string>
 
-#include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -21,10 +20,10 @@
 
 namespace mlir {
 namespace heir {
-namespace bgv {
+namespace lwe {
 
 #define GEN_PASS_DEF_ADDCLIENTINTERFACE
-#include "lib/Dialect/BGV/Transforms/Passes.h.inc"
+#include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
 FailureOr<lwe::RLWEParamsAttr> getRlweParmsFromFuncOp(func::FuncOp op) {
   lwe::RLWEParamsAttr rlweParams = nullptr;
@@ -154,6 +153,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
   auto module = op->getParentOfType<ModuleOp>();
   auto rlweParamsResult = getRlweParmsFromFuncOp(op);
   if (failed(rlweParamsResult)) {
+    // TODO (#891): Add support for schemes other than BGV
     return failure();
   }
   lwe::RLWEParamsAttr rlweParams = rlweParamsResult.value();
@@ -271,6 +271,6 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
     if (result.wasInterrupted()) signalPassFailure();
   }
 };
-}  // namespace bgv
+}  // namespace lwe
 }  // namespace heir
 }  // namespace mlir
