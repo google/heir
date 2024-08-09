@@ -3981,7 +3981,7 @@ RLWEParamsAttr # rlwe_params
 &lt;p>&lt;em>Add two LWE ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.add` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
@@ -3995,11 +3995,11 @@ RLWEParamsAttr # rlwe_params
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4014,7 +4014,7 @@ RLWEParamsAttr # rlwe_params
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4069,7 +4069,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>&lt;em>Multiply an LWE ciphertext by a scalar&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.mul_scalar` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
@@ -4110,7 +4110,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>&lt;em>Add two RLWE ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.radd` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
@@ -4124,11 +4124,11 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4143,7 +4143,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4326,7 +4326,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>&lt;em>Multiplies two RLWE ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.rmul` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameTypeOperands&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
@@ -4367,7 +4367,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>&lt;em>Negate a RLWE ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.rnegate` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-9">Operands:&lt;/h4>
@@ -4404,7 +4404,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;p>&lt;em>Subtract two RLWE ciphertexts&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.rsub` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
@@ -4418,11 +4418,11 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4437,7 +4437,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>A type for RLWE ciphertexts&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
