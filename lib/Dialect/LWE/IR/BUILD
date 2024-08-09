@@ -88,6 +88,18 @@ gentbl_cc_library(
             "LWEAttributes.cpp.inc",
         ),
         (
+            [
+                "-gen-enum-decls",
+            ],
+            "LWEEnums.h.inc",
+        ),
+        (
+            [
+                "-gen-enum-defs",
+            ],
+            "LWEEnums.cpp.inc",
+        ),
+        (
             ["-gen-attrdef-doc"],
             "LWEAttributes.md",
         ),
