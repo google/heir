@@ -340,7 +340,7 @@ git_repository(
 git_repository(
     name = "rapidjson",
     build_file = "//bazel/openfhe:rapidjson.BUILD",
-    commit = "f54b0e47a08782a6131cc3d60f94d038fa6e0a51",
+    commit = "9bd618f545ab647e2c3bcbf2f1d87423d6edf800",
     remote = "https://github.com/Tencent/rapidjson.git",
 )
 
