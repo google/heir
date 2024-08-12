@@ -29,8 +29,8 @@ def CreateSplatOp : NativeCodeCall<
 foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   def InsertRotations_TwoTensorArgs_#ArithOp : Pattern<
     (ArithOp:$arithOp
-      (Tensor_ExtractOp $t1, (variadic $i1)),
-      (Tensor_ExtractOp $t2, (variadic $i2)),
+      (Tensor_ExtractOp $t1, (variadic $i1), $static_indices_1),
+      (Tensor_ExtractOp $t2, (variadic $i2), $static_indices_2),
       $overflow),
     [
       (TensorExt_RotateOp:$r1 $t1,
@@ -41,7 +41,7 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
       (Tensor_ExtractOp
         $opResult,
         (MakeSingleResultVariadic
-          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp))), $static_indices_1),
     ]
   >;
 
@@ -50,7 +50,7 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
   // TODO(#586): support more than just constant operands
   def InsertRotations_SplatRHSToTensor_#ArithOp : Pattern<
     (ArithOp:$arithOp
-      (Tensor_ExtractOp $t1, (variadic $i1)),
+      (Tensor_ExtractOp $t1, (variadic $i1), $static_indices_1),
       (Arith_ConstantOp:$nonExtractedArg $value),
       $overflow),
     [
@@ -60,14 +60,14 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
       (Tensor_ExtractOp
         $opResult,
         (MakeSingleResultVariadic
-          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp))), $static_indices_1),
     ]
   >;
 
   def InsertRotations_SplatLHSToTensor_#ArithOp : Pattern<
     (ArithOp:$arithOp
       (Arith_ConstantOp:$nonExtractedArg $value),
-      (Tensor_ExtractOp $t1, (variadic $i1)),
+      (Tensor_ExtractOp $t1, (variadic $i1), $static_indices_1),
       $overflow),
     [
       (TensorExt_RotateOp:$r1 $t1,
@@ -76,7 +76,7 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
       (Tensor_ExtractOp
         $opResult,
         (MakeSingleResultVariadic
-          (Arith_ConstantOp (GetTargetSlotAttr $arithOp)))),
+          (Arith_ConstantOp (GetTargetSlotAttr $arithOp))), $static_indices_1),
     ]
   >;
 }

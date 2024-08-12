@@ -54,10 +54,10 @@ def CombineSequentialRotates : Pat<
 def RotatePlusExtractToIndexedExtract : Pat<
   (Tensor_ExtractOp
     (TensorExt_RotateOp $tensor, $shift),
-    (variadic $index)),
+    (variadic $index), $static_indices_1),
   (Tensor_ExtractOp
     $tensor,
-    (MakeSingleResultVariadic (Arith_AddIOp $shift, $index, DefOverflow)))
+    (MakeSingleResultVariadic (Arith_AddIOp $shift, $index, DefOverflow)), $static_indices_1)
 >;
 
 foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
