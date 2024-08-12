@@ -1,9 +1,11 @@
-// RUN: heir-opt --bgv-add-client-interface %s | FileCheck %s
+// RUN: heir-opt --lwe-add-client-interface=use-public-key=true %s | FileCheck %s
 
 // These two types differ only on their underlying_type. The IR stays as the !in_ty
 // for the entire computation until the final extract op.
-!in_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**32>>>, underlying_type = tensor<32xi16>>
-!out_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**32>>>, underlying_type = i16>
+#encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
+#params = #lwe.rlwe_params<ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**32>>>
+!in_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = tensor<32xi16>>
+!out_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = i16>
 
 func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
   %c31 = arith.constant 31 : index
@@ -27,7 +29,7 @@ func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
 
 // CHECK: @simple_sum__encrypt
 // CHECK-SAME: (%[[arg0:[^:]*]]: tensor<32xi16>,
-// CHECK-SAME:     %[[sk:.*]]: !lwe.rlwe_secret_key
+// CHECK-SAME:     %[[sk:.*]]: !lwe.rlwe_public_key
 // CHECK-SAME:     -> [[in_ty]] {
 // CHECK-NEXT:   %[[encoded:.*]] = lwe.rlwe_encode %[[arg0]]
 // CHECK-NEXT:   %[[encrypted:.*]] = lwe.rlwe_encrypt %[[encoded]], %[[sk]]

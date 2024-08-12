@@ -3,6 +3,7 @@ add_subdirectory(Transforms)
 add_mlir_dialect_library(MLIRLWE
         IR/LWEDialect.cpp
         Transforms/SetDefaultParameters.cpp
+        Transforms/AddClientInterface.cpp
 
         ADDITIONAL_HEADER_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/IR

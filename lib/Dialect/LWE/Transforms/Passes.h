@@ -2,6 +2,7 @@
 #define LIB_DIALECT_LWE_TRANSFORMS_PASSES_H_
 
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 #include "lib/Dialect/LWE/Transforms/SetDefaultParameters.h"
 
 namespace mlir {
