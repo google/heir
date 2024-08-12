@@ -11,6 +11,7 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
+#include "lib/Target/TfheRust/Utils.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolTemplates.h"
 #include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
@@ -120,6 +121,12 @@ LogicalResult TfheRustBoolEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(func::FuncOp funcOp) {
+  if (failed(tfhe_rust::canEmitFuncForTfheRust(funcOp))) {
+    // Return success implies print nothing, and note the called function
+    // emits a warning.
+    return success();
+  }
+
   os << "pub fn " << funcOp.getName() << "(\n";
   os.indent();
   for (Value arg : funcOp.getArguments()) {
