@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 
-#include "lib/Conversion/ArithExtToArith/ArithExtToArith.h"
 #include "lib/Conversion/BGVToLWE/BGVToLWE.h"
 #include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
 #include "lib/Conversion/CGGIToJaxite/CGGIToJaxite.h"
@@ -11,9 +10,9 @@
 #include "lib/Conversion/CombToCGGI/CombToCGGI.h"
 #include "lib/Conversion/LWEToPolynomial/LWEToPolynomial.h"
 #include "lib/Conversion/MemrefToArith/MemrefToArith.h"
+#include "lib/Conversion/ModArithToArith/ModArithToArith.h"
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
-#include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
@@ -23,6 +22,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
@@ -484,7 +484,7 @@ void mlirToOpenFheBgvPipelineBuilder(OpPassManager &pm,
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
-  registry.insert<arith_ext::ArithExtDialect>();
+  registry.insert<mod_arith::ModArithDialect>();
   registry.insert<bgv::BGVDialect>();
   registry.insert<ckks::CKKSDialect>();
   registry.insert<cggi::CGGIDialect>();
@@ -557,7 +557,7 @@ int main(int argc, char **argv) {
 #endif
 
   // Dialect conversion passes in HEIR
-  arith_ext::registerArithExtToArithPasses();
+  mod_arith::registerModArithToArithPasses();
   bgv::registerBGVToLWEPasses();
   bgv::registerBGVToOpenfhePasses();
   comb::registerCombToCGGIPasses();

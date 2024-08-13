@@ -1,4 +1,4 @@
-add_subdirectory(ArithExt)
+add_subdirectory(ModArith)
 # IR + Transforms
 add_subdirectory(LWE)
 

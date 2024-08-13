@@ -1,4 +1,4 @@
-# ArithExt dialect
+# ModArith dialect
 
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
@@ -10,11 +10,11 @@ package(
 cc_library(
     name = "Dialect",
     srcs = [
-        "ArithExtDialect.cpp",
+        "ModArithDialect.cpp",
     ],
     hdrs = [
-        "ArithExtDialect.h",
-        "ArithExtOps.h",
+        "ModArithDialect.h",
+        "ModArithOps.h",
     ],
     deps = [
         ":dialect_inc_gen",
@@ -30,8 +30,8 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
-        "ArithExtDialect.td",
-        "ArithExtOps.td",
+        "ModArithDialect.td",
+        "ModArithOps.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
@@ -51,17 +51,17 @@ gentbl_cc_library(
             [
                 "-gen-dialect-decls",
             ],
-            "ArithExtDialect.h.inc",
+            "ModArithDialect.h.inc",
         ),
         (
             [
                 "-gen-dialect-defs",
             ],
-            "ArithExtDialect.cpp.inc",
+            "ModArithDialect.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ArithExtDialect.td",
+    td_file = "ModArithDialect.td",
     deps = [
         ":td_files",
     ],
@@ -72,19 +72,19 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-op-decls"],
-            "ArithExtOps.h.inc",
+            "ModArithOps.h.inc",
         ),
         (
             ["-gen-op-defs"],
-            "ArithExtOps.cpp.inc",
+            "ModArithOps.cpp.inc",
         ),
         (
             ["-gen-op-doc"],
-            "ArithExtOps.md",
+            "ModArithOps.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ArithExtOps.td",
+    td_file = "ModArithOps.td",
     deps = [
         ":dialect_inc_gen",
         ":td_files",

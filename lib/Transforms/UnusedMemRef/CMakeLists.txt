@@ -10,7 +10,7 @@ add_mlir_dialect_library(MLIRHeirUnusedMemRef
     MLIRHeirUnusedMemRefIncGen
 
     LINK_LIBS PUBLIC
-    MLIRArithExtDialect
+    MLIRModArithDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect

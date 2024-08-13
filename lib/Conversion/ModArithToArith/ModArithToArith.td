@@ -1,22 +1,22 @@
-#ifndef LIB_CONVERSION_ARITHEXTTOARITH_ARITHEXTTOARITH_TD_
-#define LIB_CONVERSION_ARITHEXTTOARITH_ARITHEXTTOARITH_TD_
+#ifndef LIB_CONVERSION_MODARITHTOARITH_MODARITHTOARITH_TD_
+#define LIB_CONVERSION_MODARITHTOARITH_MODARITHTOARITH_TD_
 
 include "lib/DRR/Utils.td"
-include "lib/Dialect/ArithExt/IR/ArithExtOps.td"
+include "lib/Dialect/ModArith/IR/ModArithOps.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/IR/PatternBase.td"
 include "mlir/Pass/PassBase.td"
 
-def ArithExtToArith : Pass<"arith-ext-to-arith", "ModuleOp"> {
-  let summary = "Lower `arith_ext` to standard `arith`.";
+def ModArithToArith : Pass<"mod-arith-to-arith", "ModuleOp"> {
+  let summary = "Lower `mod_arith` to standard `arith`.";
 
   let description = [{
-    This pass lowers the `arith_ext` dialect to their `arith` equivalents.
+    This pass lowers the `mod_arith` dialect to their `arith` equivalents.
   }];
 
   let dependentDialects = [
     "mlir::arith::ArithDialect",
-    "mlir::heir::arith_ext::ArithExtDialect",
+    "mlir::heir::mod_arith::ModArithDialect",
   ];
 }
 
@@ -25,7 +25,7 @@ def ArithExtToArith : Pass<"arith-ext-to-arith", "ModuleOp"> {
 defvar DefGE = ConstantEnumCase<Arith_CmpIPredicateAttr, "uge">;
 
 def ConvertSubIfGE : Pattern<
-  (ArithExt_SubIfGEOp $x, $y),
+  (ModArith_SubIfGEOp $x, $y),
   [
     (Arith_SubIOp:$subOp $x, $y, DefOverflow),
     (Arith_CmpIOp:$cmpOp DefGE, $x, $y),
@@ -44,7 +44,7 @@ def CastModulusAttributeAddSub : NativeCodeCall<"modulusHelper($0,$1,false)">;
 def CastModulusAttributeMul : NativeCodeCall<"modulusHelper($0,$1,true)">;
 
 def ConvertAddSimple : Pattern<
-  (ArithExt_AddOp:$op $x, $y, $mod),
+  (ModArith_AddOp:$op $x, $y, $mod),
   [
     (Arith_AddIOp:$add $x, $y, DefOverflow),
     (Arith_RemUIOp $add, (Arith_ConstantOp (CastModulusAttributeAddSub $mod, $x)))
@@ -55,7 +55,7 @@ def ConvertAddSimple : Pattern<
 >;
 
 def ConvertSubSimple : Pattern<
-  (ArithExt_SubOp:$op $x, $y, $mod),
+  (ModArith_SubOp:$op $x, $y, $mod),
   [
     (Arith_SubIOp:$sub $x, $y, DefOverflow),
     (Arith_RemUIOp $sub, (Arith_ConstantOp (CastModulusAttributeAddSub $mod, $x)))
@@ -66,7 +66,7 @@ def ConvertSubSimple : Pattern<
 >;
 
 def ConvertMulSimple : Pattern<
-  (ArithExt_MulOp:$op $x, $y, $mod),
+  (ModArith_MulOp:$op $x, $y, $mod),
   [
     (Arith_MulIOp:$mul $x, $y, DefOverflow),
     (Arith_RemUIOp $mul, (Arith_ConstantOp (CastModulusAttributeMul $mod, $x)))
@@ -77,7 +77,7 @@ def ConvertMulSimple : Pattern<
 >;
 
 def ConvertMacSimple : Pattern<
-  (ArithExt_MacOp:$op $x, $y, $acc, $mod),
+  (ModArith_MacOp:$op $x, $y, $acc, $mod),
   [
     (Arith_MulIOp:$mul $x, $y, DefOverflow),
     (Arith_AddIOp:$add $mul, $acc, DefOverflow),
@@ -89,7 +89,7 @@ def ConvertMacSimple : Pattern<
 >;
 
 def ConvertAdd : Pattern<
-  (ArithExt_AddOp $x, $y, $mod),
+  (ModArith_AddOp $x, $y, $mod),
   [
     (Arith_ConstantOp:$newmod (CastModulusAttributeAddSub $mod, $x)),
     (Arith_AddIOp:$add
@@ -104,7 +104,7 @@ def ConvertAdd : Pattern<
 >;
 
 def ConvertSub : Pattern<
-  (ArithExt_SubOp $x, $y, $mod),
+  (ModArith_SubOp $x, $y, $mod),
   [
     (Arith_ConstantOp:$newmod (CastModulusAttributeAddSub $mod, $x)),
     (Arith_SubIOp:$sub
@@ -119,7 +119,7 @@ def ConvertSub : Pattern<
 >;
 
 def ConvertMul : Pattern<
-  (ArithExt_MulOp $x, $y, $mod),
+  (ModArith_MulOp $x, $y, $mod),
   [
     (Arith_ConstantOp:$newmod (CastModulusAttributeMul $mod, $x)),
     (Arith_MulIOp:$mul
@@ -134,7 +134,7 @@ def ConvertMul : Pattern<
 >;
 
 def ConvertMac : Pattern<
-  (ArithExt_MacOp $x, $y, $acc, $mod),
+  (ModArith_MacOp $x, $y, $acc, $mod),
   [
     (Arith_ConstantOp:$newmod (CastModulusAttributeMul $mod, $x)),
     (Arith_MulIOp:$mul
@@ -150,4 +150,4 @@ def ConvertMac : Pattern<
   ]
 >;
 
-#endif  // LIB_CONVERSION_ARITHEXTTOARITH_ARITHEXTTOARITH_TD_
+#endif  // LIB_CONVERSION_MODARITHTOARITH_MODARITHTOARITH_TD_

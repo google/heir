@@ -38,7 +38,7 @@ function(make_heirlsp_exec  TARGET_NAME SOURCES)
         MLIRBGV
         MLIRLWE
         MLIRSecret
-        MLIRArithExtDialect
+        MLIRModArithDialect
         MLIRTensorExt
         MLIRTensorDialect
         MLIRHEIRAnalysisROT
@@ -63,7 +63,7 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         ${dialect_libs} ${conversion_libs}
 
         MLIRJaxiteTarget
-        MLIRArithExtDialect
+        MLIRModArithDialect
         MLIRSupport
         MLIRTranslateLib
         MLIRVerilogTarget

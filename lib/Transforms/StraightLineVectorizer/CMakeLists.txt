@@ -9,7 +9,7 @@ add_mlir_dialect_library(MLIRHeirStraightLineVectorizer
     MLIRHeirStraightLineVectorizerIncGen
 
     LINK_LIBS PUBLIC
-    MLIRArithExtDialect
+    MLIRModArithDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect

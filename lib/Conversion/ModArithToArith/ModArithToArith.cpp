@@ -1,6 +1,6 @@
-#include "lib/Conversion/ArithExtToArith/ArithExtToArith.h"
+#include "lib/Conversion/ModArithToArith/ModArithToArith.h"
 
-#include "lib/Dialect/ArithExt/IR/ArithExtOps.h"
+#include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
@@ -9,10 +9,10 @@
 
 namespace mlir {
 namespace heir {
-namespace arith_ext {
+namespace mod_arith {
 
-#define GEN_PASS_DEF_ARITHEXTTOARITH
-#include "lib/Conversion/ArithExtToArith/ArithExtToArith.h.inc"
+#define GEN_PASS_DEF_MODARITHTOARITH
+#include "lib/Conversion/ModArithToArith/ModArithToArith.h.inc"
 
 /// Returns a possibly extended modulus necessary to compute the given operation
 /// without overflow.
@@ -32,7 +32,7 @@ TypedAttr modulusHelper(IntegerAttr mod, ValueOrOpResult op, bool mul = false) {
 
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
-#include "lib/Conversion/ArithExtToArith/ArithExtToArith.cpp.inc"
+#include "lib/Conversion/ModArithToArith/ModArithToArith.cpp.inc"
 }  // namespace rewrites
 
 struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
@@ -94,18 +94,18 @@ struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
   }
 };
 
-struct ArithExtToArith : impl::ArithExtToArithBase<ArithExtToArith> {
-  using ArithExtToArithBase::ArithExtToArithBase;
+struct ModArithToArith : impl::ModArithToArithBase<ModArithToArith> {
+  using ModArithToArithBase::ModArithToArithBase;
 
   void runOnOperation() override;
 };
 
-void ArithExtToArith::runOnOperation() {
+void ModArithToArith::runOnOperation() {
   MLIRContext *context = &getContext();
   ModuleOp module = getOperation();
 
   ConversionTarget target(*context);
-  target.addIllegalDialect<ArithExtDialect>();
+  target.addIllegalDialect<ModArithDialect>();
   target.addLegalDialect<arith::ArithDialect>();
 
   RewritePatternSet patterns(context);
@@ -117,6 +117,6 @@ void ArithExtToArith::runOnOperation() {
   }
 }
 
-}  // namespace arith_ext
+}  // namespace mod_arith
 }  // namespace heir
 }  // namespace mlir

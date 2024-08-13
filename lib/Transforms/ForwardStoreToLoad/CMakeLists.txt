@@ -9,7 +9,7 @@ add_mlir_dialect_library(MLIRHeirForwardStoreToLoad
     MLIRHeirForwardStoreToLoadIncGen
 
     LINK_LIBS PUBLIC
-    MLIRArithExtDialect
+    MLIRModArithDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect
