@@ -79,6 +79,7 @@ cc_binary(
         "@heir//lib/Transforms/ElementwiseToAffine",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
+        "@heir//lib/Transforms/OperationBalancer",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/StraightLineVectorizer",
         "@heir//lib/Transforms/UnusedMemRef",

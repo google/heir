@@ -49,6 +49,7 @@
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
@@ -528,6 +529,7 @@ int main(int argc, char **argv) {
   registerConvertSecretWhileToStaticForPasses();
   registerApplyFoldersPasses();
   registerForwardStoreToLoadPasses();
+  registerOperationBalancerPasses();
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   // Register yosys optimizer pipeline if configured.
