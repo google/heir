@@ -1,5 +1,5 @@
 // TODO(#519): disable FileChecks until nondeterminism issues are resolved
-// RUN: heir-opt --straight-line-vectorize %s
+// RUN: heir-opt --straight-line-vectorize %s | FileCheck %s
 
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
@@ -87,8 +87,11 @@ func.func @require_post_pass_toposort(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_t
   // The not op has to occur after the lut3s, since it depends on one of the
   // results.
 
-  // CHECK: cggi.lut3 %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {lookup_table = 8 : ui8} : tensor<8x!lwe.lwe_ciphertext
-  // CHECK: cggi.not
+  // TODO(#519): nondeterminism may have the other 7 LUT3's vectorized and the
+  // cggi.not occurring after its single result.
+
+  // CHECK-DAG: cggi.lut3 %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {lookup_table = 8 : ui8} : tensor<[[num:.*]]x!lwe.lwe_ciphertext
+  // CHECK-DAG: cggi.not
 
   %from_elements = tensor.from_elements %r1, %r2, %r3, %r4, %r5, %r6, %r7, %x : tensor<8x!ct_ty>
   return %from_elements : tensor<8x!ct_ty>
@@ -133,7 +136,7 @@ func.func @transitive_dep_splits_level(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_
 
   // The slice analysis ensures these are split into two levels of 4 ops each.
   // CHECK: cggi.lut3 %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {lookup_table = 8 : ui8} : tensor<4x!lwe.lwe_ciphertext
-  // CHECK-COUNT-4: cggi.not
+  // CHECK: cggi.not %[[arg1:.*]] : tensor<4x!lwe.lwe_ciphertext
   // CHECK: cggi.lut3 %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {lookup_table = 8 : ui8} : tensor<4x!lwe.lwe_ciphertext
 
   %from_elements = tensor.from_elements %r1, %r2, %r3, %r4, %r5, %r6, %r7, %r8 : tensor<8x!ct_ty>

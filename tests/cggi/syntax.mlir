@@ -1,4 +1,4 @@
-// RUN: heir-opt %s
+// RUN: heir-opt %s | FileCheck %s
 
 // This simply tests for syntax.
 #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
@@ -8,6 +8,7 @@
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
 
 module {
+  //CHECK-LABEL: test_syntax
   func.func @test_syntax(%arg0 : !ciphertext) -> !ciphertext {
     %0 = arith.constant 0 : i1
     %1 = arith.constant 1 : i1

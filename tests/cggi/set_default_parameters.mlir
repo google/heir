@@ -1,4 +1,4 @@
-// RUN: heir-opt --cggi-set-default-parameters %s
+// RUN: heir-opt --cggi-set-default-parameters %s | FileCheck %s
 
 #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
 #poly = #polynomial.int_polynomial<1 + x**1024>
