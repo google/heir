@@ -56,6 +56,25 @@ def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, Elemen
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
+def ModArith_ReduceOp : ModArith_Op<"reduce", [SameOperandsAndResultType]> {
+  let summary = "reduce a signed integer to its congruence modulo equivalent";
+
+  let description = [{
+    `mod_arith.reduce x {modulus = q}` computes $y \in [0, q)$ such that
+    $x \equiv y \mod n$.
+
+    Note this will interpret `x` as a signed integer. For an unsigned integer,
+    equivalent functionality is: `y = arith.remui x`.
+  }];
+
+  let arguments = (ins
+    SignlessIntegerLike:$input,
+    APIntAttr:$modulus
+  );
+  let results = (outs SignlessIntegerLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
 def ModArith_BarrettReduceOp : ModArith_Op<"barrett_reduce", [SameOperandsAndResultType]> {
   let summary = "Compute the first step of the Barrett reduction.";
   let description = [{

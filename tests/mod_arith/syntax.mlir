@@ -32,6 +32,11 @@ func.func @test_arith_syntax() {
   %mac = mod_arith.mac %c5, %c6, %c4 { modulus = 17 } : i10
   %mac_vec = mod_arith.mac %c_vec, %c_vec2, %c_vec3 { modulus = 17 } : tensor<4xi10>
 
+  // CHECK: mod_arith.reduce
+  // CHECK: mod_arith.reduce
+  %reduce = mod_arith.reduce %c4 { modulus = 17 } : i10
+  %reduce_vec = mod_arith.reduce %c_vec { modulus = 17 } : tensor<4xi10>
+
   // CHECK: mod_arith.barrett_reduce
   // CHECK: mod_arith.barrett_reduce
   %barrett = mod_arith.barrett_reduce %zero { modulus = 17 } : i10
