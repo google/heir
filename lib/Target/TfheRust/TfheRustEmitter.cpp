@@ -15,6 +15,7 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Graph/Graph.h"
 #include "lib/Target/TfheRust/TfheRustTemplates.h"
+#include "lib/Target/TfheRust/Utils.h"
 #include "lib/Target/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
@@ -280,6 +281,12 @@ LogicalResult TfheRustEmitter::printOperation(ModuleOp moduleOp) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
+  if (failed(canEmitFuncForTfheRust(funcOp))) {
+    // Return success implies print nothing, and note the called function
+    // emits a warning.
+    return success();
+  }
+
   os << "pub fn " << funcOp.getName() << "(\n";
   os.indent();
   for (Value arg : funcOp.getArguments()) {
