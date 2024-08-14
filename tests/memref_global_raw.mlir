@@ -7,7 +7,7 @@
 // The following validates correctness of the model before and after the
 // memref-global-replace pass.
 
-// RUN: mlir-opt %s -pass-pipeline="builtin.module( \
+// RUN: heir-opt %s -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \
 // RUN:     finalize-memref-to-llvm, \
@@ -24,7 +24,7 @@
 // RUN:   FileCheck %s --check-prefix CHECK_PREPASS --allow-empty
 
 // RUN: heir-opt --memref-global-replace %s | \
-// RUN:   mlir-opt -pass-pipeline="builtin.module( \
+// RUN:   heir-opt -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \
 // RUN:     finalize-memref-to-llvm, \

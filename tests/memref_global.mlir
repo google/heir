@@ -5,7 +5,7 @@
 
 // The following verifies that the memref values were unchanged after the pass.
 
-// RUN: mlir-opt %s -pass-pipeline="builtin.module( \
+// RUN: heir-opt %s -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \
 // RUN:     finalize-memref-to-llvm, \
@@ -22,7 +22,7 @@
 // RUN:   FileCheck %s --check-prefix CHECK_PREPASS --allow-empty
 
 // RUN: heir-opt --memref-global-replace %s | \
-// RUN:   mlir-opt -pass-pipeline="builtin.module( \
+// RUN:   heir-opt -pass-pipeline="builtin.module( \
 // RUN:     affine-expand-index-ops, \
 // RUN:     lower-affine, \
 // RUN:     finalize-memref-to-llvm, \

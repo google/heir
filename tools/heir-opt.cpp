@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -58,32 +59,46 @@
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ComplexToLLVM/ComplexToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/MathToLLVM/MathToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToArith/TosaToArith.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToLinalg/TosaToLinalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/TosaToTensor/TosaToTensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/UBToLLVM/UBToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/Passes.h"       // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialDialect.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
-#include "mlir/include/mlir/InitAllDialects.h"             // from @llvm-project
-#include "mlir/include/mlir/InitAllExtensions.h"           // from @llvm-project
-#include "mlir/include/mlir/InitAllPasses.h"               // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
@@ -500,19 +515,72 @@ int main(int argc, char **argv) {
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
 
   // Add expected MLIR dialects to the registry.
+  registry.insert<LLVM::LLVMDialect>();
+  registry.insert<TosaDialect>();
   registry.insert<affine::AffineDialect>();
   registry.insert<arith::ArithDialect>();
+  registry.insert<bufferization::BufferizationDialect>();
   registry.insert<func::FuncDialect>();
+  registry.insert<math::MathDialect>();
   registry.insert<memref::MemRefDialect>();
+  registry.insert<::mlir::polynomial::PolynomialDialect>();
   registry.insert<scf::SCFDialect>();
   registry.insert<tensor::TensorDialect>();
-  registry.insert<TosaDialect>();
-  registry.insert<LLVM::LLVMDialect>();
-  registerAllDialects(registry);
-  registerAllExtensions(registry);
 
-  // Register MLIR core passes to build pipeline.
-  registerAllPasses();
+  // Uncomment if you want everything bound to CLI flags.
+  // registerAllDialects(registry);
+  // registerAllExtensions(registry);
+  // registerAllPasses();
+
+  // Upstream passes used by HEIR
+  // Converting to LLVM
+  arith::registerConvertArithToLLVMInterface(registry);
+  cf::registerConvertControlFlowToLLVMInterface(registry);
+  func::registerAllExtensions(registry);
+  index::registerConvertIndexToLLVMInterface(registry);
+  registerConvertComplexToLLVMInterface(registry);
+  registerConvertFuncToLLVMInterface(registry);
+  registerConvertMathToLLVMInterface(registry);
+  registerConvertMemRefToLLVMInterface(registry);
+  ub::registerConvertUBToLLVMInterface(registry);
+
+  // Misc
+  registerTransformsPasses();      // canonicalize, cse, etc.
+  affine::registerAffinePasses();  // loop unrolling
+
+  // These are only needed by two tests that build a pass pipeline
+  // from the CLI. Those tests can probably eventually be removed.
+  //   - `tests/memref_global.mlir`
+  //   - `tests/memref_global_raw.mlir`
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createArithToLLVMConversionPass();
+  });
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createConvertControlFlowToLLVMPass();
+  });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createConvertFuncToLLVMPass(); });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createConvertSCFToCFPass(); });
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createFinalizeMemRefToLLVMConversionPass();
+  });
+  registerPass(
+      []() -> std::unique_ptr<Pass> { return createLowerAffinePass(); });
+  registerPass([]() -> std::unique_ptr<Pass> {
+    return createReconcileUnrealizedCastsPass();
+  });
+
+  // Bufferization and external models
+  bufferization::registerBufferizationPasses();
+  arith::registerBufferizableOpInterfaceExternalModels(registry);
+  arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
+      registry);
+  cf::registerBufferizableOpInterfaceExternalModels(registry);
+  linalg::registerBufferizableOpInterfaceExternalModels(registry);
+  scf::registerBufferizableOpInterfaceExternalModels(registry);
+  tensor::registerBufferizableOpInterfaceExternalModels(registry);
 
   // Custom passes in HEIR
   cggi::registerCGGIPasses();
