@@ -9,7 +9,7 @@ add_mlir_dialect_library(MLIRHeiElementwiseToAffine
     MLIRHeirElementwiseToAffineIncGen
 
     LINK_LIBS PUBLIC
-    MLIRArithExtDialect
+    MLIRModArithDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect

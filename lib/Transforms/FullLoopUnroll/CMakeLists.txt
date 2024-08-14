@@ -9,7 +9,7 @@ add_mlir_dialect_library(MLIRHeirFullLoopUnroll
     MLIRHeirFullLoopUnrollIncGen
 
     LINK_LIBS PUBLIC
-    MLIRArithExtDialect
+    MLIRModArithDialect
     MLIRArithDialect
     MLIRIR
     MLIRInferTypeOpInterface

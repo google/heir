@@ -1,7 +1,7 @@
-#ifndef LIB_DIALECT_ARITHEXT_IR_ARITHEXTOPS_TD_
-#define LIB_DIALECT_ARITHEXT_IR_ARITHEXTOPS_TD_
+#ifndef LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
+#define LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 
-include "lib/Dialect/ArithExt/IR/ArithExtDialect.td"
+include "lib/Dialect/ModArith/IR/ModArithDialect.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
@@ -9,46 +9,46 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 
-class ArithExt_Op<string mnemonic, list<Trait> traits = [Pure]> :
-        Op<ArithExt_Dialect, mnemonic, traits> {
-  let cppNamespace = "::mlir::heir::arith_ext";
+class ModArith_Op<string mnemonic, list<Trait> traits = [Pure]> :
+        Op<ModArith_Dialect, mnemonic, traits> {
+  let cppNamespace = "::mlir::heir::mod_arith";
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
 
-class ArithExt_BinaryOp<string mnemonic, list<Trait> traits = []> :
-    ArithExt_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
+class ModArith_BinaryOp<string mnemonic, list<Trait> traits = []> :
+    ModArith_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
     Arguments<(ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs, APIntAttr:$modulus)>,
     Results<(outs SignlessIntegerLike:$output)> {
   let hasVerifier = 1;
   let assemblyFormat ="operands attr-dict `:` type($output)";
 }
 
-def ArithExt_AddOp : ArithExt_BinaryOp<"add", [Commutative]> {
+def ModArith_AddOp : ModArith_BinaryOp<"add", [Commutative]> {
   let summary = "modular addition operation";
   let description = [{
     Computes addition modulo a statically known modulus $q$.
   }];
 }
 
-def ArithExt_SubOp : ArithExt_BinaryOp<"sub"> {
+def ModArith_SubOp : ModArith_BinaryOp<"sub"> {
   let summary = "modular subtraction operation";
   let description = [{
     Computes subtraction modulo a statically known modulus $q$.
   }];
 }
 
-def ArithExt_MulOp : ArithExt_BinaryOp<"mul", [Commutative]> {
+def ModArith_MulOp : ModArith_BinaryOp<"mul", [Commutative]> {
   let summary = "modular multiplication operation";
   let description = [{
     Computes multiplication modulo a statically known modulus $q$.
   }];
 }
 
-def ArithExt_MacOp : ArithExt_Op<"mac", [SameOperandsAndResultType, Pure, ElementwiseMappable]> {
+def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, ElementwiseMappable]> {
   let summary = "modular multiplication-and-accumulation operation";
 
   let description = [{
-    `arith_ext.mac x, y, z {modulus = q}` computes $(x * y) + z \mod q$
+    `mod_arith.mac x, y, z {modulus = q}` computes $(x * y) + z \mod q$
   }];
   let arguments = (ins SignlessIntegerLike:$lhs, SignlessIntegerLike:$rhs, SignlessIntegerLike:$acc, APIntAttr:$modulus);
   let results = (outs SignlessIntegerLike:$output);
@@ -56,7 +56,7 @@ def ArithExt_MacOp : ArithExt_Op<"mac", [SameOperandsAndResultType, Pure, Elemen
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-def ArithExt_BarrettReduceOp : ArithExt_Op<"barrett_reduce", [SameOperandsAndResultType]> {
+def ModArith_BarrettReduceOp : ModArith_Op<"barrett_reduce", [SameOperandsAndResultType]> {
   let summary = "Compute the first step of the Barrett reduction.";
   let description = [{
     Let $q$ denote a statically known modulus and $b = 4^{w}$, where $w$ is the
@@ -76,7 +76,7 @@ def ArithExt_BarrettReduceOp : ArithExt_Op<"barrett_reduce", [SameOperandsAndRes
   let hasVerifier = 1;
 }
 
-def ArithExt_SubIfGEOp : ArithExt_Op<"subifge", [SameOperandsAndResultType]> {
+def ModArith_SubIfGEOp : ModArith_Op<"subifge", [SameOperandsAndResultType]> {
   let summary = "Compute (x >= y) ? x - y : x.";
 
   let arguments = (ins
@@ -87,4 +87,4 @@ def ArithExt_SubIfGEOp : ArithExt_Op<"subifge", [SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
 }
 
-#endif  // LIB_DIALECT_ARITHEXT_IR_ARITHEXTOPS_TD_
+#endif  // LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_

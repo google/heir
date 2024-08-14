@@ -2,7 +2,7 @@
 #define LIB_DIALECT_POLYNOMIAL_TRANSFORMS_NTTREWRITES_TD_
 
 include "lib/DRR/Utils.td"
-include "lib/Dialect/ArithExt/IR/ArithExtOps.td"
+include "lib/Dialect/ModArith/IR/ModArithOps.td"
 include "mlir/Dialect/Polynomial/IR/Polynomial.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/IR/PatternBase.td"
@@ -42,7 +42,7 @@ def NTTRewritePolyMul : Pattern<
       (returnType (InputTensorType (GetRingAttr $p2)))),
 
     // Compute elementwise multiplication modulo cmod
-    (ArithExt_MulOp:$mulNTT $p1NTT, $p2NTT, (GetRingModAttr $p1)),
+    (ModArith_MulOp:$mulNTT $p1NTT, $p2NTT, (GetRingModAttr $p1)),
 
     // Compute inverse transform back to coefficient representation
     (Polynomial_INTTOp:$res $mulNTT, (Nullptr))

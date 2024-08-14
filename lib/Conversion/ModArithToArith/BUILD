@@ -6,14 +6,14 @@ package(
 )
 
 cc_library(
-    name = "ArithExtToArith",
-    srcs = ["ArithExtToArith.cpp"],
+    name = "ModArithToArith",
+    srcs = ["ModArithToArith.cpp"],
     hdrs = [
-        "ArithExtToArith.h",
+        "ModArithToArith.h",
     ],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Dialect/ArithExt/IR:Dialect",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
@@ -27,21 +27,21 @@ gentbl_cc_library(
         (
             [
                 "-gen-pass-decls",
-                "-name=ArithExtToArith",
+                "-name=ModArithToArith",
             ],
-            "ArithExtToArith.h.inc",
+            "ModArithToArith.h.inc",
         ),
         (
             ["-gen-rewriters"],
-            "ArithExtToArith.cpp.inc",
+            "ModArithToArith.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ArithExtToArith.td",
+    td_file = "ModArithToArith.td",
     deps = [
         "@heir//lib/DRR",
-        "@heir//lib/Dialect/ArithExt/IR:ops_inc_gen",
-        "@heir//lib/Dialect/ArithExt/IR:td_files",
+        "@heir//lib/Dialect/ModArith/IR:ops_inc_gen",
+        "@heir//lib/Dialect/ModArith/IR:td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",

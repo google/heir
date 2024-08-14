@@ -14,7 +14,7 @@ def PolyMulToNTT : Pass<"convert-polynomial-mul-to-ntt"> {
     point-value representation and then the inverse-NTT back to coefficient
     representation.
   }];
-  let dependentDialects = ["mlir::polynomial::PolynomialDialect", "heir::arith_ext::ArithExtDialect"];
+  let dependentDialects = ["mlir::polynomial::PolynomialDialect", "heir::mod_arith::ModArithDialect"];
 }
 
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_PASSES_TD_

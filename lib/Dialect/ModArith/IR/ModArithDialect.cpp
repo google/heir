@@ -1,4 +1,4 @@
-#include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 
 #include <cassert>
 
@@ -7,32 +7,32 @@
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
-// NOLINTBEGIN(misc-include-cleaner): Required to define ArithExtDialect and
-// ArithExtOps
-#include "lib/Dialect/ArithExt/IR/ArithExtOps.h"
+// NOLINTBEGIN(misc-include-cleaner): Required to define ModArithDialect and
+// ModArithOps
+#include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 // NOLINTEND(misc-include-cleaner)
 
 // Generated definitions
-#include "lib/Dialect/ArithExt/IR/ArithExtDialect.cpp.inc"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.cpp.inc"
 
 #define GET_OP_CLASSES
-#include "lib/Dialect/ArithExt/IR/ArithExtOps.cpp.inc"
+#include "lib/Dialect/ModArith/IR/ModArithOps.cpp.inc"
 
 namespace mlir {
 namespace heir {
-namespace arith_ext {
+namespace mod_arith {
 
-void ArithExtDialect::initialize() {
+void ModArithDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
-#include "lib/Dialect/ArithExt/IR/ArithExtOps.cpp.inc"
+#include "lib/Dialect/ModArith/IR/ModArithOps.cpp.inc"
       >();
 }
 
 /// Ensures that the underlying integer type is wide enough for the coefficient
 template <typename OpType>
-LogicalResult verifyArithExtOpMod(OpType op) {
+LogicalResult verifyModArithOpMod(OpType op) {
   auto type =
       llvm::cast<IntegerType>(getElementTypeOrSelf(op.getResult().getType()));
   unsigned bitWidth = type.getWidth();
@@ -51,13 +51,13 @@ LogicalResult verifyArithExtOpMod(OpType op) {
   return success();
 }
 
-LogicalResult AddOp::verify() { return verifyArithExtOpMod<AddOp>(*this); }
+LogicalResult AddOp::verify() { return verifyModArithOpMod<AddOp>(*this); }
 
-LogicalResult SubOp::verify() { return verifyArithExtOpMod<SubOp>(*this); }
+LogicalResult SubOp::verify() { return verifyModArithOpMod<SubOp>(*this); }
 
-LogicalResult MulOp::verify() { return verifyArithExtOpMod<MulOp>(*this); }
+LogicalResult MulOp::verify() { return verifyModArithOpMod<MulOp>(*this); }
 
-LogicalResult MacOp::verify() { return verifyArithExtOpMod<MacOp>(*this); }
+LogicalResult MacOp::verify() { return verifyModArithOpMod<MacOp>(*this); }
 
 LogicalResult BarrettReduceOp::verify() {
   auto inputType = getInput().getType();
@@ -82,6 +82,6 @@ LogicalResult BarrettReduceOp::verify() {
   return success();
 }
 
-}  // namespace arith_ext
+}  // namespace mod_arith
 }  // namespace heir
 }  // namespace mlir

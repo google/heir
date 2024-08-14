@@ -1,8 +1,8 @@
-#include "lib/Dialect/ArithExt/IR/ArithExtDialect.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -27,7 +27,7 @@ using namespace heir;
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
-  registry.insert<arith_ext::ArithExtDialect>();
+  registry.insert<mod_arith::ModArithDialect>();
   registry.insert<bgv::BGVDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();

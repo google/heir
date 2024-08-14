@@ -12,7 +12,7 @@ add_mlir_dialect_library(MLIRHeirPolynomialNTTRewrites
 
         LINK_LIBS PUBLIC
 
-        MLIRArithExtDialect
+        MLIRModArithDialect
         MLIRArithDialect
         MLIRIR
         MLIRPass

@@ -20,7 +20,7 @@ add_mlir_dialect_library(MLIRHEIRUtils
     MLIRIR
 )
 
-add_subdirectory(ArithExtToArith)
+add_subdirectory(ModArithToArith)
 add_subdirectory(BGVToOpenfhe)
 add_subdirectory(BGVToLWE)
 add_subdirectory(CGGIToJaxite)
