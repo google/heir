@@ -206,23 +206,60 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
             });
 
     ImplicitLocOpBuilder builder(loc, rewriter);
+
+    auto index0 = builder.create<arith::ConstantIndexOp>(0);
+    auto dimension =
+        inputT.getRing().getPolynomialModulus().getPolynomial().getDegree();
+
+    auto elementType = rewriter.getIntegerType(inputT.getRing()
+                                                   .getCoefficientModulus()
+                                                   .getType()
+                                                   .getIntOrFloatBitWidth());
+
+    auto tensorParams = RankedTensorType::get({dimension}, elementType);
+
+    // TODO (#881): Add pass options to change the seed (which is currently
+    // hardcoded to 0 with index).
+    // TODO (#873) : Clean up usage of Random Dialect below using num_bits
+    // (currently hardcoded to 32).
+
+    // Initialize random number generator with seed.
+    auto generateRandom =
+        builder.create<random::InitOp>(index0, builder.getI32IntegerAttr(32));
+
+    // Create a uniform discrete random distribution with generated values of
+    // -1, 0, 1.
+    auto uniformDistributionType = random::DistributionType::get(
+        getContext(), random::Distribution::uniform);
+
+    auto uniformDistribution =
+        builder.create<random::DiscreteUniformDistributionOp>(
+            uniformDistributionType, generateRandom,
+            builder.getI32IntegerAttr(-1), builder.getI32IntegerAttr(2));
+
+    // Generate random u polynomial from uniform random ternary distribution
+    auto uTensor =
+        builder.create<random::SampleOp>(tensorParams, uniformDistribution);
+    auto u =
+        builder.create<polynomial::FromTensorOp>(uTensor, inputT.getRing());
+
+    // Create a discrete Gaussian distribution
+    auto discreteGaussianDistributionType = random::DistributionType::get(
+        getContext(), random::Distribution::gaussian);
+
+    auto discreteGaussianDistribution =
+        builder.create<random::DiscreteGaussianDistributionOp>(
+            discreteGaussianDistributionType, generateRandom,
+            builder.getI32IntegerAttr(0), builder.getI32IntegerAttr(5));
+    // TODO (#881): Add pass options to configure stdev
+    // (which is currently hardcoded to 5)
+
     if (isPublicKey) {
-      auto index0 = builder.create<arith::ConstantIndexOp>(0);
       tensor::ExtractOp publicKey0 =
           builder.create<tensor::ExtractOp>(key, ValueRange{index0});
       auto index1 = builder.create<arith::ConstantIndexOp>(1);
       tensor::ExtractOp publicKey1 =
           builder.create<tensor::ExtractOp>(key, ValueRange{index1});
-
-      auto dimension =
-          inputT.getRing().getPolynomialModulus().getPolynomial().getDegree();
-
-      auto elementType = rewriter.getIntegerType(inputT.getRing()
-                                                     .getCoefficientModulus()
-                                                     .getType()
-                                                     .getIntOrFloatBitWidth());
-
-      auto tensorParams = RankedTensorType::get({dimension}, elementType);
 
       // constantT is 2**(cleartextBitwidth), and is used for scalar
       // multiplication.
@@ -230,43 +267,6 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       // attributes.
       auto constantT = builder.create<arith::ConstantOp>(
           builder.getI32IntegerAttr(1 << cleartextBitwidth));
-
-      // TODO (#881): Add pass options to change the seed (which is currently
-      // hardcoded to 0 with index0).
-      // TODO (#873) : Clean up usage of Random Dialect below using num_bits
-      // (currently hardcoded to 32).
-
-      // Initialize random number generator with seed.
-      auto generateRandom =
-          builder.create<random::InitOp>(index0, builder.getI32IntegerAttr(32));
-
-      // Create a uniform discrete random distribution with generated values of
-      // -1, 0, 1.
-      auto uniformDistributionType = random::DistributionType::get(
-          getContext(), random::Distribution::uniform);
-
-      auto uniformDistribution =
-          builder.create<random::DiscreteUniformDistributionOp>(
-              uniformDistributionType, generateRandom,
-              builder.getI32IntegerAttr(-1), builder.getI32IntegerAttr(2));
-
-      // generate random u polynomial from uniform random ternary distribution
-      auto uTensor =
-          builder.create<random::SampleOp>(tensorParams, uniformDistribution);
-      auto u =
-          builder.create<polynomial::FromTensorOp>(uTensor, inputT.getRing());
-
-      // Create a discrete Gaussian distribution
-      auto discreteGaussianDistributionType = random::DistributionType::get(
-          getContext(), random::Distribution::gaussian);
-
-      auto discreteGaussianDistribution =
-          builder.create<random::DiscreteGaussianDistributionOp>(
-              discreteGaussianDistributionType, generateRandom,
-              builder.getI32IntegerAttr(0),
-              builder.getI32IntegerAttr(
-                  5));  // TODO (#881): Add pass options to configure stdev
-                        // (which is currently hardcoded to 5)
 
       // generate random e0 polynomial from discrete gaussian distribution
       auto e0Tensor = builder.create<random::SampleOp>(
@@ -299,11 +299,35 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
           llvm::ArrayRef<Value>({ciphertext0, ciphertext1}));
       rewriter.replaceOp(op, ciphertext);
     } else {  // secret key
-      // TODO (#880): Add support for secret key encryption. Left as future
-      // work.
-      op.emitError()
-          << "`lwe.rlwe_encrypt` doesn't yet support secret key encryption.";
-      return failure();
+      // We only support secret key encryption with a single polynomial (typical
+      // RLWE parameters, whereas CGGI may use a larger number of polynomials
+      // for the secret key).
+      if (cast<RankedTensorType>(key.getType()).getNumElements() != 1) {
+        return op.emitError()
+               << "`lwe.rlwe_encrypt` only supports secret keys with a single "
+                  "polynomial, got secret key type "
+               << key.getType();
+      }
+
+      // Generate random e polynomial from discrete gaussian distribution
+      auto eTensor = builder.create<random::SampleOp>(
+          tensorParams, discreteGaussianDistribution);
+      auto e =
+          builder.create<polynomial::FromTensorOp>(eTensor, inputT.getRing());
+
+      // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
+      // noise or key differently. Add support for those cases.
+      // ciphertext0 = u
+      // Compute ciphertext1 = <u,s> + m + e
+      auto keyPoly = builder.create<tensor::ExtractOp>(key, ValueRange{index0});
+      auto us = builder.create<polynomial::MulOp>(u, keyPoly);
+      auto usM = builder.create<polynomial::AddOp>(us, input);
+      auto ciphertext1 = builder.create<polynomial::AddOp>(usM, e);
+
+      // ciphertext = (u, ciphertext0)
+      auto ciphertext = builder.create<tensor::FromElementsOp>(
+          llvm::ArrayRef<Value>({u, ciphertext1}));
+      rewriter.replaceOp(op, ciphertext);
     }
 
     return success();

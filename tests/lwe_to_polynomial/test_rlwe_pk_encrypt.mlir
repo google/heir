@@ -8,7 +8,7 @@
 !ciphertext_rlwe = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params, underlying_type=i3>
 !rlwe_key = !lwe.rlwe_public_key<rlwe_params=#rlwe_params>
 
-func.func @test_rlwe_encrypt(%arg0: !plaintext_rlwe, %arg1: !rlwe_key) -> !ciphertext_rlwe {
+func.func @test_rlwe_pk_encrypt(%arg0: !plaintext_rlwe, %arg1: !rlwe_key) -> !ciphertext_rlwe {
   // CHECK-NOT: lwe.rlwe_encrypt
 
   // CHECK-DAG: %[[ZERO:.*]] = arith.constant 0 : index
