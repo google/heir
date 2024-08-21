@@ -45,7 +45,9 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
+#include "lib/Transforms/ConvertSecretExtractToStaticExtract/ConvertSecretExtractToStaticExtract.h"
 #include "lib/Transforms/ConvertSecretForToStaticFor/ConvertSecretForToStaticFor.h"
+#include "lib/Transforms/ConvertSecretInsertToStaticInsert/ConvertSecretInsertToStaticInsert.h"
 #include "lib/Transforms/ConvertSecretWhileToStaticFor/ConvertSecretWhileToStaticFor.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
@@ -595,6 +597,8 @@ int main(int argc, char **argv) {
   registerConvertIfToSelectPasses();
   registerConvertSecretForToStaticForPasses();
   registerConvertSecretWhileToStaticForPasses();
+  registerConvertSecretExtractToStaticExtractPasses();
+  registerConvertSecretInsertToStaticInsertPasses();
   registerApplyFoldersPasses();
   registerForwardStoreToLoadPasses();
   registerOperationBalancerPasses();
