@@ -45,6 +45,30 @@ class Secretness {
     return Secretness{lhs.getSecretness() || rhs.getSecretness()};
   }
 
+  static Secretness combine(llvm::ArrayRef<Secretness> secretnesses) {
+    // initialize secretness to false
+    Secretness result = Secretness(false);
+
+    // Assume every secretness state is initialized/known
+    bool uninitializedFound = false;
+
+    for (const auto &secretness : secretnesses) {
+      // If uninitialized state is found, set to true
+      if (!secretness.isInitialized())
+        uninitializedFound = true;
+      else {
+        // If any element in the list is secret, the combination is also
+        // considered secret
+        if (secretness.getSecretness()) return secretness;
+      }
+    }
+    // If execution reaches here and an uninitialized (unknown) secretness is
+    // found, unknown combined with Secretness(false) will be unknown
+    if (uninitializedFound) return Secretness();
+
+    return result;
+  }
+
   void print(raw_ostream &os) const { os << "Secretness: " << secretness; }
 
  private:
