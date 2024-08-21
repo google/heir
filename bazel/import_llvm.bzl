@@ -14,9 +14,6 @@ def import_llvm(name):
         # this BUILD file is intentionally empty, because the LLVM project
         # internally contains a set of bazel BUILD files overlaying the project.
         build_file_content = "# empty",
-        # this patch should be removed once llvm/llvm-project#104054 is merged
-        patches = ["@heir//bazel:llvm.patch"],
-        patch_args = ["-p1"],
         commit = LLVM_COMMIT,
         init_submodules = False,
         remote = "https://github.com/llvm/llvm-project.git",
