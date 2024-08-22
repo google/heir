@@ -57,8 +57,10 @@ def ConvertAddSimple : Pattern<
 def ConvertSubSimple : Pattern<
   (ModArith_SubOp:$op $x, $y, $mod),
   [
+    (Arith_ConstantOp:$newmod (CastModulusAttributeAddSub $mod, $x)),
     (Arith_SubIOp:$sub $x, $y, DefOverflow),
-    (Arith_RemUIOp $sub, (Arith_ConstantOp (CastModulusAttributeAddSub $mod, $x)))
+    (Arith_AddIOp:$shift $sub, $newmod, DefOverflow),
+    (Arith_RemUIOp $shift, $newmod)
   ],
   [(HasEnoughSpaceAddSub:$op $mod)],
   [],
@@ -113,8 +115,9 @@ def ConvertSub : Pattern<
       (Arith_ExtUIOp $y,
         (returnType $newmod)),
       DefOverflow),
+    (Arith_AddIOp:$shift $sub, $newmod, DefOverflow),
     (Arith_TruncIOp:$res
-      (Arith_RemUIOp $sub, $newmod))
+      (Arith_RemUIOp $shift, $newmod))
   ]
 >;
 

@@ -58,9 +58,10 @@ func.func @test_lower_add_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tenso
 // CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
 func.func @test_lower_simple_sub(%lhs : i8, %rhs : i8) -> i8 {
   // CHECK-NOT: mod_arith.sub
-  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
   // CHECK: %[[CMOD:.*]] = arith.constant 17 : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SUB]], %[[CMOD]] : [[TYPE]]
+  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[TYPE]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[TYPE]]
   // CHECK: return %[[REM]] : [[TYPE]]
   %res = mod_arith.sub %lhs, %rhs {modulus = 17}: i8
   return %res : i8
@@ -70,9 +71,10 @@ func.func @test_lower_simple_sub(%lhs : i8, %rhs : i8) -> i8 {
 // CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
 func.func @test_lower_simple_sub_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
   // CHECK-NOT: mod_arith.sub
-  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
   // CHECK: %[[CMOD:.*]] = arith.constant dense<17> : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SUB]], %[[CMOD]] : [[TYPE]]
+  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[TYPE]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[TYPE]]
   // CHECK: return %[[REM]] : [[TYPE]]
   %res = mod_arith.sub %lhs, %rhs {modulus = 17}: tensor<4xi8>
   return %res : tensor<4xi8>
@@ -86,7 +88,8 @@ func.func @test_lower_sub(%lhs : i8, %rhs : i8) -> i8 {
   // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
   // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
   // CHECK: %[[SUB:.*]] = arith.subi %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SUB]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
   // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
   // CHECK: return %[[TRUNC]] : [[TYPE]]
   %res = mod_arith.sub %lhs, %rhs {modulus = 217 }: i8
@@ -101,7 +104,8 @@ func.func @test_lower_sub_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tenso
   // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
   // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
   // CHECK: %[[SUB:.*]] = arith.subi %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SUB]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
   // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
   // CHECK: return %[[TRUNC]] : [[TYPE]]
   %res = mod_arith.sub %lhs, %rhs {modulus = 217 }: tensor<4xi8>
