@@ -37,6 +37,11 @@ std::string flattenIndexExpression(
     MemRefType memRefType, ValueRange indices,
     std::function<std::string(Value)> valueToString);
 
+// sum of products
+std::string flattenIndexExpressionSOP(
+    MemRefType memRefType, ValueRange indices,
+    std::function<std::string(Value)> valueToString);
+
 }  // namespace heir
 }  // namespace mlir
 

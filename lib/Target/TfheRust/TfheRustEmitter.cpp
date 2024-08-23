@@ -703,15 +703,12 @@ void TfheRustEmitter::printLoadOp(memref::LoadOp op) {
   os << variableNames->getNameForValue(op.getMemref());
   if (dyn_cast_or_null<memref::GetGlobalOp>(op.getMemRef().getDefiningOp())) {
     // Global arrays are 1-dimensional, so flatten the index
-    // TODO(#449): Share with Verilog Emitter.
-    const auto [strides, offset] =
-        getStridesAndOffset(cast<MemRefType>(op.getMemRefType()));
-    os << "[" << std::to_string(offset);
-    for (size_t i = 0; i < strides.size(); ++i) {
-      os << llvm::formatv(" + {0} * {1}",
-                          variableNames->getNameForValue(op.getIndices()[i]),
-                          strides[i]);
-    }
+
+    os << "["
+       << flattenIndexExpressionSOP(
+              op.getMemRefType(), op.getIndices(), [&](Value value) {
+                return variableNames->getNameForValue(value);
+              });
     os << "]";
   } else if (isa<BlockArgument>(op.getMemRef())) {
     // This is a block argument array.

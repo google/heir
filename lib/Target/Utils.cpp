@@ -67,5 +67,19 @@ std::string flattenIndexExpression(
   return accum;
 }
 
+// sum of products
+std::string flattenIndexExpressionSOP(
+    MemRefType memRefType, ValueRange indices,
+    std::function<std::string(Value)> valueToString) {
+  const auto [strides, offset] = getStridesAndOffset(memRefType);
+  std::string accum = std::to_string(offset);
+  for (int i = 0; i < indices.size(); ++i) {
+    accum = llvm::formatv("{2} + {0} * {1}", valueToString(indices[i]),
+                          strides[i], accum);
+  }
+
+  return accum;
+}
+
 }  // namespace heir
 }  // namespace mlir
