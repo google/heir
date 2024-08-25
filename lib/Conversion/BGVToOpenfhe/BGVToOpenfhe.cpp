@@ -369,6 +369,41 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
   }
 };
 
+struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
+  using OpConversionPattern<lwe::RLWEEncodeOp>::OpConversionPattern;
+
+  // OpenFHE has a convention that all inputs to MakePackedPlaintext are
+  // std::vector<int64_t>, so we need to cast the input to that type.
+  LogicalResult matchAndRewrite(
+      lwe::RLWEEncodeOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto tensorTy =
+        mlir::dyn_cast<RankedTensorType>(adaptor.getInput().getType());
+    // TODO(#646): support scalar inputs to encode.
+    if (!tensorTy) return op.emitOpError() << "Unsupported input type";
+
+    auto elementTy = tensorTy.getElementType();
+    auto intTy = mlir::dyn_cast<IntegerType>(elementTy);
+    if (!intTy)
+      return op.emitOpError() << "Input element type must be an integer type";
+
+    if (intTy.getWidth() >= 64)
+      return op.emitError() << "No supported packing technique for integers "
+                               "bigger than 64 bits.";
+
+    auto int64Ty = rewriter.getIntegerType(64);
+    auto newTensorTy = RankedTensorType::get(tensorTy.getShape(), int64Ty);
+    auto castedInput = rewriter.create<arith::ExtSIOp>(op.getLoc(), newTensorTy,
+                                                       adaptor.getInput());
+
+    rewriter.replaceOpWithNewOp<lwe::RLWEEncodeOp>(
+        op, op.getType(), castedInput, adaptor.getEncoding(),
+        adaptor.getRing());
+
+    return success();
+  }
+};
+
 struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -391,10 +426,22 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
              typeConverter.isLegal(&op.getBody()) &&
              (!containsBGVOps(op) || hasCryptoContextArg);
     });
+
+    target.addDynamicallyLegalOp<lwe::RLWEEncodeOp>([](lwe::RLWEEncodeOp op) {
+      if (auto tensorType =
+              mlir::dyn_cast<RankedTensorType>(op.getInput().getType())) {
+        if (auto intType =
+                mlir::dyn_cast<IntegerType>(tensorType.getElementType())) {
+          return intType.getWidth() == 64;
+        }
+      }
+      return false;
+    });
     patterns.add<AddCryptoContextArg, ConvertAddOp, ConvertSubOp, ConvertMulOp,
                  ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,
                  ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp,
-                 ConvertEncryptOp, ConvertDecryptOp>(typeConverter, context);
+                 ConvertEncryptOp, ConvertDecryptOp, ConvertEncodeOp>(
+        typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
