@@ -19,6 +19,13 @@ module {
     return
   }
 
+  // CHECK-LABEL: func @test_encode
+  func.func @test_encode(%arg0: tensor<32xi3>, %pt : !pt, %pk: !pk) {
+    %0 = arith.extsi %arg0 : tensor<32xi3> to tensor<32xi64>
+    %out = lwe.rlwe_encode %0 {encoding=#encoding, ring=#ring} : tensor<32xi64> -> !pt
+    return
+  }
+
   // CHECK-LABEL: func @test_negate
   func.func @test_negate(%cc : !cc, %pt : !pt, %pk: !pk) {
     %ct = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
