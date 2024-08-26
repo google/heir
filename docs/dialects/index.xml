@@ -749,7 +749,7 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of A type for LWE ciphertexts&lt;/td>
+&lt;td>variadic of any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -764,7 +764,7 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
