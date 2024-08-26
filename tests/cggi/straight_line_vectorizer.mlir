@@ -1,5 +1,7 @@
 // TODO(#519): disable FileChecks until nondeterminism issues are resolved
 // RUN: heir-opt --straight-line-vectorize %s | FileCheck %s
+// RUN: heir-opt --canonicalize --straight-line-vectorize %s | FileCheck %s --check-prefix=CANONICAL
+
 
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
@@ -8,6 +10,7 @@
 // CHECK-LABEL: add_one
 // CHECK-COUNT-9: cggi.lut3
 // CHECK: cggi.lut3 %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {lookup_table = 105 : ui8} : tensor<6x!lwe.lwe_ciphertext
+// CANONICAL: cggi.lut_lincomb %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {coefficients = array<i32: 1, 2, 4>, lookup_table = 105 : ui8} : tensor<6x!lwe.lwe_ciphertext
 func.func @add_one(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %true = arith.constant true
   %false = arith.constant false

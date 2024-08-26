@@ -150,12 +150,18 @@ def CGGI_LutLinCombOp : CGGI_Op<"lut_lincomb", [
     ```
   }];
 
+  // Use Variadic<AnyType> and enforce LWECiphertextLike on type in verifier.
+  // Tablegen produces an error when validating types when using a TypeOrContainer
+  // type in a Variadic like Variadic<LWECiphertextLike>:
+  // A workaround uses Variadic<AnyType> and a custom type verifier.
+  // error: Value specified for template argument 'Variadic:type' is of type
+  //   TypeOrContainer; expected type Type: LWECiphertextLike
   let arguments = (ins
-    Variadic<LWECiphertext>:$inputs,
+    Variadic<AnyType>:$inputs,
     DenseI32ArrayAttr:$coefficients,
     Builtin_IntegerAttr:$lookup_table
   );
-  let results = (outs LWECiphertext:$output);
+  let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)" ;
   let hasVerifier = 1;
 }

@@ -5,6 +5,7 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -46,8 +47,11 @@ LogicalResult LutLinCombOp::verify() {
   if (getInputs().size() != getCoefficients().size())
     return emitOpError("number of coefficients must match number of inputs");
 
-  lwe::LWECiphertextType type =
-      cast<lwe::LWECiphertextType>(getOutput().getType());
+  lwe::LWECiphertextType type = dyn_cast<lwe::LWECiphertextType>(
+      getElementTypeOrSelf(getOutput().getType()));
+  // Tablegen allows AnyType due to error using Variadic on TypeOrContainer
+  // types.
+  if (!type) return emitOpError("expected LWE ciphertext element type");
   auto encoding = dyn_cast<lwe::BitFieldEncodingAttr>(type.getEncoding());
 
   if (encoding) {
