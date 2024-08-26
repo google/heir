@@ -1,9 +1,7 @@
-<!-- mdformat off(yaml frontmatter) -->
 ---
 title: Getting Started
 weight: 10
 ---
-<!-- mdformat on -->
 
 ## Getting HEIR
 
@@ -11,48 +9,53 @@ weight: 10
 
 #### Prerequisites
 
--   [Git](https://git-scm.com/)
--   A C++ compiler and linker ([clang](https://clang.llvm.org/) and [lld](https://lld.llvm.org/) are recommended).
--   Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk), or version
-    `>=5.5`
--   See [Development](https://heir.dev/docs/development) for additional prerequisites for active development
+- [Git](https://git-scm.com/)
+- A C++ compiler and linker ([clang](https://clang.llvm.org/) and
+  [lld](https://lld.llvm.org/) are recommended).
+- Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk), or version
+  `>=5.5`
+- See [Development](https://heir.dev/docs/development) for additional
+  prerequisites for active development
 
-  <details>
+<details>
   <summary>Detailed Instructions</summary>
   The first two requirements are frequently pre-installed
   or can be installed via the system package manager.
   For example, on Ubuntu, these can be installed with
 
-  ```bash
-  sudo apt-get update && sudo apt-get install clang lld
-  ```
+```bash
+sudo apt-get update && sudo apt-get install clang lld
+```
 
-  You can download the latest Bazelisk release, e.g.,
-  for linux-amd64 (see the
-  [Bazelisk Release Page](https://github.com/bazelbuild/bazelisk/releases/latest)
-  for a list of available binaries):
-  ```bash
-  wget -c https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
-  mv bazelisk-linux-amd64 bazel
-  chmod +x bazel
-  ```
-  You will then likely want to move `bazel` to a location on your PATH,
-  or add its location to your PATH, e.g.:
-  ```bash
-  mkdir ~/bin
-  echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
-  mv bazel ~/bin/bazel
-  ```
+You can download the latest Bazelisk release, e.g., for linux-amd64 (see the
+[Bazelisk Release Page](https://github.com/bazelbuild/bazelisk/releases/latest)
+for a list of available binaries):
 
-  Note that on linux systems, your OS user must **not** be `root` as bazel might refuse to work if run as root.
-  </details>
+```bash
+wget -c https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+mv bazelisk-linux-amd64 bazel
+chmod +x bazel
+```
 
+You will then likely want to move `bazel` to a location on your PATH, or add its
+location to your PATH, e.g.:
+
+```bash
+mkdir ~/bin
+echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
+mv bazel ~/bin/bazel
+```
+
+Note that on linux systems, your OS user must **not** be `root` as bazel might
+refuse to work if run as root.
+
+</details>
 
 #### Clone and build the project
 
-You can clone and build HEIR from the terminal as described below.
-Please see [Development](https://heir.dev/docs/development) for information on
-IDE configuration if you want to use an IDE to build HEIR.
+You can clone and build HEIR from the terminal as described below. Please see
+[Development](https://heir.dev/docs/development) for information on IDE
+configuration if you want to use an IDE to build HEIR.
 
 ```bash
 git clone git@github.com:google/heir.git && cd heir
@@ -91,29 +94,26 @@ chmod +x heir-opt
 ./heir-opt --help
 ```
 
-Then you can run the examples below, replacing `bazel run //tools:heir-opt --` with
-`./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the same way.
-
-
+Then you can run the examples below, replacing `bazel run //tools:heir-opt --`
+with `./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the
+same way.
 
 ## Using HEIR
 
 ### Run the `dot-product` example
 
-The `dot-product` program computes the dot product of two length-8
-vectors of 16-bit integers (`i16` in MLIR parlance).
-This example will showcase the OpenFHE backend by manually
-calling the relevant compiler passes and setting up a C++ harness
-to call into the HEIR-generated functions.
+The `dot-product` program computes the dot product of two length-8 vectors of
+16-bit integers (`i16` in MLIR parlance). This example will showcase the OpenFHE
+backend by manually calling the relevant compiler passes and setting up a C++
+harness to call into the HEIR-generated functions.
 
-Note: other backends are similar, but the different backends
-are in varying stages of development.
+Note: other backends are similar, but the different backends are in varying
+stages of development.
 
-The input program is in `tests/openfhe/end_to_end/dot_product_8.mlir`.
-Support for standard input languages like `C` and `C++` are currently
-experimental at best, but eventually we would use an MLIR-based tool
-to convert an input language to MLIR like in that file.
-The program is below:
+The input program is in `tests/openfhe/end_to_end/dot_product_8.mlir`. Support
+for standard input languages like `C` and `C++` are currently experimental at
+best, but eventually we would use an MLIR-based tool to convert an input
+language to MLIR like in that file. The program is below:
 
 ```mlir
 func.func @dot_product(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> i16 {
@@ -131,9 +131,8 @@ func.func @dot_product(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> i16 {
 ```
 
 For an introduction to MLIR syntax, see the
-[official docs](https://mlir.llvm.org/docs/LangRef/)
-or [this blog
-post](https://www.jeremykun.com/2023/08/10/mlir-running-and-testing-a-lowering/).
+[official docs](https://mlir.llvm.org/docs/LangRef/) or
+[this blog post](https://www.jeremykun.com/2023/08/10/mlir-running-and-testing-a-lowering/).
 
 Now we run the `heir-opt` command to optimize and compile the program.
 
@@ -143,9 +142,8 @@ bazel run //tools:heir-opt -- \
 $PWD/tests/openfhe/end_to_end/dot_product_8.mlir > output.mlir
 ```
 
-This produces a file in the `openfhe` exit dialect (part of HEIR).
-The raw output is rather verbose,
-and an abbreviated version is shown below.
+This produces a file in the `openfhe` exit dialect (part of HEIR). The raw
+output is rather verbose, and an abbreviated version is shown below.
 
 ```mlir
 !tensor_ct = !lwe.rlwe_ciphertext<..., underlying_type = tensor<8xi16>>
@@ -189,8 +187,8 @@ module {
 }
 ```
 
-Next, we use the `heir-translate` tool to run code generation for the
-OpenFHE `pke` API.
+Next, we use the `heir-translate` tool to run code generation for the OpenFHE
+`pke` API.
 
 ```bash
 bazel run //tools:heir-translate -- --emit-openfhe-pke-header $PWD/output.mlir > heir_output.h
@@ -268,10 +266,10 @@ Note that the above two files just contain the compiled function and
 encryption/decryption helpers, and does not include any code that provides
 specific inputs or calls these functions.
 
-Next we'll create a harness that provides sample inputs, encrypts them, runs
-the compiled function, and decrypts the result. Once you have the generated
-header and cpp files, you can do this with any build system. We will use bazel
-for consistency.
+Next we'll create a harness that provides sample inputs, encrypts them, runs the
+compiled function, and decrypts the result. Once you have the generated header
+and cpp files, you can do this with any build system. We will use bazel for
+consistency.
 
 Create a file called `BUILD` in the same directory as the header and cpp files
 above, with the following contents:
@@ -388,9 +386,9 @@ bazel run //tools:heir-opt -- \
   $PWD/tests/comb_to_cggi/add_one.mlir
 ```
 
-To convert an existing lit test to a `bazel run` command for manual tweaking
-and introspection (e.g., adding `--debug` or `--mlir-print-ir-after-all` to see
-how he IR changes with each pass), use `python scripts/lit_to_bazel.py`.
+To convert an existing lit test to a `bazel run` command for manual tweaking and
+introspection (e.g., adding `--debug` or `--mlir-print-ir-after-all` to see how
+he IR changes with each pass), use `python scripts/lit_to_bazel.py`.
 
 ```bash
 # after pip installing requirements-dev.txt

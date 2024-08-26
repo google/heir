@@ -3,8 +3,8 @@ lowering `polynomial-to-standard` on some hard-coded test inputs. To reduce the
 chance of the tests being specified incorrectly and the burden of generating
 expected test outputs, the tests are automatically generated.
 
-`lower_mul_tests.toml` contains test specifications for `polynomial.mul`,
-and each test has the following syntax
+`lower_mul_tests.toml` contains test specifications for `polynomial.mul`, and
+each test has the following syntax
 
 ```
 [[test]]
@@ -15,8 +15,8 @@ p1 = str (sympy-parsable polynomial in `x`)
 container_type = str (string representation of an mlir integer type)
 ```
 
-This test then represents the correctness of the product of `p0` and `p1` in
-the ring of polynomials mod `cmod` and `ideal`, using an underlying integer
+This test then represents the correctness of the product of `p0` and `p1` in the
+ring of polynomials mod `cmod` and `ideal`, using an underlying integer
 container type of `container_type`.
 
 For example,
