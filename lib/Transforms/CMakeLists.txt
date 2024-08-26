@@ -9,6 +9,8 @@ add_subdirectory(UnusedMemRef)
 add_subdirectory(ConvertSecretForToStaticFor)
 add_subdirectory(ConvertSecretWhileToStaticFor)
 add_subdirectory(OperationBalancer)
+add_subdirectory(ConvertSecretInsertToStaticInsert)
+add_subdirectory(ConvertSecretExtractToStaticExtract)
 
 if(ENABLE_YOSYS)
     # TODO (#797): Support Yosys in cmake build.
