@@ -71,7 +71,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
-          .Case<arith::ConstantOp, arith::IndexCastOp>(
+          .Case<arith::ConstantOp, arith::ExtSIOp, arith::IndexCastOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEEncodeOp, lwe::RLWEDecodeOp,
@@ -328,6 +328,24 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
   return success();
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtSIOp op) {
+  // OpenFHE has a convention that all inputs to MakePackedPlaintext are
+  // std::vector<int64_t>, so earlier stages in the pipeline emit typecasts
+
+  std::string inputVarName = variableNames->getNameForValue(op.getOperand());
+  std::string resultVarName = variableNames->getNameForValue(op.getResult());
+
+  // If it's a vector<int**_t>, we can use a copy constructor to upcast.
+  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getOperand().getType())) {
+    os << "std::vector<int64_t> " << resultVarName << "(std::begin("
+       << inputVarName << "), std::end(" << inputVarName << "));\n";
+  } else {
+    return op.emitOpError() << "Unsupported input type";
+  }
+
+  return success();
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::IndexCastOp op) {
   Type outputType = op.getOut().getType();
   if (failed(emitTypedAssignPrefix(op.getResult()))) {
@@ -349,29 +367,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEEncodeOp op) {
-  // OpenFHE has a convention that all inputs to MakePackedPlaintext are
-  // std::vector<int64_t>, so we need to cast the input to that type.
-
   std::string inputVarName = variableNames->getNameForValue(op.getInput());
-  std::string convertedVarName;
-  // If it's a vector<int**_t>, we can use a copy constructor to upcast.
-  // TODO(#647): move type casting to a higher level lowering.
-  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getInput().getType())) {
-    std::string tmpVar = inputVarName + "_cast";
-    os << "std::vector<int64_t> " << tmpVar << "(std::begin(" << inputVarName
-       << "), std::end(" << inputVarName << "));\n";
-    convertedVarName = tmpVar;
-  } else {
-    // TODO(#646): support scalar inputs to encode, probably at a higher level
-    // than the final codegen.
-    return op.emitOpError() << "Unsupported input type";
-  }
 
   emitAutoAssignPrefix(op.getResult());
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
   os << variableNames->getNameForValue(resultCC.value())
-     << "->MakePackedPlaintext(" << convertedVarName << ");\n";
+     << "->MakePackedPlaintext(" << inputVarName << ");\n";
   return success();
 }
 
