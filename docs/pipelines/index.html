@@ -2,9 +2,9 @@
 This pass is intended to process FHE programs that are known to be good for SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle arith ops operating on tensor types (with or without secret.generic).
 The pass unrolls all loops, then applies a series of passes that convert scalar operations on tensor elements to SIMD operations on full tensors."><meta property="og:title" content="Pipelines"><meta property="og:description" content="heir-opt --heir-simd-vectorizer Run scheme-agnostic passes to convert FHE programs that operate on scalar types to equivalent programs that operate on vectors.
 This pass is intended to process FHE programs that are known to be good for SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle arith ops operating on tensor types (with or without secret.generic).
-The pass unrolls all loops, then applies a series of passes that convert scalar operations on tensor elements to SIMD operations on full tensors."><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/pipelines/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2024-07-31T23:56:16-07:00"><meta itemprop=name content="Pipelines"><meta itemprop=description content="heir-opt --heir-simd-vectorizer Run scheme-agnostic passes to convert FHE programs that operate on scalar types to equivalent programs that operate on vectors.
+The pass unrolls all loops, then applies a series of passes that convert scalar operations on tensor elements to SIMD operations on full tensors."><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/pipelines/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2024-08-25T21:26:29-07:00"><meta itemprop=name content="Pipelines"><meta itemprop=description content="heir-opt --heir-simd-vectorizer Run scheme-agnostic passes to convert FHE programs that operate on scalar types to equivalent programs that operate on vectors.
 This pass is intended to process FHE programs that are known to be good for SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle arith ops operating on tensor types (with or without secret.generic).
-The pass unrolls all loops, then applies a series of passes that convert scalar operations on tensor elements to SIMD operations on full tensors."><meta itemprop=dateModified content="2024-07-31T23:56:16-07:00"><meta itemprop=wordCount content="1062"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Pipelines"><meta name=twitter:description content="heir-opt --heir-simd-vectorizer Run scheme-agnostic passes to convert FHE programs that operate on scalar types to equivalent programs that operate on vectors.
+The pass unrolls all loops, then applies a series of passes that convert scalar operations on tensor elements to SIMD operations on full tensors."><meta itemprop=dateModified content="2024-08-25T21:26:29-07:00"><meta itemprop=wordCount content="1062"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Pipelines"><meta name=twitter:description content="heir-opt --heir-simd-vectorizer Run scheme-agnostic passes to convert FHE programs that operate on scalar types to equivalent programs that operate on vectors.
 This pass is intended to process FHE programs that are known to be good for SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle arith ops operating on tensor types (with or without secret.generic).
 The pass unrolls all loops, then applies a series of passes that convert scalar operations on tensor elements to SIMD operations on full tensors."><link rel=preload href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
 <script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]]}}</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
@@ -17,21 +17,21 @@ to equivalent programs that operate on vectors.</p><p>This pass is intended to p
 SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle
 <code>arith</code> ops operating on <code>tensor</code> types (with or without <code>secret.generic</code>).</p><p>The pass unrolls all loops, then applies a series of passes that convert scalar
 operations on tensor elements to SIMD operations on full tensors. This uses the
-FHE computational model common to BGV, BFV, and CKKS, in which data is packed
-in polynomial ciphertexts, interpreted as vectors of individual data elements,
-and arithmetic can be applied across entire ciphertexts, with some limited
-support for rotations via automorphisms of the underlying ring.</p><p>Along the way, this pipeline applies heuristic optimizations to minimize the
+FHE computational model common to BGV, BFV, and CKKS, in which data is packed in
+polynomial ciphertexts, interpreted as vectors of individual data elements, and
+arithmetic can be applied across entire ciphertexts, with some limited support
+for rotations via automorphisms of the underlying ring.</p><p>Along the way, this pipeline applies heuristic optimizations to minimize the
 number of rotations needed, relying on the implicit cost model that rotations
 are generally expensive. The specific set of passes can be found in
 <code>tools/heir-opt.cpp</code> where the pipeline is defined.</p><h3 id=--heir-tosa-to-arith><code>--heir-tosa-to-arith</code></h3><p>Lowers a TOSA MLIR model to <code>func</code>, <code>arith</code>, and <code>memref</code>.</p><p>Lowers from TOSA through <code>linalg</code> and <code>affine</code>, and converts all tensors to
 memrefs. Fully unrolls all loops, and forwards stores to subsequent loads
-whenever possible. The output is suitable as an input to <code>heir-translate --emit-verilog</code>. Retains <code>affine.load</code> and <code>affine.store</code> ops that cannot be
-removed (e.g., reading from the input and writing to the output, or loading from
-a memref with a variable index).</p><p>The pass pipeline assumes that the input is a valid TOSA MLIR model with
+whenever possible. The output is suitable as an input to
+<code>heir-translate --emit-verilog</code>. Retains <code>affine.load</code> and <code>affine.store</code> ops
+that cannot be removed (e.g., reading from the input and writing to the output,
+or loading from a memref with a variable index).</p><p>The pass pipeline assumes that the input is a valid TOSA MLIR model with
 stripped quantized types. The
-<a href=https://iree.dev/guides/ml-frameworks/tflite>iree-import-tflite</a>
-tool can lower a TFLite FlatBuffer to textual MLIR with
-<code>--output-format=mlir-ir</code>. See
+<a href=https://iree.dev/guides/ml-frameworks/tflite>iree-import-tflite</a> tool can
+lower a TFLite FlatBuffer to textual MLIR with <code>--output-format=mlir-ir</code>. See
 <a href=https://github.com/google/heir/blob/main/tests/verilog/hello_world.tosa.mlir>hello_world.tosa.mlir</a>
 for an example.</p><h3 id=--yosys-optimizer><code>--yosys-optimizer</code></h3><p>Uses Yosys to booleanize and optimize MLIR functions.</p><p>This pass pipeline requires inputs to be in standard MLIR (<code>arith</code>, <code>affine</code>,
 <code>func</code>, <code>memref</code>). The pass imports the model to Yosys and runs passes to
@@ -40,7 +40,12 @@ standard LUT 3 cells. THe output of this pass includes <code>arith</code> consta
 <code>comb.truth_table</code> ops.</p><p>The pass requires that the environment variable <code>HEIR_ABC_BINARY</code> contains the
 location of the ABC binary and that <code>HEIR_YOSYS_SCRIPTS_DIR</code> contains the
 location of the Yosys&rsquo; techlib files that are needed to execute the path.</p><p>This pass can be disabled by defining <code>HEIR_NO_YOSYS</code>; this will avoid Yosys
-library and ABC binary compilation, and avoid registration of this pass.</p><h3 id=--tosa-to-boolean-tfhe><code>--tosa-to-boolean-tfhe</code></h3><p>This is an experimental pipeline for end-to-end private inference.</p><p>Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a tosa model to optimized boolean circuit using Yosys ABC optimizations. The resultant optimized boolean circuit in comb dialect is then converted to cggi and then to tfhe_rust exit dialect. This pipeline can be used with heir-translate &ndash;emit-tfhe-rust to generate code for <a href=https://docs.zama.ai/tfhe-rs><code>tfhe-rs</code></a> FHE library.</p><p>The pass requires that the environment variable <code>HEIR_ABC_BINARY</code> contains the
+library and ABC binary compilation, and avoid registration of this pass.</p><h3 id=--tosa-to-boolean-tfhe><code>--tosa-to-boolean-tfhe</code></h3><p>This is an experimental pipeline for end-to-end private inference.</p><p>Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a
+tosa model to optimized boolean circuit using Yosys ABC optimizations. The
+resultant optimized boolean circuit in comb dialect is then converted to cggi
+and then to tfhe_rust exit dialect. This pipeline can be used with
+heir-translate &ndash;emit-tfhe-rust to generate code for
+<a href=https://docs.zama.ai/tfhe-rs><code>tfhe-rs</code></a> FHE library.</p><p>The pass requires that the environment variable <code>HEIR_ABC_BINARY</code> contains the
 location of the ABC binary and that <code>HEIR_YOSYS_SCRIPTS_DIR</code> contains the
 location of the Yosys&rsquo; techlib files that are needed to execute the path.</p><h2 id=heir-translate><code>heir-translate</code></h2><h3 id=--emit-tfhe-rust><code>--emit-tfhe-rust</code></h3><p>Code generation for the <a href=https://docs.zama.ai/tfhe-rs><code>tfhe-rs</code></a> FHE library.
 The library is based on the CGGI cryptosystem, and so this pass is most useful
@@ -166,7 +171,7 @@ generation after <code>--emit-verilog</code>.</p><p>Example input:</p><div class
 </span></span><span style=display:flex><span>    <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>]</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><div class="text-muted mt-5 pt-3 border-top">Last modified July 31, 2024: <a href=https://github.com/google/heir/commit/08ac0beed74f0f221f7b681c53aa42aa8f2ff27c>documentation updates (08ac0bee)</a></div></div></main></div></div><footer class="td-footer row d-print-none"><div class=container-fluid><div class="row mx-md-2"><div class="col-6 col-sm-4 text-xs-center order-sm-2"></div><div class="col-6 col-sm-4 text-end text-xs-center order-sm-3"><ul class=td-footer__links-list><li class=td-footer__links-item data-bs-toggle=tooltip title=GitHub aria-label=GitHub><a target=_blank rel=noopener href=https://github.com/google/heir aria-label=GitHub><i class="fab fa-github"></i></a></li></ul></div><div class="td-footer__copyright-etc col-12 col-sm-4 text-center py-2 order-sm-2"><span>&copy; 2024 The HEIR Authors All Rights Reserved</span>
+</span></span></code></pre></div><div class="text-muted mt-5 pt-3 border-top">Last modified August 25, 2024: <a href=https://github.com/google/heir/commit/290c3617806459c8bfac2849575093da7ca322cb>add pre-commit hook for markdown formatter (290c3617)</a></div></div></main></div></div><footer class="td-footer row d-print-none"><div class=container-fluid><div class="row mx-md-2"><div class="col-6 col-sm-4 text-xs-center order-sm-2"></div><div class="col-6 col-sm-4 text-end text-xs-center order-sm-3"><ul class=td-footer__links-list><li class=td-footer__links-item data-bs-toggle=tooltip title=GitHub aria-label=GitHub><a target=_blank rel=noopener href=https://github.com/google/heir aria-label=GitHub><i class="fab fa-github"></i></a></li></ul></div><div class="td-footer__copyright-etc col-12 col-sm-4 text-center py-2 order-sm-2"><span>&copy; 2024 The HEIR Authors All Rights Reserved</span>
 <span class=ms-1><a href=https://policies.google.com/privacy target=_blank rel=noopener>Privacy Policy</a></span></div></div></div></footer></div><script src=/js/main.min.027d75d71824837bee74c12a7806c5fe51249c1ca7accc27553a251a75cdb3a4.js integrity="sha256-An111xgkg3vudMEqeAbF/lEknBynrMwnVTolGnXNs6Q=" crossorigin=anonymous></script>
 <script defer src=/js/click-to-copy.min.f724d3de49218995223b7316aa2e53e2b34bf42026bf399ebb21bb02212402d1.js integrity="sha256-9yTT3kkhiZUiO3MWqi5T4rNL9CAmvzmeuyG7AiEkAtE=" crossorigin=anonymous></script>
 <script src=/js/tabpane-persist.js></script></body></html>
