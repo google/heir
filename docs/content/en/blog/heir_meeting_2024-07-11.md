@@ -1,13 +1,11 @@
-<!-- mdformat off(yaml frontmatter) -->
 ---
-title: "HEIR meeting 2024-07-11"
+title: HEIR meeting 2024-07-11
 date: 2024-07-11T00:00:00+00:00
-linkTitle: "HEIR meeting 2024-07-11"
+linkTitle: HEIR meeting 2024-07-11
 description: >
-    Notes from the 2024-07-11 HEIR meeting.
-author: "[Asra Ali](https://github.com/asraa)"
+  Notes from the 2024-07-11 HEIR meeting.
+author: '[Asra Ali](https://github.com/asraa)'
 ---
-<!-- mdformat on -->
 
 Here are the
 [notes](https://docs.google.com/document/d/1kP1kFKV6qrLVPv4CnIhmqO-7nMDFkCpvhzwIppJEDfU/edit?usp=sharing)

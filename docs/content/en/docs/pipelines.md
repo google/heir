@@ -1,9 +1,7 @@
-<!-- mdformat off(yaml frontmatter) -->
 ---
 title: Pipelines
 weight: 60
 ---
-<!-- mdformat on -->
 
 ## `heir-opt`
 
@@ -18,10 +16,10 @@ SIMD, but a specific FHE scheme has not yet been chosen. It expects to handle
 
 The pass unrolls all loops, then applies a series of passes that convert scalar
 operations on tensor elements to SIMD operations on full tensors. This uses the
-FHE computational model common to BGV, BFV, and CKKS, in which data is packed
-in polynomial ciphertexts, interpreted as vectors of individual data elements,
-and arithmetic can be applied across entire ciphertexts, with some limited
-support for rotations via automorphisms of the underlying ring.
+FHE computational model common to BGV, BFV, and CKKS, in which data is packed in
+polynomial ciphertexts, interpreted as vectors of individual data elements, and
+arithmetic can be applied across entire ciphertexts, with some limited support
+for rotations via automorphisms of the underlying ring.
 
 Along the way, this pipeline applies heuristic optimizations to minimize the
 number of rotations needed, relying on the implicit cost model that rotations
@@ -34,19 +32,17 @@ Lowers a TOSA MLIR model to `func`, `arith`, and `memref`.
 
 Lowers from TOSA through `linalg` and `affine`, and converts all tensors to
 memrefs. Fully unrolls all loops, and forwards stores to subsequent loads
-whenever possible. The output is suitable as an input to `heir-translate
---emit-verilog`. Retains `affine.load` and `affine.store` ops that cannot be
-removed (e.g., reading from the input and writing to the output, or loading from
-a memref with a variable index).
+whenever possible. The output is suitable as an input to
+`heir-translate --emit-verilog`. Retains `affine.load` and `affine.store` ops
+that cannot be removed (e.g., reading from the input and writing to the output,
+or loading from a memref with a variable index).
 
 The pass pipeline assumes that the input is a valid TOSA MLIR model with
 stripped quantized types. The
-[iree-import-tflite](https://iree.dev/guides/ml-frameworks/tflite)
-tool can lower a TFLite FlatBuffer to textual MLIR with
-`--output-format=mlir-ir`. See
+[iree-import-tflite](https://iree.dev/guides/ml-frameworks/tflite) tool can
+lower a TFLite FlatBuffer to textual MLIR with `--output-format=mlir-ir`. See
 [hello_world.tosa.mlir](https://github.com/google/heir/blob/main/tests/verilog/hello_world.tosa.mlir)
 for an example.
-
 
 ### `--yosys-optimizer`
 
@@ -69,12 +65,16 @@ library and ABC binary compilation, and avoid registration of this pass.
 
 This is an experimental pipeline for end-to-end private inference.
 
-Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a tosa model to optimized boolean circuit using Yosys ABC optimizations. The resultant optimized boolean circuit in comb dialect is then converted to cggi and then to tfhe_rust exit dialect. This pipeline can be used with heir-translate --emit-tfhe-rust to generate code for [`tfhe-rs`](https://docs.zama.ai/tfhe-rs) FHE library.
+Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a
+tosa model to optimized boolean circuit using Yosys ABC optimizations. The
+resultant optimized boolean circuit in comb dialect is then converted to cggi
+and then to tfhe_rust exit dialect. This pipeline can be used with
+heir-translate --emit-tfhe-rust to generate code for
+[`tfhe-rs`](https://docs.zama.ai/tfhe-rs) FHE library.
 
 The pass requires that the environment variable `HEIR_ABC_BINARY` contains the
 location of the ABC binary and that `HEIR_YOSYS_SCRIPTS_DIR` contains the
 location of the Yosys' techlib files that are needed to execute the path.
-
 
 ## `heir-translate`
 
