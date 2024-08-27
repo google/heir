@@ -21,7 +21,7 @@ namespace heir {
 // MulPlain and MulConst operations to consume a depth of 1. Therefore, the same
 // approach has been applied here.
 
-void MulDepthAnalysis::visitOperation(
+LogicalResult MulDepthAnalysis::visitOperation(
     Operation *op, ArrayRef<const MulDepthLattice *> operands,
     ArrayRef<MulDepthLattice *> results) {
   llvm::TypeSwitch<Operation &>(*op)
@@ -70,6 +70,7 @@ void MulDepthAnalysis::visitOperation(
           }
         }
       });
+  return mlir::success();
 }
 
 }  // namespace heir

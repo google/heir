@@ -107,8 +107,9 @@ class MulDepthAnalysis
 
   // Given the computed results of the operation, update its operand lattice
   // values.
-  void visitOperation(Operation *op, ArrayRef<const MulDepthLattice *> operands,
-                      ArrayRef<MulDepthLattice *> results) override;
+  LogicalResult visitOperation(Operation *op,
+                               ArrayRef<const MulDepthLattice *> operands,
+                               ArrayRef<MulDepthLattice *> results) override;
 
   // Instantiating the lattice to the uninitialized value
   void setToEntryState(MulDepthLattice *lattice) override {

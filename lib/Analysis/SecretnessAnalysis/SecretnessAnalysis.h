@@ -101,9 +101,9 @@ class SecretnessAnalysis
   // Set Secretness state for an initialized SSA value
   void setToEntryState(SecretnessLattice *lattice) override;
   // Set Secretness state for SSA value(s) produced by an operation
-  void visitOperation(Operation *operation,
-                      ArrayRef<const SecretnessLattice *> operands,
-                      ArrayRef<SecretnessLattice *> results) override;
+  LogicalResult visitOperation(Operation *operation,
+                               ArrayRef<const SecretnessLattice *> operands,
+                               ArrayRef<SecretnessLattice *> results) override;
 };
 
 }  // namespace heir

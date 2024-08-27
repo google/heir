@@ -18,7 +18,7 @@ namespace mlir {
 namespace heir {
 namespace target_slot_analysis {
 
-void TargetSlotAnalysis::visitOperation(
+LogicalResult TargetSlotAnalysis::visitOperation(
     Operation *op, ArrayRef<TargetSlotLattice *> operands,
     ArrayRef<const TargetSlotLattice *> results) {
   llvm::TypeSwitch<Operation &>(*op)
@@ -84,6 +84,7 @@ void TargetSlotAnalysis::visitOperation(
           }
         }
       });
+  return mlir::success();
 }
 
 }  // namespace target_slot_analysis

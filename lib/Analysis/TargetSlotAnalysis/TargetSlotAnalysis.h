@@ -126,8 +126,9 @@ class TargetSlotAnalysis
 
   // Given the computed results of the operation, update its operand lattice
   // values.
-  void visitOperation(Operation *op, ArrayRef<TargetSlotLattice *> operands,
-                      ArrayRef<const TargetSlotLattice *> results) override;
+  LogicalResult visitOperation(
+      Operation *op, ArrayRef<TargetSlotLattice *> operands,
+      ArrayRef<const TargetSlotLattice *> results) override;
 
   void visitBranchOperand(OpOperand &operand) override {};
   void visitCallOperand(OpOperand &operand) override {};
