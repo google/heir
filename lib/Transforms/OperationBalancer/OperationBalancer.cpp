@@ -55,7 +55,7 @@ OpType recursiveProduceBalancedTree(OpBuilder &builder, Location &loc,
     rightOperands.reserve(flattenedOperands.size() - leftSize);
 
     for (size_t i = 0; i < flattenedOperands.size(); i++) {
-      if (i < leftSize) {
+      if (i < (size_t)leftSize) {
         leftOperands.push_back(flattenedOperands[i]);
       } else {
         rightOperands.push_back(flattenedOperands[i]);

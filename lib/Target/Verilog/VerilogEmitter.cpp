@@ -91,7 +91,7 @@ void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
   int32_t hexWidth = iType.getWidth() / 4;
   os << iType.getWidth() * attr.size() << "'h";
   auto attrIt = attr.value_end<APInt>();
-  for (uint64_t i = 0; i < attr.size(); ++i) {
+  for (size_t i = 0; i < (size_t)attr.size(); ++i) {
     llvm::SmallString<40> s;
     (*--attrIt).toString(s, 16, false);
     os << std::string(hexWidth - s.str().size(), '0') << s;
@@ -955,7 +955,7 @@ LogicalResult VerilogEmitter::emitWireDeclaration(OpResult result) {
 }
 
 StringRef VerilogEmitter::getOrCreateOutputWireName(int resultIndex) {
-  if (resultIndex < output_wire_names_.size()) {
+  if (resultIndex < (int)output_wire_names_.size()) {
     return output_wire_names_[resultIndex];
   }
   output_wire_names_.push_back(
@@ -964,7 +964,7 @@ StringRef VerilogEmitter::getOrCreateOutputWireName(int resultIndex) {
 }
 
 StringRef VerilogEmitter::getOutputWireName(int resultIndex) {
-  if (resultIndex < output_wire_names_.size()) {
+  if (resultIndex < (int)output_wire_names_.size()) {
     return output_wire_names_[resultIndex];
   }
   llvm_unreachable(

@@ -70,7 +70,7 @@ FailureOr<Value> getContextualCryptoContext(Operation *op) {
                             .front()
                             .getArguments()
                             .front();
-  if (!cryptoContext.getType().isa<openfhe::CryptoContextType>()) {
+  if (!mlir::isa<openfhe::CryptoContextType>(cryptoContext.getType())) {
     return op->emitOpError()
            << "Found op in a function without a crypto context argument.";
   }

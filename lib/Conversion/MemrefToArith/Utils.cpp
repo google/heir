@@ -23,7 +23,7 @@ std::optional<std::vector<uint64_t>> materialize(
   affine::AffineValueMap thisMap;
   access.getAccessMap(&thisMap);
   std::vector<uint64_t> accessIndices;
-  for (auto i = 0; i < access.getRank(); ++i) {
+  for (size_t i = 0; i < access.getRank(); ++i) {
     // The access indices of the global memref *must* be constant,
     // meaning that they cannot be a variable access (for example, a
     // loop index) or symbolic, for example, an input symbol.
@@ -66,7 +66,7 @@ llvm::SmallVector<int64_t> unflattenIndex(int64_t index,
 int64_t flattenIndex(const llvm::ArrayRef<int64_t> indices,
                      const llvm::ArrayRef<int64_t> strides, int64_t offset) {
   int64_t index = offset;
-  for (int i = 0; i < strides.size(); ++i) {
+  for (size_t i = 0; i < strides.size(); ++i) {
     index += indices[i] * strides[i];
   }
   return index;
