@@ -208,7 +208,7 @@ graph::Graph<std::string> constructCellGraph(
 ///
 int32_t parseLut(const rapidjson::GenericArray<true, rapidjson::Value> &lut) {
   int32_t result = 0;
-  for (int32_t i = 0; i < lut.Size(); i++) {
+  for (size_t i = 0; i < lut.Size(); i++) {
     int32_t bit = lut[i].GetInt();
     result |= bit << i;
   }

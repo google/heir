@@ -339,8 +339,8 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
     SmallVector<Attribute> oneHotCleartextAttrs;
     oneHotCleartextAttrs.reserve(degree);
     for (size_t i = 0; i < degree; ++i) {
-      oneHotCleartextAttrs.push_back(
-          rewriter.getIntegerAttr(elementTy, i == offset ? 1 : 0));
+      oneHotCleartextAttrs.push_back(rewriter.getIntegerAttr(
+          elementTy, i == (unsigned int)offset ? 1 : 0));
     }
 
     auto b = ImplicitLocOpBuilder(op->getLoc(), rewriter);

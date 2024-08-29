@@ -61,7 +61,7 @@ LogicalResult YieldOp::verify() {
            << getNumOperands() << " operands, but enclosing generic op had "
            << parent.getNumResults() << " results.";
   }
-  for (int i = 0; i < getValues().size(); ++i) {
+  for (size_t i = 0; i < getValues().size(); ++i) {
     auto yieldSecretType = SecretType::get(getValues().getTypes()[i]);
     if (yieldSecretType != parent.getResultTypes()[i]) {
       return emitOpError()
@@ -259,7 +259,7 @@ OpOperand *GenericOp::getOpOperandForBlockArgument(Value value) {
   int index = std::find(body->getArguments().begin(),
                         body->getArguments().end(), value) -
               body->getArguments().begin();
-  if (index == body->getArguments().size()) return nullptr;
+  if (index == (int)(body->getArguments().size())) return nullptr;
 
   return &getOperation()->getOpOperand(index);
 }
@@ -267,7 +267,7 @@ OpOperand *GenericOp::getOpOperandForBlockArgument(Value value) {
 std::optional<int> GenericOp::findResultIndex(Value value) {
   int index = std::find(getResults().begin(), getResults().end(), value) -
               getResults().begin();
-  if (index < getNumResults()) return index;
+  if (index < (int)getNumResults()) return index;
   return std::nullopt;
 }
 
@@ -317,7 +317,7 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
   }
 
   SmallVector<int, 4> indicesToErase;
-  for (int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
+  for (unsigned int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
     if (std::find(yieldedValuesToRemove.begin(), yieldedValuesToRemove.end(),
                   getYieldOp()->getOperand(i)) != yieldedValuesToRemove.end()) {
       indicesToErase.push_back(i);
@@ -346,11 +346,11 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
                                          SmallVector<Value> &remainingResults) {
   YieldOp yieldOp = getYieldOp();
   for ([[maybe_unused]] int index : yieldedIndicesToRemove) {
-    assert(0 <= index && index < yieldOp.getNumOperands() &&
+    assert(0 <= index && index < (int)yieldOp.getNumOperands() &&
            "Cannot remove an index that is out of range");
   }
 
-  for (int i = 0; i < getYieldOp()->getNumOperands(); ++i) {
+  for (size_t i = 0; i < getYieldOp()->getNumOperands(); ++i) {
     if (std::find(yieldedIndicesToRemove.begin(), yieldedIndicesToRemove.end(),
                   i) == yieldedIndicesToRemove.end()) {
       remainingResults.push_back(getResult(i));

@@ -250,7 +250,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         auto index = std::find(loop.getInits().begin(), loop.getInits().end(),
                                blockArg) -
                      loop.getInits().begin();
-        if (index < loop.getInits().size()) {
+        if (index < (long)loop.getInits().size()) {
           newGenericOperands.push_back(clonedLoop.getRegionIterArgs()[index]);
           continue;
         }
@@ -431,7 +431,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
               std::find(targetGeneric.getOperands().begin(),
                         targetGeneric.getOperands().end(), sourceGenericArg) -
               targetGeneric.getOperands().begin();
-          if (foundArgIndex < targetGeneric.getOperands().size()) {
+          if (foundArgIndex < (int)targetGeneric.getOperands().size()) {
             BlockArgument existingArg =
                 targetGeneric.getBody()->getArgument(foundArgIndex);
             LLVM_DEBUG(llvm::dbgs() << "Mapping " << operand.get()

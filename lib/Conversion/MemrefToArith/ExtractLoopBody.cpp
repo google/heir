@@ -156,7 +156,7 @@ void extractLoopBody(AffineForOp loop, unsigned int minimumLoopSize,
 
   // Map the input values to the block arguments.
   IRMapping mp;
-  for (int index = 0; index < inputs.size(); ++index) {
+  for (size_t index = 0; index < inputs.size(); ++index) {
     mp.map(inputs[index], block->getArgument(index));
   }
 

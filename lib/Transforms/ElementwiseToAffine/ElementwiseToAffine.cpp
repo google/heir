@@ -57,7 +57,7 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
     llvm::SmallVector<Value, 1> indices;
 
     // Create a an affine.for loop nest of depth rank
-    for (size_t i = 0; i < rank; ++i) {
+    for (int64_t i = 0; i < rank; ++i) {
       auto loop =
           rewriter.create<affine::AffineForOp>(op->getLoc(), /* lowerBound*/ 0,
                                                /* upperBound*/ shape[i],

@@ -39,7 +39,7 @@ class CGGIToJaxiteTypeConverter : public TypeConverter {
  public:
   CGGIToJaxiteTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::LWECiphertextType type) -> Type {
+    addConversion([](lwe::LWECiphertextType type) -> Type {
       if (widthFromEncodingAttr(type.getEncoding()) == 3) {
         return type;
       }

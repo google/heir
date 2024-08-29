@@ -51,7 +51,7 @@ namespace {
 Value buildSelectTruthTable(Location loc, OpBuilder &b, Value t, Value f,
                             const APInt &lut, ValueRange lutInputs) {
   int tableSize = lut.getBitWidth();
-  assert(tableSize == (1ull << lutInputs.size()));
+  assert(tableSize == (int)(1ull << lutInputs.size()));
   if (tableSize == 1) {
     return lut.isZero() ? f : t;
   }

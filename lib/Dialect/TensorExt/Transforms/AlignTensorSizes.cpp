@@ -183,11 +183,12 @@ struct AlignTensorSizes : impl::AlignTensorSizesBase<AlignTensorSizes> {
         [&](Operation *op) { return typeConverter.isLegal(op); });
     target.addDynamicallyLegalOp<tensor::ExtractOp>([&](tensor::ExtractOp op) {
       return typeConverter.isLegal(op) &&
-             op.getIndices().size() == op.getTensor().getType().getRank();
+             op.getIndices().size() ==
+                 (size_t)op.getTensor().getType().getRank();
     });
     target.addDynamicallyLegalOp<tensor::InsertOp>([&](tensor::InsertOp op) {
       return typeConverter.isLegal(op) &&
-             op.getIndices().size() == op.getDest().getType().getRank();
+             op.getIndices().size() == (size_t)op.getDest().getType().getRank();
     });
 
     if (failed(applyPartialConversion(getOperation(), target,

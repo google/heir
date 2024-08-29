@@ -54,7 +54,7 @@ OpType recursiveProduceBalancedTree(OpBuilder &builder, Location &loc,
     std::vector<Value> rightOperands;
     rightOperands.reserve(flattenedOperands.size() - leftSize);
 
-    for (int i = 0; i < flattenedOperands.size(); i++) {
+    for (size_t i = 0; i < flattenedOperands.size(); i++) {
       if (i < leftSize) {
         leftOperands.push_back(flattenedOperands[i]);
       } else {
@@ -153,7 +153,7 @@ void tryBalanceBlock(Block *block) {
     roots.push_back(&op);
   }
 
-  for (int i = 0; i < roots.size(); i++) {
+  for (size_t i = 0; i < roots.size(); i++) {
     std::vector<Operation *> deleteOpsOrder = deleteOpsOrderLists[i];
     std::vector<Value> operands = operandsLists[i];
     Operation *root = roots[i];
