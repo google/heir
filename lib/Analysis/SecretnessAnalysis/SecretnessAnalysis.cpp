@@ -11,7 +11,7 @@ namespace mlir {
 namespace heir {
 
 void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
-  auto operand = lattice->getPoint();
+  auto operand = lattice->getAnchor();
   bool isSecret = isa<secret::SecretType>(operand.getType());
 
   Operation *operation = nullptr;
