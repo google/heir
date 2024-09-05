@@ -198,7 +198,7 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context) {
       for (auto *op : bucket) {
         op->erase();
       }
-      madeReplacement = true;
+      madeReplacement = (bucketIndex > 0) || madeReplacement;
     }
   }
 

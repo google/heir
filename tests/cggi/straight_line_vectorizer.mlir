@@ -93,9 +93,10 @@ func.func @require_post_pass_toposort(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_t
   // TODO(#519): nondeterminism may have the other 7 LUT3's vectorized and the
   // cggi.not occurring after its single result.
 
-  // CHECK-DAG: cggi.lut3 %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {lookup_table = 8 : ui8} : tensor<[[num:.*]]x!lwe.lwe_ciphertext
-  // CHECK-DAG: cggi.not
 
+  // CHECK-CANONICAL: cggi.lut_lincomb %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {coefficients = array<i32: 1, 2, 4>, lookup_table = 8 : ui8} : tensor<7x!lwe.lwe_ciphertext
+  // CHECK-CANONICAL: cggi.not
+  // CHECK-CANONICAL: cggi.lut_lincomb
   %from_elements = tensor.from_elements %r1, %r2, %r3, %r4, %r5, %r6, %r7, %x : tensor<8x!ct_ty>
   return %from_elements : tensor<8x!ct_ty>
 }
