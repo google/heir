@@ -1,9 +1,13 @@
 #ifndef LIB_CONVERSION_UTILS_H_
 #define LIB_CONVERSION_UTILS_H_
 
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -38,6 +42,19 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
 // type returned by getEncoding being a vanilla Attribute. Probably we need a
 // common interface for LWE_EncodingAttrWithScalingFactor, and cast to that?
 int widthFromEncodingAttr(Attribute encoding);
+
+// Returns true if the function contains ops from the given Dialect or the
+// common LWE dialect.
+template <typename T>
+bool containsSchemeOrLWEOps(func::FuncOp func) {
+  auto walkResult = func.walk([&](Operation *op) {
+    auto dialect = op->getDialect();
+    if (llvm::isa<T>(dialect) || llvm::isa<lwe::LWEDialect>(dialect))
+      return WalkResult::interrupt();
+    return WalkResult::advance();
+  });
+  return walkResult.wasInterrupted();
+}
 
 }  // namespace heir
 }  // namespace mlir
