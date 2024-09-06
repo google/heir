@@ -23,6 +23,15 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
     This corresponds to the `rotate` operation in arithmetic FHE schemes like
     BGV.
 
+    This operation's current behavior allows rotating multi-dimensional tensors
+    by rotating along the tensor's only non-unit dimension. This assumes the
+    tensor is packed along the non-unit dimension.
+
+    // In the future, the op will be adjusted to support rotations of general
+    // multi-dimensional tensors with a vector of rotation indices for each
+    // dimension. The lowering will implement the correct operations to rotate
+    // the tensor along the indices given its packing.
+
     Examples:
 
     ```mlir

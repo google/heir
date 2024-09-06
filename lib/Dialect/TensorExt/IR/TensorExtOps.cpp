@@ -21,9 +21,19 @@ void RotateOp::getCanonicalizationPatterns(RewritePatternSet &results,
 }
 
 LogicalResult RotateOp::verify() {
+  // If 2-D tensor, then expect 2 dimensions to rotate.
   auto x = getTensor().getType();
   if (x.getRank() != 1) {
-    return emitOpError() << "requires a 1-D input tensor, but found " << x;
+    bool foundNonOne = false;
+    for (auto dim : x.getShape()) {
+      if (dim != 1) {
+        if (foundNonOne) {
+          return emitOpError()
+                 << "requires a 1-D input tensor, but found " << x;
+        }
+        foundNonOne = true;
+      }
+    }
   }
   return success();
 }
