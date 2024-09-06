@@ -30,8 +30,8 @@ HEIR is built in the [MLIR](https://mlir.llvm.org/) framework.
 For an overview of the project's goals, see
 [our talk at FHE.org](https://www.youtube.com/watch?v=kqDFdKUTNA4).
 
-To see the dialects and possible flows, take a look at the diagram below: {{\<
-figure src="/images/dialects.svg" link="/images/dialects.svg" >}}
+To see the dialects and possible flows, take a look at the diagram below: {{%
+figure src="/images/dialects.svg" link="/images/dialects.svg" %}}
 
 ## Project Goals
 
