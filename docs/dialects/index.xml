@@ -3959,7 +3959,9 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.rlwe_encode` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an RLWE plaintext.&lt;/p>
 &lt;p>This op uses a an encoding attribute to encode the bits of the integer into
-an RLWE plaintext value that can then be encrypted.&lt;/p>
+an RLWE plaintext value that can then be encrypted. CKKS cleartext inputs may
+be floating points, and a scaling factor described by the encoding will be
+applied.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%Y = lwe.rlwe_encode %value {encoding = #enc, ring = #ring}: i1 to !lwe.rlwe_plaintext&amp;lt;encoding = #enc, ring = #ring&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
@@ -3982,7 +3984,7 @@ an RLWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer-like or floating-point-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
