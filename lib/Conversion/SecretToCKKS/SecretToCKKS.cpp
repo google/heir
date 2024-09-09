@@ -1,4 +1,4 @@
-#include "lib/Conversion/SecretToBGV/SecretToBGV.h"
+#include "lib/Conversion/SecretToCKKS/SecretToCKKS.h"
 
 #include <cassert>
 #include <cstdint>
@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "lib/Conversion/Utils.h"
-#include "lib/Dialect/BGV/IR/BGVDialect.h"
-#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -35,8 +35,8 @@
 
 namespace mlir::heir {
 
-#define GEN_PASS_DEF_SECRETTOBGV
-#include "lib/Conversion/SecretToBGV/SecretToBGV.h.inc"
+#define GEN_PASS_DEF_SECRETTOCKKS
+#include "lib/Conversion/SecretToCKKS/SecretToCKKS.h.inc"
 
 namespace {
 
@@ -68,14 +68,15 @@ FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
 }  // namespace
 
 // Remove this class if no type conversions are necessary
-class SecretToBGVTypeConverter : public TypeConverter {
+class SecretToCKKSTypeConverter : public TypeConverter {
  public:
-  SecretToBGVTypeConverter(MLIRContext *ctx,
-                           ::mlir::polynomial::RingAttr rlweRing) {
+  SecretToCKKSTypeConverter(MLIRContext *ctx,
+                            ::mlir::polynomial::RingAttr rlweRing) {
     addConversion([](Type type) { return type; });
 
-    // Convert secret types to BGV ciphertext types
+    // Convert secret types to LWE ciphertext types.
     addConversion([ctx, this](secret::SecretType type) -> Type {
+      // TODO(#785): Set a scaling parameter for floating point values.
       int bitWidth =
           llvm::TypeSwitch<Type, int>(type.getValueType())
               .Case<RankedTensorType>(
@@ -94,8 +95,8 @@ class SecretToBGVTypeConverter : public TypeConverter {
   ::mlir::polynomial::RingAttr ring_;
 };
 
-struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
-  using SecretToBGVBase::SecretToBGVBase;
+struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
+  using SecretToCKKSBase::SecretToCKKSBase;
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -129,24 +130,31 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       return signalPassFailure();
     }
 
-    SecretToBGVTypeConverter typeConverter(context, rlweRing.value());
+    SecretToCKKSTypeConverter typeConverter(context, rlweRing.value());
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
-    target.addLegalDialect<bgv::BGVDialect>();
+    target.addLegalDialect<ckks::CKKSDialect>();
     target.addIllegalDialect<secret::SecretDialect>();
     target.addIllegalOp<secret::GenericOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
     patterns.add<
-        SecretGenericOpCipherConversion<arith::AddIOp, bgv::AddOp>,
-        SecretGenericOpCipherConversion<arith::SubIOp, bgv::SubOp>,
-        SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
-        SecretGenericOpRotateConversion<bgv::RotateOp>,
-        SecretGenericOpMulConversion<arith::MulIOp, bgv::MulOp,
-                                     bgv::RelinearizeOp>,
-        SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,
-        SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
-        SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>>(
+        SecretGenericOpCipherConversion<arith::AddIOp, ckks::AddOp>,
+        SecretGenericOpCipherConversion<arith::SubIOp, ckks::SubOp>,
+        SecretGenericOpCipherConversion<arith::AddFOp, ckks::AddOp>,
+        SecretGenericOpCipherConversion<arith::SubFOp, ckks::SubOp>,
+        SecretGenericOpConversion<tensor::ExtractOp, ckks::ExtractOp>,
+        SecretGenericOpRotateConversion<ckks::RotateOp>,
+        SecretGenericOpMulConversion<arith::MulIOp, ckks::MulOp,
+                                     ckks::RelinearizeOp>,
+        SecretGenericOpMulConversion<arith::MulFOp, ckks::MulOp,
+                                     ckks::RelinearizeOp>,
+        SecretGenericOpCipherPlainConversion<arith::AddFOp, ckks::AddPlainOp>,
+        SecretGenericOpCipherPlainConversion<arith::SubFOp, ckks::SubPlainOp>,
+        SecretGenericOpCipherPlainConversion<arith::MulFOp, ckks::MulPlainOp>,
+        SecretGenericOpCipherPlainConversion<arith::AddIOp, ckks::AddPlainOp>,
+        SecretGenericOpCipherPlainConversion<arith::SubIOp, ckks::SubPlainOp>,
+        SecretGenericOpCipherPlainConversion<arith::MulIOp, ckks::MulPlainOp>>(
         typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

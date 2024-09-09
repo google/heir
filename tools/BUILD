@@ -45,6 +45,7 @@ cc_binary(
         "@heir//lib/Conversion/ModArithToArith",
         "@heir//lib/Conversion/PolynomialToStandard",
         "@heir//lib/Conversion/SecretToBGV",
+        "@heir//lib/Conversion/SecretToCKKS",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Transforms",

@@ -1,9 +1,20 @@
 #ifndef LIB_CONVERSION_UTILS_H_
 #define LIB_CONVERSION_UTILS_H_
 
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -17,6 +28,165 @@ struct ConvertAny : public ConversionPattern {
   LogicalResult matchAndRewrite(
       Operation *op, ArrayRef<Value> operands,
       ConversionPatternRewriter &rewriter) const override;
+};
+
+template <typename T, typename Y = T>
+class SecretGenericOpConversion
+    : public OpConversionPattern<secret::GenericOp> {
+ public:
+  using OpConversionPattern<secret::GenericOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const final {
+    if (op.getBody()->getOperations().size() > 2) {
+      // Each secret.generic should contain at most one instruction -
+      // secret-distribute-generic can be used to distribute through the
+      // arithmetic ops.
+      return failure();
+    }
+
+    auto &innerOp = op.getBody()->getOperations().front();
+    if (!isa<T>(innerOp)) {
+      return failure();
+    }
+
+    // Assemble the arguments for the BGV operation.
+    SmallVector<Value> inputs;
+    for (OpOperand &operand : innerOp.getOpOperands()) {
+      if (auto *secretArg = op.getOpOperandForBlockArgument(operand.get())) {
+        inputs.push_back(
+            adaptor.getODSOperands(0)[secretArg->getOperandNumber()]);
+      } else {
+        inputs.push_back(operand.get());
+      }
+    }
+
+    // Directly convert the op if all operands are ciphertext.
+    SmallVector<Type> resultTypes;
+    auto result =
+        getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes);
+    if (failed(result)) return failure();
+
+    return matchAndRewriteInner(op, resultTypes, inputs, innerOp.getAttrs(),
+                                rewriter);
+  }
+
+  // Default method for replacing the secret.generic with the target operation.
+  virtual LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const {
+    rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs, attributes);
+    return success();
+  }
+};
+
+template <typename T, typename Y>
+class SecretGenericOpCipherConversion : public SecretGenericOpConversion<T, Y> {
+ public:
+  using SecretGenericOpConversion<T, Y>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    auto plaintextValues =
+        llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
+          return !isa<lwe::RLWECiphertextType>(input.getType());
+        }));
+    if (!plaintextValues.empty()) {
+      return failure();
+    }
+    rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs);
+    return success();
+  }
+};
+
+template <typename T, typename Y>
+class SecretGenericOpCipherPlainConversion
+    : public SecretGenericOpConversion<T, Y> {
+ public:
+  using SecretGenericOpConversion<T, Y>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    auto plaintextValues =
+        llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
+          return !isa<lwe::RLWECiphertextType>(input.getType());
+        }));
+    if (plaintextValues.size() != 1) {
+      return failure();
+    }
+
+    TypedValue<RankedTensorType> cleartext;
+    TypedValue<lwe::RLWECiphertextType> ciphertext;
+
+    if (inputs[0] == plaintextValues[0]) {
+      cleartext = cast<TypedValue<RankedTensorType>>(inputs[0]);
+      ciphertext = cast<TypedValue<lwe::RLWECiphertextType>>(inputs[1]);
+    } else {
+      cleartext = cast<TypedValue<RankedTensorType>>(inputs[1]);
+      ciphertext = cast<TypedValue<lwe::RLWECiphertextType>>(inputs[0]);
+    }
+
+    auto plaintextTy = lwe::RLWEPlaintextType::get(
+        op.getContext(), ciphertext.getType().getEncoding(),
+        ciphertext.getType().getRlweParams().getRing(), cleartext.getType());
+    auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
+        op.getLoc(), plaintextTy, cleartext, ciphertext.getType().getEncoding(),
+        ciphertext.getType().getRlweParams().getRing());
+    rewriter.replaceOpWithNewOp<Y>(op, ciphertext, plaintext);
+    return success();
+  }
+};
+
+template <typename M, typename T, typename Y>
+class SecretGenericOpMulConversion : public SecretGenericOpConversion<M, T> {
+ public:
+  using SecretGenericOpConversion<M, T>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    auto plaintextValues =
+        llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
+          return !isa<lwe::RLWECiphertextType>(input.getType());
+        }));
+    if (!plaintextValues.empty()) {
+      return failure();
+    }
+    rewriter.replaceOpWithNewOp<Y>(op, rewriter.create<T>(op.getLoc(), inputs),
+                                   rewriter.getDenseI32ArrayAttr({0, 1, 2}),
+                                   rewriter.getDenseI32ArrayAttr({0, 1}));
+    return success();
+  }
+};
+
+template <typename T>
+class SecretGenericOpRotateConversion
+    : public SecretGenericOpConversion<tensor_ext::RotateOp, T> {
+ public:
+  using SecretGenericOpConversion<tensor_ext::RotateOp,
+                                  T>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    // Check that the offset is a constant.
+    auto offset = inputs[1];
+    auto constantOffset = dyn_cast<arith::ConstantOp>(offset.getDefiningOp());
+    if (!constantOffset) {
+      op.emitError("expected constant offset for rotate");
+    }
+    auto offsetAttr = llvm::dyn_cast<IntegerAttr>(constantOffset.getValue());
+    rewriter.replaceOpWithNewOp<T>(op, inputs[0], offsetAttr);
+    return success();
+  }
 };
 
 // Adds conversion patterns that deal with tensor<..xsource_type>

@@ -155,7 +155,9 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [HasEncoding<"output", "encoding", 
     Encode an integer to yield an RLWE plaintext.
 
     This op uses a an encoding attribute to encode the bits of the integer into
-    an RLWE plaintext value that can then be encrypted.
+    an RLWE plaintext value that can then be encrypted. CKKS cleartext inputs may
+    be floating points, and a scaling factor described by the encoding will be
+    applied.
 
     Examples:
 
@@ -165,7 +167,7 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [HasEncoding<"output", "encoding", 
   }];
 
   let arguments = (ins
-    SignlessIntegerLike:$input,
+    SignlessIntegerOrFloatLike:$input,
     AnyRLWEEncodingAttr:$encoding,
     Polynomial_RingAttr:$ring
   );

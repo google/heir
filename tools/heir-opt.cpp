@@ -15,6 +15,7 @@
 #include "lib/Conversion/ModArithToArith/ModArithToArith.h"
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
+#include "lib/Conversion/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
@@ -643,6 +644,7 @@ int main(int argc, char **argv) {
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
   registerSecretToBGVPasses();
+  registerSecretToCKKSPasses();
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);

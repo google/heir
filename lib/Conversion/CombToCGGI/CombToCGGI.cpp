@@ -262,64 +262,15 @@ class SecretTypeConverter : public TypeConverter {
   int minBitWidth;
 };
 
-template <typename T>
-class SecretGenericOpConversion
-    : public OpConversionPattern<secret::GenericOp> {
- public:
-  using OpConversionPattern<secret::GenericOp>::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      secret::GenericOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const final {
-    if (op.getBody()->getOperations().size() > 2) {
-      // Each secret.generic should contain at most one instruction -
-      // secret-distribute-generic can be used to distribute through the
-      // combinational ops.
-      return failure();
-    }
-
-    auto &innerOp = op.getBody()->getOperations().front();
-    if (!isa<T>(innerOp)) {
-      return failure();
-    }
-
-    // Assemble the arguments for the CGGI operation.
-    SmallVector<Value> inputs;
-    for (OpOperand &operand : innerOp.getOpOperands()) {
-      if (auto *secretArg = op.getOpOperandForBlockArgument(operand.get())) {
-        inputs.push_back(
-            adaptor.getODSOperands(0)[secretArg->getOperandNumber()]);
-      } else {
-        inputs.push_back(operand.get());
-      }
-    }
-
-    // Convert the secret result types to ciphertext types.
-    SmallVector<Type> outputTypes;
-    if (failed(typeConverter->convertTypes(op.getResultTypes(), outputTypes))) {
-      return failure();
-    }
-
-    static_cast<const SecretGenericOpConversion<T> *>(this)->replaceOp(
-        op, outputTypes, inputs, innerOp.getAttrs(), rewriter);
-    return success();
-  }
-
-  // Function to replacing an combinational operation T with a CGGI equivalent
-  // operation Y.
-  virtual void replaceOp(secret::GenericOp op, TypeRange outputTypes,
-                         ValueRange inputs, ArrayRef<NamedAttribute> attributes,
-                         ConversionPatternRewriter &rewriter) const = 0;
-};
-
 class SecretGenericOpLUTConversion
-    : public SecretGenericOpConversion<comb::TruthTableOp> {
-  using SecretGenericOpConversion<
-      comb::TruthTableOp>::SecretGenericOpConversion;
+    : public SecretGenericOpConversion<comb::TruthTableOp, cggi::Lut3Op> {
+  using SecretGenericOpConversion<comb::TruthTableOp,
+                                  cggi::Lut3Op>::SecretGenericOpConversion;
 
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
     SmallVector<Value> encodedInputs =
         encodeInputs(op.getOperation(), inputs, rewriter);
 
@@ -329,6 +280,7 @@ class SecretGenericOpLUTConversion
     rewriter.replaceOpWithNewOp<cggi::Lut3Op>(
         op, encodedInputs[0], encodedInputs[1], encodedInputs[2],
         truthOp.getLookupTable());
+    return success();
   }
 };
 
@@ -336,32 +288,39 @@ class SecretGenericOpMemRefLoadConversion
     : public SecretGenericOpConversion<memref::LoadOp> {
   using SecretGenericOpConversion<memref::LoadOp>::SecretGenericOpConversion;
 
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
     memref::LoadOp loadOp =
         cast<memref::LoadOp>(op.getBody()->getOperations().front());
     if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
       rewriter.replaceOpWithNewOp<memref::LoadOp>(op, inputs[0],
                                                   loadOp.getIndices());
-      return;
+      return success();
+      ;
     }
     rewriter.replaceOp(
         op, convertReadOpInterface(loadOp, loadOp.getIndices(), inputs[0],
                                    outputTypes[0], rewriter));
+    return success();
   }
 };
 
 template <typename GateOp, typename CGGIGateOp>
-class SecretGenericOpGateConversion : public SecretGenericOpConversion<GateOp> {
-  using SecretGenericOpConversion<GateOp>::SecretGenericOpConversion;
+class SecretGenericOpGateConversion
+    : public SecretGenericOpConversion<GateOp, CGGIGateOp> {
+  using SecretGenericOpConversion<GateOp,
+                                  CGGIGateOp>::SecretGenericOpConversion;
 
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<CGGIGateOp>(
         op, outputTypes, encodeInputs(op.getOperation(), inputs, rewriter),
         attributes);
+    return success();
   }
 };
 
@@ -385,15 +344,16 @@ class SecretGenericOpAffineLoadConversion
   using SecretGenericOpConversion<
       affine::AffineLoadOp>::SecretGenericOpConversion;
 
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
     affine::AffineLoadOp loadOp =
         cast<affine::AffineLoadOp>(op.getBody()->getOperations().front());
     if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
       rewriter.replaceOpWithNewOp<affine::AffineLoadOp>(
           op, inputs[0], loadOp.getAffineMap(), loadOp.getIndices());
-      return;
+      return success();
     }
     auto indices = affine::expandAffineMap(
         rewriter, op.getLoc(), loadOp.getAffineMap(), loadOp.getIndices());
@@ -404,17 +364,19 @@ class SecretGenericOpAffineLoadConversion
         op, convertReadOpInterface(
                 loadOp, {indices.value().begin(), indices.value().end()},
                 inputs[0], outputTypes[0], rewriter));
+    return success();
   }
 };
 
 class SecretGenericOpAffineStoreConversion
-    : public SecretGenericOpConversion<affine::AffineStoreOp> {
-  using SecretGenericOpConversion<
-      affine::AffineStoreOp>::SecretGenericOpConversion;
+    : public SecretGenericOpConversion<affine::AffineStoreOp, memref::StoreOp> {
+  using SecretGenericOpConversion<affine::AffineStoreOp,
+                                  memref::StoreOp>::SecretGenericOpConversion;
 
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
     affine::AffineStoreOp storeOp =
         cast<affine::AffineStoreOp>(op.getBody()->getOperations().front());
     auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
@@ -427,6 +389,7 @@ class SecretGenericOpAffineStoreConversion
         op, convertWriteOpInterface(
                 storeOp, {indices.value().begin(), indices.value().end()},
                 inputs[0], toMemRef, rewriter));
+    return success();
   }
 };
 
@@ -434,9 +397,10 @@ class SecretGenericOpMemRefStoreConversion
     : public SecretGenericOpConversion<memref::StoreOp> {
   using SecretGenericOpConversion<memref::StoreOp>::SecretGenericOpConversion;
 
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
     memref::StoreOp storeOp =
         cast<memref::StoreOp>(op.getBody()->getOperations().front());
     auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
@@ -445,30 +409,7 @@ class SecretGenericOpMemRefStoreConversion
         convertWriteOpInterface(
             storeOp, {storeOp.getIndices().begin(), storeOp.getIndices().end()},
             inputs[0], toMemRef, rewriter));
-  }
-};
-
-class SecretGenericOpMemRefAllocConversion
-    : public SecretGenericOpConversion<memref::AllocOp> {
-  using SecretGenericOpConversion<memref::AllocOp>::SecretGenericOpConversion;
-
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<memref::AllocOp>(op, outputTypes, inputs,
-                                                 attributes);
-  }
-};
-
-class SecretGenericOpMemRefDeallocConversion
-    : public SecretGenericOpConversion<memref::DeallocOp> {
-  using SecretGenericOpConversion<memref::DeallocOp>::SecretGenericOpConversion;
-
-  void replaceOp(secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-                 ArrayRef<NamedAttribute> attributes,
-                 ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<memref::DeallocOp>(op, outputTypes, inputs,
-                                                   attributes);
+    return success();
   }
 };
 
@@ -628,8 +569,9 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
     target.addLegalOp<ModuleOp>();
 
     patterns
-        .add<SecretGenericOpLUTConversion, SecretGenericOpMemRefAllocConversion,
-             SecretGenericOpMemRefDeallocConversion,
+        .add<SecretGenericOpLUTConversion,
+             SecretGenericOpConversion<memref::AllocOp, memref::AllocOp>,
+             SecretGenericOpConversion<memref::DeallocOp, memref::DeallocOp>,
              SecretGenericOpMemRefLoadConversion,
              SecretGenericOpAffineStoreConversion,
              SecretGenericOpAffineLoadConversion,

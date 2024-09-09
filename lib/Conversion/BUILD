@@ -10,6 +10,8 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
