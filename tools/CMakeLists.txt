@@ -156,7 +156,8 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
 )
 add_dependencies(${TARGET_NAME} MLIRPolynomialPassesIncGen)
 add_dependencies(${TARGET_NAME} MLIRPolynomialNTTRewritePassesIncGen)
-
+add_dependencies(${TARGET_NAME} MLIRTosaToSecretArith)
+add_dependencies(${TARGET_NAME} MLIRLinalgToTensorExt)
 endfunction()
 
 message(STATUS "Configuring heir-translate")
