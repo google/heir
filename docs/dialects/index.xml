@@ -3105,7 +3105,12 @@ using the jaxite parameters and encoding scheme.&lt;/p>
 &lt;h3 id="jaxitelut3-heirjaxitelut3op">&lt;code>jaxite.lut3&lt;/code> (heir::jaxite::Lut3Op)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `jaxite.lut3` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>The operation computed by this function can be
+interpreted as&lt;/p>
+&lt;p>truth_table &amp;raquo; {c, b, a}&lt;/p>
+&lt;p>where {c, b, a} is the unsigned 3-bit integer with bits c, b, a from most
+significant bit to least-significant bit.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
