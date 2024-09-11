@@ -9,8 +9,8 @@ add_mlir_dialect_library(MLIRHEIRUtils
     MLIRTensorExtOpsIncGen
     MLIRTensorExtPassesIncGen
     MLIRTensorExtInsertRotateIncGen
-    MLIRTensorExtCanonicalizationIncGen
-
+    MLIRTensorExtCanonicalizationIncGen    
+    
     LINK_LIBS PUBLIC
     MLIRIR
     MLIRInferTypeOpInterface
@@ -32,3 +32,5 @@ add_subdirectory(PolynomialToStandard)
 add_subdirectory(SecretToBGV)
 add_subdirectory(SecretToCKKS)
 add_subdirectory(LWEToPolynomial)
+add_subdirectory(LinalgToTensorExt)
+add_subdirectory(TosaToSecretArith)
