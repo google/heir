@@ -145,6 +145,7 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRMemrefToArithExpandCopy
         MLIRMemrefToArithMemrefGlobalReplace
         MLIRBGVOpenfheTransforms
+        MLIRCKKSOpenfheTransforms
         MLIRLWEToPolynomial
         MLIRHeirConvertSecretForToStaticFor
         MLIRHeirConvertSecretWhileToStaticFor

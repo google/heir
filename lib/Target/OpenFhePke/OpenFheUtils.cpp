@@ -5,6 +5,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/LogicalResult.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
@@ -45,11 +46,16 @@ FailureOr<std::string> convertType(Type type) {
         os << "int" << width << "_t";
         return FailureOr<std::string>(std::string(result));
       })
-      .Case<RankedTensorType>([&](auto ty) {
-        if (ty.getRank() != 1) {
-          return FailureOr<std::string>();
+      .Case<FloatType>([&](auto ty) -> FailureOr<std::string> {
+        auto width = ty.getWidth();
+        if (width == 32) {
+          return std::string("float");
+        } else if (width == 64) {
+          return std::string("double");
         }
-
+        return failure();
+      })
+      .Case<RankedTensorType>([&](auto ty) {
         auto eltTyResult = convertType(ty.getElementType());
         if (failed(eltTyResult)) {
           return FailureOr<std::string>();
@@ -57,7 +63,14 @@ FailureOr<std::string> convertType(Type type) {
 
         SmallString<8> result;
         llvm::raw_svector_ostream os(result);
-        os << "std::vector<" << eltTyResult.value() << ">";
+        auto rank = ty.getRank();
+        for (int i = 0; i < rank; ++i) {
+          os << "std::vector<";
+        }
+        os << eltTyResult.value();
+        for (int i = 0; i < rank; ++i) {
+          os << ">";
+        }
         return FailureOr<std::string>(std::string(result));
       })
       .Default([&](Type &) { return failure(); });

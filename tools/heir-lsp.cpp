@@ -1,5 +1,6 @@
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
@@ -29,6 +30,7 @@ int main(int argc, char **argv) {
 
   registry.insert<mod_arith::ModArithDialect>();
   registry.insert<bgv::BGVDialect>();
+  registry.insert<ckks::CKKSDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<lwe::LWEDialect>();
   registry.insert<cggi::CGGIDialect>();

@@ -88,7 +88,7 @@ def MakePackedPlaintextOp : Openfhe_Op<"make_packed_plaintext", [Pure]> {
 def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RankedTensorOf<[AnyFloat]>:$value)
+    RankedTensorOf<[AnyFloat, AnyInteger]>:$value)
   ;
   let results = (outs RLWEPlaintext:$plaintext);
 }

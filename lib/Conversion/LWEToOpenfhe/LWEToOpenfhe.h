@@ -29,13 +29,21 @@ struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
                                 ConversionPatternRewriter &rewriter) const;
 };
 
+// ConvertEncodeOp takes a boolean parameter indicating whether the
+// MakeCKKSPackedPlaintext should be used over the regular MakePackedPlaintext.
 struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
-  using OpConversionPattern<lwe::RLWEEncodeOp>::OpConversionPattern;
+  ConvertEncodeOp(mlir::MLIRContext *context, bool ckks = false)
+      : OpConversionPattern<lwe::RLWEEncodeOp>(context), ckks_(ckks) {}
+
+  using OpConversionPattern::OpConversionPattern;
 
   // OpenFHE has a convention that all inputs to MakePackedPlaintext are
   // std::vector<int64_t>, so we need to cast the input to that type.
   LogicalResult matchAndRewrite(lwe::RLWEEncodeOp op, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const;
+
+ private:
+  bool ckks_;
 };
 
 }  // namespace mlir::heir::lwe

@@ -122,14 +122,13 @@ class SecretGenericOpCipherPlainConversion
       return failure();
     }
 
-    TypedValue<RankedTensorType> cleartext;
+    Value cleartext;
     TypedValue<lwe::RLWECiphertextType> ciphertext;
-
     if (inputs[0] == plaintextValues[0]) {
-      cleartext = cast<TypedValue<RankedTensorType>>(inputs[0]);
+      cleartext = inputs[0];
       ciphertext = cast<TypedValue<lwe::RLWECiphertextType>>(inputs[1]);
     } else {
-      cleartext = cast<TypedValue<RankedTensorType>>(inputs[1]);
+      cleartext = inputs[1];
       ciphertext = cast<TypedValue<lwe::RLWECiphertextType>>(inputs[0]);
     }
 
@@ -139,6 +138,7 @@ class SecretGenericOpCipherPlainConversion
     auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
         op.getLoc(), plaintextTy, cleartext, ciphertext.getType().getEncoding(),
         ciphertext.getType().getRlweParams().getRing());
+
     rewriter.replaceOpWithNewOp<Y>(op, ciphertext, plaintext);
     return success();
   }

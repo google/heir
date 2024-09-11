@@ -6,17 +6,18 @@
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/IndentedOstream.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -46,7 +47,11 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::arith::ExtSIOp op);
+  LogicalResult printOperation(::mlir::arith::ExtFOp op);
   LogicalResult printOperation(::mlir::arith::IndexCastOp op);
+  LogicalResult printOperation(::mlir::tensor::ExtractOp op);
+  LogicalResult printOperation(::mlir::tensor::InsertOp op);
+  LogicalResult printOperation(::mlir::tensor::SplatOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(::mlir::heir::lwe::RLWEDecodeOp op);

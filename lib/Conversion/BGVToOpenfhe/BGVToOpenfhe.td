@@ -13,6 +13,7 @@ def BGVToOpenfhe : Pass<"bgv-to-openfhe"> {
   let dependentDialects = [
     "mlir::heir::bgv::BGVDialect",
     "mlir::heir::openfhe::OpenfheDialect",
+    "mlir::tensor::TensorDialect",
     "mlir::heir::lwe::LWEDialect",
   ];
 }

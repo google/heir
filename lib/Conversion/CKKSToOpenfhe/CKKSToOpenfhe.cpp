@@ -1,4 +1,4 @@
-#include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
+#include "lib/Conversion/CKKSToOpenfhe/CKKSToOpenfhe.h"
 
 #include <cassert>
 #include <cstddef>
@@ -7,8 +7,8 @@
 
 #include "lib/Conversion/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Conversion/Utils.h"
-#include "lib/Dialect/BGV/IR/BGVDialect.h"
-#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -31,10 +31,10 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
-namespace mlir::heir::bgv {
+namespace mlir::heir::ckks {
 
-#define GEN_PASS_DEF_BGVTOOPENFHE
-#include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h.inc"
+#define GEN_PASS_DEF_CKKSTOOPENFHE
+#include "lib/Conversion/CKKSToOpenfhe/CKKSToOpenfhe.h.inc"
 
 class ToOpenfheTypeConverter : public TypeConverter {
  public:
@@ -49,9 +49,10 @@ class ToOpenfheTypeConverter : public TypeConverter {
   }
 };
 
-bool containsBGVOps(func::FuncOp func) {
+bool containsCKKSOps(func::FuncOp func) {
   auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<bgv::BGVDialect, lwe::LWEDialect>(op->getDialect()))
+    if (llvm::isa<ckks::CKKSDialect>(op->getDialect()) ||
+        llvm::isa<lwe::RLWEEncryptOp>(op) || llvm::isa<lwe::RLWEDecryptOp>(op))
       return WalkResult::interrupt();
     return WalkResult::advance();
   });
@@ -62,7 +63,7 @@ FailureOr<Value> getContextualCryptoContext(Operation *op) {
   auto result = getContextualArgFromFunc<openfhe::CryptoContextType>(op);
   if (failed(result)) {
     return op->emitOpError()
-           << "Found BGV op in a function without a public "
+           << "Found CKKS op in a function without a public "
               "key argument. Did the AddCryptoContextArg pattern fail to run?";
   }
   return result.value();
@@ -77,7 +78,7 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsBGVOps(op)) {
+    if (!containsCKKSOps(op)) {
       return failure();
     }
 
@@ -205,7 +206,7 @@ struct ConvertRelinOp : public OpConversionPattern<RelinearizeOp> {
     auto toBasis = adaptor.getToBasis();
 
     // Since the `Relinearize()` function in OpenFHE relinearizes a ciphertext
-    // to the lowest level (for (1,s)), the `to_basis` of `bgv.RelinOp` must be
+    // to the lowest level (for (1,s)), the `to_basis` of `CKKS.RelinOp` must be
     // [0,1].
     if (!checkRelinToBasis(toBasis)) {
       op.emitError() << "toBasis must be [0, 1], got [" << toBasis << "]";
@@ -215,26 +216,6 @@ struct ConvertRelinOp : public OpConversionPattern<RelinearizeOp> {
     Value cryptoContext = result.value();
     rewriter.replaceOpWithNewOp<openfhe::RelinOp>(
         op, op.getOutput().getType(), cryptoContext, adaptor.getInput());
-    return success();
-  }
-};
-
-struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
-  ConvertModulusSwitchOp(mlir::MLIRContext *context)
-      : OpConversionPattern<ModulusSwitchOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ModulusSwitchOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
-    if (failed(result)) return result;
-
-    Value cryptoContext = result.value();
-    rewriter.replaceOp(op, rewriter.create<openfhe::ModReduceOp>(
-                               op.getLoc(), op.getOutput().getType(),
-                               cryptoContext, adaptor.getInput()));
     return success();
   }
 };
@@ -305,12 +286,12 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
                                     ctTy.getEncoding(), ring)
             .getResult();
     auto plainMul =
-        b.create<bgv::MulPlainOp>(adaptor.getInput(), oneHotPlaintext)
+        b.create<ckks::MulPlainOp>(adaptor.getInput(), oneHotPlaintext)
             .getResult();
-    auto rotated = b.create<bgv::RotateOp>(plainMul, offsetAttr);
+    auto rotated = b.create<ckks::RotateOp>(plainMul, offsetAttr);
     // It might make sense to move this op to the add-client-interface pass,
     // but it also seems like an implementation detail of OpenFHE, and not part
-    // of BGV generally.
+    // of CKKS generally.
     auto recast = b.create<lwe::ReinterpretUnderlyingTypeOp>(
                        op.getOutput().getType(), rotated.getResult())
                       .getResult();
@@ -319,7 +300,7 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
   }
 };
 
-struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
+struct CKKSToOpenfhe : public impl::CKKSToOpenfheBase<CKKSToOpenfhe> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
@@ -327,9 +308,7 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
 
     ConversionTarget target(*context);
     target.addLegalDialect<openfhe::OpenfheDialect>();
-    target.addIllegalDialect<bgv::BGVDialect>();
-    target.addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp,
-                        lwe::RLWEEncodeOp>();
+    target.addIllegalDialect<ckks::CKKSDialect, lwe::LWEDialect>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -340,14 +319,14 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
                                      *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsBGVOps(op) || hasCryptoContextArg);
+             (!containsCKKSOps(op) || hasCryptoContextArg);
     });
 
     patterns.add<AddCryptoContextArg, ConvertAddOp, ConvertSubOp, ConvertMulOp,
                  ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,
-                 ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp,
-                 lwe::ConvertEncryptOp, lwe::ConvertDecryptOp,
-                 lwe::ConvertEncodeOp>(typeConverter, context);
+                 ConvertRelinOp, ConvertExtractOp, lwe::ConvertEncryptOp,
+                 lwe::ConvertDecryptOp>(typeConverter, context);
+    patterns.add<lwe::ConvertEncodeOp>(typeConverter, context, /*ckks=*/true);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
@@ -355,4 +334,4 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
   }
 };
 
-}  // namespace mlir::heir::bgv
+}  // namespace mlir::heir::ckks

@@ -9,6 +9,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -23,9 +24,12 @@
 #include "mlir/include/mlir/Dialect/Polynomial/IR/Polynomial.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
@@ -71,21 +75,36 @@ FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
 class SecretToCKKSTypeConverter : public TypeConverter {
  public:
   SecretToCKKSTypeConverter(MLIRContext *ctx,
-                            ::mlir::polynomial::RingAttr rlweRing) {
+                            ::mlir::polynomial::RingAttr rlweRing,
+                            bool packed) {
     addConversion([](Type type) { return type; });
 
     // Convert secret types to LWE ciphertext types.
     addConversion([ctx, this](secret::SecretType type) -> Type {
-      // TODO(#785): Set a scaling parameter for floating point values.
+      // Currently we assume that tensors have matching slot size, e.g.
+      // tensor<Axi32>. In our current example we assume ciphertexts are *not*
+      // packed, so that tensors are converted into tensors of RLWE ciphertexts.
+      Type valueTy = type.getValueType();
       int bitWidth =
           llvm::TypeSwitch<Type, int>(type.getValueType())
               .Case<RankedTensorType>(
                   [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
-              .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
-      return lwe::RLWECiphertextType::get(
+              .Case<FloatType>([&](auto ty) -> int { return ty.getWidth(); });
+      // TODO(#785): Set a scaling parameter for floating point values.
+      auto ciphertext = lwe::RLWECiphertextType::get(
           ctx,
           lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
-          lwe::RLWEParamsAttr::get(ctx, 2, ring_), type.getValueType());
+          lwe::RLWEParamsAttr::get(ctx, 2, ring_), valueTy);
+      if (this->packed || isa<FloatType>(valueTy)) {
+        return ciphertext;
+      }
+      assert(dyn_cast<RankedTensorType>(valueTy) &&
+             "expected tensor type or float type");
+      ciphertext = lwe::RLWECiphertextType::get(
+          ctx, ciphertext.getEncoding(), ciphertext.getRlweParams(),
+          cast<RankedTensorType>(valueTy).getElementType());
+      return RankedTensorType::get(cast<RankedTensorType>(valueTy).getShape(),
+                                   ciphertext);
     });
 
     ring_ = rlweRing;
@@ -93,6 +112,53 @@ class SecretToCKKSTypeConverter : public TypeConverter {
 
  private:
   ::mlir::polynomial::RingAttr ring_;
+  bool packed;
+};
+
+class SecretGenericTensorExtractConversion
+    : public SecretGenericOpConversion<tensor::ExtractOp, ckks::ExtractOp> {
+ public:
+  using SecretGenericOpConversion<tensor::ExtractOp,
+                                  ckks::ExtractOp>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    if (!isa<lwe::RLWECiphertextType>(
+            getElementTypeOrSelf(inputs[0].getType()))) {
+      return failure();
+    }
+    if (isa<RankedTensorType>(inputs[0].getType())) {
+      rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, outputTypes, inputs);
+      return success();
+    }
+    // This extracts an element out of a slot of a single ciphertext.
+    rewriter.replaceOpWithNewOp<ckks::ExtractOp>(op, outputTypes, inputs);
+    return success();
+  }
+};
+
+class SecretGenericTensorInsertConversion
+    : public SecretGenericOpConversion<tensor::InsertOp, tensor::InsertOp> {
+ public:
+  using SecretGenericOpConversion<tensor::InsertOp,
+                                  tensor::InsertOp>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    if (!isa<lwe::RLWECiphertextType>(
+            getElementTypeOrSelf(inputs[0].getType()))) {
+      return failure();
+    }
+    if (isa<RankedTensorType>(inputs[1].getType())) {
+      rewriter.replaceOpWithNewOp<tensor::InsertOp>(op, outputTypes, inputs);
+      return success();
+    }
+    return failure();
+  }
 };
 
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
@@ -108,6 +174,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     }
     // Ensure that all secret types are uniform and matching the ring
     // parameter size.
+    bool packed = true;
     WalkResult compatibleTensors = module->walk([&](Operation *op) {
       for (auto value : op->getOperands()) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
@@ -124,16 +191,16 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
       return WalkResult::advance();
     });
     if (compatibleTensors.wasInterrupted()) {
-      module->emitError(
-          "expected batched secret types to be tensors with dimension "
-          "matching ring parameter");
-      return signalPassFailure();
+      emitWarning(module->getLoc(),
+                  "expected secret types to be tensors with dimension matching "
+                  "ring parameter, pass will not pack ciphertexts");
+      packed = false;
     }
 
-    SecretToCKKSTypeConverter typeConverter(context, rlweRing.value());
+    SecretToCKKSTypeConverter typeConverter(context, rlweRing.value(), packed);
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
-    target.addLegalDialect<ckks::CKKSDialect>();
+    target.addLegalDialect<ckks::CKKSDialect, lwe::LWEDialect>();
     target.addIllegalDialect<secret::SecretDialect>();
     target.addIllegalOp<secret::GenericOp>();
 
@@ -143,7 +210,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpCipherConversion<arith::SubIOp, ckks::SubOp>,
         SecretGenericOpCipherConversion<arith::AddFOp, ckks::AddOp>,
         SecretGenericOpCipherConversion<arith::SubFOp, ckks::SubOp>,
-        SecretGenericOpConversion<tensor::ExtractOp, ckks::ExtractOp>,
+        SecretGenericTensorExtractConversion,
+        SecretGenericTensorInsertConversion,
         SecretGenericOpRotateConversion<ckks::RotateOp>,
         SecretGenericOpMulConversion<arith::MulIOp, ckks::MulOp,
                                      ckks::RelinearizeOp>,

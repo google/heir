@@ -27,6 +27,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -71,7 +72,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
-          .Case<arith::ConstantOp, arith::ExtSIOp, arith::IndexCastOp>(
+          .Case<arith::ConstantOp, arith::ExtSIOp, arith::IndexCastOp,
+                arith::ExtFOp>([&](auto op) { return printOperation(op); })
+          // Tensor ops
+          .Case<tensor::InsertOp, tensor::ExtractOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretUnderlyingTypeOp>(
@@ -84,12 +88,12 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
                 MakePackedPlaintextOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
-            return op.emitOpError("unable to find printer for op");
+            return emitError(op.getLoc(), "unable to find printer for op");
           });
 
   if (failed(status)) {
-    op.emitOpError(llvm::formatv("Failed to translate op {0}", op.getName()));
-    return failure();
+    return emitError(op.getLoc(),
+                     llvm::formatv("Failed to translate op {0}", op.getName()));
   }
   return success();
 }
@@ -107,15 +111,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   if (funcOp.getNumResults() != 1) {
-    return funcOp.emitOpError() << "Only functions with a single return type "
-                                   "are supported, but this function has "
-                                << funcOp.getNumResults();
+    return emitError(funcOp.getLoc(),
+                     llvm::formatv("Only functions with a single return type "
+                                   "are supported, but this function has ",
+                                   funcOp.getNumResults()));
     return failure();
   }
 
   Type result = funcOp.getResultTypes()[0];
   if (failed(emitType(result))) {
-    return funcOp.emitOpError() << "Failed to emit type " << result;
+    return emitError(funcOp.getLoc(),
+                     llvm::formatv("Failed to emit type {0}", result));
   }
 
   os << " " << funcOp.getName() << "(";
@@ -127,7 +133,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   // emitter.
   for (Value arg : funcOp.getArguments()) {
     if (failed(convertType(arg.getType()))) {
-      return funcOp.emitOpError() << "Failed to emit type " << arg.getType();
+      return emitError(funcOp.getLoc(),
+                       llvm::formatv("Failed to emit type {0}", arg.getType()));
     }
   }
 
@@ -154,8 +161,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(func::ReturnOp op) {
   if (op.getNumOperands() != 1) {
-    op.emitError() << "Only one return value supported";
-    return failure();
+    return emitError(op.getLoc(), "Only one return value supported");
   }
   os << "return " << variableNames->getNameForValue(op.getOperands()[0])
      << ";\n";
@@ -299,28 +305,31 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
       return failure();
     }
     os << intAttr.getValue() << ";\n";
-  } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
-    if (denseElementsAttr.getType().getRank() != 1) {
-      return op.emitError() << "Only 1D dense elements supported";
+  } else if (auto floatAttr = dyn_cast<FloatAttr>(valueAttr)) {
+    if (failed(emitTypedAssignPrefix(op.getResult()))) {
+      return failure();
     }
+    // FIXME: ensure float or double
+    SmallString<128> strValue;
+    auto apValue = APFloat(floatAttr.getValueAsDouble());
+    apValue.toString(strValue, /*FormatPrecision=*/0, /*FormatMaxPadding=*/10,
+                     /*TruncateZero=*/true);
+    os << strValue << ";\n";
+  } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
+    // if (denseElementsAttr.getType().getRank() != 1) {
+    //   return op.emitError() << "Only 1D dense elements supported";
+    // }
 
     if (failed(emitTypedAssignPrefix(op.getResult()))) {
       return failure();
     }
-    os << "{";
 
-    auto cstIter = denseElementsAttr.value_begin<APInt>();
-    auto cstIterEnd = denseElementsAttr.value_end<APInt>();
-    SmallString<10> first;
-    APInt firstVal = *cstIter;
-    firstVal.toStringSigned(first);
-    os << std::accumulate(std::next(cstIter), cstIterEnd, std::string(first),
-                          [&](const std::string &a, const APInt &b) {
-                            SmallString<10> str;
-                            b.toStringSigned(str);
-                            return a + ", " + std::string(str);
-                          });
-    os << "};\n";
+    std::string value_str;
+    llvm::raw_string_ostream ss(value_str);
+    denseElementsAttr.print(ss);
+    // value_str.replace() replace [ with {
+
+    os << value_str << ";\n";
   } else {
     return op.emitError() << "Unsupported constant type "
                           << valueAttr.getType();
@@ -346,6 +355,24 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtSIOp op) {
   return success();
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtFOp op) {
+  // OpenFHE has a convention that all inputs to MakeCKKSPackedPlaintext are
+  // std::vector<double>, so earlier stages in the pipeline emit typecasts
+
+  std::string inputVarName = variableNames->getNameForValue(op.getOperand());
+  std::string resultVarName = variableNames->getNameForValue(op.getResult());
+
+  // If it's a vector<float>, we can use a copy constructor to upcast.
+  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getOperand().getType())) {
+    os << "std::vector<double> " << resultVarName << "(std::begin("
+       << inputVarName << "), std::end(" << inputVarName << "));\n";
+  } else {
+    return op.emitOpError() << "Unsupported input type";
+  }
+
+  return success();
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::IndexCastOp op) {
   Type outputType = op.getOut().getType();
   if (failed(emitTypedAssignPrefix(op.getResult()))) {
@@ -356,6 +383,45 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::IndexCastOp op) {
     return op.emitOpError() << "Unsupported index_cast op";
   }
   os << ">(" << variableNames->getNameForValue(op.getIn()) << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
+  // const auto& v1 = in[0, 1];
+  emitAutoAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getTensor());
+  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
+    // FIXME: just print constants if we have them
+    return variableNames->getNameForValue(value);
+  });
+  os << ";\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
+  // in[0, 1] = v2;
+  os << variableNames->getNameForValue(op.getDest());
+  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
+    // FIXME: just print constants if we have them
+    return variableNames->getNameForValue(value);
+  });
+  os << " = " << variableNames->getNameForValue(op.getScalar()) << ";\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::SplatOp op) {
+  // std::vector<CiphertextType> result(num, value);
+  auto result = op.getResult();
+  if (failed(emitType(result.getType()))) {
+    return failure();
+  }
+  if (result.getType().getRank() != 1) {
+    // FIXME: Handle multi-dimensional
+    return failure();
+  }
+  os << " " << variableNames->getNameForValue(result) << "("
+     << result.getType().getNumElements() << ", "
+     << variableNames->getNameForValue(op.getInput()) << ");\n";
   return success();
 }
 
@@ -386,7 +452,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
   auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType());
   if (tensorTy) {
     if (tensorTy.getRank() != 1) {
-      return op.emitOpError() << "Only 1D tensors supported";
+      return emitError(op.getLoc(), "Only 1D tensors supported");
     }
     // OpenFHE plaintexts must be manually resized to the decoded output size
     // via plaintext->SetLength(<size>);
