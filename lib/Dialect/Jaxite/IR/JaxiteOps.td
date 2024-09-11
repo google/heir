@@ -28,6 +28,15 @@ def Lut3Op : Jaxite_Op<"lut3", [
     Pure,
     AllTypesMatch<["a", "b", "c", "output"]>
 ]> {
+  let description = [{
+    The operation computed by this function can be
+    interpreted as
+
+      truth_table >> {c, b, a}
+
+    where {c, b, a} is the unsigned 3-bit integer with bits c, b, a from most
+    significant bit to least-significant bit.
+  }];
   let arguments = (
     ins LWECiphertext:$a, LWECiphertext:$b, LWECiphertext:$c,
     I8:$truth_table,

@@ -8,6 +8,8 @@ namespace heir {
 namespace jaxite {
 
 constexpr std::string_view kModulePrelude = R"python(
+import numpy as np
+
 from typing import Dict, List
 
 from jaxite.jaxite_bool import jaxite_bool

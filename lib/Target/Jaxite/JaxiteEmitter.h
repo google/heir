@@ -8,6 +8,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
@@ -54,6 +55,9 @@ class JaxiteEmitter {
   LogicalResult printOperation(ConstantOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
+  LogicalResult printOperation(memref::AllocOp op);
+  LogicalResult printOperation(memref::LoadOp op);
+  LogicalResult printOperation(memref::StoreOp op);
   LogicalResult emitType(Type type);
   FailureOr<std::string> convertType(Type type);
 

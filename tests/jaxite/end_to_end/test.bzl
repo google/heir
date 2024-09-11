@@ -29,6 +29,8 @@ def jaxite_end_to_end_test(name, mlir_src, test_src, heir_opt_flags = "", tags =
             src = mlir_src,
             pass_flag = heir_opt_flags,
             generated_filename = generated_heir_opt_name,
+            HEIR_YOSYS = True,
+            data = ["@heir//lib/Transforms/YosysOptimizer/yosys:share_files"],
         )
     else:
         generated_heir_opt_name = mlir_src

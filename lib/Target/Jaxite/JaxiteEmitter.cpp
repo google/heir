@@ -1,6 +1,9 @@
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
 
+#include <cstdint>
 #include <functional>
+#include <iterator>
+#include <numeric>
 #include <string>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
@@ -16,6 +19,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -43,7 +47,7 @@ void registerToJaxiteTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<func::FuncDialect, jaxite::JaxiteDialect,
                         arith::ArithDialect, tensor::TensorDialect,
-                        lwe::LWEDialect>();
+                        lwe::LWEDialect, memref::MemRefDialect>();
       });
 }
 
@@ -65,6 +69,9 @@ LogicalResult JaxiteEmitter::translate(Operation &op) {
           .Case<Lut3Op, ConstantOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
+              [&](auto op) { return printOperation(op); })
+          // Memref ops
+          .Case<memref::LoadOp, memref::StoreOp, memref::AllocOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return success(); })
@@ -226,6 +233,62 @@ LogicalResult JaxiteEmitter::printOperation(tensor::FromElementsOp op) {
     return "temp_nodes[" +
            std::to_string(variableNames->getIntForValue(value)) + "]";
   }) << "]\n";
+  return success();
+}
+
+// Loading variables.
+// Example: temp_nodes[idx] = input[i]
+LogicalResult JaxiteEmitter::printOperation(memref::LoadOp op) {
+  emitAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getMemref());
+  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
+    SmallString<16> idx_str;
+    dyn_cast<IntegerAttr>(
+        dyn_cast<arith::ConstantOp>(value.getDefiningOp()).getValue())
+        .getValue()
+        .toStringUnsigned(idx_str);
+    return std::string(idx_str);
+  });
+  os << "\n";
+  return success();
+}
+
+// memref::AllocOp initializes a variable of a specific shape. Translation in
+// Jaxite is to allocate multidimensional array of the same shape.
+// Example: temp_nodes[idx] = np.full((ixj), None)
+// Note: memref::AllocOp and memref::StoreOp need to be in sync on how the
+// indices are processed
+LogicalResult JaxiteEmitter::printOperation(memref::AllocOp op) {
+  emitAssignPrefix(op.getResult());
+  os << "np.full(("
+     << std::accumulate(std::next(op.getMemref().getType().getShape().begin()),
+                        op.getMemref().getType().getShape().end(),
+                        std::to_string(op.getMemref().getType().getShape()[0]),
+                        [&](const std::string &a, int64_t b) {
+                          return a + ", " + std::to_string(b);
+                        })
+     << "), None)";
+  os << "\n";
+  return success();
+}
+
+// Assuming StoreOp is only used while storing results.
+// Example: temp_nodes[result_idx][idx] = temp_nodes[i]
+// Note: memref::AllocOp and memref::StoreOp need to be in sync on how the
+// indices are processed.
+LogicalResult JaxiteEmitter::printOperation(memref::StoreOp op) {
+  os << "temp_nodes[" << variableNames->getIntForValue(op.getMemref()) << "]";
+  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
+    SmallString<16> idx_str;
+    dyn_cast<IntegerAttr>(
+        dyn_cast<arith::ConstantOp>(value.getDefiningOp()).getValue())
+        .getValue()
+        .toStringUnsigned(idx_str);
+    return std::string(idx_str);
+  });
+  os << " = " << "temp_nodes["
+     << variableNames->getIntForValue(op.getValueToStore()) << "]";
+  os << "\n";
   return success();
 }
 

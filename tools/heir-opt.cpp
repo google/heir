@@ -123,6 +123,7 @@ using mlir::func::FuncOp;
 static std::vector<std::string> opsToDistribute = {
     "affine.for",   "affine.load",       "memref.load",    "memref.store",
     "affine.store", "memref.get_global", "memref.dealloc", "memref.alloc"};
+static std::vector<unsigned> bitWidths = {1, 2, 4, 8, 16};
 
 void tosaToLinalg(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
@@ -445,6 +446,99 @@ void tosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
         pm.addPass(createSCCPPass());
       });
 }
+
+struct TosaToJaxiteOptions : public PassPipelineOptions<TosaToJaxiteOptions> {
+  PassOptions::Option<bool> abcFast{*this, "abc-fast",
+                                    llvm::cl::desc("Run abc in fast mode."),
+                                    llvm::cl::init(false)};
+
+  PassOptions::Option<int> unrollFactor{
+      *this, "unroll-factor",
+      llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
+                     "value of zero (default) prevents unrolling."),
+      llvm::cl::init(0)};
+
+  PassOptions::Option<std::string> entryFunction{
+      *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
+      llvm::cl::init("main")};
+};
+
+void tosaToJaxitePipeline(const std::string &yosysFilesPath,
+                          const std::string &abcPath) {
+  PassPipelineRegistration<TosaToJaxiteOptions>(
+      "tosa-to-boolean-jaxite", "Arithmetic modules to jaxite pipeline.",
+      [yosysFilesPath, abcPath](OpPassManager &pm,
+                                const TosaToJaxiteOptions &options) {
+        // Secretize inputs
+        pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
+
+        // TOSA to linalg
+        tosaToLinalg(pm);
+
+        // Bufferize
+        oneShotBufferize(pm);
+
+        // Affine
+        pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
+        pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+        pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+        pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+        pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+        pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+        pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        pm.addPass(createExpandCopyPass());
+        pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+        pm.addNestedPass<FuncOp>(affine::createLoopFusionPass(
+            0, 0, true, affine::FusionMode::Greedy));
+        pm.addPass(affine::createAffineScalarReplacementPass());
+        pm.addPass(createForwardStoreToLoad());
+
+        // Cleanup
+        pm.addPass(createMemrefGlobalReplacePass());
+        arith::ArithIntNarrowingOptions arithOps;
+        arithOps.bitwidthsSupported = bitWidths;
+        pm.addPass(arith::createArithIntNarrowing(arithOps));
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createSCCPPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSymbolDCEPass());
+        pm.addPass(affine::createAffineScalarReplacementPass());
+
+        // Wrap with secret.generic and then distribute-generic.
+        pm.addPass(createWrapGeneric());
+        auto distributeOpts = secret::SecretDistributeGenericOptions{
+            .opsToDistribute = opsToDistribute};
+        pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
+        pm.addPass(createCanonicalizerPass());
+        // Booleanize and Yosys Optimize
+        pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath,
+                                        options.abcFast, options.unrollFactor));
+
+        // Lower combinational circuit to CGGI
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createSCCPPass());
+
+        pm.addPass(mlir::createCSEPass());
+        pm.addPass(secret::createSecretDistributeGeneric());
+        pm.addPass(comb::createCombToCGGI());
+
+        // CGGI to Jaxite exit dialect
+        pm.addPass(createCGGIToJaxite());
+        // CSE must be run before canonicalizer, so that redundant ops are
+        // cleared before the canonicalizer hoists TfheRust ops.
+        pm.addPass(createCSEPass());
+        pm.addPass(createCanonicalizerPass());
+
+        // Cleanup loads and stores
+        pm.addPass(createExpandCopyPass(
+            ExpandCopyPassOptions{.disableAffineLoop = true}));
+        pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        pm.addPass(createForwardStoreToLoad());
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createSCCPPass());
+      });
+}
 #endif
 
 struct MlirToBgvPipelineOptions
@@ -631,6 +725,7 @@ int main(int argc, char **argv) {
   mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
   tosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
   tosaToBooleanFpgaTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
+  tosaToJaxitePipeline(yosysRunfilesEnvPath, abcEnvPath);
 #endif
 
   // Dialect conversion passes in HEIR

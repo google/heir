@@ -150,7 +150,7 @@ struct ConvertCGGIToJaxiteLut3Op : public OpConversionPattern<cggi::Lut3Op> {
     // to jaxite to mirror jaxite API
     auto createLut3Op = rewriter.create<jaxite::Lut3Op>(
         op.getLoc(), typeConverter->convertType(op.getOutput().getType()),
-        adaptor.getC(), adaptor.getB(), adaptor.getA(), tt, serverKey, params);
+        adaptor.getA(), adaptor.getB(), adaptor.getC(), tt, serverKey, params);
     rewriter.replaceOp(op, createLut3Op);
     return success();
   }
