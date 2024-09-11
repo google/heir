@@ -9,8 +9,8 @@ add_mlir_dialect_library(MLIRHEIRUtils
     MLIRTensorExtOpsIncGen
     MLIRTensorExtPassesIncGen
     MLIRTensorExtInsertRotateIncGen
-    MLIRTensorExtCanonicalizationIncGen    
-    
+    MLIRTensorExtCanonicalizationIncGen
+
     LINK_LIBS PUBLIC
     MLIRIR
     MLIRInferTypeOpInterface
