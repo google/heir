@@ -17,10 +17,11 @@ namespace mod_arith {
 /// Returns a possibly extended modulus necessary to compute the given operation
 /// without overflow.
 template <typename ValueOrOpResult>
-TypedAttr modulusHelper(IntegerAttr mod, ValueOrOpResult op, bool mul = false) {
+TypedAttr modulusHelper(IntegerAttr mod, ValueOrOpResult op, bool mul = false,
+                        bool reduce = false) {
   auto width = getElementTypeOrSelf(op).getIntOrFloatBitWidth();
   auto modWidth = (mod.getValue() - 1).getActiveBits();
-  width = std::max(width, mul ? 2 * modWidth : modWidth + 1);
+  width = !reduce ? std::max(width, mul ? 2 * modWidth : modWidth + 1) : width;
   auto intType = IntegerType::get(op.getContext(), width);
   auto truncmod = mod.getValue().zextOrTrunc(width);
   if (auto st = mlir::dyn_cast<ShapedType>(op.getType())) {

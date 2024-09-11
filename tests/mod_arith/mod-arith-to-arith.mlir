@@ -229,6 +229,34 @@ func.func @test_lower_mac_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>, %acc : t
 
 // -----
 
+// CHECK-LABEL: @test_lower_reduce
+// CHECK-SAME: (%[[ARG:.*]]: [[TENSOR_TYPE:.*]]) -> [[TENSOR_TYPE]] {
+func.func @test_lower_reduce(%arg : tensor<4xi8>) -> tensor<4xi8> {
+  // CHECK: %[[CMOD:.*]] = arith.constant dense<17> : [[TENSOR_TYPE]]
+
+  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARG]], %[[CMOD]] : [[TENSOR_TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[TENSOR_TYPE]]
+  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[TENSOR_TYPE]]
+  %res = mod_arith.reduce %arg { modulus = 17 } : tensor<4xi8>
+  return %res : tensor<4xi8>
+}
+
+// -----
+
+// CHECK-LABEL: @test_lower_reduce_int
+// CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
+func.func @test_lower_reduce_int(%arg : i8) -> i8 {
+  // CHECK: %[[CMOD:.*]] = arith.constant 17 : [[INT_TYPE]]
+
+  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARG]], %[[CMOD]] : [[INT_TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[INT_TYPE]]
+  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INT_TYPE]]
+  %res = mod_arith.reduce %arg { modulus = 17 } : i8
+  return %res : i8
+}
+
+// -----
+
 // CHECK-LABEL: @test_lower_subifge
 // CHECK-SAME: (%[[LHS:.*]]: [[TENSOR_TYPE:.*]], %[[RHS:.*]]: [[TENSOR_TYPE]]) -> [[TENSOR_TYPE]] {
 func.func @test_lower_subifge(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
