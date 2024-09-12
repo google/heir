@@ -150,6 +150,82 @@ LogicalResult ForwardSingleStoreToLoad::matchAndRewrite(
   return failure();
 }
 
+bool RemoveUnusedStore::isPostDominated(Operation *potentialOp,
+                                        memref::StoreOp &storeOp) const {
+  if (!dominanceInfo.properlyDominates(storeOp.getOperation(), potentialOp)) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "store op is not properly dominated by potential store\n");
+    return false;
+  }
+
+  // Probably want to relax this at some point in the future.
+  if (storeOp->getBlock() != potentialOp->getBlock()) {
+    LLVM_DEBUG(llvm::dbgs() << "store ops are not in the same block\n");
+    return false;
+  }
+
+  return llvm::TypeSwitch<Operation &, bool>(*potentialOp)
+      .Case<memref::StoreOp>([&](auto potentialStore) {
+        ValueRange storeIndices = storeOp.getIndices();
+        ValueRange potentialStoreIndices = potentialStore.getIndices();
+        if (storeIndices != potentialStoreIndices) {
+          LLVM_DEBUG(llvm::dbgs()
+                     << "store ops do not have matching indices\n");
+          return false;
+        }
+
+        // Naively scan through the operations between the two ops and check if
+        // a read prevents store removal.
+        for (auto currentNode = storeOp->getNextNode();
+             currentNode != potentialStore.getOperation();
+             currentNode = currentNode->getNextNode()) {
+          if (currentNode->getNumRegions() > 0) {
+            // Op can have control flow
+            LLVM_DEBUG(llvm::dbgs() << "an op with control flow is between the "
+                                       "store ops\n");
+            return false;
+          }
+          if (auto op = dyn_cast<affine::AffineLoadOp>(currentNode)) {
+            // If we encounter an affine load op then fail conservatively. This
+            // pass should have already run AffineLoadLowering to convert all
+            // possible affine loads to memref loads.
+            LLVM_DEBUG(llvm::dbgs() << "an intermediate load op was found\n");
+            return false;
+          }
+          if (auto op = dyn_cast<memref::LoadOp>(currentNode)) {
+            if (op.getMemRef() == storeOp.getMemRef() &&
+                op.getIndices() == storeIndices) {
+              LLVM_DEBUG(llvm::dbgs()
+                         << "an intermediate op loads at the same index\n");
+              return false;
+            }
+          }
+        }
+
+        return true;
+      })
+      .Default([&](Operation &) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Unsupported op type, cannot check for forwardability\n");
+        return false;
+      });
+}
+
+LogicalResult RemoveUnusedStore::matchAndRewrite(
+    memref::StoreOp storeOp, PatternRewriter &rewriter) const {
+  LLVM_DEBUG(llvm::dbgs() << "Considering storeOp for removal: " << storeOp
+                          << "\n");
+  for (Operation *use : storeOp.getMemRef().getUsers()) {
+    if (isPostDominated(use, storeOp)) {
+      LLVM_DEBUG(llvm::dbgs() << "Store is usurped by: " << *use << "\n");
+      rewriter.eraseOp(storeOp);
+      return success();
+    }
+    LLVM_DEBUG(llvm::dbgs() << "Use is not removable: " << *use << "\n");
+  }
+  return failure();
+}
+
 struct ForwardStoreToLoad : impl::ForwardStoreToLoadBase<ForwardStoreToLoad> {
   using ForwardStoreToLoadBase::ForwardStoreToLoadBase;
 
@@ -158,7 +234,7 @@ struct ForwardStoreToLoad : impl::ForwardStoreToLoadBase<ForwardStoreToLoad> {
     RewritePatternSet patterns(context);
     DominanceInfo dom(getOperation());
     patterns.add<AffineLoadLowering, AffineStoreLowering>(context);
-    patterns.add<ForwardSingleStoreToLoad>(context, dom);
+    patterns.add<ForwardSingleStoreToLoad, RemoveUnusedStore>(context, dom);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
   }
 };

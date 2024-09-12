@@ -52,12 +52,12 @@ func.func @inside_region(%memref0: memref<10xi8>, %memref1: memref<10xi8>) -> me
 func.func @forward_latest(%memref0: memref<10xi8>) -> i8 {
   // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : index
   %c0 = arith.constant 0 : index
-  // CHECK-NEXT: %[[VAL0:.*]] = arith.constant 7 : i8
+  // This constant is eliminated.
   %val0 = arith.constant 7 : i8
   // CHECK-NEXT: %[[VAL1:.*]] = arith.constant 8 : i8
   %val1 = arith.constant 8 : i8
 
-  // CHECK-NEXT: memref.store %[[VAL0]], %[[MEMREF0]][%[[C0]]]
+  // This next store is unused and eliminated.
   memref.store %val0, %memref0[%c0] : memref<10xi8>
   // CHECK-NEXT: memref.store %[[VAL1]], %[[MEMREF0]][%[[C0]]]
   memref.store %val1, %memref0[%c0] : memref<10xi8>
@@ -137,4 +137,49 @@ func.func @wrong_indices(%memref0: memref<10xi8>) -> i8 {
   %2 = memref.load %memref0[%c1] : memref<10xi8>
   // CHECK-NEXT: return %[[V2]] : i8
   return %2: i8
+}
+
+// CHECK-LABEL: func.func @cf_between_stores
+// CHECK-SAME: (%[[MEMREF0:.*]]: memref<10xi8>)
+func.func @cf_between_stores(%memref0: memref<10xi8>) -> i8 {
+  // CHECK-NEXT: %[[TRUE:.*]] = arith.constant true
+  %true = arith.constant true
+  // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : index
+  %c0 = arith.constant 0 : index
+  // CHECK-NEXT: %[[VAL0:.*]] = arith.constant 7 : i8
+  %val0 = arith.constant 7 : i8
+  // CHECK-NEXT: %[[VAL1:.*]] = arith.constant 8 : i8
+  %val1 = arith.constant 8 : i8
+
+  // The next store is not eliminated because there is a region with control
+  // flow between.
+  // CHECK-NEXT: memref.store %[[VAL0]], %[[MEMREF0]][%[[C0]]]
+  memref.store %val0, %memref0[%c0] : memref<10xi8>
+
+  // CHECK-NEXT: scf.if %[[TRUE]]
+  scf.if %true {
+    %1 = memref.load %memref0[%c0] : memref<10xi8>
+    memref.store %1, %memref0[%c0] : memref<10xi8>
+  }
+
+  // CHECK: memref.store %[[VAL1]], %[[MEMREF0]][%[[C0]]]
+  memref.store %val1, %memref0[%c0] : memref<10xi8>
+  // CHECK-NOT: memref.load
+  // CHECK-NEXT: return %[[VAL1]] : i8
+  %1 = memref.load %memref0[%c0] : memref<10xi8>
+  return %1: i8
+}
+
+// CHECK-LABEL: func.func @affine_ops
+// CHECK-SAME: %[[ARG1:.*]]: i8, %[[ARG2:.*]]: i8
+func.func @affine_ops(%arg0: i8, %arg1: i8) -> (i8, i8) {
+  %c0 = arith.constant 0 : index
+  %0 = memref.alloc() : memref<1xi8>
+  affine.store %arg0, %0[%c0] : memref<1xi8>
+  // CHECK-NOT: memref.load
+  %1 = affine.load %0[%c0] : memref<1xi8>
+  affine.store %arg1, %0[%c0] : memref<1xi8>
+  %3 = affine.load %0[%c0] : memref<1xi8>
+  // CHECK: return %[[ARG1]], %[[ARG2]] : i8, i8
+  return %1, %3 : i8, i8
 }
