@@ -253,6 +253,10 @@ class RotationAnalysis {
     return rootToPartialReductions.at(value);
   }
 
+  const bool containsRootedReductions(Value value) const {
+    return rootToPartialReductions.contains(value);
+  }
+
  private:
   // The constant propagation analysis used to determine the static values of
   // rotation shifts.
