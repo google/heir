@@ -5,16 +5,17 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/TypeRange.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -208,6 +209,22 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
 // type returned by getEncoding being a vanilla Attribute. Probably we need a
 // common interface for LWE_EncodingAttrWithScalingFactor, and cast to that?
 int widthFromEncodingAttr(Attribute encoding);
+
+// Returns the Value corresponding to a given type in the FuncOp containing
+// this op.
+template <typename ArgType>
+FailureOr<Value> getContextualArgFromFunc(Operation *op) {
+  for (auto block_arg : op->getParentOfType<func::FuncOp>()
+                            .getBody()
+                            .getBlocks()
+                            .front()
+                            .getArguments()) {
+    if (mlir::isa<ArgType>(block_arg.getType())) {
+      return block_arg;
+    }
+  }
+  return failure();
+}
 
 }  // namespace heir
 }  // namespace mlir

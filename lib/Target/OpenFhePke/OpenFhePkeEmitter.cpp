@@ -74,14 +74,14 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::IndexCastOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
-          .Case<lwe::RLWEEncodeOp, lwe::RLWEDecodeOp,
-                lwe::ReinterpretUnderlyingTypeOp>(
+          .Case<lwe::RLWEDecodeOp, lwe::ReinterpretUnderlyingTypeOp>(
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
           .Case<AddOp, SubOp, MulNoRelinOp, MulOp, MulPlainOp, SquareOp,
                 NegateOp, MulConstOp, RelinOp, ModReduceOp, LevelReduceOp,
                 RotOp, AutomorphOp, KeySwitchOp, EncryptOp, DecryptOp,
-                GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp>(
+                GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp,
+                MakePackedPlaintextOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -366,8 +366,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   return success();
 }
 
-LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEEncodeOp op) {
-  std::string inputVarName = variableNames->getNameForValue(op.getInput());
+LogicalResult OpenFhePkeEmitter::printOperation(
+    openfhe::MakePackedPlaintextOp op) {
+  std::string inputVarName = variableNames->getNameForValue(op.getValue());
 
   emitAutoAssignPrefix(op.getResult());
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());

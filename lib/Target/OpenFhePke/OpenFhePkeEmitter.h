@@ -49,7 +49,6 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::arith::IndexCastOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
-  LogicalResult printOperation(::mlir::heir::lwe::RLWEEncodeOp op);
   LogicalResult printOperation(::mlir::heir::lwe::RLWEDecodeOp op);
   LogicalResult printOperation(
       ::mlir::heir::lwe::ReinterpretUnderlyingTypeOp op);
@@ -63,6 +62,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(GenRotKeyOp op);
   LogicalResult printOperation(KeySwitchOp op);
   LogicalResult printOperation(LevelReduceOp op);
+  LogicalResult printOperation(MakePackedPlaintextOp op);
   LogicalResult printOperation(ModReduceOp op);
   LogicalResult printOperation(MulConstOp op);
   LogicalResult printOperation(MulNoRelinOp op);

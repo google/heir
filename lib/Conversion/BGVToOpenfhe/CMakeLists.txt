@@ -16,6 +16,7 @@ add_mlir_dialect_library(MLIRBGVOpenfheTransforms
     MLIRBGV
     MLIRLWE
     MLIROpenfhe
+    MLIRLWEOpenfheTransformsIncGen
 
     MLIRIR
     MLIRPass

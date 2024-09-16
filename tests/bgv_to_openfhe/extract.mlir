@@ -10,7 +10,7 @@
 func.func @test_lower_extract(%arg0: !ty1) -> !ty2 {
   // CHECK: arith.constant 4 : index
   // CHECK: arith.constant dense<[0, 0, 0, 0, 1, [[unused:[0 ,]*]]]> : tensor<32xi16>
-  // CHECK: lwe.rlwe_encode
+  // CHECK: openfhe.make_packed_plaintext
   // CHECK: openfhe.mul_plain
   // CHECK: openfhe.rot
   // CHECK: lwe.reinterpret_underlying_type

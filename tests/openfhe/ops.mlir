@@ -10,9 +10,22 @@
 !ek = !openfhe.eval_key
 !cc = !openfhe.crypto_context
 !pt = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring, underlying_type=i3>
+!ptf16 = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring, underlying_type=f16>
 !ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type=i3>
 
 module {
+  // CHECK-LABEL: func @test_make_packed_plaintext
+  func.func @test_make_packed_plaintext(%cc: !cc, %arg0 : tensor<32xi3>) -> !pt {
+    %pt = openfhe.make_packed_plaintext %cc, %arg0 : (!cc, tensor<32xi3>) -> !pt
+    return %pt : !pt
+  }
+
+  // CHECK-LABEL: func @test_make_ckks_packed_plaintext
+  func.func @test_make_ckks_packed_plaintext(%cc: !cc, %arg0 : tensor<32xf16>) -> !ptf16 {
+    %pt = openfhe.make_ckks_packed_plaintext %cc, %arg0 : (!cc, tensor<32xf16>) -> !ptf16
+    return %pt : !ptf16
+  }
+
   // CHECK-LABEL: func @test_encrypt
   func.func @test_encrypt(%cc: !cc, %pt : !pt, %pk: !pk) {
     %ct = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct

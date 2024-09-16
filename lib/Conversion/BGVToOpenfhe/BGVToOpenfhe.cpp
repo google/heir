@@ -5,10 +5,12 @@
 #include <cstdint>
 #include <utility>
 
+#include "lib/Conversion/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Conversion/Utils.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
@@ -48,8 +50,7 @@ class ToOpenfheTypeConverter : public TypeConverter {
 
 bool containsBGVOps(func::FuncOp func) {
   auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<bgv::BGVDialect>(op->getDialect()) ||
-        llvm::isa<lwe::RLWEEncryptOp>(op) || llvm::isa<lwe::RLWEDecryptOp>(op))
+    if (llvm::isa<bgv::BGVDialect, lwe::LWEDialect>(op->getDialect()))
       return WalkResult::interrupt();
     return WalkResult::advance();
   });
@@ -57,18 +58,13 @@ bool containsBGVOps(func::FuncOp func) {
 }
 
 FailureOr<Value> getContextualCryptoContext(Operation *op) {
-  Value cryptoContext = op->getParentOfType<func::FuncOp>()
-                            .getBody()
-                            .getBlocks()
-                            .front()
-                            .getArguments()
-                            .front();
-  if (!mlir::isa<openfhe::CryptoContextType>(cryptoContext.getType())) {
+  auto result = getContextualArgFromFunc<openfhe::CryptoContextType>(op);
+  if (failed(result)) {
     return op->emitOpError()
            << "Found BGV op in a function without a public "
               "key argument. Did the AddCryptoContextArg pattern fail to run?";
   }
-  return cryptoContext;
+  return result.value();
 }
 
 struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
@@ -242,53 +238,6 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
   }
 };
 
-struct ConvertEncryptOp : public OpConversionPattern<lwe::RLWEEncryptOp> {
-  ConvertEncryptOp(mlir::MLIRContext *context)
-      : OpConversionPattern<lwe::RLWEEncryptOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      lwe::RLWEEncryptOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
-    if (failed(result)) return result;
-
-    auto keyType = dyn_cast<lwe::RLWEPublicKeyType>(op.getKey().getType());
-    if (!keyType)
-      return op.emitError()
-             << "OpenFHE only supports public key encryption for BGV.";
-
-    Value cryptoContext = result.value();
-    rewriter.replaceOp(op,
-                       rewriter.create<openfhe::EncryptOp>(
-                           op.getLoc(), op.getOutput().getType(), cryptoContext,
-                           adaptor.getInput(), adaptor.getKey()));
-    return success();
-  }
-};
-
-struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
-  ConvertDecryptOp(mlir::MLIRContext *context)
-      : OpConversionPattern<lwe::RLWEDecryptOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      lwe::RLWEDecryptOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
-    if (failed(result)) return result;
-
-    Value cryptoContext = result.value();
-    rewriter.replaceOp(op,
-                       rewriter.create<openfhe::DecryptOp>(
-                           op.getLoc(), op.getOutput().getType(), cryptoContext,
-                           adaptor.getInput(), adaptor.getSecretKey()));
-    return success();
-  }
-};
-
 // Rewrite extract as a multiplication by a one-hot plaintext, followed by a
 // rotate.
 struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
@@ -369,41 +318,6 @@ struct ConvertExtractOp : public OpConversionPattern<ExtractOp> {
   }
 };
 
-struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
-  using OpConversionPattern<lwe::RLWEEncodeOp>::OpConversionPattern;
-
-  // OpenFHE has a convention that all inputs to MakePackedPlaintext are
-  // std::vector<int64_t>, so we need to cast the input to that type.
-  LogicalResult matchAndRewrite(
-      lwe::RLWEEncodeOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    auto tensorTy =
-        mlir::dyn_cast<RankedTensorType>(adaptor.getInput().getType());
-    // TODO(#646): support scalar inputs to encode.
-    if (!tensorTy) return op.emitOpError() << "Unsupported input type";
-
-    auto elementTy = tensorTy.getElementType();
-    auto intTy = mlir::dyn_cast<IntegerType>(elementTy);
-    if (!intTy)
-      return op.emitOpError() << "Input element type must be an integer type";
-
-    if (intTy.getWidth() >= 64)
-      return op.emitError() << "No supported packing technique for integers "
-                               "bigger than 64 bits.";
-
-    auto int64Ty = rewriter.getIntegerType(64);
-    auto newTensorTy = RankedTensorType::get(tensorTy.getShape(), int64Ty);
-    auto castedInput = rewriter.create<arith::ExtSIOp>(op.getLoc(), newTensorTy,
-                                                       adaptor.getInput());
-
-    rewriter.replaceOpWithNewOp<lwe::RLWEEncodeOp>(
-        op, op.getType(), castedInput, adaptor.getEncoding(),
-        adaptor.getRing());
-
-    return success();
-  }
-};
-
 struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -413,7 +327,8 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
     ConversionTarget target(*context);
     target.addLegalDialect<openfhe::OpenfheDialect>();
     target.addIllegalDialect<bgv::BGVDialect>();
-    target.addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp>();
+    target.addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp,
+                        lwe::RLWEEncodeOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -427,21 +342,11 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
              (!containsBGVOps(op) || hasCryptoContextArg);
     });
 
-    target.addDynamicallyLegalOp<lwe::RLWEEncodeOp>([](lwe::RLWEEncodeOp op) {
-      if (auto tensorType =
-              mlir::dyn_cast<RankedTensorType>(op.getInput().getType())) {
-        if (auto intType =
-                mlir::dyn_cast<IntegerType>(tensorType.getElementType())) {
-          return intType.getWidth() == 64;
-        }
-      }
-      return false;
-    });
     patterns.add<AddCryptoContextArg, ConvertAddOp, ConvertSubOp, ConvertMulOp,
                  ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,
                  ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp,
-                 ConvertEncryptOp, ConvertDecryptOp, ConvertEncodeOp>(
-        typeConverter, context);
+                 lwe::ConvertEncryptOp, lwe::ConvertDecryptOp,
+                 lwe::ConvertEncodeOp>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

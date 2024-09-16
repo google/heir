@@ -14,6 +14,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Conversion:Utils",
+        "@heir//lib/Conversion/LWEToOpenfhe",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",

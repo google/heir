@@ -68,17 +68,12 @@ bool containsCGGIToJaxiteOps(func::FuncOp func) {
 // this op.
 template <typename JaxiteArgType>
 FailureOr<Value> getContextualJaxiteArg(Operation *op) {
-  for (auto block_arg : op->getParentOfType<func::FuncOp>()
-                            .getBody()
-                            .getBlocks()
-                            .front()
-                            .getArguments()) {
-    if (mlir::isa<JaxiteArgType>(block_arg.getType())) {
-      return block_arg;
-    }
+  auto result = getContextualArgFromFunc<JaxiteArgType>(op);
+  if (failed(result)) {
+    return op->emitOpError() << "Cannot find Jaxite server argument. Did the "
+                                "AddJaxiteContextualArgs pattern fail to run?";
   }
-  return op->emitOpError() << "Cannot find Jaxite server argument. Did the "
-                              "AddJaxiteContextualArgs pattern fail to run?";
+  return result.value();
 }
 
 /// Convert a func by adding contextual server args. Converted ops in other

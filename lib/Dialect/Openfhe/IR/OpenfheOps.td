@@ -77,6 +77,22 @@ def GenRotKeyOp : Openfhe_Op<"gen_rotkey"> {
   );
 }
 
+def MakePackedPlaintextOp : Openfhe_Op<"make_packed_plaintext", [Pure]> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    RankedTensorOf<[AnyInteger]>:$value)
+  ;
+  let results = (outs RLWEPlaintext:$plaintext);
+}
+
+def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure]> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    RankedTensorOf<[AnyFloat]>:$value)
+  ;
+  let results = (outs RLWEPlaintext:$plaintext);
+}
+
 def EncryptOp : Openfhe_Op<"encrypt", [Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
