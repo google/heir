@@ -1,13 +1,17 @@
 #include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
 
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
@@ -18,11 +22,14 @@ namespace rotation_analysis {
 
 void RotationAnalysis::run(Operation *op) {
   op->walk<WalkOrder::PreOrder>([&](Operation *op) {
-    // If the op has no tensor results and no regions, then there's nothing to
-    // do. The operation may consume a tensor but cannot further reduce it.
+    // If the op has no tensor results and no regions and no operand
+    // with existing partial reduction, then there's nothing to do.
     if (op->getNumRegions() == 0 &&
-        llvm::none_of(op->getResultTypes(), [](Type type) {
-          return mlir::isa<RankedTensorType>(type);
+        llvm::none_of(
+            op->getResultTypes(),
+            [](Type type) { return mlir::isa<RankedTensorType>(type); }) &&
+        llvm::none_of(op->getOperands(), [&](Value operand) {
+          return rootToPartialReductions.contains(operand);
         })) {
       return WalkResult::advance();
     }
@@ -83,12 +90,62 @@ void RotationAnalysis::run(Operation *op) {
                 PartialReduction::rotate(reduction, shiftValue, result));
           }
         })
+        .Case<tensor::ExtractOp>([&](auto extractOp) {
+          LLVM_DEBUG({ llvm::dbgs() << "Visiting: " << *op << "\n"; });
+
+          if (extractOp.getIndices().size() != 1) {
+            LLVM_DEBUG(llvm::dbgs()
+                       << "Not replacing op due to >1D input tensor\n");
+            return;
+          }
+
+          const dataflow::Lattice<dataflow::ConstantValue> *indexLattice =
+              solver.lookupState<dataflow::Lattice<dataflow::ConstantValue>>(
+                  extractOp.getIndices().front());
+
+          if (indexLattice) {
+            LLVM_DEBUG(llvm::dbgs() << "At " << extractOp
+                                    << " SCCP analysis gives lattice of "
+                                    << *indexLattice << "\n");
+          }
+
+          // If the rotation index can't be statically determined, we can't
+          // propagate anything through the IR.
+          if (!indexLattice || indexLattice->getValue().isUninitialized() ||
+              !indexLattice->getValue().getConstantValue()) {
+            LLVM_DEBUG(
+                llvm::dbgs()
+                << "At " << extractOp
+                << " can't statically determine constant insertion index\n");
+            return;
+          }
+          auto indexValue = mlir::dyn_cast<IntegerAttr>(
+                                indexLattice->getValue().getConstantValue())
+                                .getInt();
+
+          // For each partial reduction the tensor operand is a root of,
+          // rotate the accessed indices appropriately.
+          Value tensor = extractOp.getTensor();
+          Value result = extractOp.getResult();
+          for (const auto &reduction : rootToPartialReductions[tensor]) {
+            addPartialReduction(
+                PartialReduction::rotate(reduction, indexValue, result));
+          }
+        })
         .Case<arith::AddIOp, arith::MulIOp>([&](auto arithOp) {
           LLVM_DEBUG({ llvm::dbgs() << "Visiting: " << arithOp << "\n"; });
           Value lhs = arithOp.getLhs();
           Value rhs = arithOp.getRhs();
           Value newRoot = arithOp.getResult();
           OperationName opName = arithOp.getOperation()->getName();
+
+          // TODO(#522): support these non-tensor-extract operands by
+          // saving the values, and applying them again to the final
+          // result.
+          if (!rootToPartialReductions.contains(lhs) ||
+              !rootToPartialReductions.contains(rhs)) {
+            return;
+          }
 
           // This is inefficient, but what can we do better here? I suspect a
           // better approach may be to identify cases in which only one of these

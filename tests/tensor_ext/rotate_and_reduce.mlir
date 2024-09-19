@@ -43,6 +43,89 @@ func.func @simple_sum(%arg0: tensor<8xi32>) -> i32 {
   return %14 : i32
 }
 
+// Sum all entries of a tensor
+// CHECK-LABEL: @simple_sum_mixed_rotation_tensor
+// CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
+// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
+// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
+// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
+// CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
+// CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
+// CHECK-NEXT: return %[[v5]]
+func.func @simple_sum_mixed_rotation_tensor(%arg0: tensor<8xi32>) -> tensor<8xi32> {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %0 = tensor_ext.rotate %arg0, %c1 : tensor<8xi32>, index
+  %1 = tensor_ext.rotate %arg0, %c2 : tensor<8xi32>, index
+  %2 = arith.addi %0, %1 : tensor<8xi32>
+  %3 = tensor_ext.rotate %arg0, %c3 : tensor<8xi32>, index
+  %4 = tensor_ext.rotate %arg0, %c4 : tensor<8xi32>, index
+  %5 = tensor_ext.rotate %arg0, %c5 : tensor<8xi32>, index
+  %6 = tensor_ext.rotate %arg0, %c6 : tensor<8xi32>, index
+  %7 = tensor_ext.rotate %arg0, %c7 : tensor<8xi32>, index
+  %8 = arith.addi %2, %3 : tensor<8xi32>
+  %9 = arith.addi %8, %4 : tensor<8xi32>
+  %10 = arith.addi %9, %5 : tensor<8xi32>
+  %11 = arith.addi %10, %6 : tensor<8xi32>
+  %12 = arith.addi %11, %7 : tensor<8xi32>
+  %13 = arith.addi %12, %arg0 : tensor<8xi32>
+  return %13 : tensor<8xi32>
+}
+
+// Sum all entries of a tensor into a single scalar
+// Mix rotation and extraction in the reduction tree
+// CHECK-LABEL: @simple_sum_mixed_rotation_extraction
+// CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
+// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
+// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
+// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
+// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
+// CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
+// CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
+// CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
+// CHECK-NEXT: return %[[v6]]
+func.func @simple_sum_mixed_rotation_extraction(%arg0: tensor<8xi32>) -> i32 {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %extracted = tensor.extract %arg0[%c0] : tensor<8xi32>
+  %0 = tensor_ext.rotate %arg0, %c1 : tensor<8xi32>, index
+  %1 = tensor_ext.rotate %arg0, %c2 : tensor<8xi32>, index
+  %2 = arith.addi %0, %1 : tensor<8xi32>
+  %extracted_0 = tensor.extract %2[%c0] : tensor<8xi32>
+  %extracted_1 = tensor.extract %arg0[%c3] : tensor<8xi32>
+  %extracted_2 = tensor.extract %arg0[%c4] : tensor<8xi32>
+  %extracted_3 = tensor.extract %arg0[%c5] : tensor<8xi32>
+  %extracted_4 = tensor.extract %arg0[%c6] : tensor<8xi32>
+  %extracted_5 = tensor.extract %arg0[%c7] : tensor<8xi32>
+  %3 = arith.addi %extracted, %extracted_0 : i32
+  %4 = arith.addi %3, %extracted_1 : i32
+  %5 = arith.addi %4, %extracted_2 : i32
+  %6 = arith.addi %5, %extracted_3 : i32
+  %7 = arith.addi %6, %extracted_4 : i32
+  %8 = arith.addi %7, %extracted_5 : i32
+  return %8 : i32
+}
+
 // CHECK-LABEL: @not_supported_mixed_ops
 // CHECK-NOT: tensor_ext.rotate
 func.func @not_supported_mixed_ops(%arg0: tensor<8xi32>) -> i32 {
@@ -70,6 +153,37 @@ func.func @not_supported_mixed_ops(%arg0: tensor<8xi32>) -> i32 {
   %13 = arith.addi %12, %6 : i32
   %14 = arith.addi %13, %7 : i32
   return %14 : i32
+}
+
+// CHECK-LABEL: @not_supported_mixed_ops_mixed_rotation_extraction
+// CHECK-COUNT-2: tensor_ext.rotate
+// CHECK-NOT: tensor_ext.rotate
+func.func @not_supported_mixed_ops_mixed_rotation_extraction(%arg0: tensor<8xi32>) -> i32 {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %extracted = tensor.extract %arg0[%c0] : tensor<8xi32>
+  %0 = tensor_ext.rotate %arg0, %c1 : tensor<8xi32>, index
+  %1 = tensor_ext.rotate %arg0, %c2 : tensor<8xi32>, index
+  %2 = arith.muli %0, %1 : tensor<8xi32>
+  %extracted_0 = tensor.extract %2[%c0] : tensor<8xi32>
+  %extracted_1 = tensor.extract %arg0[%c3] : tensor<8xi32>
+  %extracted_2 = tensor.extract %arg0[%c4] : tensor<8xi32>
+  %extracted_3 = tensor.extract %arg0[%c5] : tensor<8xi32>
+  %extracted_4 = tensor.extract %arg0[%c6] : tensor<8xi32>
+  %extracted_5 = tensor.extract %arg0[%c7] : tensor<8xi32>
+  %3 = arith.addi %extracted, %extracted_0 : i32
+  %4 = arith.addi %3, %extracted_1 : i32
+  %5 = arith.addi %4, %extracted_2 : i32
+  %6 = arith.addi %5, %extracted_3 : i32
+  %7 = arith.addi %6, %extracted_4 : i32
+  %8 = arith.addi %7, %extracted_5 : i32
+  return %8 : i32
 }
 
 // CHECK-LABEL: @not_supported_missing_indices

@@ -39,8 +39,9 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
   using RotateAndReduceBase::RotateAndReduceBase;
 
   template <typename ArithOp>
-  void tryReplaceRotations(
-      ArithOp op, const rotation_analysis::PartialReduction &reduction) {
+  void tryReplaceRotations(ArithOp op,
+                           const rotation_analysis::PartialReduction &reduction,
+                           bool extraction) {
     LLVM_DEBUG(llvm::dbgs()
                << "Trying to replace rotations ending in " << *op << "\n");
     auto b = ImplicitLocOpBuilder(op->getLoc(), op);
@@ -58,167 +59,17 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     }
 
     [[maybe_unused]] auto *parentOp = op->getParentOp();
-    op->replaceAllUsesWith(finalOp);
+    if (extraction) {
+      // We can extract at any index; every index contains the same reduced
+      // value.
+      auto extractOp = b.create<tensor::ExtractOp>(
+          finalOp->getResult(0),
+          b.create<arith::ConstantIndexOp>(0).getResult());
+      op->replaceAllUsesWith(extractOp);
+    } else {
+      op->replaceAllUsesWith(finalOp);
+    }
     LLVM_DEBUG(llvm::dbgs() << "Post-replacement: " << *parentOp << "\n");
-  }
-
-  template <typename ArithOp>
-  void tryReplaceExtractions(ArithOp op, DenseSet<Operation *> &visited) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Trying to replace extractions ending in " << *op << "\n");
-    SetVector<Operation *> backwardSlice;
-    BackwardSliceOptions options;
-    // asserts that the parent op has a single region with a single block.
-    options.omitBlockArguments = false;
-
-    DenseSet<Value> inputTensors;
-    DenseSet<Operation *> visitedReductionOps;
-    DenseSet<unsigned> accessIndices;
-    DenseMap<llvm::StringRef, int> opCounts;
-    opCounts[op->getName().getStringRef()]++;
-
-    // TODO(#523): replace backward slice with a dataflow analysis
-    getBackwardSlice(op.getOperation(), &backwardSlice, options);
-    for (Operation *upstreamOpPtr : backwardSlice) {
-      auto result =
-          llvm::TypeSwitch<Operation *, LogicalResult>(upstreamOpPtr)
-              .Case<arith::ConstantOp>(
-                  [&](auto upstreamOp) { return success(); })
-              // Ignore generic ops
-              .template Case<secret::GenericOp>(
-                  [&](auto upstreamOp) { return success(); })
-              .template Case<arith::AddIOp, arith::MulIOp>(
-                  [&](auto upstreamOp) {
-                    opCounts[upstreamOp->getName().getStringRef()]++;
-                    // More than one reduction op is mixed in the reduction.
-                    if (opCounts.size() > 1) {
-                      LLVM_DEBUG(llvm::dbgs()
-                                 << "Not replacing op because reduction "
-                                    "contains multiple incompatible ops "
-                                 << op->getName() << " and "
-                                 << upstreamOp->getName() << "\n");
-                      return failure();
-                    }
-
-                    // TODO(#522): support these non-tensor-extract operands by
-                    // saving the values, and applying them again to the final
-                    // result.
-                    for (Value operand : upstreamOp->getOperands()) {
-                      if (operand.getDefiningOp<arith::ConstantOp>()) {
-                        LLVM_DEBUG(llvm::dbgs()
-                                   << "Not replacing op because reduction "
-                                      "includes non-tensor value operands "
-                                   << operand << "\n");
-                        return failure();
-                      }
-                    }
-                    visitedReductionOps.insert(upstreamOp);
-                    return success();
-                  })
-              .template Case<tensor::ExtractOp>([&](auto tensorOp) {
-                inputTensors.insert(tensorOp.getTensor());
-                if (inputTensors.size() > 1) {
-                  LLVM_DEBUG(
-                      llvm::dbgs()
-                      << "Not replacing op due to multiple input tensors\n");
-                  return failure();
-                }
-
-                // If the tensor is not 1D, we can't replace it with a rotate.
-                if (tensorOp.getIndices().size() != 1) {
-                  LLVM_DEBUG(llvm::dbgs()
-                             << "Not replacing op due to >1D input tensor\n");
-                  return failure();
-                }
-
-                // If the access index is not constant, we can't tell if we are
-                // reducing the entire vector (each index occurs exactly once in
-                // the redution).
-                arith::ConstantOp indexConstant =
-                    tensorOp.getIndices()
-                        .front()
-                        .template getDefiningOp<arith::ConstantOp>();
-                if (!indexConstant) {
-                  LLVM_DEBUG(
-                      llvm::dbgs()
-                      << "Not replacing op due to non constant index access;"
-                      << " (do you need to run --canonicalize or --sccp?)\n");
-                  return failure();
-                }
-                int64_t accessIndex =
-                    mlir::cast<IntegerAttr>(indexConstant.getValue()).getInt();
-
-                // If the access index was already seen, then fail because some
-                // tensor element contributes more than once to the reduction.
-                if (accessIndices.count(accessIndex)) {
-                  LLVM_DEBUG(
-                      llvm::dbgs()
-                      << "Not replacing op because input tensor was accessed "
-                         "multiple times in at same index\n");
-                  return failure();
-                }
-                LLVM_DEBUG(llvm::dbgs()
-                           << "Adding valid index " << accessIndex << "\n");
-                accessIndices.insert(accessIndex);
-                return success();
-              })
-              .Default([&](Operation *op) {
-                LLVM_DEBUG(llvm::dbgs() << "Not continuing because type switch "
-                                           "encountered unsupported op "
-                                        << op->getName() << "\n");
-                return failure();
-              });
-
-      if (failed(result)) {
-        return;
-      }
-    }
-
-    // The test for a match is now: does the number of accessed indices exactly
-    // match the size of the tensor? I.e., does each tensor element show up
-    // exactly once in the reduction?
-    if (inputTensors.empty()) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Not replacing op because it accesses no tensors\n");
-      return;
-    }
-    auto tensorShape =
-        mlir::cast<RankedTensorType>(inputTensors.begin()->getType())
-            .getShape();
-    if (tensorShape.size() != 1 || tensorShape[0] != accessIndices.size()) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Not replacing op because tensor shape ("
-                 << inputTensors.begin()->getType()
-                 << ") is not fully reduced. Only " << accessIndices.size()
-                 << " of " << tensorShape[0] << " indices were accessed\n");
-      return;
-    }
-
-    // From here we know we will succeed.
-    auto b = ImplicitLocOpBuilder(op->getLoc(), op);
-    Value inputTensor = *inputTensors.begin();
-    Operation *finalOp;
-    for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
-         shiftSize /= 2) {
-      auto rotatedTensor = b.create<tensor_ext::RotateOp>(
-          inputTensor, b.create<arith::ConstantOp>(b.getIndexAttr(shiftSize)));
-      auto addOp = b.create<ArithOp>(inputTensor, rotatedTensor);
-      finalOp = addOp;
-      inputTensor = addOp->getResult(0);
-    }
-
-    [[maybe_unused]] auto *parentOp = op->getParentOp();
-    // We can extract at any index; every index contains the same reduced value.
-    auto extractOp = b.create<tensor::ExtractOp>(
-        finalOp->getResult(0), b.create<arith::ConstantIndexOp>(0).getResult());
-    op->replaceAllUsesWith(extractOp);
-    LLVM_DEBUG(llvm::dbgs() << "Post-replacement: " << *parentOp << "\n");
-
-    // Mark all ops in the reduction as visited so we don't try to replace them
-    // twice.
-    for (Operation *visitedOp : visitedReductionOps) {
-      visited.insert(visitedOp);
-    }
   }
 
   void runOnOperation() override {
@@ -237,44 +88,34 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
 
     rotation_analysis::RotationAnalysis rotationAnalysis(solver);
     rotationAnalysis.run(getOperation());
-    DenseSet<Operation *> visited;
 
     getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
         [&](Operation *op) {
           for (Value result : op->getResults()) {
-            if (!mlir::isa<RankedTensorType>(result.getType())) {
+            if (!rotationAnalysis.containsRootedReductions(result)) {
               continue;
             }
+
+            // When the reduction ends with a scalar addi/muli, that means
+            // multiple extraction from tensor has been done earlier, and
+            // can be optimized to be only one final extraction
+            bool extraction = !mlir::isa<RankedTensorType>(result.getType());
 
             for (const auto &reduction :
                  rotationAnalysis.getRootedReductionsAt(result)) {
               if (reduction.isComplete()) {
                 llvm::TypeSwitch<Operation &>(*op)
                     .Case<arith::AddIOp>([&](auto arithOp) {
-                      tryReplaceRotations<arith::AddIOp>(arithOp, reduction);
+                      tryReplaceRotations<arith::AddIOp>(arithOp, reduction,
+                                                         extraction);
                     })
                     .Case<arith::MulIOp>([&](auto arithOp) {
-                      tryReplaceRotations<arith::MulIOp>(arithOp, reduction);
+                      tryReplaceRotations<arith::MulIOp>(arithOp, reduction,
+                                                         extraction);
                     });
               }
             }
           }
-        });
-
-    // Traverse the IR in reverse order so that we can eagerly compute backward
-    // slices for each operation.
-    getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
-        [&](Operation *op) {
-          if (visited.count(op)) {
-            return;
-          }
-          llvm::TypeSwitch<Operation &>(*op)
-              .Case<arith::AddIOp>([&](auto arithOp) {
-                tryReplaceExtractions<arith::AddIOp>(arithOp, visited);
-              })
-              .Case<arith::MulIOp>([&](auto arithOp) {
-                tryReplaceExtractions<arith::MulIOp>(arithOp, visited);
-              });
         });
   }
 };
