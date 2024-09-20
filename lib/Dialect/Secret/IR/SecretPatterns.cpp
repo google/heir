@@ -560,7 +560,9 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
     if (isa<YieldOp>(op)) {
       return false;
     }
-    // complex op
+    // Conservatively preserve a complex op with a nested region
+    // This could be a replaced with a recursive call to check that all of the
+    // regions' operations can be hoisted.
     if (op.getNumRegions() != 0) {
       return false;
     }

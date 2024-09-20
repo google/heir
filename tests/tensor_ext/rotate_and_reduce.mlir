@@ -43,6 +43,35 @@ func.func @simple_sum(%arg0: tensor<8xi32>) -> i32 {
   return %14 : i32
 }
 
+// Sum all entries of two tensor into a single scalar
+// CHECK-LABEL: @simple_sum_two_tensor
+// CHECK-COUNT-2: tensor_ext.rotate
+// CHECK: tensor.extract
+// CHECK-COUNT-2: tensor_ext.rotate
+// CHECK: tensor.extract
+func.func @simple_sum_two_tensor(%arg0: tensor<4xi32>, %arg1: tensor<4xi32>) -> i32 {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %0 = tensor.extract %arg0[%c0] : tensor<4xi32>
+  %1 = tensor.extract %arg0[%c1] : tensor<4xi32>
+  %2 = tensor.extract %arg0[%c2] : tensor<4xi32>
+  %3 = tensor.extract %arg0[%c3] : tensor<4xi32>
+  %4 = tensor.extract %arg1[%c0] : tensor<4xi32>
+  %5 = tensor.extract %arg1[%c1] : tensor<4xi32>
+  %6 = tensor.extract %arg1[%c2] : tensor<4xi32>
+  %7 = tensor.extract %arg1[%c3] : tensor<4xi32>
+  %8 = arith.addi %0, %1 : i32
+  %9 = arith.addi %8, %2 : i32
+  %10 = arith.addi %9, %3 : i32
+  %11 = arith.addi %10, %4 : i32
+  %12 = arith.addi %11, %5 : i32
+  %13 = arith.addi %12, %6 : i32
+  %14 = arith.addi %13, %7 : i32
+  return %14 : i32
+}
+
 // Sum all entries of a tensor
 // CHECK-LABEL: @simple_sum_mixed_rotation_tensor
 // CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
@@ -387,10 +416,23 @@ func.func @not_supported_non_constant_index_access(%arg0: tensor<8xi32>, %arg1: 
   return %14 : i32
 }
 
-// CHECK-LABEL: @not_supported_non_tensor_operands
-// CHECK-NOT: tensor_ext.rotate
-// TODO(#522): support this
-func.func @not_supported_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
+// CHECK-LABEL: @simple_sum_non_tensor_operands
+// CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>
+// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
+// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
+// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
+// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-NEXT: %[[c2_i32:.*]] = arith.constant 2
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
+// CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
+// CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
+// CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
+// CHECK-NEXT: %[[v7:.*]] = arith.addi %[[v6]], %[[c2_i32]]
+// CHECK-NEXT: return %[[v7]]
+func.func @simple_sum_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
@@ -411,6 +453,173 @@ func.func @not_supported_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
   %8 = arith.addi %0, %1 : i32
   // next op uses non-tensor operand
   %9 = arith.addi %8, %c2_i32 : i32
+  %10 = arith.addi %9, %3 : i32
+  %11 = arith.addi %10, %4 : i32
+  %12 = arith.addi %11, %5 : i32
+  %13 = arith.addi %12, %6 : i32
+  %14 = arith.addi %13, %7 : i32
+  %15 = arith.addi %14, %2 : i32
+  return %15 : i32
+}
+
+// CHECK-LABEL: @simple_sum_multiple_non_tensor_operands
+// CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>, %[[arg1:.*]]: i32
+// CHECK-NEXT: %[[c22_i32:.*]] = arith.constant 22
+// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
+// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
+// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
+// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
+// CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
+// CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
+// CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
+// CHECK-NEXT: %[[v7:.*]] = arith.addi %[[v6]], %[[c22_i32]]
+// CHECK-NEXT: %[[v8:.*]] = arith.addi %[[v7]], %[[arg1]]
+// CHECK-NEXT: return %[[v8]]
+func.func @simple_sum_multiple_non_tensor_operands(%arg0: tensor<8xi32>, %arg1: i32) -> i32 {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %c2_i32 = arith.constant 2 : i32
+  %c5_i32 = arith.constant 5 : i32
+  %c6_i32 = arith.constant 6 : i32
+  %c7_i32 = arith.addi %c2_i32, %c5_i32 : i32
+  %0 = tensor.extract %arg0[%c0] : tensor<8xi32>
+  %1 = tensor.extract %arg0[%c1] : tensor<8xi32>
+  %2 = tensor.extract %arg0[%c2] : tensor<8xi32>
+  %3 = tensor.extract %arg0[%c3] : tensor<8xi32>
+  %4 = tensor.extract %arg0[%c4] : tensor<8xi32>
+  %5 = tensor.extract %arg0[%c5] : tensor<8xi32>
+  %6 = tensor.extract %arg0[%c6] : tensor<8xi32>
+  %7 = tensor.extract %arg0[%c7] : tensor<8xi32>
+  %8 = arith.addi %0, %1 : i32
+  // next two ops use the same non-tensor operand
+  %9 = arith.addi %8, %c2_i32 : i32
+  %10 = arith.addi %9, %c2_i32 : i32
+  // next op uses another non-tensor operand
+  %11 = arith.addi %10, %c5_i32 : i32
+  // lhs to rhs
+  %12 = arith.addi %c6_i32, %11 : i32
+  // next op uses computed constant
+  %13 = arith.addi %c7_i32, %12 : i32
+  // next op uses arg
+  %14 = arith.addi %arg1, %13 : i32
+  %15 = arith.addi %14, %3 : i32
+  %16 = arith.addi %15, %4 : i32
+  %17 = arith.addi %16, %5 : i32
+  %18 = arith.addi %17, %6 : i32
+  %19 = arith.addi %18, %7 : i32
+  %20 = arith.addi %19, %2 : i32
+  return %20 : i32
+}
+
+// CHECK-LABEL: @simple_sum_operand_from_another_tensor
+// CHECK-SAME: (%[[arg0:.*]]: tensor<8xi32>, %[[arg1:.*]]: tensor<8xi32>
+// CHECK-NEXT: %[[c0:.*]] = arith.constant 0
+// CHECK-NEXT: %[[c1:.*]] = arith.constant 1
+// CHECK-NEXT: %[[c2:.*]] = arith.constant 2
+// CHECK-NEXT: %[[c4:.*]] = arith.constant 4
+// CHECK-NEXT: %[[a1:.*]] = tensor.extract %[[arg1]][%[[c0]]]
+// CHECK-NEXT: %[[v0:.*]] = tensor_ext.rotate %[[arg0]], %[[c4]]
+// CHECK-NEXT: %[[v1:.*]] = arith.addi %[[arg0]], %[[v0]]
+// CHECK-NEXT: %[[v2:.*]] = tensor_ext.rotate %[[v1]], %[[c2]]
+// CHECK-NEXT: %[[v3:.*]] = arith.addi %[[v1]], %[[v2]]
+// CHECK-NEXT: %[[v4:.*]] = tensor_ext.rotate %[[v3]], %[[c1]]
+// CHECK-NEXT: %[[v5:.*]] = arith.addi %[[v3]], %[[v4]]
+// CHECK-NEXT: %[[v6:.*]] = tensor.extract %[[v5]][%[[c0]]]
+// CHECK-NEXT: %[[v7:.*]] = arith.addi %[[v6]], %[[a1]]
+// CHECK-NEXT: return %[[v7]]
+func.func @simple_sum_operand_from_another_tensor(%arg0: tensor<8xi32>, %arg1: tensor<8xi32>) -> i32 {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %0 = tensor.extract %arg0[%c0] : tensor<8xi32>
+  %1 = tensor.extract %arg0[%c1] : tensor<8xi32>
+  %2 = tensor.extract %arg0[%c2] : tensor<8xi32>
+  %3 = tensor.extract %arg0[%c3] : tensor<8xi32>
+  %4 = tensor.extract %arg0[%c4] : tensor<8xi32>
+  %5 = tensor.extract %arg0[%c5] : tensor<8xi32>
+  %6 = tensor.extract %arg0[%c6] : tensor<8xi32>
+  %7 = tensor.extract %arg0[%c7] : tensor<8xi32>
+  %another = tensor.extract %arg1[%c0] : tensor<8xi32>
+  %8 = arith.addi %0, %another : i32
+  %9 = arith.addi %8, %1 : i32
+  %10 = arith.addi %9, %2 : i32
+  %11 = arith.addi %10, %3 : i32
+  %12 = arith.addi %11, %4 : i32
+  %13 = arith.addi %12, %5 : i32
+  %14 = arith.addi %13, %6 : i32
+  %15 = arith.addi %14, %7 : i32
+  return %15 : i32
+}
+
+// one tensor reduced and add another tensor
+// TODO(#522): arg1 could be saved and applied later
+// CHECK-LABEL: @not_supported_save_not_rotated_tensor
+// CHECK-COUNT-7: tensor_ext.rotate
+func.func @not_supported_save_not_rotated_tensor(%arg0: tensor<8xi32>, %arg1: tensor<8xi32>) -> tensor<8xi32> {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %0 = tensor_ext.rotate %arg0, %c1 : tensor<8xi32>, index
+  %1 = tensor_ext.rotate %arg0, %c2 : tensor<8xi32>, index
+  %2 = tensor_ext.rotate %arg0, %c3 : tensor<8xi32>, index
+  %3 = tensor_ext.rotate %arg0, %c4 : tensor<8xi32>, index
+  %4 = tensor_ext.rotate %arg0, %c5 : tensor<8xi32>, index
+  %5 = tensor_ext.rotate %arg0, %c6 : tensor<8xi32>, index
+  %6 = tensor_ext.rotate %arg0, %c7 : tensor<8xi32>, index
+  %7 = arith.addi %arg1, %0 : tensor<8xi32>
+  %8 = arith.addi %7, %1 : tensor<8xi32>
+  %9 = arith.addi %8, %2 : tensor<8xi32>
+  %10 = arith.addi %9, %3 : tensor<8xi32>
+  %11 = arith.addi %10, %4 : tensor<8xi32>
+  %12 = arith.addi %11, %5 : tensor<8xi32>
+  %13 = arith.addi %12, %6 : tensor<8xi32>
+  %14 = arith.addi %13, %arg0 : tensor<8xi32>
+  return %14 : tensor<8xi32>
+}
+
+// CHECK-LABEL: @not_supported_mixed_op_non_tensor_operands
+// CHECK-NOT: tensor_ext.rotate
+func.func @not_supported_mixed_op_non_tensor_operands(%arg0: tensor<8xi32>) -> i32 {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %c2_i32 = arith.constant 2 : i32
+  %0 = tensor.extract %arg0[%c0] : tensor<8xi32>
+  %1 = tensor.extract %arg0[%c1] : tensor<8xi32>
+  %2 = tensor.extract %arg0[%c2] : tensor<8xi32>
+  %3 = tensor.extract %arg0[%c3] : tensor<8xi32>
+  %4 = tensor.extract %arg0[%c4] : tensor<8xi32>
+  %5 = tensor.extract %arg0[%c5] : tensor<8xi32>
+  %6 = tensor.extract %arg0[%c6] : tensor<8xi32>
+  %7 = tensor.extract %arg0[%c7] : tensor<8xi32>
+  %8 = arith.addi %0, %1 : i32
+  // next not supported op uses non-tensor operand
+  %9 = arith.muli %8, %c2_i32 : i32
   %10 = arith.addi %9, %3 : i32
   %11 = arith.addi %10, %4 : i32
   %12 = arith.addi %11, %5 : i32

@@ -65,10 +65,12 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
       auto extractOp = b.create<tensor::ExtractOp>(
           finalOp->getResult(0),
           b.create<arith::ConstantIndexOp>(0).getResult());
-      op->replaceAllUsesWith(extractOp);
-    } else {
-      op->replaceAllUsesWith(finalOp);
+      finalOp = extractOp;
     }
+    for (auto value : reduction.getSavedValues()) {
+      finalOp = b.create<ArithOp>(finalOp->getResult(0), value);
+    }
+    op->replaceAllUsesWith(finalOp);
     LLVM_DEBUG(llvm::dbgs() << "Post-replacement: " << *parentOp << "\n");
   }
 
