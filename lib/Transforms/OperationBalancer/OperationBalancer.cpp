@@ -199,6 +199,8 @@ struct OperationBalancer : impl::OperationBalancerBase<OperationBalancer> {
       // the number of encodings.
       tryBalanceBlock<arith::AddIOp>(genericOp.getBody());
       tryBalanceBlock<arith::MulIOp>(genericOp.getBody());
+      tryBalanceBlock<arith::AddFOp>(genericOp.getBody());
+      tryBalanceBlock<arith::MulFOp>(genericOp.getBody());
     });
   }
 };
