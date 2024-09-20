@@ -560,6 +560,10 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
     if (isa<YieldOp>(op)) {
       return false;
     }
+    // complex op
+    if (op.getNumRegions() != 0) {
+      return false;
+    }
     LLVM_DEBUG(llvm::dbgs()
                << "Considering whether " << op << " can be hoisted\n");
     if (!isSpeculatable(&op)) {
