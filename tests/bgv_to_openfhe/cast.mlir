@@ -12,6 +12,7 @@
 !pt_i16 = !lwe.rlwe_plaintext<encoding = #encoding_i16, ring = #ring, underlying_type = tensor<32xi16>>
 !pt_i32 = !lwe.rlwe_plaintext<encoding = #encoding_i32, ring = #ring, underlying_type = tensor<32xi32>>
 !pt_i64 = !lwe.rlwe_plaintext<encoding = #encoding_i64, ring = #ring, underlying_type = tensor<32xi64>>
+!pt_scalar = !lwe.rlwe_plaintext<encoding = #encoding_i64, ring = #ring, underlying_type = i64>
 
 !pk = !lwe.rlwe_public_key<rlwe_params = #params>
 
@@ -43,4 +44,14 @@ func.func @encode_i64(%arg0: tensor<32xi64>, %arg1: !pk) -> !pt_i64 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #encoding_i64, ring = #ring} : tensor<32xi64> -> !pt_i64
   // CHECK:     openfhe.make_packed_plaintext {{.*}} tensor<32xi64>) -> !lwe.rlwe_plaintext{{.*}} tensor<32xi64>>
   return %0 : !pt_i64
+}
+
+// CHECK-LABEL: @encode_scalar
+// CHECK-SAME: %[[cc:.*]]: !openfhe.crypto_context
+// CHECK-SAME: %[[arg0:.*]]: i64
+func.func @encode_scalar(%arg0: i64, %arg1: !pk) -> !pt_scalar {
+  %0 = lwe.rlwe_encode %arg0 {encoding = #encoding_i64, ring = #ring} : i64 -> !pt_scalar
+  // CHECK:     %[[v0:.*]] = tensor.splat
+  // CHECK:     openfhe.make_packed_plaintext %[[cc]], %[[v0]] {{.*}} tensor<32xi64>) -> !lwe.rlwe_plaintext{{.*}} i64
+  return %0 : !pt_scalar
 }

@@ -30,7 +30,10 @@ struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
 };
 
 struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
-  using OpConversionPattern<lwe::RLWEEncodeOp>::OpConversionPattern;
+  ConvertEncodeOp(mlir::MLIRContext *context)
+      : OpConversionPattern<lwe::RLWEEncodeOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
 
   // OpenFHE has a convention that all inputs to MakePackedPlaintext are
   // std::vector<int64_t>, so we need to cast the input to that type.
