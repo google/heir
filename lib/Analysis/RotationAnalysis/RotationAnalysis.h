@@ -253,7 +253,7 @@ class RotationAnalysis {
     return rootToPartialReductions.at(value);
   }
 
-  const bool containsRootedReductions(Value value) const {
+  bool containsRootedReductions(Value value) const {
     return rootToPartialReductions.contains(value);
   }
 
