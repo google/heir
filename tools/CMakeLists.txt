@@ -52,7 +52,7 @@ function(make_heirlsp_exec  TARGET_NAME SOURCES)
         MLIRTfheRust MLIRTfheRustBool MLIRHEIRAnalysisSVN
         MLIRTfheRustTarget
         MLIRTfheRustBoolTarget
-        MLIRHEIRTargetUtils
+        MLIRHEIRTargetUtils        
         )
 endfunction()
 
@@ -132,6 +132,7 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRHeiElementwiseToAffine
         MLIRHeirForwardStoreToLoad
         MLIRHeirFullLoopUnroll
+        MLIRHeirLinalgCanonicalizations
         MLIRHeirSecretize
         MLIRHeirStraightLineVectorizer
 
@@ -152,7 +153,7 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
 
         MLIRRandom
         MLIRCGGIToJaxiteTransforms
-
+        MLIRCGGIToTfheRustTransforms
         MLIRCKKS
 )
 add_dependencies(${TARGET_NAME} MLIRPolynomialPassesIncGen)

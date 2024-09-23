@@ -10,13 +10,14 @@ add_mlir_dialect_library(MLIRBGVOpenfheTransforms
 
     DEPENDS
     MLIRBGVOpenfheTransformsIncGen
+    MLIRLWEOpenfheTransforms
 
     LINK_LIBS PUBLIC
     MLIRHEIRUtils
     MLIRBGV
     MLIRLWE
     MLIROpenfhe
-    MLIRLWEOpenfheTransformsIncGen
+    MLIRLWEOpenfheTransforms
 
     MLIRIR
     MLIRPass
