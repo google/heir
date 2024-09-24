@@ -88,7 +88,7 @@ def MakePackedPlaintextOp : Openfhe_Op<"make_packed_plaintext", [Pure]> {
 def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RankedTensorOf<[AnyFloat]>:$value)
+    RankedTensorOf<[AnyFloat, AnyInteger]>:$value)
   ;
   let results = (outs RLWEPlaintext:$plaintext);
 }
@@ -113,6 +113,19 @@ def DecryptOp : Openfhe_Op<"decrypt", [Pure]> {
 
 def AddOp : Openfhe_BinaryOp<"add"> { let summary = "OpenFHE add operation of two ciphertexts."; }
 def SubOp : Openfhe_BinaryOp<"sub"> { let summary = "OpenFHE sub operation of two ciphertexts."; }
+
+def AddPlainOp : Openfhe_Op<"add_plain",[
+    Pure,
+    AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let summary = "OpenFHE add operation of a ciphertext and a plaintext.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    RLWECiphertext:$ciphertext,
+    RLWEPlaintext:$plaintext
+  );
+  let results = (outs RLWECiphertext:$output);
+}
 
 def MulOp : Openfhe_BinaryOp<"mul"> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
 

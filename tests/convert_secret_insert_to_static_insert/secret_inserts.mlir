@@ -27,8 +27,8 @@ func.func @insert_and_sum(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.
         // CHECK-NEXT:  %[[EXTRACTED:.*]] = tensor.extract
         // CHECK-NEXT:  %[[SUM:.*]] = arith.addi
         // CHECK-NEXT:  %[[INNER_FOR:.*]] = affine.for %[[J:.*]] = 0 to 32 iter_args(%[[TENSOR:.*]] = %[[INITAL_TENSOR:.*]]) -> (tensor<32xi16>)
-        // CHECK-NEXT:      %[[COND:.*]] = arith.cmpi
-        // CHECK-NEXT:      %[[INSERTED:.*]] = tensor.insert %[[SUM]] into %[[TENSOR]][%[[J]]]
+        // CHECK-DAG:      %[[COND:.*]] = arith.cmpi
+        // CHECK-DAG:      %[[INSERTED:.*]] = tensor.insert %[[SUM]] into %[[TENSOR]][%[[J]]]
         // CHECK-NEXT:      %[[IF:.*]] = scf.if %[[COND]] -> (tensor<32xi16>) {
         // CHECK-NEXT:        scf.yield %[[INSERTED]] : tensor<32xi16>
         // CHECK-NEXT:      } else {
@@ -43,10 +43,10 @@ func.func @insert_and_sum(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.
         // CHECK-NEXT:        scf.yield %[[FOR_TENSOR]] : tensor<32xi16>
         // CHECK-NEXT:      }
         %1, %newTensor = affine.for %i = 0 to 32 iter_args(%arg = %c0_i16, %tensor = %arg2) -> (i16, tensor<32xi16>) {
-        %extracted = tensor.extract %tensor[%i] : tensor<32xi16>
-        %sum = arith.addi %arg, %extracted : i16
-        %inserted = tensor.insert %sum into %tensor[%arg3] : tensor<32xi16>
-        affine.yield %sum, %inserted : i16, tensor<32xi16>
+          %extracted = tensor.extract %tensor[%i] : tensor<32xi16>
+          %sum = arith.addi %arg, %extracted : i16
+          %inserted = tensor.insert %sum into %tensor[%arg3] : tensor<32xi16>
+          affine.yield %sum, %inserted : i16, tensor<32xi16>
       }
 
       %finalTensor = tensor.insert %1 into %newTensor[%arg3] : tensor<32xi16>

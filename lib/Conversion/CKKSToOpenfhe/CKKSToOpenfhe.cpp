@@ -1,4 +1,4 @@
-#include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h"
+#include "lib/Conversion/CKKSToOpenfhe/CKKSToOpenfhe.h"
 
 #include <cassert>
 #include <cstddef>
@@ -8,27 +8,35 @@
 #include "lib/Conversion/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Conversion/RlweToOpenfhe/RlweToOpenfhe.h"
 #include "lib/Conversion/Utils.h"
-#include "lib/Dialect/BGV/IR/BGVDialect.h"
-#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWEPatterns.h"
+#include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
-namespace mlir::heir::bgv {
+namespace mlir::heir::ckks {
 
-#define GEN_PASS_DEF_BGVTOOPENFHE
-#include "lib/Conversion/BGVToOpenfhe/BGVToOpenfhe.h.inc"
+#define GEN_PASS_DEF_CKKSTOOPENFHE
+#include "lib/Conversion/CKKSToOpenfhe/CKKSToOpenfhe.h.inc"
 
 using ConvertNegateOp = ConvertRlweUnaryOp<NegateOp, openfhe::NegateOp>;
 using ConvertAddOp = ConvertRlweBinOp<AddOp, openfhe::AddOp>;
@@ -43,27 +51,7 @@ using ConvertRelinOp = ConvertRlweRelinOp<RelinearizeOp>;
 using ConvertExtractOp =
     lwe::ConvertRlweExtractOp<ExtractOp, MulPlainOp, RotateOp>;
 
-struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
-  ConvertModulusSwitchOp(mlir::MLIRContext *context)
-      : OpConversionPattern<ModulusSwitchOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ModulusSwitchOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
-    if (failed(result)) return result;
-
-    Value cryptoContext = result.value();
-    rewriter.replaceOp(op, rewriter.create<openfhe::ModReduceOp>(
-                               op.getLoc(), op.getOutput().getType(),
-                               cryptoContext, adaptor.getInput()));
-    return success();
-  }
-};
-
-struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
+struct CKKSToOpenfhe : public impl::CKKSToOpenfheBase<CKKSToOpenfhe> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
@@ -71,7 +59,7 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
 
     ConversionTarget target(*context);
     target.addLegalDialect<openfhe::OpenfheDialect>();
-    target.addIllegalDialect<bgv::BGVDialect>();
+    target.addIllegalDialect<ckks::CKKSDialect>();
     target.addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp,
                         lwe::RLWEEncodeOp>();
 
@@ -84,17 +72,17 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
                                      *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsLweOrDialect<bgv::BGVDialect>(op) ||
+             (!containsLweOrDialect<ckks::CKKSDialect>(op) ||
               hasCryptoContextArg);
     });
 
     patterns
-        .add<AddCryptoContextArg<bgv::BGVDialect>, ConvertAddOp, ConvertSubOp,
-             ConvertMulOp, ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,
-             ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp,
+        .add<AddCryptoContextArg<ckks::CKKSDialect>, ConvertAddOp, ConvertSubOp,
+             ConvertMulOp, ConvertAddPlainOp, ConvertMulPlainOp,
+             ConvertNegateOp, ConvertRotateOp, ConvertRelinOp, ConvertExtractOp,
              lwe::ConvertEncryptOp, lwe::ConvertDecryptOp>(typeConverter,
                                                            context);
-    patterns.add<lwe::ConvertEncodeOp>(typeConverter, context, /*ckks=*/false);
+    patterns.add<lwe::ConvertEncodeOp>(typeConverter, context, /*ckks=*/true);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
@@ -102,4 +90,4 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
   }
 };
 
-}  // namespace mlir::heir::bgv
+}  // namespace mlir::heir::ckks

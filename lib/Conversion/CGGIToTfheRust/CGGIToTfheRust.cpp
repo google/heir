@@ -85,16 +85,6 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
   }
 };
 
-/// Returns true if the func's body contains any CGGI ops.
-bool containsCGGIOps(func::FuncOp func) {
-  auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<cggi::CGGIDialect>(op->getDialect()))
-      return WalkResult::interrupt();
-    return WalkResult::advance();
-  });
-  return walkResult.wasInterrupted();
-}
-
 /// Returns the Value corresponding to a server key in the FuncOp containing
 /// this op.
 FailureOr<Value> getContextualServerKey(Operation *op) {
@@ -142,7 +132,7 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsCGGIOps(op)) {
+    if (!containsLweOrDialect<cggi::CGGIDialect>(op)) {
       return failure();
     }
 
@@ -418,7 +408,7 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
                                  *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsCGGIOps(op) || hasServerKeyArg);
+             (!containsLweOrDialect<cggi::CGGIDialect>(op) || hasServerKeyArg);
     });
     target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
                                  memref::StoreOp, memref::LoadOp,

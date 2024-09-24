@@ -5,24 +5,15 @@
 #include <cstdint>
 #include <utility>
 
-#include "lib/Conversion/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Conversion/Utils.h"
-#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -34,9 +25,9 @@ namespace mlir::heir::lwe {
 FailureOr<Value> getContextualCryptoContext(Operation *op) {
   auto result = getContextualArgFromFunc<openfhe::CryptoContextType>(op);
   if (failed(result)) {
-    return op->emitOpError() << "Found BGV op in a function without a public "
-                                "key argument. Did the AddCryptoContextArg "
-                                "pattern fail to run?";
+    return op->emitOpError()
+           << "Found BGV op in a function without a public "
+              "key argument. Did the AddCryptoContextArg pattern fail to run?";
   }
   return result.value();
 }
@@ -74,6 +65,8 @@ LogicalResult ConvertDecryptOp::matchAndRewrite(
   return success();
 }
 
+// OpenFHE has a convention that all inputs to MakePackedPlaintext are
+// std::vector<int64_t>, so we need to cast the input to that type.
 LogicalResult ConvertEncodeOp::matchAndRewrite(
     lwe::RLWEEncodeOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -83,10 +76,14 @@ LogicalResult ConvertEncodeOp::matchAndRewrite(
 
   Value input = adaptor.getInput();
   auto elementTy = getElementTypeOrSelf(input.getType());
-  //
-  if (!elementTy.isInteger()) {
-    return op.emitOpError()
-           << "input element type must be an integer type for non-CKKS schemes";
+
+  if (!this->ckks_ && !elementTy.isInteger()) {
+    return op.emitOpError() << "input element type must be an integer type for "
+                               "non-CKKS schemes";
+  }
+  if (this->ckks_ && !elementTy.isIntOrFloat()) {
+    return op.emitOpError() << "input element type must be an integer or float "
+                               "type for CKKS scheme";
   }
 
   auto tensorTy = mlir::dyn_cast<RankedTensorType>(input.getType());
@@ -114,13 +111,31 @@ LogicalResult ConvertEncodeOp::matchAndRewrite(
       auto newTensorTy = RankedTensorType::get(tensorTy.getShape(), int64Ty);
       input = rewriter.create<arith::ExtSIOp>(op.getLoc(), newTensorTy, input);
     }
+  } else {
+    auto floatTy = cast<FloatType>(elementTy);
+    if (floatTy.getWidth() > 64)
+      return op.emitError() << "No supported packing technique for floats "
+                               "bigger than 64 bits.";
+
+    if (floatTy.getWidth() < 64) {
+      // OpenFHE has a convention that all inputs to MakeCKKSPackedPlaintext are
+      // std::vector<double>, so we need to cast the input to that type.
+      auto f64Ty = rewriter.getF64Type();
+      auto newTensorTy = RankedTensorType::get(tensorTy.getShape(), f64Ty);
+      input = rewriter.create<arith::ExtFOp>(op.getLoc(), newTensorTy, input);
+    }
   }
 
   lwe::RLWEPlaintextType plaintextType =
       lwe::RLWEPlaintextType::get(op.getContext(), op.getEncoding(),
                                   op.getRing(), adaptor.getInput().getType());
-  rewriter.replaceOpWithNewOp<openfhe::MakePackedPlaintextOp>(
-      op, plaintextType, cryptoContext, input);
+  if (this->ckks_) {
+    rewriter.replaceOpWithNewOp<openfhe::MakeCKKSPackedPlaintextOp>(
+        op, plaintextType, cryptoContext, input);
+  } else {
+    rewriter.replaceOpWithNewOp<openfhe::MakePackedPlaintextOp>(
+        op, plaintextType, cryptoContext, input);
+  }
 
   return success();
 }

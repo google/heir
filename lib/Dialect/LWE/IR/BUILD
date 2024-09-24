@@ -30,6 +30,20 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "Patterns",
+    hdrs = [
+        "LWEPatterns.h",
+    ],
+    deps = [
+        ":Dialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
 td_library(
     name = "td_files",
     srcs = [

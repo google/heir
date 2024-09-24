@@ -53,17 +53,6 @@ class CGGIToJaxiteTypeConverter : public TypeConverter {
   }
 };
 
-/// Returns true if the func's body contains any CGGI ops.
-bool containsCGGIToJaxiteOps(func::FuncOp func) {
-  auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<cggi::CGGIDialect>(op->getDialect()) ||
-        llvm::isa<lwe::LWEDialect>(op->getDialect()))
-      return WalkResult::interrupt();
-    return WalkResult::advance();
-  });
-  return walkResult.wasInterrupted();
-}
-
 // Returns the Value corresponding to a JaxiteArgType in the FuncOp containing
 // this op.
 template <typename JaxiteArgType>
@@ -88,7 +77,7 @@ struct AddJaxiteContextualArgs : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsCGGIToJaxiteOps(op)) {
+    if (!containsLweOrDialect<cggi::CGGIDialect>(op)) {
       return failure();
     }
 

@@ -37,6 +37,7 @@ cc_binary(
         "@heir//lib/Conversion/CGGIToJaxite",
         "@heir//lib/Conversion/CGGIToTfheRust",
         "@heir//lib/Conversion/CGGIToTfheRustBool",
+        "@heir//lib/Conversion/CKKSToOpenfhe",
         "@heir//lib/Conversion/CombToCGGI",
         "@heir//lib/Conversion/LWEToPolynomial",
         "@heir//lib/Conversion/LinalgToTensorExt",
