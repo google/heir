@@ -203,11 +203,26 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
         func.getFunctionType().getInputs()[opOperand.getOperandNumber()];
 
     if (!mlir::isa<secret::SecretType>(opOperand.get().getType())) {
-      // The type is not secret, but still must be booleanized
+      // The type is not secret, but still must be booleanized if it is an
+      // IntegerType.
+      auto input = opOperand.get();
       OpBuilder builder(op);
-      auto convertedValue = convertIntegerValue(opOperand.get(), convertedType,
-                                                builder, op.getLoc());
+      if (auto indexType = dyn_cast<IndexType>(input.getType())) {
+        // Use arith.index_cast to cast this as an integer type.
+        auto functionMemrefTy = dyn_cast<MemRefType>(convertedType);
+        if (!functionMemrefTy) {
+          op.emitError() << "Expected index type to be converted to memref: "
+                         << convertedType;
+          return failure();
+        }
+        input = builder.create<arith::IndexCastOp>(
+            op.getLoc(),
+            builder.getIntegerType(functionMemrefTy.getNumElements()), input);
+      }
+      auto convertedValue =
+          convertIntegerValue(input, convertedType, builder, op.getLoc());
       typeConvertedArgs.push_back(convertedValue);
+
       continue;
     }
 
@@ -480,7 +495,8 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   // conversions implemented on either side to convert the ints to memrefs
   // and back again.
   //
-  // convertOpOperands goes from i8 -> memref<8xi1>
+  // convertOpOperands goes from i8 -> memref<8xi1> or index -> i3 ->
+  // memref<3xi1>
   // converOpResults from memref<8xi1> -> i8
   SmallVector<Value> typeConvertedArgs;
   typeConvertedArgs.reserve(op->getNumOperands());
