@@ -25,8 +25,9 @@ struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
 
   using OpConversionPattern::OpConversionPattern;
 
-  LogicalResult matchAndRewrite(lwe::RLWEDecryptOp op, OpAdaptor adaptor,
-                                ConversionPatternRewriter &rewriter) const override;
+  LogicalResult matchAndRewrite(
+      lwe::RLWEDecryptOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override;
 };
 
 // ConvertEncodeOp takes a boolean parameter indicating whether the
@@ -37,8 +38,9 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
       : mlir::OpConversionPattern<lwe::RLWEEncodeOp>(typeConverter, context),
         ckks_(ckks) {}
 
-  LogicalResult matchAndRewrite(lwe::RLWEEncodeOp op, OpAdaptor adaptor,
-                                ConversionPatternRewriter &rewriter) const override;
+  LogicalResult matchAndRewrite(
+      lwe::RLWEEncodeOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override;
 
  private:
   bool ckks_;

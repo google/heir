@@ -16,6 +16,8 @@ add_mlir_dialect_library(MLIRCKKSOpenfheTransforms
     MLIRCKKS
     MLIRLWE
     MLIROpenfhe
+    MLIRLWEOpenfheTransforms
+    MLIRRlweToOpenfheTransforms
 
     MLIRIR
     MLIRPass
@@ -26,5 +28,5 @@ add_mlir_dialect_library(MLIRCKKSOpenfheTransforms
     MLIRSupport
     MLIRDialect
     MLIRTransformUtils
-    MLIRIR
+    MLIRTensorDialect
 )

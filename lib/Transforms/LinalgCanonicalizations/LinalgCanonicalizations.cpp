@@ -139,7 +139,8 @@ struct FoldConstantLinalgTranspose
     int64_t remainingTensorSize = totalSize;
     SmallVector<int64_t> transposedIndices;
     transposedIndices.reserve(inputShape.size());
-    for (int64_t dim = 0; dim < static_cast<int64_t>(inputShape.size()); ++dim) {
+    for (int64_t dim = 0; dim < static_cast<int64_t>(inputShape.size());
+         ++dim) {
       int64_t dimSize = inputShape[permutation[dim]];
       remainingTensorSize /= dimSize;
       int64_t indexAtDim = remainder / remainingTensorSize;
@@ -149,14 +150,16 @@ struct FoldConstantLinalgTranspose
 
     // Convert to the original indices by applying the permutation.
     SmallVector<int64_t> originalIndices(permutation.size(), 0);
-    for (int64_t dim = 0; dim < static_cast<int64_t>(inputShape.size()); ++dim) {
+    for (int64_t dim = 0; dim < static_cast<int64_t>(inputShape.size());
+         ++dim) {
       originalIndices[permutation[dim]] = transposedIndices[dim];
     }
 
     // Then compute the index in the original tensor.
     int64_t originalIndex = 0;
     int64_t remainingTransposedTensorSize = totalSize;
-    for (int64_t dim = 0; dim < static_cast<int64_t>(inputShape.size()); ++dim) {
+    for (int64_t dim = 0; dim < static_cast<int64_t>(inputShape.size());
+         ++dim) {
       remainingTransposedTensorSize /= inputShape[dim];
       originalIndex += originalIndices[dim] * remainingTransposedTensorSize;
     }

@@ -52,7 +52,7 @@ function(make_heirlsp_exec  TARGET_NAME SOURCES)
         MLIRTfheRust MLIRTfheRustBool MLIRHEIRAnalysisSVN
         MLIRTfheRustTarget
         MLIRTfheRustBoolTarget
-        MLIRHEIRTargetUtils        
+        MLIRHEIRTargetUtils
         )
 endfunction()
 
@@ -147,6 +147,7 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRMemrefToArithMemrefGlobalReplace
         MLIRBGVOpenfheTransforms
         MLIRCKKSOpenfheTransforms
+        MLIRRlweToOpenfheTransforms
         MLIRLWEToPolynomial
         MLIRHeirConvertSecretForToStaticFor
         MLIRHeirConvertSecretWhileToStaticFor
