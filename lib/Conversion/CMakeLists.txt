@@ -17,7 +17,6 @@ add_mlir_dialect_library(MLIRHEIRUtils
     MLIRArithDialect
     MLIRSupport
     MLIRDialect
-    MLIRIR
 )
 
 add_subdirectory(ModArithToArith)
@@ -34,3 +33,6 @@ add_subdirectory(SecretToCKKS)
 add_subdirectory(LWEToPolynomial)
 add_subdirectory(LinalgToTensorExt)
 add_subdirectory(TosaToSecretArith)
+add_subdirectory(LWEToOpenfhe)
+add_subdirectory(CKKSToOpenfhe)
+add_subdirectory(RlweToOpenfhe)
