@@ -54,6 +54,7 @@
 #include "lib/Transforms/ConvertSecretInsertToStaticInsert/ConvertSecretInsertToStaticInsert.h"
 #include "lib/Transforms/ConvertSecretWhileToStaticFor/ConvertSecretWhileToStaticFor.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
@@ -701,6 +702,7 @@ int main(int argc, char **argv) {
   registerConvertSecretExtractToStaticExtractPasses();
   registerConvertSecretInsertToStaticInsertPasses();
   registerApplyFoldersPasses();
+  registerForwardInsertToExtractPasses();
   registerForwardStoreToLoadPasses();
   registerOperationBalancerPasses();
   registerStraightLineVectorizerPasses();
