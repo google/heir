@@ -53,6 +53,7 @@ digraph G {
         subgraph cluster_fhe_schemes {
             label = "FHE Schemes"
             BGV [URL="https://heir.dev/docs/dialects/bgv/"]
+            CKKS [URL="https://heir.dev/docs/dialects/ckks/"]
             CGGI [URL="https://heir.dev/docs/dialects/cggi/"]
         }
     }
@@ -76,8 +77,10 @@ digraph G {
 
     LLVM [fillcolor="gray"]
 
-    BGV -> Polynomial [lhead=cluster_poly]
     BGV ->  OpenFHE
+    CKKS ->  OpenFHE
+    BGV -> LWE
+    LWE -> Polynomial [lhead=cluster_poly]
     lower_from_cggi [shape=point label="" fillcolor=black]
     CGGI -> lower_from_cggi [arrowhead=none]
     lower_from_cggi -> {Jaxite TfheRust TfheRustBool}
