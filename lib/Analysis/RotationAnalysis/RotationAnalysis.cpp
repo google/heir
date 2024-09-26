@@ -138,27 +138,44 @@ void RotationAnalysis::run(Operation *op) {
           Value rhs = arithOp.getRhs();
           Value newRoot = arithOp.getResult();
           OperationName opName = arithOp.getOperation()->getName();
+          bool canJoin = false;
 
-          // TODO(#522): support these non-tensor-extract operands by
-          // saving the values, and applying them again to the final
-          // result.
-          if (!rootToPartialReductions.contains(lhs) ||
-              !rootToPartialReductions.contains(rhs)) {
-            return;
+          // Both lhs/rhs are in a reduction tree and can join
+          if (rootToPartialReductions.contains(lhs) &&
+              rootToPartialReductions.contains(rhs)) {
+            // This is inefficient, but what can we do better here? I suspect a
+            // better approach may be to identify cases in which only one of
+            // these reductions needs to be kept because it's "the best"
+            // according to some metric (e.g., it monotonically increases the
+            // number of indices and all else stays the same). But for now even
+            // on the box_blur_64x64 example this is far from the bottleneck.
+            for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
+              for (const auto &rhsReduction : rootToPartialReductions[rhs]) {
+                if (PartialReduction::canJoin(lhsReduction, rhsReduction,
+                                              opName)) {
+                  canJoin = true;
+                  addPartialReduction(PartialReduction::join(
+                      lhsReduction, rhsReduction, newRoot, opName));
+                }
+              }
+            }
           }
 
-          // This is inefficient, but what can we do better here? I suspect a
-          // better approach may be to identify cases in which only one of these
-          // reductions needs to be kept because it's "the best" according to
-          // some metric (e.g., it monotonically increases the number of indices
-          // and all else stays the same). But for now even on the
-          // box_blur_64x64 example this is far from the bottleneck.
-          for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
+          // If can not join, try saving in one side
+          if (!canJoin && rootToPartialReductions.contains(lhs)) {
+            for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
+              if (PartialReduction::canSave(lhsReduction, rhs, opName)) {
+                addPartialReduction(
+                    PartialReduction::save(lhsReduction, rhs, newRoot, opName));
+              }
+            }
+          }
+
+          if (!canJoin && rootToPartialReductions.contains(rhs)) {
             for (const auto &rhsReduction : rootToPartialReductions[rhs]) {
-              if (PartialReduction::canJoin(lhsReduction, rhsReduction,
-                                            opName)) {
-                addPartialReduction(PartialReduction::join(
-                    lhsReduction, rhsReduction, newRoot, opName));
+              if (PartialReduction::canSave(rhsReduction, lhs, opName)) {
+                addPartialReduction(
+                    PartialReduction::save(rhsReduction, lhs, newRoot, opName));
               }
             }
           }
