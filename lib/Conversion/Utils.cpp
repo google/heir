@@ -226,7 +226,6 @@ void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
 
   typeConverter.addConversion([&](TensorType type) -> Type {
     if (!typeConverter.isLegal(type.getElementType())) {
-      typeConverter.convertType(type.getElementType()).dump();
       if (auto convertedType =
               typeConverter.convertType(type.getElementType())) {
         if (auto castConvertedType =
