@@ -15,6 +15,7 @@
 #include "lib/Conversion/LinalgToTensorExt/LinalgToTensorExt.h"
 #include "lib/Conversion/MemrefToArith/MemrefToArith.h"
 #include "lib/Conversion/ModArithToArith/ModArithToArith.h"
+#include "lib/Conversion/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Conversion/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Conversion/SecretToBGV/SecretToBGV.h"
 #include "lib/Conversion/SecretToCKKS/SecretToCKKS.h"
@@ -188,6 +189,9 @@ void tosaPipelineBuilder(OpPassManager &manager) {
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
   manager.addPass(createElementwiseToAffine());
+  manager.addPass(
+      ::mlir::heir::polynomial::to_mod_arith::createPolynomialToModArith());
+  manager.addPass(mod_arith::createModArithToArith());
   manager.addPass(::mlir::heir::polynomial::createPolynomialToStandard());
   manager.addPass(createCanonicalizerPass());
 
@@ -784,6 +788,7 @@ int main(int argc, char **argv) {
   comb::registerCombToCGGIPasses();
   lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::linalg::registerLinalgToTensorExtPasses();
+  ::mlir::heir::polynomial::to_mod_arith::registerPolynomialToModArithPasses();
   ::mlir::heir::polynomial::registerPolynomialToStandardPasses();
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();
