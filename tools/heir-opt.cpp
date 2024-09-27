@@ -26,6 +26,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
+#include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToStandard/PolynomialToStandard.h"
 #include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
@@ -203,6 +204,9 @@ void convertToDataObliviousPipelineBuilder(OpPassManager &manager) {
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
   manager.addPass(createElementwiseToAffine());
+  manager.addPass(
+      ::mlir::heir::polynomial::to_mod_arith::createPolynomialToModArith());
+  manager.addPass(mod_arith::createModArithToArith());
   manager.addPass(::mlir::heir::polynomial::createPolynomialToStandard());
   manager.addPass(createCanonicalizerPass());
 
@@ -770,6 +774,7 @@ int main(int argc, char **argv) {
   registerSecretToCGGIPasses();
   lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::linalg::registerLinalgToTensorExtPasses();
+  ::mlir::heir::polynomial::to_mod_arith::registerPolynomialToModArithPasses();
   ::mlir::heir::polynomial::registerPolynomialToStandardPasses();
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();

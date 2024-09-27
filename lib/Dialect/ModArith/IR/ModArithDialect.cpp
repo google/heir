@@ -32,7 +32,7 @@ void ModArithDialect::initialize() {
 
 /// Ensures that the underlying integer type is wide enough for the coefficient
 template <typename OpType>
-LogicalResult verifyModArithOpMod(OpType op, bool reduce = false) {
+LogicalResult verifyModArithOpMod(OpType op) {
   auto type =
       llvm::cast<IntegerType>(getElementTypeOrSelf(op.getResult().getType()));
   unsigned bitWidth = type.getWidth();
@@ -41,11 +41,6 @@ LogicalResult verifyModArithOpMod(OpType op, bool reduce = false) {
     return op.emitOpError()
            << "underlying type's bitwidth must be at least as "
            << "large as the modulus bitwidth, but got " << bitWidth
-           << " while modulus requires width " << modWidth << ".";
-  if (reduce && modWidth == bitWidth)
-    return op.emitOpError()
-           << "underlying type's bitwidth must be larger than "
-           << "the modulus bitwidth, but got " << bitWidth
            << " while modulus requires width " << modWidth << ".";
   if (!type.isUnsigned() && modWidth == bitWidth)
     emitWarning(op.getLoc())
@@ -70,7 +65,7 @@ LogicalResult MulOp::verify() { return verifyModArithOpMod<MulOp>(*this); }
 LogicalResult MacOp::verify() { return verifyModArithOpMod<MacOp>(*this); }
 
 LogicalResult ReduceOp::verify() {
-  return verifyModArithOpMod<ReduceOp>(*this, true);
+  return verifyModArithOpMod<ReduceOp>(*this);
 }
 
 LogicalResult BarrettReduceOp::verify() {

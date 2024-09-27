@@ -63,8 +63,9 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [SameOperandsAndResultType, Pure, 
     `mod_arith.reduce x {modulus = q}` computes $y \in [0, q)$ such that
     $x \equiv y \mod n$.
 
-    Note this will interpret `x` as a signed integer. It is required the bitwidth of `q` is smaller
-    than that of `x`. For an unsigned integer, equivalent functionality is: `y = arith.remui x`.
+    Note this will interpret `x` as a signed integer. It is required the bitwidth of `q` is no larger
+    than that of `x`, or that `q` is the natural power-of-two modulus for `x`. For an unsigned integer,
+    equivalent functionality is: `y = arith.remui x`.
   }];
 
   let arguments = (ins

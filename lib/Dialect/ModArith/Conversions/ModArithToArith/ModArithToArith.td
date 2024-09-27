@@ -37,12 +37,60 @@ def ConvertSubIfGE : Pattern<
 def HasEnoughSpaceAddSub: Constraint<CPred<"llvm::cast<IntegerType>(getElementTypeOrSelf($_self.getType())).getWidth() >= ($0.getValue() - 1).getActiveBits() + 1">,
 "underlying type is sufficient for modular add/sub operation without overflow">;
 
+def HasEnoughSpaceReduce: Constraint<CPred<"llvm::cast<IntegerType>(getElementTypeOrSelf($_self.getType())).getWidth() - 1 >= $0.getValue().getActiveBits()">,
+"underlying type is sufficient for modular reduce operation without signedness issue">;
+
 def HasEnoughSpaceMul: Constraint<CPred<"llvm::cast<IntegerType>(getElementTypeOrSelf($_self.getType())).getWidth() >= 2 * ($0.getValue() - 1).getActiveBits()">,
  "underlying type is sufficient for modular mul operation without overflow">;
+
+def ModulusIsNatural : Constraint<CPred<
+  "llvm::cast<IntegerType>(getElementTypeOrSelf($_self.getType())).getWidth() "
+  "  == ($0.getValue() - 1).getActiveBits()"
+  "  && $0.getValue().isPowerOf2()">, "modulus is the natural modulus: 2 ** bitwidth">;
 
 def CastModulusAttributeAddSub : NativeCodeCall<"modulusHelper($0,$1,false)">;
 def CastModulusAttributeMul : NativeCodeCall<"modulusHelper($0,$1,true)">;
 def CastModulusAttributeReduce : NativeCodeCall<"modulusHelper($0,$1,false,true)">;
+
+def ConvertAddNatural : Pattern<
+  (ModArith_AddOp:$op $x, $y, $mod),
+  [
+    (Arith_AddIOp:$add $x, $y, DefOverflow),
+  ],
+  [(ModulusIsNatural:$op $mod)],
+  [],
+  (addBenefit 4)
+>;
+
+def ConvertSubNatural : Pattern<
+  (ModArith_SubOp:$op $x, $y, $mod),
+  [
+    (Arith_SubIOp:$add $x, $y, DefOverflow),
+  ],
+  [(ModulusIsNatural:$op $mod)],
+  [],
+  (addBenefit 4)
+>;
+
+def ConvertMulNatural : Pattern<
+  (ModArith_MulOp:$op $x, $y, $mod),
+  [
+    (Arith_MulIOp:$add $x, $y, DefOverflow),
+  ],
+  [(ModulusIsNatural:$op $mod)],
+  [],
+  (addBenefit 4)
+>;
+
+def ConvertReduceNatural : Pattern<
+  (ModArith_ReduceOp:$op $x, $mod),
+  [
+    (replaceWithValue $x),
+  ],
+  [(ModulusIsNatural:$op $mod)],
+  [],
+  (addBenefit 4)
+>;
 
 def ConvertAddSimple : Pattern<
   (ModArith_AddOp:$op $x, $y, $mod),
@@ -154,11 +202,28 @@ def ConvertMac : Pattern<
   ]
 >;
 
+def ConvertReduceSimple : Pattern<
+  (ModArith_ReduceOp:$op $x, $mod),
+  [
+    (Arith_ConstantOp:$newmod (CastModulusAttributeReduce $mod, $x)),
+    (Arith_RemUIOp (Arith_AddIOp (Arith_RemSIOp $x, $newmod), $newmod, DefOverflow), $newmod)
+  ],
+  [(HasEnoughSpaceReduce:$op $mod)],
+  [],
+  (addBenefit 2)
+>;
+
 def ConvertReduce : Pattern<
   (ModArith_ReduceOp $x, $mod),
   [
     (Arith_ConstantOp:$newmod (CastModulusAttributeReduce $mod, $x)),
-    (Arith_RemUIOp (Arith_AddIOp (Arith_RemSIOp $x, $newmod), $newmod, DefOverflow), $newmod)
+    (Arith_RemSIOp:$rems
+      (Arith_ExtSIOp $x,
+        (returnType $newmod)),
+      $newmod),
+    (Arith_AddIOp:$remu $rems, $newmod, DefOverflow),
+    (Arith_TruncIOp:$res
+      (Arith_RemUIOp $remu, $newmod))
   ]
 >;
 

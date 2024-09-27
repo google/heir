@@ -1,5 +1,35 @@
 // RUN: heir-opt -mod-arith-to-arith --split-input-file %s | FileCheck %s --enable-var-scope
 
+// CHECK-LABEL: @test_lower_natural_add
+// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
+func.func @test_lower_natural_add(%lhs : i8, %rhs : i8) -> i8 {
+  // CHECK-NOT: mod_arith.add
+  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: return %[[ADD]] : [[TYPE]]
+  %res = mod_arith.add %lhs, %rhs {modulus = 256}: i8
+  return %res : i8
+}
+
+// CHECK-LABEL: @test_lower_natural_sub
+// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
+func.func @test_lower_natural_sub(%lhs : i8, %rhs : i8) -> i8 {
+  // CHECK-NOT: mod_arith.sub
+  // CHECK: %[[ADD:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: return %[[ADD]] : [[TYPE]]
+  %res = mod_arith.sub %lhs, %rhs {modulus = 256}: i8
+  return %res : i8
+}
+
+// CHECK-LABEL: @test_lower_natural_mul
+// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
+func.func @test_lower_natural_mul(%lhs : i8, %rhs : i8) -> i8 {
+  // CHECK-NOT: mod_arith.mul
+  // CHECK: %[[ADD:.*]] = arith.muli %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: return %[[ADD]] : [[TYPE]]
+  %res = mod_arith.mul %lhs, %rhs {modulus = 256}: i8
+  return %res : i8
+}
+
 // CHECK-LABEL: @test_lower_simple_add
 // CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
 func.func @test_lower_simple_add(%lhs : i8, %rhs : i8) -> i8 {
@@ -257,15 +287,44 @@ func.func @test_lower_reduce_int(%arg : i8) -> i8 {
 
 // -----
 
+// CHECK-LABEL: @test_lower_reduce_int_middle_modulus
+// CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
+func.func @test_lower_reduce_int_middle_modulus(%arg : i8) -> i8 {
+  // CHECK: %[[CMOD:.*]] = arith.constant 128 : [[EXT_TYPE:i9]]
+
+  // CHECK: %[[ARGEXT:.*]] = arith.extsi %[[ARG]] : [[INT_TYPE]] to [[EXT_TYPE]]
+  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARGEXT]], %[[CMOD]] : [[EXT_TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[EXT_TYPE]]
+  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[EXT_TYPE]]
+  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[RES]] : [[EXT_TYPE]] to [[INT_TYPE]]
+  %res = mod_arith.reduce %arg { modulus = 128 : i32 } : i8
+  return %res : i8
+}
+
+// -----
+
 // CHECK-LABEL: @test_lower_reduce_int_max_modulus
 // CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
 func.func @test_lower_reduce_int_max_modulus(%arg : i8) -> i8 {
-  // CHECK: %[[CMOD:.*]] = arith.constant -128 : [[INT_TYPE:i8]]
+  // CHECK: %[[CMOD:.*]] = arith.constant 255 : [[EXT_TYPE:i9]]
 
-  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARG]], %[[CMOD]] : [[INT_TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[INT_TYPE]]
-  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INT_TYPE]]
-  %res = mod_arith.reduce %arg { modulus = 128 : i32 } : i8
+  // CHECK: %[[ARGEXT:.*]] = arith.extsi %[[ARG]] : [[INT_TYPE]] to [[EXT_TYPE]]
+  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARGEXT]], %[[CMOD]] : [[EXT_TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[EXT_TYPE]]
+  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[EXT_TYPE]]
+  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[RES]] : [[EXT_TYPE]] to [[INT_TYPE]]
+  %res = mod_arith.reduce %arg { modulus = 255 : i32 } : i8
+  return %res : i8
+}
+
+
+// -----
+
+// CHECK-LABEL: @test_lower_reduce_int_natural_modulus
+// CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
+func.func @test_lower_reduce_int_natural_modulus(%arg : i8) -> i8 {
+  // CHECK: return %[[ARG]]
+  %res = mod_arith.reduce %arg { modulus = 256 : i32 } : i8
   return %res : i8
 }
 
