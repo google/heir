@@ -257,6 +257,20 @@ func.func @test_lower_reduce_int(%arg : i8) -> i8 {
 
 // -----
 
+// CHECK-LABEL: @test_lower_reduce_int_max_modulus
+// CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
+func.func @test_lower_reduce_int_max_modulus(%arg : i8) -> i8 {
+  // CHECK: %[[CMOD:.*]] = arith.constant -128 : [[INT_TYPE:i8]]
+
+  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARG]], %[[CMOD]] : [[INT_TYPE]]
+  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[INT_TYPE]]
+  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INT_TYPE]]
+  %res = mod_arith.reduce %arg { modulus = 128 : i32 } : i8
+  return %res : i8
+}
+
+// -----
+
 // CHECK-LABEL: @test_lower_subifge
 // CHECK-SAME: (%[[LHS:.*]]: [[TENSOR_TYPE:.*]], %[[RHS:.*]]: [[TENSOR_TYPE]]) -> [[TENSOR_TYPE]] {
 func.func @test_lower_subifge(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {

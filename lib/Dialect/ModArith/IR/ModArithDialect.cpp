@@ -32,7 +32,7 @@ void ModArithDialect::initialize() {
 
 /// Ensures that the underlying integer type is wide enough for the coefficient
 template <typename OpType>
-LogicalResult verifyModArithOpMod(OpType op) {
+LogicalResult verifyModArithOpMod(OpType op, bool reduce = false) {
   auto type =
       llvm::cast<IntegerType>(getElementTypeOrSelf(op.getResult().getType()));
   unsigned bitWidth = type.getWidth();
@@ -42,12 +42,22 @@ LogicalResult verifyModArithOpMod(OpType op) {
            << "underlying type's bitwidth must be at least as "
            << "large as the modulus bitwidth, but got " << bitWidth
            << " while modulus requires width " << modWidth << ".";
+  if (reduce && modWidth == bitWidth)
+    return op.emitOpError()
+           << "underlying type's bitwidth must be larger than "
+           << "the modulus bitwidth, but got " << bitWidth
+           << " while modulus requires width " << modWidth << ".";
   if (!type.isUnsigned() && modWidth == bitWidth)
     emitWarning(op.getLoc())
         << "for signed (or signless) underlying types, the bitwidth of the "
            "underlying type must be at least as large as modulus bitwidth + "
            "1 (for the sign bit), but found "
         << bitWidth << " while modulus requires width " << modWidth << ".";
+
+  if (op.getModulus().slt(0))
+    return op.emitOpError()
+           << "provided modulus " << op.getModulus().getSExtValue()
+           << " is not a positive integer.";
   return success();
 }
 
@@ -58,6 +68,10 @@ LogicalResult SubOp::verify() { return verifyModArithOpMod<SubOp>(*this); }
 LogicalResult MulOp::verify() { return verifyModArithOpMod<MulOp>(*this); }
 
 LogicalResult MacOp::verify() { return verifyModArithOpMod<MacOp>(*this); }
+
+LogicalResult ReduceOp::verify() {
+  return verifyModArithOpMod<ReduceOp>(*this, true);
+}
 
 LogicalResult BarrettReduceOp::verify() {
   auto inputType = getInput().getType();
@@ -78,7 +92,9 @@ LogicalResult BarrettReduceOp::verify() {
               "Got "
            << bitWidth << " but w is " << expectedBitWidth << ".";
   }
-
+  if (getModulus().slt(0))
+    return emitOpError() << "provided modulus " << getModulus().getSExtValue()
+                         << " is not a positive integer.";
   return success();
 }
 

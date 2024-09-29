@@ -21,6 +21,33 @@ func.func @test_bad_mod(%lhs : i8, %rhs : i8) -> i8 {
 
 // -----
 
+// CHECK-NOT: @test_bad_mod_reduce
+func.func @test_bad_mod_reduce(%arg0 : i8) -> i8 {
+  // expected-error@+1 {{underlying type's bitwidth must be larger than the modulus bitwidth, but got 8 while modulus requires width 8.}}
+  %res = mod_arith.reduce %arg0 {modulus = 217 }: i8
+  return %res : i8
+}
+
+// -----
+
+// CHECK-NOT: @test_neg_mod_err
+func.func @test_neg_mod_err(%arg : i8) -> i8 {
+  // expected-error@+1 {{provided modulus -3 is not a positive integer.}}
+  %res = mod_arith.reduce %arg { modulus = -3 : i7 } : i8
+  return %res : i8
+}
+
+// -----
+
+// CHECK-NOT: @test_barrett_neg_mod_err
+func.func @test_barrett_neg_mod_err(%arg : i8) -> i8 {
+  // expected-error@+1 {{provided modulus -3 is not a positive integer.}}
+  %res = mod_arith.barrett_reduce %arg { modulus = -3 : i7 } : i8
+  return %res : i8
+}
+
+// -----
+
 // CHECK: @test_bad_mod_warning
 func.func @test_bad_mod_warning(%lhs : i8, %rhs : i8) -> i8 {
   // expected-warning@+1 {{for signed (or signless) underlying types, the bitwidth of the underlying type must be at least as large as modulus bitwidth + 1 (for the sign bit), but found 8 while modulus requires width 8.}}
