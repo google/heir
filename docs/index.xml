@@ -1088,15 +1088,6 @@ these files, you may need to build those targets and then re-run the
 &lt;code>refresh_all&lt;/code> command above.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>NOTE: In order to share bazel&amp;rsquo;s build cache between invocations from VScode&amp;rsquo;s
-GUI and the terminal, you need to create a &lt;code>.bazelrc&lt;/code> in your home directory
-that sets the compilation toolchain to clang. Alternatively, you can set this
-in your vscode settings to only apply to the current workspace, but this means
-switching between compilation from terminal and from VSCode will trigger
-rebuilds.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87">echo&lt;/span> -e &lt;span style="color:#4e9a06">&amp;#34;# enforces clang use\ncommon --repo_env=CC=clang&amp;#34;&lt;/span> &amp;gt; ~/.bazelrc
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;li>
 &lt;p>It might be necesssary to add the path to your buildifier to VSCode, though it
 should be auto-detected.&lt;/p>
 &lt;ul>
@@ -1480,17 +1471,22 @@ generation after &lt;code>--emit-verilog&lt;/code>.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Blog: HEIR meeting 2024-02-22</title><link>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</link><pubDate>Thu, 22 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1ktK2Y2-OnadvsIIa94HRch_oHCaQ0D6gbT3CElKmGak/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-11</title><link>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</link><pubDate>Thu, 11 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1RDONadr54-7uX5ko5dmUX3s1l7QHeHbM/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1kP1kFKV6qrLVPv4CnIhmqO-7nMDFkCpvhzwIppJEDfU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1-f5ZJ5h28FIgk_-LisNsYa77iuWPIAjU/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-11.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
+from the HEIR meeting on 2023-11-28.&lt;/p></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
+&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
+IRs.&lt;/p>
+&lt;p>Our initial meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
+Stay tuned for future updates while we work out a meeting schedule.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="-apply-folders">&lt;code>-apply-folders&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Apply all folding patterns from canonicalize&lt;/em>&lt;/p>
@@ -8087,54 +8083,4 @@ secret.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: SecretPasses</title><link>https://heir.dev/docs/passes/secretpasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/secretpasses/</guid><description>
-&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="-secret-capture-generic-ambient-scope">&lt;code>-secret-capture-generic-ambient-scope&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Capture the ambient scope used in a secret.generic&lt;/em>&lt;/p>
-&lt;p>For each value used in the body of a &lt;code>secret.generic&lt;/code> op, which is defined
-in the ambient scope outside the &lt;code>generic&lt;/code>, add it to the argument list of
-the &lt;code>generic&lt;/code>.&lt;/p>
-&lt;h3 id="-secret-distribute-generic">&lt;code>-secret-distribute-generic&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Distribute &lt;code>generic&lt;/code> ops through their bodies.&lt;/em>&lt;/p>
-&lt;p>Converts &lt;code>generic&lt;/code> ops whose region contains many ops into smaller
-sequences of generic ops whose regions contain a single op, dropping the
-&lt;code>generic&lt;/code> part from any resulting &lt;code>generic&lt;/code> ops that have no
-&lt;code>secret.secret&lt;/code> inputs. If the op has associated regions, and the operands
-are not secret, then the generic is distributed recursively through the
-op&amp;rsquo;s regions as well.&lt;/p>
-&lt;p>This pass is intended to be used as part of a front-end pipeline, where a
-program that operates on a secret type annotates the input to a region as
-&lt;code>secret&lt;/code>, and then wraps the contents of the region in a single large
-&lt;code>secret.generic&lt;/code>, then uses this pass to simplify it.&lt;/p>
-&lt;p>The &lt;code>distribute-through&lt;/code> option allows one to specify a comma-separated
-list of op names (e.g., &lt;code>distribute-thorugh=&amp;quot;affine.for,scf.if&amp;quot;&lt;/code>), which
-limits the distribution to only pass through those ops. If unset, all ops
-are distributed through when possible.&lt;/p>
-&lt;h4 id="options">Options&lt;/h4>
-&lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
-&lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
-&lt;p>This pass extracts the body of all generic ops into functions, and
-replaces the generic bodies with call ops. Used as a sub-operation in
-some passes, and extracted into its own pass for testing purposes.&lt;/p>
-&lt;p>This pass works best when &lt;code>--secret-generic-absorb-constants&lt;/code> is run
-before it so that the extracted function contains any constants used
-in the generic op&amp;rsquo;s body.&lt;/p>
-&lt;h3 id="-secret-forget-secrets">&lt;code>-secret-forget-secrets&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Convert secret types to standard types&lt;/em>&lt;/p>
-&lt;p>Drop the &lt;code>secret&amp;lt;...&amp;gt;&lt;/code> type from the IR, replacing it with the contained
-type and the corresponding cleartext computation.&lt;/p>
-&lt;h3 id="-secret-generic-absorb-constants">&lt;code>-secret-generic-absorb-constants&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Copy constants into a secret.generic body&lt;/em>&lt;/p>
-&lt;p>For each constant value used in the body of a &lt;code>secret.generic&lt;/code> op, which is
-defined in the ambient scope outside the &lt;code>generic&lt;/code>, add it&amp;rsquo;s definition into
-the &lt;code>generic&lt;/code> body.&lt;/p>
-&lt;h3 id="-secret-generic-absorb-dealloc">&lt;code>-secret-generic-absorb-dealloc&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Copy deallocs of internal memrefs into a secret.generic body&lt;/em>&lt;/p>
-&lt;p>For each memref allocated and used only within a body of a &lt;code>secret.generic&lt;/code>
-op, add it&amp;rsquo;s dealloc of the memref into its &lt;code>generic&lt;/code> body.&lt;/p>
-&lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
-&lt;p>&lt;em>Merge two adjacent generics into a single generic&lt;/em>&lt;/p>
-&lt;p>This pass merges two immedaitely sequential generics into a single
-generic. Useful as a sub-operation in some passes, and extracted into
-its own pass for testing purposes.&lt;/p></description></item></channel></rss>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item></channel></rss>

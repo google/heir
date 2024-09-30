@@ -362,13 +362,7 @@ compile_commands.json file.</p><div class=highlight><pre tabindex=0 style=backgr
 </span></span></code></pre></div><p>This will need to be regenerated every time you want tooling to see new
 <code>BUILD</code> file changes.</p><p>If you encounter errors like <code>*.h.inc</code> not found, or syntax errors inside
 these files, you may need to build those targets and then re-run the
-<code>refresh_all</code> command above.</p></li><li><p>NOTE: In order to share bazel&rsquo;s build cache between invocations from VScode&rsquo;s
-GUI and the terminal, you need to create a <code>.bazelrc</code> in your home directory
-that sets the compilation toolchain to clang. Alternatively, you can set this
-in your vscode settings to only apply to the current workspace, but this means
-switching between compilation from terminal and from VSCode will trigger
-rebuilds.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#204a87>echo</span> -e <span style=color:#4e9a06>&#34;# enforces clang use\ncommon --repo_env=CC=clang&#34;</span> &gt; ~/.bazelrc
-</span></span></code></pre></div></li><li><p>It might be necesssary to add the path to your buildifier to VSCode, though it
+<code>refresh_all</code> command above.</p></li><li><p>It might be necesssary to add the path to your buildifier to VSCode, though it
 should be auto-detected.</p><ul><li>Open the heir folder in VSCode</li><li>Go to &lsquo;Settings&rsquo; and set it on the &lsquo;Workspace&rsquo;</li><li>Search for &ldquo;Bazel Buildifier Executable&rdquo;</li><li>Once you find it, write <code>[home-directory]/bin/buildifier</code> for your specific
 [home-directory].</li></ul></li></ul><h3 id=building-testing-running-and-debugging-with-vscode>Building, Testing, Running and Debugging with VSCode</h3><h4 id=building>Building</h4><ol><li>Open the &ldquo;Explorer&rdquo; (File Overview) in the left panel.</li><li>Find &ldquo;Bazel Build Targets&rdquo; towards the bottom of the &ldquo;Explorer&rdquo; panel and
 click the dropdown button.</li><li>Unfold the heir folder</li><li>Right-click on &ldquo;//tools&rdquo; and click the &ldquo;Build Package Recursively&rdquo; option</li></ol><h4 id=testing>Testing</h4><ol><li>Open the &ldquo;Explorer&rdquo; (File Overview) in the left panel.</li><li>Find &ldquo;Bazel Build Targets&rdquo; towards the bottom of the &ldquo;Explorer&rdquo; panel and
