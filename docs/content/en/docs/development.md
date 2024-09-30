@@ -72,17 +72,6 @@ For the best experience, we recommend following these steps:
   these files, you may need to build those targets and then re-run the
   `refresh_all` command above.
 
-- NOTE: In order to share bazel's build cache between invocations from VScode's
-  GUI and the terminal, you need to create a `.bazelrc` in your home directory
-  that sets the compilation toolchain to clang. Alternatively, you can set this
-  in your vscode settings to only apply to the current workspace, but this means
-  switching between compilation from terminal and from VSCode will trigger
-  rebuilds.
-
-  ```bash
-  echo -e "# enforces clang use\ncommon --repo_env=CC=clang" > ~/.bazelrc
-  ```
-
 - It might be necesssary to add the path to your buildifier to VSCode, though it
   should be auto-detected.
 
