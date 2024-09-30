@@ -222,7 +222,7 @@ class CGGIToJaxite : public impl::CGGIToJaxiteBase<CGGIToJaxite> {
     // needed and possible.
     patterns.add<AddJaxiteContextualArgs, ConvertCGGIToJaxiteEncodeOp,
                  ConvertCGGIToJaxiteLut3Op, ConvertCGGIToJaxiteTrivialEncryptOp,
-                 ConvertAny>(typeConverter, context);
+                 ConvertAny<>>(typeConverter, context);
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();
     }

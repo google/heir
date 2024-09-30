@@ -13,8 +13,10 @@
 #include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
@@ -25,14 +27,48 @@
 namespace mlir {
 namespace heir {
 
+LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
+                                Operation *op, ArrayRef<Value> operands,
+                                ConversionPatternRewriter &rewriter);
+
+template <typename T = void>
 struct ConvertAny : public ConversionPattern {
-  ConvertAny(const TypeConverter &anyTypeConverter, MLIRContext *context);
+  ConvertAny(const TypeConverter &anyTypeConverter, MLIRContext *context)
+      : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          /*benefit=*/1, context) {
+    setDebugName("ConvertAny");
+    setHasBoundedRewriteRecursion(true);
+  }
 
   // generate a new op where all operands have been replaced with their
   // materialized/typeconverted versions
   LogicalResult matchAndRewrite(
       Operation *op, ArrayRef<Value> operands,
-      ConversionPatternRewriter &rewriter) const override;
+      ConversionPatternRewriter &rewriter) const override {
+    if (!isa<T>(op)) {
+      return failure();
+    }
+
+    return convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+  }
+};
+
+template <>
+struct ConvertAny<void> : public ConversionPattern {
+  ConvertAny<void>(const TypeConverter &anyTypeConverter, MLIRContext *context)
+      : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          /*benefit=*/1, context) {
+    setDebugName("ConvertAny");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  // generate a new op where all operands have been replaced with their
+  // materialized/typeconverted versions
+  LogicalResult matchAndRewrite(
+      Operation *op, ArrayRef<Value> operands,
+      ConversionPatternRewriter &rewriter) const override {
+    return convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+  }
 };
 
 template <typename T, typename Y = T>
@@ -77,7 +113,8 @@ class SecretGenericOpConversion
                                 rewriter);
   }
 
-  // Default method for replacing the secret.generic with the target operation.
+  // Default method for replacing the secret.generic with the target
+  // operation.
   virtual LogicalResult matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
@@ -96,11 +133,10 @@ class SecretGenericOpCipherConversion : public SecretGenericOpConversion<T, Y> {
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
-    auto plaintextValues =
-        llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
-          return !isa<lwe::RLWECiphertextType>(input.getType());
-        }));
-    if (!plaintextValues.empty()) {
+    // Check that all inputs are ciphertext.
+    if (!llvm::all_of(inputs, [&](Value input) {
+          return isa<lwe::RLWECiphertextType>(input.getType());
+        })) {
       return failure();
     }
     rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs);
@@ -118,31 +154,36 @@ class SecretGenericOpCipherPlainConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
-    auto plaintextValues =
+    auto ciphertextValues =
         llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
-          return !isa<lwe::RLWECiphertextType>(input.getType());
+          return isa<lwe::RLWECiphertextType>(input.getType());
         }));
-    if (plaintextValues.size() != 1) {
+    if (ciphertextValues.size() != 1) {
+      return failure();
+    }
+    auto ciphertext =
+        dyn_cast<TypedValue<lwe::RLWECiphertextType>>(ciphertextValues[0]);
+    if (!ciphertext) {
       return failure();
     }
 
-    TypedValue<RankedTensorType> cleartext;
-    TypedValue<lwe::RLWECiphertextType> ciphertext;
-
-    if (inputs[0] == plaintextValues[0]) {
-      cleartext = cast<TypedValue<RankedTensorType>>(inputs[0]);
-      ciphertext = cast<TypedValue<lwe::RLWECiphertextType>>(inputs[1]);
-    } else {
-      cleartext = cast<TypedValue<RankedTensorType>>(inputs[1]);
-      ciphertext = cast<TypedValue<lwe::RLWECiphertextType>>(inputs[0]);
+    auto cleartextValues =
+        llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
+          // The cleartext value could be a tensor of values or a scalar.
+          return !isa<lwe::RLWECiphertextType>(input.getType());
+        }));
+    if (cleartextValues.size() != 1) {
+      return failure();
     }
-
+    Value cleartext = cleartextValues[0];
+    auto ciphertextTy = ciphertext.getType();
     auto plaintextTy = lwe::RLWEPlaintextType::get(
-        op.getContext(), ciphertext.getType().getEncoding(),
-        ciphertext.getType().getRlweParams().getRing(), cleartext.getType());
+        op.getContext(), ciphertextTy.getEncoding(),
+        ciphertextTy.getRlweParams().getRing(), cleartext.getType());
     auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
-        op.getLoc(), plaintextTy, cleartext, ciphertext.getType().getEncoding(),
-        ciphertext.getType().getRlweParams().getRing());
+        op.getLoc(), plaintextTy, cleartext, ciphertextTy.getEncoding(),
+        ciphertextTy.getRlweParams().getRing());
+
     rewriter.replaceOpWithNewOp<Y>(op, ciphertext, plaintext);
     return success();
   }
@@ -209,9 +250,10 @@ void addStructuralConversionPatterns(TypeConverter &typeConverter,
                                      ConversionTarget &target);
 
 // Seems like this would be better as a method on the
-// LWE_EncodingAttrWithScalingFactor class, but I still have the problem of the
-// type returned by getEncoding being a vanilla Attribute. Probably we need a
-// common interface for LWE_EncodingAttrWithScalingFactor, and cast to that?
+// LWE_EncodingAttrWithScalingFactor class, but I still have the problem of
+// the type returned by getEncoding being a vanilla Attribute. Probably we
+// need a common interface for LWE_EncodingAttrWithScalingFactor, and cast to
+// that?
 int widthFromEncodingAttr(Attribute encoding);
 
 // Returns the Value corresponding to a given type in the FuncOp containing

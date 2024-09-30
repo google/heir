@@ -170,7 +170,7 @@ struct AlignTensorSizes : impl::AlignTensorSizesBase<AlignTensorSizes> {
     SecretTensorTypeConverter typeConverter(size);
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertAny, ConvertTensorExtractOp, ConvertTensorInsertOp>(
+    patterns.add<ConvertAny<>, ConvertTensorExtractOp, ConvertTensorInsertOp>(
         typeConverter, context);
 
     ConversionTarget target(*context);

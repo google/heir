@@ -43,4 +43,19 @@ module {
     // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
     return %1 : !efi1
   }
+
+  // CHECK-LABEL: func @test_extract
+  func.func @test_extract(%arg0 : !efi1) -> (!secret.secret<f32>) {
+    %0 = secret.generic ins(%arg0 :  !efi1) {
+    // CHECK: ckks.extract
+      ^bb0(%ARG0 : tensor<1024xf32>):
+        %c0 = arith.constant 0 : index
+        %1 = tensor.extract %ARG0[%c0] : tensor<1024xf32>
+        secret.yield %1 : f32
+    } -> !secret.secret<f32>
+    // CHECK: return
+    // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: underlying_type = f32
+    return %0 : !secret.secret<f32>
+  }
 }

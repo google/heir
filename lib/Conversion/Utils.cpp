@@ -19,6 +19,7 @@
 #include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Verifier.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -31,25 +32,16 @@ using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;
 using ::mlir::func::ReturnOp;
 
-ConvertAny::ConvertAny(const TypeConverter &anyTypeConverter,
-                       MLIRContext *context)
-    : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
-                        /*benefit=*/1, context) {
-  setDebugName("ConvertAny");
-  setHasBoundedRewriteRecursion(true);
-}
-
-LogicalResult ConvertAny::matchAndRewrite(
-    Operation *op, ArrayRef<Value> operands,
-    ConversionPatternRewriter &rewriter) const {
+LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
+                                Operation *op, ArrayRef<Value> operands,
+                                ConversionPatternRewriter &rewriter) {
   SmallVector<Type> newOperandTypes;
-  if (failed(getTypeConverter()->convertTypes(op->getOperandTypes(),
-                                              newOperandTypes)))
+  if (failed(
+          typeConverter->convertTypes(op->getOperandTypes(), newOperandTypes)))
     return failure();
 
   SmallVector<Type> newResultTypes;
-  if (failed(getTypeConverter()->convertTypes(op->getResultTypes(),
-                                              newResultTypes)))
+  if (failed(typeConverter->convertTypes(op->getResultTypes(), newResultTypes)))
     return failure();
 
   SmallVector<std::unique_ptr<Region>, 1> regions;
@@ -57,7 +49,7 @@ LogicalResult ConvertAny::matchAndRewrite(
   for (auto &r : op->getRegions()) {
     Region *newRegion = new Region(op);
     rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
-    if (failed(rewriter.convertRegionTypes(newRegion, *this->typeConverter)))
+    if (failed(rewriter.convertRegionTypes(newRegion, *typeConverter)))
       return failure();
     regions.emplace_back(newRegion);
   }
@@ -248,8 +240,9 @@ void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
   target.addDynamicallyLegalDialect<affine::AffineDialect>(
       [&](Operation *op) { return typeConverter.isLegal(op); });
 
-  patterns.add<ConvertAny, ConvertExtract, ConvertInsert, ConvertFromElements>(
-      typeConverter, patterns.getContext());
+  patterns
+      .add<ConvertAny<>, ConvertExtract, ConvertInsert, ConvertFromElements>(
+          typeConverter, patterns.getContext());
 }
 
 void addStructuralConversionPatterns(TypeConverter &typeConverter,
