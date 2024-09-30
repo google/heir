@@ -9,6 +9,20 @@ common --noenable_bzlmod
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
 
+# default to clang and lld
+build --action_env=CC=clang
+build --action_env=CXX=clang++
+build --host_action_env=CC=clang
+build --host_action_env=CXX=clang++
+build --linkopt="-fuse-ld=lld"
+
+# run with --config=gcc to force use of gcc
+# (and the default linker, usually ld) instead
+build:gcc --action_env=CC=gcc
+build:gcc --action_env=CXX=g++
+build:gcc --host_action_env=CC=gcc
+build:gcc --host_action_env=CXX=g++
+
 # run with --config=asan to enable
 build:asan --strip=never
 build:asan --copt -fsanitize=address
