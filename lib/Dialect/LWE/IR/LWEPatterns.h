@@ -55,9 +55,8 @@ struct ConvertRlweExtractOp : public OpConversionPattern<RlweExtractOp> {
     auto ctTy = op.getInput().getType();
     auto ring = ctTy.getRlweParams().getRing();
     auto degree = ring.getPolynomialModulus().getPolynomial().getDegree();
-    auto elementTy =
-        dyn_cast<IntegerType>(op.getOutput().getType().getUnderlyingType());
-    if (!elementTy) {
+    auto elementTy = op.getOutput().getType().getUnderlyingType();
+    if (!elementTy.isIntOrFloat()) {
       op.emitError() << "Expected extract op to extract scalar from tensor "
                         "type, but found input underlying type "
                      << op.getInput().getType().getUnderlyingType()
@@ -69,8 +68,14 @@ struct ConvertRlweExtractOp : public OpConversionPattern<RlweExtractOp> {
     SmallVector<Attribute> oneHotCleartextAttrs;
     oneHotCleartextAttrs.reserve(degree);
     for (size_t i = 0; i < degree; ++i) {
-      oneHotCleartextAttrs.push_back(rewriter.getIntegerAttr(
-          elementTy, i == (unsigned int)offset ? 1 : 0));
+      auto attrVal = (i == (unsigned int)offset) ? 1 : 0;
+      if (elementTy.isIntOrIndex()) {
+        oneHotCleartextAttrs.push_back(
+            rewriter.getIntegerAttr(elementTy, attrVal));
+      } else {
+        oneHotCleartextAttrs.push_back(
+            rewriter.getFloatAttr(elementTy, attrVal));
+      }
     }
 
     auto b = ImplicitLocOpBuilder(rewriter.getUnknownLoc(), rewriter);

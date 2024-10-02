@@ -60,7 +60,7 @@ def RotatePlusExtractToIndexedExtract : Pat<
     (MakeSingleResultVariadic (Arith_AddIOp $shift, $index, DefOverflow)))
 >;
 
-foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
+foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
   // Rotating two tensors by the same amount can be converted to a single
   // post-rotation. This can result in eliminating either the rotation (because
   // it can be combined with a later rotation) or the arith op itself, if it is

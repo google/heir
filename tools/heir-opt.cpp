@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -126,6 +127,9 @@ static std::vector<std::string> opsToDistribute = {
     "affine.for",   "affine.load",       "memref.load",    "memref.store",
     "affine.store", "memref.get_global", "memref.dealloc", "memref.alloc"};
 static std::vector<unsigned> bitWidths = {1, 2, 4, 8, 16};
+
+// RLWE scheme selector
+enum RLWEScheme { ckks, bgv };
 
 void tosaToLinalg(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
@@ -543,8 +547,8 @@ void tosaToJaxitePipeline(const std::string &yosysFilesPath,
 }
 #endif
 
-struct MlirToBgvPipelineOptions
-    : public PassPipelineOptions<MlirToBgvPipelineOptions> {
+struct MlirToRLWEPipelineOptions
+    : public PassPipelineOptions<MlirToRLWEPipelineOptions> {
   PassOptions::Option<std::string> entryFunction{
       *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
       llvm::cl::init("main")};
@@ -556,8 +560,13 @@ struct MlirToBgvPipelineOptions
       llvm::cl::init(1024)};
 };
 
-void mlirToBgvPipelineBuilder(OpPassManager &pm,
-                              const MlirToBgvPipelineOptions &options) {
+typedef std::function<void(OpPassManager &pm,
+                           const MlirToRLWEPipelineOptions &options)>
+    RLWEPipelineBuilder;
+
+void mlirToRLWEPipeline(OpPassManager &pm,
+                        const MlirToRLWEPipelineOptions &options,
+                        const RLWEScheme scheme) {
   // Secretize inputs
   pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
   pm.addPass(createWrapGeneric());
@@ -567,35 +576,70 @@ void mlirToBgvPipelineBuilder(OpPassManager &pm,
   // Vectorize and optimize rotations
   heirSIMDVectorizerPipelineBuilder(pm);
 
-  // Prepare to lower to BGV
+  // Prepare to lower to RLWE Scheme
   pm.addPass(secret::createSecretDistributeGeneric());
   pm.addPass(createCanonicalizerPass());
 
-  // Lower to BGV
-  auto secretToBgvOpts = SecretToBGVOptions{};
-  secretToBgvOpts.polyModDegree = options.ciphertextDegree;
-  pm.addPass(createSecretToBGV(secretToBgvOpts));
+  // Lower to RLWE Scheme
+  switch (scheme) {
+    case RLWEScheme::ckks: {
+      auto secretToCKKSOpts = SecretToCKKSOptions{};
+      secretToCKKSOpts.polyModDegree = options.ciphertextDegree;
+      pm.addPass(createSecretToCKKS(secretToCKKSOpts));
+      break;
+    }
+    case RLWEScheme::bgv: {
+      auto secretToBGVOpts = SecretToBGVOptions{};
+      secretToBGVOpts.polyModDegree = options.ciphertextDegree;
+      pm.addPass(createSecretToBGV(secretToBGVOpts));
+      break;
+    }
+    default:
+      llvm::errs() << "Unsupported RLWE scheme: " << scheme;
+      exit(EXIT_FAILURE);
+  }
 }
 
-void mlirToOpenFheBgvPipelineBuilder(OpPassManager &pm,
-                                     const MlirToBgvPipelineOptions &options) {
-  // lower to BGV
-  mlirToBgvPipelineBuilder(pm, options);
+RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
+  return [=](OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
+    mlirToRLWEPipeline(pm, options, scheme);
+  };
+}
 
-  // Add client interface
-  auto addClientInterfaceOptions = lwe::AddClientInterfaceOptions{};
-  // OpenFHE's pke API, which this pipeline generates, is always public-key
-  addClientInterfaceOptions.usePublicKey = true;
-  addClientInterfaceOptions.oneValuePerHelperFn = true;
-  pm.addPass(lwe::createAddClientInterface(addClientInterfaceOptions));
+RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
+  return [=](OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
+    // lower to RLWE scheme
+    mlirToRLWEPipeline(pm, options, scheme);
 
-  // Lower to openfhe
-  pm.addPass(bgv::createBGVToOpenfhe());
-  pm.addPass(createCanonicalizerPass());
-  auto configureCryptoContextOptions = openfhe::ConfigureCryptoContextOptions{};
-  configureCryptoContextOptions.entryFunction = options.entryFunction;
-  pm.addPass(
-      openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
+    // Add client interface
+    // TODO(#891): Extend add client interface to schemes other than BGV.
+    switch (scheme) {
+      case RLWEScheme::bgv: {
+        auto addClientInterfaceOptions = lwe::AddClientInterfaceOptions{};
+        // OpenFHE's pke API, which this pipeline generates, is always
+        // public-key
+        addClientInterfaceOptions.usePublicKey = true;
+        addClientInterfaceOptions.oneValuePerHelperFn = true;
+        pm.addPass(lwe::createAddClientInterface(addClientInterfaceOptions));
+        pm.addPass(bgv::createBGVToOpenfhe());
+        break;
+      }
+      case RLWEScheme::ckks: {
+        pm.addPass(ckks::createCKKSToOpenfhe());
+        break;
+      }
+      default:
+        llvm::errs() << "Unsupported RLWE scheme: " << scheme;
+        exit(EXIT_FAILURE);
+    }
+
+    pm.addPass(createCanonicalizerPass());
+    auto configureCryptoContextOptions =
+        openfhe::ConfigureCryptoContextOptions{};
+    configureCryptoContextOptions.entryFunction = options.entryFunction;
+    pm.addPass(
+        openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
+  };
 }
 
 int main(int argc, char **argv) {
@@ -768,18 +812,31 @@ int main(int argc, char **argv) {
       "tensor_ext.rotate",
       heirSIMDVectorizerPipelineBuilder);
 
-  PassPipelineRegistration<MlirToBgvPipelineOptions>(
+  PassPipelineRegistration<MlirToRLWEPipelineOptions>(
       "mlir-to-bgv",
       "Convert a func using standard MLIR dialects to FHE using "
       "BGV.",
-      mlirToBgvPipelineBuilder);
+      mlirToRLWEPipelineBuilder(RLWEScheme::bgv));
 
-  PassPipelineRegistration<MlirToBgvPipelineOptions>(
+  PassPipelineRegistration<MlirToRLWEPipelineOptions>(
       "mlir-to-openfhe-bgv",
       "Convert a func using standard MLIR dialects to FHE using BGV and "
       "export "
       "to OpenFHE C++ code.",
-      mlirToOpenFheBgvPipelineBuilder);
+      mlirToOpenFheRLWEPipelineBuilder(RLWEScheme::bgv));
+
+  PassPipelineRegistration<MlirToRLWEPipelineOptions>(
+      "mlir-to-ckks",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "CKKS.",
+      mlirToRLWEPipelineBuilder(RLWEScheme::ckks));
+
+  PassPipelineRegistration<MlirToRLWEPipelineOptions>(
+      "mlir-to-openfhe-ckks",
+      "Convert a func using standard MLIR dialects to FHE using CKKS and "
+      "export "
+      "to OpenFHE C++ code.",
+      mlirToOpenFheRLWEPipelineBuilder(RLWEScheme::ckks));
 
   return asMainReturnCode(
       MlirOptMain(argc, argv, "HEIR Pass Driver", registry));

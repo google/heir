@@ -114,6 +114,14 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
                     .Case<arith::MulIOp>([&](auto arithOp) {
                       tryReplaceRotations<arith::MulIOp>(arithOp, reduction,
                                                          extraction);
+                    })
+                    .Case<arith::AddFOp>([&](auto arithOp) {
+                      tryReplaceRotations<arith::AddFOp>(arithOp, reduction,
+                                                         extraction);
+                    })
+                    .Case<arith::MulFOp>([&](auto arithOp) {
+                      tryReplaceRotations<arith::MulFOp>(arithOp, reduction,
+                                                         extraction);
                     });
               }
             }

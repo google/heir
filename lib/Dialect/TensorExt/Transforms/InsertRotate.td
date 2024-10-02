@@ -26,7 +26,7 @@ def CreateSplatOp : NativeCodeCall<
 
 // Match an arith op that extracts scalar values from one or more tensors, and
 // replace it with rotations to align slots and apply the same op in SIMD.
-foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
+foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
   def InsertRotations_TwoTensorArgs_#ArithOp : Pattern<
     (ArithOp:$arithOp
       (Tensor_ExtractOp $t1, (variadic $i1)),
@@ -91,8 +91,8 @@ foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
 // TODO(#514): handle OuterOp with two different InnerOps on the LHS and RHS
 // TODO(#579): determine if these patterns are still necessary after the
 // target slot analysis was improved.
-foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
-  foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp] in {
+foreach InnerOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+  foreach OuterOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
     // Left associated grouping handles (add (add (rotate t1 i1) (rotate t2 i2)) (rotate t3 i3))
     def AlignRotations_LeftAssociated_Inner_#InnerOp#_Outer_#OuterOp : Pattern<
       (OuterOp
