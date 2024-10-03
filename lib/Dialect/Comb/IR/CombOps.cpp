@@ -12,6 +12,8 @@
 
 #include "lib/Dialect/Comb/IR/CombOps.h"
 
+#include <optional>
+
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
@@ -234,7 +236,7 @@ LogicalResult TruthTableOp::verify() {
   return success();
 }
 
-mlir::ValueRange TruthTableOp::getLookupTableInputs() {
+std::optional<mlir::ValueRange> TruthTableOp::getLookupTableInputs() {
   return mlir::ValueRange{getInputs()};
 }
 

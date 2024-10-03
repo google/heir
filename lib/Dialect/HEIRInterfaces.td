@@ -8,7 +8,7 @@ def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   let methods = [
     InterfaceMethod<
       "Gets lookup table inputs from most significant bit to least.",
-      "mlir::ValueRange", "getLookupTableInputs"
+      "std::optional<mlir::ValueRange>", "getLookupTableInputs"
     >,
   ];
 }
