@@ -61,3 +61,5 @@ repos:
     additional_dependencies:
     - mdformat-gfm
     - mdformat-frontmatter
+
+exclude: bazel/llvm.patch
