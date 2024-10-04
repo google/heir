@@ -62,6 +62,7 @@
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
+#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
@@ -325,7 +326,7 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
         // Wrap with secret.generic and then distribute-generic.
         pm.addPass(createWrapGeneric());
         auto distributeOpts = secret::SecretDistributeGenericOptions{
-            .opsToDistribute = opsToDistribute};
+            .opsToDistribute = llvm::to_vector(opsToDistribute)};
         pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
         pm.addPass(createCanonicalizerPass());
 
@@ -418,7 +419,7 @@ void tosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
 
         pm.addPass(createWrapGeneric());
         auto distributeOpts = secret::SecretDistributeGenericOptions{
-            .opsToDistribute = opsToDistribute};
+            .opsToDistribute = llvm::to_vector(opsToDistribute)};
         pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
         pm.addPass(createCanonicalizerPass());
 
@@ -502,7 +503,7 @@ void tosaToJaxitePipeline(const std::string &yosysFilesPath,
         // Cleanup
         pm.addPass(createMemrefGlobalReplacePass());
         arith::ArithIntNarrowingOptions arithOps;
-        arithOps.bitwidthsSupported = bitWidths;
+        arithOps.bitwidthsSupported = llvm::to_vector(bitWidths);
         pm.addPass(arith::createArithIntNarrowing(arithOps));
         pm.addPass(createCanonicalizerPass());
         pm.addPass(createSCCPPass());
@@ -513,7 +514,7 @@ void tosaToJaxitePipeline(const std::string &yosysFilesPath,
         // Wrap with secret.generic and then distribute-generic.
         pm.addPass(createWrapGeneric());
         auto distributeOpts = secret::SecretDistributeGenericOptions{
-            .opsToDistribute = opsToDistribute};
+            .opsToDistribute = llvm::to_vector(opsToDistribute)};
         pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
         pm.addPass(createCanonicalizerPass());
         // Booleanize and Yosys Optimize
