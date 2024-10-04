@@ -442,6 +442,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   });
 
   // Invoke Yosys to translate to a combinational circuit and optimize.
+  Yosys::log_errfile = stderr;
   Yosys::log_error_stderr = true;
   LLVM_DEBUG(Yosys::log_streams.push_back(&std::cout));
 
@@ -458,6 +459,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
                       abcPath, yosysFilesPath, abcFast ? "-fast" : "")
             .str();
   }
+
   Yosys::run_pass(yosysTemplate);
 
   // Translate Yosys result back to MLIR and insert into the func
