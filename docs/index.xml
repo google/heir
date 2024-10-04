@@ -1212,6 +1212,37 @@ required if, for example, a new dialect or pass is added in MLIR upstream.&lt;/l
 &lt;/ul>
 &lt;p>Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun) who
 has LLVM commit access and can also suggest additional MLIR reviewers.&lt;/p>
+&lt;h2 id="tips-for-building-dependencies--useful-external-libraries">Tips for building dependencies / useful external libraries&lt;/h2>
+&lt;h3 id="mlir">MLIR&lt;/h3>
+&lt;p>Instructions for building MLIR can be found on the
+&lt;a href="https://mlir.llvm.org/getting_started/">Getting started&lt;/a> page of the MLIR
+website. The instructions there seem to work as written (tested on Ubuntu
+22.04). However, the command shown in &lt;code>Unix-like compile/testing:&lt;/code> may require a
+large amount of RAM. If building on a system with 16GB of RAM or less, and if
+you don&amp;rsquo;t plan to target GPUs, you may want to replace the line&lt;/p>
+&lt;pre tabindex="0">&lt;code> -DLLVM_TARGETS_TO_BUILD=&amp;#34;Native;NVPTX;AMDGPU&amp;#34; \
+&lt;/code>&lt;/pre>&lt;p>with&lt;/p>
+&lt;pre tabindex="0">&lt;code> -DLLVM_TARGETS_TO_BUILD=&amp;#34;Native&amp;#34; \
+&lt;/code>&lt;/pre>&lt;h3 id="openfhe">OpenFHE&lt;/h3>
+&lt;p>A simple way to build OpenFHE is to follow the instructions in the
+&lt;a href="https://github.com/openfheorg/openfhe-configurator">openfhe-configurator&lt;/a>
+repository. This allows to build the library with or without support for the
+Intel &lt;a href="https://github.com/intel/hexl">HEXL library&lt;/a>. First, clone the repository
+and configure it using:&lt;/p>
+&lt;pre tabindex="0">&lt;code>git clone https://github.com/openfheorg/openfhe-configurator.git
+cd openfhe-configurator
+scripts/configure.sh
+&lt;/code>&lt;/pre>&lt;p>You will be asked whether to stage a vanilla OpenFHE build or add support for
+HEXL. You can then build the library using&lt;/p>
+&lt;pre tabindex="0">&lt;code>./scripts/build-openfhe-development.sh
+&lt;/code>&lt;/pre>&lt;p>The build may fail on systems with less than 32GB or RAM due to parallel
+compilation. You can disable it by editing
+&lt;code>./scripts/build-openfhe-development.sh&lt;/code> and replacing&lt;/p>
+&lt;pre tabindex="0">&lt;code>make -j || abort &amp;#34;Build of openfhe-development failed.&amp;#34;
+&lt;/code>&lt;/pre>&lt;p>with&lt;/p>
+&lt;pre tabindex="0">&lt;code>make || abort &amp;#34;Build of openfhe-development failed.&amp;#34;
+&lt;/code>&lt;/pre>&lt;p>Compilation will be significantly slower but should then take less than 8GB of
+memory.&lt;/p>
 &lt;h2 id="creating-a-new-pass">Creating a New Pass&lt;/h2>
 &lt;p>The &lt;code>scripts/templates&lt;/code> folder contains Python scripts to create boilerplate for
 new conversion or (dialect-specific) transform passes. These should be used when
@@ -1471,28 +1502,28 @@ generation after &lt;code>--emit-verilog&lt;/code>.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1o2-I03DJtNJQDupSHn8LtOXLmxsd3WO1fjvqLbT-SIc/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
-from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1bCMuuKnBVf6HP7R2SiZgo1C1vsG6FzF2/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-18. This special discussion was focused on the
+modular arithmetic dialect.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
-&lt;p>The third HEIR meeting was 2023-07-18
-(&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
-&lt;p>We decided to schedule future meetings every two weeks, with alternating focus
-on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
-join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-05-16.&lt;/p></description></item><item><title>Docs: ApplyFoldersPasses</title><link>https://heir.dev/docs/passes/applyfolderspasses/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/passes/applyfolderspasses/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="-apply-folders">&lt;code>-apply-folders&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Apply all folding patterns from canonicalize&lt;/em>&lt;/p>

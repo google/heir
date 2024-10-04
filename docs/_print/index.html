@@ -426,7 +426,28 @@ Based on what you&rsquo;re trying to do, this may require some extra steps.</p><
 HEIR you need to add new bazel targets in
 <code>llvm-project/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel</code>. This is
 required if, for example, a new dialect or pass is added in MLIR upstream.</li></ul><p>Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun) who
-has LLVM commit access and can also suggest additional MLIR reviewers.</p><h2 id=creating-a-new-pass>Creating a New Pass</h2><p>The <code>scripts/templates</code> folder contains Python scripts to create boilerplate for
+has LLVM commit access and can also suggest additional MLIR reviewers.</p><h2 id=tips-for-building-dependencies--useful-external-libraries>Tips for building dependencies / useful external libraries</h2><h3 id=mlir>MLIR</h3><p>Instructions for building MLIR can be found on the
+<a href=https://mlir.llvm.org/getting_started/>Getting started</a> page of the MLIR
+website. The instructions there seem to work as written (tested on Ubuntu
+22.04). However, the command shown in <code>Unix-like compile/testing:</code> may require a
+large amount of RAM. If building on a system with 16GB of RAM or less, and if
+you don&rsquo;t plan to target GPUs, you may want to replace the line</p><pre tabindex=0><code>   -DLLVM_TARGETS_TO_BUILD=&#34;Native;NVPTX;AMDGPU&#34; \
+</code></pre><p>with</p><pre tabindex=0><code>   -DLLVM_TARGETS_TO_BUILD=&#34;Native&#34; \
+</code></pre><h3 id=openfhe>OpenFHE</h3><p>A simple way to build OpenFHE is to follow the instructions in the
+<a href=https://github.com/openfheorg/openfhe-configurator>openfhe-configurator</a>
+repository. This allows to build the library with or without support for the
+Intel <a href=https://github.com/intel/hexl>HEXL library</a>. First, clone the repository
+and configure it using:</p><pre tabindex=0><code>git clone https://github.com/openfheorg/openfhe-configurator.git
+cd openfhe-configurator
+scripts/configure.sh
+</code></pre><p>You will be asked whether to stage a vanilla OpenFHE build or add support for
+HEXL. You can then build the library using</p><pre tabindex=0><code>./scripts/build-openfhe-development.sh
+</code></pre><p>The build may fail on systems with less than 32GB or RAM due to parallel
+compilation. You can disable it by editing
+<code>./scripts/build-openfhe-development.sh</code> and replacing</p><pre tabindex=0><code>make -j || abort &#34;Build of openfhe-development failed.&#34;
+</code></pre><p>with</p><pre tabindex=0><code>make || abort &#34;Build of openfhe-development failed.&#34;
+</code></pre><p>Compilation will be significantly slower but should then take less than 8GB of
+memory.</p><h2 id=creating-a-new-pass>Creating a New Pass</h2><p>The <code>scripts/templates</code> folder contains Python scripts to create boilerplate for
 new conversion or (dialect-specific) transform passes. These should be used when
 the tablegen files containing existing pass definitions in the expected
 filepaths are not already present. Otherwise, you should modify the existing
