@@ -16,6 +16,8 @@ cascade:
       path: /**
 ---
 
+<img style="float:right;" src="/images/heir_logo_256x256.png" />
+
 ## What is HEIR?
 
 HEIR is a compiler toolchain for
@@ -53,3 +55,6 @@ figure src="/images/dialects.svg" link="/images/dialects.svg" %}}
 TODO(b/287634511): add list of partner companies and universities
 
 The HEIR codebase and documentation are maintained by Google.
+
+Logo design by [Edward Chen](https://edwjchen.com/) and
+[Erin Park](https://www.yerinstudio.com/).
