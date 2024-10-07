@@ -815,9 +815,10 @@ func::FuncOp PolynomialToStandard::buildPolynomialModFunc(FunctionType funcType,
   IntPolynomialAttr xnMinusOneAttr =
       IntPolynomialAttr::get(&getContext(), xnMinusOne);
   // e.g., need to represent 2^64, which requires 65 bits, the highest one set.
+  // And one more sign bit as RingAttr interprets it as signed number.
   unsigned remCmodWidth =
-      1 + inputType.getElementType().getIntOrFloatBitWidth();
-  APInt remCmod = APInt::getOneBitSet(remCmodWidth, remCmodWidth - 1);
+      1 + 1 + inputType.getElementType().getIntOrFloatBitWidth();
+  APInt remCmod = APInt::getOneBitSet(remCmodWidth, remCmodWidth - 1 - 1);
   IntegerType remIntType = IntegerType::get(&getContext(), remCmodWidth);
   auto remRing =
       RingAttr::get(ring.getCoefficientType(),
