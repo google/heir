@@ -3,6 +3,7 @@ add_mlir_dialect_library(MLIROpenfheTarget
         OpenFhePkeEmitter.cpp
         OpenFhePkeHeaderEmitter.cpp
         OpenFheUtils.cpp
+        OpenFheTranslateRegistration.cpp
 
         ADDITIONAL_HEADER_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/IR
