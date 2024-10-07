@@ -1,5 +1,6 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
@@ -21,18 +22,15 @@ void RotateOp::getCanonicalizationPatterns(RewritePatternSet &results,
 }
 
 LogicalResult RotateOp::verify() {
-  // If 2-D tensor, then expect 2 dimensions to rotate.
   auto x = getTensor().getType();
+  // TODO(#924): Currently RotateOp only supports rotating a 1-D vector, or a
+  // vector with only one non-unit dimension that is treated as the major
+  // dimension.
   if (x.getRank() != 1) {
-    bool foundNonOne = false;
-    for (auto dim : x.getShape()) {
-      if (dim != 1) {
-        if (foundNonOne) {
-          return emitOpError()
-                 << "requires a 1-D input tensor, but found " << x;
-        }
-        foundNonOne = true;
-      }
+    if (llvm::count_if(x.getShape(), [](auto dim) { return dim != 1; }) != 1) {
+      return emitOpError() << "requires a 1-D input tensor or tensor with "
+                              "single non-unit dimension, but found "
+                           << x;
     }
   }
   return success();

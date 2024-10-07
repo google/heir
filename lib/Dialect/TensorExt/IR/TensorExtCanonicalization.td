@@ -16,6 +16,12 @@ def OutOfBoundsOfTensorDim :
     >
   >;
 
+def IsOneDimTensor : Constraint<
+  CPred<
+    "llvm::cast<mlir::ShapedType>($0.getType()).getRank() == 1"
+  >
+>;
+
 // rotate %t, 0 -> %t
 def DropZeroRotation : Pat<
   (TensorExt_RotateOp $tensor, (ConstantLikeMatcher APIntAttr:$c0)),
@@ -35,7 +41,8 @@ def NormalizeRotationIndex : Pat<
           (Tensor_DimOp $tensor, (Arith_ConstantOp ConstantAttr<IndexAttr, "0">)),
           $shiftOp))
       ),
-  [(OutOfBoundsOfTensorDim $shiftAmount, $tensor)]
+  [(OutOfBoundsOfTensorDim $shiftAmount, $tensor),
+   (IsOneDimTensor $tensor)]
 >;
 
 // %0 = rotate %t, x

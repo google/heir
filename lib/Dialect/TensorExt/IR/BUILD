@@ -43,6 +43,7 @@ cc_library(
         ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
