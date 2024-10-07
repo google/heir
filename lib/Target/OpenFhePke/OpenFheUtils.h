@@ -11,6 +11,10 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
+enum class OpenfheScheme { BGV, CKKS };
+
+std::string getModulePrelude(OpenfheScheme scheme);
+
 /// Convert a type to a string.
 ::mlir::FailureOr<std::string> convertType(::mlir::Type type);
 

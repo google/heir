@@ -1,11 +1,14 @@
 #ifndef LIB_ANALYSIS_SELECTVARIABLENAMES_SELECTVARIABLENAMES_H_
 #define LIB_ANALYSIS_SELECTVARIABLENAMES_SELECTVARIABLENAMES_H_
 
+#include <cassert>
 #include <string>
 
-#include "llvm/include/llvm/ADT/DenseMap.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {

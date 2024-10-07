@@ -38,7 +38,7 @@ def jaxite_end_to_end_test(name, mlir_src, test_src, heir_opt_flags = "", tags =
     heir_translate(
         name = py_codegen_target,
         src = generated_heir_opt_name,
-        pass_flag = "--emit-jaxite",
+        pass_flags = ["--emit-jaxite"],
         generated_filename = generated_py_filename,
     )
     py_library(

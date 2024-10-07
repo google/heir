@@ -6,29 +6,16 @@ package(
 )
 
 cc_library(
-    name = "OpenFheUtils",
-    srcs = ["OpenFheUtils.cpp"],
+    name = "OpenFheRegistration",
+    srcs = [
+        "OpenFheTranslateRegistration.cpp",
+    ],
     hdrs = [
-        "OpenFheUtils.h",
+        "OpenFheTranslateRegistration.h",
     ],
     deps = [
-        "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/Openfhe/IR:Dialect",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:FuncDialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
-    name = "OpenFhePkeEmitter",
-    srcs = ["OpenFhePkeEmitter.cpp"],
-    hdrs = [
-        "OpenFhePkeEmitter.h",
-        "OpenFhePkeTemplates.h",
-    ],
-    deps = [
+        ":OpenFhePkeEmitter",
+        ":OpenFhePkeHeaderEmitter",
         ":OpenFheUtils",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -46,11 +33,27 @@ cc_library(
 )
 
 cc_library(
-    name = "OpenFhePkeHeaderEmitter",
-    srcs = ["OpenFhePkeHeaderEmitter.cpp"],
+    name = "OpenFheUtils",
+    srcs = ["OpenFheUtils.cpp"],
     hdrs = [
-        "OpenFhePkeHeaderEmitter.h",
         "OpenFhePkeTemplates.h",
+        "OpenFheUtils.h",
+    ],
+    deps = [
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "OpenFhePkeEmitter",
+    srcs = ["OpenFhePkeEmitter.cpp"],
+    hdrs = [
+        "OpenFhePkeEmitter.h",
     ],
     deps = [
         ":OpenFheUtils",
@@ -62,8 +65,27 @@ cc_library(
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TranslateLib",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "OpenFhePkeHeaderEmitter",
+    srcs = ["OpenFhePkeHeaderEmitter.cpp"],
+    hdrs = [
+        "OpenFhePkeHeaderEmitter.h",
+        "OpenFhePkeTemplates.h",
+    ],
+    deps = [
+        ":OpenFheUtils",
+        "@heir//lib/Analysis/SelectVariableNames",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Target:Utils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )

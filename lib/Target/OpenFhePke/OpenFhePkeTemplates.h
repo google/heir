@@ -11,12 +11,12 @@ namespace openfhe {
 // transforms for HEIR includes.
 
 // clang-format off
-constexpr std::string_view kModulePrelude = R"cpp(
+constexpr std::string_view kModulePreludeTemplate = R"cpp(
 #include "src/pke/include/openfhe.h" // from @openfhe
 
 using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;
-using CCParamsT = CCParams<CryptoContextBGVRNS>;
+using CCParamsT = CCParams<CryptoContext{0}RNS>;
 using CryptoContextT = CryptoContext<DCRTPoly>;
 using EvalKeyT = EvalKey<DCRTPoly>;
 using PlaintextT = Plaintext;

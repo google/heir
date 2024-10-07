@@ -1,12 +1,11 @@
 #include "lib/Source/AutoHog/AutoHogImporter.h"
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
-#include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
-#include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
 #include "lib/Target/Verilog/VerilogEmitter.h"
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
 
 int main(int argc, char **argv) {
@@ -22,6 +21,7 @@ int main(int argc, char **argv) {
   mlir::heir::jaxite::registerToJaxiteTranslation();
 
   // OpenFHE
+  mlir::heir::openfhe::registerTranslateOptions();
   mlir::heir::openfhe::registerToOpenFhePkeTranslation();
   mlir::heir::openfhe::registerToOpenFhePkeHeaderTranslation();
 

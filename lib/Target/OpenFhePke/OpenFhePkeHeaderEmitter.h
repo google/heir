@@ -2,6 +2,7 @@
 #define LIB_TARGET_OPENFHEPKE_OPENFHEPKEHEADEREMITTER_H_
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
@@ -16,21 +17,24 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-void registerToOpenFhePkeHeaderTranslation();
-
 /// Translates the given operation to OpenFhePke.
 ::mlir::LogicalResult translateToOpenFhePkeHeader(::mlir::Operation *op,
-                                                  llvm::raw_ostream &os);
+                                                  llvm::raw_ostream &os,
+                                                  OpenfheScheme scheme);
 
 /// For each function in the mlir module, emits a function header declaration
 /// along with any necessary includes.
 class OpenFhePkeHeaderEmitter {
  public:
-  OpenFhePkeHeaderEmitter(raw_ostream &os, SelectVariableNames *variableNames);
+  OpenFhePkeHeaderEmitter(raw_ostream &os, SelectVariableNames *variableNames,
+                          OpenfheScheme scheme);
 
   LogicalResult translate(::mlir::Operation &operation);
 
  private:
+  /// OpenFHE scheme to emit.
+  OpenfheScheme scheme_;
+
   /// Output stream to emit to.
   raw_indented_ostream os;
 

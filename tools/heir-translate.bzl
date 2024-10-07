@@ -14,7 +14,7 @@ _HEIR_TRANSLATE = "@heir//tools:heir-translate"
 def _heir_translate_impl(ctx):
     generated_file = ctx.outputs.generated_filename
     args = ctx.actions.args()
-    args.add(ctx.attr.pass_flag)
+    args.add_all(ctx.attr.pass_flags)
     args.add_all(["-o", generated_file.path])
     args.add(ctx.file.src)
 
@@ -40,9 +40,9 @@ heir_translate = rule(
             doc = "A single MLIR source file to translate.",
             allow_single_file = [".mlir"],
         ),
-        "pass_flag": attr.string(
+        "pass_flags": attr.string_list(
             doc = """
-            The pass flag passed to heir-translate, e.g., --emit-openfhe-pke
+            The pass flags passed to heir-translate, e.g., --emit-openfhe-pke
             """,
         ),
         "generated_filename": attr.output(

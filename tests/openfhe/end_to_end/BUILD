@@ -47,3 +47,13 @@ openfhe_end_to_end_test(
     tags = ["notap"],
     test_src = "roberts_cross_test.cpp",
 )
+
+openfhe_end_to_end_test(
+    name = "naive_matmul_test",
+    generated_lib_header = "naive_matmul_lib.h",
+    heir_opt_flags = "--mlir-to-openfhe-ckks=entry-function=matmul",
+    heir_translate_flags = ["--openfhe-scheme=ckks"],
+    mlir_src = "naive_matmul.mlir",
+    tags = ["notap"],
+    test_src = "naive_matmul_test.cpp",
+)

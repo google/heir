@@ -3,7 +3,7 @@
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 
-def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = "", data = [], tags = [], deps = [], **kwargs):
+def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = "", heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
 
     Args:
@@ -13,6 +13,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
       generated_lib_header: The name of the generated .h file (explicit
         because it needs to be manually #include'd in the test_src file)
       heir_opt_flags: Flags to pass to heir-opt before heir-translate
+      heir_translate_flags: Flags to pass to heir-translate
       data: Data dependencies to be passed to cc_test
       tags: Tags to pass to cc_test
       deps: Deps to pass to cc_test and cc_library
@@ -24,6 +25,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
     generated_cc_filename = "%s_lib.inc.cc" % name
     heir_opt_name = "%s_heir_opt" % name
     generated_heir_opt_name = "%s_heir_opt.mlir" % name
+    heir_translate_flags = heir_translate_flags + ["--emit-openfhe-pke"]
 
     if heir_opt_flags:
         heir_opt(
@@ -38,13 +40,13 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
     heir_translate(
         name = cc_codegen_target,
         src = generated_heir_opt_name,
-        pass_flag = "--emit-openfhe-pke",
+        pass_flags = heir_translate_flags,
         generated_filename = generated_cc_filename,
     )
     heir_translate(
         name = h_codegen_target,
         src = generated_heir_opt_name,
-        pass_flag = "--emit-openfhe-pke-header",
+        pass_flags = heir_translate_flags,
         generated_filename = generated_lib_header,
     )
     native.cc_library(

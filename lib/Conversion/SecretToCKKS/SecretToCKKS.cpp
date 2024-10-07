@@ -225,6 +225,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpCipherConversion<arith::SubIOp, ckks::SubOp>,
         SecretGenericOpCipherConversion<arith::AddFOp, ckks::AddOp>,
         SecretGenericOpCipherConversion<arith::SubFOp, ckks::SubOp>,
+        SecretGenericOpCipherConversion<tensor::EmptyOp, tensor::EmptyOp>,
         SecretGenericTensorExtractConversion,
         SecretGenericTensorInsertConversion,
         SecretGenericOpRotateConversion<ckks::RotateOp>,

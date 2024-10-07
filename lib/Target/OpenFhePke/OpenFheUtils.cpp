@@ -4,7 +4,9 @@
 
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
+#include "lib/Target/OpenFhePke/OpenFhePkeTemplates.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
@@ -17,6 +19,11 @@
 namespace mlir {
 namespace heir {
 namespace openfhe {
+
+std::string getModulePrelude(OpenfheScheme scheme) {
+  return llvm::formatv(kModulePreludeTemplate.data(),
+                       scheme == OpenfheScheme::CKKS ? "CKKS" : "BGV");
+}
 
 FailureOr<std::string> convertType(Type type) {
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
@@ -45,19 +52,25 @@ FailureOr<std::string> convertType(Type type) {
         os << "int" << width << "_t";
         return FailureOr<std::string>(std::string(result));
       })
-      .Case<RankedTensorType>([&](auto ty) {
-        if (ty.getRank() != 1) {
-          return FailureOr<std::string>();
+      .Case<FloatType>([&](auto ty) -> FailureOr<std::string> {
+        auto width = ty.getWidth();
+        if (width == 32) {
+          return std::string("float");
+        } else if (width == 64) {
+          return std::string("double");
         }
-
+        return failure();
+      })
+      .Case<RankedTensorType>([&](auto ty) {
         auto eltTyResult = convertType(ty.getElementType());
         if (failed(eltTyResult)) {
           return FailureOr<std::string>();
         }
-
-        SmallString<8> result;
-        llvm::raw_svector_ostream os(result);
-        os << "std::vector<" << eltTyResult.value() << ">";
+        auto result = eltTyResult.value();
+        for (int i = 0; i < ty.getRank(); ++i) {
+          // For each dimension, wrap the element in a std::vector.
+          result = "std::vector<" + result + ">";
+        }
         return FailureOr<std::string>(std::string(result));
       })
       .Default([&](Type &) { return failure(); });

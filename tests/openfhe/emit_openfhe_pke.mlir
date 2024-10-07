@@ -1,4 +1,4 @@
-// RUN: heir-translate %s --emit-openfhe-pke | FileCheck %s
+// RUN: heir-translate %s --emit-openfhe-pke --split-input-file | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
@@ -52,6 +52,8 @@ func.func @test_basic_emitter(%cc : !cc, %input1 : !ct, %input2 : !ct, %input3: 
   return %key_switch_res: !ct
 }
 
+// -----
+
 #degree_32_poly = #polynomial.int_polynomial<1 + x**32>
 #eval_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
 #ring2 = #polynomial.ring<coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#degree_32_poly>
@@ -98,4 +100,22 @@ func.func @simple_sum__decrypt(%arg0: !openfhe.crypto_context, %arg1: !scalar_ct
   %0 = openfhe.decrypt %arg0, %arg1, %arg2 : (!openfhe.crypto_context, !scalar_ct_ty, !openfhe.private_key) -> !scalar_pt_ty
   %1 = lwe.rlwe_decode %0 {encoding = #eval_encoding, ring = #ring2} : !scalar_pt_ty -> i16
   return %1 : i16
+}
+
+// -----
+
+// CHECK-LABEL: test_constant
+// CHECK-NEXT:  std::vector<float> [[splat:.*]](2, 1.500000e+00);
+// CHECK-NEXT:  std::vector<int32_t> [[ints:.*]] = {1, 2};
+// CHECK-NEXT:  std::vector<float> [[floats:.*]] = {1.500000e+00, 2.500000e+00};
+// CHECK-NEXT:  std::vector<double> [[double1:.*]](16, -0.38478666543960571);
+// CHECK-NEXT:  std::vector<double> [[double2:.*]](16, -1.1268185335211456E-4);
+// CHECK-NEXT:  return [[splat]];
+func.func @test_constant() -> tensor<2xf32> {
+  %splat = arith.constant dense<1.5> : tensor<2xf32>
+  %ints = arith.constant dense<[1, 2]> : tensor<2xi32>
+  %floats = arith.constant dense<[1.5, 2.5]> : tensor<2xf32>
+  %cst_175 = arith.constant dense<-0.38478666543960571> : tensor<16xf64>
+  %cst_176 = arith.constant dense<-1.1268185335211456E-4> : tensor<16xf64>
+  return %splat : tensor<2xf32>
 }
