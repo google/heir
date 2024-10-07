@@ -1,7 +1,11 @@
+# bazel
 bazel-bin
 bazel-heir
 bazel-out
 bazel-testlogs
+
+# cmake
+build
 
 # Generated files by hugo
 docs/public/

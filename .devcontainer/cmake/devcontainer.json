@@ -1,0 +1,56 @@
+{
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+  // This devcontainer is based on Ubuntu 24.04 LTS
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    // we must install a non-os-provided python to get around
+    // the "externally managed environment" restrictions
+    // that were added in Ubuntu 23+ and prevent pip global/user
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installJupyterlab": true,
+      "configureJupyterlabAllowOrigin": "*"
+    },
+    // ruby is used by some of the pre-commit tools
+    "ghcr.io/devcontainers/features/ruby:1": {},
+    // install clang and lld
+    // install cmake and ninja (as CMake generator, as it's faster)
+    "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+      "packages": "clang, lld, cmake, ninja-build"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "llvm-vs-code-extensions.vscode-mlir",
+        "ms-vscode.cpptools-extension-pack"
+      ],
+      "settings": {
+        "cmake.generator": "Ninja",
+        "cmake.configureArgs": [
+          "-DMLIR_DIR=/workspaces/llvm-project/build/lib/cmake/mlir"
+        ],
+        "mlir.server_path": "/workspaces/heir/build/bin/heir-lsp",
+        "python.analysis.exclude": [
+          "bazel-bin",
+          "bazel-heir",
+          "bazel-out",
+          "bazel-testlogs",
+          "build",
+          ".git",
+          "venv",
+          ".venv"
+        ]
+      }
+    }
+  },
+  // install pre-commit,
+  "onCreateCommand": "pip install --user -r requirements-dev.txt && pre-commit install",
+  // fetch and install LLVM/MLIR
+  // TODO (#1009): uncomment the updateContentCommand line once prebuilds are enabled
+  // "updateContentCommand": "/workspaces/heir/.devcontainer/cmake/setup_mlir.sh"
+}
