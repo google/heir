@@ -4,10 +4,10 @@
 #ideal_2 = #polynomial.int_polynomial<1 + x**2048>
 
 // Below we use random 32-bit primes
-#ring_1 = #polynomial.ring<coefficientType = i32, coefficientModulus = 3721063133 : i32, polynomialModulus=#ideal>
-#ring_2 = #polynomial.ring<coefficientType = i32, coefficientModulus = 2737228591 : i32, polynomialModulus=#ideal>
-#ring_3 = #polynomial.ring<coefficientType = i32, coefficientModulus = 3180146689 : i32, polynomialModulus=#ideal>
-#ring_bad = #polynomial.ring<coefficientType = i32, coefficientModulus = 3180146689 : i32, polynomialModulus=#ideal_2>
+#ring_1 = #polynomial.ring<coefficientType = i32, coefficientModulus = 3721063133 : i64, polynomialModulus=#ideal>
+#ring_2 = #polynomial.ring<coefficientType = i32, coefficientModulus = 2737228591 : i64, polynomialModulus=#ideal>
+#ring_3 = #polynomial.ring<coefficientType = i32, coefficientModulus = 3180146689 : i64, polynomialModulus=#ideal>
+#ring_bad = #polynomial.ring<coefficientType = i32, coefficientModulus = 3180146689 : i64, polynomialModulus=#ideal_2>
 
 !poly_ty_1 = !polynomial.polynomial<ring=#ring_1>
 !poly_ty_2 = !polynomial.polynomial<ring=#ring_2>

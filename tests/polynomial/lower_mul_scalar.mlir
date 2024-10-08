@@ -1,6 +1,6 @@
 // RUN: heir-opt --polynomial-to-standard %s | FileCheck %s
 
-!poly_ty = !polynomial.polynomial<ring=<coefficientType = i64, coefficientModulus = 18446744073709551616 : i65, polynomialModulus=#polynomial.int_polynomial<-1 + x**2047>>>
+!poly_ty = !polynomial.polynomial<ring=<coefficientType = i64, coefficientModulus = 18446744073709551616 : i128, polynomialModulus=#polynomial.int_polynomial<-1 + x**2047>>>
 
 // CHECK-LABEL: func.func @test_lower_mul_scalar
 // CHECK-SAME: (%[[ARG:.*]]: [[T:.*]])

@@ -2,7 +2,7 @@
 
 #cycl_2048 = #polynomial.int_polynomial<1 + x**1024>
 #ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 4294967296 : i64, polynomialModulus=#cycl_2048>
-#ring_prime = #polynomial.ring<coefficientType = i32, coefficientModulus = 4294967291 : i32, polynomialModulus=#cycl_2048>
+#ring_prime = #polynomial.ring<coefficientType = i32, coefficientModulus = 4294967291 : i64, polynomialModulus=#cycl_2048>
 module {
   // CHECK-label: test_lower_from_tensor
   func.func @test_lower_from_tensor() -> !polynomial.polynomial<ring=#ring> {
