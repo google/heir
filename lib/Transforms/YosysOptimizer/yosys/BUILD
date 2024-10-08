@@ -11,3 +11,7 @@ filegroup(
         "*.v",
     ]),
 )
+
+exports_files([
+    "*.v",
+])
