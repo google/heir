@@ -21,9 +21,9 @@
     "ghcr.io/devcontainers/features/ruby:1": {},
     // Bazel (and Buildifier) + Bazel extension
     "ghcr.io/devcontainers-community/features/bazel:1": {},
-    // install clang and lld
+    // install clang, lld and clangd
     "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-      "packages": "clang, lld"
+      "packages": "clang, lld, clangd"
     }
   },
   "customizations": {
@@ -53,6 +53,5 @@
     }
   },
   "onCreateCommand": "pip3 install --user -r requirements-dev.txt && pre-commit install",
-  // TODO (#1009): uncomment the updateContentCommand line once prebuilds are enabled
-  //"updateContentCommand": "bazel build @heir//tools:all && bazel run @hedron_compile_commands//:refresh_all"
+  "updateContentCommand": "bazel build @heir//tools:all && bazel run @hedron_compile_commands//:refresh_all"
 }
