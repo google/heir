@@ -85,7 +85,7 @@ The library is based on the CGGI cryptosystem, and so this pass is most useful
 when paired with lowerings from the `cggi` dialect.
 
 The version of `tfhe-rs` supported is defined in the
-[end to end `tfhe_rust` tests](https://github.com/google/heir/tree/main/tests/tfhe_rust/end_to_end/Cargo.toml).
+[end to end `tfhe_rust` tests](https://github.com/google/heir/tree/main/tests/Examples/tfhe_rust/Cargo.toml).
 
 Example input:
 
