@@ -110,10 +110,10 @@ harness to call into the HEIR-generated functions.
 Note: other backends are similar, but the different backends are in varying
 stages of development.
 
-The input program is in `tests/openfhe/end_to_end/dot_product_8.mlir`. Support
-for standard input languages like `C` and `C++` are currently experimental at
-best, but eventually we would use an MLIR-based tool to convert an input
-language to MLIR like in that file. The program is below:
+The input program is in `tests/Examples/openfhe/dot_product_8.mlir`. Support for
+standard input languages like `C` and `C++` are currently experimental at best,
+but eventually we would use an MLIR-based tool to convert an input language to
+MLIR like in that file. The program is below:
 
 ```mlir
 func.func @dot_product(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> i16 {
@@ -139,7 +139,7 @@ Now we run the `heir-opt` command to optimize and compile the program.
 ```bash
 bazel run //tools:heir-opt -- \
 --mlir-to-openfhe-bgv='entry-function=dot_product ciphertext-degree=8' \
-$PWD/tests/openfhe/end_to_end/dot_product_8.mlir > output.mlir
+$PWD/tests/Examples/openfhe/dot_product_8.mlir > output.mlir
 ```
 
 This produces a file in the `openfhe` exit dialect (part of HEIR). The raw

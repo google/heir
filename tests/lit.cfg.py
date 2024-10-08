@@ -35,7 +35,7 @@ mlir_tools_path = runfiles_dir.joinpath(Path(mlir_tools_relpath))
 tool_relpaths = [
     mlir_tools_relpath,
     "heir/tools",
-    "heir/tests/verilog",
+    "heir/tests/Emitter/verilog",
     "llvm-project/llvm",
     "at_clifford_yosys",
 ]
