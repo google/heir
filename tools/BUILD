@@ -83,6 +83,7 @@ cc_binary(
         "@heir//lib/Transforms/ConvertSecretInsertToStaticInsert",
         "@heir//lib/Transforms/ConvertSecretWhileToStaticFor",
         "@heir//lib/Transforms/ElementwiseToAffine",
+        "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/LinalgCanonicalizations",
