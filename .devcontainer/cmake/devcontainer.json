@@ -48,9 +48,8 @@
       }
     }
   },
-  // install pre-commit,
+  // install pre-commit
   "onCreateCommand": "pip install --user -r requirements-dev.txt && pre-commit install",
-  // fetch and install LLVM/MLIR
-  // TODO (#1009): uncomment the updateContentCommand line once prebuilds are enabled
-  // "updateContentCommand": "/workspaces/heir/.devcontainer/cmake/setup_mlir.sh"
+  // fetch and install LLVM/MLIR +  compile HEIR
+  "updateContentCommand": "cd /workspaces/heir/.devcontainer/cmake && ./setup_mlir.sh && ./setup_heir.sh"
 }
