@@ -1,14 +1,17 @@
 name: Nightly release
-permissions:
-  contents: write
-  # Packages write permission required to update a release
-  packages: write
+
+permissions: read-all
+
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'
 jobs:
   build-and-test:
+    permissions:
+      contents: write
+      # Packages write permission required to update a release
+      packages: write
     runs-on:
       labels: ubuntu-20.04-8core
     steps:
