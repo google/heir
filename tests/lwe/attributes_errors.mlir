@@ -64,3 +64,24 @@ func.func @test_invalid_inverse_canonical_embedding_encoding() {
   %a = arith.constant dense<[2, 2, 5]> : tensor<3xi32, #inverse_canonical_enc2>
   return
 }
+
+// -----
+
+// expected-error@below {{overflow must be either preserve_overflow or no_overflow, but found i1}}
+#application = #lwe.application_data<message_type = i1, overflow = i1>
+
+// -----
+
+#poly = #polynomial.int_polynomial<x**1024 + 10>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 65536 : i32, polynomialModulus=#poly>
+#crt = #lwe.full_crt_packing_encoding<scaling_factor = 10000>
+// expected-error@below {{polynomial modulus must be of the form x^n + 1}}
+#plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #crt>
+
+// -----
+
+#poly = #polynomial.int_polynomial<x**1024 + 1>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 12220 : i32, polynomialModulus=#poly>
+#crt = #lwe.full_crt_packing_encoding<scaling_factor = 10000>
+// expected-error@below {{modulus must be 1 mod n for full CRT packing}}
+#plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #crt>

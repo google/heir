@@ -99,3 +99,78 @@ func.func @test_valid_inverse_canonical_embedding_encoding(%coeffs1 : tensor<10x
   %rlwe_ciphertext = tensor.from_elements %poly1, %poly2 : tensor<2x!polynomial.polynomial<ring=#ring4>, #inverse_canonical_enc>
   return
 }
+
+// -----
+
+#preserve_overflow = #lwe.preserve_overflow<>
+#application = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}
+
+// -----
+
+#application = #lwe.application_data<message_type = i1>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}
+
+// -----
+
+#generator4 = #polynomial.int_polynomial<1 + x**1024>
+#ring4 = #polynomial.ring<coefficientType = i32, coefficientModulus = 65536 : i32, polynomialModulus=#generator4>
+#inverse_canonical_enc = #lwe.inverse_canonical_encoding<scaling_factor = 10000>
+
+#plaintext_space = #lwe.plaintext_space<ring = #ring4, encoding = #inverse_canonical_enc>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}
+
+// -----
+
+#poly = #polynomial.int_polynomial<x**1024 + 1>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 12289 : i32, polynomialModulus=#poly>
+#crt = #lwe.full_crt_packing_encoding<scaling_factor = 10000>
+#plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #crt>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}
+
+// -----
+
+#key = #lwe.key<id = "1234">
+#key_rlwe_rotate = #lwe.key<id = "1234", basis = 0, 2>
+#key_rlwe_2 = #lwe.key<id = "1234", size = 2>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}
+
+// -----
+
+#generator4 = #polynomial.int_polynomial<1 + x**1024>
+#ring4 = #polynomial.ring<coefficientType = i32, coefficientModulus = 65536 : i32, polynomialModulus=#generator4>
+
+#ciphertext_space = #lwe.ciphertext_space<ring = #ring4, encryption_type = msb>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}
+// -----
+
+#modulus_chain = #lwe.modulus_chain<elements = <463187969 : i32, 33538049 : i32>, current = 0>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}

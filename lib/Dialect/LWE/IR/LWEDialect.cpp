@@ -10,12 +10,14 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
 // Generated definitions
 #include "lib/Dialect/LWE/IR/LWEDialect.cpp.inc"
+#include "lib/Dialect/LWE/IR/LWEEnums.cpp.inc"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
@@ -61,8 +63,8 @@ LogicalResult RMulOp::verify() {
 }
 
 LogicalResult RMulOp::inferReturnTypes(
-    MLIRContext *ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
-    SmallVectorImpl<Type> &inferredReturnTypes) {
+    MLIRContext* ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
   auto x = cast<lwe::RLWECiphertextType>(adaptor.getLhs().getType());
   auto y = cast<lwe::RLWECiphertextType>(adaptor.getRhs().getType());
   auto newDim =
@@ -227,6 +229,50 @@ LogicalResult RLWEEncryptOp::verify() {
            << keyParams << ". Output ciphertext params: " << outputParams
            << ".";
   }
+  return success();
+}
+
+LogicalResult ApplicationDataAttr::verify(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    mlir::Type messageType, Attribute overflow) {
+  if (!mlir::isa<PreserveOverflowAttr, NoOverflowAttr>(overflow)) {
+    return emitError() << "overflow must be either preserve_overflow or "
+                       << "no_overflow, but found " << overflow << "\n";
+  }
+
+  return success();
+}
+
+LogicalResult PlaintextSpaceAttr::verify(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    mlir::polynomial::RingAttr ring, Attribute encoding) {
+  if (mlir::isa<FullCRTPackingEncodingAttr>(encoding)) {
+    // For full CRT packing, the ring must be of the form x^n + 1 and the
+    // modulus must be 1 mod n.
+    auto polyMod = ring.getPolynomialModulus();
+    auto poly = polyMod.getPolynomial();
+    auto polyTerms = poly.getTerms();
+    if (polyTerms.size() != 2) {
+      return emitError() << "polynomial modulus must be of the form x^n + 1, "
+                         << "but found " << polyMod << "\n";
+    }
+    const auto& constantTerm = polyTerms[0];
+    const auto& constantCoeff = constantTerm.getCoefficient();
+    if (!(constantTerm.getExponent().isZero() && constantCoeff.isOne() &&
+          polyTerms[1].getCoefficient().isOne())) {
+      return emitError() << "polynomial modulus must be of the form x^n + 1, "
+                         << "but found " << polyMod << "\n";
+    }
+    // Check that the modulus is 1 mod n.
+    APInt modulus = ring.getCoefficientModulus().getValue();
+    unsigned n = poly.getDegree();
+    if (!modulus.urem(APInt(modulus.getBitWidth(), n)).isOne()) {
+      return emitError()
+             << "modulus must be 1 mod n for full CRT packing, mod = "
+             << ring.getCoefficientModulus() << " n = " << n << "\n";
+    }
+  }
+
   return success();
 }
 

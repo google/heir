@@ -8,6 +8,7 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/TensorEncoding.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
+include "lib/Dialect/LWE/IR/NewLWEAttributes.td"
 
 class LWE_EncodingAttr<string attrName, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<LWE_Dialect, attrName, traits # [
@@ -21,9 +22,6 @@ class LWE_EncodingAttr<string attrName, string attrMnemonic, list<Trait> traits 
 
 class LWE_EncodingAttrWithScalingFactor<string attrName, string attrMnemonic, list<Trait> traits = []>
     : LWE_EncodingAttr<attrName, attrMnemonic, traits> {
-  // These parameters represent the base-2 logarithm of the scaling factor to
-  // scale cleartexts in preparation for noise growth of FHE schemes. This
-  // representation restricts the scaling factors to being powers of two.
   let parameters = (ins
     "unsigned":$cleartext_start,
     "unsigned":$cleartext_bitwidth
@@ -293,6 +291,13 @@ def RLWE_InverseCanonicalEmbeddingEncoding
 }
 
 def AnyRLWEEncodingAttr : AnyAttrOf<[RLWE_PolynomialCoefficientEncoding, RLWE_PolynomialEvaluationEncoding, RLWE_InverseCanonicalEmbeddingEncoding]>;
+
+def AnyPlaintextEncodingInfo : AnyAttrOf<[
+  LWE_BitFieldEncoding,
+  RLWE_PolynomialCoefficientEncoding,
+  RLWE_PolynomialEvaluationEncoding,
+  RLWE_InverseCanonicalEmbeddingEncoding
+]>;
 
 def LWE_LWEParams : AttrDef<LWE_Dialect, "LWEParams"> {
   let mnemonic = "lwe_params";
