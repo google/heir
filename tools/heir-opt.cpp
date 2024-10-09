@@ -156,6 +156,7 @@ void oneShotBufferize(OpPassManager &manager) {
   manager.addPass(bufferization::createBufferDeallocationSimplificationPass());
   manager.addPass(bufferization::createLowerDeallocationsPass());
   manager.addPass(createCSEPass());
+  manager.addPass(mlir::createBufferizationToMemRefPass());
   manager.addPass(createCanonicalizerPass());
 }
 
@@ -185,6 +186,19 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createSymbolDCEPass());
 }
 
+void convertToDataObliviousPipelineBuilder(OpPassManager &manager) {
+  // Access Transformation
+  manager.addPass(createConvertSecretExtractToStaticExtract());
+  manager.addPass(createConvertSecretInsertToStaticInsert());
+
+  // Loop Transformation
+  manager.addPass(createConvertSecretWhileToStaticFor());
+  manager.addPass(createConvertSecretForToStaticFor());
+
+  // If Transformation
+  manager.addPass(createConvertIfToSelect());
+}
+
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
   manager.addPass(createElementwiseToAffine());
@@ -208,6 +222,43 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
   manager.addPass(createLowerAffinePass());
   manager.addPass(createBufferizationToMemRefPass());
+
+  // Cleanup
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createSymbolDCEPass());
+
+  // ToLLVM
+  manager.addPass(arith::createArithExpandOpsPass());
+  manager.addPass(createConvertSCFToCFPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+  manager.addPass(createConvertToLLVMPass());
+
+  // Cleanup
+  manager.addPass(createCanonicalizerPass());
+  manager.addPass(createSCCPPass());
+  manager.addPass(createCSEPass());
+  manager.addPass(createSymbolDCEPass());
+}
+
+void basicMLIRToLLVMPipelineBuilder(OpPassManager &manager) {
+  // Linalg
+  manager.addNestedPass<FuncOp>(createConvertElementwiseToLinalgPass());
+  // Needed to lower affine.map and affine.apply
+  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  manager.addPass(createLowerAffinePass());
+  manager.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+  manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+
+  // Bufferize
+  oneShotBufferize(manager);
+
+  // Linalg must be bufferized before it can be lowered
+  // But lowering to loops also re-introduces affine.apply, so re-lower that
+  manager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
+  manager.addPass(createLowerAffinePass());
 
   // Cleanup
   manager.addPass(createCanonicalizerPass());
@@ -571,6 +622,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   // Secretize inputs
   pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
   pm.addPass(createWrapGeneric());
+  convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
@@ -806,6 +858,10 @@ int main(int argc, char **argv) {
       "Run passes to lower the polynomial dialect to LLVM",
       polynomialToLLVMPipelineBuilder);
 
+  PassPipelineRegistration<>("heir-basic-mlir-to-llvm",
+                             "Lower basic MLIR to LLVM",
+                             basicMLIRToLLVMPipelineBuilder);
+
   PassPipelineRegistration<>(
       "heir-simd-vectorizer",
       "Run scheme-agnostic passes to convert FHE programs that operate on "
@@ -838,6 +894,11 @@ int main(int argc, char **argv) {
       "export "
       "to OpenFHE C++ code.",
       mlirToOpenFheRLWEPipelineBuilder(RLWEScheme::ckks));
+
+  PassPipelineRegistration<>(
+      "convert-to-data-oblivious",
+      "Transforms a native program to data-oblivious program",
+      convertToDataObliviousPipelineBuilder);
 
   return asMainReturnCode(
       MlirOptMain(argc, argv, "HEIR Pass Driver", registry));
