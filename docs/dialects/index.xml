@@ -4968,10 +4968,11 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.reduce` operands attr-dict `:` type($output)
 &lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.reduce x {modulus = q}&lt;/code> computes $y \in [0, q)$ such that
 $x \equiv y \mod n$.&lt;/p>
-&lt;p>Note this will interpret &lt;code>x&lt;/code> as a signed integer. For an unsigned integer,
-equivalent functionality is: &lt;code>y = arith.remui x&lt;/code>.&lt;/p>
-&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>&lt;/p>
+&lt;p>Note this will interpret &lt;code>x&lt;/code> as a signed integer. It is required the bitwidth of &lt;code>q&lt;/code> is smaller
+than that of &lt;code>x&lt;/code>. For an unsigned integer, equivalent functionality is: &lt;code>y = arith.remui x&lt;/code>.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-4">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
