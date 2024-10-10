@@ -1,4 +1,5 @@
 name: Build website, deploy to GH pages if on main
+permissions: read-all
 
 on:
   push:
@@ -42,7 +43,7 @@ jobs:
 
     # Please update the local install instructions at docs/README.md if changing node version
     - name: Setup Node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
       with:
         node-version: '18'
         cache: 'npm'
