@@ -42,7 +42,7 @@ def HasEnoughSpaceMul: Constraint<CPred<"llvm::cast<IntegerType>(getElementTypeO
 
 def CastModulusAttributeAddSub : NativeCodeCall<"modulusHelper($0,$1,false)">;
 def CastModulusAttributeMul : NativeCodeCall<"modulusHelper($0,$1,true)">;
-def CastModulusAttributeReduce : NativeCodeCall<"modulusHelper($0,$1,false,false)">;
+def CastModulusAttributeReduce : NativeCodeCall<"modulusHelper($0,$1,false,true)">;
 
 def ConvertAddSimple : Pattern<
   (ModArith_AddOp:$op $x, $y, $mod),
@@ -157,7 +157,7 @@ def ConvertMac : Pattern<
 def ConvertReduce : Pattern<
   (ModArith_ReduceOp $x, $mod),
   [
-    (Arith_ConstantOp:$newmod (CastModulusAttributeAddSub $mod, $x)),
+    (Arith_ConstantOp:$newmod (CastModulusAttributeReduce $mod, $x)),
     (Arith_RemUIOp (Arith_AddIOp (Arith_RemSIOp $x, $newmod), $newmod, DefOverflow), $newmod)
   ]
 >;
