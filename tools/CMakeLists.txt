@@ -151,6 +151,7 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRLWEToPolynomial
         MLIRHeirConvertSecretForToStaticFor
         MLIRHeirConvertSecretWhileToStaticFor
+        MLIRHeirForwardInsertToExtract
 
         MLIRRandom
         MLIRCGGIToJaxiteTransforms

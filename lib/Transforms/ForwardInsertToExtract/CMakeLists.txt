@@ -1,5 +1,6 @@
 set(LLVM_TARGET_DEFINITIONS ForwardInsertToExtract.td)
-mlir_tablegen(ForwardInsertToExtract.h.inc -gen-pass-decls -name ForwardInsertToExtract)
+mlir_tablegen(ForwardInsertToExtract.h.inc -gen-pass-decls -name=ForwardInsertToExtract)
+
 add_public_tablegen_target(MLIRHeirForwardInsertToExtractIncGen)
 
 add_mlir_dialect_library(MLIRHeirForwardInsertToExtract
@@ -17,3 +18,4 @@ add_mlir_dialect_library(MLIRHeirForwardInsertToExtract
     MLIRDialect
     MLIRIR
 )
+add_dependencies(MLIRHeirForwardInsertToExtract MLIRHeirForwardInsertToExtractIncGen)
