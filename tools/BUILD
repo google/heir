@@ -88,6 +88,7 @@ cc_binary(
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/LinalgCanonicalizations",
         "@heir//lib/Transforms/OperationBalancer",
+        "@heir//lib/Transforms/OptimizeRelinearization",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/StraightLineVectorizer",
         "@heir//lib/Transforms/UnusedMemRef",
