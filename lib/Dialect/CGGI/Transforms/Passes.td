@@ -38,6 +38,12 @@ def BooleanLineVectorizer : Pass<"cggi-boolean-line-vectorize"> {
     "tensor::TensorDialect",
   ];
 
+  // TODO(gshruthi): Maybe there is a better name than parallelism.
+  let options = [
+    Option<"parallelism", "parallelism", "int",
+           /*default=*/"0", "Parallelism factor for batching. 0 is infinite parallelism">
+  ];
+
   // let dependentDialects = ["mlir::heir::cggi::CGGIDialect"];
 }
 
