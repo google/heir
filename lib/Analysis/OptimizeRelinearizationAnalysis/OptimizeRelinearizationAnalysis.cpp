@@ -257,8 +257,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     // result_degree = before_relin (1 - insert_relin_op)
     //   + 1 * insert_relin_op,
     //
-    // linearized due to the quadratic term input_key_basis_degree *
-    // insert_relin_op
+    // linearized due to the quadratic term before_relin * insert_relin_op
 
     auto inf = solver->infinity();
     if (!hasCiphertextType(op->getOperands()) ||
