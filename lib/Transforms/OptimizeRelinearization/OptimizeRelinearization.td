@@ -11,20 +11,19 @@ def OptimizeRelinearization : Pass <"optimize-relinearization"> {
         additions, such as in a dot product. Because relinearization also adds error,
         deferring it can reduce the need for bootstrapping.
 
-        In much of the literature, lazy relinearization is applied manually. See for example
-        Blatt-Gusev-Polyakov-Rohloff-Vaikuntanathan 2019 https://eprint.iacr.org/2019/223
-        and Lee-Lee-Kim-Kim-No-Kang 2020 https://eprint.iacr.org/2020/1549.
+        In this pass, we use an integer linear program to determine the optimal
+        relinearization strategy. It solves an ILP for each `func` op in the IR.
 
-        In the EVA compiler https://eprint.iacr.org/2021/1505.pdf,
-        relinearization is applied automatically via a heuristic, either
-        immediately after each multiplication op, or "lazily," deferred as late
-        as possible.
+        The assumptions of this pass include:
 
-        In this pass, we use an integer linear program to determine the optimal relinearization
-        strategy. This is an adaptation of the ILP described in
-        https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis
+        - All return values of functions must be linearized.
+        - All ciphertext arguments to an op must have the same key basis
+        - Rotation op inputs must have be linearized.
 
-        TODO(#1026): document the ILP spec
+        For an ILP model specification, see the
+        [docs at the HEIR website](https://heir.dev/docs/design/relinearization_ilp/).
+        The model is an adaptation of the ILP described in
+        [a blog post by Jeremy Kun](https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis).
     }];
 
     // TODO(#1032): generalize to support other schemes
