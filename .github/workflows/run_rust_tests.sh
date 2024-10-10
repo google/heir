@@ -7,7 +7,7 @@ set -o pipefail
 # variable from the parent process, which is needed to find the `cargo`
 # executable.
 
-bazel query "filter('.mlir.test$', //tests/tfhe_rust/end_to_end/...)" \
+bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust/...)" \
 | xargs bazel test \
 --noincompatible_strict_action_env \
 -c fastbuild \
