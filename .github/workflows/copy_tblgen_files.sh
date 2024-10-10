@@ -27,7 +27,7 @@ done
 
 echo "Processing Conversion Passes"
 mkdir -p "$DEST_BASE/Passes/"
-for SRC_PATH in $SRC_BASE/Conversion/**/*.md
+for SRC_PATH in $SRC_BASE/Dialect/**/Conversions/**/*.md
 do
   FILENAME=$(basename "$SRC_PATH")
   FILENAME_BASE=$(basename "$SRC_PATH" .md)

@@ -1,7 +1,7 @@
 #ifndef LIB_DIALECT_TENSOREXT_IR_TENSOREXTPATTERNS_TD_
 #define LIB_DIALECT_TENSOREXT_IR_TENSOREXTPATTERNS_TD_
 
-include "lib/DRR/Utils.td"
+include "lib/Utils/DRR/Utils.td"
 include "lib/Dialect/TensorExt/IR/TensorExtOps.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"

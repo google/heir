@@ -2,7 +2,7 @@
 #define LIB_DIALECT_TENSOREXT_IR_TENSOREXTCANONICALIZATION_TD_
 
 include "TensorExtOps.td"
-include "lib/DRR/Utils.td"
+include "lib/Utils/DRR/Utils.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"
 include "mlir/IR/PatternBase.td"

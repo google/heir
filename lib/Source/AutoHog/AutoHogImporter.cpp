@@ -10,7 +10,7 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Graph/Graph.h"
+#include "lib/Utils/Graph/Graph.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/StringMap.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"             // from @llvm-project

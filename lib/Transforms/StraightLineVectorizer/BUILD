@@ -13,7 +13,7 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Graph",
+        "@heir//lib/Utils/Graph",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",

@@ -73,8 +73,8 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "NTTRewrites.td",
     deps = [
-        "@heir//lib/DRR",
         "@heir//lib/Dialect/ModArith/IR:td_files",
+        "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:PolynomialTdFiles",
     ],

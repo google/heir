@@ -5,7 +5,7 @@
 #include "lib/Dialect/CGGI/IR/CGGIAttributes.h"
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Graph/Graph.h"
+#include "lib/Utils/Graph/Graph.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"  // from @llvm-project

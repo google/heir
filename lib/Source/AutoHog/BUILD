@@ -12,7 +12,7 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Graph",
+        "@heir//lib/Utils/Graph",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
