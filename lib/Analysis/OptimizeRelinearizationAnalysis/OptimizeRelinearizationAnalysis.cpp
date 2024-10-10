@@ -195,31 +195,15 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
         });
   });
 
-  // Add constraints that control the effect of relinearization insertion.
+  // Add constraints that set the before_relin variables appropriately
   opToRunOn->walk([&](Operation *op) {
     llvm::TypeSwitch<Operation &>(*op)
         .Case<bgv::MulOp>([&](auto op) {
-          // result_degree =
-          //   (arg1_degree + arg2_degree) (1 - insert_relin_op)
-          //   + 1 * insert_relin_op,
-          //
-          // but linearized due to the quadratic term input_key_basis_degree *
-          // insert_relin_op, and an extra variable inserted to keep track of
-          // the difference between the before_relin and after_relin degrees:
-          //
-          // before_relin = arg1_degree + arg2_degree
-          // result_degree =
-          //   before_relin (1 - insert_relin_op) + 1 * insert_relin_op
-
-          auto inf = solver->infinity();
           auto lhsDegreeVar = keyBasisVars.lookup(op.getLhs());
           auto rhsDegreeVar = keyBasisVars.lookup(op.getRhs());
           auto resultBeforeRelinVar = beforeRelinVars.lookup(op.getResult());
-          auto resultAfterRelinVar = keyBasisVars.lookup(op.getResult());
-          auto insertRelinOpDecision = decisionVariables.lookup(op);
-
           std::string opName = nameAndLoc(op);
-          std::string ddPrefix = "DecisionDynamics_" + opName;
+          std::string ddPrefix = "BeforeRelin_" + opName;
 
           // before_relin = arg1_degree + arg2_degree
           cstName = ddPrefix + "_0";
@@ -232,53 +216,14 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
             ct0->SetCoefficient(lhsDegreeVar, -1);
             ct0->SetCoefficient(rhsDegreeVar, -1);
           }
-
-          // result_key_basis_degree >= insert_relin_op
-          cstName = ddPrefix + "_1";
-          MPConstraint *const ct1 =
-              solver->MakeRowConstraint(0.0, inf, cstName);
-          ct1->SetCoefficient(resultAfterRelinVar, 1);
-          ct1->SetCoefficient(insertRelinOpDecision, -INITIAL_KEY_BASIS_DEGREE);
-
-          // result_key_basis_degree <= 1 + (1 - insert_relin_op) * BIG_CONST
-          cstName = ddPrefix + "_2";
-          MPConstraint *const ct2 = solver->MakeRowConstraint(
-              0.0, INITIAL_KEY_BASIS_DEGREE + IF_THEN_AUX, cstName);
-          ct2->SetCoefficient(resultAfterRelinVar, 1);
-          ct2->SetCoefficient(insertRelinOpDecision, IF_THEN_AUX);
-
-          // result_key_basis_degree >= (arg1_degree + arg2_degree)
-          // - insert_relin_op * BIG_CONST
-          cstName = ddPrefix + "_3";
-          MPConstraint *const ct3 =
-              solver->MakeRowConstraint(0.0, inf, cstName);
-          ct3->SetCoefficient(resultAfterRelinVar, 1);
-          ct3->SetCoefficient(insertRelinOpDecision, IF_THEN_AUX);
-          ct3->SetCoefficient(resultBeforeRelinVar, -1);
-
-          // result_key_basis_degree <= (arg1_degree + arg2_degree)
-          // + insert_relin_op * BIG_CONST
-          cstName = ddPrefix + "_4";
-          MPConstraint *const ct4 =
-              solver->MakeRowConstraint(-inf, 0.0, cstName);
-          ct4->SetCoefficient(resultAfterRelinVar, 1);
-          ct4->SetCoefficient(insertRelinOpDecision, -IF_THEN_AUX);
-          ct4->SetCoefficient(resultBeforeRelinVar, -1);
         })
         .Default([&](Operation &op) {
-          // For any other op, the key basis does not change, unless we insert
+          // For any other op, the key basis does not change unless we insert
           // a relin op. Because the verifier ensures the operands and results
           // have identical key bases, we can just pass through the first
-          // argument.
+          // argument to the before_relin variable.
           //
           // before_relin = arg1_degree
-          // result_degree = before_relin (1 - insert_relin_op)
-          //   + 1 * insert_relin_op,
-          //
-          // linearized due to the quadratic term input_key_basis_degree *
-          // insert_relin_op
-
-          auto inf = solver->infinity();
           if (!hasCiphertextType(op.getOperands()) ||
               !hasCiphertextType(op.getResults())) {
             return;
@@ -287,8 +232,6 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
 
           for (Value result : op.getResults()) {
             auto *resultBeforeRelinVar = beforeRelinVars.lookup(result);
-            auto *resultAfterRelinVar = keyBasisVars.lookup(result);
-            auto *insertRelinOpDecision = decisionVariables.lookup(&op);
             std::string opName = nameAndLoc(&op);
             std::string ddPrefix = "DecisionDynamics_" + opName;
 
@@ -301,42 +244,63 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
                 solver->MakeRowConstraint(0.0, 0.0, cstName);
             ct0->SetCoefficient(resultBeforeRelinVar, 1);
             ct0->SetCoefficient(argDegreeVar, -1);
-
-            // result_key_basis_degree >= insert_relin_op
-            cstName = ddPrefix + "_1";
-            MPConstraint *const ct1 =
-                solver->MakeRowConstraint(0.0, inf, cstName);
-            ct1->SetCoefficient(resultAfterRelinVar, 1);
-            ct1->SetCoefficient(insertRelinOpDecision,
-                                -INITIAL_KEY_BASIS_DEGREE);
-
-            // result_key_basis_degree <= 1 + (1 - insert_relin_op) *
-            // BIG_CONST
-            cstName = ddPrefix + "_2";
-            MPConstraint *const ct2 = solver->MakeRowConstraint(
-                0.0, INITIAL_KEY_BASIS_DEGREE + IF_THEN_AUX, cstName);
-            ct2->SetCoefficient(resultAfterRelinVar, 1);
-            ct2->SetCoefficient(insertRelinOpDecision, IF_THEN_AUX);
-
-            // result_key_basis_degree >= before_degree - insert_relin_op *
-            // BIG_CONST
-            cstName = ddPrefix + "_3";
-            MPConstraint *const ct3 =
-                solver->MakeRowConstraint(0.0, inf, cstName);
-            ct3->SetCoefficient(resultAfterRelinVar, 1);
-            ct3->SetCoefficient(insertRelinOpDecision, IF_THEN_AUX);
-            ct3->SetCoefficient(resultBeforeRelinVar, -1);
-
-            // result_key_basis_degree <= before_degree + insert_relin_op *
-            // BIG_CONST
-            cstName = ddPrefix + "_4";
-            MPConstraint *const ct4 =
-                solver->MakeRowConstraint(-inf, 0.0, cstName);
-            ct4->SetCoefficient(resultAfterRelinVar, 1);
-            ct4->SetCoefficient(insertRelinOpDecision, -IF_THEN_AUX);
-            ct4->SetCoefficient(resultBeforeRelinVar, -1);
           }
         });
+  });
+
+  // Add constraints that control the effect of relinearization insertion.
+  opToRunOn->walk([&](Operation *op) {
+    // We don't need a type switch here because the only difference
+    // between mul and other ops is how the before_relin variable is related to
+    // the operand variables.
+    //
+    // result_degree = before_relin (1 - insert_relin_op)
+    //   + 1 * insert_relin_op,
+    //
+    // linearized due to the quadratic term input_key_basis_degree *
+    // insert_relin_op
+
+    auto inf = solver->infinity();
+    if (!hasCiphertextType(op->getOperands()) ||
+        !hasCiphertextType(op->getResults())) {
+      return;
+    }
+
+    for (Value result : op->getResults()) {
+      auto *resultBeforeRelinVar = beforeRelinVars.lookup(result);
+      auto *resultAfterRelinVar = keyBasisVars.lookup(result);
+      auto *insertRelinOpDecision = decisionVariables.lookup(op);
+      std::string opName = nameAndLoc(op);
+      std::string ddPrefix = "DecisionDynamics_" + opName;
+
+      // result_degree >= insert_relin_op
+      cstName = ddPrefix + "_1";
+      MPConstraint *const ct1 = solver->MakeRowConstraint(0.0, inf, cstName);
+      ct1->SetCoefficient(resultAfterRelinVar, 1);
+      ct1->SetCoefficient(insertRelinOpDecision, -INITIAL_KEY_BASIS_DEGREE);
+
+      // result_degree <= 1 + (1 - insert_relin_op) *
+      // BIG_CONST
+      cstName = ddPrefix + "_2";
+      MPConstraint *const ct2 = solver->MakeRowConstraint(
+          0.0, INITIAL_KEY_BASIS_DEGREE + IF_THEN_AUX, cstName);
+      ct2->SetCoefficient(resultAfterRelinVar, 1);
+      ct2->SetCoefficient(insertRelinOpDecision, IF_THEN_AUX);
+
+      // result_degree >= before_relin - C * insert_relin_op
+      cstName = ddPrefix + "_3";
+      MPConstraint *const ct3 = solver->MakeRowConstraint(0.0, inf, cstName);
+      ct3->SetCoefficient(resultAfterRelinVar, 1);
+      ct3->SetCoefficient(insertRelinOpDecision, IF_THEN_AUX);
+      ct3->SetCoefficient(resultBeforeRelinVar, -1);
+
+      // result_degree <= before_relin + C * insert_relin_op
+      cstName = ddPrefix + "_4";
+      MPConstraint *const ct4 = solver->MakeRowConstraint(-inf, 0.0, cstName);
+      ct4->SetCoefficient(resultAfterRelinVar, 1);
+      ct4->SetCoefficient(insertRelinOpDecision, -IF_THEN_AUX);
+      ct4->SetCoefficient(resultBeforeRelinVar, -1);
+    }
   });
 
   // Dump the model
