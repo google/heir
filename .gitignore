@@ -15,8 +15,14 @@ docs/node_modules/
 .hugo_build.lock
 hugo_stats.json
 
-# for python dependencies
+# python
 venv
+**/dist/
+
+# heir_play
+scripts/jupyter/.ipynb_checkpoints/
+scripts/jupyter/heir-opt
+scripts/jupyter/heir-translate
 
 # for rust codegen tests
 **/Cargo.lock
