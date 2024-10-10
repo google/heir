@@ -25,11 +25,11 @@ basis_, which is the vector $\\mathbf{s_c}$ whose dot product with $\\mathbf{c}$
 decrypts it.
 
 Usually a larger key basis is undesirable. For one, operations in a higher key
-basis are more expensive. Repeated multiplications exponentially increase the
-length of the key basis. So to avoid this, an operation called _relinearization_
-was designed that converts a ciphertext from a given key basis back to $(1, s)$.
-Doing this requires a set of _relinearization keys_ to be provided by the client
-and stored by the server.
+basis are more expensive and have higher rates of noise growth. Repeated
+multiplications exponentially increase the length of the key basis. So to avoid
+this, an operation called _relinearization_ was designed that converts a
+ciphertext from a given key basis back to $(1, s)$. Doing this requires a set of
+_relinearization keys_ to be provided by the client and stored by the server.
 
 In general, key bases can be arbitrary. Rotation of an RLWE ciphertext by a
 shift of $k$, for example, first applies the automorphism $x \\mapsto x^k$. This
@@ -67,12 +67,12 @@ relinearization is applied automatically via a heuristic, either "eagerly"
 (immediately after each multiplication op) or "lazily," deferred as late as
 possible.
 
+## The `optimize-relinearization` pass
+
 In HEIR, relinearization placement is implemented via a mixed-integer linear
 program (ILP). It is intended to be more general than a lazy relinearization
 heuristic, and certain parameter settings of the ILP reproduce lazy
 relinearization.
-
-## Pass prerequisites
 
 The `optimize-relinearization` pass starts by deleting all relinearization
 operations from the IR, solves the ILP, and then inserts relinearization ops
