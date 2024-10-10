@@ -12,6 +12,7 @@ add_subdirectory(OperationBalancer)
 add_subdirectory(ConvertSecretInsertToStaticInsert)
 add_subdirectory(ConvertSecretExtractToStaticExtract)
 add_subdirectory(LinalgCanonicalizations)
+add_subdirectory(ForwardInsertToExtract)
 
 if(ENABLE_YOSYS)
     # TODO (#797): Support Yosys in cmake build.

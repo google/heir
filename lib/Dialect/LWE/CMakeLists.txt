@@ -25,3 +25,4 @@ add_mlir_dialect_library(MLIRLWE
 )
 add_dependencies(MLIRLWE MLIRLWEIncGen)
 add_dependencies(MLIRLWE MLIRLWEPassesIncGen)
+add_dependencies(MLIRLWE MLIRLWEAttributesIncGen)

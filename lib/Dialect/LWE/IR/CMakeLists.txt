@@ -13,8 +13,9 @@ mlir_tablegen(LWETypes.h.inc -gen-typedef-decls -dialect=lwe)
 mlir_tablegen(LWETypes.cpp.inc -gen-typedef-defs -dialect=lwe)
 add_public_tablegen_target(MLIRLWETypesIncGen)
 
-
 set(LLVM_TARGET_DEFINITIONS LWEAttributes.td)
 mlir_tablegen(LWEAttributes.cpp.inc -gen-attrdef-defs -attrdefs-dialect="lwe")
 mlir_tablegen(LWEAttributes.h.inc -gen-attrdef-decls -attrdefs-dialect="lwe")
+mlir_tablegen(LWEEnums.h.inc -gen-enum-decls)
+mlir_tablegen(LWEEnums.cpp.inc -gen-enum-defs)
 add_public_tablegen_target(MLIRLWEAttributesIncGen)
