@@ -11,7 +11,7 @@ cc_library(
     hdrs = ["{{ pass_name }}.h"],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Conversion:Utils",
+        "@heir//lib/Utils/ConversionUtils",
         "@heir//lib/Dialect/{{ source_dialect_name }}/IR:Dialect",
         "@heir//lib/Dialect/{{ target_dialect_name }}/IR:Dialect",
         "@llvm-project//mlir:IR",

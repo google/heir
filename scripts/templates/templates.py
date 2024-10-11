@@ -107,7 +107,8 @@ class CLI:
         if not target_dialect_namespace:
             target_dialect_namespace = target_dialect_mnemonic
 
-        lib_path = self.root / "lib" / "Conversion" / pass_name
+        lib_path = self.root / "lib" / "Dialect" / \
+            source_dialect_name / "Conversions" / pass_name
 
         if not force and os.path.isdir(lib_path):
             raise ValueError(f"Conversion pass directories already exist at {lib_path}")
@@ -282,7 +283,8 @@ class CLI:
         lib_path = self.root / "lib" / "Dialect" / dialect_name / "IR"
 
         if not force and os.path.isdir(lib_path):
-            raise ValueError(f"Dialect directories already exist at {lib_path}")
+            raise ValueError(
+                f"Dialect directories already exist at {lib_path}")
 
         templates_path = self.root / "scripts" / "templates" / "Dialect"
         templ_lib = templates_path / "lib"

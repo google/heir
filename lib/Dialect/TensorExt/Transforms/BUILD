@@ -92,10 +92,10 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Conversion:Utils",
         "@heir//lib/Dialect:Utils",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils/ConversionUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
@@ -142,9 +142,9 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "InsertRotate.td",
     deps = [
-        "@heir//lib/DRR",
         "@heir//lib/Dialect/TensorExt/IR:ops_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:td_files",
+        "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:TensorOpsTdFiles",
     ],
