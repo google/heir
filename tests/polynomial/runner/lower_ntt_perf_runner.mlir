@@ -6,8 +6,8 @@
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
 #cycl = #polynomial.int_polynomial<1 + x**65536>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 786433 : i32, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=283965:i32, degree=131072:i32>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 786433 : i32, polynomialModulus=#cycl, primitiveRoot=#root>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func @test_poly_ntt() {
@@ -17,14 +17,14 @@ func.func @test_poly_ntt() {
   %insert_rand0 = tensor.insert_slice %rand_coeffs into %full[0] [256] [1] : tensor<256xi32> into tensor<65536xi32>
   %insert_rand1 = tensor.insert_slice %rand_coeffs into %insert_rand0[65280] [256] [1] : tensor<256xi32> into tensor<65536xi32>
   %poly = polynomial.from_tensor %insert_rand1 : tensor<65536xi32> -> !poly_ty
-  %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<65536xi32, #ring>
+  %0 = polynomial.ntt %poly : !poly_ty -> tensor<65536xi32, #ring>
 
   // Insert casts so that intt(ntt()) does not get folded away during polynomial
   // canonicalization
   %cast = tensor.cast %0 : tensor<65536xi32, #ring> to tensor<65536xi32>
   %cast_back = tensor.cast %cast : tensor<65536xi32> to tensor<65536xi32, #ring>
 
-  %1 = polynomial.intt %cast_back {root=#root} : tensor<65536xi32, #ring> -> !poly_ty
+  %1 = polynomial.intt %cast_back : tensor<65536xi32, #ring> -> !poly_ty
 
   %2 = polynomial.to_tensor %1 : !poly_ty -> tensor<65536xi32>
   %4 = bufferization.to_memref %2 : memref<65536xi32>

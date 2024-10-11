@@ -2,7 +2,8 @@
 // RUN: heir-opt --convert-polynomial-mul-to-ntt %s | FileCheck --check-prefix=EXT --check-prefix=CHECK %s
 
 #ideal = #polynomial.int_polynomial<1 + x**4>
-#ring = #polynomial.ring<coefficientType=i32, coefficientModulus=17:i32, polynomialModulus=#ideal>
+#root = #polynomial.primitive_root<value=2:i32, degree=8:i32>
+#ring = #polynomial.ring<coefficientType=i32, coefficientModulus=17:i32, polynomialModulus=#ideal, primitiveRoot=#root>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 // CHECK: func.func @rewrite_poly_mul(%[[poly0:.*]]: [[POLY_TY:.*]], %[[poly1:.*]]: [[POLY_TY]]) -> [[POLY_TY]] {

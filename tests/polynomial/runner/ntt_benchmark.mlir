@@ -1,6 +1,6 @@
 #cycl = #polynomial.int_polynomial<1 + x**65536>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 786433 : i32, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=283965:i32, degree=131072:i32>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 786433 : i32, polynomialModulus=#cycl, primitiveRoot=#root>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func @input_generation() -> !poly_ty attributes { llvm.emit_c_interface } {
@@ -14,11 +14,11 @@ func.func @input_generation() -> !poly_ty attributes { llvm.emit_c_interface } {
 }
 
 func.func @ntt(%arg0 : !poly_ty) -> tensor<65536xi32, #ring> attributes { llvm.emit_c_interface } {
-  %0 = polynomial.ntt %arg0 {root=#root} : !poly_ty -> tensor<65536xi32, #ring>
+  %0 = polynomial.ntt %arg0 : !poly_ty -> tensor<65536xi32, #ring>
   return %0 : tensor<65536xi32, #ring>
 }
 
 func.func @intt(%arg0 : tensor<65536xi32, #ring>) -> !poly_ty attributes { llvm.emit_c_interface } {
-  %0 = polynomial.intt %arg0 {root=#root} : tensor<65536xi32, #ring> -> !poly_ty
+  %0 = polynomial.intt %arg0 : tensor<65536xi32, #ring> -> !poly_ty
   return %0 :!poly_ty
 }

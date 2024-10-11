@@ -4,8 +4,8 @@
 // https://doi.org/10.1109/ACCESS.2023.3294446
 
 #cycl = #polynomial.int_polynomial<1 + x**4>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
+#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl, primitiveRoot=#root>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 // CHECK-DAG: #[[ID_MAP:.*]] = affine_map<(d0) -> (d0)>
@@ -76,6 +76,6 @@
 func.func @lower_ntt() -> tensor<4xi32, #ring> {
   %coeffs = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi32>
   %poly = polynomial.from_tensor %coeffs : tensor<4xi32> -> !poly_ty
-  %ret = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<4xi32, #ring>
+  %ret = polynomial.ntt %poly : !poly_ty -> tensor<4xi32, #ring>
   return %ret : tensor<4xi32, #ring>
 }

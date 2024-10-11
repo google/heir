@@ -1236,15 +1236,27 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
       return failure();
     }
 
-    if (!op.getRoot()) {
+    RingAttr ring = polyTy.getRing();
+    PrimitiveRootAttr root = ring.getPrimitiveRoot();
+
+    if (!root) {
       op.emitError("missing root attribute");
       return failure();
     }
 
-    RingAttr ring = polyTy.getRing();
+    APInt rootDegree = root.getDegree().getValue();
+    auto polyModDegree =
+        ring.getPolynomialModulus().getPolynomial().getDegree();
+
+    // only negacyclic for now
+    if (rootDegree != 2 * polyModDegree) {
+      op.emitError("unsupported degree for primitive root");
+      return failure();
+    }
+
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
     auto nttResult = fastNTT<false>(
-        b, ring, op.getRoot().value(), inputType,
+        b, ring, root, inputType,
         computeReverseBitOrder(b, inputType, adaptor.getInput()));
 
     // Insert the ring encoding here to the input type
@@ -1276,12 +1288,23 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
       return failure();
     }
 
-    if (!op.getRoot()) {
+    RingAttr ring = polyTy.getRing();
+    PrimitiveRootAttr root = ring.getPrimitiveRoot();
+
+    if (!root) {
       op.emitError("missing root attribute");
       return failure();
     }
 
-    RingAttr ring = polyTy.getRing();
+    APInt rootDegree = root.getDegree().getValue();
+    auto polyModDegree =
+        ring.getPolynomialModulus().getPolynomial().getDegree();
+
+    // only negacyclic for now
+    if (rootDegree != 2 * polyModDegree) {
+      op.emitError("unsupported degree for primitive root");
+      return failure();
+    }
 
     auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
     // Remove the encoded ring from the input tensor type
@@ -1289,8 +1312,7 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
         RankedTensorType::get(inputType.getShape(), inputType.getElementType());
     auto input = b.create<tensor::CastOp>(resultType, adaptor.getInput());
 
-    auto nttResult =
-        fastNTT<true>(b, ring, op.getRoot().value(), resultType, input);
+    auto nttResult = fastNTT<true>(b, ring, root, resultType, input);
 
     rewriter.replaceOp(op, computeReverseBitOrder(b, resultType, nttResult));
 
