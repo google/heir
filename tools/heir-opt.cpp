@@ -62,6 +62,7 @@
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
+#include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
@@ -805,6 +806,7 @@ int main(int argc, char **argv) {
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   registerLinalgCanonicalizationsPasses();
+  registerTensorToScalarsPasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
 #ifndef HEIR_ABC_BINARY
