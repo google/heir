@@ -298,9 +298,15 @@ inline raw_ostream &operator<<(raw_ostream &os, const PartialReduction &v) {
   return os;
 }
 
+inline bool isOneDimTensor(Type type) {
+  auto tensorType = mlir::dyn_cast<RankedTensorType>(type);
+  return tensorType && tensorType.getRank() == 1;
+};
+
 /// An analysis that identifies, for each tensor-typed SSA value, the set of
 /// partial reductions of associative, commutative binary arithmetic operations
 /// that reduce it to a scalar via tensor_ext.rotate ops.
+/// TODO(#924): Currently, this analysis only supports one dimensional tensors.
 class RotationAnalysis {
  public:
   // The constructor requires a DataFlowSolver initialized with a sparse
@@ -318,9 +324,8 @@ class RotationAnalysis {
 
   /// Add a tensor value as the start of a new reduction to the internal
   /// reduction mappings.
-  void initializeFromValueIfTensor(Value value) {
-    if (RankedTensorType tensorType =
-            mlir::dyn_cast<RankedTensorType>(value.getType())) {
+  void initializeFromValueIfOneDimTensor(Value value) {
+    if (isOneDimTensor(value.getType())) {
       addPartialReduction(PartialReduction::initializeFromValue(value));
     }
   }

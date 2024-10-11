@@ -27,9 +27,8 @@ void RotationAnalysis::run(Operation *op) {
     // If the op has no tensor results and no regions and no operand
     // with existing partial reduction, then there's nothing to do.
     if (op->getNumRegions() == 0 &&
-        llvm::none_of(
-            op->getResultTypes(),
-            [](Type type) { return mlir::isa<RankedTensorType>(type); }) &&
+        llvm::none_of(op->getResultTypes(),
+                      [](Type type) { return isOneDimTensor(type); }) &&
         llvm::none_of(op->getOperands(), [&](Value operand) {
           return rootToPartialReductions.contains(operand);
         })) {
@@ -38,14 +37,14 @@ void RotationAnalysis::run(Operation *op) {
 
     // Each tensor result can be the start of a new reduction.
     for (Value result : op->getResults()) {
-      initializeFromValueIfTensor(result);
+      initializeFromValueIfOneDimTensor(result);
     }
 
     // Block args within regions can be the start of a new reduction.
     for (Region &region : op->getRegions()) {
       for (Block &block : region) {
         for (Value arg : block.getArguments()) {
-          initializeFromValueIfTensor(arg);
+          initializeFromValueIfOneDimTensor(arg);
         }
       }
     }
