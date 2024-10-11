@@ -15,9 +15,7 @@ def GetRingModAttr : NativeCodeCall<
 
 def InputTensorType : NativeCodeCall<
       "RankedTensorType::get({$0.getPolynomialModulus().getPolynomial().getDegree()},"
-      " IntegerType::get($_builder.getContext(),"
-      "  ($0.getCoefficientModulus().getValue() - 1).getActiveBits()),"
-      " $0)">;
+      " $0.getCoefficientType(), $0)">;
 
 def CreateCModConstant : NativeCodeCall<
       "$_builder.create<arith::ConstantOp>($0.getLoc(), $2,"
