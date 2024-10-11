@@ -110,6 +110,7 @@ func.func @simple_sum__decrypt(%arg0: !openfhe.crypto_context, %arg1: !scalar_ct
 // CHECK-NEXT:  std::vector<float> [[floats:.*]] = {1.500000e+00, 2.500000e+00};
 // CHECK-NEXT:  std::vector<double> [[double1:.*]](16, -0.38478666543960571);
 // CHECK-NEXT:  std::vector<double> [[double2:.*]](16, -1.1268185335211456E-4);
+// CHECK-NEXT:  std::vector<double> [[multidim:.*]] = {1.500000e+00, 2.500000e+00};
 // CHECK-NEXT:  return [[splat]];
 func.func @test_constant() -> tensor<2xf32> {
   %splat = arith.constant dense<1.5> : tensor<2xf32>
@@ -117,5 +118,6 @@ func.func @test_constant() -> tensor<2xf32> {
   %floats = arith.constant dense<[1.5, 2.5]> : tensor<2xf32>
   %cst_175 = arith.constant dense<-0.38478666543960571> : tensor<16xf64>
   %cst_176 = arith.constant dense<-1.1268185335211456E-4> : tensor<16xf64>
+  %cst_2d = arith.constant dense<[[1.5, 2.5]]> : tensor<1x2xf64>
   return %splat : tensor<2xf32>
 }

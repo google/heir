@@ -3,7 +3,7 @@
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 
-def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = "", heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
+def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir_opt_flags = [], heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
 
     Args:
@@ -31,7 +31,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         heir_opt(
             name = heir_opt_name,
             src = mlir_src,
-            pass_flag = heir_opt_flags,
+            pass_flags = heir_opt_flags,
             generated_filename = generated_heir_opt_name,
         )
     else:
