@@ -35,9 +35,6 @@ glob_lit_tests(
         "@heir//tests:test_utilities",
     ],
     driver = "@heir//tests:run_lit.sh",
-    exclude = [
-        "ntt_benchmark.mlir",
-        "lower_mul_*.mlir",  # b/371961315
-    ],
+    exclude = ["ntt_benchmark.mlir"],
     test_file_exts = ["mlir"],
 )
