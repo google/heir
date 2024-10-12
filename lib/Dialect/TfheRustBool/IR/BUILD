@@ -11,12 +11,16 @@ cc_library(
         "TfheRustBoolDialect.cpp",
     ],
     hdrs = [
+        "TfheRustBoolAttributes.h",
         "TfheRustBoolDialect.h",
+        "TfheRustBoolEnums.h",
         "TfheRustBoolOps.h",
         "TfheRustBoolTypes.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
+        ":enums_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
         "@llvm-project//llvm:Support",
@@ -29,10 +33,14 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "TfheRustBoolAttributes.td",
         "TfheRustBoolDialect.td",
+        "TfheRustBoolEnums.td",
         "TfheRustBoolOps.td",
         "TfheRustBoolTypes.td",
     ],
+    # include from the heir-root to enable fully-qualified include-paths
+    includes = ["../../../.."],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
@@ -44,21 +52,15 @@ gentbl_cc_library(
     name = "dialect_inc_gen",
     tbl_outs = [
         (
-            [
-                "-gen-dialect-decls",
-            ],
+            ["-gen-dialect-decls"],
             "TfheRustBoolDialect.h.inc",
         ),
         (
-            [
-                "-gen-dialect-defs",
-            ],
+            ["-gen-dialect-defs"],
             "TfheRustBoolDialect.cpp.inc",
         ),
         (
-            [
-                "-gen-dialect-doc",
-            ],
+            ["-gen-dialect-doc"],
             "TfheRustBoolDialect.md",
         ),
     ],
@@ -103,6 +105,41 @@ gentbl_cc_library(
 )
 
 gentbl_cc_library(
+    name = "attributes_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-attrdef-decls",
+                "-typedefs-dialect=tfhe_rust_bool",
+            ],
+            "TfheRustBoolAttributes.h.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-defs",
+                "-typedefs-dialect=tfhe_rust_bool",
+            ],
+            "TfheRustBoolAttributes.cpp.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-doc",
+                "-typedefs-dialect=tfhe_rust_bool",
+            ],
+            "TfheRustBoolAttributes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "TfheRustBoolAttributes.td",
+    deps = [
+        ":dialect_inc_gen",
+        ":enums_inc_gen",
+        ":td_files",
+        "@heir//lib/Dialect/CGGI/IR:td_files",
+    ],
+)
+
+gentbl_cc_library(
     name = "ops_inc_gen",
     tbl_outs = [
         (
@@ -121,8 +158,33 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "TfheRustBoolOps.td",
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":td_files",
         ":types_inc_gen",
+    ],
+)
+
+gentbl_cc_library(
+    name = "enums_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-enum-decls"],
+            "TfheRustBoolEnums.h.inc",
+        ),
+        (
+            ["--gen-enum-defs"],
+            "TfheRustBoolEnums.cpp.inc",
+        ),
+        (
+            ["-gen-attrdef-doc"],
+            "TfheRustBoolEnums.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "TfheRustBoolEnums.td",
+    deps = [
+        ":td_files",
+        "@heir//lib/Dialect/CGGI/IR:td_files",
     ],
 )

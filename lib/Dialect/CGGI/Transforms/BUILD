@@ -11,7 +11,7 @@ cc_library(
         "Passes.h",
     ],
     deps = [
-        ":BooleanLineVectorizer",
+        ":BooleanVectorizer",
         ":SetDefaultParameters",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
@@ -36,10 +36,10 @@ cc_library(
 )
 
 cc_library(
-    name = "BooleanLineVectorizer",
-    srcs = ["BooleanLineVectorizer.cpp"],
+    name = "BooleanVectorizer",
+    srcs = ["BooleanVectorizer.cpp"],
     hdrs = [
-        "BooleanLineVectorizer.h",
+        "BooleanVectorizer.h",
     ],
     deps = [
         ":pass_inc_gen",

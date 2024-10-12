@@ -1,8 +1,9 @@
-#include "lib/Dialect/CGGI/Transforms/BooleanLineVectorizer.h"
+#include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 
-#include <string>
+#include <cstdint>
 
 #include "lib/Dialect/CGGI/IR/CGGIAttributes.h"
+#include "lib/Dialect/CGGI/IR/CGGIEnums.h"
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Utils/Graph/Graph.h"
@@ -18,13 +19,13 @@
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
-#define DEBUG_TYPE "bool-line-vectorizer"
+#define DEBUG_TYPE "bool-vectorizer"
 
 namespace mlir {
 namespace heir {
 namespace cggi {
 
-#define GEN_PASS_DEF_BOOLEANLINEVECTORIZER
+#define GEN_PASS_DEF_BOOLEANVECTORIZER
 #include "lib/Dialect/CGGI/Transforms/Passes.h.inc"
 
 bool areCompatibleBool(Operation *lhs, Operation *rhs) {
@@ -119,27 +120,32 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context) {
           {static_cast<int64_t>(bucket.size())}, elementType);
 
       SmallVector<Value, 4> vectorizedOperands;
-      SmallVector<StringAttr, 4> vectorizedGateOperands;
+      SmallVector<CGGIBoolGateEnumAttr, 4> vectorizedGateOperands;
 
       for (auto *op : bucket) {
-        std::string str;
-        if (isa<cggi::AndOp>(op)) {
-          str = "and";
-        } else if (isa<cggi::NandOp>(op)) {
-          str = "nand";
-        } else if (isa<cggi::XorOp>(op)) {
-          str = "xor";
-        } else if (isa<cggi::XNorOp>(op)) {
-          str = "xnor";
-        } else if (isa<cggi::OrOp>(op)) {
-          str = "or";
-        } else if (isa<cggi::NorOp>(op)) {
-          str = "nor";
-        } else {
-          LLVM_DEBUG(llvm::dbgs()
-                     << "Try to parse boolean operation that does not exist.");
-        }
-        vectorizedGateOperands.push_back(StringAttr::get(&context, str));
+        auto gateStr =
+            llvm::TypeSwitch<Operation *, FailureOr<CGGIBoolGateEnum>>(op)
+                .Case<cggi::AndOp>(
+                    [](AndOp op) { return CGGIBoolGateEnum::bg_and; })
+                .Case<cggi::NandOp>(
+                    [](NandOp op) { return CGGIBoolGateEnum::bg_nand; })
+                .Case<cggi::XorOp>(
+                    [](XorOp op) { return CGGIBoolGateEnum::bg_xor; })
+                .Case<cggi::XNorOp>(
+                    [](XNorOp op) { return CGGIBoolGateEnum::bg_xnor; })
+                .Case<cggi::OrOp>(
+                    [](OrOp op) { return CGGIBoolGateEnum::bg_or; })
+                .Case<cggi::NorOp>(
+                    [](NorOp op) { return CGGIBoolGateEnum::bg_nor; })
+                .Default([op](Operation *) {
+                  LLVM_DEBUG(llvm::dbgs()
+                             << "parsing unsupported boolean operation" << op);
+                  return FailureOr<CGGIBoolGateEnum>();
+                });
+        assert(succeeded(gateStr));
+
+        vectorizedGateOperands.push_back(
+            CGGIBoolGateEnumAttr::get(&context, gateStr.value()));
       }
 
       // Group the independent operands over the operations
@@ -177,7 +183,7 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context) {
         llvm::dbgs() << "\n";
       });
 
-      auto oplist = CGGIGateAttr::get(&context, vectorizedGateOperands);
+      auto oplist = CGGIBoolGatesAttr::get(&context, vectorizedGateOperands);
 
       auto vectorizedOp = builder.create<cggi::PackedOp>(
           key->getLoc(), tensorType, oplist, vectorizedOperands[0],
@@ -205,9 +211,8 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context) {
   return madeReplacement;
 }
 
-struct BooleanLineVectorizer
-    : impl::BooleanLineVectorizerBase<BooleanLineVectorizer> {
-  using BooleanLineVectorizerBase::BooleanLineVectorizerBase;
+struct BooleanVectorizer : impl::BooleanVectorizerBase<BooleanVectorizer> {
+  using BooleanVectorizerBase::BooleanVectorizerBase;
 
   void runOnOperation() override {
     MLIRContext &context = getContext();
