@@ -1,12 +1,6 @@
 
-add_mlir_dialect_library(MLIRMetadataEmitter
+add_mlir_library(HEIRMetadataEmitter
         MetadataEmitter.cpp
-
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
-        DEPENDS
-        MLIRLWEOpsIncGen
 
         LINK_LIBS PUBLIC
         LLVMSupport
@@ -19,3 +13,4 @@ add_mlir_dialect_library(MLIRMetadataEmitter
         MLIRSupport
         MLIRTranslateLib
 )
+target_link_libraries(HEIRTarget INTERFACE HEIRMetadataEmitter)

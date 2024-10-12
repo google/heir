@@ -1,15 +1,11 @@
-add_mlir_dialect_library(MLIRHEIRUtils
-    PARTIAL_SOURCES_INTENDED
-    Utils.cpp
+add_mlir_library(HEIRConversionUtils
+    ConversionUtils.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
-    DEPENDS
-    MLIRTensorExtOpsIncGen
-    MLIRTensorExtPassesIncGen
-    MLIRTensorExtInsertRotateIncGen
-    MLIRTensorExtCanonicalizationIncGen
+    # DEPENDS
+    # HEIRTensorExtOpsIncGen
+    # HEIRTensorExtPassesIncGen
+    # HEIRTensorExtInsertRotateIncGen
+    # HEIRTensorExtCanonicalizationIncGen
 
     LINK_LIBS PUBLIC
     MLIRIR
@@ -19,20 +15,4 @@ add_mlir_dialect_library(MLIRHEIRUtils
     MLIRDialect
 )
 
-add_subdirectory(ModArithToArith)
-add_subdirectory(BGVToOpenfhe)
-add_subdirectory(BGVToLWE)
-add_subdirectory(CGGIToJaxite)
-add_subdirectory(CGGIToTfheRust)
-add_subdirectory(CGGIToTfheRustBool)
-add_subdirectory(CombToCGGI)
-add_subdirectory(MemrefToArith)
-add_subdirectory(PolynomialToStandard)
-add_subdirectory(SecretToBGV)
-add_subdirectory(SecretToCKKS)
-add_subdirectory(LWEToPolynomial)
-add_subdirectory(LinalgToTensorExt)
-add_subdirectory(TosaToSecretArith)
-add_subdirectory(LWEToOpenfhe)
-add_subdirectory(CKKSToOpenfhe)
-add_subdirectory(RlweToOpenfhe)
+target_link_libraries(HEIRUtils INTERFACE HEIRConversionUtils)

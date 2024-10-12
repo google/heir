@@ -1,21 +1,25 @@
-set(LLVM_TARGET_DEFINITIONS ForwardInsertToExtract.td)
-mlir_tablegen(ForwardInsertToExtract.h.inc -gen-pass-decls -name=ForwardInsertToExtract)
+add_heir_pass(ForwardInsertToExtract)
 
-add_public_tablegen_target(MLIRHeirForwardInsertToExtractIncGen)
-
-add_mlir_dialect_library(MLIRHeirForwardInsertToExtract
+add_mlir_library(HEIRForwardInsertToExtract
     ForwardInsertToExtract.cpp
 
     DEPENDS
-    MLIRHeirForwardInsertToExtractIncGen
+    HEIRForwardInsertToExtractIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
-    MLIRIR
-    MLIRInferTypeOpInterface
+
+    LLVMSupport
+    MLIRAffineDialect
+    MLIRAffineUtils
     MLIRArithDialect
-    MLIRSupport
     MLIRDialect
+    MLIRInferTypeOpInterface
     MLIRIR
+    MLIRMemRefDialect
+    MLIRPass
+    MLIRSupport
+    MLIRTensorDialect
+    MLIRTransforms
+    MLIRTransformUtils
 )
-add_dependencies(MLIRHeirForwardInsertToExtract MLIRHeirForwardInsertToExtractIncGen)
+target_link_libraries(HEIRTransforms INTERFACE HEIRForwardInsertToExtract)

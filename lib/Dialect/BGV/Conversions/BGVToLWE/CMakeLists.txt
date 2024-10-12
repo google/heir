@@ -1,27 +1,23 @@
-set(LLVM_TARGET_DEFINITIONS BGVToLWE.td)
-mlir_tablegen(BGVToLWE.h.inc -gen-pass-decls -name BGVToLWE)
-add_public_tablegen_target(MLIRBGVLWETransformsIncGen)
+add_heir_pass(BGVToLWE)
 
-add_mlir_dialect_library(MLIRBGVLWETransforms
+add_mlir_conversion_library(HEIRBGVToLWE
     BGVToLWE.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRBGVLWETransformsIncGen
+    HEIRBGVToLWEIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRBGV
-    MLIRLWE
+    HEIRConversionUtils
+    HEIRBGV
+    HEIRLWE
+    MLIRPolynomialDialect
     MLIRArithDialect
+    MLIRTensorDialect
+
+    MLIRTransformUtils
 
     MLIRIR
     MLIRPass
-    MLIRPolynomialDialect
-
     MLIRSupport
-    MLIRTensorDialect
-    MLIRTransformUtils
+    MLIRDialect
 )

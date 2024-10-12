@@ -1,20 +1,28 @@
-cmake_minimum_required(VERSION 3.13.4)
+cmake_minimum_required(VERSION 3.18)
 
+# CMP0116: Ninja generators transform `DEPFILE`s from `add_custom_command()`
+# New in CMake 3.20. https://cmake.org/cmake/help/latest/policy/CMP0116.html
+# See https://github.com/llvm/llvm-project/pull/72333 for more information.
 if(POLICY CMP0116)
   cmake_policy(SET CMP0116 OLD)
 endif()
 
 project(HEIR LANGUAGES CXX C)
 
+# Custom CMake Setup (if required)
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
+
+# TODO: set this on target level, not project?
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard to conform to")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-find_package(MLIR REQUIRED CONFIG)
+# if no build type was specified, default to release
+if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
 
-message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
+# YOSYS Support
 option(ENABLE_YOSYS "Enable YOSYS for yosys-optimizer pass (optional)" FALSE)
-option(ENABLE_INSTALLED_MLIR "Use installed MLIR" FALSE)
 
 if(ENABLE_YOSYS)
    message("Yosys enabled! Make sure ABC and Yosys development files and libraries are on the path")
@@ -23,77 +31,60 @@ else()
 endif()
 
 
-set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
-set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
-set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
+# TODO (#818): Set up LLVM/MLIR if no -DMLIR_DIR is provided
+find_package(MLIR CONFIG)
 
+message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+# HEIR prefixes all MLIR and LLVM includes with their full path, i.e.,
+# "mlir/include/<normal include path>" and "llvm/include/<normal include path>"
+# because of a Google internal file system requirement, so we need to add these.
+# Note that we might still need the original include paths for MLIR/LLVM headers.
+foreach(inc_dir IN LISTS MLIR_INCLUDE_DIRS)
+  if("${inc_dir}" MATCHES "mlir[/\\]include$")
+    get_filename_component(parent_dir "${inc_dir}" DIRECTORY)
+    get_filename_component(grandparent_dir "${parent_dir}" DIRECTORY)
+    list(APPEND MLIR_INCLUDE_DIRS "${grandparent_dir}")
+  endif()
+endforeach()
 
-list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
-list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
-include(TableGen)
-include(AddLLVM)
-include(AddMLIR)
-include(HandleLLVMOptions)
+# same for LLVM
+foreach(inc_dir IN LISTS LLVM_INCLUDE_DIRS)
+  if("${inc_dir}" MATCHES "llvm[/\\]include$")
+    get_filename_component(parent_dir "${inc_dir}" DIRECTORY)
+    get_filename_component(grandparent_dir "${parent_dir}" DIRECTORY)
+    list(APPEND LLVM_INCLUDE_DIRS "${grandparent_dir}")
+  endif()
+endforeach()
 
-set(INCLUDE_MLIR_LLVM_HEADERS "${CMAKE_BINARY_DIR}/inc/")
-add_custom_command(OUTPUT ${INCLUDE_MLIR_LLVM_HEADERS}
-  COMMAND mkdir -p inc/llvm/include
-  COMMAND mkdir -p inc/mlir/include
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  COMMENT "Creating link to LLVM and MLIR headers"
-  VERBATIM
-)
+# Make LLVM, MLIR and HEIR headers available to all targets'
+# This is not really "best practice" in modern CMake
+# and one should instead use target_include_directories selectively
+# However, the LLVM/MLIR helpers we use to define targets assume this setup
+# The tablegen generated files (*.h.inc, *.cpp.inc) are only available in the build directory
+include_directories(${LLVM_INCLUDE_DIRS})  # LLVM headers (all)
+include_directories(${MLIR_INCLUDE_DIRS})  # MLIR headers (all)
+include_directories(${PROJECT_SOURCE_DIR}) # HEIR headers (committed)
+include_directories(${PROJECT_BINARY_DIR}) # HEIR headers (generated)
 
-if(ENABLE_INSTALLED_MLIR)
-add_custom_target(HEIRIncludeLLVM
-                  BYPRODUCTS ${CMAKE_BINARY_DIR}/inc/llvm/include/llvm
-                  COMMAND [ -e llvm ] && echo "" || ln -s ${LLVM_INCLUDE_DIRS}/llvm/ ./
-                  DEPENDS ${INCLUDE_MLIR_LLVM_HEADERS}
-                  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/inc/llvm/include/"
-                  )
+# get convenience lists defined by MLIRConfig.cmake
+get_property(MLIR_DIALECT_LIBS GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+get_property(MLIR_CONVERSION_LIBS GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
+get_property(MLIR_EXTENSION_LIBS GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
+get_property(MLIR_TRANSLATION_LIBS GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
+get_property(MLIR_UPSTREAM_CAPI_LIBS GLOBAL PROPERTY MLIR_UPSTREAM_CAPI_LIBS)
 
-add_custom_target(HEIRIncludeMLIR
-                  BYPRODUCTS ${CMAKE_BINARY_DIR}/inc/mlir/include/mlir
-                  COMMAND [ -e mlir ] && echo "" || ln -s ${MLIR_INCLUDE_DIRS}/mlir/ ./
-                  DEPENDS ${INCLUDE_MLIR_LLVM_HEADERS}
-                  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/inc/mlir/include/")
-message(STATUS "Adding MLIR and LLVM includes.")
-else()
-add_custom_target(HEIRIncludeLLVM
-          COMMAND echo "")
-add_custom_target(HEIRIncludeMLIR
-          COMMAND echo "")
-message(STATUS "Using MLIR and LLVM from build folders of ${MLIR_DIR} and ${LLVM_DIR}")
-endif()
+# Now reset them to empty, so we can re-use them for HEIR (slightly hacky)
+set_property(GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+set_property(GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
+set_property(GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
+set_property(GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
+set_property(GLOBAL PROPERTY MLIR_UPSTREAM_CAPI_LIBS)
 
-include_directories(${CMAKE_BINARY_DIR}/inc)
-if(ENABLE_INSTALLED_MLIR)
-include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${MLIR_INCLUDE_DIRS})
-else()
-include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${MLIR_INCLUDE_DIRS})
-include_directories(${LLVM_INCLUDE_DIRS}/../..)
-include_directories(${MLIR_INCLUDE_DIRS}/../..)
-endif()
-include_directories(${PROJECT_SOURCE_DIR})
-include_directories(${PROJECT_BINARY_DIR})
-link_directories(${LLVM_BUILD_LIBRARY_DIR})
-add_definitions(${LLVM_DEFINITIONS})
+# Custom helper functions
+include(${PROJECT_SOURCE_DIR}/cmake/AddHEIR.cmake)
 
-message(STATUS "Fetching or-tools...")
-include(FetchContent)
-FetchContent_Declare(
-  or-tools
-  GIT_REPOSITORY https://github.com/google/or-tools.git
-  GIT_TAG        v9.11
-)
-FetchContent_MakeAvailable(or-tools)
-message(STATUS "Done fetching or-tools")
-
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
-set(HEIRLIBDIR ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(lib)
 add_subdirectory(tools)
 add_subdirectory(tests)

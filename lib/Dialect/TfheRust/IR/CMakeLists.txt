@@ -1,14 +1,9 @@
-set(LLVM_TARGET_DEFINITIONS TfheRustDialect.td)
-mlir_tablegen(TfheRustDialect.h.inc -gen-dialect-decls)
-mlir_tablegen(TfheRustDialect.cpp.inc -gen-dialect-defs)
-add_public_tablegen_target(MLIRTfheRustIncGen)
+add_heir_dialect(TfheRust tfhe_rust)
 
-set(LLVM_TARGET_DEFINITIONS TfheRustOps.td)
-mlir_tablegen(TfheRustOps.h.inc -gen-op-decls)
-mlir_tablegen(TfheRustOps.cpp.inc -gen-op-defs)
-add_public_tablegen_target(MLIRTfheRustOpsIncGen)
+add_mlir_dialect_library(HEIRTfheRust
+    TfheRustDialect.cpp
+    TfheRustPatterns.cpp
 
-set(LLVM_TARGET_DEFINITIONS TfheRustTypes.td)
-mlir_tablegen(TfheRustTypes.h.inc -gen-typedef-decls)
-mlir_tablegen(TfheRustTypes.cpp.inc -gen-typedef-defs)
-add_public_tablegen_target(MLIRTfheRustTypesIncGen)
+    DEPENDS
+    HEIRTfheRustIncGen
+)

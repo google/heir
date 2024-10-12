@@ -1,19 +1,15 @@
-set(LLVM_TARGET_DEFINITIONS ConvertIfToSelect.td)
-mlir_tablegen(ConvertIfToSelect.h.inc -gen-pass-decls -name ConvertIfToSelect)
-add_public_tablegen_target(MLIRHeirConvertIfToSelectIncGen)
+add_heir_pass(ConvertIfToSelect)
 
-add_mlir_dialect_library(MLIRHeirConvertIfToSelect
+add_mlir_library(HEIRConvertIfToSelect
     ConvertIfToSelect.cpp
 
     DEPENDS
-    MLIRHeirConvertIfToSelectIncGen
+    HEIRConvertIfToSelectIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
+    HEIRSecretnessAnalysis
     MLIRIR
-    MLIRInferTypeOpInterface
-    MLIRArithDialect
     MLIRSupport
     MLIRDialect
-    MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRConvertIfToSelect)

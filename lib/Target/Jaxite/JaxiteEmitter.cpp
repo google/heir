@@ -13,7 +13,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Target/Jaxite/JaxiteTemplates.h"
-#include "lib/Target/Utils.h"
+#include "lib/Utils/TargetUtils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project

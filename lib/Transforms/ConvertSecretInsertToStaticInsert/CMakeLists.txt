@@ -1,15 +1,13 @@
-set(LLVM_TARGET_DEFINITIONS ConvertSecretInsertToStaticInsert.td)
-mlir_tablegen(ConvertSecretInsertToStaticInsert.h.inc -gen-pass-decls -name ConvertSecretInsertToStaticInsert)
-add_public_tablegen_target(MLIRHeirConvertSecretInsertToStaticInsertIncGen)
+add_heir_pass(ConvertSecretInsertToStaticInsert)
 
-add_mlir_dialect_library(MLIRHeirConvertSecretInsertToStaticInsert
+add_mlir_library(HEIRConvertSecretInsertToStaticInsert
     ConvertSecretInsertToStaticInsert.cpp
 
     DEPENDS
-    MLIRHeirConvertSecretInsertToStaticInsertIncGen
+    HEIRConvertSecretInsertToStaticInsertIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRSecretnessAnalysis
+    HEIRSecretnessAnalysis
     LLVMSupport
     MLIRAffineDialect
     MLIRAnalysis
@@ -21,3 +19,4 @@ add_mlir_dialect_library(MLIRHeirConvertSecretInsertToStaticInsert
     MLIRSupport
     MLIRTransformUtils
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRConvertSecretInsertToStaticInsert)

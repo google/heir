@@ -1,23 +1,25 @@
-set(LLVM_TARGET_DEFINITIONS ModArithToArith.td)
-mlir_tablegen(ModArithToArith.h.inc -gen-pass-decls -name ModArithToArith)
-mlir_tablegen(ModArithToArith.cpp.inc -gen-rewriters -name ModArithToArith)
-add_public_tablegen_target(MLIRModArithTransformsIncGen)
+add_heir_pass(ModArithToArith PATTERNS)
 
-add_mlir_dialect_library(MLIRModArithTransforms
+add_mlir_conversion_library(HEIRModArithToArith
     ModArithToArith.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRModArithTransformsIncGen
+    HEIRModArithToArithIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
-    MLIRIR
-    MLIRPass
-    MLIRTransformUtils
+    HEIRModArith
+
+    LINK_LIBS PUBLIC
+
+    LLVMSupport
+
     MLIRArithDialect
-    MLIRSupport
     MLIRDialect
+    MLIRInferTypeOpInterface
+    MLIRIR
+    MLIRMemRefDialect
+    MLIRPass
+    MLIRSupport
+    MLIRTransforms
+    MLIRTransformUtils
 )

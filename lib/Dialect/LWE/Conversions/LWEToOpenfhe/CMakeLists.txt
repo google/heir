@@ -1,14 +1,11 @@
-add_mlir_dialect_library(MLIRLWEOpenfheTransforms
+add_mlir_conversion_library(HEIRLWEToOpenfhe
     LWEToOpenfhe.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRLWE
-    MLIRLWE
-    MLIROpenfhe
+    HEIRConversionUtils
+    HEIRLWE
+    HEIRLWE
+    HEIROpenfhe
 
     MLIRIR
     MLIRPass

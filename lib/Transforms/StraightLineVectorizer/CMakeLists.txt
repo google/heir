@@ -1,19 +1,16 @@
-set(LLVM_TARGET_DEFINITIONS StraightLineVectorizer.td)
-mlir_tablegen(StraightLineVectorizer.h.inc -gen-pass-decls -name StraightLineVectorizer)
-add_public_tablegen_target(MLIRHeirStraightLineVectorizerIncGen)
+add_heir_pass(StraightLineVectorizer)
 
-add_mlir_dialect_library(MLIRHeirStraightLineVectorizer
+add_mlir_library(HEIRStraightLineVectorizer
     StraightLineVectorizer.cpp
 
     DEPENDS
-    MLIRHeirStraightLineVectorizerIncGen
+    HEIRStraightLineVectorizerIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect
     MLIRSupport
     MLIRDialect
-    MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRStraightLineVectorizer)

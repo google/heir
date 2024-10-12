@@ -1,23 +1,18 @@
-set(LLVM_TARGET_DEFINITIONS CombToCGGI.td)
-mlir_tablegen(CombToCGGI.h.inc -gen-pass-decls -name CombToCGGI)
-add_public_tablegen_target(MLIRCombtTransformsIncGen)
+add_heir_pass(CombToCGGI)
 
-add_mlir_dialect_library(MLIRCombTransforms
+add_mlir_conversion_library(HEIRCombToCGGI
     CombToCGGI.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRCombtTransformsIncGen
+    HEIRCombToCGGIIncGen
 
     LINK_LIBS PUBLIC
 
-    MLIRHEIRUtils
-    MLIRCGGI
-    MLIRComb
-    MLIRLWE
-    MLIRSecret
+    HEIRConversionUtils
+    HEIRCGGI
+    HEIRComb
+    HEIRLWE
+    HEIRSecret
 
     LLVMSupport
     MLIRAffineDialect

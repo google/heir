@@ -7,6 +7,7 @@ function(make_heir_exec  TARGET_NAME SOURCES)
         target_link_libraries(${TARGET_NAME} PUBLIC
         ${dialect_libs} ${conversion_libs}
         MLIROptLib MLIRSupport LLVMSupport /usr/local/lib/libgtest.a) # /usr/local/lib/libgtest_main.a)
+        target_link_libraries(HEIRUtils INTERFACE ${TARGET_NAME})
 endfunction()
 
 #FIXME: linking against gtest is funny in Mac OSX

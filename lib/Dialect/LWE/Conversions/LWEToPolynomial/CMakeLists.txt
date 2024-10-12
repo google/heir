@@ -1,19 +1,14 @@
-set(LLVM_TARGET_DEFINITIONS LWEToPolynomial.td)
-mlir_tablegen(LWEToPolynomial.h.inc -gen-pass-decls -name LWEToPolynomial)
-add_public_tablegen_target(MLIRLWEPolynomialTransformsIncGen)
+add_heir_pass(LWEToPolynomial)
 
-add_mlir_dialect_library(MLIRLWEToPolynomial
+add_mlir_conversion_library(HEIRLWEToPolynomial
     LWEToPolynomial.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRLWEPolynomialTransformsIncGen
+    HEIRLWEToPolynomialIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRLWE
+    HEIRConversionUtils
+    HEIRLWE
     MLIRArithDialect
 
     MLIRIR

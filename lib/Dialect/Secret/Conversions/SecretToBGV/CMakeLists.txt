@@ -1,23 +1,18 @@
-set(LLVM_TARGET_DEFINITIONS SecretToBGV.td)
-mlir_tablegen(SecretToBGV.h.inc -gen-pass-decls -name SecretToBGV)
-add_public_tablegen_target(MLIRSecretTransformsIncGen)
+add_heir_pass(SecretToBGV)
 
-add_mlir_dialect_library(MLIRSecretTransforms
+add_mlir_conversion_library(HEIRSecretToBGV
     SecretToBGV.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRSecretTransformsIncGen
+    HEIRSecretToBGVIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
+    HEIRConversionUtils
 
-    MLIRBGV
-    MLIRLWE
-    MLIRSecret
-    MLIRTensorExt
+    HEIRBGV
+    HEIRLWE
+    HEIRSecret
+    HEIRTensorExt
     LLVMSupport
 
     MLIRArithDialect

@@ -1,15 +1,13 @@
-set(LLVM_TARGET_DEFINITIONS OperationBalancer.td)
-mlir_tablegen(OperationBalancer.h.inc -gen-pass-decls -name OperationBalancer)
-add_public_tablegen_target(MLIRHeirOperationBalancerIncGen)
+add_heir_pass(OperationBalancer)
 
-add_mlir_dialect_library(MLIRHeirOperationBalancer
+add_mlir_library(HEIROperationBalancer
     OperationBalancer.cpp
 
     DEPENDS
-    MLIRHeirOperationBalancerIncGen
+    HEIROperationBalancerIncGen
 
     LINK_LIBS PUBLIC
-    MLIRSecret
+    HEIRSecret
     LLVMSupport
     MLIRAnalysis
     MLIRArithDialect
@@ -20,3 +18,4 @@ add_mlir_dialect_library(MLIRHeirOperationBalancer
     MLIRTransformUtils
     MLIRTransforms
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIROperationBalancer)

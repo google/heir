@@ -1,15 +1,13 @@
-set(LLVM_TARGET_DEFINITIONS ConvertSecretExtractToStaticExtract.td)
-mlir_tablegen(ConvertSecretExtractToStaticExtract.h.inc -gen-pass-decls -name ConvertSecretExtractToStaticExtract)
-add_public_tablegen_target(MLIRHeirConvertSecretExtractToStaticExtractIncGen)
+add_heir_pass(ConvertSecretExtractToStaticExtract)
 
-add_mlir_dialect_library(MLIRHeirConvertSecretExtractToStaticExtract
+add_mlir_library(HEIRConvertSecretExtractToStaticExtract
     ConvertSecretExtractToStaticExtract.cpp
 
     DEPENDS
-    MLIRHeirConvertSecretExtractToStaticExtractIncGen
+    HEIRConvertSecretExtractToStaticExtractIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRSecretnessAnalysis
+    HEIRSecretnessAnalysis
     LLVMSupport
     MLIRAffineDialect
     MLIRAnalysis
@@ -21,3 +19,4 @@ add_mlir_dialect_library(MLIRHeirConvertSecretExtractToStaticExtract
     MLIRSupport
     MLIRTransformUtils
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRConvertSecretExtractToStaticExtract)

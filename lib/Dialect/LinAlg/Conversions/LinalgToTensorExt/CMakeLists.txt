@@ -1,19 +1,14 @@
-set(LLVM_TARGET_DEFINITIONS LinalgToTensorExt.td)
-mlir_tablegen(LinalgToTensorExt.h.inc -gen-pass-decls -name LinalgToTensorExt)
-add_public_tablegen_target(MLIRLinalgToTensorExtTransformsIncGen)
+add_heir_pass(LinalgToTensorExt)
 
-add_mlir_dialect_library(MLIRLinalgToTensorExt
+add_mlir_conversion_library(HEIRLinalgToTensorExt
     LinalgToTensorExt.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRLinalgToTensorExtTransformsIncGen
+    HEIRLinalgToTensorExtIncGen
 
     LINK_LIBS PUBLIC
-        MLIRHEIRSecretnessAnalysis
-        MLIRTensorExt
+        HEIRSecretnessAnalysis
+        HEIRTensorExt
         LLVMSupport
         MLIRAffineDialect
         MLIRAnalysis

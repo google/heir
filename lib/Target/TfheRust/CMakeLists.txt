@@ -1,15 +1,11 @@
 
-add_mlir_dialect_library(MLIRTfheRustTarget
+add_mlir_library(HEIRTfheRustTarget
         TfheRustEmitter.cpp
         Utils.cpp
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
-        DEPENDS
-        MLIRTfheRustOpsIncGen
 
         LINK_LIBS PUBLIC
-        MLIRTfheRust
+        HEIRTfheRust
         MLIRIR
         MLIRInferTypeOpInterface
 )
+target_link_libraries(HEIRTarget INTERFACE HEIRTfheRustTarget)

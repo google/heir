@@ -1,17 +1,12 @@
-add_mlir_conversion_library(MLIRHEIRSecretnessAnalysis
+add_mlir_library(HEIRSecretnessAnalysis
         SecretnessAnalysis.cpp
 
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}
-
-        DEPENDS
-        MLIRSecretIncGen
-
         LINK_LIBS PUBLIC
-        MLIRSecret
+        HEIRSecret
         LLVMSupport
         MLIRAnalysis
         MLIRSCFDialect
         MLIRIR
         MLIRSupport
 )
+target_link_libraries(HEIRAnalysis INTERFACE HEIRSecretnessAnalysis)

@@ -1,21 +1,8 @@
-set(LLVM_TARGET_DEFINITIONS LWEDialect.td)
-mlir_tablegen(LWEDialect.h.inc -gen-dialect-decls -dialect=lwe)
-mlir_tablegen(LWEDialect.cpp.inc -gen-dialect-defs -dialect=lwe)
-add_public_tablegen_target(MLIRLWEIncGen)
+add_heir_dialect(LWE lwe)
 
-set(LLVM_TARGET_DEFINITIONS LWEOps.td)
-mlir_tablegen(LWEOps.h.inc -gen-op-decls -dialect=lwe)
-mlir_tablegen(LWEOps.cpp.inc -gen-op-defs -dialect=lwe)
-add_public_tablegen_target(MLIRLWEOpsIncGen)
+add_mlir_dialect_library(HEIRLWE
+        LWEDialect.cpp
 
-set(LLVM_TARGET_DEFINITIONS LWETypes.td)
-mlir_tablegen(LWETypes.h.inc -gen-typedef-decls -dialect=lwe)
-mlir_tablegen(LWETypes.cpp.inc -gen-typedef-defs -dialect=lwe)
-add_public_tablegen_target(MLIRLWETypesIncGen)
-
-set(LLVM_TARGET_DEFINITIONS LWEAttributes.td)
-mlir_tablegen(LWEAttributes.cpp.inc -gen-attrdef-defs -attrdefs-dialect="lwe")
-mlir_tablegen(LWEAttributes.h.inc -gen-attrdef-decls -attrdefs-dialect="lwe")
-mlir_tablegen(LWEEnums.h.inc -gen-enum-decls)
-mlir_tablegen(LWEEnums.cpp.inc -gen-enum-defs)
-add_public_tablegen_target(MLIRLWEAttributesIncGen)
+        DEPENDS
+        HEIRLWEIncGen
+)

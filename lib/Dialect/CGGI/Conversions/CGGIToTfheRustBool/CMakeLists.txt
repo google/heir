@@ -1,28 +1,26 @@
-set(LLVM_TARGET_DEFINITIONS CGGIToTfheRustBool.td)
-mlir_tablegen(CGGIToTfheRustBool.h.inc -gen-pass-decls -name=CGGIToTfheRustBool)
-add_public_tablegen_target(MLIRCGGIToTfheRustBoolTransformsIncGen)
+add_heir_pass(CGGIToTfheRustBool)
 
-add_mlir_dialect_library(MLIRCGGIToTfheRustBoolTransforms
+add_mlir_conversion_library(HEIRCGGIToTfheRustBool
     CGGIToTfheRustBool.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRCGGIToTfheRustBoolTransformsIncGen
+    HEIRCGGIToTfheRustBoolIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRCGGI
-    MLIRLWE
-    MLIRTfheRustBool
+    HEIRCGGI
+    HEIRLWE
+    HEIRTfheRustBool
+    HEIRConversionUtils
+
     LLVMSupport
 
     MLIRFuncDialect
     MLIRIR
     MLIRMemRefDialect
     MLIRPass
-
+    MLIRArithDialect
+    MLIRTransformUtils
+    MLIRTransforms
     MLIRSupport
     MLIRTensorDialect
     MLIRTransformUtils

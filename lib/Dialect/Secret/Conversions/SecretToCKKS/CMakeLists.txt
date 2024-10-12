@@ -1,23 +1,18 @@
-set(LLVM_TARGET_DEFINITIONS SecretToCKKS.td)
-mlir_tablegen(SecretToCKKS.h.inc -gen-pass-decls -name SecretToCKKS)
-add_public_tablegen_target(MLIRSecretToCKKSTransformsIncGen)
+add_heir_pass(SecretToCKKS)
 
-add_mlir_dialect_library(MLIRSecretToCKKSTransforms
+add_mlir_conversion_library(HEIRSecretToCKKS
     SecretToCKKS.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRSecretToCKKSTransformsIncGen
+    HEIRSecretToCKKSIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
+    HEIRConversionUtils
 
-    MLIRCKKS
-    MLIRLWE
-    MLIRSecret
-    MLIRTensorExt
+    HEIRCKKS
+    HEIRLWE
+    HEIRSecret
+    HEIRTensorExt
     LLVMSupport
 
     MLIRArithDialect

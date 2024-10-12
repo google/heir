@@ -1,16 +1,11 @@
-add_mlir_conversion_library(MLIRHEIRMulDepthAnalysis
+add_mlir_library(HEIRMulDepthAnalysis
         MulDepthAnalysis.cpp
 
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}
-
-        DEPENDS
-        MLIROpenfheOpsIncGen
-
         LINK_LIBS PUBLIC
-        MLIROpenfhe
+        HEIROpenfhe
         LLVMSupport
         MLIRAnalysis
         MLIRIR
         MLIRSupport
 )
+target_link_libraries(HEIRAnalysis INTERFACE HEIRMulDepthAnalysis)

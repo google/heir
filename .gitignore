@@ -1,10 +1,10 @@
-# bazel
+# bazel output directories
 bazel-bin
 bazel-heir
 bazel-out
 bazel-testlogs
 
-# cmake
+# default cmake output directory
 build
 
 # Generated files by hugo

@@ -1,15 +1,13 @@
-set(LLVM_TARGET_DEFINITIONS ApplyFolders.td)
-mlir_tablegen(ApplyFolders.h.inc -gen-pass-decls -name ApplyFolders)
-add_public_tablegen_target(MLIRHeirApplyFoldersIncGen)
+add_heir_pass(ApplyFolders)
 
-add_mlir_dialect_library(MLIRHeirApplyFolders
+add_mlir_library(HEIRApplyFolders
     ApplyFolders.cpp
 
     DEPENDS
-    MLIRHeirApplyFoldersIncGen
+    HEIRApplyFoldersIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
+    HEIRModArith
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect
@@ -17,3 +15,4 @@ add_mlir_dialect_library(MLIRHeirApplyFolders
     MLIRDialect
     MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRApplyFolders)

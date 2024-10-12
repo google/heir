@@ -1,17 +1,14 @@
-add_mlir_conversion_library(MLIRHEIRAnalysisROT
+add_mlir_library(HEIRRotationAnalysis
         RotationAnalysis.cpp
 
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}
-
         DEPENDS
-        MLIRTensorExtOpsIncGen
 
         LINK_LIBS PUBLIC
-        MLIRTensorExt
+        HEIRTensorExt
         LLVMSupport
         MLIRAnalysis
         MLIRArithDialect
         MLIRIR
         MLIRSupport
 )
+target_link_libraries(HEIRAnalysis INTERFACE HEIRRotationAnalysis)
