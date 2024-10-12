@@ -9,12 +9,9 @@
 // CHECK:      %[[NTT_POLY0:.*]] = polynomial.ntt %[[poly0]] : [[POLY_TY]] -> [[INPUT_TENSOR_TYPE:.*]]
 // CHECK:      %[[NTT_POLY1:.*]] = polynomial.ntt %[[poly1]] : [[POLY_TY]] -> [[INPUT_TENSOR_TYPE]]
 // EXT:        %[[NTT_RES:.*]] = mod_arith.mul %[[NTT_POLY0]], %[[NTT_POLY1]] {modulus = 17 : i32} : [[INPUT_TENSOR_TYPE]]
-// ARITH:      %[[CMOD:.*]] = arith.constant dense<17> : [[INTERMEDIATE_TENSOR_TYPE:.*]]
-// ARITH:      %[[NTT_EXT0:.*]] = arith.extui %[[NTT_POLY0]] : [[INPUT_TENSOR_TYPE]] to [[INTERMEDIATE_TENSOR_TYPE]]
-// ARITH:      %[[NTT_EXT1:.*]] = arith.extui %[[NTT_POLY1]] : [[INPUT_TENSOR_TYPE]] to [[INTERMEDIATE_TENSOR_TYPE]]
-// ARITH:      %[[NTT_MUL:.*]] = arith.muli %[[NTT_EXT0]], %[[NTT_EXT1]] : [[INTERMEDIATE_TENSOR_TYPE]]
-// ARITH:      %[[NTT_MOD:.*]] = arith.remui %[[NTT_MUL]], %[[CMOD]] : [[INTERMEDIATE_TENSOR_TYPE]]
-// ARITH:      %[[NTT_RES:.*]] = arith.trunci %[[NTT_MOD]] : [[INTERMEDIATE_TENSOR_TYPE]] to [[INPUT_TENSOR_TYPE]]
+// ARITH:      %[[NTT_MUL:.*]] = arith.muli %[[NTT_POLY0]], %[[NTT_POLY1]] : [[INPUT_TENSOR_TYPE]]
+// ARITH:      %[[CMOD:.*]] = arith.constant dense<17> : [[INPUT_TENSOR_TYPE:.*]]
+// ARITH:      %[[NTT_RES:.*]] = arith.remui %[[NTT_MUL]], %[[CMOD]] : [[INPUT_TENSOR_TYPE]]
 // CHECK:      %[[RES:.*]] = polynomial.intt %[[NTT_RES]] : [[INPUT_TENSOR_TYPE]] -> {{.*}}
 // CHECK:      return %[[RES]] : [[POLY_TY]]
 func.func @rewrite_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
