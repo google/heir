@@ -22,10 +22,10 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
 // Avoid copybara mangling and separate third party includes with a comment.
-#include "status/statusor.h"  // from @com_google_absl
-#include "time/time.h"        // from @com_google_absl
+#include "absl/status/statusor.h"  // from @com_google_absl
+#include "absl/time/time.h"        // from @com_google_absl
 // OR-Tools dependency
-#include "math_opt/cpp/math_opt.h"  // from @com_google_ortools
+#include "ortools/math_opt/cpp/math_opt.h"  // from @com_google_ortools
 
 // The key basis degree describes the highest degree in the key basis, i.e., a
 // key basis of (1, s, s^2) has degree 2, while (1, s, s^2, s^3) has degree 3.
