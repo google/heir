@@ -1,7 +1,7 @@
 <!doctype html><html itemscope itemtype=http://schema.org/WebPage lang=en class=no-js><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name=generator content="Hugo 0.113.0"><link rel=canonical type=text/html href=https://heir.dev/docs/design/><link rel=alternate type=application/rss+xml href=https://heir.dev/docs/design/index.xml><meta name=robots content="noindex, nofollow"><link rel="shortcut icon" href=/favicons/favicon.ico><link rel=apple-touch-icon href=/favicons/apple-touch-icon-180x180.png sizes=180x180><link rel=icon type=image/png href=/favicons/favicon-16x16.png sizes=16x16><link rel=icon type=image/png href=/favicons/favicon-32x32.png sizes=32x32><link rel=icon type=image/png href=/favicons/android-36x36.png sizes=36x36><link rel=icon type=image/png href=/favicons/android-48x48.png sizes=48x48><link rel=icon type=image/png href=/favicons/android-72x72.png sizes=72x72><link rel=icon type=image/png href=/favicons/android-96x96.png sizes=96x96><link rel=icon type=image/png href=/favicons/android-144x144.png sizes=144x144><link rel=icon type=image/png href=/favicons/android-192x192.png sizes=192x192><title>Design | HEIR</title><meta name=description content><meta property="og:title" content="Design"><meta property="og:description" content><meta property="og:type" content="website"><meta property="og:url" content="https://heir.dev/docs/design/"><meta itemprop=name content="Design"><meta itemprop=description content><meta name=twitter:card content="summary"><meta name=twitter:title content="Design"><meta name=twitter:description content><link rel=preload href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
 <script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]]}}</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
 <script id=MathJax-script async src=https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js></script></head><body class=td-section><header><nav class="td-navbar navbar-dark js-navbar-scroll"><div class="container-fluid flex-column flex-md-row"><a class=navbar-brand href=/><span class="navbar-brand__logo navbar-logo"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="32" height="32" fill="#fff" fill-opacity=".01"/><path d="M18.6889 10.124l7.7916 5.0511 2.6263-1.6684-2.6146-1.6779-7.8033-4.96754 2.8526 1.84162L18.6889 10.124z" fill="#efcf6f"/><path d="M29.1185 6.86125 18.6979.13981 16.06 1.79876 26.4922 8.52025l2.6263-1.659z" fill="#efcf6f"/><path d="M8.2405 6.74134 5.60033 5.07291 3.05751 6.79935 5.67334 8.49344 8.2405 6.74134z" fill="#ee958a"/><path d="M10.8697 8.49344 8.2405 10.124v3.3995l5.2049-3.3348-2.5757-1.69526z" fill="#ee958a"/><path d="M5.67334 8.49344 3.05751 6.79935 3.03318 23.4932l2.64016 1.6897V8.49344z" fill="#a32e24"/><path d="M29.1185 6.86126 26.4922 8.52025V11.8288l2.6263-1.6401V6.86126z" fill="#d38041"/><path d="M21.5415 8.70288 18.6889 6.86126V10.124l2.8526-1.42112z" fill="#d38041"/><path fill-rule="evenodd" clip-rule="evenodd" d="M8.2405 6.74134V10.124v3.3995l5.2049-3.3348V3.58723l2.6145-1.7885L16.1123 11.8484V18.467l-2.6158 1.6181L13.4574 13.5235 10.849 15.1694 8.2405 16.8152v6.678L5.67334 25.1829V8.49344L8.2405 6.74134z" fill="#dd583b"/><path d="M13.4965 20.0851 13.4574 13.5235 10.849 15.1694 10.8077 18.467l2.6888 1.6181z" fill="#a32e24"/><path fill-rule="evenodd" clip-rule="evenodd" d="M13.4454 3.58723V10.1887L10.8697 8.49344 10.9293 1.79873l2.5161 1.7885z" fill="#a32e24"/><path d="M16.0599 1.79873 13.4454.13981 10.9293 1.79873l2.5161 1.7885 2.6145-1.7885z" fill="#ee958a"/><path d="M16.06 1.79876 16.0793 5.52165 16.1123 11.8484V18.467l2.5766-1.6518V13.4696 10.124 6.86126l7.8033 4.96754V8.52025L16.06 1.79876z" fill="#e5ad11"/><path d="M18.6889 16.8152 16.1123 18.467l10.3682 6.7159V21.8372l-7.7916-5.022z" fill="#e5ad11"/><path d="M26.4805 15.1751 18.6889 10.124v3.3456l2.7505 1.7641 5.0411 3.2333V15.1751z" fill="#e5ad11"/><path d="M29.1068 13.5067l-2.6263 1.6684V18.467l2.6263-1.6518V13.5067z" fill="#d48041"/><path d="M29.1185 20.0851l-2.638 1.7521v3.3457l2.6263-1.6897L29.1185 20.0851z" fill="#d48041"/><path fill-rule="evenodd" clip-rule="evenodd" d="M26.4805 21.8372l-7.7916-5.022 2.7505-1.5815 5.0411 3.2333 2.638 1.6181-2.638 1.7521z" fill="#efcf6f"/><path d="M18.6889 13.4696v3.3456l2.7505-1.5815-2.7505-1.7641z" fill="#d48041"/><path d="M20.1621 26.5165l-4.2015-2.7017-4.2015-2.7016L11.7108 23.8491l6.3384 4.0776 2.1129 1.3512V26.5165z" fill="#395aad"/><path d="M7.49852 23.8491v2.6674l8.41958 5.4439V29.2779L7.49852 23.8491z" fill="#276e3a"/><path d="M9.57951 22.4781l-2.08099 1.371 8.41958 5.4288 2.1311-1.3512-6.3384-4.0776-2.13129-1.371z" fill="#add284"/><path d="M24.3747 26.5165V23.8491L22.174 22.8377l-2.0054.9665 2.1815 1.3793 2.0246 1.333z" fill="#395aad"/><path d="M18.0492 19.7061l2.1194 1.431-2.048 1.3721-2.1698-1.3721 2.0984-1.431z" fill="#395aad"/><path fill-rule="evenodd" clip-rule="evenodd" d="M20.1621 18.4432l-2.0415-.596-2.1581.596-2.1017 1.3349-2.1017 1.3351 2.1012 1.3511 6.3018 4.0522 2.188-1.333-2.1815-1.3793 2.0054-.9665 2.2007 1.0114 2.0995-1.329-2.0811-1.4069L22.3501 21.1371l-.1752-1.4237L22.174 19.7061l-2.0119-1.2629zm-2.1129 1.2629 2.1194 1.431-2.048 1.3721-2.1698-1.3721 2.0984-1.431z" fill="#9ec4e0"/><path d="M26.4742 22.5201l-2.0995 1.329v2.6674l2.1289-1.3305L26.4742 22.5201z" fill="#4285f4"/><path d="M20.1621 26.5165v2.7614l2.188-1.3512V25.1835l-2.188 1.333z" fill="#4285f4"/><path d="M15.9181 29.2779v2.6825l2.1311-1.3708V27.9267l-2.1311 1.3512z" fill="#4e9c68"/></svg></span><span class=navbar-brand__name>HEIR</span></a><div class="td-navbar-nav-scroll ms-md-auto" id=main_navbar><ul class=navbar-nav><li class=nav-item><a class="nav-link active" href=/><span>Home</span></a></li><li class=nav-item><a class="nav-link active" href=/docs/><span>Docs</span></a></li><li class=nav-item><a class=nav-link href=/blog/><span>Blog</span></a></li><li class=nav-item><a class=nav-link href=/community/><span>Community</span></a></li><li class=nav-item><a class=nav-link href=https://github.com/google/heir/ target=_blank rel=noopener><span>GitHub</span></a></li></ul></div><div class="d-none d-lg-block"></div></div></nav></header><div class="container-fluid td-outer"><div class=td-main><div class="row flex-xl-nowrap"><main class="col-12 col-md-9 col-xl-8 ps-md-5" role=main><div class=td-content><div class="pageinfo pageinfo-primary d-print-none"><p>This is the multi-page printable view of this section.
-<a href=# onclick="return print(),!1">Click here to print</a>.</p><p><a href=/docs/design/>Return to the regular view of this page</a>.</p></div><h1 class=title>Design</h1><ul><li>1: <a href=#pg-bddfea9d49299ca5edc4a07ea06fcc23>Data-oblivious Transformations</a></li><li>2: <a href=#pg-76ae4da46c68c5cd44ad0ecf5d69993f>Secret</a></li><li>3: <a href=#pg-05018faa55dd802660a3ea38b8f7fb69>SIMD Optimizations</a></li></ul><div class=content><p>This section contains documentation on the high level design of the project.
+<a href=# onclick="return print(),!1">Click here to print</a>.</p><p><a href=/docs/design/>Return to the regular view of this page</a>.</p></div><h1 class=title>Design</h1><ul><li>1: <a href=#pg-bddfea9d49299ca5edc4a07ea06fcc23>Data-oblivious Transformations</a></li><li>2: <a href=#pg-76ae4da46c68c5cd44ad0ecf5d69993f>Secret</a></li><li>3: <a href=#pg-05018faa55dd802660a3ea38b8f7fb69>SIMD Optimizations</a></li><li>4: <a href=#pg-cd22aa05be277ba6c2e2f8f083706b51></a></li></ul><div class=content><p>This section contains documentation on the high level design of the project.
 Readers are intended to have basic familiarity with MLIR and FHE.</p></div></div><div class=td-content><h1 id=pg-bddfea9d49299ca5edc4a07ea06fcc23>1 - Data-oblivious Transformations</h1><p>A data-oblivious program is one that decouples data input from program
 execution. Such programs exhibit control-flow and memory access patterns that
 are independent of their input(s). This programming model, when applied to
@@ -629,7 +629,115 @@ total number of rotations. For example,</p><div class=highlight><pre tabindex=0 
 operand of the arithmetic operation.</p></li></ul><p>Note that the index computations in the patterns above (e.g., <code>k+l</code>,
 <code>k mod t.size</code> are realized via emitting <code>arith</code> operations. However, for
 constant/compile-time-known indices, these will be subsequently constant-folded
-away by the canonicalization pass.</p></div></main></div></div><footer class="td-footer row d-print-none"><div class=container-fluid><div class="row mx-md-2"><div class="col-6 col-sm-4 text-xs-center order-sm-2"></div><div class="col-6 col-sm-4 text-end text-xs-center order-sm-3"><ul class=td-footer__links-list><li class=td-footer__links-item data-bs-toggle=tooltip title=GitHub aria-label=GitHub><a target=_blank rel=noopener href=https://github.com/google/heir aria-label=GitHub><i class="fab fa-github"></i></a></li></ul></div><div class="td-footer__copyright-etc col-12 col-sm-4 text-center py-2 order-sm-2"><span>&copy; 2024 The HEIR Authors All Rights Reserved</span>
+away by the canonicalization pass.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-cd22aa05be277ba6c2e2f8f083706b51>4 -</h1><hr><p>title: Optimizing relinearization</p><h2 id=weight-10>weight: 10</h2><p>This document outlines the integer linear program model used in the
+<a href=https://heir.dev/docs/passes/optimizerelinearizationpasses/#-optimize-relinearization><code>optimize-relinearization</code></a>
+pass.</p><h2 id=background>Background</h2><p>In vector/arithmetic FHE, RLWE ciphertexts often have the form $\mathbf{c} =
+(c_0, c_1)$, where the details of how $c_0$ and $c_1$ are computed depend on the
+specific scheme. However, in most of these schemes, the process of decryption
+can be thought of as taking a dot product between the vector $\mathbf{c}$ and a
+vector $(1, s)$ containing the secret key $s$ (followed by rounding).</p><p>In such schemes, the homomorphic multiplication of two ciphertexts $\mathbf{c}
+= (c_0, c_1)$ and $\mathbf{d} = (d_0, d_1)$ produces a ciphertext $\mathbf{f}
+= (f_0, f_1, f_2)$. This triple can be decrypted by taking a dot product with
+$(1, s, s^2)$.</p><p>With this in mind, each RLWE ciphertext $\mathbf{c}$ has an associated <em>key
+basis</em>, which is the vector $\mathbf{s_c}$ whose dot product with $\mathbf{c}$
+decrypts it.</p><p>Usually a larger key basis is undesirable. For one, operations in a higher key
+basis are more expensive and have higher rates of noise growth. Repeated
+multiplications exponentially increase the length of the key basis. So to avoid
+this, an operation called <em>relinearization</em> was designed that converts a
+ciphertext from a given key basis back to $(1, s)$. Doing this requires a set of
+<em>relinearization keys</em> to be provided by the client and stored by the server.</p><p>In general, key bases can be arbitrary. Rotation of an RLWE ciphertext by a
+shift of $k$, for example, first applies the automorphism $x \mapsto x^k$. This
+converts the key basis from $(1, s)$ to $(1, s^k)$, and more generally maps $(1,
+s, s^2, \dots, s^d) \mapsto (1, s^k, s^{2k}, \dots, s^{kd})$. Most FHE
+implementations post-compose this automorphism with a key switching operation to
+return to the linear basis $(1, s)$. Similarly, multiplication can be defined
+for two key bases $(1, s^n)$ and $(1, s^m)$ (with $n &lt; m$) to produce a key
+basis $(1, s^n, s^m, s^{n+m})$. By a combination of multiplications and
+rotations (without ever relinearizing or key switching), ciphertexts with a
+variety of strange key bases can be produced.</p><p>Most FHE implementations do not permit wild key bases because each key switch
+and relinearization operation (for each choice of key basis) requires additional
+secret key material to be stored by the server. Instead, they often enforce that
+rotation has key-switching built in, and multiplication relinearizes by default.</p><p>That said, many FHE implementations do allow for the relinearization operation
+to be deferred. A useful such situation is when a series of independent
+multiplications are performed, and the results are added together. Addition can
+operate in any key basis (though all inputs must have the same key basis), and
+so the relinearization op that follows each multiplication can be deferred until
+after the additions are complete, at which point there is only one
+relinearization to perform. This technique is usually called <em>lazy
+relinearization</em>. It has the benefit of avoiding expensive relinearization
+operations, as well as reducing noise growth, as relinearization adds noise to
+the ciphertext, which can further reduce the need for bootstrapping.</p><p>In much of the literature, lazy relinearization is applied manually. See for
+example
+<a href=https://eprint.iacr.org/2019/223>Blatt-Gusev-Polyakov-Rohloff-Vaikuntanathan 2019</a>
+and <a href=https://eprint.iacr.org/2020/1549>Lee-Lee-Kim-Kim-No-Kang 2020</a>. In some
+compiler projects, such as the <a href=https://eprint.iacr.org/2021/1505>EVA compiler</a>
+relinearization is applied automatically via a heuristic, either &ldquo;eagerly&rdquo;
+(immediately after each multiplication op) or &ldquo;lazily,&rdquo; deferred as late as
+possible.</p><h2 id=the-optimize-relinearization-pass>The <code>optimize-relinearization</code> pass</h2><p>In HEIR, relinearization placement is implemented via a mixed-integer linear
+program (ILP). It is intended to be more general than a lazy relinearization
+heuristic, and certain parameter settings of the ILP reproduce lazy
+relinearization.</p><p>The <code>optimize-relinearization</code> pass starts by deleting all relinearization
+operations from the IR, solves the ILP, and then inserts relinearization ops
+according to the solution. This implies that the input IR to the ILP has no
+relinearization ops in it already.</p><h2 id=model-specification>Model specification</h2><p>The ILP model fits into a family of models that is sometimes called
+&ldquo;state-dynamics&rdquo; models, in that it has &ldquo;state&rdquo; variables that track a quantity
+that flows through a system, as well as &ldquo;decision&rdquo; variables that control
+decisions to change the state at particular points. A brief overview of state
+dynamics models can be found
+<a href=https://buttondown.com/j2kun/archive/modeling-state-in-linear-programs/>here</a></p><p>In this ILP, the &ldquo;state&rdquo; value is the degree of the key basis. I.e., rather than
+track the entire key basis, we assume the key basis always has the form $(1, s,
+s^2, \dots, s^k)$ and track the value $k$. The index tracking state is SSA
+value, and the decision variables are whether to relinearize.</p><h3 id=variables>Variables</h3><p>Define the following variables:</p><ul><li>For each operation $o$, $R_o \in { 0, 1 }$ defines the decision to
+relinearize the result of operation $o$. Relinearization is applied if and
+only if $R_o = 1$.</li><li>For each SSA value $v$, $\textup{KB}_v$ is a continuous variable
+representing the degree of the key basis of $v$. For example, if the key basis
+of a ciphertext is $(1, s)$, then $\textup{KB}_v = 1$. If $v$ is the result
+of an operation $o$, $\textup{KB}_v$ is the key basis of the result of $o$
+<em>after</em> relinearization has been optionally applied to it, depending on the
+value of the decision variable $R_o$.</li><li>For each SSA value $v$ that is an operation result, $\textup{KB}^{br}_v$ is
+a continuous variable whose value represents the key basis degree of $v$
+<em>before</em> relinearization is applied (<code>br</code> = &ldquo;before relin&rdquo;). These SSA values
+are mainly for <em>after</em> the model is solved and relinearization operations need
+to be inserted into the IR. Here, type conflicts require us to reconstruct the
+key basis degree, and saving the values allows us to avoid recomputing the
+values.</li></ul><p>Each of the key-basis variables is bounded from above by a parameter
+<code>MAX_KEY_BASIS_DEGREE</code> that can be used to impose hard limits on the key basis
+size, which may be required if generating code for a backend that does not
+support operations over generalized key bases.</p><h3 id=objective>Objective</h3><p>The objective is to minimize the number of relinearization operations, i.e.,
+$\min \sum_o R_o$.</p><p>TODO(#1018): update docs when objective is generalized.</p><h3 id=constraints>Constraints</h3><p>The simple constraints are as follows:</p><ul><li>Initial key basis degree: For each block argument, $\textup{KB}_v$ is fixed
+to equal the <code>dimension</code> parameter on the RLWE ciphertext type.</li><li>Operand agreement: For each operation with operand SSA values $v_1, \dots,
+v_k$, $\textup{KB}<em>{v_1} = \dots = \textup{KB}</em>{v_k}$, i.e., all key basis
+inputs must match.</li><li>Special linearized ops: <code>bgv.rotate</code> and <code>func.return</code> require linearized
+inputs, i.e., $\textup{KB}_{v_i} = 1$ for all inputs $v_i$ to these
+operations.</li><li>Before relinearization key basis: for each operation $o$ with operands $v_1,
+\dots, v_k$, constrain $\textup{KB}^{br}<em>{\textup{result}(o)} =
+f(\textup{KB}</em>{v_1}, \dots, \textup{KB}_{v_k})$, where $f$ is a statically
+known linear function. For multiplication $f$ is addition, and for all other
+ops it is the projection onto any input, since multiplication is the only op
+that increases the degree, and all operands are constrained to have equal
+degree.</li></ul><p>The remaining constraints control the dynamics of how the key basis degree
+changes as relinearizations are inserted.</p><p>They can be thought of as implementing this (non-linear) constraint for each
+operation $o$:</p><p>[ \textup{KB}<em>{\textup{result}(o)} = \begin{cases}
+\textup{KB}^{br}</em>{\textup{result(o)}} & \text{ if } R_o = 0 \ 1 & \text{ if
+} R_o = 1 \end{cases} ]</p><p>Note that $\textup{KB}^{br}_{\textup{result}(o)}$ is constrained by one of
+the simple constraints to be a linear expression containing key basis variables
+for the operands of $o$. The conditional above cannot be implemented directly in
+an ILP. Instead, one can implement it via four constraints that effectively
+linearize (in the sense of making non-linear constraints linear) the multiplexer
+formula</p><p>[ \textup{KB}<em>{\textup{result}(o)} = (1 - R_o) \cdot
+\textup{KB}^{br}</em>{\textup{result}(o)} + R_o \cdot 1 ]</p><p>(Note the above is not linear because in includes the product of two variables.)
+The four constraints are:</p><p>[ \begin{aligned} \textup{KB}<em>\textup{result}(o) &\geq \textup{ R}<em>o \<br>\textup{KB}</em>\textup{result}(o) &\leq 1 + C(1 – \textup{R}<em>o) \<br>\textup{KB}</em>\textup{result}(o) &\geq
+\textup{KB}^{br}</em>{\textup{result}(o)} – C \textup{ R}<em>o \<br>\textup{KB}</em>\textup{result}(o) &\leq
+\textup{KB}^{br}_{\textup{result}(o)}</p><ul><li>C \textup{ R}_o \<br>\end{aligned} ]</li></ul><p>Here $C$ is a constant that can be set to any value larger than
+<code>MAX_KEY_BASIS_DEGREE</code>. We set it to 100.</p><p>Setting $R_o = 0$ makes constraints 1 and 2 trivially satisfied, while
+constraints 3 and 4 enforce the equality $\textup{KB}<em>{\textup{result}(o)} =
+\textup{KB}^{br}</em>{\textup{result}(o)}$. Likewise, setting $R_o = 1$ makes
+constraints 3 and 4 trivially satisfied, while constraints 1 and 2 enforce the
+equality $\textup{KB}_{\textup{result}(o)} = 1$.</p><h2 id=notes>Notes</h2><ul><li>ILP performance scales roughly with the number of integer variables. The
+formulation above only requires the decision variable to be integer, and the
+initialization and constraints effectively force the key basis variables to be
+integer. As a result, the solve time of the above ILP should scale with the
+number of ciphertext-handling ops in the program.</li></ul></div></main></div></div><footer class="td-footer row d-print-none"><div class=container-fluid><div class="row mx-md-2"><div class="col-6 col-sm-4 text-xs-center order-sm-2"></div><div class="col-6 col-sm-4 text-end text-xs-center order-sm-3"><ul class=td-footer__links-list><li class=td-footer__links-item data-bs-toggle=tooltip title=GitHub aria-label=GitHub><a target=_blank rel=noopener href=https://github.com/google/heir aria-label=GitHub><i class="fab fa-github"></i></a></li></ul></div><div class="td-footer__copyright-etc col-12 col-sm-4 text-center py-2 order-sm-2"><span>&copy; 2024 The HEIR Authors All Rights Reserved</span>
 <span class=ms-1><a href=https://policies.google.com/privacy target=_blank rel=noopener>Privacy Policy</a></span></div></div></div></footer></div><script src=/js/main.min.027d75d71824837bee74c12a7806c5fe51249c1ca7accc27553a251a75cdb3a4.js integrity="sha256-An111xgkg3vudMEqeAbF/lEknBynrMwnVTolGnXNs6Q=" crossorigin=anonymous></script>
 <script defer src=/js/click-to-copy.min.f724d3de49218995223b7316aa2e53e2b34bf42026bf399ebb21bb02212402d1.js integrity="sha256-9yTT3kkhiZUiO3MWqi5T4rNL9CAmvzmeuyG7AiEkAtE=" crossorigin=anonymous></script>
 <script src=/js/tabpane-persist.js></script></body></html>
