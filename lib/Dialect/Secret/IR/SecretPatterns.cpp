@@ -736,6 +736,7 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
   std::string funcName = llvm::formatv(
       "internal_generic_{0}", mlir::hash_value(yieldOp.getValues()[0]));
   auto func = builder.create<func::FuncOp>(module.getLoc(), funcName, type);
+  func.setPrivate();
 
   // Populate function body by cloning the ops in the inner body and mapping
   // the func args and func outputs.
