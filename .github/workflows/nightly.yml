@@ -28,6 +28,7 @@ jobs:
             bazel-bin/tools/heir-opt --help
             bazel-bin/tools/heir-translate --help
             bazel-bin/tools/heir-lsp --help
+            bazel-bin/external/edu_berkeley_abc/abc --help
 
       - name: Delete previous existing nightly tag and release
         env:
@@ -45,3 +46,5 @@ jobs:
             bazel-bin/tools/heir-opt
             bazel-bin/tools/heir-translate
             bazel-bin/tools/heir-lsp
+            bazel-bin/external/edu_berkeley_abc/abc
+            lib/Transforms/YosysOptimizer/yosys/techmap.v
