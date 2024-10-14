@@ -23,6 +23,8 @@ venv
 scripts/jupyter/.ipynb_checkpoints/
 scripts/jupyter/heir-opt
 scripts/jupyter/heir-translate
+scripts/jupyter/abc
+scripts/jupyter/techmap.v
 
 # for rust codegen tests
 **/Cargo.lock

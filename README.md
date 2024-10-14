@@ -12,6 +12,33 @@ compilers. Read the docs at [the HEIR website](https://heir.dev).
 
 For more information on MLIR, see the [MLIR homepage](https://mlir.llvm.org/).
 
+## Demo: HEIR Jupyter Playground
+
+This is a way to start running [HEIR](https://heir.dev) compiler passes in a
+Jupyter notebook or IPython notebook without having to build the entire HEIR
+project from scratch.
+
+Uses the
+[nightly HEIR build](https://github.com/google/heir/releases/tag/nightly). In
+this demo, we'll run locally in this github clone to access some external
+dependencies (e.g. Yosys).
+
+## Usage
+
+Load Jupyter in the `scripts/jupyter` notebook:
+
+```bash
+cd scripts/jupyter
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+jupyter notebook
+```
+
+The demo is in [Demo.ipynb](scripts/jupyter/Demo.ipynb).
+
+Then connect to your Jupyter runtime and start executing the demo!
+
 ## Contributing
 
 There are many ways to contribute to HEIR:
