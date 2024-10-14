@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------
+______________________________________________________________________
 
 title: Optimizing relinearization
 
@@ -16,10 +16,10 @@ specific scheme. However, in most of these schemes, the process of decryption
 can be thought of as taking a dot product between the vector $\\mathbf{c}$ and a
 vector $(1, s)$ containing the secret key $s$ (followed by rounding).
 
-In such schemes, the homomorphic multiplication of two ciphertexts
-$\\mathbf{c} = (c_0, c_1)$ and $\\mathbf{d} = (d_0, d_1)$ produces a ciphertext
-$\\mathbf{f} = (f_0, f_1, f_2)$. This triple can be decrypted by taking a dot
-product with $(1, s, s^2)$.
+In such schemes, the homomorphic multiplication of two ciphertexts $\\mathbf{c}
+= (c_0, c_1)$ and $\\mathbf{d} = (d_0, d_1)$ produces a ciphertext $\\mathbf{f}
+= (f_0, f_1, f_2)$. This triple can be decrypted by taking a dot product with
+$(1, s, s^2)$.
 
 With this in mind, each RLWE ciphertext $\\mathbf{c}$ has an associated *key
 basis*, which is the vector $\\mathbf{s_c}$ whose dot product with $\\mathbf{c}$
@@ -98,22 +98,22 @@ value, and the decision variables are whether to relinearize.
 
 Define the following variables:
 
--   For each operation $o$, $R_o \\in { 0, 1 }$ defines the decision to
-    relinearize the result of operation $o$. Relinearization is applied if and
-    only if $R_o = 1$.
--   For each SSA value $v$, $\\textup{KB}\_v$ is a continuous variable
-    representing the degree of the key basis of $v$. For example, if the key
-    basis of a ciphertext is $(1, s)$, then $\\textup{KB}\_v = 1$. If $v$ is the
-    result of an operation $o$, $\\textup{KB}\_v$ is the key basis of the result
-    of $o$ *after* relinearization has been optionally applied to it, depending
-    on the value of the decision variable $R_o$.
--   For each SSA value $v$ that is an operation result, $\\textup{KB}^{br}\_v$
-    is a continuous variable whose value represents the key basis degree of $v$
-    *before* relinearization is applied (`br` = "before relin"). These SSA
-    values are mainly for *after* the model is solved and relinearization
-    operations need to be inserted into the IR. Here, type conflicts require us
-    to reconstruct the key basis degree, and saving the values allows us to
-    avoid recomputing the values.
+- For each operation $o$, $R_o \\in { 0, 1 }$ defines the decision to
+  relinearize the result of operation $o$. Relinearization is applied if and
+  only if $R_o = 1$.
+- For each SSA value $v$, $\\textup{KB}\_v$ is a continuous variable
+  representing the degree of the key basis of $v$. For example, if the key basis
+  of a ciphertext is $(1, s)$, then $\\textup{KB}\_v = 1$. If $v$ is the result
+  of an operation $o$, $\\textup{KB}\_v$ is the key basis of the result of $o$
+  *after* relinearization has been optionally applied to it, depending on the
+  value of the decision variable $R_o$.
+- For each SSA value $v$ that is an operation result, $\\textup{KB}^{br}\_v$ is
+  a continuous variable whose value represents the key basis degree of $v$
+  *before* relinearization is applied (`br` = "before relin"). These SSA values
+  are mainly for *after* the model is solved and relinearization operations need
+  to be inserted into the IR. Here, type conflicts require us to reconstruct the
+  key basis degree, and saving the values allows us to avoid recomputing the
+  values.
 
 Each of the key-basis variables is bounded from above by a parameter
 `MAX_KEY_BASIS_DEGREE` that can be used to impose hard limits on the key basis
@@ -131,21 +131,21 @@ TODO(#1018): update docs when objective is generalized.
 
 The simple constraints are as follows:
 
--   Initial key basis degree: For each block argument, $\\textup{KB}\_v$ is
-    fixed to equal the `dimension` parameter on the RLWE ciphertext type.
--   Operand agreement: For each operation with operand SSA values $v_1, \\dots,
-    v_k$, $\\textup{KB}_{v_1} = \\dots = \\textup{KB}_{v_k}$, i.e., all key
-    basis inputs must match.
--   Special linearized ops: `bgv.rotate` and `func.return` require linearized
-    inputs, i.e., $\\textup{KB}\_{v_i} = 1$ for all inputs $v_i$ to these
-    operations.
--   Before relinearization key basis: for each operation $o$ with operands $v_1,
-    \\dots, v_k$, constrain $\\textup{KB}^{br}_{\\textup{result}(o)} =
-    f(\\textup{KB}_{v_1}, \\dots, \\textup{KB}\_{v_k})$, where $f$ is a
-    statically known linear function. For multiplication $f$ is addition, and
-    for all other ops it is the projection onto any input, since multiplication
-    is the only op that increases the degree, and all operands are constrained
-    to have equal degree.
+- Initial key basis degree: For each block argument, $\\textup{KB}\_v$ is fixed
+  to equal the `dimension` parameter on the RLWE ciphertext type.
+- Operand agreement: For each operation with operand SSA values $v_1, \\dots,
+  v_k$, $\\textup{KB}_{v_1} = \\dots = \\textup{KB}_{v_k}$, i.e., all key basis
+  inputs must match.
+- Special linearized ops: `bgv.rotate` and `func.return` require linearized
+  inputs, i.e., $\\textup{KB}\_{v_i} = 1$ for all inputs $v_i$ to these
+  operations.
+- Before relinearization key basis: for each operation $o$ with operands $v_1,
+  \\dots, v_k$, constrain $\\textup{KB}^{br}_{\\textup{result}(o)} =
+  f(\\textup{KB}_{v_1}, \\dots, \\textup{KB}\_{v_k})$, where $f$ is a statically
+  known linear function. For multiplication $f$ is addition, and for all other
+  ops it is the projection onto any input, since multiplication is the only op
+  that increases the degree, and all operands are constrained to have equal
+  degree.
 
 The remaining constraints control the dynamics of how the key basis degree
 changes as relinearizations are inserted.
@@ -170,13 +170,18 @@ formula
 (Note the above is not linear because in includes the product of two variables.)
 The four constraints are:
 
-\[ \\begin{aligned} \\textup{KB}_\\textup{result}(o) &\\geq \\textup{ R}_o \\ \
-\\textup{KB}_\\textup{result}(o) &\\leq 1 + C(1 – \\textup{R}_o) \\ \
-\\textup{KB}_\\textup{result}(o) &\\geq \\textup{KB}^{br}_{\\textup{result}(o)}
-– C \\textup{ R}_o \\ \
-\\textup{KB}_\\textup{result}(o) &\\leq \\textup{KB}^{br}\_{\\textup{result}(o)}
-+ C \\textup{ R}\_o \\ \
-\\end{aligned} \]
+\[ \\begin{aligned} \\textup{KB}_\\textup{result}(o) &\\geq \\textup{ R}_o \\
+\
+\\textup{KB}_\\textup{result}(o) &\\leq 1 + C(1 – \\textup{R}_o) \\
+\
+\\textup{KB}_\\textup{result}(o) &\\geq
+\\textup{KB}^{br}_{\\textup{result}(o)} – C \\textup{ R}_o \\
+\
+\\textup{KB}_\\textup{result}(o) &\\leq
+\\textup{KB}^{br}\_{\\textup{result}(o)}
+
+- C \\textup{ R}\_o \\ \
+  \\end{aligned} \]
 
 Here $C$ is a constant that can be set to any value larger than
 `MAX_KEY_BASIS_DEGREE`. We set it to 100.
@@ -189,8 +194,8 @@ equality $\\textup{KB}\_{\\textup{result}(o)} = 1$.
 
 ## Notes
 
--   ILP performance scales roughly with the number of integer variables. The
-    formulation above only requires the decision variable to be integer, and the
-    initialization and constraints effectively force the key basis variables to
-    be integer. As a result, the solve time of the above ILP should scale with
-    the number of ciphertext-handling ops in the program.
+- ILP performance scales roughly with the number of integer variables. The
+  formulation above only requires the decision variable to be integer, and the
+  initialization and constraints effectively force the key basis variables to be
+  integer. As a result, the solve time of the above ILP should scale with the
+  number of ciphertext-handling ops in the program.

@@ -9,7 +9,7 @@ namespace mlir {
 namespace heir {
 class OptimizeRelinearizationAnalysis {
  public:
-  OptimizeRelinearizationAnalysis(Operation *op) : opToRunOn(op) {};
+  OptimizeRelinearizationAnalysis(Operation *op) : opToRunOn(op) {}
   ~OptimizeRelinearizationAnalysis() = default;
 
   LogicalResult solve();
