@@ -82,6 +82,16 @@ include_directories(${PROJECT_BINARY_DIR})
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
+message(STATUS "Fetching or-tools...")
+include(FetchContent)
+FetchContent_Declare(
+  or-tools
+  GIT_REPOSITORY https://github.com/google/or-tools.git
+  GIT_TAG        v9.11
+)
+FetchContent_MakeAvailable(or-tools)
+message(STATUS "Done fetching or-tools")
+
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 set(HEIRLIBDIR ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(lib)

@@ -133,6 +133,7 @@ function(make_heiropt_exec  TARGET_NAME SOURCES)
         MLIRHeirForwardStoreToLoad
         MLIRHeirFullLoopUnroll
         MLIRHeirLinalgCanonicalizations
+        HEIROptimizeRelinearization
         MLIRHeirSecretize
         MLIRHeirStraightLineVectorizer
 

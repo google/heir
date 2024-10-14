@@ -1,5 +1,5 @@
 # To tell rhysd/actionlint that we have a custom runner
 self-hosted-runner:
   labels:
-    - ubuntu-20.04-16core
-    - ubuntu-20.04-8core
+    - ubuntu-22.04-32core
+    - ubuntu-22.04-8core

@@ -13,7 +13,7 @@ jobs:
       # Packages write permission required to update a release
       packages: write
     runs-on:
-      labels: ubuntu-20.04-8core
+      labels: ubuntu-22.04-8core
     steps:
       - name: Check out repository code
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3

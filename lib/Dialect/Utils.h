@@ -6,7 +6,10 @@
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/IRMapping.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 
 namespace mlir {
@@ -33,6 +36,45 @@ FailureOr<int64_t> get1DExtractionIndex(Op op) {
   if (!insertOffsetAttr) return failure();
 
   return insertOffsetAttr.getInt();
+}
+
+inline Operation *cloneWithNewResultTypes(Operation *op,
+                                          TypeRange newResultTypes,
+                                          IRMapping &mapper) {
+  SmallVector<Value, 8> operands;
+  SmallVector<Block *, 2> successors;
+
+  // Remap the operands.
+  operands.reserve(op->getNumOperands());
+  for (auto opValue : op->getOperands())
+    operands.push_back(mapper.lookupOrDefault(opValue));
+
+  // Remap the successors.
+  successors.reserve(op->getNumSuccessors());
+  for (Block *successor : op->getSuccessors())
+    successors.push_back(mapper.lookupOrDefault(successor));
+
+  // Create the new operation.
+  auto *newOp = Operation::create(
+      op->getLoc(), op->getName(), newResultTypes, operands, op->getAttrs(),
+      op->getPropertiesStorage(), successors, op->getNumRegions());
+  mapper.map(op, newOp);
+
+  // Clone the regions.
+  for (unsigned i = 0; i != op->getNumRegions(); ++i)
+    op->getRegion(i).cloneInto(&newOp->getRegion(i), mapper);
+
+  // Remember the mapping of any results.
+  for (unsigned i = 0, e = op->getNumResults(); i != e; ++i)
+    mapper.map(op->getResult(i), newOp->getResult(i));
+
+  return newOp;
+}
+
+inline Operation *cloneWithNewResultTypes(Operation *op,
+                                          TypeRange newResultTypes) {
+  IRMapping mapper;
+  return cloneWithNewResultTypes(op, newResultTypes, mapper);
 }
 
 }  // namespace heir

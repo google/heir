@@ -88,6 +88,7 @@ cc_binary(
         "@heir//lib/Transforms/MemrefToArith:ExpandCopy",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/OperationBalancer",
+        "@heir//lib/Transforms/OptimizeRelinearization",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/StraightLineVectorizer",
         "@heir//lib/Transforms/TensorToScalars",

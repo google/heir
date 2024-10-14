@@ -326,7 +326,7 @@ git_repository(
     name = "com_google_ortools",
     commit = "1d696f9108a0ebfd99feb73b9211e2f5a6b0812b",
     remote = "https://github.com/google/or-tools.git",
-    shallow_since = "1647023481 +0100",
+    shallow_since = "1693402646 -0400",
 )
 
 # OpenFHE backend and dependencies
