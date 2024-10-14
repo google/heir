@@ -28,7 +28,7 @@ jobs:
             bazel-bin/tools/heir-opt --help
             bazel-bin/tools/heir-translate --help
             bazel-bin/tools/heir-lsp --help
-            bazel-bin/external/edu_berkeley_abc/abc --help
+            bazel-bin/external/edu_berkeley_abc/abc -h
 
       - name: Delete previous existing nightly tag and release
         env:
