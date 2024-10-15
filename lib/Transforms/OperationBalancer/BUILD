@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -26,30 +26,8 @@ cc_library(
         "@llvm-project//mlir:Transforms",
     ],
 )
-# OperationBalancer tablegen and headers.
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=OperationBalancer",
-            ],
-            "OperationBalancer.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "OperationBalancerPasses.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "OperationBalancer.td",
-    deps = [
-        "@heir//lib/Dialect/Secret/IR:SecretOps",
-        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
-        "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
+add_heir_transforms(
+    generated_target_name = "pass_inc_gen",
+    pass_name = "OperationBalancer",
 )
