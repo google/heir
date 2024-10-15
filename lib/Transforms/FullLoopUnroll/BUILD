@@ -20,8 +20,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "FullLoopUnroll.h.inc",
-    pass_name = "FullLoopUnroll",
-    td_file = "FullLoopUnroll.td",
-)
+add_heir_transforms(pass_name = "FullLoopUnroll")

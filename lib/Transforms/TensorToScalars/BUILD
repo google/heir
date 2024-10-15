@@ -24,8 +24,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "TensorToScalars.h.inc",
-    pass_name = "TensorToScalars",
-    td_file = "TensorToScalars.td",
-)
+add_heir_transforms(pass_name = "TensorToScalars")

@@ -25,8 +25,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "OptimizeRelinearization.h.inc",
-    pass_name = "OptimizeRelinearization",
-    td_file = "OptimizeRelinearization.td",
-)
+add_heir_transforms(pass_name = "OptimizeRelinearization")

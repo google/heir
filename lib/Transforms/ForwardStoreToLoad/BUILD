@@ -25,8 +25,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ForwardStoreToLoad.h.inc",
-    pass_name = "ForwardStoreToLoad",
-    td_file = "ForwardStoreToLoad.td",
-)
+add_heir_transforms(pass_name = "ForwardStoreToLoad")

@@ -25,8 +25,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ConvertSecretWhileToStaticFor.h.inc",
-    pass_name = "ConvertSecretWhileToStaticFor",
-    td_file = "ConvertSecretWhileToStaticFor.td",
-)
+add_heir_transforms(pass_name = "ConvertSecretWhileToStaticFor")

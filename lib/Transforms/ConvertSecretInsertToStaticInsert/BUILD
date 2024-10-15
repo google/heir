@@ -26,8 +26,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ConvertSecretInsertToStaticInsert.h.inc",
-    pass_name = "ConvertSecretInsertToStaticInsert",
-    td_file = "ConvertSecretInsertToStaticInsert.td",
-)
+add_heir_transforms(pass_name = "ConvertSecretInsertToStaticInsert")

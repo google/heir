@@ -26,8 +26,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "StraightLineVectorizer.h.inc",
-    pass_name = "StraightLineVectorizer",
-    td_file = "StraightLineVectorizer.td",
-)
+add_heir_transforms(pass_name = "StraightLineVectorizer")

@@ -112,8 +112,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "YosysOptimizer.h.inc",
-    pass_name = "YosysOptimizer",
-    td_file = "YosysOptimizer.td",
-)
+add_heir_transforms(pass_name = "YosysOptimizer")

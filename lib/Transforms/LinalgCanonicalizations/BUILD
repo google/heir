@@ -22,8 +22,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "LinalgCanonicalizations.h.inc",
-    pass_name = "LinalgCanonicalizations",
-    td_file = "LinalgCanonicalizations.td",
-)
+add_heir_transforms(pass_name = "LinalgCanonicalizations")

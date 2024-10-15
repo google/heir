@@ -26,8 +26,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ConvertSecretExtractToStaticExtract.h.inc",
-    pass_name = "ConvertSecretExtractToStaticExtract",
-    td_file = "ConvertSecretExtractToStaticExtract.td",
-)
+add_heir_transforms(pass_name = "ConvertSecretExtractToStaticExtract")

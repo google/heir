@@ -124,8 +124,4 @@ cc_library(
     alwayslink = 1,
 )
 
-add_heir_transforms(
-    header_filename = "MemrefToArith.h.inc",
-    pass_name = "MemrefToArith",
-    td_file = "MemrefToArith.td",
-)
+add_heir_transforms(pass_name = "MemrefToArith")

@@ -24,8 +24,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ConvertIfToSelect.h.inc",
-    pass_name = "ConvertIfToSelect",
-    td_file = "ConvertIfToSelect.td",
-)
+add_heir_transforms(pass_name = "ConvertIfToSelect")

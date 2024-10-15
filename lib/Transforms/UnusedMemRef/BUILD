@@ -22,8 +22,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "UnusedMemRef.h.inc",
-    pass_name = "UnusedMemRef",
-    td_file = "UnusedMemRef.td",
-)
+add_heir_transforms(pass_name = "UnusedMemRef")

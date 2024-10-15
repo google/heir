@@ -26,6 +26,7 @@ cc_library(
 )
 
 add_heir_transforms(
+    header_filename = "Passes.h.inc",
     pass_name = "Secretize",
     td_file = "Passes.td",
 )

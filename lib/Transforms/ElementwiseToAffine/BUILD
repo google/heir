@@ -24,8 +24,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ElementwiseToAffine.h.inc",
-    pass_name = "ElementwiseToAffine",
-    td_file = "ElementwiseToAffine.td",
-)
+add_heir_transforms(pass_name = "ElementwiseToAffine")

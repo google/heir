@@ -27,8 +27,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "OperationBalancer.h.inc",
-    pass_name = "OperationBalancer",
-    td_file = "OperationBalancer.td",
-)
+add_heir_transforms(pass_name = "OperationBalancer")

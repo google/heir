@@ -26,8 +26,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ForwardInsertToExtract.h.inc",
-    pass_name = "ForwardInsertToExtract",
-    td_file = "ForwardInsertToExtract.td",
-)
+add_heir_transforms(pass_name = "ForwardInsertToExtract")

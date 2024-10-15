@@ -20,8 +20,4 @@ cc_library(
     ],
 )
 
-add_heir_transforms(
-    header_filename = "ApplyFolders.h.inc",
-    pass_name = "ApplyFolders",
-    td_file = "ApplyFolders.td",
-)
+add_heir_transforms(pass_name = "ApplyFolders")
