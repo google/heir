@@ -14,6 +14,7 @@ cc_library(
     ],
     deps = [
         ":NTTRewrites",
+        ":PopulatePrimitiveRoot",
         ":pass_inc_gen",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:PolynomialDialect",
@@ -30,6 +31,24 @@ cc_library(
         ":ntt_rewrites_inc_gen",
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:PolynomialDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "PopulatePrimitiveRoot",
+    srcs = ["PopulatePrimitiveRoot.cpp"],
+    hdrs = [
+        "PopulatePrimitiveRoot.h",
+        "StaticRoots.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        ":populate_primitive_root_inc_gen",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
@@ -72,6 +91,25 @@ gentbl_cc_library(
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "NTTRewrites.td",
+    deps = [
+        "@heir//lib/Dialect/ModArith/IR:td_files",
+        "@heir//lib/Utils/DRR",
+        "@llvm-project//mlir:ArithOpsTdFiles",
+        "@llvm-project//mlir:PolynomialTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "populate_primitive_root_inc_gen",
+    includes = ["../../../.."],
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "PopulatePrimitiveRoot.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PopulatePrimitiveRoot.td",
     deps = [
         "@heir//lib/Dialect/ModArith/IR:td_files",
         "@heir//lib/Utils/DRR",
