@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -21,27 +21,9 @@ cc_library(
         "@llvm-project//mlir:TransformUtils",
     ],
 )
-# LinalgCanonicalizations tablegen and headers.
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=LinalgCanonicalizations",
-            ],
-            "LinalgCanonicalizations.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "LinalgCanonicalizationsPasses.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "LinalgCanonicalizations.h.inc",
+    pass_name = "LinalgCanonicalizations",
     td_file = "LinalgCanonicalizations.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )

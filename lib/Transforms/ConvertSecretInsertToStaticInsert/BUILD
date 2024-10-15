@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -26,25 +26,8 @@ cc_library(
     ],
 )
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=ConvertSecretInsertToStaticInsert",
-            ],
-            "ConvertSecretInsertToStaticInsert.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "ConvertSecretInsertToStaticInsertPasses.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "ConvertSecretInsertToStaticInsert.h.inc",
+    pass_name = "ConvertSecretInsertToStaticInsert",
     td_file = "ConvertSecretInsertToStaticInsert.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )

@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -24,27 +24,9 @@ cc_library(
         "@llvm-project//mlir:Transforms",
     ],
 )
-# ForwardStoreToLoad tablegen and headers.
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=ForwardStoreToLoad",
-            ],
-            "ForwardStoreToLoad.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "ForwardStoreToLoadPasses.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "ForwardStoreToLoad.h.inc",
+    pass_name = "ForwardStoreToLoad",
     td_file = "ForwardStoreToLoad.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )

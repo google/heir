@@ -1,6 +1,6 @@
 # MemrefToArith pass eliminates memrefs in favor of inline arithmetic constants.
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -124,25 +124,8 @@ cc_library(
     alwayslink = 1,
 )
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=MemrefToArith",
-            ],
-            "MemrefToArith.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "MemrefToArith.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "MemrefToArith.h.inc",
+    pass_name = "MemrefToArith",
     td_file = "MemrefToArith.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )

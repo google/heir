@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -23,27 +23,9 @@ cc_library(
         "@llvm-project//mlir:TransformUtils",
     ],
 )
-# ElementwiseToAffine tablegen and headers.
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=ElementwiseToAffine",
-            ],
-            "ElementwiseToAffine.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "ElementwiseToAffinePasses.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "ElementwiseToAffine.h.inc",
+    pass_name = "ElementwiseToAffine",
     td_file = "ElementwiseToAffine.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )

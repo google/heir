@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -21,27 +21,9 @@ cc_library(
         "@llvm-project//mlir:Transforms",
     ],
 )
-# UnusedMemRef tablegen and headers.
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=UnusedMemRef",
-            ],
-            "UnusedMemRef.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "UnusedMemRefPasses.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "UnusedMemRef.h.inc",
+    pass_name = "UnusedMemRef",
     td_file = "UnusedMemRef.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )
