@@ -85,3 +85,11 @@ function(add_heir_pass pass)
 
   add_public_tablegen_target(HEIR${pass}IncGen)
 endfunction() # add_heir_pass
+
+
+## TODO: INTEGRATE THIS
+# target_compile_features(my_lib PUBLIC cxx_std_17)
+# if(CMAKE_CXX_STANDARD LESS 17)
+#   message(FATAL_ERROR
+#       "my_lib_project requires CMAKE_CXX_STANDARD >= 17 (got: ${CMAKE_CXX_STANDARD})")
+# endif()

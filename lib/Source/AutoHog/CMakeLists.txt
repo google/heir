@@ -4,7 +4,13 @@ include(ExternalProject)
 file(READ "${CMAKE_SOURCE_DIR}/WORKSPACE" WORKSPACE_CONTENTS)
 string(REGEX MATCH "name = \"rapidjson\"[^\n]*\n[^\n]*\n[^\n]*commit = \"([a-f0-9]+)\"" _ ${WORKSPACE_CONTENTS})
 set(RAPIDJSON_COMMIT_HASH ${CMAKE_MATCH_1})
-message(DEBUG "RapidJSON commit hash: ${RAPIDJSON_COMMIT_HASH}")
+if(NOT RAPIDJSON_COMMIT_HASH)
+    message(FATAL_ERROR "The rapidjson commit hash could not be read from WORKSPACE file.\
+    Most likely the number of lines between the name and commit in the rapidjson block\
+    there has changed and the number of \[^\\n\]*\\n in the REGEX here needs to be adjusted.")
+else()
+    message(STATUS "RapidJSON commit hash: ${RAPIDJSON_COMMIT_HASH}")
+endif()
 
 # Download RapidJSON
 ExternalProject_Add(
