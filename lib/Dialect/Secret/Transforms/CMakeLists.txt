@@ -14,7 +14,8 @@ add_mlir_library(HEIRSecretTransforms
     MergeAdjacentGenerics.cpp
 
     DEPENDS
-    HEIRSecretPassesIncGen
+    HEIRSecret
+    HEIRSecretnessAnalysis
 
     LINK_LIBS PUBLIC
     MLIRIR
