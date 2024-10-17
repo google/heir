@@ -1,4 +1,4 @@
-#include "lib/Dialect/Comb/Conversions/CombToCGGI/CombToCGGI.h"
+#include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 
 #include <cassert>
 #include <cstdint>
@@ -41,8 +41,8 @@
 
 namespace mlir::heir::comb {
 
-#define GEN_PASS_DEF_COMBTOCGGI
-#include "lib/Dialect/Comb/Conversions/CombToCGGI/CombToCGGI.h.inc"
+#define GEN_PASS_DEF_SECRETTOCGGI
+#include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h.inc"
 
 namespace {
 
@@ -555,7 +555,7 @@ int findLUTSize(MLIRContext *context, Operation *module) {
   return max_int_size;
 }
 
-struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
+struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
@@ -614,4 +614,4 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
   }
 };
 
-}  // namespace mlir::heir::comb
+}  // namespace mlir::heir::secret
