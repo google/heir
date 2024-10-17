@@ -1,15 +1,15 @@
-set(LLVM_TARGET_DEFINITIONS CombToCGGI.td)
-mlir_tablegen(CombToCGGI.h.inc -gen-pass-decls -name CombToCGGI)
-add_public_tablegen_target(MLIRCombtTransformsIncGen)
+set(LLVM_TARGET_DEFINITIONS SecretToCGGI.td)
+mlir_tablegen(SecretToCGGI.h.inc -gen-pass-decls -name SecretToCGGI)
+add_public_tablegen_target(MLIRSecretTransformsIncGen)
 
-add_mlir_dialect_library(MLIRCombTransforms
-    CombToCGGI.cpp
+add_mlir_dialect_library(MLIRSecretTransforms
+    SecretToCGGI.cpp
 
     ADDITIONAL_HEADER_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/IR
 
     DEPENDS
-    MLIRCombtTransformsIncGen
+    MLIRSecretTransformsIncGen
 
     LINK_LIBS PUBLIC
 

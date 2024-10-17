@@ -382,7 +382,7 @@ input files. You can also access the underlying binary at
 
 ```bash
 bazel run //tools:heir-opt -- \
-  --comb-to-cggi -cse \
+  --secret-to-cggi -cse \
   $PWD/tests/comb_to_cggi/add_one.mlir
 ```
 

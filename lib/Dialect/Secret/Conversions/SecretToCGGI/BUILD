@@ -6,10 +6,10 @@ package(
 )
 
 cc_library(
-    name = "CombToCGGI",
-    srcs = ["CombToCGGI.cpp"],
+    name = "SecretToCGGI",
+    srcs = ["SecretToCGGI.cpp"],
     hdrs = [
-        "CombToCGGI.h",
+        "SecretToCGGI.h",
     ],
     deps = [
         ":pass_inc_gen",
@@ -38,17 +38,17 @@ gentbl_cc_library(
         (
             [
                 "-gen-pass-decls",
-                "-name=CombToCGGI",
+                "-name=SecretToCGGI",
             ],
-            "CombToCGGI.h.inc",
+            "SecretToCGGI.h.inc",
         ),
         (
             ["-gen-pass-doc"],
-            "CombToCGGI.md",
+            "SecretToCGGI.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "CombToCGGI.td",
+    td_file = "SecretToCGGI.td",
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",
