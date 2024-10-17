@@ -1,17 +1,11 @@
 
-add_mlir_dialect_library(MLIRVerilogTarget
-        VerilogEmitter.cpp
-
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
-        DEPENDS
-        MLIRSecretOpsIncGen
+add_mlir_library(MLIRVerilogTarget
+    VerilogEmitter.cpp
 
     LINK_LIBS PUBLIC
-    MLIRMemrefToArithUtils
-    MLIRSecret
-    MLIRHEIRTargetUtils
+    HEIRMemrefToArithUtils
+    HEIRSecret
+    HEIRTargetUtils
     LLVMSupport
     MLIRTranslateLib
     MLIRAffineDialect
@@ -20,5 +14,5 @@ add_mlir_dialect_library(MLIRVerilogTarget
     MLIRSupport
     MLIRIR
     MLIRInferTypeOpInterface
-
 )
+target_link_libraries(HEIRTarget INTERFACE MLIRVerilogTarget)

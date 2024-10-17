@@ -1,11 +1,5 @@
-add_mlir_conversion_library(MLIRHEIRAnalysisTSN
+add_mlir_library(HEIRTargetSlotAnalysis
         TargetSlotAnalysis.cpp
-
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}
-
-        DEPENDS
-        MLIROpenfheOpsIncGen
 
         LINK_LIBS PUBLIC
         LLVMSupport
@@ -15,3 +9,4 @@ add_mlir_conversion_library(MLIRHEIRAnalysisTSN
         MLIRTensorDialect
         MLIRInferTypeOpInterface
 )
+target_link_libraries(HEIRAnalysis INTERFACE HEIRTargetSlotAnalysis)

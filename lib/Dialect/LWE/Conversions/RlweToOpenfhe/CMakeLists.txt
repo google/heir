@@ -1,4 +1,4 @@
-add_mlir_dialect_library(MLIRRlweToOpenfheTransforms
+add_mlir_conversion_library(HEIRRlweToOpenfhe
     RlweToOpenfhe.cpp
 
     LINK_LIBS PUBLIC
@@ -6,9 +6,9 @@ add_mlir_dialect_library(MLIRRlweToOpenfheTransforms
         MLIRSupport
         MLIRSupport
         MLIRTransformUtils
-        MLIRHEIRUtils
-        MLIRLWE
-        MLIROpenfhe
+        HEIRConversionUtils
+        HEIRLWE
+        HEIROpenfhe
         MLIRArithDialect
         MLIRFuncDialect
         MLIRIR

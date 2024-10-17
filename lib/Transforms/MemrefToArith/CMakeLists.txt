@@ -1,13 +1,11 @@
-set(LLVM_TARGET_DEFINITIONS MemrefToArith.td)
-mlir_tablegen(MemrefToArith.h.inc -gen-pass-decls -name MemrefToArith)
-add_public_tablegen_target(MLIRMemrefToArithPassIncGen)
+add_heir_pass(MemrefToArith)
 
-add_mlir_library(MLIRMemrefToArithMemrefGlobalReplace
+add_mlir_library(HEIRMemrefGlobalReplace
     PARTIAL_SOURCES_INTENDED
     MemrefGlobalReplace.cpp
 
     DEPENDS
-    MLIRMemrefToArithPassIncGen
+    HEIRMemrefToArithIncGen
 
     LINK_LIBS PUBLIC
     LLVMSupport
@@ -22,13 +20,14 @@ add_mlir_library(MLIRMemrefToArithMemrefGlobalReplace
     MLIRTransformUtils
     MLIRSupport
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRMemrefGlobalReplace)
 
-add_mlir_library(MLIRMemrefToArithExpandCopy
+add_mlir_library(HEIRExpandCopy
     PARTIAL_SOURCES_INTENDED
     ExpandCopy.cpp
 
     DEPENDS
-    MLIRMemrefToArithPassIncGen
+    HEIRMemrefToArithIncGen
 
     LINK_LIBS PUBLIC
     MLIRAffineAnalysis
@@ -42,13 +41,14 @@ add_mlir_library(MLIRMemrefToArithExpandCopy
     MLIRSupport
     MLIRTransformUtils
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRExpandCopy)
 
-add_mlir_library(MLIRMemrefToArithExtractLoopBody
+add_mlir_library(HEIRExtractLoopBody
     PARTIAL_SOURCES_INTENDED
     ExtractLoopBody.cpp
 
     DEPENDS
-    MLIRMemrefToArithPassIncGen
+    HEIRMemrefToArithIncGen
 
     LINK_LIBS PUBLIC
     MLIRAffineAnalysis
@@ -60,13 +60,14 @@ add_mlir_library(MLIRMemrefToArithExtractLoopBody
     MLIRPass
     MLIRTransformUtils
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRExtractLoopBody)
 
-add_mlir_library(MLIRMemrefToArithUnrollAndForward
+add_mlir_library(HEIRUnrollAndForward
     PARTIAL_SOURCES_INTENDED
     UnrollAndForward.cpp
 
     DEPENDS
-    MLIRMemrefToArithPassIncGen
+    HEIRMemrefToArithIncGen
 
     LINK_LIBS PUBLIC
     LLVMSupport
@@ -82,27 +83,29 @@ add_mlir_library(MLIRMemrefToArithUnrollAndForward
     MLIRSupport
     MLIRTransformUtils
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRUnrollAndForward)
 
-add_mlir_library(MLIRMemrefToArithRegistration
+add_mlir_library(HEIRMemrefToArithRegistration
     PARTIAL_SOURCES_INTENDED
     PassRegistration.cpp
 
     DEPENDS
-    MLIRMemrefToArithPassIncGen
+    HEIRMemrefToArithIncGen
 
     LINK_LIBS PUBLIC
-    MLIRMemrefToArithExpandCopy
-    MLIRMemrefToArithExtractLoopBody
-    MLIRMemrefToArithMemrefGlobalReplace
-    MLIRMemrefToArithUnrollAndForward
+    HEIRExpandCopy
+    HEIRExtractLoopBody
+    HEIRMemrefGlobalReplace
+    HEIRUnrollAndForward
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRMemrefToArithRegistration)
 
-add_mlir_library(MLIRMemrefToArithUtils
+add_mlir_library(HEIRMemrefToArithUtils
     PARTIAL_SOURCES_INTENDED
     Utils.cpp
 
     DEPENDS
-    MLIRMemrefToArithPassIncGen
+    HEIRMemrefToArithIncGen
 
     LINK_LIBS PUBLIC
     MLIRAffineDialect
@@ -116,3 +119,4 @@ add_mlir_library(MLIRMemrefToArithUtils
     MLIRDialect
     MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRMemrefToArithUtils)

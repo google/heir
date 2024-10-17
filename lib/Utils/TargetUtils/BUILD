@@ -6,9 +6,9 @@ package(
 )
 
 cc_library(
-    name = "Utils",
-    srcs = ["Utils.cpp"],
-    hdrs = ["Utils.h"],
+    name = "TargetUtils",
+    srcs = ["TargetUtils.cpp"],
+    hdrs = ["TargetUtils.h"],
     deps = [
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",

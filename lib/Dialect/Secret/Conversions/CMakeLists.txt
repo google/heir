@@ -1,0 +1,2 @@
+add_subdirectory(SecretToBGV)
+add_subdirectory(SecretToCKKS)

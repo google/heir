@@ -15,8 +15,8 @@ cc_library(
     deps = [
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
-        "@heir//lib/Target:Utils",
         "@heir//lib/Target/TfheRust:Utils",
+        "@heir//lib/Utils/TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

@@ -1,21 +1,16 @@
-set(LLVM_TARGET_DEFINITIONS CGGIToJaxite.td)
-mlir_tablegen(CGGIToJaxite.h.inc -gen-pass-decls -name=CGGIToJaxite)
-add_public_tablegen_target(MLIRCGGIToJaxiteTransformsIncGen)
+add_heir_pass(CGGIToJaxite)
 
-add_mlir_dialect_library(MLIRCGGIToJaxiteTransforms
+add_mlir_conversion_library(HEIRCGGIToJaxite
     CGGIToJaxite.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRCGGIToJaxiteTransformsIncGen
+    HEIRCGGIToJaxiteIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRCGGI
-    MLIRJaxite
-    MLIRLWE
+    HEIRCGGI
+    HEIRJaxite
+    HEIRLWE
+    HEIRConversionUtils
 
     LLVMSupport
     MLIRArithDialect

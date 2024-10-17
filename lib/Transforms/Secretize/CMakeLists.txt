@@ -1,20 +1,22 @@
+# Since this defines two passes in one *.td file,
+# we cannot use the standard helper function.
 set(LLVM_TARGET_DEFINITIONS Passes.td)
 mlir_tablegen(Passes.h.inc -gen-pass-decls -name Secretize)
-add_public_tablegen_target(MLIRHeirSecretizeIncGen)
+add_public_tablegen_target(HEIRSecretizeIncGen)
 
-add_mlir_dialect_library(MLIRHeirSecretize
+add_mlir_library(HEIRSecretize
     Secretize.cpp
     WrapGeneric.cpp
 
     DEPENDS
-    MLIRHeirSecretizeIncGen
+    HEIRSecretizeIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
+    HEIRSecret
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect
     MLIRSupport
     MLIRDialect
-    MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRSecretize)

@@ -1,20 +1,17 @@
-set(LLVM_TARGET_DEFINITIONS UnusedMemRef.td)
-mlir_tablegen(UnusedMemRef.h.inc -gen-pass-decls -name UnusedMemRef)
-add_public_tablegen_target(MLIRHeirUnusedMemRefIncGen)
+add_heir_pass(UnusedMemRef)
 
-add_mlir_dialect_library(MLIRHeirUnusedMemRef
+add_mlir_library(HEIRUnusedMemRef
     PARTIAL_SOURCES_INTENDED
     UnusedMemRef.cpp
 
     DEPENDS
-    MLIRHeirUnusedMemRefIncGen
+    HEIRUnusedMemRefIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect
     MLIRSupport
     MLIRDialect
-    MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRUnusedMemRef)

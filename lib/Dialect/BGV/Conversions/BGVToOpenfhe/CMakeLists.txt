@@ -1,32 +1,23 @@
-set(LLVM_TARGET_DEFINITIONS BGVToOpenfhe.td)
-mlir_tablegen(BGVToOpenfhe.h.inc -gen-pass-decls -name BGVToOpenfhe)
-add_public_tablegen_target(MLIRBGVOpenfheTransformsIncGen)
+add_heir_pass(BGVToOpenfhe)
 
-add_mlir_dialect_library(MLIRBGVOpenfheTransforms
+add_mlir_conversion_library(HEIRBGVToOpenfhe
     BGVToOpenfhe.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRBGVOpenfheTransformsIncGen
-    MLIRLWEOpenfheTransforms
+    HEIRBGVToOpenfheIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRBGV
-    MLIRLWE
-    MLIROpenfhe
-    MLIRLWEOpenfheTransforms
-
+    HEIRBGV
+    HEIRLWE
+    HEIROpenfhe
+    HEIRConversionUtils
+    LLVMSupport
+    MLIRArithDialect
+    MLIRDialect
+    MLIRFuncDialect
+    MLIRInferTypeOpInterface
     MLIRIR
     MLIRPass
-    MLIRInferTypeOpInterface
-    MLIRArithDialect
-    MLIRFuncDialect
-    LLVMSupport
     MLIRSupport
-    MLIRDialect
     MLIRTransformUtils
-    MLIRIR
 )

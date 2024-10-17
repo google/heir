@@ -1,5 +1,5 @@
-#ifndef LIB_TARGET_UTIL_H_
-#define LIB_TARGET_UTIL_H_
+#ifndef LIB_UTILS_TARGETUTILS_TARGETUTILS_H_
+#define LIB_UTILS_TARGETUTILS_TARGETUTILS_H_
 
 #include <functional>
 #include <string>
@@ -45,4 +45,4 @@ std::string flattenIndexExpressionSOP(
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_TARGET_UTIL_H_
+#endif  // LIB_UTILS_TARGETUTILS_TARGETUTILS_H_

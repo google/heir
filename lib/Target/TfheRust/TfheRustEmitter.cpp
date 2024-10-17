@@ -15,8 +15,8 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Target/TfheRust/TfheRustTemplates.h"
 #include "lib/Target/TfheRust/Utils.h"
-#include "lib/Target/Utils.h"
 #include "lib/Utils/Graph/Graph.h"
+#include "lib/Utils/TargetUtils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project

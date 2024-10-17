@@ -1,23 +1,18 @@
-set(LLVM_TARGET_DEFINITIONS CKKSToOpenfhe.td)
-mlir_tablegen(CKKSToOpenfhe.h.inc -gen-pass-decls -name CKKSToOpenfhe)
-add_public_tablegen_target(MLIRCKKSOpenfheTransformsIncGen)
+add_heir_pass(CKKSToOpenfhe)
 
-add_mlir_dialect_library(MLIRCKKSOpenfheTransforms
+add_mlir_conversion_library(HEIRCKKSToOpenfhe
     CKKSToOpenfhe.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRCKKSOpenfheTransformsIncGen
+    HEIRCKKSToOpenfheIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRCKKS
-    MLIRLWE
-    MLIROpenfhe
-    MLIRLWEOpenfheTransforms
-    MLIRRlweToOpenfheTransforms
+    HEIRConversionUtils
+    HEIRCKKS
+    HEIRLWE
+    HEIROpenfhe
+    HEIRLWEToOpenfhe
+    HEIRRlweToOpenfhe
 
     MLIRIR
     MLIRPass

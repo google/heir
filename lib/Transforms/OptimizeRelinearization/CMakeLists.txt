@@ -13,9 +13,10 @@ add_mlir_library(HEIROptimizeRelinearization
     HEIROptimizeRelinearizationAnalysis
     MLIRIR
     MLIRPass
-    MLIRSecret
+    HEIRSecret
     MLIRSupport
     MLIRTensorDialect
     MLIRTransformUtils
     MLIRTransforms
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIROptimizeRelinearization)

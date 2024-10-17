@@ -1,19 +1,16 @@
-set(LLVM_TARGET_DEFINITIONS FullLoopUnroll.td)
-mlir_tablegen(FullLoopUnroll.h.inc -gen-pass-decls -name FullLoopUnroll)
-add_public_tablegen_target(MLIRHeirFullLoopUnrollIncGen)
+add_heir_pass(FullLoopUnroll)
 
-add_mlir_dialect_library(MLIRHeirFullLoopUnroll
+add_mlir_library(HEIRFullLoopUnroll
     FullLoopUnroll.cpp
 
     DEPENDS
-    MLIRHeirFullLoopUnrollIncGen
+    HEIRFullLoopUnrollIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
-    MLIRArithDialect
+    MLIRAffineDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRSupport
     MLIRDialect
-    MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRFullLoopUnroll)

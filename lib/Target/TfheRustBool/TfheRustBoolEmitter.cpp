@@ -13,7 +13,7 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
 #include "lib/Target/TfheRust/Utils.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolTemplates.h"
-#include "lib/Target/Utils.h"
+#include "lib/Utils/TargetUtils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project

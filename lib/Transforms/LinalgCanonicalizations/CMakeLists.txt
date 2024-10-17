@@ -1,19 +1,16 @@
-set(LLVM_TARGET_DEFINITIONS LinalgCanonicalizations.td)
-mlir_tablegen(LinalgCanonicalizations.h.inc -gen-pass-decls -name LinalgCanonicalizations)
-add_public_tablegen_target(MLIRHeirLinalgCanonicalizationsIncGen)
+add_heir_pass(LinalgCanonicalizations)
 
-add_mlir_dialect_library(MLIRHeirLinalgCanonicalizations
+add_mlir_library(HEIRLinalgCanonicalizations
     LinalgCanonicalizations.cpp
 
     DEPENDS
-    MLIRHeirLinalgCanonicalizationsIncGen
+    HEIRLinalgCanonicalizationsIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
-    MLIRArithDialect
-    MLIRIR
+    MLIRLinalgDialect
     MLIRInferTypeOpInterface
     MLIRSupport
     MLIRDialect
     MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRLinalgCanonicalizations)

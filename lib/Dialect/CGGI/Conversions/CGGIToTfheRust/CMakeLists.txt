@@ -1,21 +1,15 @@
-set(LLVM_TARGET_DEFINITIONS CGGIToTfheRust.td)
-mlir_tablegen(CGGIToTfheRust.h.inc -gen-pass-decls -name CGGIToTfheRust)
-add_public_tablegen_target(MLIRCGGIToTfheRustTransformsIncGen)
+add_heir_pass(CGGIToTfheRust)
 
-add_mlir_dialect_library(MLIRCGGIToTfheRustTransforms
+add_mlir_conversion_library(HEIRCGGIToTfheRust
     CGGIToTfheRust.cpp
-
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRCGGIToTfheRustTransformsIncGen
+    HEIRCGGIToTfheRustIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRUtils
-    MLIRCGGI
-    MLIRLWE
-    MLIRTfheRust
+    HEIRCGGI
+    HEIRLWE
+    HEIRTfheRust
+    HEIRConversionUtils
 
     MLIRSupport
     MLIRArithDialect

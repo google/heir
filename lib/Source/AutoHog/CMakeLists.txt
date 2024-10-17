@@ -1,12 +1,23 @@
 include(ExternalProject)
 
+# Get RapidJson commit hash from bazel WORKSPACE file
+file(READ "${CMAKE_SOURCE_DIR}/WORKSPACE" WORKSPACE_CONTENTS)
+string(REGEX MATCH "name = \"rapidjson\"[^\n]*\n[^\n]*\n[^\n]*commit = \"([a-f0-9]+)\"" _ ${WORKSPACE_CONTENTS})
+set(RAPIDJSON_COMMIT_HASH ${CMAKE_MATCH_1})
+if(NOT RAPIDJSON_COMMIT_HASH)
+    message(FATAL_ERROR "The rapidjson commit hash could not be read from WORKSPACE file.\
+    Most likely the number of lines between the name and commit in the rapidjson block\
+    there has changed and the number of \[^\\n\]*\\n in the REGEX here needs to be adjusted.")
+else()
+    message(STATUS "RapidJSON commit hash: ${RAPIDJSON_COMMIT_HASH}")
+endif()
+
 # Download RapidJSON
-# TODO (#818): automatically extract the commit from the bazel WORKSPACE file
 ExternalProject_Add(
     rapidjson
     PREFIX "vendor/rapidjson"
     GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
-    GIT_TAG f54b0e47a08782a6131cc3d60f94d038fa6e0a51
+    GIT_TAG ${RAPIDJSON_COMMIT_HASH}
     TIMEOUT 10
     CMAKE_ARGS
         -DRAPIDJSON_BUILD_TESTS=OFF
@@ -16,27 +27,22 @@ ExternalProject_Add(
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
+    EXCLUDE_FROM_ALL
 )
 
 # Prepare RapidJSON (RapidJSON is a header-only library)
 ExternalProject_Get_Property(rapidjson source_dir)
 set(RAPIDJSON_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/vendor/rapidjson/src/rapidjson/include/)
 
-add_mlir_dialect_library(MLIRAutoHogImporter
+add_mlir_library(HEIRAutoHogImporter
     AutoHogImporter.cpp
-
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/
-
-    DEPENDS
-    rapidjson
 
     DEPENDS
     rapidjson
 
     LINK_LIBS PUBLIC
-    MLIRCGGI
-    MLIRLWE
+    HEIRCGGI
+    HEIRLWE
     LLVMSupport
     MLIRIR
     MLIRSupport
@@ -44,4 +50,5 @@ add_mlir_dialect_library(MLIRAutoHogImporter
     MLIRTensorDialect
     MLIRTranslateLib
 )
-target_include_directories(MLIRAutoHogImporter PUBLIC ${RAPIDJSON_INCLUDE_DIR})
+target_include_directories(HEIRAutoHogImporter PUBLIC ${RAPIDJSON_INCLUDE_DIR})
+target_link_libraries(HEIRSource INTERFACE  HEIRAutoHogImporter)

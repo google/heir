@@ -1,19 +1,16 @@
-set(LLVM_TARGET_DEFINITIONS ElementwiseToAffine.td)
-mlir_tablegen(ElementwiseToAffine.h.inc -gen-pass-decls -name ElementwiseToAffine)
-add_public_tablegen_target(MLIRHeirElementwiseToAffineIncGen)
+add_heir_pass(ElementwiseToAffine)
 
-add_mlir_dialect_library(MLIRHeiElementwiseToAffine
+add_mlir_library(HeirElementwiseToAffine
     ElementwiseToAffine.cpp
 
     DEPENDS
-    MLIRHeirElementwiseToAffineIncGen
+    HEIRElementwiseToAffineIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModArithDialect
     MLIRIR
     MLIRInferTypeOpInterface
     MLIRArithDialect
     MLIRSupport
     MLIRDialect
-    MLIRIR
 )
+target_link_libraries(HEIRTransforms INTERFACE HeirElementwiseToAffine)

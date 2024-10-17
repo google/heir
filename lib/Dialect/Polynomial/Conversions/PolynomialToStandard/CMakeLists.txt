@@ -1,19 +1,14 @@
-set(LLVM_TARGET_DEFINITIONS PolynomialToStandard.td)
-mlir_tablegen(PolynomialToStandard.h.inc -gen-pass-decls -name PolynomialToStandard)
-add_public_tablegen_target(MLIRPolynomialTransformsIncGen)
+add_heir_pass(PolynomialToStandard)
 
-add_mlir_dialect_library(MLIRPolynomialTransforms
+add_mlir_conversion_library(HEIRPolynomialToStandard
     PolynomialToStandard.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
     DEPENDS
-    MLIRPolynomialTransformsIncGen
+    HEIRPolynomialToStandardIncGen
 
     LINK_LIBS PUBLIC
+    HEIRConversionUtils
 
-    MLIRHEIRUtils
     LLVMSupport
     MLIRAffineDialect
     MLIRArithDialect

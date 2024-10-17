@@ -1,18 +1,11 @@
-
-add_mlir_dialect_library(MLIRJaxiteTarget
-        JaxiteEmitter.cpp
-
-        ADDITIONAL_HEADER_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/IR
-
-        DEPENDS
-        MLIRJaxiteOpsIncGen
+add_mlir_library(HEIRJaxiteEmitter
+    JaxiteEmitter.cpp
 
     LINK_LIBS PUBLIC
-    MLIRHEIRAnalysisSVN
-    MLIRJaxite
-    MLIRLWE
-    MLIRHEIRTargetUtils
+    HEIRSelectVariableNames
+    HEIRJaxite
+    HEIRLWE
+    HEIRTargetUtils
     LLVMSupport
     MLIRArithDialect
     MLIRAffineDialect
@@ -23,3 +16,4 @@ add_mlir_dialect_library(MLIRJaxiteTarget
     MLIRTensorDialect
     MLIRTranslateLib
 )
+target_link_libraries(HEIRTarget INTERFACE HEIRJaxiteEmitter)

@@ -1,15 +1,13 @@
-set(LLVM_TARGET_DEFINITIONS ConvertSecretForToStaticFor.td)
-mlir_tablegen(ConvertSecretForToStaticFor.h.inc -gen-pass-decls -name ConvertSecretForToStaticFor)
-add_public_tablegen_target(MLIRHeirConvertSecretForToStaticForIncGen)
+add_heir_pass(ConvertSecretForToStaticFor)
 
-add_mlir_dialect_library(MLIRHeirConvertSecretForToStaticFor
+add_mlir_library(HEIRConvertSecretForToStaticFor
     ConvertSecretForToStaticFor.cpp
 
     DEPENDS
-    MLIRHeirConvertSecretForToStaticForIncGen
+    HEIRConvertSecretForToStaticForIncGen
 
     LINK_LIBS PUBLIC
-    MLIRHEIRSecretnessAnalysis
+    HEIRSecretnessAnalysis
     LLVMSupport
     MLIRInferTypeOpInterface
     MLIRArithDialect
@@ -21,3 +19,4 @@ add_mlir_dialect_library(MLIRHeirConvertSecretForToStaticFor
     MLIRDialect
     MLIRTransformUtils
 )
+target_link_libraries(HEIRTransforms INTERFACE HEIRConvertSecretForToStaticFor)
