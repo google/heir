@@ -85,7 +85,7 @@ mlir_translate = rule(
     },
 )
 
-def heir_benchmark_test(name, mlir_src, test_src, heir_opt_flags = "", data = [], tags = [], deps = [], **kwargs):
+def heir_benchmark_test(name, mlir_src, test_src, heir_opt_flags = [], data = [], tags = [], deps = [], **kwargs):
     """A rule for running compiling MLIR code and running a test linked to it.
 
     Args:
@@ -110,7 +110,7 @@ def heir_benchmark_test(name, mlir_src, test_src, heir_opt_flags = "", data = []
         heir_opt(
             name = heir_opt_name,
             src = mlir_src,
-            pass_flag = heir_opt_flags,
+            pass_flags = heir_opt_flags,
             generated_filename = generated_heir_opt_name,
         )
     else:

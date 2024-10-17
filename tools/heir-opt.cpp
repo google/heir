@@ -320,6 +320,7 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
 
   manager.addPass(tensor_ext::createRotateAndReduce());
   manager.addPass(createSCCPPass());
+  manager.addPass(createApplyFolders());
   manager.addPass(createCanonicalizerPass());
   manager.addPass(createCSEPass());
 }
@@ -628,6 +629,10 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+
+  // Apply linalg kernels
+  pm.addPass(createLinalgCanonicalizations());
+  pm.addPass(heir::linalg::createLinalgToTensorExt());
 
   // Vectorize and optimize rotations
   heirSIMDVectorizerPipelineBuilder(pm);
