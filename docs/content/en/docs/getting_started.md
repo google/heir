@@ -41,7 +41,7 @@ You will then likely want to move `bazel` to a location on your PATH, or add its
 location to your PATH, e.g.:
 
 ```bash
-mkdir ~/bin
+mkdir -p ~/bin
 echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
 mv bazel ~/bin/bazel
 ```
