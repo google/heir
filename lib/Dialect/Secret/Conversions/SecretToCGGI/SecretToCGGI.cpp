@@ -1,4 +1,4 @@
-#include "lib/Dialect/Comb/Conversions/CombToCGGI/CombToCGGI.h"
+#include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 
 #include <cassert>
 #include <cstdint>
@@ -39,10 +39,10 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
-namespace mlir::heir::comb {
+namespace mlir::heir {
 
-#define GEN_PASS_DEF_COMBTOCGGI
-#include "lib/Dialect/Comb/Conversions/CombToCGGI/CombToCGGI.h.inc"
+#define GEN_PASS_DEF_SECRETTOCGGI
+#include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h.inc"
 
 namespace {
 
@@ -414,14 +414,14 @@ class SecretGenericOpMemRefStoreConversion
 };
 
 // ConvertTruthTableOp converts truth table ops with fully plaintext values.
-struct ConvertTruthTableOp : public OpConversionPattern<TruthTableOp> {
+struct ConvertTruthTableOp : public OpConversionPattern<comb::TruthTableOp> {
   ConvertTruthTableOp(mlir::MLIRContext *context)
-      : OpConversionPattern<TruthTableOp>(context) {}
+      : OpConversionPattern<comb::TruthTableOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      TruthTableOp op, OpAdaptor adaptor,
+      comb::TruthTableOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     if (op->getNumOperands() != 3) {
       op->emitError() << "expected 3 truth table arguments to lower to CGGI";
@@ -538,7 +538,7 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
 int findLUTSize(MLIRContext *context, Operation *module) {
   int max_int_size = 0;
   auto processOperation = [&](Operation *op) {
-    if (isa<CombDialect>(op->getDialect())) {
+    if (isa<comb::CombDialect>(op->getDialect())) {
       int current_size = 0;
       if (dyn_cast<comb::TruthTableOp>(op))
         current_size = 3;
@@ -555,7 +555,7 @@ int findLUTSize(MLIRContext *context, Operation *module) {
   return max_int_size;
 }
 
-struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
+struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
@@ -581,7 +581,8 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
              SecretGenericOpOrConversion, SecretGenericOpXNorConversion,
              SecretGenericOpXorConversion, ConvertSecretCastOp>(typeConverter,
                                                                 context);
-    target.addIllegalOp<TruthTableOp, secret::CastOp, secret::GenericOp>();
+    target
+        .addIllegalOp<comb::TruthTableOp, secret::CastOp, secret::GenericOp>();
     target.addDynamicallyLegalOp<memref::StoreOp>([&](memref::StoreOp op) {
       // Legal only when the memref element type matches the stored
       // type.
@@ -614,4 +615,4 @@ struct CombToCGGI : public impl::CombToCGGIBase<CombToCGGI> {
   }
 };
 
-}  // namespace mlir::heir::comb
+}  // namespace mlir::heir

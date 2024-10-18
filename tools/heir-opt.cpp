@@ -14,7 +14,6 @@
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToOpenfhe/CKKSToOpenfhe.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
-#include "lib/Dialect/Comb/Conversions/CombToCGGI/CombToCGGI.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
@@ -34,6 +33,7 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
+#include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
@@ -394,7 +394,7 @@ void tosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
 
         pm.addPass(mlir::createCSEPass());
         pm.addPass(secret::createSecretDistributeGeneric());
-        pm.addPass(comb::createCombToCGGI());
+        pm.addPass(createSecretToCGGI());
 
         // CGGI to Tfhe-Rust exit dialect
         pm.addPass(createCGGIToTfheRust());
@@ -486,8 +486,8 @@ void tosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
         pm.addPass(createForwardStoreToLoad());
         pm.addPass(mlir::createCSEPass());
         pm.addPass(secret::createSecretDistributeGeneric());
-        pm.addPass(comb::createCombToCGGI());
-        // Cleanup CombToCGGI
+        pm.addPass(createSecretToCGGI());
+        // Cleanup SecretToCGGI
         pm.addPass(createExpandCopyPass(
             ExpandCopyPassOptions{.disableAffineLoop = true}));
         pm.addPass(memref::createFoldMemRefAliasOpsPass());
@@ -581,7 +581,7 @@ void tosaToJaxitePipeline(const std::string &yosysFilesPath,
 
         pm.addPass(mlir::createCSEPass());
         pm.addPass(secret::createSecretDistributeGeneric());
-        pm.addPass(comb::createCombToCGGI());
+        pm.addPass(createSecretToCGGI());
 
         // CGGI to Jaxite exit dialect
         pm.addPass(createCGGIToJaxite());
@@ -839,7 +839,7 @@ int main(int argc, char **argv) {
   bgv::registerBGVToLWEPasses();
   bgv::registerBGVToOpenfhePasses();
   ckks::registerCKKSToOpenfhePasses();
-  comb::registerCombToCGGIPasses();
+  registerSecretToCGGIPasses();
   lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::linalg::registerLinalgToTensorExtPasses();
   ::mlir::heir::polynomial::registerPolynomialToStandardPasses();
