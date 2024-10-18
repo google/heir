@@ -127,6 +127,21 @@ def CGGI_Lut3Op : CGGI_LutOp<"lut3", [AllTypesMatch<["a", "b", "c", "output"]>]>
   let hasCanonicalizeMethod = 1;
 }
 
+def CGGI_PackedLut3Op : CGGI_Op<"packed_lut3", [
+    Pure,
+    SameOperandsAndResultType,
+    DeclareOpInterfaceMethods<LUTOpInterface>
+]> {
+  let arguments = (ins
+    TypedArrayAttrBase<Builtin_IntegerAttr, "Array of integers">:$lookup_tables,
+    LWECiphertextLike:$a,
+    LWECiphertextLike:$b,
+    LWECiphertextLike:$c
+  );
+
+  let results = (outs LWECiphertextLike:$output);
+}
+
 def CGGI_LutLinCombOp : CGGI_Op<"lut_lincomb", [
   Pure,
   Commutative,
