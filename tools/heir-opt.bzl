@@ -13,7 +13,7 @@ _HEIR_OPT = "@heir//tools:heir-opt"
 def _heir_opt_impl(ctx):
     generated_file = ctx.outputs.generated_filename
     args = ctx.actions.args()
-    args.add(ctx.attr.pass_flag)
+    args.add_all(ctx.attr.pass_flags)
     args.add_all(["-o", generated_file.path])
     args.add(ctx.file.src)
     env_vars = {}
@@ -52,7 +52,7 @@ heir_opt = rule(
             doc = "Additional files needed for running heir-opt. Example: yosys techmap files.",
             allow_files = True,
         ),
-        "pass_flag": attr.string(
+        "pass_flags": attr.string_list(
             doc = """
             The pass flags passed to heir-opt, e.g., --canonicalize
             """,

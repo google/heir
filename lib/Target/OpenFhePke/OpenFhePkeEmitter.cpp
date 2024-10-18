@@ -13,6 +13,7 @@
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
@@ -89,10 +90,10 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretUnderlyingTypeOp>(
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
-          .Case<AddOp, SubOp, MulNoRelinOp, MulOp, MulPlainOp, SquareOp,
-                NegateOp, MulConstOp, RelinOp, ModReduceOp, LevelReduceOp,
-                RotOp, AutomorphOp, KeySwitchOp, EncryptOp, DecryptOp,
-                GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp,
+          .Case<AddOp, AddPlainOp, SubOp, MulNoRelinOp, MulOp, MulPlainOp,
+                SquareOp, NegateOp, MulConstOp, RelinOp, ModReduceOp,
+                LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp, EncryptOp,
+                DecryptOp, GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp,
                 MakePackedPlaintextOp, MakeCKKSPackedPlaintextOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
@@ -206,6 +207,13 @@ LogicalResult OpenFhePkeEmitter::printEvalMethod(
 LogicalResult OpenFhePkeEmitter::printOperation(AddOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getLhs(), op.getRhs()}, "EvalAdd");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(AddPlainOp op) {
+  // OpenFHE defines an overload for EvalAdd to work on both plaintext and
+  // ciphertext inputs.
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext(), op.getPlaintext()}, "EvalAdd");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(SubOp op) {
@@ -327,9 +335,21 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
     }
     os << floatStr.value() << ";\n";
   } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
-    if (denseElementsAttr.getType().getRank() == 1) {
+    auto nonUnitDims = llvm::to_vector(
+        llvm::make_filter_range(denseElementsAttr.getType().getShape(),
+                                [](int dim) { return dim != 1; }));
+    bool printMultiDimAsOneDim = nonUnitDims.size() == 1;
+    if (denseElementsAttr.getType().getRank() == 1 || printMultiDimAsOneDim) {
       // Print a 1-D constant.
-      if (failed(emitType(op.getResult().getType()))) {
+      // TODO(#913): This is a simplifying assumption on the layout of the
+      // multi-dimensional when there is only one non-unit dimension.
+      if (printMultiDimAsOneDim) {
+        os << "std::vector<";
+        if (failed(emitType(denseElementsAttr.getType().getElementType()))) {
+          return failure();
+        }
+        os << ">";
+      } else if (failed(emitType(op.getResult().getType()))) {
         return failure();
       }
       os << " " << variableNames->getNameForValue(op.getResult());

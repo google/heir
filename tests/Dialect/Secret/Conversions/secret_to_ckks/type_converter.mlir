@@ -79,3 +79,14 @@ func.func @test_insert(%arg0 : !secret.secret<tensor<1023xf32>>, %arg1 : !secret
   // CHECK-SAME: underlying_type = f32
   return %0 : !secret.secret<tensor<1023xf32>>
 }
+
+// -----
+
+// CHECK-LABEL: func @test_2d_arg_packed
+// CHECK-SAME: %[[arg0:.*]]: !lwe.rlwe_ciphertext<{{.*}}, underlying_type = tensor<1x1024xf32>>
+func.func @test_2d_arg_packed(%arg0 : !secret.secret<tensor<1x1024xf32>>) -> (!secret.secret<tensor<1x1024xf32>>) {
+  // CHECK: return
+  // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+  // CHECK-SAME: underlying_type = tensor<1x1024xf32>>
+  return %arg0 : !secret.secret<tensor<1x1024xf32>>
+}
