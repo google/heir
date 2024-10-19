@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-distribute-generic --comb-to-cggi %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic --secret-to-cggi %s | FileCheck %s
 
 module {
   // CHECK-NOT: secret

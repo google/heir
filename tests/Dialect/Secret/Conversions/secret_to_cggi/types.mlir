@@ -1,4 +1,4 @@
-// RUN: heir-opt --comb-to-cggi %s | FileCheck %s
+// RUN: heir-opt --secret-to-cggi %s | FileCheck %s
 
 module {
   // CHECK: func.func @types([[ARG:%.*]]: [[T:!lwe.lwe_ciphertext<.*>]]) -> [[T]]

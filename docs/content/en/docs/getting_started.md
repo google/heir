@@ -382,8 +382,8 @@ input files. You can also access the underlying binary at
 
 ```bash
 bazel run //tools:heir-opt -- \
-  --comb-to-cggi -cse \
-  $PWD/tests/comb_to_cggi/add_one.mlir
+  --secret-to-cggi -cse \
+  $PWD/tests/Dialect/Secret/Conversions/secret_to_cggi/add_one.mlir
 ```
 
 To convert an existing lit test to a `bazel run` command for manual tweaking and
