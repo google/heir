@@ -634,6 +634,10 @@ time at the expense of a possibly larger output circuit.&lt;/li>
 factor. If unset, this pass will not unroll any loops.&lt;/li>
 &lt;li>&lt;code>print-stats&lt;/code>: Prints statistics about the optimized circuits.&lt;/li>
 &lt;li>&lt;code>mode={Boolean,LUT}&lt;/code>: Map gates to boolean gates or lookup table gates.&lt;/li>
+&lt;li>&lt;code>use-submodules&lt;/code>: Extract the body of a generic op into submodules.
+Useful for large programs with generics that can be isolated. This should
+not be used when distributing generics through loops to avoid index
+arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
