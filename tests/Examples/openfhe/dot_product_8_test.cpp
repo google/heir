@@ -19,8 +19,6 @@ namespace heir {
 namespace openfhe {
 
 TEST(DotProduct8Test, RunTest) {
-  // TODO(#661): Generate a helper function to set up CryptoContext based on
-  // what is used in the generated code.
   auto cryptoContext = dot_product__generate_crypto_context();
   auto keyPair = cryptoContext->KeyGen();
   auto publicKey = keyPair.publicKey;

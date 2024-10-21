@@ -306,19 +306,12 @@ Where `dot_product_main.cpp` is a new file containing
 #include "heir_output.h"
 
 int main(int argc, char *argv[]) {
-  CCParams<CryptoContextBGVRNS> parameters;
-  // TODO(#661): replace this setup with a HEIR-generated helper function
-  parameters.SetMultiplicativeDepth(2);
-  parameters.SetPlaintextModulus(65537);
-  CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
-  cryptoContext->Enable(PKE);
-  cryptoContext->Enable(KEYSWITCH);
-  cryptoContext->Enable(LEVELEDSHE);
+  CryptoContext<DCRTPoly> cryptoContext = dot_product__generate_crypto_context();
 
   KeyPair<DCRTPoly> keyPair;
   keyPair = cryptoContext->KeyGen();
-  cryptoContext->EvalMultKeyGen(keyPair.secretKey);
-  cryptoContext->EvalRotateKeyGen(keyPair.secretKey, {1, 2, 4, 7});
+
+  cryptoContext = dot_product__configure_crypto_context(cryptoContext, keyPair.secretKey);
 
   int32_t n = cryptoContext->GetCryptoParameters()
                   ->GetElementParams()
