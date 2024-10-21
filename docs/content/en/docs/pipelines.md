@@ -41,7 +41,7 @@ The pass pipeline assumes that the input is a valid TOSA MLIR model with
 stripped quantized types. The
 [iree-import-tflite](https://iree.dev/guides/ml-frameworks/tflite) tool can
 lower a TFLite FlatBuffer to textual MLIR with `--output-format=mlir-ir`. See
-[hello_world.tosa.mlir](https://github.com/google/heir/blob/main/tests/verilog/hello_world.tosa.mlir)
+[hello_world.tosa.mlir](https://github.com/google/heir/blob/main/tests/Emitter/verilog/hello_world.tosa.mlir)
 for an example.
 
 ### `--yosys-optimizer`
