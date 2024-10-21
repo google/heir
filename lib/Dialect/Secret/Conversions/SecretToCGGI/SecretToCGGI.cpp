@@ -1,10 +1,12 @@
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
+#include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Comb/IR/CombOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -536,23 +538,23 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
 };
 
 int findLUTSize(MLIRContext *context, Operation *module) {
-  int max_int_size = 0;
+  int maxIntSize = 1;
   auto processOperation = [&](Operation *op) {
     if (isa<comb::CombDialect>(op->getDialect())) {
-      int current_size = 0;
+      int currentSize = 0;
       if (dyn_cast<comb::TruthTableOp>(op))
-        current_size = 3;
+        currentSize = 3;
       else
-        current_size = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
+        currentSize = op->getResults().getTypes()[0].getIntOrFloatBitWidth();
 
-      max_int_size = std::max(max_int_size, current_size);
+      maxIntSize = std::max(maxIntSize, currentSize);
     }
   };
 
   // Walk all operations within the module in post-order (default)
   module->walk(processOperation);
 
-  return max_int_size;
+  return maxIntSize;
 }
 
 struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
@@ -572,6 +574,8 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
         .add<SecretGenericOpLUTConversion,
              SecretGenericOpConversion<memref::AllocOp, memref::AllocOp>,
              SecretGenericOpConversion<memref::DeallocOp, memref::DeallocOp>,
+             SecretGenericOpConversion<memref::CollapseShapeOp,
+                                       memref::CollapseShapeOp>,
              SecretGenericOpMemRefLoadConversion,
              SecretGenericOpAffineStoreConversion,
              SecretGenericOpAffineLoadConversion,

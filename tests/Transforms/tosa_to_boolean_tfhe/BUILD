@@ -9,6 +9,7 @@ glob_lit_tests(
     driver = "@heir//tests:run_lit.sh",
     size_override = {
         "fully_connected.mlir": "large",
+        "hello_world_small.mlir": "large",
     },
     tags_override = {
         "hello_world.mlir": [
