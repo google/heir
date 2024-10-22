@@ -22,7 +22,7 @@ versions in case you run into any errors.
 1. Copy the markdown files to `docs/`:
 
    ```bash
-   ./.github/workflows/copy_tblgen_files.sh
+   python .github/workflows/copy_tblgen_files.py
    ```
 
 1. Navigate to the `/docs` directory:
@@ -57,11 +57,10 @@ current versions to use:
    wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
    ```
 
-1. Install the same Node version as used in the workflow, for example: \`\`bash
+1. Install the same Node version as used in the workflow, for example:
+
+   ```bash
    nvm install 18
-
-   ```
-
    ```
 
 1. Install the Hugo dependencies, minimally `golang`. For example, on Ubuntu:
