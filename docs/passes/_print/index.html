@@ -10,6 +10,7 @@ operations. Pass is based on the straight-line-vectorizer, but is fundamentally 
 This pass combines any type of boolean gates and is not restricted to combining the same type of gate operand.</p><p>Pass is intended for the <code>FPT</code> tfhe-rs API, where <code>packed_gates</code> function get a
 the boolean gates are passed as a string vector and a left and right vector of ciphertexts.
 Each boolean gates specified in <code>gates</code> is then applied element wise.</p><pre tabindex=0><code>let outputs_ct = fpga_key.packed_gates(&amp;gates, &amp;ref_to_ct_lefts, &amp;ref_to_ct_rights);
+</code></pre><h4 id=options>Options</h4><pre tabindex=0><code>-parallelism : Parallelism factor for batching. 0 is infinite parallelism
 </code></pre><h3 id=-cggi-set-default-parameters><code>-cggi-set-default-parameters</code></h3><p><em>Set default parameters for CGGI ops</em></p><p>This pass adds default parameters to all CGGI ops as <code>cggi_params</code> named
 attributes, overriding any existing attribute set with that name.</p><p>This pass is primarily for testing purposes, and as a parameter provider
 before a proper parameter selection mechanism is added. This pass should not

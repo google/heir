@@ -26,6 +26,8 @@ This pass combines any type of boolean gates and is not restricted to combining 
 the boolean gates are passed as a string vector and a left and right vector of ciphertexts.
 Each boolean gates specified in &lt;code>gates&lt;/code> is then applied element wise.&lt;/p>
 &lt;pre tabindex="0">&lt;code>let outputs_ct = fpga_key.packed_gates(&amp;amp;gates, &amp;amp;ref_to_ct_lefts, &amp;amp;ref_to_ct_rights);
+&lt;/code>&lt;/pre>&lt;h4 id="options">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-parallelism : Parallelism factor for batching. 0 is infinite parallelism
 &lt;/code>&lt;/pre>&lt;h3 id="-cggi-set-default-parameters">&lt;code>-cggi-set-default-parameters&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Set default parameters for CGGI ops&lt;/em>&lt;/p>
 &lt;p>This pass adds default parameters to all CGGI ops as &lt;code>cggi_params&lt;/code> named
