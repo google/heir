@@ -5,6 +5,45 @@ weight: 10
 
 ## Getting HEIR
 
+### Using a pre-built nightly binary
+
+HEIR releases a [nightly](https://github.com/google/heir/releases/tag/nightly)
+binary for Linux x86-64. This is intended for testing compiler passes and not
+for production use.
+
+```bash
+wget https://github.com/google/heir/releases/download/nightly/heir-opt
+chmod +x heir-opt
+./heir-opt --help
+```
+
+Then you can run the examples below, replacing `bazel run //tools:heir-opt --`
+with `./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the
+same way.
+
+### Running the nightly binary from a notebook
+
+We publish an ipython extension [heir-play](https://pypi.org/project/heir-play/)
+that can be used in Jupyter or Colab notebooks.
+
+```
+%pip install heir-play
+%load_ext heir_play
+```
+
+This will download the nightly release binaries to the system the notebook
+server is running on, then:
+
+```
+%%heir_opt --flag1 --flag2
+
+# MLIR code here
+```
+
+Runs `heir-opt` with the given command line flags on the MLIR code in the cell.
+
+A cell magic is also available for `heir-translate` as `%%heir_translate`.
+
 ### Building From Source
 
 #### Prerequisites
@@ -81,22 +120,6 @@ Like above, run the following to skip tests that depend on Yosys:
 ```bash
 bazel test --//:enable_yosys=0 --test_tag_filters=-yosys @heir//...
 ```
-
-### Using a pre-built nightly binary
-
-HEIR releases a [nightly](https://github.com/google/heir/releases/tag/nightly)
-binary for Linux x86-64. This is intended for testing compiler passes and not
-for production use.
-
-```bash
-wget https://github.com/google/heir/releases/download/nightly/heir-opt
-chmod +x heir-opt
-./heir-opt --help
-```
-
-Then you can run the examples below, replacing `bazel run //tools:heir-opt --`
-with `./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the
-same way.
 
 ## Using HEIR
 
