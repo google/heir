@@ -48,6 +48,27 @@ func.func @test_new_lwe_public_key(%arg0 : !public_key) -> !public_key {
   return %arg0 : !public_key
 }
 
+#key_mult = #lwe.key<id = "1234", size = 1, basis = 2>
+#key_rotate = #lwe.key<id = "1234", size = 1, rotate = 2>
+
+#keyswitch_bv_base = #lwe.bv_keyswitch_technique<base = 65536, dnum = 0>
+#keyswitch_bv = #lwe.bv_keyswitch_technique<base = 0, dnum = 3>
+#keyswitch_ghs = #lwe.ghs_keyswitch_technique<extra_modulus=<elements = <65537 : i32>, current = 0>>
+
+!evaluation_key_mult = !lwe.new_lwe_evaluation_key<from_key=#key_mult, to_key=#key, ring=#ring, keyswitch_techniques= #keyswitch_bv, #keyswitch_ghs>
+!evaluation_key_rotate = !lwe.new_lwe_evaluation_key<from_key=#key_rotate, to_key=#key, ring=#ring, keyswitch_techniques= #keyswitch_bv_base>
+
+// CHECK-LABEL test_new_lwe_evaluation_key_mult
+
+func.func @test_new_lwe_evaluation_key_mult(%arg0 : !evaluation_key_mult) -> !evaluation_key_mult {
+  return %arg0 : !evaluation_key_mult
+}
+
+// CHECK-LABEL test_new_lwe_evaluation_key_rotate
+
+func.func @test_new_lwe_evaluation_key_rotate(%arg0 : !evaluation_key_rotate) -> !evaluation_key_rotate {
+  return %arg0 : !evaluation_key_rotate
+}
 
 #preserve_overflow = #lwe.preserve_overflow<>
 #application_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
