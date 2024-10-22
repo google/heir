@@ -1,6 +1,7 @@
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
 
 #include <cstdint>
+#include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -14,7 +15,9 @@ namespace mlir {
 namespace heir {
 namespace cggi {
 
-ValueRange Lut2Op::getLookupTableInputs() { return ValueRange{getB(), getA()}; }
+std::optional<ValueRange> Lut2Op::getLookupTableInputs() {
+  return ValueRange{getB(), getA()};
+}
 
 LogicalResult Lut2Op::canonicalize(Lut2Op op, PatternRewriter &rewriter) {
   SmallVector<int32_t> coeffs2 = {1, 2};
@@ -25,7 +28,7 @@ LogicalResult Lut2Op::canonicalize(Lut2Op op, PatternRewriter &rewriter) {
   return success();
 }
 
-ValueRange Lut3Op::getLookupTableInputs() {
+std::optional<ValueRange> Lut3Op::getLookupTableInputs() {
   return ValueRange{getC(), getB(), getA()};
 }
 
@@ -39,8 +42,12 @@ LogicalResult Lut3Op::canonicalize(Lut3Op op, PatternRewriter &rewriter) {
   return success();
 }
 
-ValueRange LutLinCombOp::getLookupTableInputs() {
+std::optional<ValueRange> LutLinCombOp::getLookupTableInputs() {
   return ValueRange{getInputs()};
+}
+
+std::optional<ValueRange> PackedLut3Op::getLookupTableInputs() {
+  return std::nullopt;
 }
 
 LogicalResult LutLinCombOp::verify() {

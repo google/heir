@@ -35,6 +35,11 @@ def BooleanVectorizer : Pass<"cggi-boolean-vectorize"> {
     ```
   }];
 
+  let options = [
+    Option<"parallelism", "parallelism", "int",
+           /*default=*/"0", "Parallelism factor for batching. 0 is infinite parallelism">
+  ];
+
   let dependentDialects = [
     "tensor::TensorDialect",
   ];
