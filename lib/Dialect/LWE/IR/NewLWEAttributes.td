@@ -281,20 +281,25 @@ def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key"> {
     $1$ for LWE instances. A ciphertext encrypted with a `key_size` of $k$ will
     have size $k+1$.
 
-    The key basis describes the inner product used in the phase calculation in
-    decryption. This attribute is only supported for RLWE ciphertexts whose
+    The key basis/power describes the inner product used in the phase calculation
+    in decryption. This attribute is only supported for RLWE ciphertexts whose
     `key_size` is $1$. An RLWE ciphertext is canonically encrypted against key
     basis `(1, s)`. After a multiplication, its size will increase and the basis
     will be `(1, s, s^2)`. The array that represents the key basis is
     constructed by listing the powers of `s` at each position of the array. For
     example, `(1, s, s^2)` corresponds to `[0, 1, 2]`, while `(1, s^2)`
-    corresponds to `[0, 2]`.
+    corresponds to `[0, 2]`. The array that represents the key rotate is constructed
+    by listing the powers of `X` at each position of the array. For example,
+    `(1, s, s(X^2))` corresponds to `[0, 1, 2]`. Combining the basis/rotate array
+    together, we can express `(1, s, s^2, s(X^2), s^2(X^2))` as `[0, 1, 2, 1, 2]`
+    and `[0, 1, 1, 2, 2]`.
   }];
 
   let parameters = (ins
     "::mlir::StringAttr":$id,
     DefaultValuedParameter<"unsigned", "1">:$size,
-    OptionalArrayRefParameter<"unsigned int">:$basis
+    OptionalArrayRefParameter<"unsigned int">:$basis,
+    OptionalArrayRefParameter<"unsigned int">:$rotate
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
@@ -346,6 +351,62 @@ def LWE_ModulusChainAttr : AttrDef<LWE_Dialect, "ModulusChain"> {
   let assemblyFormat = "`<` `elements` `=` `<` $elements `>``,` `current` `=` $current `>`";
 
   // let genVerifyDecl = 1; // Verify index into list
+}
+
+def LWE_BVKeySwitchAttr : AttrDef<LWE_Dialect, "BVKeySwitch"> {
+  let mnemonic = "bv_keyswitch_technique";
+  let description = [{
+    An attribute describing the BV technique for keyswitch.
+
+    `base` is the radix base used in decomposition of the coefficient modulus
+    `Q` (non-RNS case) / `qi` (RNS case).
+
+    `dnum` is the number of large digits for the RNS case. It takes effect
+    only when `base` equals 0.
+
+    Check Appendix A of https://eprint.iacr.org/2021/204.pdf for more detail.
+  }];
+
+  let parameters = (ins
+    "IntegerAttr":$base,
+    "IntegerAttr":$dnum
+  );
+
+  let assemblyFormat = "`<` struct(params) `>`";
+
+  // let genVerifyDecl = 1;
+}
+
+
+def LWE_GHSKeySwitchAttr : AttrDef<LWE_Dialect, "GHSKeySwitch"> {
+  let mnemonic = "ghs_keyswitch_technique";
+  let description = [{
+    An attribute describing the GHS technique for keyswitch.
+
+    `extra_modulus` is the extra modulus `P` needed by the technique.
+    In RNS case, it is a chain of modulus.
+
+    Check Appendix A of https://eprint.iacr.org/2021/204.pdf for more detail.
+  }];
+
+  let parameters = (ins
+    "ModulusChainAttr":$extra_modulus
+  );
+
+  let assemblyFormat = "`<` struct(params) `>`";
+
+  // let genVerifyDecl = 1;
+}
+
+def LWE_AnyKeySwitchAttr : AttrDef<LWE_Dialect, "KeySwitch"> {
+  let mnemonic = "keyswitch_technique";
+  let returnType = "Attribute";
+  let convertFromStorage = "$_self";
+  string cppType = "Attribute";
+  let predicate = Or<[
+      LWE_BVKeySwitchAttr.predicate,
+      LWE_GHSKeySwitchAttr.predicate
+    ]>;
 }
 
 #endif  // LIB_DIALECT_LWE_IR_NEWLWEATTRIBUTES_TD_

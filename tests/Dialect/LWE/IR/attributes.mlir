@@ -147,8 +147,11 @@ func.func @test_fn() {
 // -----
 
 #key = #lwe.key<id = "1234">
-#key_rlwe_rotate = #lwe.key<id = "1234", basis = 0, 2>
+#key_rlwe_mult = #lwe.key<id = "1234", basis = 0, 2>
 #key_rlwe_2 = #lwe.key<id = "1234", size = 2>
+#key_rlwe_rotate = #lwe.key<id = "1234", rotate = 2>
+// not allowed! mlir cannot parse this
+// #key_rlwe_mult_rotate = #lwe.key<id = "1234", basis = 0, 2, rotate = 0, 2>
 
 // CHECK-LABEL: test_fn
 func.func @test_fn() {
@@ -169,6 +172,17 @@ func.func @test_fn() {
 // -----
 
 #modulus_chain = #lwe.modulus_chain<elements = <463187969 : i32, 33538049 : i32>, current = 0>
+
+// CHECK-LABEL: test_fn
+func.func @test_fn() {
+  return
+}
+
+// -----
+
+#keyswitch_bv_base = #lwe.bv_keyswitch_technique<base = 65536, dnum = 0>
+#keyswitch_bv = #lwe.bv_keyswitch_technique<base = 0, dnum = 3>
+#keyswitch_ghs = #lwe.ghs_keyswitch_technique<extra_modulus=<elements = <65537 : i32>, current = 0>>
 
 // CHECK-LABEL: test_fn
 func.func @test_fn() {

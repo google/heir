@@ -34,6 +34,17 @@ def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
   );
 }
 
+def NewLWEEvaluationKey : LWE_Type<"NewLWEEvaluationKey", "new_lwe_evaluation_key"> {
+  let summary = "A evaluation key for LWE";
+  let parameters = (ins
+    "KeyAttr":$from_key,
+    "KeyAttr":$to_key,
+    "::mlir::polynomial::RingAttr":$ring,
+    // can not be ArrayRefParameter<"KeySwitchAttr">
+    ArrayRefParameter<"Attribute">:$keyswitch_techniques
+  );
+}
+
 def NewLWESecretOrPublicKey : AnyTypeOf<[NewLWESecretKey, NewLWEPublicKey]>;
 
 def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext"> {
