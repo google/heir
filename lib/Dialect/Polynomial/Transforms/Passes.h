@@ -2,6 +2,7 @@
 #define LIB_DIALECT_POLYNOMAIL_TRANSFORMS_PASSES_H_
 
 #include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
+#include "lib/Dialect/Polynomial/Transforms/PopulatePrimitiveRoot.h"
 #include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialDialect.h"  // from @llvm-project
 
 namespace mlir {
