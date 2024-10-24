@@ -1,5 +1,35 @@
 // RUN: heir-opt -mod-arith-to-arith --split-input-file %s | FileCheck %s --enable-var-scope
 
+// CHECK-LABEL: @test_lower_natural_add
+// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
+func.func @test_lower_natural_add(%lhs : i8, %rhs : i8) -> i8 {
+  // CHECK-NOT: mod_arith.add
+  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: return %[[ADD]] : [[TYPE]]
+  %res = mod_arith.add %lhs, %rhs {modulus = 256}: i8
+  return %res : i8
+}
+
+// CHECK-LABEL: @test_lower_natural_sub
+// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
+func.func @test_lower_natural_sub(%lhs : i8, %rhs : i8) -> i8 {
+  // CHECK-NOT: mod_arith.sub
+  // CHECK: %[[ADD:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: return %[[ADD]] : [[TYPE]]
+  %res = mod_arith.sub %lhs, %rhs {modulus = 256}: i8
+  return %res : i8
+}
+
+// CHECK-LABEL: @test_lower_natural_mul
+// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
+func.func @test_lower_natural_mul(%lhs : i8, %rhs : i8) -> i8 {
+  // CHECK-NOT: mod_arith.mul
+  // CHECK: %[[ADD:.*]] = arith.muli %[[LHS]], %[[RHS]] : [[TYPE]]
+  // CHECK: return %[[ADD]] : [[TYPE]]
+  %res = mod_arith.mul %lhs, %rhs {modulus = 256}: i8
+  return %res : i8
+}
+
 // CHECK-LABEL: @test_lower_simple_add
 // CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
 func.func @test_lower_simple_add(%lhs : i8, %rhs : i8) -> i8 {

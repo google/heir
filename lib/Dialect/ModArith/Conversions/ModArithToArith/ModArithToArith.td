@@ -40,9 +40,44 @@ def HasEnoughSpaceAddSub: Constraint<CPred<"llvm::cast<IntegerType>(getElementTy
 def HasEnoughSpaceMul: Constraint<CPred<"llvm::cast<IntegerType>(getElementTypeOrSelf($_self.getType())).getWidth() >= 2 * ($0.getValue() - 1).getActiveBits()">,
  "underlying type is sufficient for modular mul operation without overflow">;
 
+def ModulusIsNatural : Constraint<CPred<
+  "llvm::cast<IntegerType>(getElementTypeOrSelf($_self.getType())).getWidth() "
+  "  == ($0.getValue() - 1).getActiveBits()"
+  "  && $0.getValue().isPowerOf2()">, "modulus is the natural modulus 2 ** bitwidth">;
+
 def CastModulusAttributeAddSub : NativeCodeCall<"modulusHelper($0,$1,false)">;
 def CastModulusAttributeMul : NativeCodeCall<"modulusHelper($0,$1,true)">;
 def CastModulusAttributeReduce : NativeCodeCall<"modulusHelper($0,$1,false,true)">;
+
+def ConvertAddNatural : Pattern<
+  (ModArith_AddOp:$op $x, $y, $mod),
+  [
+    (Arith_AddIOp:$add $x, $y, DefOverflow),
+  ],
+  [(ModulusIsNatural:$op $mod)],
+  [],
+  (addBenefit 4)
+>;
+
+def ConvertSubNatural : Pattern<
+  (ModArith_SubOp:$op $x, $y, $mod),
+  [
+    (Arith_SubIOp:$add $x, $y, DefOverflow),
+  ],
+  [(ModulusIsNatural:$op $mod)],
+  [],
+  (addBenefit 4)
+>;
+
+def ConvertMulNatural : Pattern<
+  (ModArith_MulOp:$op $x, $y, $mod),
+  [
+    (Arith_MulIOp:$add $x, $y, DefOverflow),
+  ],
+  [(ModulusIsNatural:$op $mod)],
+  [],
+  (addBenefit 4)
+>;
 
 def ConvertAddSimple : Pattern<
   (ModArith_AddOp:$op $x, $y, $mod),
