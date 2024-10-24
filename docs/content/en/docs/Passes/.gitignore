@@ -1,7 +1,0 @@
-# By default, ignore all markdown files,
-# as they are likely autogenerted via the
-# tablegen-to-markdown system:
-*.md
-
-# Do not ignore manually created files:
-!_index.md
