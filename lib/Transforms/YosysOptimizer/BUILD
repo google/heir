@@ -1,6 +1,6 @@
 # YosysOptimizer pass
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -112,25 +112,7 @@ cc_library(
     ],
 )
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=YosysOptimizer",
-            ],
-            "YosysOptimizer.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "YosysOptimizerPasses.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "YosysOptimizer.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
+add_heir_transforms(
+    generated_target_name = "pass_inc_gen",
+    pass_name = "YosysOptimizer",
 )
