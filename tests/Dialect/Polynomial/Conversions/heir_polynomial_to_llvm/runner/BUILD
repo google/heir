@@ -19,7 +19,7 @@ py_binary(
 
 heir_benchmark_test(
     name = "ntt_benchmark_test",
-    heir_opt_flags = "--heir-polynomial-to-llvm",
+    heir_opt_flags = ["--heir-polynomial-to-llvm"],
     mlir_src = "ntt_benchmark.mlir",
     test_src = ["ntt_benchmark_test.cc"],
     deps = [

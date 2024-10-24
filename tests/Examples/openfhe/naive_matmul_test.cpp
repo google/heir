@@ -3,14 +3,8 @@
 #include <iostream>
 #include <vector>
 
-#include "gtest/gtest.h"                               // from @googletest
-#include "src/core/include/lattice/hal/lat-backend.h"  // from @openfhe
-#include "src/pke/include/constants.h"                 // from @openfhe
-#include "src/pke/include/cryptocontext-fwd.h"         // from @openfhe
-#include "src/pke/include/gen-cryptocontext.h"         // from @openfhe
-#include "src/pke/include/key/keypair.h"               // from @openfhe
-#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns-params.h"  // from @openfhe
-#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns.h"  // from @openfhe
+#include "gtest/gtest.h"                  // from @googletest
+#include "src/pke/include/key/keypair.h"  // from @openfhe
 
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/naive_matmul_lib.h"
@@ -19,7 +13,7 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-std::vector<std::vector<CiphertextT>> dot_product__encrypt__arg0(
+std::vector<std::vector<CiphertextT>> matmul__encrypt__arg0(
     CryptoContextT v16, std::vector<double> v17, PublicKeyT v18) {
   std::vector<double> v17_cast(std::begin(v17), std::end(v17));
   int32_t n =
@@ -39,9 +33,9 @@ std::vector<std::vector<CiphertextT>> dot_product__encrypt__arg0(
   return outputs;
 }
 
-double dot_product__decrypt__result0(CryptoContextT v26,
-                                     std::vector<std::vector<CiphertextT>> v27,
-                                     PrivateKeyT v28) {
+double matmul__decrypt__result0(CryptoContextT v26,
+                                std::vector<std::vector<CiphertextT>> v27,
+                                PrivateKeyT v28) {
   PlaintextT v29;
   v26->Decrypt(v28, v27[0][0], &v29);  // just decrypt first element
   double v30 = v29->GetCKKSPackedValue()[0].real();
@@ -78,9 +72,9 @@ TEST(NaiveMatmulTest, RunTest) {
   // TODO(#645): support cyclic repetition in add-client-interface
   // TODO(#891): support other schemes besides BGV in add-client-interface
   auto arg0Encrypted =
-      dot_product__encrypt__arg0(cryptoContext, arg0Vals, publicKey);
+      matmul__encrypt__arg0(cryptoContext, arg0Vals, publicKey);
   auto arg1Encrypted =
-      dot_product__encrypt__arg0(cryptoContext, arg1Vals, publicKey);
+      matmul__encrypt__arg0(cryptoContext, arg1Vals, publicKey);
 
   // Insert timing info
   std::clock_t c_start = std::clock();
@@ -90,7 +84,7 @@ TEST(NaiveMatmulTest, RunTest) {
   std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
 
   auto actual =
-      dot_product__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
+      matmul__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
 
   EXPECT_NEAR(expected, actual, 1e-6);
 }

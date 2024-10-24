@@ -28,7 +28,7 @@ def fhe_jaxite_lib(name, mlir_src, entry_function_flag = "", py_lib_target_name 
         heir_opt(
             name = heir_opt_name,
             src = mlir_src,
-            pass_flag = heir_opt_pass_flag,
+            pass_flags = [heir_opt_pass_flag],
             generated_filename = generated_heir_opt_name,
             HEIR_YOSYS = True,
             data = ["@heir//lib/Transforms/YosysOptimizer/yosys:share_files"],

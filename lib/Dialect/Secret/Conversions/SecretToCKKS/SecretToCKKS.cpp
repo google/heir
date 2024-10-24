@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -70,6 +71,22 @@ FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
   }
 }
 
+// Returns the unique non-unit dimension of a tensor and its rank.
+// Returns failure if the tensor has more than one non-unit dimension.
+FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
+    RankedTensorType tensorTy) {
+  auto shape = tensorTy.getShape();
+
+  if (llvm::count_if(shape, [](auto dim) { return dim != 1; }) != 1) {
+    return failure();
+  }
+
+  unsigned nonUnitIndex = std::distance(
+      shape.begin(), llvm::find_if(shape, [&](auto dim) { return dim != 1; }));
+
+  return std::make_pair(nonUnitIndex, shape[nonUnitIndex]);
+}
+
 }  // namespace
 
 class SecretToCKKSTypeConverter : public TypeConverter {
@@ -124,17 +141,33 @@ class SecretGenericTensorExtractConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
-    if (!isa<lwe::RLWECiphertextType>(
-            getElementTypeOrSelf(inputs[0].getType()))) {
+    auto inputTy = inputs[0].getType();
+    if (!isa<lwe::RLWECiphertextType>(getElementTypeOrSelf(inputTy))) {
       return failure();
     }
-    if (isa<RankedTensorType>(inputs[0].getType())) {
+    if (isa<RankedTensorType>(inputTy)) {
       // Extracts an element out of a tensor (the secret tensor is not packed).
       rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, outputTypes, inputs);
       return success();
     }
     // Extracts an element out of a slot of a single ciphertext.
-    rewriter.replaceOpWithNewOp<ckks::ExtractOp>(op, outputTypes, inputs);
+    // TODO(#913): Once we have a layout descriptor, we should be able to
+    // translate a tensor.extract into the appropriate ckks.extract operation.
+    // For now, if there we are extracting a multi-dimensional tensor with only
+    // one non-unit dimension stored in a single ciphertext along that
+    // dimension, then extract on the index of the non-unit dimension.
+    auto lweCiphertextInputTy = cast<lwe::RLWECiphertextType>(inputTy);
+    auto underlyingTy =
+        cast<RankedTensorType>(lweCiphertextInputTy.getUnderlyingType());
+    auto nonUnitDim = getNonUnitDimension(underlyingTy);
+    if (failed(nonUnitDim)) {
+      return failure();
+    }
+    assert(inputs.size() == 1 + underlyingTy.getRank() &&
+           "expected tensor.extract inputs for each index");
+    auto nonUnitShift = inputs[1 + nonUnitDim.value().first];
+    rewriter.replaceOpWithNewOp<ckks::ExtractOp>(op, outputTypes[0], inputs[0],
+                                                 nonUnitShift);
     return success();
   }
 };
@@ -149,10 +182,10 @@ class SecretGenericTensorInsertConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
-    if (!isa<lwe::RLWECiphertextType>(
-            getElementTypeOrSelf(inputs[0].getType()))) {
-      op.emitError() << "expected secret tensor to be of type RLWE ciphertext"
-                     << inputs[0].getType();
+    if (!isa<lwe::RLWECiphertextType>(inputs[0].getType())) {
+      op.emitError()
+          << "expected scalar to insert to be of type RLWE ciphertext"
+          << inputs[0].getType();
       return failure();
     }
     if (isa<RankedTensorType>(inputs[1].getType())) {
@@ -186,12 +219,17 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
       for (auto value : op->getOperands()) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
           auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (tensorTy && tensorTy.getShape() !=
-                              ArrayRef<int64_t>{rlweRing.value()
-                                                    .getPolynomialModulus()
-                                                    .getPolynomial()
-                                                    .getDegree()}) {
-            return WalkResult::interrupt();
+          if (tensorTy) {
+            // TODO(#913): Multidimensional tensors with a single non-unit
+            // dimension are assumed to be packed in the order of that
+            // dimensions.
+            auto nonUnitDim = getNonUnitDimension(tensorTy);
+            if (failed(nonUnitDim)) {
+              return WalkResult::interrupt();
+            }
+            if (nonUnitDim.value().second != polyModDegree) {
+              return WalkResult::interrupt();
+            }
           }
         }
       }

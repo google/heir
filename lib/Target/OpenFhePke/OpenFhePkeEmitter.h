@@ -63,6 +63,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(
       ::mlir::heir::lwe::ReinterpretUnderlyingTypeOp op);
   LogicalResult printOperation(AddOp op);
+  LogicalResult printOperation(AddPlainOp op);
   LogicalResult printOperation(AutomorphOp op);
   LogicalResult printOperation(DecryptOp op);
   LogicalResult printOperation(EncryptOp op);
