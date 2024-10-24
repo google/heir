@@ -2468,6 +2468,91 @@ For example, an IR where elementwise operations have been converted to scalar op
 <code>--convert-elementwise-to-affine</code>.</p><p>The pass might insert new tensor.from_elements operations or manually create the scalar ValueRange
 via inserting tensor.extract operations if any operations remain that operate on tensors.
 The pass currently applies irrespective of tensor size, i.e., might be very slow for large tensors.</p><p>TODO (#1023): Extend this pass to support more tensor operations, e.g., <code>tensor.slice</code></p><h4 id=options-3>Options</h4><pre tabindex=0><code>-max-size : Limits `unrolling` to tensors with at most max-size elements
+</code></pre><h3 id=-expand-copy><code>-expand-copy</code></h3><p><em>Expands memref.copy ops to explicit affine loads and stores</em></p><p>This pass removes memref copy operations by expanding them to affine loads
+and stores. This pass introduces affine loops over the dimensions of the
+MemRef, so must be run prior to any affine loop unrolling in a pipeline.</p><p>Input</p><pre tabindex=0><code>module {
+  func.func @memref_copy() {
+    %alloc = memref.alloc() : memref&lt;2x3xi32&gt;
+    %alloc_0 = memref.alloc() : memref&lt;2x3xi32&gt;
+    memref.copy %alloc, %alloc_0 : memref&lt;1x1xi32&gt; to memref&lt;1x1xi32&gt;
+  }
+}
+</code></pre><p>Output</p><pre tabindex=0><code>module {
+  func.func @memref_copy() {
+    %alloc = memref.alloc() : memref&lt;2x3xi32&gt;
+    %alloc_0 = memref.alloc() : memref&lt;2x3xi32&gt;
+    affine.for %arg0 = 0 to 2 {
+      affine.for %arg1 = 0 to 3 {
+        %1 = affine.load %alloc[%arg0, %arg1] : memref&lt;2x3xi32&gt;
+        affine.store %1, %alloc_0[%arg0, %arg1] : memref&lt;2x3xi32&gt;
+      }
+    }
+  }
+}
+</code></pre><p>When <code>--disable-affine-loop=true</code> is set, then the output becomes</p><pre tabindex=0><code>module {
+  func.func @memref_copy() {
+    %alloc = memref.alloc() : memref&lt;2x3xi32&gt;
+    %alloc_0 = memref.alloc() : memref&lt;2x3xi32&gt;
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %0 = affine.load %alloc[%c0, %c0] : memref&lt;2x3xi32&gt;
+    affine.store %0, %alloc_0[%c0, %c0] : memref&lt;2x3xi32&gt;
+    %1 = affine.load %alloc[%c0, %c1] : memref&lt;2x3xi32&gt;
+    affine.store %1, %alloc_0[%c0, %c1] : memref&lt;2x3xi32&gt;
+    %2 = affine.load %alloc[%c0, %c2] : memref&lt;2x3xi32&gt;
+    affine.store %2, %alloc_0[%c0, %c2] : memref&lt;2x3xi32&gt;
+    [...]
+  }
+}
+</code></pre><h4 id=options-4>Options</h4><pre tabindex=0><code>-disable-affine-loop : Use this to control to disable using affine loops
+</code></pre><h3 id=-extract-loop-body><code>-extract-loop-body</code></h3><p><em>Extracts logic of a loop bodies into functions.</em></p><p>This pass extracts logic in the inner body of for loops into functions.</p><p>This pass requires that tensors are lowered to memref. It expects that a
+loop body contains a number of affine.load statements used as inputs to the
+extracted function, and a single affine.store used as the extracted
+function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
+  func.func @loop_body() {
+    %c-128_i8 = arith.constant -128 : i8
+    %c127_i8 = arith.constant 127 : i8
+    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    affine.for %arg1 = 0 to 25 {
+      affine.for %arg2 = 0 to 20 {
+        affine.for %arg3 = 0 to 8 {
+          %98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+          %99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+          %100 = arith.select %99, %c-128_i8, %arg0 : i8
+          %101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+          %102 = arith.select %101, %c127_i8, %100 : i8
+          affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+        }
+      }
+    }
+  }
+}
+</code></pre><p>Output</p><pre tabindex=0><code>module {
+  func.func @loop_body() {
+    %alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&lt;25x20x8xi8&gt;
+    affine.for %arg1 = 0 to 25 {
+      affine.for %arg2 = 0 to 20 {
+        affine.for %arg3 = 0 to 8 {
+          %98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+          %102 = func.call @__for_loop(%98) : (i8) -&gt; i8
+          affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref&lt;25x20x8xi8&gt;
+        }
+      }
+    }
+  }
+  func.func private @__for_loop(%arg0: i8) -&gt; i8 {
+    %c-128_i8 = arith.constant -128 : i8
+    %c127_i8 = arith.constant 127 : i8
+    %99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+    %100 = arith.select %99, %c-128_i8, %arg0 : i8
+    %101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+    %102 = arith.select %101, %c127_i8, %100 : i8
+    return %102 : i8
+  }
+}
+</code></pre><h4 id=options-5>Options</h4><pre tabindex=0><code>-min-loop-size : Use this to control the minimum loop size to apply this pass
+-min-body-size : Use this to control the minimum loop body size to apply this pass
 </code></pre><h3 id=-forward-insert-to-extract><code>-forward-insert-to-extract</code></h3><p><em>Forward inserts to extracts within a single block</em></p><p>This pass is similar to forward-store-to-load pass where store ops
 are forwarded load ops; here instead tensor.insert ops are forwarded
 to tensor.extract ops.</p><p>Does not support complex control flow within a block, nor ops with
@@ -2492,17 +2577,40 @@ via the Halevi-Shoup and squat matrix multiplication algorithms.</p><h3 id=-lwe-
 IR. These functions maintain the same interface as the original function,
 while the compiled function may lose some of this information by the lowerings
 to ciphertext types (e.g., a scalar ciphertext, when lowered through RLWE schemes,
-must be encoded as a tensor).</p><h4 id=options-4>Options</h4><pre tabindex=0><code>-use-public-key          : If true, generate a client interface that uses a public key for encryption.
+must be encoded as a tensor).</p><h4 id=options-6>Options</h4><pre tabindex=0><code>-use-public-key          : If true, generate a client interface that uses a public key for encryption.
 -one-value-per-helper-fn : If true, split encryption helpers into separate functions for each SSA value.
 </code></pre><h3 id=-lwe-set-default-parameters><code>-lwe-set-default-parameters</code></h3><p><em>Set default parameters for LWE ops</em></p><p>This pass adds default parameters to all <code>lwe</code> types as the <code>lwe_params</code>
 attribute, and for <code>lwe</code> ops as the <code>params</code> attribute, overriding any
 existing attributes set with those names.</p><p>This pass is primarily for testing purposes, and as a parameter provider
 before a proper parameter selection mechanism is added. This pass should not
 be used in production.</p><p>The specific parameters are hard-coded in
-<code>lib/Dialect/LWE/Transforms/SetDefaultParameters.cpp</code>.</p><h3 id=-lwe-to-polynomial><code>-lwe-to-polynomial</code></h3><p><em>Lower <code>lwe</code> to <code>polynomial</code> dialect.</em></p><p>This pass lowers the <code>lwe</code> dialect to <code>polynomial</code> dialect.</p><h3 id=-openfhe-configure-crypto-context><code>-openfhe-configure-crypto-context</code></h3><p><em>Configure the crypto context in OpenFHE</em></p><p>This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).</p><p>For example, for an MLIR function <code>@my_func</code>, the generated helpers have the following signatures</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span>  <span style=color:#000>@my_func__generate_crypto_context</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context
+<code>lib/Dialect/LWE/Transforms/SetDefaultParameters.cpp</code>.</p><h3 id=-lwe-to-polynomial><code>-lwe-to-polynomial</code></h3><p><em>Lower <code>lwe</code> to <code>polynomial</code> dialect.</em></p><p>This pass lowers the <code>lwe</code> dialect to <code>polynomial</code> dialect.</p><h3 id=-memref-global-replace><code>-memref-global-replace</code></h3><p><em>MemrefGlobalReplacePass forwards global memrefs accessors to arithmetic values</em></p><p>This pass forwards constant global MemRef values to referencing affine
+loads. This pass requires that the MemRef global values are initialized as
+constants and that the affine load access indices are constants (i.e. not
+variadic). Unroll affine loops prior to running this pass.</p><p>MemRef removal is required to remove any memory allocations from the input
+model (for example, TensorFlow models contain global memory holding model
+weights) to support FHE transpilation.</p><p>Input</p><pre tabindex=0><code>module {
+  memref.global &#34;private&#34; constant @__constant_8xi16 : memref&lt;2x4xi16&gt; = dense&lt;[[-10, 20, 3, 4], [5, 6, 7, 8]]&gt;
+  func.func @main() -&gt; i16 {
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %0 = memref.get_global @__constant_8xi16 : memref&lt;2x4xi16&gt;
+    %1 = affine.load %0[%c1, %c1 + %c2] : memref&lt;2x4xi16&gt;
+    return %1 : i16
+  }
+}
+</code></pre><p>Output</p><pre tabindex=0><code>module {
+  func.func @main() -&gt; i16 {
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c8_i16 = arith.constant 8 : i16
+    return %c8_i16 : i16
+  }
+}
+</code></pre><h3 id=-openfhe-configure-crypto-context><code>-openfhe-configure-crypto-context</code></h3><p><em>Configure the crypto context in OpenFHE</em></p><p>This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).</p><p>For example, for an MLIR function <code>@my_func</code>, the generated helpers have the following signatures</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span>  <span style=color:#000>@my_func__generate_crypto_context</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span>  <span style=color:#000>@my_func__configure_crypto_context</span><span style=color:#000;font-weight:700>(!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>private_key<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context
-</span></span></code></pre></div><h4 id=options-5>Options</h4><pre tabindex=0><code>-entry-function : Default entry function name of entry function.
+</span></span></code></pre></div><h4 id=options-7>Options</h4><pre tabindex=0><code>-entry-function : Default entry function name of entry function.
 </code></pre><h3 id=-operation-balancer><code>-operation-balancer</code></h3><p><em>This pass balances addition and multiplication operations.</em></p><p>This pass examines a tree or graph of add and multiplication operations and
 balances them to minimize the depth of the tree. This exposes better parallelization
 and reducing the multiplication depth can decrease the parameters used in FHE,
@@ -2560,7 +2668,7 @@ program that operates on a secret type annotates the input to a region as
 <code>secret.generic</code>, then uses this pass to simplify it.</p><p>The <code>distribute-through</code> option allows one to specify a comma-separated
 list of op names (e.g., <code>distribute-thorugh="affine.for,scf.if"</code>), which
 limits the distribution to only pass through those ops. If unset, all ops
-are distributed through when possible.</p><h4 id=options-6>Options</h4><pre tabindex=0><code>-distribute-through : comma-separated list of ops that should be distributed through
+are distributed through when possible.</p><h4 id=options-8>Options</h4><pre tabindex=0><code>-distribute-through : comma-separated list of ops that should be distributed through
 </code></pre><h3 id=-secret-extract-generic-body><code>-secret-extract-generic-body</code></h3><p><em>Extract the bodies of all generic ops into functions</em></p><p>This pass extracts the body of all generic ops into functions, and
 replaces the generic bodies with call ops. Used as a sub-operation in
 some passes, and extracted into its own pass for testing purposes.</p><p>This pass works best when <code>--secret-generic-absorb-constants</code> is run
@@ -2577,7 +2685,7 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-7>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-9>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 </code></pre><h3 id=-secret-to-cggi><code>-secret-to-cggi</code></h3><p><em>Lower <code>secret</code> to <code>cggi</code> dialect.</em></p><p>This pass lowers the <code>secret</code> dialect to <code>cggi</code> dialect.</p><h3 id=-secret-to-ckks><code>-secret-to-ckks</code></h3><p><em>Lower <code>secret</code> to <code>ckks</code> dialect.</em></p><p>This pass lowers an IR with <code>secret.generic</code> blocks containing arithmetic
 operations to operations on ciphertexts with the CKKS dialect.</p><p>The pass assumes that the <code>secret.generic</code> regions have been distributed
@@ -2585,17 +2693,25 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-8>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-10>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 </code></pre><h3 id=-secretize><code>-secretize</code></h3><p><em>Adds secret argument attributes to entry function</em></p><p>Adds a secret.secret attribute argument to each argument in the entry
 function of an MLIR module. By default, the function is <code>main</code>. This may be
-overridden with the option -entry-function=top_level_func.</p><h4 id=options-9>Options</h4><pre tabindex=0><code>-entry-function : entry function of the module
+overridden with the option -entry-function=top_level_func.</p><h4 id=options-11>Options</h4><pre tabindex=0><code>-entry-function : entry function of the module
 </code></pre><h3 id=-straight-line-vectorize><code>-straight-line-vectorize</code></h3><p><em>A vectorizer for straight line programs.</em></p><p>This pass ignores control flow and only vectorizes straight-line programs
-within a given region.</p><h4 id=options-10>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
+within a given region.</p><h4 id=options-12>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 </code></pre><h3 id=-tosa-to-secret-arith><code>-tosa-to-secret-arith</code></h3><p><em>Lower <code>tosa.sigmoid</code> to secret arith dialects.</em></p><p>This pass lowers the <code>tosa.sigmoid</code> dialect to the polynomial approximation
 -0.004 * x^3 + 0.197 * x + 0.5 (composed of arith, affine, and tensor operations).</p><p>This polynomial approximation of sigmoid only works over the range [-5, 5]
 and is taken from the paper <a href=https://eprint.iacr.org/2018/462.pdf>&lsquo;Logisitic regression over encrypted data from
-fully homomorphic encryption&rsquo; by Chen et al.</a>.</p><h3 id=-wrap-generic><code>-wrap-generic</code></h3><p><em>Wraps regions using secret args in secret.generic bodies</em></p><p>This pass wraps function regions of <code>func.func</code> that use secret arguments in
+fully homomorphic encryption&rsquo; by Chen et al.</a>.</p><h3 id=-unroll-and-forward><code>-unroll-and-forward</code></h3><p><em>Loop unrolls and forwards stores to loads.</em></p><p>This pass processes the first function in a given module, and, starting from
+the first loop, iteratively does the following:</p><ol><li>Fully unroll the loop.</li><li>Scan for load ops. For each load op with a statically-inferrable access
+index:</li><li>Backtrack to the original memref alloc</li><li>Find all store ops at the corresponding index (possibly transitively
+through renames/subviews of the underlying alloc).</li><li>Find the last store that occurs and forward it to the load.</li><li>If the original memref is an input memref, then forward through any
+renames to make the target load load directly from the argument memref
+(instead of any subviews, say)</li><li>Apply the same logic to any remaining loads not inside any for loop.</li></ol><p>This pass requires that tensors are lowered to memref, and only supports
+affine loops with affine.load/store ops.</p><p>Memrefs that result from memref.get_global ops are excluded from
+forwarding, even if they are loaded with a static index, and are instead
+handled by memref-global-replace, which should be run after this pass.</p><h3 id=-wrap-generic><code>-wrap-generic</code></h3><p><em>Wraps regions using secret args in secret.generic bodies</em></p><p>This pass wraps function regions of <code>func.func</code> that use secret arguments in
 <code>secret.generic</code> bodies.</p><p>Secret arguments are annotated using a <code>secret.secret</code> argument attribute.
 This pass converts these to secret types and then inserts a <code>secret.generic</code>
 body to hold the functions region. The output type is also converted to a

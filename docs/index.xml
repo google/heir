@@ -2005,6 +2005,105 @@ The pass currently applies irrespective of tensor size, i.e., might be very slow
 &lt;p>TODO (#1023): Extend this pass to support more tensor operations, e.g., &lt;code>tensor.slice&lt;/code>&lt;/p>
 &lt;h4 id="options-3">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-max-size : Limits `unrolling` to tensors with at most max-size elements
+&lt;/code>&lt;/pre>&lt;h3 id="-expand-copy">&lt;code>-expand-copy&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Expands memref.copy ops to explicit affine loads and stores&lt;/em>&lt;/p>
+&lt;p>This pass removes memref copy operations by expanding them to affine loads
+and stores. This pass introduces affine loops over the dimensions of the
+MemRef, so must be run prior to any affine loop unrolling in a pipeline.&lt;/p>
+&lt;p>Input&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @memref_copy() {
+%alloc = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%alloc_0 = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+memref.copy %alloc, %alloc_0 : memref&amp;lt;1x1xi32&amp;gt; to memref&amp;lt;1x1xi32&amp;gt;
+}
+}
+&lt;/code>&lt;/pre>&lt;p>Output&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @memref_copy() {
+%alloc = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%alloc_0 = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+affine.for %arg0 = 0 to 2 {
+affine.for %arg1 = 0 to 3 {
+%1 = affine.load %alloc[%arg0, %arg1] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %1, %alloc_0[%arg0, %arg1] : memref&amp;lt;2x3xi32&amp;gt;
+}
+}
+}
+}
+&lt;/code>&lt;/pre>&lt;p>When &lt;code>--disable-affine-loop=true&lt;/code> is set, then the output becomes&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @memref_copy() {
+%alloc = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%alloc_0 = memref.alloc() : memref&amp;lt;2x3xi32&amp;gt;
+%c0 = arith.constant 0 : index
+%c1 = arith.constant 1 : index
+%c2 = arith.constant 2 : index
+%0 = affine.load %alloc[%c0, %c0] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %0, %alloc_0[%c0, %c0] : memref&amp;lt;2x3xi32&amp;gt;
+%1 = affine.load %alloc[%c0, %c1] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %1, %alloc_0[%c0, %c1] : memref&amp;lt;2x3xi32&amp;gt;
+%2 = affine.load %alloc[%c0, %c2] : memref&amp;lt;2x3xi32&amp;gt;
+affine.store %2, %alloc_0[%c0, %c2] : memref&amp;lt;2x3xi32&amp;gt;
+[...]
+}
+}
+&lt;/code>&lt;/pre>&lt;h4 id="options-4">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-disable-affine-loop : Use this to control to disable using affine loops
+&lt;/code>&lt;/pre>&lt;h3 id="-extract-loop-body">&lt;code>-extract-loop-body&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Extracts logic of a loop bodies into functions.&lt;/em>&lt;/p>
+&lt;p>This pass extracts logic in the inner body of for loops into functions.&lt;/p>
+&lt;p>This pass requires that tensors are lowered to memref. It expects that a
+loop body contains a number of affine.load statements used as inputs to the
+extracted function, and a single affine.store used as the extracted
+function&amp;rsquo;s output.&lt;/p>
+&lt;p>Input&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @loop_body() {
+%c-128_i8 = arith.constant -128 : i8
+%c127_i8 = arith.constant 127 : i8
+%alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&amp;lt;25x20x8xi8&amp;gt;
+affine.for %arg1 = 0 to 25 {
+affine.for %arg2 = 0 to 20 {
+affine.for %arg3 = 0 to 8 {
+%98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref&amp;lt;25x20x8xi8&amp;gt;
+%99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+%100 = arith.select %99, %c-128_i8, %arg0 : i8
+%101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+%102 = arith.select %101, %c127_i8, %100 : i8
+affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref&amp;lt;25x20x8xi8&amp;gt;
+}
+}
+}
+}
+}
+&lt;/code>&lt;/pre>&lt;p>Output&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @loop_body() {
+%alloc_7 = memref.alloc() {alignment = 64 : i64} : memref&amp;lt;25x20x8xi8&amp;gt;
+affine.for %arg1 = 0 to 25 {
+affine.for %arg2 = 0 to 20 {
+affine.for %arg3 = 0 to 8 {
+%98 = affine.load %alloc_6[%arg1, %arg2, %arg3] : memref&amp;lt;25x20x8xi8&amp;gt;
+%102 = func.call @__for_loop(%98) : (i8) -&amp;gt; i8
+affine.store %102, %alloc_7[%arg1, %arg2, %arg3] : memref&amp;lt;25x20x8xi8&amp;gt;
+}
+}
+}
+}
+func.func private @__for_loop(%arg0: i8) -&amp;gt; i8 {
+%c-128_i8 = arith.constant -128 : i8
+%c127_i8 = arith.constant 127 : i8
+%99 = arith.cmpi slt, %arg0, %c-128_i8 : i8
+%100 = arith.select %99, %c-128_i8, %arg0 : i8
+%101 = arith.cmpi sgt, %arg0, %c127_i8 : i8
+%102 = arith.select %101, %c127_i8, %100 : i8
+return %102 : i8
+}
+}
+&lt;/code>&lt;/pre>&lt;h4 id="options-5">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-min-loop-size : Use this to control the minimum loop size to apply this pass
+-min-body-size : Use this to control the minimum loop body size to apply this pass
 &lt;/code>&lt;/pre>&lt;h3 id="-forward-insert-to-extract">&lt;code>-forward-insert-to-extract&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Forward inserts to extracts within a single block&lt;/em>&lt;/p>
 &lt;p>This pass is similar to forward-store-to-load pass where store ops
@@ -2055,7 +2154,7 @@ IR. These functions maintain the same interface as the original function,
 while the compiled function may lose some of this information by the lowerings
 to ciphertext types (e.g., a scalar ciphertext, when lowered through RLWE schemes,
 must be encoded as a tensor).&lt;/p>
-&lt;h4 id="options-4">Options&lt;/h4>
+&lt;h4 id="options-6">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-use-public-key : If true, generate a client interface that uses a public key for encryption.
 -one-value-per-helper-fn : If true, split encryption helpers into separate functions for each SSA value.
 &lt;/code>&lt;/pre>&lt;h3 id="-lwe-set-default-parameters">&lt;code>-lwe-set-default-parameters&lt;/code>&lt;/h3>
@@ -2071,14 +2170,43 @@ be used in production.&lt;/p>
 &lt;h3 id="-lwe-to-polynomial">&lt;code>-lwe-to-polynomial&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>lwe&lt;/code> to &lt;code>polynomial&lt;/code> dialect.&lt;/em>&lt;/p>
 &lt;p>This pass lowers the &lt;code>lwe&lt;/code> dialect to &lt;code>polynomial&lt;/code> dialect.&lt;/p>
-&lt;h3 id="-openfhe-configure-crypto-context">&lt;code>-openfhe-configure-crypto-context&lt;/code>&lt;/h3>
+&lt;h3 id="-memref-global-replace">&lt;code>-memref-global-replace&lt;/code>&lt;/h3>
+&lt;p>&lt;em>MemrefGlobalReplacePass forwards global memrefs accessors to arithmetic values&lt;/em>&lt;/p>
+&lt;p>This pass forwards constant global MemRef values to referencing affine
+loads. This pass requires that the MemRef global values are initialized as
+constants and that the affine load access indices are constants (i.e. not
+variadic). Unroll affine loops prior to running this pass.&lt;/p>
+&lt;p>MemRef removal is required to remove any memory allocations from the input
+model (for example, TensorFlow models contain global memory holding model
+weights) to support FHE transpilation.&lt;/p>
+&lt;p>Input&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+memref.global &amp;#34;private&amp;#34; constant @__constant_8xi16 : memref&amp;lt;2x4xi16&amp;gt; = dense&amp;lt;[[-10, 20, 3, 4], [5, 6, 7, 8]]&amp;gt;
+func.func @main() -&amp;gt; i16 {
+%c1 = arith.constant 1 : index
+%c2 = arith.constant 2 : index
+%0 = memref.get_global @__constant_8xi16 : memref&amp;lt;2x4xi16&amp;gt;
+%1 = affine.load %0[%c1, %c1 + %c2] : memref&amp;lt;2x4xi16&amp;gt;
+return %1 : i16
+}
+}
+&lt;/code>&lt;/pre>&lt;p>Output&lt;/p>
+&lt;pre tabindex="0">&lt;code>module {
+func.func @main() -&amp;gt; i16 {
+%c1 = arith.constant 1 : index
+%c2 = arith.constant 2 : index
+%c8_i16 = arith.constant 8 : i16
+return %c8_i16 : i16
+}
+}
+&lt;/code>&lt;/pre>&lt;h3 id="-openfhe-configure-crypto-context">&lt;code>-openfhe-configure-crypto-context&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Configure the crypto context in OpenFHE&lt;/em>&lt;/p>
 &lt;p>This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).&lt;/p>
 &lt;p>For example, for an MLIR function &lt;code>@my_func&lt;/code>, the generated helpers have the following signatures&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-5">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-7">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 &lt;/code>&lt;/pre>&lt;h3 id="-operation-balancer">&lt;code>-operation-balancer&lt;/code>&lt;/h3>
 &lt;p>&lt;em>This pass balances addition and multiplication operations.&lt;/em>&lt;/p>
@@ -2174,7 +2302,7 @@ program that operates on a secret type annotates the input to a region as
 list of op names (e.g., &lt;code>distribute-thorugh=&amp;quot;affine.for,scf.if&amp;quot;&lt;/code>), which
 limits the distribution to only pass through those ops. If unset, all ops
 are distributed through when possible.&lt;/p>
-&lt;h4 id="options-6">Options&lt;/h4>
+&lt;h4 id="options-8">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
@@ -2213,7 +2341,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-7">Options&lt;/h4>
+&lt;h4 id="options-9">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
@@ -2230,7 +2358,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-8">Options&lt;/h4>
+&lt;h4 id="options-10">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
@@ -2238,13 +2366,13 @@ dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code
 &lt;p>Adds a secret.secret attribute argument to each argument in the entry
 function of an MLIR module. By default, the function is &lt;code>main&lt;/code>. This may be
 overridden with the option -entry-function=top_level_func.&lt;/p>
-&lt;h4 id="options-9">Options&lt;/h4>
+&lt;h4 id="options-11">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : entry function of the module
 &lt;/code>&lt;/pre>&lt;h3 id="-straight-line-vectorize">&lt;code>-straight-line-vectorize&lt;/code>&lt;/h3>
 &lt;p>&lt;em>A vectorizer for straight line programs.&lt;/em>&lt;/p>
 &lt;p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.&lt;/p>
-&lt;h4 id="options-10">Options&lt;/h4>
+&lt;h4 id="options-12">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 &lt;/code>&lt;/pre>&lt;h3 id="-tosa-to-secret-arith">&lt;code>-tosa-to-secret-arith&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>tosa.sigmoid&lt;/code> to secret arith dialects.&lt;/em>&lt;/p>
@@ -2253,6 +2381,28 @@ within a given region.&lt;/p>
 &lt;p>This polynomial approximation of sigmoid only works over the range [-5, 5]
 and is taken from the paper &lt;a href="https://eprint.iacr.org/2018/462.pdf">&amp;lsquo;Logisitic regression over encrypted data from
 fully homomorphic encryption&amp;rsquo; by Chen et al.&lt;/a>.&lt;/p>
+&lt;h3 id="-unroll-and-forward">&lt;code>-unroll-and-forward&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Loop unrolls and forwards stores to loads.&lt;/em>&lt;/p>
+&lt;p>This pass processes the first function in a given module, and, starting from
+the first loop, iteratively does the following:&lt;/p>
+&lt;ol>
+&lt;li>Fully unroll the loop.&lt;/li>
+&lt;li>Scan for load ops. For each load op with a statically-inferrable access
+index:&lt;/li>
+&lt;li>Backtrack to the original memref alloc&lt;/li>
+&lt;li>Find all store ops at the corresponding index (possibly transitively
+through renames/subviews of the underlying alloc).&lt;/li>
+&lt;li>Find the last store that occurs and forward it to the load.&lt;/li>
+&lt;li>If the original memref is an input memref, then forward through any
+renames to make the target load load directly from the argument memref
+(instead of any subviews, say)&lt;/li>
+&lt;li>Apply the same logic to any remaining loads not inside any for loop.&lt;/li>
+&lt;/ol>
+&lt;p>This pass requires that tensors are lowered to memref, and only supports
+affine loops with affine.load/store ops.&lt;/p>
+&lt;p>Memrefs that result from memref.get_global ops are excluded from
+forwarding, even if they are loaded with a static index, and are instead
+handled by memref-global-replace, which should be run after this pass.&lt;/p>
 &lt;h3 id="-wrap-generic">&lt;code>-wrap-generic&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Wraps regions using secret args in secret.generic bodies&lt;/em>&lt;/p>
 &lt;p>This pass wraps function regions of &lt;code>func.func&lt;/code> that use secret arguments in
@@ -2301,160 +2451,28 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-19.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-08-08</title><link>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</link><pubDate>Thu, 08 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1FLSiaPlX38GNHqqqi_Mz3gMuVSlS4sUcwBWqpt6Fkew/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1sHoRvNlS14RB-r3Rk0y2RyWOERVGNc-t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-25</title><link>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</link><pubDate>Thu, 25 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tIrxc4V5OlAeqx_Z1rl_kuMmkd-HUAKEv90q3i-5QSU/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1_1CbRJeNr5NqcwEMXnfkxOqy9u5wJPyq/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1o2-I03DJtNJQDupSHn8LtOXLmxsd3WO1fjvqLbT-SIc/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1bCMuuKnBVf6HP7R2SiZgo1C1vsG6FzF2/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-18. This special discussion was focused on the
-modular arithmetic dialect.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-11</title><link>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</link><pubDate>Thu, 11 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1kP1kFKV6qrLVPv4CnIhmqO-7nMDFkCpvhzwIppJEDfU/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1-f5ZJ5h28FIgk_-LisNsYa77iuWPIAjU/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-27.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
-from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
+from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-03-07.&lt;/p>
-&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
-RWC conferences. Hope to see you all there!&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-22</title><link>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</link><pubDate>Thu, 22 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1ktK2Y2-OnadvsIIa94HRch_oHCaQ0D6gbT3CElKmGak/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1RDONadr54-7uX5ko5dmUX3s1l7QHeHbM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-02-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-12-12.&lt;/p>
-&lt;p>This is the last meeting for 2023. Please respond to
-&lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this poll&lt;/a> for 2024 scheduling
-preferences.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
-from the HEIR meeting on 2023-11-28.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1nOlAhul4DwZU8UQPpTF1i3OldSY9EmwaWG3EPSZIhHs/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1I7aIipm54CCcDcLyRYXI_gARfT1z93cN/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-11-07.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-10-24</title><link>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</link><pubDate>Wed, 25 Oct 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/10/25/heir-meeting-2023-10-24/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1MYjjkytck0fxySbrh49hxBJgNM78NXSD0ZwzAgEPOUw/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1zrSCQJXta40KbBiCjcIWOP3gd1tuc3MU/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-10-24.&lt;/p>
-&lt;p>Also of note: our talk at FHE.org was last Thursday
-(&lt;a href="https://www.youtube.com/watch?v=kqDFdKUTNA4">recording&lt;/a>), and the similar talk
-at the LLVM developers meeting talk was the previous Wednesday, though the video
-has not yet been posted for that.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-26</title><link>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</link><pubDate>Wed, 27 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1pkG8eaSUddAySJWjQHIFqe0hyYkO0wH9X0JtnR6wlWo/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1xaH-G3SZPVv_gEpUkfhFuvUTUwU2ZKLY/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-09-26.&lt;/p>
-&lt;p>Next meeting (Oct 10) is canceled for the MLIR workshop, and I&amp;rsquo;ll post an update
-from that workshop on this blog, hopefully also with a video of the talk that
-Alex Viand and I will be giving at the LLVM developers meeting.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
-from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
-there is no video recording this week.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
-&lt;p>The fourth HEIR meeting was 2023-08-01
-(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
-&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
-&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
-fun!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
+from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-07-18</title><link>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</link><pubDate>Tue, 18 Jul 2023 10:43:16 -0700</pubDate><guid>https://heir.dev/blog/2023/07/18/heir-meeting-2023-07-18/</guid><description>
 &lt;p>The third HEIR meeting was 2023-07-18
 (&lt;a href="https://docs.google.com/document/d/1DXdyUCmevqY8RJI3kM8oO5nWDEITFIVBPIbucONOB-k/edit?usp=sharing">notes&lt;/a>).&lt;/p>
 &lt;p>We decided to schedule future meetings every two weeks, with alternating focus
 on MLIR and Hardware. See the &lt;a href="https://heir.dev/community/">meeting calendar&lt;/a> to
 join.
-(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
-&lt;p>The second HEIR meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
-and
-&lt;a href="https://drive.google.com/file/d/1S893iJdeL08BAonLenmkUGNC34PX1qpg/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>There are some initial design discussion threads started on
-&lt;a href="https://github.com/google/heir/discussions">GitHub Discussions&lt;/a> to get the
-design rolling.&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Docs:</title><link>https://heir.dev/docs/design/relinearization_ilp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/relinearization_ilp/</guid><description>
+(&lt;a href="https://calendar.google.com/calendar/u/0/embed?src=c85ecb3cda4bfb7daa3da95d5aeb19672930501b49d17896e65fa3f963f17a80@group.calendar.google.com&amp;amp;ctz=America/Los_Angeles">direct link to the calendar&lt;/a>)&lt;/p></description></item><item><title>Docs:</title><link>https://heir.dev/docs/design/relinearization_ilp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/relinearization_ilp/</guid><description>
 &lt;hr>
 &lt;p>title: Optimizing relinearization&lt;/p>
 &lt;h2 id="weight-10">weight: 10&lt;/h2>
@@ -10395,4 +10413,510 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table></description></item></channel></rss>
+&lt;/table></description></item><item><title>Docs: TfheRustBool</title><link>https://heir.dev/docs/dialects/tfherustbool/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/tfherustbool/</guid><description>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h1 id="tfhe_rust_bool-dialect">&amp;rsquo;tfhe_rust_bool&amp;rsquo; Dialect&lt;/h1>
+&lt;p>The &lt;code>tfhe_rust_bool&lt;/code> dialect is an exit dialect for generating rust code against the tfhe-rs library API,
+using the boolean parameter set.&lt;/p>
+&lt;p>See &lt;a href="https://github.com/zama-ai/tfhe-rs">https://github.com/zama-ai/tfhe-rs&lt;/a>&lt;/p>
+&lt;h2 id="tfherustbool-attributes">TfheRustBool attributes&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="tfherustboolgatesattr">TfheRustBoolGatesAttr&lt;/h3>
+&lt;p>An Attribute containing an array of strings to store bool gates&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#tfhe_rust_bool.tfhe_rust_bool_gates&amp;lt;
+::llvm::ArrayRef&amp;lt;::mlir::heir::tfhe_rust_bool::TfheRustBoolGateEnumAttr&amp;gt; # gates
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attributes stores a list of integer identifiers for Boolean gates.&lt;/p>
+&lt;p>Uses following mapping:
+AND_GATE = 0;
+NAND_GATE = 1;
+OR_GATE = 2;
+NOR_GATE = 3;
+XOR_GATE = 4;
+XNOR_GATE = 5;&lt;/p>
+&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">gates&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;::mlir::heir::tfhe_rust_bool::TfheRustBoolGateEnumAttr&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="tfherustbool-types">TfheRustBool types&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="encryptedbooltype">EncryptedBoolType&lt;/h3>
+&lt;p>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/p>
+&lt;p>Syntax: &lt;code>!tfhe_rust_bool.eb&lt;/code>&lt;/p>
+&lt;h3 id="serverkeytype">ServerKeyType&lt;/h3>
+&lt;p>The boolean server key required to perform homomorphic operations.&lt;/p>
+&lt;p>Syntax: &lt;code>!tfhe_rust_bool.server_key&lt;/code>&lt;/p>
+&lt;h2 id="tfherustbool-ops">TfheRustBool ops&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="tfhe_rust_boolcreate_trivial-heirtfhe_rust_boolcreatetrivialop">&lt;code>tfhe_rust_bool.create_trivial&lt;/code> (heir::tfhe_rust_bool::CreateTrivialOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.create_trivial` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>1-bit signless integer&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_booland-heirtfhe_rust_boolandop">&lt;code>tfhe_rust_bool.and&lt;/code> (heir::tfhe_rust_bool::AndOp)&lt;/h3>
+&lt;p>&lt;em>Logical AND of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.and` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolmux-heirtfhe_rust_boolmuxop">&lt;code>tfhe_rust_bool.mux&lt;/code> (heir::tfhe_rust_bool::MuxOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.mux` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>cnd&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolnand-heirtfhe_rust_boolnandop">&lt;code>tfhe_rust_bool.nand&lt;/code> (heir::tfhe_rust_bool::NandOp)&lt;/h3>
+&lt;p>&lt;em>Logical NAND of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nand` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolnor-heirtfhe_rust_boolnorop">&lt;code>tfhe_rust_bool.nor&lt;/code> (heir::tfhe_rust_bool::NorOp)&lt;/h3>
+&lt;p>&lt;em>Logical NOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.nor` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolnot-heirtfhe_rust_boolnotop">&lt;code>tfhe_rust_bool.not&lt;/code> (heir::tfhe_rust_bool::NotOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.not` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolor-heirtfhe_rust_boolorop">&lt;code>tfhe_rust_bool.or&lt;/code> (heir::tfhe_rust_bool::OrOp)&lt;/h3>
+&lt;p>&lt;em>Logical OR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.or` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-6">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolgates_packed-heirtfhe_rust_boolpackedop">&lt;code>tfhe_rust_bool.gates_packed&lt;/code> (heir::tfhe_rust_bool::PackedOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.gates_packed` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Operation to where different Boolean gates are executed pairwise between elements of two ciphertext arrays.&lt;/p>
+&lt;p>For example,&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> tfhe_rust_bool&lt;span style="color:#000;font-weight:bold">.&lt;/span>packed_gates &lt;span style="color:#000">%a&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%b&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">gates =&lt;/span> &lt;span style="color:#000">#tfhe_rust_bool.tfhe_rust_bool_gates&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>tfhe_rust_bool&lt;span style="color:#000;font-weight:bold">.&lt;/span>server_key&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>tfhe_rust_bool&lt;span style="color:#000;font-weight:bold">.&lt;/span>eb&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>tfhe_rust_bool&lt;span style="color:#000;font-weight:bold">.&lt;/span>eb&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2x&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>tfhe_rust_bool&lt;span style="color:#000;font-weight:bold">.&lt;/span>eb&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>applies an &amp;ldquo;and&amp;rdquo; gate to the first elements of %a and %b and an xor gate to the
+second elements.&lt;/p>
+&lt;p>Mapping is defined in the BooleanGates.td file.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>gates&lt;/code>&lt;/td>&lt;td>::mlir::heir::tfhe_rust_bool::TfheRustBoolGatesAttr&lt;/td>&lt;td>An Attribute containing an array of strings to store bool gates&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-7">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolxnor-heirtfhe_rust_boolxnorop">&lt;code>tfhe_rust_bool.xnor&lt;/code> (heir::tfhe_rust_bool::XnorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XNOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xnor` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tfhe_rust_boolxor-heirtfhe_rust_boolxorop">&lt;code>tfhe_rust_bool.xor&lt;/code> (heir::tfhe_rust_bool::XorOp)&lt;/h3>
+&lt;p>&lt;em>Logical XOR of two TFHE-rs Bool ciphertexts.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust_bool.xor` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>eb-like&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="tfherustbool-additional-definitions">TfheRustBool additional definitions&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit --></description></item></channel></rss>
