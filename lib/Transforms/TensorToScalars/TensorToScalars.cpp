@@ -28,10 +28,9 @@ namespace heir {
 #define GEN_PASS_DEF_TENSORTOSCALARS
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h.inc"
 
-static std::optional<Value> buildFromElementsOp(OpBuilder &builder,
-                                                RankedTensorType resultType,
-                                                ValueRange inputs,
-                                                Location loc) {
+static Value buildFromElementsOp(OpBuilder &builder,
+                                 RankedTensorType resultType, ValueRange inputs,
+                                 Location loc) {
   return builder.create<tensor::FromElementsOp>(loc, resultType, inputs);
 }
 
