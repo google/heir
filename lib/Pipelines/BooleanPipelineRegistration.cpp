@@ -182,12 +182,19 @@ void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
 
 void registerTosaToJaxitePipeline(const std::string &yosysFilesPath,
                                   const std::string &abcPath) {
-  PassPipelineRegistration<TosaToBooleanTfheOptions>(
+  PassPipelineRegistration<TosaToBooleanJaxiteOptions>(
       "tosa-to-boolean-jaxite", "Arithmetic modules to jaxite pipeline.",
       [yosysFilesPath, abcPath](OpPassManager &pm,
-                                const TosaToBooleanTfheOptions &options) {
+                                const TosaToBooleanJaxiteOptions &options) {
         tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
                                   /*abcBooleanGates=*/false);
+        if (options.parallelism > 0) {
+          pm.addPass(
+              cggi::createBooleanVectorizer(cggi::BooleanVectorizerOptions{
+                  .parallelism = options.parallelism}));
+          pm.addPass(createCSEPass());
+          pm.addPass(createRemoveDeadValuesPass());
+        }
 
         // CGGI to Jaxite exit dialect
         pm.addPass(createCGGIToJaxite());
