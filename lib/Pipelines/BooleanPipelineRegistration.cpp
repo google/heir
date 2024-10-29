@@ -157,7 +157,11 @@ void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
                                   /*abcBooleanGates=*/true);
 
         // Vectorize CGGI operations
-        pm.addPass(cggi::createBooleanVectorizer());
+        if (options.parallelism >= 0) {
+          pm.addPass(
+              cggi::createBooleanVectorizer(cggi::BooleanVectorizerOptions{
+                  .parallelism = options.parallelism}));
+        }
         pm.addPass(createCanonicalizerPass());
         pm.addPass(createCSEPass());
         pm.addPass(createSCCPPass());
@@ -188,6 +192,13 @@ void registerTosaToJaxitePipeline(const std::string &yosysFilesPath,
                                 const TosaToBooleanTfheOptions &options) {
         tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
                                   /*abcBooleanGates=*/false);
+        if (options.parallelism >= 0) {
+          pm.addPass(
+              cggi::createBooleanVectorizer(cggi::BooleanVectorizerOptions{
+                  .parallelism = options.parallelism}));
+          pm.addPass(createCSEPass());
+          pm.addPass(createRemoveDeadValuesPass());
+        }
 
         // CGGI to Jaxite exit dialect
         pm.addPass(createCGGIToJaxite());
@@ -206,5 +217,4 @@ void registerTosaToJaxitePipeline(const std::string &yosysFilesPath,
         pm.addPass(createSCCPPass());
       });
 }
-
 }  // namespace mlir::heir
