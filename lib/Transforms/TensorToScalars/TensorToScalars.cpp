@@ -34,11 +34,12 @@ static Value buildFromElementsOp(OpBuilder &builder,
   return builder.create<tensor::FromElementsOp>(loc, resultType, inputs);
 }
 
-static std::optional<SmallVector<Value>> buildExtractOps(OpBuilder &builder,
-                                                         TypeRange resultTypes,
-                                                         Value input,
-                                                         Location loc) {
+static SmallVector<Value> buildExtractOps(OpBuilder &builder,
+                                          TypeRange resultTypes,
+                                          ValueRange inputs, Location loc) {
   // This pass only operates on tensors of static shape
+  if (inputs.size() != 1) return {};
+  Value input = inputs.front();
   RankedTensorType inputType = dyn_cast<RankedTensorType>(input.getType());
   if (!inputType || !inputType.hasStaticShape()) return {};
 
@@ -121,7 +122,7 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
 
     // do not unroll tensors with more than maxSize elements
     int maxSizeInt = maxSize.getValue();
-    OneToNTypeConverter typeConverter;
+    TypeConverter typeConverter;
     typeConverter.addConversion([](Type type) { return type; });
     typeConverter.addConversion(
         [maxSizeInt](
