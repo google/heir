@@ -3,7 +3,7 @@
 // RUN: heir-translate %s --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
 // RUN: cargo run --release --manifest-path %S/Cargo.toml -- 1 1 | FileCheck %s
 
-!bsks = !tfhe_rust_bool.server_key
+!bsks = !tfhe_rust_bool.server_key_enum
 !eb = !tfhe_rust_bool.eb
 
 // CHECK: 00000001

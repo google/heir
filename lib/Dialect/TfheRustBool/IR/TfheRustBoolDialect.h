@@ -18,6 +18,10 @@ template <typename ConcreteType>
 class PassByReference
     : public TypeTrait::TraitBase<ConcreteType, PassByReference> {};
 
+template <typename ConcreteType>
+class ServerKeyTrait
+    : public TypeTrait::TraitBase<ConcreteType, ServerKeyTrait> {};
+
 }  // namespace tfhe_rust_bool
 }  // namespace heir
 }  // namespace mlir

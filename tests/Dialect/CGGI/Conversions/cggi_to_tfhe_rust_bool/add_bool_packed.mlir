@@ -7,9 +7,9 @@
 // CHECK-LABEL: add_bool
 // CHECK-NOT: cggi
 // CHECK-NOT: lwe
-// CHECK-COUNT-1: tfhe_rust_bool.gates_packed %arg0, {{%.*}}, {{%.*}} {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<0 : i32, 4 : i32>} : (!tfhe_rust_bool.server_key, tensor<2x!tfhe_rust_bool.eb
-// CHECK-COUNT-6: tfhe_rust_bool.gates_packed %arg0, {{%.*}}, {{%.*}} {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<4 : i32, 4 : i32>}  : (!tfhe_rust_bool.server_key, tensor<2x!tfhe_rust_bool.eb
-// CHECK-COUNT-1: tfhe_rust_bool.gates_packed %arg0, {{%.*}}, {{%.*}} {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32>} : (!tfhe_rust_bool.server_key, tensor<9x!tfhe_rust_bool.eb
+// CHECK-COUNT-1: tfhe_rust_bool.gates_packed %arg0, {{%.*}}, {{%.*}} {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<0 : i32, 4 : i32>} : (!tfhe_rust_bool.server_key_enum, tensor<2x!tfhe_rust_bool.eb
+// CHECK-COUNT-6: tfhe_rust_bool.gates_packed %arg0, {{%.*}}, {{%.*}} {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<4 : i32, 4 : i32>}  : (!tfhe_rust_bool.server_key_enum, tensor<2x!tfhe_rust_bool.eb
+// CHECK-COUNT-1: tfhe_rust_bool.gates_packed %arg0, {{%.*}}, {{%.*}} {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32>} : (!tfhe_rust_bool.server_key_enum, tensor<9x!tfhe_rust_bool.eb
 func.func @add_bool(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %true = arith.constant true
   %false = arith.constant false

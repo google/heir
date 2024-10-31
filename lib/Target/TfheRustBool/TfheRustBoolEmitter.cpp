@@ -157,10 +157,6 @@ LogicalResult TfheRustBoolEmitter::printOperation(func::FuncOp funcOp) {
       return funcOp.emitOpError()
              << "Failed to emit tfhe-rs bool type " << arg.getType();
     }
-    // Adapt to the Belfort API
-    if (packedAPI && isa<ServerKeyType>(arg.getType())) {
-      os << "Enum";
-    }
     os << ",\n";
   }
   os.unindent();
@@ -604,6 +600,8 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<EncryptedBoolType>(
           [&](auto type) { return std::string("Ciphertext"); })
+      .Case<PackedServerKeyType>(
+          [&](auto type) { return std::string("ServerKeyEnum"); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
       .Case<IntegerType>([&](IntegerType type) -> FailureOr<std::string> {
         if (type.getWidth() == 1) {
