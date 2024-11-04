@@ -1,1 +1,2 @@
+add_subdirectory(PolynomialToPISA)
 add_subdirectory(PolynomialToStandard)
