@@ -1,14 +1,20 @@
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
 
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <iterator>
 #include <numeric>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <utility>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolEnums.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
 #include "lib/Target/TfheRust/Utils.h"
@@ -35,6 +41,8 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
 
+#define DEBUG_TYPE "emit-tfhe-rust-bool"
+
 namespace mlir {
 namespace heir {
 namespace tfhe_rust_bool {
@@ -56,9 +64,22 @@ FailureOr<int> getRustIntegerType(int width) {
 void registerToTfheRustBoolTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust-bool",
-      "translate the bool tfhe_rs dialect to Rust code for boolean tfhe-rs",
+      "translate the tfhe-rs-bool dialect to Rust code for boolean tfhe-rs",
       [](Operation *op, llvm::raw_ostream &output) {
-        return translateToTfheRustBool(op, output);
+        return translateToTfheRustBool(op, output, /*packedAPI=*/false);
+      },
+      [](DialectRegistry &registry) {
+        registry.insert<func::FuncDialect, tfhe_rust_bool::TfheRustBoolDialect,
+                        affine::AffineDialect, arith::ArithDialect,
+                        tensor::TensorDialect, memref::MemRefDialect>();
+      });
+
+  TranslateFromMLIRRegistration regFPGA(
+      "emit-tfhe-rust-bool-packed",
+      "translate the tfhe-rs-bool dialect to Rust code for Belfort FPGA "
+      "(boolean) tfhe-rs API",
+      [](Operation *op, llvm::raw_ostream &output) {
+        return translateToTfheRustBool(op, output, /*packedAPI=*/true);
       },
       [](DialectRegistry &registry) {
         registry.insert<func::FuncDialect, tfhe_rust_bool::TfheRustBoolDialect,
@@ -67,9 +88,10 @@ void registerToTfheRustBoolTranslation() {
       });
 }
 
-LogicalResult translateToTfheRustBool(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToTfheRustBool(Operation *op, llvm::raw_ostream &os,
+                                      bool packedAPI) {
   SelectVariableNames variableNames(op);
-  TfheRustBoolEmitter emitter(os, &variableNames);
+  TfheRustBoolEmitter emitter(os, &variableNames, packedAPI);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -93,7 +115,7 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
           .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp>(
               [&](auto op) { return printOperation(op); })
           // TfheRustBool ops
-          .Case<AndOp, NandOp, OrOp, NorOp, NotOp, XorOp, XnorOp,
+          .Case<AndOp, NandOp, OrOp, NorOp, NotOp, XorOp, XnorOp, PackedOp,
                 CreateTrivialOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
@@ -110,7 +132,7 @@ LogicalResult TfheRustBoolEmitter::translate(Operation &op) {
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(ModuleOp moduleOp) {
-  os << kModulePrelude << "\n";
+  os << (packedAPI ? kFPGAModulePrelude : kModulePrelude) << "\n";
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -178,7 +200,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(func::FuncOp funcOp) {
 
 LogicalResult TfheRustBoolEmitter::printOperation(func::ReturnOp op) {
   std::function<std::string(Value)> valueOrClonedValue = [&](Value value) {
-    auto suffix = "";
+    auto *suffix = "";
     if (isa<BlockArgument>(value)) {
       suffix = ".clone()";
     }
@@ -222,8 +244,22 @@ void TfheRustBoolEmitter::emitReferenceConversion(Value value) {
 LogicalResult TfheRustBoolEmitter::printSksMethod(
     ::mlir::Value result, ::mlir::Value sks, ::mlir::ValueRange nonSksOperands,
     std::string_view op, SmallVector<std::string> operandTypes) {
-  if (isa<TensorType>(nonSksOperands[0].getType())) {
+  // If using the packed API, then emit single boolean operations as a packed
+  // operations with a single gate
+  std::string gateStr = StringRef(op).upper();
+  if (packedAPI && symbolizeTfheRustBoolGateEnum(gateStr).has_value()) {
     auto *opParent = nonSksOperands[0].getDefiningOp();
+
+    size_t numberOfOperands = 0;
+
+    // Handle element-wise boolean gate operations with tensor type operands and
+    // results.
+    if (isa<TensorType>(result.getType())) {
+      auto resType = mlir::dyn_cast<TensorType>(result.getType());
+      numberOfOperands = resType.getNumElements();
+    } else {
+      numberOfOperands = 1;
+    }
 
     if (!opParent) {
       for (auto nonSksOperand : nonSksOperands) {
@@ -233,32 +269,41 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
 
     emitAssignPrefix(result);
 
-    os << variableNames->getNameForValue(sks) << "." << op << "_packed(";
-    os << commaSeparatedValues(nonSksOperands, [&](Value value) {
-      auto *prefix = "&";
-      auto suffix = "";
-      // First check if a DefiningOp exists
-      // if not: comes from function definition
-      mlir::Operation *opParent = value.getDefiningOp();
-      if (opParent) {
-        if (!isa<tensor::FromElementsOp>(value.getDefiningOp()) &&
-            !isa<tensor::ExtractOp>(opParent))
-          prefix = "";
+    os << variableNames->getNameForValue(sks) << ".packed_gates(\n";
+    os << "&vec![";
 
-      } else {
-        prefix = "&";
-        suffix = "_ref";
-      }
+    for (size_t i = 0; i < numberOfOperands; i++) {
+      os << "Gate::" << gateStr << ", ";
+    }
 
-      return prefix + variableNames->getNameForValue(value) + suffix;
-    });
-    os << ");\n";
+    os << "],\n";
+
+    os << commaSeparatedValues(
+        nonSksOperands, [&, numberOfOperands](Value value) {
+          std::string prefix;
+          std::string suffix;
+
+          tie(prefix, suffix) = checkOrigin(value);
+          if (numberOfOperands == 1) {
+            prefix = "&vec![&";
+            suffix = "]" + suffix;
+          }
+
+          return prefix + variableNames->getNameForValue(value) + suffix;
+        });
+
+    if (numberOfOperands == 1) {
+      os << ")[0].clone();\n";
+    } else {
+      os << ");\n";
+    }
     return success();
-
-  } else {
+  }
+  // Check that this translation can only be used by non-tensor operands
+  if (!isa<TensorType>(nonSksOperands[0].getType())) {
     emitAssignPrefix(result);
 
-    auto operandTypesIt = operandTypes.begin();
+    auto *operandTypesIt = operandTypes.begin();
     os << variableNames->getNameForValue(sks) << "." << op << "(";
     os << commaSeparatedValues(nonSksOperands, [&](Value value) {
       auto *prefix = value.getType().hasTrait<PassByReference>() ? "&" : "";
@@ -266,9 +311,9 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
       // if not: comes from function definition
       mlir::Operation *op = value.getDefiningOp();
       if (op) {
-        auto reference_predicate =
+        auto referencePredicate =
             isa<tensor::ExtractOp>(op) || isa<memref::LoadOp>(op);
-        prefix = reference_predicate ? "" : prefix;
+        prefix = referencePredicate ? "" : prefix;
       } else {
         prefix = "";
       }
@@ -276,9 +321,12 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
       return prefix + variableNames->getNameForValue(value) +
              (!operandTypes.empty() ? " as " + *operandTypesIt++ : "");
     });
+
     os << ");\n";
+
     return success();
   }
+  return failure();
 }
 
 LogicalResult TfheRustBoolEmitter::printOperation(CreateTrivialOp op) {
@@ -396,7 +444,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(memref::AllocOp op) {
      << std::accumulate(
             std::next(op.getMemref().getType().getShape().begin()),
             op.getMemref().getType().getShape().end(), std::string("usize"),
-            [&](std::string a, int64_t value) { return a + ", usize"; })
+            [&](const std::string &a, int64_t value) { return a + ", usize"; })
      << "), ";
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
     return op.emitOpError() << "Failed to get memref element type";
@@ -417,7 +465,7 @@ LogicalResult TfheRustBoolEmitter::printOperation(memref::StoreOp op) {
   // Note: we may not need to clone all the time, but the BTreeMap stores
   // Ciphertexts, not &Ciphertexts. This is because results computed inside for
   // loops will not live long enough.
-  auto suffix = ".clone()";
+  const auto *suffix = ".clone()";
   os << variableNames->getNameForValue(op.getValueToStore()) << suffix
      << ");\n";
   return success();
@@ -466,11 +514,11 @@ LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     // Check if block argument, if so, clone.
-    auto cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
+    const auto *cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
     // Get the name of defining operation its dialect
-    auto tfhe_op =
+    auto tfheOp =
         value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust_bool";
-    auto prefix = tfhe_op ? "&" : "";
+    const auto *prefix = tfheOp ? "&" : "";
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
   }) << "];\n";
@@ -512,6 +560,32 @@ LogicalResult TfheRustBoolEmitter::printOperation(XnorOp op) {
                         {op.getLhs(), op.getRhs()}, "xnor");
 }
 
+LogicalResult TfheRustBoolEmitter::printOperation(PackedOp op) {
+  emitAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getServerKey()) << ".packed_gates(\n";
+
+  // Print the gate array
+  auto attrList = op.getGates().getGates();
+
+  os << "&vec![";
+  for (auto gate : attrList) {
+    os << "Gate::" << gate.getValue() << ", ";
+  }
+  os << "],\n";
+
+  os << commaSeparatedValues({op.getLhs(), op.getRhs()}, [&](Value value) {
+    std::string prefix;
+    std::string suffix;
+
+    tie(prefix, suffix) = checkOrigin(value);
+    return prefix + variableNames->getNameForValue(value) + suffix;
+  });
+
+  os << ");\n";
+
+  return success();
+}
+
 FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
   // Note: these are probably not the right type names to use exactly, and
   // they will need to chance to the right values once we try to compile it
@@ -527,6 +601,8 @@ FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       .Case<EncryptedBoolType>(
           [&](auto type) { return std::string("Ciphertext"); })
+      .Case<PackedServerKeyType>(
+          [&](auto type) { return std::string("ServerKeyEnum"); })
       .Case<ServerKeyType>([&](auto type) { return std::string("ServerKey"); })
       .Case<IntegerType>([&](IntegerType type) -> FailureOr<std::string> {
         if (type.getWidth() == 1) {
@@ -549,9 +625,30 @@ LogicalResult TfheRustBoolEmitter::emitType(Type type) {
   return success();
 }
 
+std::pair<std::string, std::string> TfheRustBoolEmitter::checkOrigin(
+    Value value) {
+  std::string prefix = "&";
+  std::string suffix = "";
+  // First check if a DefiningOp exists
+  // if not: comes from function definition
+  mlir::Operation *opParent = value.getDefiningOp();
+  if (opParent) {
+    if (!isa<tensor::FromElementsOp>(opParent) &&
+        !isa<tensor::ExtractOp>(opParent))
+      prefix = "";
+
+  } else {
+    prefix = "&";
+    suffix = "_ref";
+  }
+
+  return std::make_pair(prefix, suffix);
+}
+
 TfheRustBoolEmitter::TfheRustBoolEmitter(raw_ostream &os,
-                                         SelectVariableNames *variableNames)
-    : os(os), variableNames(variableNames) {}
+                                         SelectVariableNames *variableNames,
+                                         bool packedAPI)
+    : os(os), variableNames(variableNames), packedAPI(packedAPI) {}
 }  // namespace tfhe_rust_bool
 }  // namespace heir
 }  // namespace mlir

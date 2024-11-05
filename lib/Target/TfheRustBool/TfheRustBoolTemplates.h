@@ -12,6 +12,14 @@ use std::collections::BTreeMap;
 use tfhe::boolean::prelude::*;
 )rust";
 
+constexpr std::string_view kFPGAModulePrelude = R"rust(
+use std::collections::BTreeMap;
+use tfhe::boolean::{engine::fpga::{BelfortBooleanServerKey, Gate}, prelude::*};
+
+use crate::server_key_enum::ServerKeyEnum;
+use crate::server_key_enum::ServerKeyTrait;
+)rust";
+
 }  // namespace tfhe_rust_bool
 }  // namespace heir
 }  // namespace mlir

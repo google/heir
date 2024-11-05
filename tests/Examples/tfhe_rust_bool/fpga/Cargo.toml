@@ -5,13 +5,17 @@ edition = "2021"
 default-run = "main"
 
 [dependencies]
-clap = { version = "4.1.8", features = ["derive"] }
-rayon = "1.6.1"
-serde = { version = "1.0.152", features = ["derive"] }
 tfhe = { path = "tfhe-rs/tfhe", features = [
     "boolean",
+    "shortint",
+    "integer",
     "x86_64-unix",
 ] }
+rand = "0.8.5"
+rand_chacha = "0.3.1"
+itertools = "0.11.0"
+proc-macro2 = "=1.0.79"
+clap = { version = "4.1.8", features = ["derive"] }
 
 [features]
 fpga = ["tfhe/fpga"]

@@ -12,6 +12,10 @@ include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/CommonAttrConstraints.td"
 
+def HasServerKeyTrait : CPred<"$_self.hasTrait<::mlir::heir::tfhe_rust_bool::ServerKeyTrait>()">;
+
+def AnyServerKeyType : Type<HasServerKeyTrait,
+                                     "tfhe rust bool server key">;
 
 class TfheRustBool_Op<string mnemonic, list<Trait> traits = []> :
         Op<TfheRustBool_Dialect, mnemonic, traits> {
@@ -22,7 +26,7 @@ class TfheRustBool_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 def CreateTrivialOp : TfheRustBool_Op<"create_trivial", [Pure]> {
-  let arguments = (ins TfheRustBool_ServerKey:$serverKey, I1:$value);
+  let arguments = (ins AnyServerKeyType:$serverKey, I1:$value);
   let results = (outs TfheRustBool_Encrypted:$output);
 }
 
@@ -57,7 +61,7 @@ def TfheRustBool_PackedOp : TfheRustBool_Op<"gates_packed", [
     AllTypesMatch<["lhs", "rhs", "output"]>
   ]> {
   let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
+    TfheRustBool_PackedServerKey:$serverKey,
     TfheRustBoolGates_Attr: $gates,
     TfheRustBoolLike:$lhs,
     TfheRustBoolLike:$rhs

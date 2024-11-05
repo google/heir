@@ -40,6 +40,7 @@ cc_binary(
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Transforms",
+        "@heir//lib/Dialect/CGGI/Transforms:BooleanVectorizer",
         "@heir//lib/Dialect/CKKS/Conversions/CKKSToOpenfhe",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Comb/IR:Dialect",

@@ -16,7 +16,7 @@ Cargo home `$HOME/.cargo` may need to be replaced by your custom `$CARGO_HOME`,
 if you overrode the default option when installing Cargo.
 
 ```bash
-bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust_bool/...)" \
+bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust_bool/cpu/...)" \
   | xargs bazel test --sandbox_writable_path=$HOME/.cargo "$@"
 ```
 

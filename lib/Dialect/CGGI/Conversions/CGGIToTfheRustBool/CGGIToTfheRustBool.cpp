@@ -7,6 +7,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolAttributes.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolEnums.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
@@ -58,7 +59,7 @@ FailureOr<Value> getContextualBoolServerKey(Operation *op) {
                         .front()
                         .getArguments()
                         .front();
-  if (!mlir::isa<tfhe_rust_bool::ServerKeyType>(serverKey.getType())) {
+  if (!serverKey.getType().hasTrait<tfhe_rust_bool::ServerKeyTrait>()) {
     return op->emitOpError()
            << "Found CGGI op in a function without a server "
               "key argument. Did the AddBoolServerKeyArg pattern fail to run?";
@@ -100,7 +101,13 @@ struct AddBoolServerKeyArg : public OpConversionPattern<func::FuncOp> {
       return failure();
     }
 
-    auto serverKeyType = tfhe_rust_bool::ServerKeyType::get(getContext());
+    Type serverKeyType = tfhe_rust_bool::ServerKeyType::get(getContext());
+    auto containsPacked =
+        op.walk([](cggi::PackedOp op) { return WalkResult::interrupt(); });
+    if (containsPacked.wasInterrupted()) {
+      serverKeyType = tfhe_rust_bool::PackedServerKeyType::get(getContext());
+    }
+
     FunctionType originalType = op.getFunctionType();
     llvm::SmallVector<Type, 4> newTypes;
     newTypes.reserve(originalType.getNumInputs() + 1);
@@ -275,9 +282,11 @@ class CGGIToTfheRustBool
     // calling addStructuralConversionPatterns and it will overwrite the
     // legality condition set in that function.
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      bool hasServerKeyArg = op.getFunctionType().getNumInputs() > 0 &&
-                             mlir::isa<tfhe_rust_bool::ServerKeyType>(
-                                 *op.getFunctionType().getInputs().begin());
+      Type firstFuncType = *op.getFunctionType().getInputs().begin();
+      bool hasServerKeyArg =
+          op.getFunctionType().getNumInputs() > 0 &&
+          firstFuncType.hasTrait<tfhe_rust_bool::ServerKeyTrait>();
+
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
              (!containsLweOrDialect<cggi::CGGIDialect>(op) || hasServerKeyArg);

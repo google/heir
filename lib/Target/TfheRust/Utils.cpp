@@ -30,6 +30,7 @@ LogicalResult canEmitFuncForTfheRust(func::FuncOp &funcOp) {
               ApplyLookupTableOp, GenerateLookupTableOp, ScalarLeftShiftOp,
               ::mlir::heir::tfhe_rust_bool::CreateTrivialOp,
               ::mlir::heir::tfhe_rust_bool::AndOp,
+              ::mlir::heir::tfhe_rust_bool::PackedOp,
               ::mlir::heir::tfhe_rust_bool::NandOp,
               ::mlir::heir::tfhe_rust_bool::OrOp,
               ::mlir::heir::tfhe_rust_bool::NorOp,
