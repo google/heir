@@ -35,6 +35,10 @@ using ::mlir::func::ReturnOp;
 LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
                                 Operation *op, ArrayRef<Value> operands,
                                 ConversionPatternRewriter &rewriter) {
+  if (typeConverter->isLegal(op)) {
+    return failure();
+  }
+
   SmallVector<Type> newOperandTypes;
   if (failed(
           typeConverter->convertTypes(op->getOperandTypes(), newOperandTypes)))

@@ -500,11 +500,16 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   LogicalResult matchAndRewrite(
       AddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
+    auto polyTy = dyn_cast<PolynomialType>(op.getResult().getType());
+    if (!polyTy) {
+      op->emitOpError()
+          << "Encountered elementwise polynomial.add op. The caller must use "
+             "convert-elementwise-to-affine pass before lowering polynomial.";
+      return failure();
+    }
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto type = cast<ShapedType>(adaptor.getLhs().getType());
-    Type coeffType = cast<PolynomialType>(op.getResult().getType())
-                         .getRing()
-                         .getCoefficientType();
+    Type coeffType = polyTy.getRing().getCoefficientType();
     auto intCoeffType = dyn_cast<IntegerType>(coeffType);
     if (!intCoeffType) {
       op.emitError()
@@ -515,10 +520,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 
     // When upstreaming, this needs to be adapted to support rings that don't
     // specify a modulus.
-    APInt mod = cast<PolynomialType>(op.getResult().getType())
-                    .getRing()
-                    .getCoefficientModulus()
-                    .getValue();
+    APInt mod = polyTy.getRing().getCoefficientModulus().getValue();
     bool needToExtend =
         mod.zextOrTrunc(coeffTypeMod.getBitWidth()).ult(coeffTypeMod);
 
