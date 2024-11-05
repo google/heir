@@ -7814,6 +7814,9 @@ XNOR_GATE = 5;&lt;/p>
 &lt;h3 id="encryptedbooltype">EncryptedBoolType&lt;/h3>
 &lt;p>An encrypted Boolean corresponding to tfhe-rs&amp;rsquo;s FHEBool type&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust_bool.eb&lt;/code>&lt;/p>
+&lt;h3 id="packedserverkeytype">PackedServerKeyType&lt;/h3>
+&lt;p>The Belfort packed API boolean server key.&lt;/p>
+&lt;p>Syntax: &lt;code>!tfhe_rust_bool.server_key_enum&lt;/code>&lt;/p>
 &lt;h3 id="serverkeytype">ServerKeyType&lt;/h3>
 &lt;p>The boolean server key required to perform homomorphic operations.&lt;/p>
 &lt;p>Syntax: &lt;code>!tfhe_rust_bool.server_key&lt;/code>&lt;/p>
@@ -7836,7 +7839,7 @@ XNOR_GATE = 5;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>tfhe rust bool server key&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
@@ -8158,7 +8161,7 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
