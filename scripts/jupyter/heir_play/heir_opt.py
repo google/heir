@@ -28,6 +28,7 @@ class BinaryMagic(Magics):
             [os.path.abspath(self.binary_path)] + shlex.split(line),
             input=cell,
             text=True,
+            capture_output=True,
         )
         if completed_process.returncode != 0:
             print(f"Error running {self.binary_path}")
