@@ -75,6 +75,8 @@ cc_binary(
         "@heir//lib/Dialect/TensorExt/Transforms:RotateAndReduce",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
+        "@heir//lib/Pipelines:ArithmeticPipelineRegistration",
+        "@heir//lib/Pipelines:PipelineRegistration",
         "@heir//lib/Transforms/ApplyFolders",
         "@heir//lib/Transforms/ConvertIfToSelect",
         "@heir//lib/Transforms/ConvertSecretExtractToStaticExtract",
@@ -138,6 +140,7 @@ cc_binary(
         "@llvm-project//mlir:UBToLLVM",
     ] + select({
         "@heir//:config_enable_yosys": [
+            "@heir//lib/Pipelines:BooleanPipelineRegistration",
             "@heir//lib/Transforms/YosysOptimizer",
         ],
         "//conditions:default": [],
