@@ -1,0 +1,21 @@
+From 3ac1b536ec56524fc03274c22d0d9dd358dbc769 Mon Sep 17 00:00:00 2001
+From: Pranav Kant <prka@google.com>
+Date: Wed, 6 Nov 2024 17:49:50 +0000
+Subject: [PATCH] [bazel] Fix mlir:VectorToSPIRV
+
+---
+ utils/bazel/llvm-project-overlay/mlir/BUILD.bazel | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+index f273882ddd4b58..caeaba62df98fe 100644
+--- a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
++++ b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+@@ -5965,6 +5965,7 @@ cc_library(
+     deps = [
+         ":ArithDialect",
+         ":ConversionPassIncGen",
++        ":DialectUtils",
+         ":IR",
+         ":Pass",
+         ":SPIRVConversion",
