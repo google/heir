@@ -33,6 +33,19 @@ There are many ways to contribute to HEIR:
     to alert us of papers that should be investigated and incorporated into
     HEIR.
 
+## Citations
+
+The HEIR project can be cited in in academic work through following entry:
+
+```text
+@Misc{HEIR,
+  title={{HEIR: Homomorphic Encryption Intermediate Representation}},
+  author={Google LLC},
+  year={2023},
+  note={\url{https://github.com/zama-ai/tfhe-rs}},
+}
+```
+
 ## Support disclaimer
 
 This is not an officially supported Google product.
