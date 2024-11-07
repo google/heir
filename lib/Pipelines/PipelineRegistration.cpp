@@ -80,9 +80,9 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createUnrollAndForwardPass());
   // Cleanup
   manager.addPass(createMemrefGlobalReplacePass());
-  arith::ArithIntNarrowingOptions options;
+  arith::ArithIntRangeNarrowingOptions options;
   options.bitwidthsSupported = {4, 8, 16};
-  manager.addPass(arith::createArithIntNarrowing(options));
+  manager.addPass(arith::createArithIntRangeNarrowing(options));
   manager.addPass(createCanonicalizerPass());
   manager.addPass(createSCCPPass());
   manager.addPass(createCSEPass());

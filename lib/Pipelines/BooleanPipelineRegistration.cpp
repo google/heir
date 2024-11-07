@@ -76,9 +76,9 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
 
   // Cleanup
   pm.addPass(createMemrefGlobalReplacePass());
-  arith::ArithIntNarrowingOptions arithOps;
+  arith::ArithIntRangeNarrowingOptions arithOps;
   arithOps.bitwidthsSupported = llvm::to_vector(bitWidths);
-  pm.addPass(arith::createArithIntNarrowing(arithOps));
+  pm.addPass(arith::createArithIntRangeNarrowing(arithOps));
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createSCCPPass());
   pm.addPass(createCSEPass());
