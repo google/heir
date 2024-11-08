@@ -1,0 +1,65 @@
+Auto generated patch. Do not edit or delete it, even if empty.
+diff -ruN --strip-trailing-cr a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+--- a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
++++ b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+@@ -2337,6 +2337,7 @@
+     srcs = ["include/mlir/Dialect/AMX/AMX.td"],
+     includes = ["include"],
+     deps = [
++        ":BuiltinDialectTdFiles",
+         ":LLVMOpsTdFiles",
+         ":SideEffectInterfacesTdFiles",
+     ],
+@@ -2360,6 +2361,20 @@
+             "include/mlir/Dialect/AMX/AMXDialect.cpp.inc",
+         ),
+         (
++            [
++                "-gen-typedef-decls",
++                "-typedefs-dialect=amx",
++            ],
++            "include/mlir/Dialect/AMX/AMXTypes.h.inc",
++        ),
++        (
++            [
++                "-gen-typedef-defs",
++                "-typedefs-dialect=amx",
++            ],
++            "include/mlir/Dialect/AMX/AMXTypes.cpp.inc",
++        ),
++        (
+             ["-gen-op-decls"],
+             "include/mlir/Dialect/AMX/AMX.h.inc",
+         ),
+@@ -2388,6 +2403,7 @@
+         ":IR",
+         ":LLVMDialect",
+         ":SideEffectInterfaces",
++        "//llvm:Support",
+     ],
+ )
+ 
+@@ -2398,6 +2414,7 @@
+     includes = ["include"],
+     deps = [
+         ":AMXDialect",
++        ":ConvertToLLVMInterface",
+         ":IR",
+         ":LLVMCommonConversion",
+         ":LLVMDialect",
+@@ -4858,6 +4875,7 @@
+     deps = [
+         ":AffineTransformOps",
+         ":ArithToLLVM",
++        ":AMXTransforms",
+         ":BufferizationTransformOps",
+         ":BuiltinToLLVMIRTranslation",
+         ":ComplexToLLVM",
+@@ -5965,6 +5983,7 @@
+     deps = [
+         ":ArithDialect",
+         ":ConversionPassIncGen",
++        ":DialectUtils",
+         ":IR",
+         ":Pass",
+         ":SPIRVConversion",
