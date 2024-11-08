@@ -27,9 +27,12 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_packed_and
-  func.func @test_packed_and(%bsks : !bsks, %lhs : tensor<4x!eb>, %rhs : tensor<4x!eb>) {
-    %out = tfhe_rust_bool.and %bsks, %lhs, %rhs: (!bsks, tensor<4x!eb>, tensor<4x!eb>) -> tensor<4x!eb>
+  // CHECK-LABEL: func @test_not
+  func.func @test_not(%bsks : !bsks) {
+    %0 = arith.constant 1 : i1
+
+    %e1 = tfhe_rust_bool.create_trivial %bsks, %0 : (!bsks, i1) -> !tfhe_rust_bool.eb
+    %out = tfhe_rust_bool.not %bsks, %e1: (!bsks, !tfhe_rust_bool.eb) -> !tfhe_rust_bool.eb
     return
   }
 }

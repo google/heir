@@ -9,6 +9,7 @@ pub enum ServerKeyEnum {
 pub trait ServerKeyTrait {
     fn packed_gates(&self, gates: &Vec<Gate>, cts_left: &Vec<&Ciphertext>, cts_right: &Vec<&Ciphertext>) -> Vec<Ciphertext>;
     fn not(&self, ct: &Ciphertext) -> Ciphertext;
+    fn packed_not(&self, cts: &Vec<&Ciphertext>) -> Vec<Ciphertext>;
     fn trivial_encrypt(&self, value: bool) -> Ciphertext;
 }
 
@@ -20,6 +21,10 @@ impl ServerKeyTrait for ServerKey {
 
     fn not(&self, ct: &Ciphertext) -> Ciphertext {
         return self.not(ct);
+    }
+
+    fn packed_not(&self, cts: &Vec<&Ciphertext>) -> Vec<Ciphertext> {
+        return self.packed_not(cts);
     }
 
     fn trivial_encrypt(&self, value: bool) -> Ciphertext {
@@ -34,6 +39,10 @@ impl ServerKeyTrait for BelfortBooleanServerKey {
 
     fn not(&self, ct: &Ciphertext) -> Ciphertext {
         return self.not(ct);
+    }
+
+    fn packed_not(&self, cts: &Vec<&Ciphertext>) -> Vec<Ciphertext> {
+        return self.packed_not(cts);
     }
 
     fn trivial_encrypt(&self, value: bool) -> Ciphertext {
@@ -54,6 +63,13 @@ impl ServerKeyTrait for ServerKeyEnum {
         match self {
             ServerKeyEnum::TypeSW(sk) => sk.not(ct),
             ServerKeyEnum::TypeFPGA(sk) => sk.not(ct),
+        }
+    }
+
+    fn packed_not(&self, cts: &Vec<&Ciphertext>) -> Vec<Ciphertext> {
+        match self {
+            ServerKeyEnum::TypeSW(sk) => sk.packed_not(cts),
+            ServerKeyEnum::TypeFPGA(sk) => sk.packed_not(cts),
         }
     }
 
