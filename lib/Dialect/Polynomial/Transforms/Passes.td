@@ -17,4 +17,17 @@ def PolyMulToNTT : Pass<"convert-polynomial-mul-to-ntt"> {
   let dependentDialects = ["mlir::polynomial::PolynomialDialect", "heir::mod_arith::ModArithDialect"];
 }
 
+def PolyPopulatePrimitiveRoot : Pass<"polynomial-populate-primitive-root"> {
+  let summary = "Populate primitive root for polynomial NTT/iNTT operations";
+  let description = [{
+    Choose a primitive root for NTT/iNTT operations whose root attribute was
+    not specified.
+
+    Currently the existence and choice of the primitive root of a prime is
+    looked up from a table maintained in StaticRoots.h.
+  }];
+  let dependentDialects = ["mlir::polynomial::PolynomialDialect"];
+}
+
+
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_PASSES_TD_
