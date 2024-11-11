@@ -52,6 +52,8 @@ class JaxiteEmitter {
   LogicalResult printOperation(func::FuncOp funcOp);
   LogicalResult printOperation(func::ReturnOp returnOp);
   LogicalResult printOperation(Lut3Op op);
+  LogicalResult printOperation(Lut3ArgsOp op);
+  LogicalResult printOperation(PmapLut3Op op);
   LogicalResult printOperation(ConstantOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);

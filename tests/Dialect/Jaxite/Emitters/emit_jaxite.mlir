@@ -55,3 +55,30 @@ func.func @test_memref_alloc_store(%input: memref<8x!eb>, %bsks : !bsks, %params
   memref.store %1, %alloc[%c1] : memref<2x!eb>
   return %alloc : memref<2x!eb>
 }
+
+// CHECK-LABEL: def test_packed_lut3(
+// CHECK-NEXT:   [[sk:.*]]: jaxite_bool.ServerKeySet,
+// CHECK-NEXT:   [[params:.*]]: jaxite_bool.Parameters
+// CHECK-NEXT: ):
+// CHECK-NEXT:  temp_nodes: Dict[int, Any] = {}
+// CHECK-NEXT:  [[e1:temp_nodes[[0-9]+]]] = jaxite_bool.constant(True,[[params]])
+// CHECK-NEXT:  [[e2:temp_nodes[[0-9]+]]] = jaxite_bool.constant(True,[[params]])
+// CHECK-NEXT:  [[e3:temp_nodes[[0-9]+]]] = jaxite_bool.constant(True,[[params]])
+// CHECK-NEXT:  inputs = [([[e1]], [[e2]], [[e3]], 8),]
+// CHECK-NEXT:  [[e4:temp_nodes[[0-9]+]]] = jaxite_bool.pmap_lut3(inputs,[[sk]],[[params]])
+func.func @test_packed_lut3(%bsks : !bsks, %params : !params) {
+    %0 = arith.constant 1 : i1
+    %1 = arith.constant 1 : i1
+    %2 = arith.constant 1 : i1
+    %truth_table = arith.constant 8 : i8
+
+    %e1 = jaxite.constant %0, %params : (i1, !params) -> !eb
+    %e2 = jaxite.constant %1, %params : (i1, !params) -> !eb
+    %e3 = jaxite.constant %2, %params : (i1, !params) -> !eb
+
+    %l1 = jaxite.lut3_args %e1, %e2, %e3, %truth_table :(!eb, !eb, !eb, i8) -> !jaxite.pmap_lut3_tuple
+    %lut3_args_tensor = tensor.from_elements %l1 : tensor<1x!jaxite.pmap_lut3_tuple>
+
+    %out = jaxite.pmap_lut3 %lut3_args_tensor, %bsks, %params : (tensor<1x!jaxite.pmap_lut3_tuple>, !bsks, !params) -> !eb
+    return
+  }

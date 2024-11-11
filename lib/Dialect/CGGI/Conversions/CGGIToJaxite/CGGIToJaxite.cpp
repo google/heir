@@ -19,9 +19,11 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -115,20 +117,20 @@ struct ConvertCGGIToJaxiteLut3Op : public OpConversionPattern<cggi::Lut3Op> {
       cggi::Lut3Op op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    FailureOr<Value> result_server_key =
+    FailureOr<Value> resultServerKey =
         getContextualJaxiteArg<jaxite::ServerKeySetType>(op.getOperation());
-    if (failed(result_server_key)) return result_server_key;
-    Value serverKey = result_server_key.value();
+    if (failed(resultServerKey)) return resultServerKey;
+    Value serverKey = resultServerKey.value();
 
-    FailureOr<Value> result_params =
+    FailureOr<Value> resultParams =
         getContextualJaxiteArg<jaxite::ParamsType>(op.getOperation());
-    if (failed(result_params)) return result_params;
-    Value params = result_params.value();
+    if (failed(resultParams)) return resultParams;
+    Value params = resultParams.value();
 
-    int64_t truth_table_value = op.getLookupTableAttr().getUInt();
-    int8_t truth_table_value_int8 = static_cast<int8_t>(truth_table_value);
+    int64_t truthTableValue =
+        static_cast<uint8_t>(op.getLookupTableAttr().getUInt());
     Value tt = b.create<arith::ConstantOp>(
-        op.getLoc(), b.getIntegerAttr(b.getI8Type(), truth_table_value_int8));
+        op.getLoc(), b.getIntegerAttr(b.getI8Type(), truthTableValue));
 
     // The ciphertext parameters (a, b, c) are passed in reverse order from cggi
     // to jaxite to mirror jaxite API
@@ -136,6 +138,56 @@ struct ConvertCGGIToJaxiteLut3Op : public OpConversionPattern<cggi::Lut3Op> {
         op.getLoc(), typeConverter->convertType(op.getOutput().getType()),
         adaptor.getA(), adaptor.getB(), adaptor.getC(), tt, serverKey, params);
     rewriter.replaceOp(op, createLut3Op);
+    return success();
+  }
+};
+
+struct ConvertCGGIToJaxitePmapLut3Op
+    : public OpConversionPattern<cggi::PackedLut3Op> {
+  ConvertCGGIToJaxitePmapLut3Op(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::PackedLut3Op>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::PackedLut3Op op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    FailureOr<Value> resultServerKey =
+        getContextualJaxiteArg<jaxite::ServerKeySetType>(op.getOperation());
+    if (failed(resultServerKey)) return resultServerKey;
+    Value serverKey = resultServerKey.value();
+
+    FailureOr<Value> resultParams =
+        getContextualJaxiteArg<jaxite::ParamsType>(op.getOperation());
+    if (failed(resultParams)) return resultParams;
+    Value params = resultParams.value();
+    auto A = op.getA();
+    auto B = op.getB();
+    auto C = op.getC();
+    auto truthTableValues = op.getLookupTables();
+    SmallVector<Value> lut3_args;
+    for (int i = 0; i < truthTableValues.size(); ++i) {
+      uint8_t truthTableValue = static_cast<uint8_t>(
+          cast<IntegerAttr>(truthTableValues[i]).getUInt());
+      auto tt = b.create<arith::ConstantOp>(
+          op.getLoc(), b.getIntegerAttr(b.getI8Type(), truthTableValue));
+      auto extractionIndex =
+          b.create<arith::ConstantOp>(op->getLoc(), b.getIndexAttr(i));
+      auto extractOpA = b.create<tensor::ExtractOp>(
+          op->getLoc(), A, extractionIndex.getResult());
+      auto extractOpB = b.create<tensor::ExtractOp>(
+          op->getLoc(), B, extractionIndex.getResult());
+      auto extractOpC = b.create<tensor::ExtractOp>(
+          op->getLoc(), C, extractionIndex.getResult());
+      auto lut3ArgsOp = b.create<jaxite::Lut3ArgsOp>(
+          op.getLoc(), extractOpA, extractOpB, extractOpC, tt);
+      lut3_args.push_back(lut3ArgsOp.getResult());
+    }
+    auto lut3ArgsOp = b.create<tensor::FromElementsOp>(op->getLoc(), lut3_args);
+    rewriter.replaceOpWithNewOp<jaxite::PmapLut3Op>(
+        op, op.getOutput().getType(), lut3ArgsOp.getResult(), serverKey,
+        params);
     return success();
   }
 };
@@ -222,7 +274,8 @@ class CGGIToJaxite : public impl::CGGIToJaxiteBase<CGGIToJaxite> {
     // needed and possible.
     patterns.add<AddJaxiteContextualArgs, ConvertCGGIToJaxiteEncodeOp,
                  ConvertCGGIToJaxiteLut3Op, ConvertCGGIToJaxiteTrivialEncryptOp,
-                 ConvertAny<>>(typeConverter, context);
+                 ConvertCGGIToJaxitePmapLut3Op, ConvertAny<>>(typeConverter,
+                                                              context);
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();
     }

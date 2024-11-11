@@ -66,7 +66,8 @@ LogicalResult JaxiteEmitter::translate(Operation &op) {
           .Case<func::FuncOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Jaxite ops
-          .Case<Lut3Op, ConstantOp>([&](auto op) { return printOperation(op); })
+          .Case<Lut3Op, Lut3ArgsOp, PmapLut3Op, ConstantOp>(
+              [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
@@ -200,6 +201,38 @@ LogicalResult JaxiteEmitter::printOperation(Lut3Op op) {
   return success();
 }
 
+LogicalResult JaxiteEmitter::printOperation(PmapLut3Op op) {
+  os << "inputs = [";
+  for (auto lut3_arg : op.getLut3Args().getDefiningOp()->getOperands()) {
+    SmallString<16> int_str;
+    cast<IntegerAttr>(
+        dyn_cast<arith::ConstantOp>(cast<Lut3ArgsOp>(lut3_arg.getDefiningOp())
+                                        .getTruthTable()
+                                        .getDefiningOp())
+            .getValue())
+        .getValue()
+        .toStringUnsigned(int_str);
+    auto a = variableNames->getIntForValue(
+        cast<Lut3ArgsOp>(lut3_arg.getDefiningOp()).getA());
+    auto b = variableNames->getIntForValue(
+        cast<Lut3ArgsOp>(lut3_arg.getDefiningOp()).getB());
+    auto c = variableNames->getIntForValue(
+        cast<Lut3ArgsOp>(lut3_arg.getDefiningOp()).getC());
+    os << "(temp_nodes[" << a << "], " << "temp_nodes[" << b << "], "
+       << "temp_nodes[" << c << "], " << int_str << "),";
+  }
+  os << "]\n";
+  emitAssignPrefix(op.getResult());
+  os << "jaxite_bool.pmap_lut3(" << "inputs, " << serverKeySetArg_ << ", "
+     << paramsArg_ << ")\n";
+  return success();
+}
+
+LogicalResult JaxiteEmitter::printOperation(Lut3ArgsOp op) {
+  // Ignoring this op as lut3 tuples are created in PmapLut3Op.
+  return success();
+}
+
 LogicalResult JaxiteEmitter::printOperation(ConstantOp op) {
   emitAssignPrefix(op.getResult());
   os << "jaxite_bool.constant(";
@@ -218,7 +251,12 @@ void JaxiteEmitter::emitAssignPrefix(Value result) {
 
 LogicalResult JaxiteEmitter::printOperation(tensor::ExtractOp op) {
   emitAssignPrefix(op.getResult());
-  os << variableNames->getNameForValue(op.getTensor()) << "["
+  if (isa<BlockArgument>(op.getTensor())) {
+    os << variableNames->getNameForValue(op.getTensor());
+  } else {
+    os << "temp_nodes[" << variableNames->getIntForValue(op.getTensor()) << "]";
+  }
+  os << "["
      << dyn_cast<IntegerAttr>(
             dyn_cast<arith::ConstantOp>(op.getIndices()[0].getDefiningOp())
                 .getValue())
@@ -228,6 +266,12 @@ LogicalResult JaxiteEmitter::printOperation(tensor::ExtractOp op) {
 }
 
 LogicalResult JaxiteEmitter::printOperation(tensor::FromElementsOp op) {
+  if (op.getNumOperands() == 0) {
+    return success();
+  }
+  if (isa<jaxite::Lut3ArgsOp>(op->getOperands()[0].getDefiningOp())) {
+    return success();
+  }
   emitAssignPrefix(op.getResult());
   os << "[" << commaSeparatedValues(op.getOperands(), [&](Value value) {
     return "temp_nodes[" +
