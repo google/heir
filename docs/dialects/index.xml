@@ -3719,6 +3719,9 @@ using the jaxite parameters and encoding scheme.&lt;/p>
 &lt;h3 id="paramstype">ParamsType&lt;/h3>
 &lt;p>The jaxite security params required to perform homomorphic operations.&lt;/p>
 &lt;p>Syntax: &lt;code>!jaxite.params&lt;/code>&lt;/p>
+&lt;h3 id="pmaplut3tupletype">PmapLut3TupleType&lt;/h3>
+&lt;p>A tuple of pmap_lut3 args.&lt;/p>
+&lt;p>Syntax: &lt;code>!jaxite.pmap_lut3_tuple&lt;/code>&lt;/p>
 &lt;h3 id="serverkeysettype">ServerKeySetType&lt;/h3>
 &lt;p>The jaxite server key set required to perform homomorphic operations.&lt;/p>
 &lt;p>Syntax: &lt;code>!jaxite.server_key_set&lt;/code>&lt;/p>
@@ -3764,6 +3767,55 @@ using the jaxite parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="jaxitelut3_args-heirjaxitelut3argsop">&lt;code>jaxite.lut3_args&lt;/code> (heir::jaxite::Lut3ArgsOp)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxite.lut3_args` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>The operation computed by this function is generating tuples for pmap_lut3.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
+&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>truth_table&lt;/code>&lt;/td>
+&lt;td>8-bit signless integer&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A tuple of pmap_lut3 args.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="jaxitelut3-heirjaxitelut3op">&lt;code>jaxite.lut3&lt;/code> (heir::jaxite::Lut3Op)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `jaxite.lut3` operands attr-dict `:` functional-type(operands, results)
@@ -3775,7 +3827,7 @@ significant bit to least-significant bit.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3810,7 +3862,7 @@ significant bit to least-significant bit.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -3822,6 +3874,51 @@ significant bit to least-significant bit.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
 &lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="jaxitepmap_lut3-heirjaxitepmaplut3op">&lt;code>jaxite.pmap_lut3&lt;/code> (heir::jaxite::PmapLut3Op)&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `jaxite.pmap_lut3` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>The operation computed by this function is a bacthed Lut3Op.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>lut3_args&lt;/code>&lt;/td>
+&lt;td>pmap_lut3_tuples&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>serverKeySet&lt;/code>&lt;/td>
+&lt;td>The jaxite server key set required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>params&lt;/code>&lt;/td>
+&lt;td>The jaxite security params required to perform homomorphic operations.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: LWE</title><link>https://heir.dev/docs/dialects/lwe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/lwe/</guid><description>
