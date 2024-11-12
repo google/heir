@@ -1,272 +1,182 @@
 // RUN: heir-opt -mod-arith-to-arith --split-input-file %s | FileCheck %s --enable-var-scope
 
-// CHECK-LABEL: @test_lower_simple_add
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_add(%lhs : i8, %rhs : i8) -> i8 {
-  // CHECK-NOT: mod_arith.add
-  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[CMOD:.*]] = arith.constant 17 : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.add %lhs, %rhs {modulus = 17 }: i8
-  return %res : i8
+!Zp = !mod_arith.mod_arith<65537 : i32>
+!Zpv = tensor<4x!Zp>
+
+// CHECK-LABEL: @test_lower_encapsulate
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_encapsulate(%lhs : i32) -> !Zp {
+  // CHECK-NOT: mod_arith.encapsulate
+  // CHECK: return %[[LHS]] : [[T]]
+  %res = mod_arith.encapsulate %lhs: i32 -> !Zp
+  return %res : !Zp
 }
 
-// CHECK-LABEL: @test_lower_simple_add_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_add_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
-  // CHECK-NOT: mod_arith.add
-  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<17> : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.add %lhs, %rhs {modulus = 17}: tensor<4xi8>
-  return %res : tensor<4xi8>
+// CHECK-LABEL: @test_lower_encapsulate_vec
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_encapsulate_vec(%lhs : tensor<4xi32>) -> !Zpv {
+  // CHECK-NOT: mod_arith.encapsulate
+  // CHECK: return %[[LHS]] : [[T]]
+  %res = mod_arith.encapsulate %lhs: tensor<4xi32> -> !Zpv
+  return %res : !Zpv
+}
+
+// CHECK-LABEL: @test_lower_extract
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_extract(%lhs : !Zp) -> i32 {
+  // CHECK-NOT: mod_arith.extract
+  // CHECK: return %[[LHS]] : [[T]]
+  %res = mod_arith.extract %lhs: !Zp -> i32
+  return %res : i32
+}
+
+// CHECK-LABEL: @test_lower_extract_vec
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_extract_vec(%lhs : !Zpv) -> tensor<4xi32> {
+  // CHECK-NOT: mod_arith.extract
+  // CHECK: return %[[LHS]] : [[T]]
+  %res = mod_arith.extract %lhs: !Zpv -> tensor<4xi32>
+  return %res : tensor<4xi32>
+}
+
+// CHECK-LABEL: @test_lower_reduce
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_reduce(%lhs : !Zp) -> !Zp {
+  // CHECK-NOT: mod_arith.reduce
+  // CHECK: %[[CMOD:.*]] = arith.constant 65537 : [[T]]
+  // CHECK: %[[REMS:.*]] = arith.remsi %[[LHS]], %[[CMOD]] : [[T]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[REMS]], %[[CMOD]] : [[T]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[T]]
+  // CHECK: return %[[REM]] : [[T]]
+  %res = mod_arith.reduce %lhs: !Zp
+  return %res : !Zp
+}
+
+// CHECK-LABEL: @test_lower_reduce_vec
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_reduce_vec(%lhs : !Zpv) -> !Zpv {
+  // CHECK-NOT: mod_arith.reduce
+  // CHECK: %[[CMOD:.*]] = arith.constant dense<65537> : [[T]]
+  // CHECK: %[[REMS:.*]] = arith.remsi %[[LHS]], %[[CMOD]] : [[T]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[REMS]], %[[CMOD]] : [[T]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[T]]
+  // CHECK: return %[[REM]] : [[T]]
+  %res = mod_arith.reduce %lhs: !Zpv
+  return %res : !Zpv
 }
 
 // CHECK-LABEL: @test_lower_add
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_add(%lhs : i8, %rhs : i8) -> i8 {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_add(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.add
-  // CHECK: %[[CMOD:.*]] = arith.constant 217 : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[ADD:.*]] = arith.addi %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.add %lhs, %rhs {modulus = 217 }: i8
-  return %res : i8
+  // CHECK: %[[CMOD:.*]] = arith.constant 65537 : [[T]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] : [[T]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[T]]
+  // CHECK: return %[[REM]] : [[T]]
+  %res = mod_arith.add %lhs, %rhs : !Zp
+  return %res : !Zp
 }
 
 // CHECK-LABEL: @test_lower_add_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_add_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_add_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.add
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<217> : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[ADD:.*]] = arith.addi %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.add %lhs, %rhs {modulus = 217 }: tensor<4xi8>
-  return %res : tensor<4xi8>
-}
-
-// CHECK-LABEL: @test_lower_simple_sub
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_sub(%lhs : i8, %rhs : i8) -> i8 {
-  // CHECK-NOT: mod_arith.sub
-  // CHECK: %[[CMOD:.*]] = arith.constant 17 : [[TYPE]]
-  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.sub %lhs, %rhs {modulus = 17}: i8
-  return %res : i8
-}
-
-// CHECK-LABEL: @test_lower_simple_sub_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_sub_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
-  // CHECK-NOT: mod_arith.sub
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<17> : [[TYPE]]
-  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.sub %lhs, %rhs {modulus = 17}: tensor<4xi8>
-  return %res : tensor<4xi8>
+  // CHECK: %[[CMOD:.*]] = arith.constant dense<65537> : [[T]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] : [[T]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[T]]
+  // CHECK: return %[[REM]] : [[T]]
+  %res = mod_arith.add %lhs, %rhs : !Zpv
+  return %res : !Zpv
 }
 
 // CHECK-LABEL: @test_lower_sub
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_sub(%lhs : i8, %rhs : i8) -> i8 {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_sub(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.sub
-  // CHECK: %[[CMOD:.*]] = arith.constant 217 : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[SUB:.*]] = arith.subi %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.sub %lhs, %rhs {modulus = 217 }: i8
-  return %res : i8
+  // CHECK: %[[CMOD:.*]] = arith.constant 65537 : [[T]]
+  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[T]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[T]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[T]]
+  // CHECK: return %[[REM]] : [[T]]
+  %res = mod_arith.sub %lhs, %rhs : !Zp
+  return %res : !Zp
 }
 
 // CHECK-LABEL: @test_lower_sub_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_sub_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_sub_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.sub
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<217> : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[SUB:.*]] = arith.subi %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.sub %lhs, %rhs {modulus = 217 }: tensor<4xi8>
-  return %res : tensor<4xi8>
-}
-
-// CHECK-LABEL: @test_lower_simple_mul
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_mul(%lhs : i16, %rhs : i16) -> i16 {
-  // CHECK-NOT: mod_arith.mul
-  // CHECK: %[[MUL:.*]] = arith.muli %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[CMOD:.*]] = arith.constant 17 : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[MUL]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.mul %lhs, %rhs {modulus = 17}: i16
-  return %res : i16
-}
-
-// CHECK-LABEL: @test_lower_simple_mul_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_mul_vec(%lhs : tensor<4xi16>, %rhs : tensor<4xi16>) -> tensor<4xi16> {
-  // CHECK-NOT: mod_arith.mul
-  // CHECK: %[[MUL:.*]] = arith.muli %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<17> : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[MUL]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.mul %lhs, %rhs {modulus = 17}: tensor<4xi16>
-  return %res : tensor<4xi16>
+  // CHECK: %[[CMOD:.*]] = arith.constant dense<65537> : [[T]]
+  // CHECK: %[[SUB:.*]] = arith.subi %[[LHS]], %[[RHS]] : [[T]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[SUB]], %[[CMOD]] : [[T]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[T]]
+  // CHECK: return %[[REM]] : [[T]]
+  %res = mod_arith.sub %lhs, %rhs : !Zpv
+  return %res : !Zpv
 }
 
 // CHECK-LABEL: @test_lower_mul
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_mul(%lhs : i8, %rhs : i8) -> i8 {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_mul(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.mul
-  // CHECK: %[[CMOD:.*]] = arith.constant 217 : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[MUL]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.mul %lhs, %rhs {modulus = 217 }: i8
-  return %res : i8
+  // CHECK: %[[CMOD:.*]] = arith.constant 65537 : [[TEXT:.*]]
+  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[TEXT]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[MUL]], %[[CMOD]] : [[TEXT]]
+  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[TEXT]] to [[T]]
+  // CHECK: return %[[TRUNC]] : [[T]]
+  %res = mod_arith.mul %lhs, %rhs : !Zp
+  return %res : !Zp
 }
 
 // CHECK-LABEL: @test_lower_mul_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_mul_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_mul_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.mul
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<217> : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[MUL]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.mul %lhs, %rhs {modulus = 217 }: tensor<4xi8>
-  return %res : tensor<4xi8>
-}
-
-// CHECK-LABEL: @test_lower_simple_mac
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]], %[[ACC:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_mac(%lhs : tensor<4xi16>, %rhs : tensor<4xi16>, %acc : tensor<4xi16>) -> tensor<4xi16> {
-  // CHECK-NOT: mod_arith.mac
-  // CHECK: %[[MUL:.*]] = arith.muli %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[ADD:.*]] = arith.addi %[[MUL]], %[[ACC]] : [[TYPE]]
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<17> : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.mac %lhs, %rhs, %acc {modulus = 17}: tensor<4xi16>
-  return %res : tensor<4xi16>
-}
-
-// CHECK-LABEL: @test_lower_simple_mac_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]], %[[ACC:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_simple_mac_vec(%lhs : i16, %rhs : i16, %acc : i16) -> i16 {
-  // CHECK-NOT: mod_arith.mac
-  // CHECK: %[[MUL:.*]] = arith.muli %[[LHS]], %[[RHS]] : [[TYPE]]
-  // CHECK: %[[ADD:.*]] = arith.addi %[[MUL]], %[[ACC]] : [[TYPE]]
-  // CHECK: %[[CMOD:.*]] = arith.constant 17 : [[TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[TYPE]]
-  // CHECK: return %[[REM]] : [[TYPE]]
-  %res = mod_arith.mac %lhs, %rhs, %acc{modulus = 17}: i16
-  return %res : i16
+  // CHECK: %[[CMOD:.*]] = arith.constant dense<65537> : [[TEXT:.*]]
+  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[TEXT]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[MUL]], %[[CMOD]] : [[TEXT]]
+  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[TEXT]] to [[T]]
+  // CHECK: return %[[TRUNC]] : [[T]]
+  %res = mod_arith.mul %lhs, %rhs : !Zpv
+  return %res : !Zpv
 }
 
 // CHECK-LABEL: @test_lower_mac
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]], %[[ACC:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_mac(%lhs : i8, %rhs : i8, %acc : i8) -> i8 {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]], %[[ACC:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_mac(%lhs : !Zp, %rhs : !Zp, %acc : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.mac
-  // CHECK: %[[CMOD:.*]] = arith.constant 217 : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT2:.*]] = arith.extui %[[ACC]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[ADD:.*]] = arith.addi %[[MUL]], %[[EXT2]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.mac %lhs, %rhs, %acc {modulus = 217 }: i8
-  return %res : i8
+  // CHECK: %[[CMOD:.*]] = arith.constant 65537 : [[TEXT:.*]]
+  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[EXT2:.*]] = arith.extui %[[ACC]] : [[T]] to [[TEXT]]
+  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[TEXT]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[MUL]], %[[EXT2]] : [[TEXT]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[TEXT]]
+  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[TEXT]] to [[T]]
+  // CHECK: return %[[TRUNC]] : [[T]]
+  %res = mod_arith.mac %lhs, %rhs, %acc : !Zp
+  return %res : !Zp
 }
 
 // CHECK-LABEL: @test_lower_mac_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[TYPE:.*]], %[[RHS:.*]]: [[TYPE]], %[[ACC:.*]]: [[TYPE]]) -> [[TYPE]] {
-func.func @test_lower_mac_vec(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>, %acc : tensor<4xi8>) -> tensor<4xi8> {
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]], %[[ACC:.*]]: [[T]]) -> [[T]] {
+func.func @test_lower_mac_vec(%lhs : !Zpv, %rhs : !Zpv, %acc : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.mac
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<217> : [[INTERMEDIATE_TYPE:.*]]
-  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[EXT2:.*]] = arith.extui %[[ACC]] : [[TYPE]] to [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[ADD:.*]] = arith.addi %[[MUL]], %[[EXT2]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[INTERMEDIATE_TYPE]]
-  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[INTERMEDIATE_TYPE]] to [[TYPE]]
-  // CHECK: return %[[TRUNC]] : [[TYPE]]
-  %res = mod_arith.mac %lhs, %rhs, %acc {modulus = 217 }: tensor<4xi8>
-  return %res : tensor<4xi8>
-}
-
-
-// -----
-
-// CHECK-LABEL: @test_lower_reduce
-// CHECK-SAME: (%[[ARG:.*]]: [[TENSOR_TYPE:.*]]) -> [[TENSOR_TYPE]] {
-func.func @test_lower_reduce(%arg : tensor<4xi8>) -> tensor<4xi8> {
-  // CHECK: %[[CMOD:.*]] = arith.constant dense<17> : [[TENSOR_TYPE]]
-
-  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARG]], %[[CMOD]] : [[TENSOR_TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[TENSOR_TYPE]]
-  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[TENSOR_TYPE]]
-  %res = mod_arith.reduce %arg { modulus = 17 } : tensor<4xi8>
-  return %res : tensor<4xi8>
-}
-
-// -----
-
-// CHECK-LABEL: @test_lower_reduce_int
-// CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
-func.func @test_lower_reduce_int(%arg : i8) -> i8 {
-  // CHECK: %[[CMOD:.*]] = arith.constant 17 : [[INT_TYPE]]
-
-  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARG]], %[[CMOD]] : [[INT_TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[INT_TYPE]]
-  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INT_TYPE]]
-  %res = mod_arith.reduce %arg { modulus = 17 } : i8
-  return %res : i8
-}
-
-// -----
-
-// CHECK-LABEL: @test_lower_reduce_int_max_modulus
-// CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
-func.func @test_lower_reduce_int_max_modulus(%arg : i8) -> i8 {
-  // CHECK: %[[CMOD:.*]] = arith.constant -128 : [[INT_TYPE:i8]]
-
-  // CHECK: %[[MOD:.*]] = arith.remsi %[[ARG]], %[[CMOD]] : [[INT_TYPE]]
-  // CHECK: %[[SHIFT:.*]] = arith.addi %[[MOD]], %[[CMOD]] : [[INT_TYPE]]
-  // CHECK: %[[RES:.*]] = arith.remui %[[SHIFT]], %[[CMOD]] : [[INT_TYPE]]
-  %res = mod_arith.reduce %arg { modulus = 128 : i32 } : i8
-  return %res : i8
+  // CHECK: %[[CMOD:.*]] = arith.constant dense<65537> : [[TEXT:.*]]
+  // CHECK: %[[EXT0:.*]] = arith.extui %[[LHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[EXT1:.*]] = arith.extui %[[RHS]] : [[T]] to [[TEXT]]
+  // CHECK: %[[EXT2:.*]] = arith.extui %[[ACC]] : [[T]] to [[TEXT]]
+  // CHECK: %[[MUL:.*]] = arith.muli %[[EXT0]], %[[EXT1]] : [[TEXT]]
+  // CHECK: %[[ADD:.*]] = arith.addi %[[MUL]], %[[EXT2]] : [[TEXT]]
+  // CHECK: %[[REM:.*]] = arith.remui %[[ADD]], %[[CMOD]] : [[TEXT]]
+  // CHECK: %[[TRUNC:.*]] = arith.trunci %[[REM]] : [[TEXT]] to [[T]]
+  // CHECK: return %[[TRUNC]] : [[T]]
+  %res = mod_arith.mac %lhs, %rhs, %acc : !Zpv
+  return %res : !Zpv
 }
 
 // -----

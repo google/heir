@@ -10,6 +10,8 @@ def ModArith_Dialect : Dialect {
   }];
 
   let cppNamespace = "::mlir::heir::mod_arith";
+  let useDefaultTypePrinterParser = 1;
+
   let dependentDialects = [
     "arith::ArithDialect",
   ];

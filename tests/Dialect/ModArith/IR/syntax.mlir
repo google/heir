@@ -1,5 +1,8 @@
 // RUN: heir-opt %s | FileCheck %s
 
+!Zp = !mod_arith.mod_arith<17 : i10>
+!Zp_vec = tensor<4x!Zp>
+
 // CHECK-LABEL: @test_arith_syntax
 func.func @test_arith_syntax() {
   %zero = arith.constant 1 : i10
@@ -12,30 +15,45 @@ func.func @test_arith_syntax() {
   %c_vec3 = arith.constant dense<[1, 1, 1, 1]> : tensor<4xi10>
   %cmod_vec = arith.constant dense<17> : tensor<4xi10>
 
+  // CHECK-COUNT-6: mod_arith.encapsulate
+  %e4 = mod_arith.encapsulate %c4 : i10 -> !Zp
+  %e5 = mod_arith.encapsulate %c5 : i10 -> !Zp
+  %e6 = mod_arith.encapsulate %c6 : i10 -> !Zp
+  %e_vec = mod_arith.encapsulate %c_vec : tensor<4xi10> -> !Zp_vec
+  %e_vec2 = mod_arith.encapsulate %c_vec2 : tensor<4xi10> -> !Zp_vec
+  %e_vec3 = mod_arith.encapsulate %c_vec3 : tensor<4xi10> -> !Zp_vec
+
+  // CHECK-COUNT-6: mod_arith.reduce
+  %m4 = mod_arith.reduce %e4 : !Zp
+  %m5 = mod_arith.reduce %e5 : !Zp
+  %m6 = mod_arith.reduce %e6 : !Zp
+  %m_vec = mod_arith.reduce %e_vec : !Zp_vec
+  %m_vec2 = mod_arith.reduce %e_vec2 : !Zp_vec
+  %m_vec3 = mod_arith.reduce %e_vec3 : !Zp_vec
+
+  // CHECK: mod_arith.extract
+  %extract = mod_arith.extract %m4 : !Zp -> i10
+  %extract_vec = mod_arith.extract %m_vec : !Zp_vec -> tensor<4xi10>
+
   // CHECK: mod_arith.add
   // CHECK: mod_arith.add
-  %add = mod_arith.add %c5, %c6 { modulus = 17 } : i10
-  %add_vec = mod_arith.add %c_vec, %c_vec2 { modulus = 17 } : tensor<4xi10>
+  %add = mod_arith.add %m5, %m6 : !Zp
+  %add_vec = mod_arith.add %m_vec, %m_vec2 : !Zp_vec
 
   // CHECK: mod_arith.sub
   // CHECK: mod_arith.sub
-  %sub = mod_arith.sub %c5, %c6 { modulus = 17 } : i10
-  %sub_vec = mod_arith.sub %c_vec, %c_vec2 { modulus = 17 } : tensor<4xi10>
+  %sub = mod_arith.sub %m5, %m6 : !Zp
+  %sub_vec = mod_arith.sub %m_vec, %m_vec2 : !Zp_vec
 
   // CHECK: mod_arith.mul
   // CHECK: mod_arith.mul
-  %mul = mod_arith.mul %c5, %c6 { modulus = 17 } : i10
-  %mul_vec = mod_arith.mul %c_vec, %c_vec2 { modulus = 17 } : tensor<4xi10>
+  %mul = mod_arith.mul %m5, %m6 : !Zp
+  %mul_vec = mod_arith.mul %m_vec, %m_vec2 : !Zp_vec
 
   // CHECK: mod_arith.mac
   // CHECK: mod_arith.mac
-  %mac = mod_arith.mac %c5, %c6, %c4 { modulus = 17 } : i10
-  %mac_vec = mod_arith.mac %c_vec, %c_vec2, %c_vec3 { modulus = 17 } : tensor<4xi10>
-
-  // CHECK: mod_arith.reduce
-  // CHECK: mod_arith.reduce
-  %reduce = mod_arith.reduce %c4 { modulus = 17 } : i10
-  %reduce_vec = mod_arith.reduce %c_vec { modulus = 17 } : tensor<4xi10>
+  %mac = mod_arith.mac %m5, %m6, %m4 : !Zp
+  %mac_vec = mod_arith.mac %m_vec, %m_vec2, %m_vec3 : !Zp_vec
 
   // CHECK: mod_arith.barrett_reduce
   // CHECK: mod_arith.barrett_reduce
