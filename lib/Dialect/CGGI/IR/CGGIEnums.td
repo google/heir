@@ -17,11 +17,13 @@ def BOOL_GATE_OR: I32EnumAttrCase<"OR", OR_GATE>;
 def BOOL_GATE_NOR: I32EnumAttrCase<"NOR", NOR_GATE>;
 def BOOL_GATE_XOR: I32EnumAttrCase<"XOR", XOR_GATE>;
 def BOOL_GATE_XNOR: I32EnumAttrCase<"XNOR", XNOR_GATE>;
+def BOOL_GATE_NOT: I32EnumAttrCase<"NOT", NOT_GATE>;
 
 def CGGI_BooleanGateEnumAttr : I32EnumAttr<"CGGIBoolGateEnum",
     "An enum attribute representing a CGGI boolean gate using u8 int",
     [ BOOL_GATE_AND, BOOL_GATE_NAND, BOOL_GATE_OR,
-      BOOL_GATE_NOR, BOOL_GATE_XOR, BOOL_GATE_XNOR
+      BOOL_GATE_NOR, BOOL_GATE_XOR, BOOL_GATE_XNOR,
+      BOOL_GATE_NOT
     ]>
 {
   let cppNamespace = "::mlir::heir::cggi";

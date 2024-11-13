@@ -268,15 +268,20 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
     }
 
     emitAssignPrefix(result);
+    os << variableNames->getNameForValue(sks);
 
-    os << variableNames->getNameForValue(sks) << ".packed_gates(\n";
-    os << "&vec![";
+    // parse the not gate
+    if (!gateStr.compare("NOT")) {
+      os << ".packed_not(\n";
+    } else {
+      os << ".packed_gates( \n &vec![";
 
-    for (size_t i = 0; i < numberOfOperands; i++) {
-      os << "Gate::" << gateStr << ", ";
+      for (size_t i = 0; i < numberOfOperands; i++) {
+        os << "Gate::" << gateStr << ", ";
+      }
+
+      os << "],\n";
     }
-
-    os << "],\n";
 
     os << commaSeparatedValues(
         nonSksOperands, [&, numberOfOperands](Value value) {
@@ -297,6 +302,7 @@ LogicalResult TfheRustBoolEmitter::printSksMethod(
     } else {
       os << ");\n";
     }
+
     return success();
   }
   // Check that this translation can only be used by non-tensor operands
@@ -525,11 +531,6 @@ LogicalResult TfheRustBoolEmitter::printOperation(tensor::FromElementsOp op) {
   return success();
 }
 
-LogicalResult TfheRustBoolEmitter::printOperation(NotOp op) {
-  return printSksMethod(op.getResult(), op.getServerKey(), {op.getInput()},
-                        "not");
-}
-
 LogicalResult TfheRustBoolEmitter::printOperation(AndOp op) {
   return printSksMethod(op.getResult(), op.getServerKey(),
                         {op.getLhs(), op.getRhs()}, "and");
@@ -584,6 +585,11 @@ LogicalResult TfheRustBoolEmitter::printOperation(PackedOp op) {
   os << ");\n";
 
   return success();
+}
+
+LogicalResult TfheRustBoolEmitter::printOperation(NotOp op) {
+  return printSksMethod(op.getResult(), op.getServerKey(), {op.getInput()},
+                        "not");
 }
 
 FailureOr<std::string> TfheRustBoolEmitter::convertType(Type type) {
