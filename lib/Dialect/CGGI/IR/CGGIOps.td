@@ -5,7 +5,7 @@ include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/CGGI/IR/CGGIDialect.td"
 include "lib/Dialect/CGGI/IR/CGGIAttributes.td"
 
-include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
+include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
 
 include "mlir/IR/OpBase.td"

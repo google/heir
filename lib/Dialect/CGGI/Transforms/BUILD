@@ -28,10 +28,10 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:PolynomialDialect",
     ],
 )
 

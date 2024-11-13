@@ -2,15 +2,15 @@
 
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
-#include "llvm/include/llvm/Support/CommandLine.h"      // from @llvm-project
-#include "llvm/include/llvm/Support/ManagedStatic.h"    // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialDialect.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/CommandLine.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/ManagedStatic.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project

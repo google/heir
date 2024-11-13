@@ -13,6 +13,7 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Utils/ConversionUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
@@ -24,7 +25,6 @@ cc_library(
         "@llvm-project//mlir:LLVMDialect",
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",

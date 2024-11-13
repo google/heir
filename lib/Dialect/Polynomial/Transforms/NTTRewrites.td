@@ -1,9 +1,9 @@
 #ifndef LIB_DIALECT_POLYNOMIAL_TRANSFORMS_NTTREWRITES_TD_
 #define LIB_DIALECT_POLYNOMIAL_TRANSFORMS_NTTREWRITES_TD_
 
-include "lib/Utils/DRR/Utils.td"
 include "lib/Dialect/ModArith/IR/ModArithOps.td"
-include "mlir/Dialect/Polynomial/IR/Polynomial.td"
+include "lib/Dialect/Polynomial/IR/PolynomialOps.td"
+include "lib/Utils/DRR/Utils.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/IR/PatternBase.td"
 

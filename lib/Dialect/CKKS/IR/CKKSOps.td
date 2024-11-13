@@ -8,7 +8,7 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 
 include "lib/Dialect/LWE/IR/LWETypes.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
-include "mlir/Dialect/Polynomial/IR/PolynomialAttributes.td"
+include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class CKKS_Op<string mnemonic, list<Trait> traits = []> :

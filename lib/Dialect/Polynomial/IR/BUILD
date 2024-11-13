@@ -1,5 +1,3 @@
-# TensorExt dialect implementation
-
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
 package(
@@ -9,62 +7,34 @@ package(
 
 cc_library(
     name = "Dialect",
-    srcs = [
-        "TensorExtDialect.cpp",
-    ],
-    hdrs = [
-        "TensorExtAttributes.h",
-        "TensorExtDialect.h",
-        "TensorExtOps.h",
-    ],
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*.h"]),
     deps = [
-        ":TensorExtOps",
         ":attributes_inc_gen",
+        ":canonicalization_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:InferTypeOpInterface",
-        "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
-    ],
-)
-
-cc_library(
-    name = "TensorExtOps",
-    srcs = [
-        "TensorExtOps.cpp",
-    ],
-    hdrs = [
-        "TensorExtDialect.h",
-        "TensorExtOps.h",
-    ],
-    deps = [
-        ":canonicalize_inc_gen",
-        ":dialect_inc_gen",
-        ":ops_inc_gen",
+        ":types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
     ],
 )
-# TensorExt tablegen and headers
 
 td_library(
     name = "td_files",
     srcs = [
-        "TensorExtAttributes.td",
-        "TensorExtCanonicalization.td",
-        "TensorExtDialect.td",
-        "TensorExtOps.td",
+        "PolynomialAttributes.td",
+        "PolynomialCanonicalization.td",
+        "PolynomialDialect.td",
+        "PolynomialOps.td",
+        "PolynomialTypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
-        "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
@@ -79,17 +49,17 @@ gentbl_cc_library(
             [
                 "-gen-dialect-decls",
             ],
-            "TensorExtDialect.h.inc",
+            "PolynomialDialect.h.inc",
         ),
         (
             [
                 "-gen-dialect-defs",
             ],
-            "TensorExtDialect.cpp.inc",
+            "PolynomialDialect.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "TensorExtDialect.td",
+    td_file = "PolynomialDialect.td",
     deps = [
         ":td_files",
     ],
@@ -99,21 +69,61 @@ gentbl_cc_library(
     name = "attributes_inc_gen",
     tbl_outs = [
         (
-            ["-gen-attrdef-decls"],
-            "TensorExtAttributes.h.inc",
+            [
+                "-gen-attrdef-decls",
+                "-attrdefs-dialect=polynomial",
+            ],
+            "PolynomialAttributes.h.inc",
         ),
         (
-            ["-gen-attrdef-defs"],
-            "TensorExtAttributes.cpp.inc",
+            [
+                "-gen-attrdef-defs",
+                "-attrdefs-dialect=polynomial",
+            ],
+            "PolynomialAttributes.cpp.inc",
         ),
         (
             ["-gen-attrdef-doc"],
-            "TensorExtAttributes.md",
+            "PolynomialAttributes.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "TensorExtAttributes.td",
+    td_file = "PolynomialAttributes.td",
     deps = [
+        ":dialect_inc_gen",
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "types_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-typedef-decls",
+                "-typedefs-dialect=polynomial",
+            ],
+            "PolynomialTypes.h.inc",
+        ),
+        (
+            [
+                "-gen-typedef-defs",
+                "-typedefs-dialect=polynomial",
+            ],
+            "PolynomialTypes.cpp.inc",
+        ),
+        (
+            [
+                "-gen-typedef-doc",
+                "-typedefs-dialect=polynomial",
+            ],
+            "PolynomialTypes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "PolynomialTypes.td",
+    deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":td_files",
     ],
@@ -124,41 +134,38 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-op-decls"],
-            "TensorExtOps.h.inc",
+            "PolynomialOps.h.inc",
         ),
         (
             ["-gen-op-defs"],
-            "TensorExtOps.cpp.inc",
+            "PolynomialOps.cpp.inc",
         ),
         (
             ["-gen-op-doc"],
-            "TensorExtOps.md",
+            "PolynomialOps.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "TensorExtOps.td",
+    td_file = "PolynomialOps.td",
     deps = [
-        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":td_files",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        ":types_inc_gen",
     ],
 )
 
 gentbl_cc_library(
-    name = "canonicalize_inc_gen",
+    name = "canonicalization_inc_gen",
     tbl_outs = [
         (
             ["-gen-rewriters"],
-            "TensorExtCanonicalization.cpp.inc",
+            "PolynomialCanonicalization.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "TensorExtCanonicalization.td",
+    td_file = "PolynomialCanonicalization.td",
     deps = [
-        ":ops_inc_gen",
         ":td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",
-        "@llvm-project//mlir:TensorOpsTdFiles",
     ],
 )

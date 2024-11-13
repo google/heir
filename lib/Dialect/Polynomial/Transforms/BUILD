@@ -15,8 +15,7 @@ cc_library(
     deps = [
         ":NTTRewrites",
         ":pass_inc_gen",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:PolynomialDialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
     ],
 )
 
@@ -30,10 +29,10 @@ cc_library(
         ":ntt_rewrites_inc_gen",
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:TransformUtils",
     ],
 )
@@ -74,8 +73,8 @@ gentbl_cc_library(
     td_file = "NTTRewrites.td",
     deps = [
         "@heir//lib/Dialect/ModArith/IR:td_files",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
         "@heir//lib/Utils/DRR",
         "@llvm-project//mlir:ArithOpsTdFiles",
-        "@llvm-project//mlir:PolynomialTdFiles",
     ],
 )

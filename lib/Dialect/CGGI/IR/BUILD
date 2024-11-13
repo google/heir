@@ -96,7 +96,7 @@ gentbl_cc_library(
         ":td_files",
         "@heir//lib/Dialect:td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
-        "@llvm-project//mlir:PolynomialTdFiles",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
 )
 

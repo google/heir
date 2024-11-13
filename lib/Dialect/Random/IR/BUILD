@@ -65,7 +65,7 @@ gentbl_cc_library(
     td_file = "RandomEnums.td",
     deps = [
         ":td_files",
-        "@llvm-project//mlir:PolynomialTdFiles",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
 )
 
@@ -113,7 +113,7 @@ gentbl_cc_library(
     deps = [
         ":dialect_inc_gen",
         ":td_files",
-        "@llvm-project//mlir:PolynomialTdFiles",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
 )
 
@@ -139,6 +139,6 @@ gentbl_cc_library(
         ":dialect_inc_gen",
         ":enums_inc_gen",
         ":td_files",
-        "@llvm-project//mlir:PolynomialTdFiles",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
 )

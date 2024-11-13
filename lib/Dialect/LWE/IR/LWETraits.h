@@ -2,7 +2,7 @@
 #define LIB_DIALECT_LWE_IR_LWETRAITS_H_
 
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialAttributes.h"  // from @llvm-project
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
