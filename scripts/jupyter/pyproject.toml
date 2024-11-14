@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "heir_play"
-version = "0.0.3"
+version = "0.0.4"
 authors = [
   { name="Jeremy Kun", email="jkun@google.com" },
   { name="Asra Ali", email="asraa@google.com" },
