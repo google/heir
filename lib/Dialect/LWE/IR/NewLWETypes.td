@@ -22,7 +22,7 @@ def NewLWESecretKey : LWE_Type<"NewLWESecretKey", "new_lwe_secret_key"> {
   let summary = "A secret key for LWE";
   let parameters = (ins
     "KeyAttr":$key,
-    "::mlir::polynomial::RingAttr":$ring
+    "::mlir::heir::polynomial::RingAttr":$ring
   );
 }
 
@@ -30,7 +30,7 @@ def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
   let summary = "A public key for LWE";
   let parameters = (ins
     "KeyAttr":$key,
-    "::mlir::polynomial::RingAttr":$ring
+    "::mlir::heir::polynomial::RingAttr":$ring
   );
 }
 

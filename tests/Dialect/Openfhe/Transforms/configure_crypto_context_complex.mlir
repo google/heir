@@ -2,7 +2,7 @@
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
 #ideal = #polynomial.int_polynomial<1 + x**32>
-#ring= #polynomial.ring<coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#ideal>
+#ring= #polynomial.ring<coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#ideal>
 #params = #lwe.rlwe_params<ring=#ring>
 !in_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = tensor<32xi16>>
 !out_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = i16>

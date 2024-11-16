@@ -2,7 +2,7 @@
 // RUN: heir-opt --convert-polynomial-mul-to-ntt %s | FileCheck --check-prefix=EXT --check-prefix=CHECK %s
 
 #ideal = #polynomial.int_polynomial<1 + x**4>
-#ring = #polynomial.ring<coefficientType=i32, coefficientModulus=17:i32, polynomialModulus=#ideal>
+#ring = #polynomial.ring<coefficientType=!modarith.modarith<17:i32:i32>, polynomialModulus=#ideal>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 // CHECK: func.func @rewrite_poly_mul(%[[poly0:.*]]: [[POLY_TY:.*]], %[[poly1:.*]]: [[POLY_TY]]) -> [[POLY_TY]] {
@@ -20,7 +20,7 @@ func.func @rewrite_poly_mul(%poly0: !poly_ty, %poly1: !poly_ty) -> !poly_ty {
 }
 
 #bad_ideal = #polynomial.int_polynomial<1 + x**6>
-#bad_ring = #polynomial.ring<coefficientType=i32, coefficientModulus=17 : i32, polynomialModulus=#bad_ideal>
+#bad_ring = #polynomial.ring<coefficientType=!modarith.modarith<17 : i32:i32>, polynomialModulus=#bad_ideal>
 !bad_poly_ty = !polynomial.polynomial<ring=#bad_ring>
 
 // CHECK: func.func @rewrite_bad_poly_mul

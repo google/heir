@@ -33,6 +33,7 @@ cc_library(
     hdrs = ["FHEHelpers.h"],
     deps = [
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

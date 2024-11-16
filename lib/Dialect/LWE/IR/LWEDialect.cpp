@@ -6,6 +6,7 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
@@ -129,20 +130,25 @@ LogicalResult requirePolynomialElementTypeFits(
     Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
     unsigned cleartextStart,
     llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
-  if (!mlir::isa<::mlir::polynomial::PolynomialType>(elementType)) {
+  if (!mlir::isa<::mlir::heir::polynomial::PolynomialType>(elementType)) {
     return emitError()
            << "Tensors with encoding " << encodingName
            << " must have `polynomial.polynomial` element type, but found "
            << elementType << "\n";
   }
-  ::mlir::polynomial::PolynomialType polyType =
-      llvm::cast<::mlir::polynomial::PolynomialType>(elementType);
+  ::mlir::heir::polynomial::PolynomialType polyType =
+      llvm::cast<::mlir::heir::polynomial::PolynomialType>(elementType);
   // The coefficient modulus takes the place of the plaintext bitwidth for
   // RLWE.
-  unsigned plaintextBitwidth = polyType.getRing()
-                                   .getCoefficientModulus()
-                                   .getType()
-                                   .getIntOrFloatBitWidth();
+  auto coeffType = dyn_cast<mod_arith::ModArithType>(
+      polyType.getRing().getCoefficientType());
+  if (!coeffType) {
+    return emitError()
+           << "The polys in this tensor have a mod_arith coefficient type"
+           << " but found " << polyType.getRing().getCoefficientType();
+  }
+  unsigned plaintextBitwidth =
+      coeffType.getModulus().getType().getIntOrFloatBitWidth();
 
   if (plaintextBitwidth < cleartextBitwidth)
     return emitError() << "The polys in this tensor have a coefficient "
@@ -245,7 +251,7 @@ LogicalResult ApplicationDataAttr::verify(
 
 LogicalResult PlaintextSpaceAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-    mlir::polynomial::RingAttr ring, Attribute encoding) {
+    mlir::heir::polynomial::RingAttr ring, Attribute encoding) {
   if (mlir::isa<FullCRTPackingEncodingAttr>(encoding)) {
     // For full CRT packing, the ring must be of the form x^n + 1 and the
     // modulus must be 1 mod n.
@@ -264,12 +270,16 @@ LogicalResult PlaintextSpaceAttr::verify(
                          << "but found " << polyMod << "\n";
     }
     // Check that the modulus is 1 mod n.
-    APInt modulus = ring.getCoefficientModulus().getValue();
-    unsigned n = poly.getDegree();
-    if (!modulus.urem(APInt(modulus.getBitWidth(), n)).isOne()) {
-      return emitError()
-             << "modulus must be 1 mod n for full CRT packing, mod = "
-             << ring.getCoefficientModulus() << " n = " << n << "\n";
+    auto modCoeffTy =
+        llvm::dyn_cast<mod_arith::ModArithType>(ring.getCoefficientType());
+    if (modCoeffTy) {
+      APInt modulus = modCoeffTy.getModulus().getValue();
+      unsigned n = poly.getDegree();
+      if (!modulus.urem(APInt(modulus.getBitWidth(), n)).isOne()) {
+        return emitError()
+               << "modulus must be 1 mod n for full CRT packing, mod = "
+               << modulus.getZExtValue() << " n = " << n << "\n";
+      }
     }
   }
 

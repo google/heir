@@ -1,10 +1,10 @@
-// RUN: heir-opt --polynomial-to-standard --cse %s | FileCheck %s
+// RUN: heir-opt --polynomial-to-mod-arith --cse %s | FileCheck %s
 
 // This follows from example 3.8 (Satriawan et al.) here:
 // https://doi.org/10.1109/ACCESS.2023.3294446
 
 #cycl = #polynomial.int_polynomial<1 + x**4>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl>
+#ring = #polynomial.ring<coefficientType=!mod_arith.int<7681:i32>, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
@@ -16,9 +16,9 @@
 // CHECK-DAG: #[[ADD_DIV_MAP:.*]] = affine_map<(d0, d1) -> (d0 + d1 floordiv 2)>
 // CHECK-DAG: #[[ROOT_MAP:.*]] = affine_map<(d0, d1) -> ((d0 * 2 + 1) * d1)>
 
-// CHECK:     func.func @lower_intt() -> [[OUTPUT_TYPE:.*]] {
+// CHECK:     func.func @lower_intt() -> [[MOD_ARITH_OUTPUT_TYPE:.*]] {
 // CHECK:      %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INPUT_TYPE:.*]]
-// CHECK:      %[[CAST:.*]] = tensor.cast %[[COEFFS]] : [[INPUT_TYPE]] to [[OUTPUT_TYPE]]
+// CHECK:      %[[CAST:.*]] = tensor.cast %[[COEFFS]] : [[INPUT_TYPE]] to [[OUTPUT_TYPE:.*]]
 // CHECK-DAG:  %[[INITIAL_VALUE:.*]] = arith.extui %[[CAST]] : [[OUTPUT_TYPE]] to [[INTER_TYPE:.*]]
 // CHECK-DAG:  %[[CMOD:.*]] = arith.constant 7681 : [[ELEM_TYPE:i64]]
 // CHECK-DAG:  %[[ROOTS:.*]] = arith.constant dense<[1, 1213, 4298, 5756]> : [[INTER_TYPE]]
@@ -76,8 +76,8 @@
 // CHECK:         %[[EXTRACTED:.*]] = tensor.extract %[[RES_TRUNC]][%[[REV_INDEX]]] : [[OUTPUT_TYPE]]
 // CHECK:         linalg.yield %[[EXTRACTED]] : i32
 // CHECK:       } -> [[OUTPUT_TYPE]]
-
-// CHECK:       return %[[ORDERED_OUTPUT]] : [[OUTPUT_TYPE]]
+// CHECK:       %[[CONVERTED_OUTPUT:.*]] = mod_arith.encapsulate %[[ORDERED_OUTPUT]] : [[OUTPUT_TYPE]] -> [[MOD_ARITH_OUTPUT_TYPE:.*]]
+// CHECK:       return %[[CONVERTED_OUTPUT]] : [[MOD_ARITH_OUTPUT_TYPE]]
 
 func.func @lower_intt() -> !poly_ty {
   %ntt_coeffs = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi32, #ring>

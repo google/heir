@@ -2,7 +2,7 @@
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 #my_poly = #polynomial.int_polynomial<1 + x**1024>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus=#my_poly>
+#ring = #polynomial.ring<coefficientType=!mod_arith.int<161729713:i32>, polynomialModulus=#my_poly>
 #params = #lwe.rlwe_params<dimension=2, ring=#ring>
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring>
 

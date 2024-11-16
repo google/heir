@@ -6,13 +6,14 @@ package(
 )
 
 cc_library(
-    name = "PolynomialToStandard",
-    srcs = ["PolynomialToStandard.cpp"],
+    name = "PolynomialToModArith",
+    srcs = ["PolynomialToModArith.cpp"],
     hdrs = [
-        "PolynomialToStandard.h",
+        "PolynomialToModArith.h",
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Utils/ConversionUtils",
         "@llvm-project//llvm:Support",
@@ -38,17 +39,17 @@ gentbl_cc_library(
         (
             [
                 "-gen-pass-decls",
-                "-name=PolynomialToStandard",
+                "-name=PolynomialToModArith",
             ],
-            "PolynomialToStandard.h.inc",
+            "PolynomialToModArith.h.inc",
         ),
         (
             ["-gen-pass-doc"],
-            "PolynomialToStandard.md",
+            "PolynomialToModArith.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "PolynomialToStandard.td",
+    td_file = "PolynomialToModArith.td",
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",

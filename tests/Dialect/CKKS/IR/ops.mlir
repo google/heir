@@ -6,8 +6,8 @@
 
 #my_poly = #polynomial.int_polynomial<1 + x**1024>
 // cmod is 64153 * 2521
-#ring1 = #polynomial.ring<coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus=#my_poly>
-#ring2 = #polynomial.ring<coefficientType = i32, coefficientModulus = 2521 : i32, polynomialModulus=#my_poly>
+#ring1 = #polynomial.ring<coefficientType=!mod_arith.int<161729713:i32>, polynomialModulus=#my_poly>
+#ring2 = #polynomial.ring<coefficientType=!mod_arith.int<2521:i32>, polynomialModulus=#my_poly>
 
 #params = #lwe.rlwe_params<dimension=2, ring=#ring1>
 #params1 = #lwe.rlwe_params<dimension=3, ring=#ring1>
@@ -31,7 +31,7 @@ module {
     %0 = ckks.mul %arg0, %arg1  : (!ct, !ct) -> !ct1
     %1 = ckks.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : !ct1 -> !ct
     %2 = ckks.rescale %1  {to_ring = #ring2} : !ct -> !ct2
-    // CHECK: rlwe_params = <dimension = 3, ring = <coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus = <1 + x**1024>>>
+    // CHECK: rlwe_params = <dimension = 3, ring = <coefficientType = !mod_arith.int<161729713 : i32>, polynomialModulus = <1 + x**1024>>>
     return %arg0 : !ct
   }
 
@@ -40,7 +40,7 @@ module {
     %add = ckks.add_plain %arg3, %arg0 : (!ct, !pt) -> !ct
     %sub = ckks.sub_plain %add, %arg1 : (!ct, !pt) -> !ct
     %mul = ckks.mul_plain %sub, %arg2 : (!ct, !pt) -> !ct
-    // CHECK: rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus = <1 + x**1024>>>
+    // CHECK: rlwe_params = <ring = <coefficientType = !mod_arith.int<161729713 : i32>, polynomialModulus = <1 + x**1024>>>
     return %mul : !ct
   }
 
@@ -49,7 +49,7 @@ module {
     %c0 = arith.constant 0 : index
     %add = ckks.rotate %arg3 { offset = 1 } : !ct_tensor
     %ext = ckks.extract %add, %c0 : (!ct_tensor, index) -> !ct_scalar
-    // CHECK: rlwe_params = <ring = <coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus = <1 + x**1024>>>
+    // CHECK: rlwe_params = <ring = <coefficientType = !mod_arith.int<161729713 : i32>, polynomialModulus = <1 + x**1024>>>
     return %ext : !ct_scalar
   }
 }

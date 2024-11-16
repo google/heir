@@ -20,7 +20,7 @@ module {
         secret.yield %1 : tensor<1024xi1>
     } -> !eui1
     // CHECK: return
-    // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
     return %1 : !eui1
   }
 
@@ -40,7 +40,7 @@ module {
         secret.yield %1 : tensor<1024xf32>
     } -> !efi1
     // CHECK: return
-    // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
     return %1 : !efi1
   }
 
@@ -54,7 +54,7 @@ module {
         secret.yield %1 : f32
     } -> !secret.secret<f32>
     // CHECK: return
-    // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
     // CHECK-SAME: underlying_type = f32
     return %0 : !secret.secret<f32>
   }
@@ -71,7 +71,7 @@ module {
         secret.yield %1 : tensor<1x1024xf32>
     } -> !secret.secret<tensor<1x1024xf32>>
     // CHECK: return
-    // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
     // CHECK-SAME: underlying_type = tensor<1x1024xf32>
     return %0 : !secret.secret<tensor<1x1024xf32>>
   }

@@ -6,10 +6,14 @@
 #include <cstdint>
 #include <optional>
 
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "lib/Dialect/ModArith/IR/ModArithOps.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -25,13 +29,61 @@
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-using namespace mlir;
-using namespace mlir::polynomial;
+
+namespace mlir {
+namespace heir {
+namespace polynomial {
+
+/// A verifier to ensure that a polynomial ring's coefficient type
+/// matches the given scalar type. This is useful when verifying an op like
+/// mul_scalar, whose arguments must have matching types, but one type
+/// is derived from the coefficient type of a polynomial ring attribute.
+///
+/// polynomialLikeType may be a polynomial or shaped type whose element type is
+/// a polynomial type.
+///
+/// If `op` is provided, any errors will be emitted with the operation's
+/// emitOpError.
+template <typename Op>
+LogicalResult coefficientTypeMatchesScalarType(Type polynomialLikeType,
+                                               Type scalarType, Op *op) {
+  PolynomialType polyType;
+
+  if (auto shapedPolyType = dyn_cast<ShapedType>(polynomialLikeType)) {
+    polyType = cast<PolynomialType>(shapedPolyType.getElementType());
+  } else if (isa<PolynomialType>(polynomialLikeType)) {
+    polyType = cast<PolynomialType>(polynomialLikeType);
+  } else {
+    op->emitOpError() << "expected a polynomial or shaped type, found "
+                      << polynomialLikeType;
+  }
+
+  Type coefficientType = polyType.getRing().getCoefficientType();
+
+  if (coefficientType != scalarType) {
+    op->emitOpError() << "polynomial coefficient type " << coefficientType
+                      << " does not match scalar type " << scalarType;
+    return failure();
+  }
+  return success();
+}
 
 void FromTensorOp::build(OpBuilder &builder, OperationState &result,
                          Value input, RingAttr ring) {
   TensorType tensorType = dyn_cast<TensorType>(input.getType());
-  auto bitWidth = tensorType.getElementTypeBitWidth();
+
+  // The input tensor can be a mod_arith type or a plain integer type
+  int64_t bitWidth = 0;
+  if (auto modArithType =
+          dyn_cast<mod_arith::ModArithType>(tensorType.getElementType())) {
+    bitWidth = modArithType.getModulus().getType().getIntOrFloatBitWidth();
+  } else if (auto intType =
+                 dyn_cast<IntegerType>(tensorType.getElementType())) {
+    bitWidth = intType.getIntOrFloatBitWidth();
+  } else {
+    llvm_unreachable("unsupported tensor element type");
+  }
+
   APInt cmod(1 + bitWidth, 1);
   cmod = cmod << bitWidth;
   Type resultType = PolynomialType::get(builder.getContext(), ring);
@@ -42,6 +94,14 @@ LogicalResult FromTensorOp::verify() {
   ArrayRef<int64_t> tensorShape = getInput().getType().getShape();
   RingAttr ring = getOutput().getType().getRing();
   IntPolynomialAttr polyMod = ring.getPolynomialModulus();
+
+  auto inputEltTy = cast<TensorType>(getInput().getType()).getElementType();
+  auto outputPolyLikeTy = getOutput().getType();
+  if (failed(coefficientTypeMatchesScalarType(outputPolyLikeTy, inputEltTy,
+                                              this))) {
+    return failure();
+  }
+
   if (polyMod) {
     unsigned polyDegree = polyMod.getPolynomial().getDegree();
     bool compatible = tensorShape.size() == 1 && tensorShape[0] <= polyDegree;
@@ -58,23 +118,20 @@ LogicalResult FromTensorOp::verify() {
     }
   }
 
-  unsigned inputBitWidth = getInput().getType().getElementTypeBitWidth();
-  if (inputBitWidth > ring.getCoefficientType().getIntOrFloatBitWidth()) {
-    InFlightDiagnostic diag = emitOpError()
-                              << "input tensor element type "
-                              << getInput().getType().getElementType()
-                              << " is too large to fit in the coefficients of "
-                              << getOutput().getType();
-    diag.attachNote() << "the input tensor's elements must be rescaled"
-                         " to fit before using from_tensor";
-    return diag;
-  }
-
   return success();
 }
 
 LogicalResult ToTensorOp::verify() {
   ArrayRef<int64_t> tensorShape = getOutput().getType().getShape();
+
+  auto outputEltTy = cast<TensorType>(getOutput().getType()).getElementType();
+  auto inputPolyLikeTy = getInput().getType();
+  if (failed(coefficientTypeMatchesScalarType(inputPolyLikeTy, outputEltTy,
+                                              getOperation()))) {
+    return emitOpError() << "output tensor element type " << outputEltTy
+                         << " does not match input type " << inputPolyLikeTy;
+  }
+
   IntPolynomialAttr polyMod =
       getInput().getType().getRing().getPolynomialModulus();
   if (polyMod) {
@@ -93,26 +150,6 @@ LogicalResult ToTensorOp::verify() {
            "the input type's ring attribute";
     return diag;
   }
-
-  return success();
-}
-
-LogicalResult MulScalarOp::verify() {
-  Type argType = getPolynomial().getType();
-  PolynomialType polyType;
-
-  if (auto shapedPolyType = dyn_cast<ShapedType>(argType)) {
-    polyType = cast<PolynomialType>(shapedPolyType.getElementType());
-  } else {
-    polyType = cast<PolynomialType>(argType);
-  }
-
-  Type coefficientType = polyType.getRing().getCoefficientType();
-
-  if (coefficientType != getScalar().getType())
-    return emitOpError() << "polynomial coefficient type " << coefficientType
-                         << " does not match scalar type "
-                         << getScalar().getType();
 
   return success();
 }
@@ -175,7 +212,16 @@ static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
   if (root.has_value()) {
     APInt rootValue = root.value().getValue().getValue();
     APInt rootDegree = root.value().getDegree().getValue();
-    APInt cmod = ring.getCoefficientModulus().getValue();
+    auto coeffType =
+        dyn_cast<mod_arith::ModArithType>(ring.getCoefficientType());
+
+    if (!coeffType) {
+      return op->emitOpError() << "when setting a primitive root, the "
+                                  "coefficient type must be mod_arith"
+                               << ", but found " << ring.getCoefficientType();
+    }
+
+    APInt cmod = coeffType.getModulus().getValue();
     if (!isPrimitiveNthRootOfUnity(rootValue, rootDegree, cmod)) {
       return op->emitOpError()
              << "provided root " << rootValue.getZExtValue()
@@ -188,6 +234,8 @@ static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
   return success();
 }
 
+// TODO(#1113): use coefficientTypeMatchesScalarType for verifier to ensure the
+// output tensor element type agrees with the polynomial type.
 LogicalResult NTTOp::verify() {
   return verifyNTTOp(this->getOperation(), getInput().getType().getRing(),
                      getOutput().getType(), getRoot());
@@ -196,6 +244,21 @@ LogicalResult NTTOp::verify() {
 LogicalResult INTTOp::verify() {
   return verifyNTTOp(this->getOperation(), getOutput().getType().getRing(),
                      getInput().getType(), getRoot());
+}
+
+LogicalResult MulScalarOp::verify() {
+  return coefficientTypeMatchesScalarType(getPolynomial().getType(),
+                                          getScalar().getType(), this);
+}
+
+LogicalResult MonomialOp::verify() {
+  return coefficientTypeMatchesScalarType(getOutput().getType(),
+                                          getCoefficient().getType(), this);
+}
+
+LogicalResult LeadingTermOp::verify() {
+  return coefficientTypeMatchesScalarType(getInput().getType(),
+                                          getCoefficient().getType(), this);
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
@@ -286,11 +349,6 @@ namespace {
 #include "lib/Dialect/Polynomial/IR/PolynomialCanonicalization.cpp.inc"
 }  // namespace
 
-void SubOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                        MLIRContext *context) {
-  results.add<SubAsAdd>(context);
-}
-
 void NTTOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *context) {
   results.add<NTTAfterINTT>(context);
@@ -300,3 +358,7 @@ void INTTOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                          MLIRContext *context) {
   results.add<INTTAfterNTT>(context);
 }
+
+}  // namespace polynomial
+}  // namespace heir
+}  // namespace mlir

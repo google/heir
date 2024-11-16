@@ -7,6 +7,8 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModArith/IR/ModArithOps.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
@@ -47,26 +49,26 @@ class CiphertextTypeConverter : public TypeConverter {
     addConversion([ctx](lwe::RLWECiphertextType type) -> Type {
       auto rlweParams = type.getRlweParams();
       auto ring = rlweParams.getRing();
-      auto polyTy = ::mlir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
     });
     addConversion([ctx](lwe::RLWEPlaintextType type) -> Type {
       auto ring = type.getRing();
-      auto polyTy = ::mlir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
       return polyTy;
     });
     addConversion([ctx](lwe::RLWESecretKeyType type) -> Type {
       auto rlweParams = type.getRlweParams();
       auto ring = rlweParams.getRing();
-      auto polyTy = ::mlir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({rlweParams.getDimension() - 1}, polyTy);
     });
     addConversion([ctx](lwe::RLWEPublicKeyType type) -> Type {
       auto rlweParams = type.getRlweParams();
       auto ring = rlweParams.getRing();
-      auto polyTy = ::mlir::polynomial::PolynomialType::get(ctx, ring);
+      auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
 
       return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
     });
@@ -211,12 +213,16 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     auto dimension =
         inputT.getRing().getPolynomialModulus().getPolynomial().getDegree();
 
-    auto elementType = rewriter.getIntegerType(inputT.getRing()
-                                                   .getCoefficientModulus()
-                                                   .getType()
-                                                   .getIntOrFloatBitWidth());
+    auto coefficientType = inputT.getRing().getCoefficientType();
+    auto modArithType = dyn_cast<mod_arith::ModArithType>(coefficientType);
+    if (!modArithType) {
+      op.emitError() << "Unsupported coefficient type: " << coefficientType;
+      return failure();
+    }
 
-    auto tensorParams = RankedTensorType::get({dimension}, elementType);
+    Type tensorEltTy = modArithType.getModulus().getType();
+    auto tensorParams = RankedTensorType::get({dimension}, tensorEltTy);
+    auto modArithTensorType = RankedTensorType::get({dimension}, modArithType);
 
     // TODO (#881): Add pass options to change the seed (which is currently
     // hardcoded to 0 with index).
@@ -240,8 +246,11 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     // Generate random u polynomial from uniform random ternary distribution
     auto uTensor =
         builder.create<random::SampleOp>(tensorParams, uniformDistribution);
-    auto u =
-        builder.create<polynomial::FromTensorOp>(uTensor, inputT.getRing());
+    // Convert the tensor of ints to a tensor of mod_arith, then a polynomial
+    auto modArithUTensor =
+        builder.create<mod_arith::EncapsulateOp>(modArithTensorType, uTensor);
+    auto u = builder.create<polynomial::FromTensorOp>(modArithUTensor,
+                                                      inputT.getRing());
 
     // Create a discrete Gaussian distribution
     auto discreteGaussianDistributionType = random::DistributionType::get(
@@ -265,20 +274,24 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       // multiplication.
       // TODO(#876): Migrate to using the plaintext modulus of the encoding info
       // attributes.
-      auto constantT = builder.create<arith::ConstantOp>(
-          builder.getI32IntegerAttr(1 << cleartextBitwidth));
+      auto constantT = builder.create<mod_arith::ConstantOp>(
+          modArithType, 1 << cleartextBitwidth);
 
       // generate random e0 polynomial from discrete gaussian distribution
       auto e0Tensor = builder.create<random::SampleOp>(
           tensorParams, discreteGaussianDistribution);
-      auto e0 =
-          builder.create<polynomial::FromTensorOp>(e0Tensor, inputT.getRing());
+      auto modArithE0Tensor = builder.create<mod_arith::EncapsulateOp>(
+          modArithTensorType, e0Tensor);
+      auto e0 = builder.create<polynomial::FromTensorOp>(modArithE0Tensor,
+                                                         inputT.getRing());
 
       // generate random e1 polynomial from discrete gaussian distribution
       auto e1Tensor = builder.create<random::SampleOp>(
           tensorParams, discreteGaussianDistribution);
-      auto e1 =
-          builder.create<polynomial::FromTensorOp>(e1Tensor, inputT.getRing());
+      auto modArithE1Tensor = builder.create<mod_arith::EncapsulateOp>(
+          modArithTensorType, e1Tensor);
+      auto e1 = builder.create<polynomial::FromTensorOp>(modArithE1Tensor,
+                                                         inputT.getRing());
 
       // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
       // noise or key differently. Add support for those cases.
@@ -312,8 +325,10 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       // Generate random e polynomial from discrete gaussian distribution
       auto eTensor = builder.create<random::SampleOp>(
           tensorParams, discreteGaussianDistribution);
-      auto e =
-          builder.create<polynomial::FromTensorOp>(eTensor, inputT.getRing());
+      auto modArithETensor =
+          builder.create<mod_arith::EncapsulateOp>(modArithTensorType, eTensor);
+      auto e = builder.create<polynomial::FromTensorOp>(modArithETensor,
+                                                        inputT.getRing());
 
       // TODO (#882): Other encryption schemes (e.g. CKKS) may multiply the
       // noise or key differently. Add support for those cases.
@@ -343,7 +358,7 @@ struct ConvertRAdd : public OpConversionPattern<RAddOp> {
   LogicalResult matchAndRewrite(
       RAddOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<::mlir::polynomial::AddOp>(
+    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::AddOp>(
         op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
     return success();
   }
@@ -358,7 +373,7 @@ struct ConvertRSub : public OpConversionPattern<RSubOp> {
   LogicalResult matchAndRewrite(
       RSubOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<::mlir::polynomial::SubOp>(
+    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
         op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
     return success();
   }
@@ -377,10 +392,28 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
     auto arg = adaptor.getOperands()[0];
     polynomial::PolynomialType polyType = cast<polynomial::PolynomialType>(
         cast<RankedTensorType>(arg.getType()).getElementType());
-    auto neg = rewriter.create<arith::ConstantIntOp>(
-        loc, -1, polyType.getRing().getCoefficientType());
-    rewriter.replaceOp(op, rewriter.create<::mlir::polynomial::MulScalarOp>(
-                               loc, arg.getType(), arg, neg));
+    FailureOr<Value> neg =
+        llvm::TypeSwitch<Type, FailureOr<Value>>(
+            polyType.getRing().getCoefficientType())
+            .Case<mod_arith::ModArithType>(
+                [&](mod_arith::ModArithType type) -> Value {
+                  return rewriter.create<mod_arith::ConstantOp>(loc, type, -1);
+                })
+            .Case<IntegerType>([&](IntegerType type) -> Value {
+              return rewriter.create<arith::ConstantIntOp>(loc, -1, type);
+            })
+            .Default([&](Type type) -> FailureOr<Value> {
+              op.emitError() << "Unsupported coefficient type: " << type;
+              return failure();
+            });
+
+    if (failed(neg)) {
+      return failure();
+    }
+
+    rewriter.replaceOp(op,
+                       rewriter.create<::mlir::heir::polynomial::MulScalarOp>(
+                           loc, arg.getType(), arg, neg.value()));
     return success();
   }
 };
@@ -425,11 +458,11 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
     auto y1 =
         b.create<tensor::ExtractOp>(yT.getElementType(), y, ValueRange{i1});
 
-    auto z0 = b.create<::mlir::polynomial::MulOp>(x0, y0);
-    auto x0y1 = b.create<::mlir::polynomial::MulOp>(x0, y1);
-    auto x1y0 = b.create<::mlir::polynomial::MulOp>(x1, y0);
-    auto z1 = b.create<::mlir::polynomial::AddOp>(x0y1, x1y0);
-    auto z2 = b.create<::mlir::polynomial::MulOp>(x1, y1);
+    auto z0 = b.create<::mlir::heir::polynomial::MulOp>(x0, y0);
+    auto x0y1 = b.create<::mlir::heir::polynomial::MulOp>(x0, y1);
+    auto x1y0 = b.create<::mlir::heir::polynomial::MulOp>(x1, y0);
+    auto z1 = b.create<::mlir::heir::polynomial::AddOp>(x0y1, x1y0);
+    auto z2 = b.create<::mlir::heir::polynomial::MulOp>(x1, y1);
 
     auto z = b.create<tensor::FromElementsOp>(ArrayRef<Value>({z0, z1, z2}));
 

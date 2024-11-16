@@ -1,5 +1,5 @@
 The tests in this directory use the `mlir-cpu-runner` to run the result of
-lowering `polynomial-to-standard` on some hard-coded test inputs. To reduce the
+lowering `polynomial-to-mod-arith` on some hard-coded test inputs. To reduce the
 chance of the tests being specified incorrectly and the burden of generating
 expected test outputs, the tests are automatically generated.
 

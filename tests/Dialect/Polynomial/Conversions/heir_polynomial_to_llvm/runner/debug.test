@@ -1,9 +1,9 @@
 // This is a helper template for debugging. To use it, run
-// --polynomial-to-standard on the buggy test (e.g., lower_mul_1.mlir) and then
+// --polynomial-to-mod-arith on the buggy test (e.g., lower_mul_1.mlir) and then
 // paste the result into this file at the end
 //
 // cd tests/polynomial/runner
-// bazel run //tools:heir-opt -- --polynomial-to-standard $PWD/tests/polynomial/runner/lower_mul_1.mlir >> debug.test
+// bazel run //tools:heir-opt -- --polynomial-to-mod-arith $PWD/tests/polynomial/runner/lower_mul_1.mlir >> debug.test
 //
 // Then insert calls to `printTensor32` or similar (maybe the dimension needs
 // to be updated depending on the test or the desired print) and run with

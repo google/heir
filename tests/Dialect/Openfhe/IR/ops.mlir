@@ -3,7 +3,7 @@
 // This simply tests for syntax.
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 #my_poly = #polynomial.int_polynomial<1 + x**16384>
-#ring= #polynomial.ring<coefficientType = i32, coefficientModulus = 7917 : i32, polynomialModulus=#my_poly>
+#ring= #polynomial.ring<coefficientType=!mod_arith.int<7917:i32>, polynomialModulus=#my_poly>
 #params = #lwe.rlwe_params<dimension=1, ring=#ring>
 
 !pk = !openfhe.public_key

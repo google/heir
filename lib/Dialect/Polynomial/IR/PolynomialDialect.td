@@ -5,7 +5,7 @@ include "mlir/IR/OpBase.td"
 
 def Polynomial_Dialect : Dialect {
   let name = "polynomial";
-  let cppNamespace = "::mlir::polynomial";
+  let cppNamespace = "::mlir::heir::polynomial";
   let description = [{
     The Polynomial dialect defines single-variable polynomial types and
     operations.
@@ -35,7 +35,8 @@ def Polynomial_Dialect : Dialect {
     // A constant polynomial in a ring with i32 coefficients, with a polynomial
     // modulus of (x^1024 + 1) and a coefficient modulus of 17.
     #modulus = #polynomial.int_polynomial<1 + x**1024>
-    #ring = #polynomial.ring<coefficientType=i32, coefficientModulus=17:i32, polynomialModulus=#modulus>
+    !coeff_ty = !mod_arith.mod_arith<17:i32>
+    #ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#modulus>
     %a = polynomial.constant <1 + x**2 - 3x**3> : polynomial.polynomial<#ring>
     ```
   }];

@@ -4,7 +4,8 @@
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_POLY_ADD < %t
 
 #ideal = #polynomial.int_polynomial<1 + x**12>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 4294967296 : i64, polynomialModulus=#ideal>
+!coeff_ty = !mod_arith.int<2147483647:i32>
+#ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#ideal>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
@@ -15,9 +16,10 @@ func.func @test_poly_add() {
   %1 = polynomial.constant int<1 + x**11> : !poly_ty
   %2 = polynomial.add %0, %1 : !poly_ty
 
-  %3 = polynomial.to_tensor %2 : !poly_ty -> tensor<12xi32>
-  %4 = bufferization.to_memref %3 : memref<12xi32>
-  %U = memref.cast %4 : memref<12xi32> to memref<*xi32>
+  %3 = polynomial.to_tensor %2 : !poly_ty -> tensor<12x!coeff_ty>
+  %4 = mod_arith.extract %3 : tensor<12x!coeff_ty> -> tensor<12xi32>
+  %5 = bufferization.to_memref %4 : memref<12xi32>
+  %U = memref.cast %5 : memref<12xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }

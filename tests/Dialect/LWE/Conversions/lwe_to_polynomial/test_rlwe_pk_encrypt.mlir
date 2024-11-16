@@ -2,7 +2,7 @@
 
 #encoding = #lwe.polynomial_coefficient_encoding<cleartext_start=15, cleartext_bitwidth=15>
 #my_poly = #polynomial.int_polynomial<1 + x**1024>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7917 : i32, polynomialModulus=#my_poly>
+#ring = #polynomial.ring<coefficientType=!mod_arith.int<7917:i32>, polynomialModulus=#my_poly>
 #rlwe_params = #lwe.rlwe_params<dimension=2, ring=#ring>
 !plaintext_rlwe = !lwe.rlwe_plaintext<encoding = #encoding, ring = #ring, underlying_type=i3>
 !ciphertext_rlwe = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params, underlying_type=i3>
@@ -13,7 +13,7 @@ func.func @test_rlwe_pk_encrypt(%arg0: !plaintext_rlwe, %arg1: !rlwe_key) -> !ci
 
   // CHECK-DAG: %[[ZERO:.*]] = arith.constant 0 : index
   // CHECK-DAG: %[[ONE:.*]] = arith.constant 1 : index
-  // CHECK-DAG: %[[CONSTANT_T:.*]] = arith.constant 32768
+  // CHECK-DAG: %[[CONSTANT_T:.*]] = mod_arith.constant 32768 : [[MOD_ARITH_TY:.*]]
 
   // CHECK-DAG: %[[PRNG:.*]] = random.init_prng %[[SEED:.*]]
   // CHECK-DAG: %[[UNIFORM:.*]] = random.discrete_uniform_distribution %[[PRNG]]
@@ -23,11 +23,14 @@ func.func @test_rlwe_pk_encrypt(%arg0: !plaintext_rlwe, %arg1: !rlwe_key) -> !ci
   // CHECK-DAG: %[[PK_1:.*]] = tensor.extract %arg1[%[[ONE]]]
 
   // CHECK-DAG: %[[SAMPLE_U:.*]] = random.sample %[[UNIFORM]]
-  // CHECK-DAG: %[[U:.*]] = polynomial.from_tensor %[[SAMPLE_U]]
+  // CHECK-DAG: %[[MOD_ARITH_U:.*]] = mod_arith.encapsulate %[[SAMPLE_U]]
+  // CHECK-DAG: %[[U:.*]] = polynomial.from_tensor %[[MOD_ARITH_U]]
   // CHECK:     %[[SAMPLE_E_0:.*]] = random.sample %[[GAUSSIAN]]
-  // CHECK:     %[[E_0:.*]] = polynomial.from_tensor %[[SAMPLE_E_0]]
+  // CHECK:     %[[MOD_ARITH_E_0:.*]] = mod_arith.encapsulate %[[SAMPLE_E_0]]
+  // CHECK:     %[[E_0:.*]] = polynomial.from_tensor %[[MOD_ARITH_E_0]]
   // CHECK:     %[[SAMPLE_E_1:.*]] = random.sample %[[GAUSSIAN]]
-  // CHECK:     %[[E_1:.*]] = polynomial.from_tensor %[[SAMPLE_E_1]]
+  // CHECK:     %[[MOD_ARITH_E_1:.*]] = mod_arith.encapsulate %[[SAMPLE_E_1]]
+  // CHECK:     %[[E_1:.*]] = polynomial.from_tensor %[[MOD_ARITH_E_1]]
 
   // CHECK-DAG: %[[PK_0_TIMES_U:.*]] = polynomial.mul %[[PK_0]], %[[U]]
   // CHECK-DAG: %[[E_0_TIMES_T:.*]] = polynomial.mul_scalar %[[E_0]], %[[CONSTANT_T]]

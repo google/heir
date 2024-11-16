@@ -9,7 +9,8 @@
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
 #cycl = #polynomial.int_polynomial<1 + x**4>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl>
+!coeff_ty = !mod_arith.int<7681:i32>
+#ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
@@ -18,9 +19,10 @@ func.func @test_poly_ntt() {
   %ntt_coeffs = tensor.cast %coeffs : tensor<4xi32> to tensor<4xi32, #ring>
   %0 = polynomial.intt %ntt_coeffs {root=#root} : tensor<4xi32, #ring> -> !poly_ty
 
-  %1 = polynomial.to_tensor %0 : !poly_ty -> tensor<4xi32>
-  %2 = bufferization.to_memref %1 : memref<4xi32>
-  %U = memref.cast %2 : memref<4xi32> to memref<*xi32>
+  %1 = polynomial.to_tensor %0 : !poly_ty -> tensor<4x!coeff_ty>
+  %2 = mod_arith.extract %1 : tensor<4x!coeff_ty> -> tensor<4xi32>
+  %3 = bufferization.to_memref %2 : memref<4xi32>
+  %U = memref.cast %3 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }

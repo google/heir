@@ -3,7 +3,7 @@
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 
 #my_poly = #polynomial.int_polynomial<1 + x**16384>
-#ring= #polynomial.ring<coefficientType = i32, coefficientModulus = 7917 : i32, polynomialModulus=#my_poly>
+#ring= #polynomial.ring<coefficientType=!mod_arith.int<7917:i32>, polynomialModulus=#my_poly>
 #params = #lwe.rlwe_params<dimension=1, ring=#ring>
 !cc = !openfhe.crypto_context
 !ek = !openfhe.eval_key
@@ -56,7 +56,7 @@ func.func @test_basic_emitter(%cc : !cc, %input1 : !ct, %input2 : !ct, %input3: 
 
 #degree_32_poly = #polynomial.int_polynomial<1 + x**32>
 #eval_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
-#ring2 = #polynomial.ring<coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#degree_32_poly>
+#ring2 = #polynomial.ring<coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#degree_32_poly>
 #params2 = #lwe.rlwe_params<ring = #ring2>
 !tensor_pt_ty = !lwe.rlwe_plaintext<encoding = #eval_encoding, ring = #ring2, underlying_type = tensor<32xi16>>
 !scalar_pt_ty = !lwe.rlwe_plaintext<encoding = #eval_encoding, ring = #ring2, underlying_type = i16>

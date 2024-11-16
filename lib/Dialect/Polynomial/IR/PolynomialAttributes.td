@@ -28,7 +28,7 @@ def Polynomial_IntPolynomialAttr : Polynomial_Attr<"IntPolynomial", "int_polynom
     #poly = #polynomial.int_polynomial<x**1024 + 1>
     ```
   }];
-  let parameters = (ins "::mlir::polynomial::IntPolynomial":$polynomial);
+  let parameters = (ins "::mlir::heir::polynomial::IntPolynomial":$polynomial);
   let hasCustomAssemblyFormat = 1;
 }
 
@@ -66,7 +66,7 @@ def Polynomial_TypedIntPolynomialAttr : Polynomial_Attr<
     #poly_verbose = #polynomial.typed_int_polynomial<1 x**7 + 4> : !poly_ty
     ```
   }];
-  let parameters = (ins "::mlir::Type":$type, "::mlir::polynomial::IntPolynomialAttr":$value);
+  let parameters = (ins "::mlir::Type":$type, "::mlir::heir::polynomial::IntPolynomialAttr":$value);
   let assemblyFormat = "$value `:` $type";
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type,
@@ -98,7 +98,7 @@ def Polynomial_TypedFloatPolynomialAttr : Polynomial_Attr<
     #poly_verbose = #polynomial.typed_float_polynomial<1.4 x**7 + 4.5> : !poly_ty
     ```
   }];
-  let parameters = (ins "::mlir::Type":$type, "::mlir::polynomial::FloatPolynomialAttr":$value);
+  let parameters = (ins "::mlir::Type":$type, "::mlir::heir::polynomial::FloatPolynomialAttr":$value);
   let assemblyFormat = "$value `:` $type";
   let builders = [
     AttrBuilderWithInferredContext<(ins "Type":$type,
@@ -124,15 +124,18 @@ def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring"> {
     A ring describes the domain in which polynomial arithmetic occurs. The ring
     attribute in `polynomial` represents the more specific case of polynomials
     with a single indeterminate; whose coefficients can be represented by
-    another MLIR type (`coefficientType`); and, if the coefficient type is
-    integral, whose coefficients are taken modulo some statically known modulus
-    (`coefficientModulus`).
+    another MLIR type (`coefficientType`).
 
-    Additionally, a polynomial ring can specify a _polynomialModulus_, which converts
-    polynomial arithmetic to the analogue of modular integer arithmetic, where
-    each polynomial is represented as its remainder when dividing by the
-    modulus. For single-variable polynomials, an "polynomialModulus" is always specified
-    via a single polynomial, which we call `polynomialModulus`.
+    All semantics pertaining to arithmetic in the ring must be owned by the
+    coefficient type. For example, if the polynomials are with integer
+    coefficients taken modulo a prime $p$, then `coefficientType` must be a
+    type that represents integers modulo $p$, such as `mod_arith<p>`.
+
+    Additionally, a polynomial ring may specify a `polynomialModulus`, which
+    converts polynomial arithmetic to the analogue of modular integer
+    arithmetic, where each polynomial is represented as its remainder when
+    dividing by the modulus. For single-variable polynomials, a polynomial
+    modulus is always specified via a single polynomial.
 
     An expressive example is polynomials with i32 coefficients, whose
     coefficients are taken modulo `2**32 - 5`, with a polynomial modulus of
@@ -140,9 +143,7 @@ def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring"> {
 
     ```mlir
     #poly_mod = #polynomial.int_polynomial<-1 + x**1024>
-    #ring = #polynomial.ring<coefficientType=i32,
-                             coefficientModulus=4294967291:i32,
-                             polynomialModulus=#poly_mod>
+    #ring = #polynomial.ring<coefficientType=i32, polynomialModulus=#poly_mod>
 
     %0 = ... : polynomial.polynomial<#ring>
     ```
@@ -150,38 +151,20 @@ def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring"> {
     In this case, the value of a polynomial is always "converted" to a
     canonical form by applying repeated reductions by setting `x**1024 = 1`
     and simplifying.
-
-    The coefficient and polynomial modulus parameters are optional, and the
-    coefficient modulus is only allowed if the coefficient type is integral.
-
-    The coefficient modulus, if specified, should be positive and not larger
-    than `2 ** width(coefficientType)`.
-
-    If the coefficient modulus is not specified, the handling of coefficients
-    overflows is determined by subsequent lowering passes, which may choose to
-    wrap around or widen the overflow at their discretion.
-
-    Note that coefficient modulus is contained in `i64` by default, which is signed.
-    To specify a 64 bit number without interpreting it as a negative number, its container
-    type should be manually specified like `coefficientModulus=18446744073709551615:i128`.
   }];
 
   let parameters = (ins
     "Type": $coefficientType,
-    OptionalParameter<"::mlir::IntegerAttr">: $coefficientModulus,
-    OptionalParameter<"::mlir::polynomial::IntPolynomialAttr">: $polynomialModulus
+    OptionalParameter<"::mlir::heir::polynomial::IntPolynomialAttr">: $polynomialModulus
   );
-  let genVerifyDecl = 1;
   let assemblyFormat = "`<` struct(params) `>`";
   let builders = [
     AttrBuilderWithInferredContext<
         (ins "::mlir::Type":$coefficientTy,
-              CArg<"::mlir::IntegerAttr", "nullptr"> :$coefficientModulusAttr,
-              CArg<"::mlir::polynomial::IntPolynomialAttr", "nullptr"> :$polynomialModulusAttr), [{
+              CArg<"::mlir::heir::polynomial::IntPolynomialAttr", "nullptr"> :$polynomialModulusAttr), [{
       return $_get(
         coefficientTy.getContext(),
         coefficientTy,
-        coefficientModulusAttr,
         polynomialModulusAttr);
     }]>,
   ];

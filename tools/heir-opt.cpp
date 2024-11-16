@@ -23,7 +23,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
-#include "lib/Dialect/Polynomial/Conversions/PolynomialToStandard/PolynomialToStandard.h"
+#include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/Transforms/Passes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
   registry.insert<func::FuncDialect>();
   registry.insert<math::MathDialect>();
   registry.insert<memref::MemRefDialect>();
-  registry.insert<::mlir::polynomial::PolynomialDialect>();
+  registry.insert<::mlir::heir::polynomial::PolynomialDialect>();
   registry.insert<scf::SCFDialect>();
   registry.insert<tensor::TensorDialect>();
 
@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
   registerSecretToCGGIPasses();
   lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::linalg::registerLinalgToTensorExtPasses();
-  ::mlir::heir::polynomial::registerPolynomialToStandardPasses();
+  ::mlir::heir::polynomial::registerPolynomialToModArithPasses();
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();

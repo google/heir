@@ -16,7 +16,10 @@ def SetDefaultParameters : Pass<"cggi-set-default-parameters"> {
   The specific parameters are hard-coded in
   `lib/Dialect/CGGI/Transforms/SetDefaultParameters.cpp`.
   }];
-  let dependentDialects = ["mlir::heir::cggi::CGGIDialect"];
+  let dependentDialects = [
+    "mlir::heir::cggi::CGGIDialect",
+    "mlir::heir::mod_arith::ModArithDialect",
+  ];
 }
 
 def BooleanVectorizer : Pass<"cggi-boolean-vectorize"> {

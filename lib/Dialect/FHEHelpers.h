@@ -3,6 +3,7 @@
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
@@ -64,14 +65,25 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
   if (outRing != op->getToRing()) {
     return op->emitOpError() << "output ring should match to_ring";
   }
-  if (xRing.getCoefficientModulus().getValue().ule(
-          outRing.getCoefficientModulus().getValue())) {
+
+  auto xRingCoeffType =
+      dyn_cast<mod_arith::ModArithType>(xRing.getCoefficientType());
+  auto outRingCoeffType =
+      dyn_cast<mod_arith::ModArithType>(outRing.getCoefficientType());
+
+  if (!xRingCoeffType || !outRingCoeffType) {
+    return op->emitOpError()
+           << "input and output rings should have mod_arith coefficient types";
+  }
+
+  if (xRingCoeffType.getModulus().getValue().ule(
+          outRingCoeffType.getModulus().getValue())) {
     return op->emitOpError()
            << "output ring modulus should be less than the input ring modulus";
   }
-  if (!xRing.getCoefficientModulus()
+  if (!xRingCoeffType.getModulus()
            .getValue()
-           .urem(outRing.getCoefficientModulus().getValue())
+           .urem(outRingCoeffType.getModulus().getValue())
            .isZero()) {
     return op->emitOpError()
            << "output ring modulus should divide the input ring modulus";

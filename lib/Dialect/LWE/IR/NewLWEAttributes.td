@@ -259,7 +259,7 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
   }];
 
   let parameters = (ins
-    "::mlir::polynomial::RingAttr":$ring,
+    "::mlir::heir::polynomial::RingAttr":$ring,
     LWE_AnyPlaintextEncodingAttr:$encoding
   );
 
@@ -354,7 +354,7 @@ def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace"> {
   }];
 
   let parameters = (ins
-    "::mlir::polynomial::RingAttr":$ring,
+    "::mlir::heir::polynomial::RingAttr":$ring,
     "::mlir::heir::lwe::LweEncryptionType":$encryption_type,
     DefaultValuedParameter<"unsigned", "2">:$size
   );

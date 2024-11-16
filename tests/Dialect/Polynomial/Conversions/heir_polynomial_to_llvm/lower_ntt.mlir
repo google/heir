@@ -1,10 +1,11 @@
-// RUN: heir-opt --polynomial-to-standard --cse %s | FileCheck %s
+// RUN: heir-opt --polynomial-to-mod-arith --cse %s | FileCheck %s
 
 // This follows from example 3.8 (Satriawan et al.) here:
 // https://doi.org/10.1109/ACCESS.2023.3294446
 
 #cycl = #polynomial.int_polynomial<1 + x**4>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl>
+!coeff_ty = !mod_arith.int<7681:i32>
+#ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
@@ -18,12 +19,14 @@
 
 // CHECK:     func.func @lower_ntt() -> [[OUTPUT_TYPE:.*]] {
 // CHECK:      %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INPUT_TYPE:.*]]
+// CHECK:      %[[COEFFS_ENC:.*]] = mod_arith.encapsulate %[[COEFFS]] : [[INPUT_TYPE]] -> [[INTER_TYPE:.*]]
+// CHECK:      %[[COEFFS_EXT:.*]] = mod_arith.extract %[[COEFFS_ENC]] : [[INTER_TYPE]] -> [[INPUT_TYPE]]
 // CHECK:      %[[REVERSE_BIT_ORDER_COEFFS:.*]] = arith.constant dense<[0, 2, 1, 3]> : tensor<4xindex>
 // CHECK:      %[[OUTPUT_VEC:.*]] = arith.constant dense<0> : [[INPUT_TYPE]]
 // CHECK:      %[[ORDERED_INPUT:.*]] = linalg.generic {indexing_maps = [#[[ID_MAP]], #[[ID_MAP]]], iterator_types = ["parallel"]}
 // CHECK-SAME:   ins(%[[REVERSE_BIT_ORDER_COEFFS]] : tensor<4xindex>) outs(%[[OUTPUT_VEC]] : [[INPUT_TYPE]]) {
 // CHECK:       ^bb0(%[[REV_INDEX:.*]]: index, %[[OUT:.*]]: i32):
-// CHECK:         %[[EXTRACTED:.*]] = tensor.extract %[[COEFFS]][%[[REV_INDEX]]] : [[INPUT_TYPE]]
+// CHECK:         %[[EXTRACTED:.*]] = tensor.extract %[[COEFFS_EXT]][%[[REV_INDEX]]] : [[INPUT_TYPE]]
 // CHECK:         linalg.yield %[[EXTRACTED]] : i32
 // CHECK:       } -> [[INPUT_TYPE]]
 
@@ -74,8 +77,9 @@
 // CHECK:       return %[[RES_CAST]] : [[OUTPUT_TYPE]]
 
 func.func @lower_ntt() -> tensor<4xi32, #ring> {
-  %coeffs = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi32>
-  %poly = polynomial.from_tensor %coeffs : tensor<4xi32> -> !poly_ty
+  %coeffsRaw = arith.constant dense<[1, 2, 3, 4]> : tensor<4xi32>
+  %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<4xi32> -> tensor<4x!coeff_ty>
+  %poly = polynomial.from_tensor %coeffs : tensor<4x!coeff_ty> -> !poly_ty
   %ret = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<4xi32, #ring>
   return %ret : tensor<4xi32, #ring>
 }

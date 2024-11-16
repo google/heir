@@ -7,7 +7,7 @@
 // CHECK-SAME: %[[arg0:.*]]: !lwe.rlwe_ciphertext<{{.*}}, underlying_type = tensor<1024xf32>>
 func.func @test_arg_packed(%arg0 : !secret.secret<tensor<1024xf32>>) -> (!secret.secret<tensor<1024xf32>>) {
   // CHECK: return
-  // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+  // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
   // CHECK-SAME: underlying_type = tensor<1024xf32>>
   return %arg0 : !secret.secret<tensor<1024xf32>>
 }
@@ -25,7 +25,7 @@ func.func @test_extract_not_packed(%arg0 : !secret.secret<tensor<1023xf32>>) -> 
       secret.yield %1 : f32
   } -> !secret.secret<f32>
   // CHECK: return
-  // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+  // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
   // CHECK-SAME: underlying_type = f32
   return %0 : !secret.secret<f32>
 }
@@ -75,7 +75,7 @@ func.func @test_insert(%arg0 : !secret.secret<tensor<1023xf32>>, %arg1 : !secret
       secret.yield %1 : tensor<1023xf32>
   } -> !secret.secret<tensor<1023xf32>>
   // CHECK: return
-  // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+  // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
   // CHECK-SAME: underlying_type = f32
   return %0 : !secret.secret<tensor<1023xf32>>
 }
@@ -86,7 +86,7 @@ func.func @test_insert(%arg0 : !secret.secret<tensor<1023xf32>>, %arg1 : !secret
 // CHECK-SAME: %[[arg0:.*]]: !lwe.rlwe_ciphertext<{{.*}}, underlying_type = tensor<1x1024xf32>>
 func.func @test_2d_arg_packed(%arg0 : !secret.secret<tensor<1x1024xf32>>) -> (!secret.secret<tensor<1x1024xf32>>) {
   // CHECK: return
-  // CHECK-SAME: coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**1024>
+  // CHECK-SAME: coefficientType = !mod_arith.int<463187969 : i32>, polynomialModulus = <1 + x**1024>
   // CHECK-SAME: underlying_type = tensor<1x1024xf32>>
   return %arg0 : !secret.secret<tensor<1x1024xf32>>
 }

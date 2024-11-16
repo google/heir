@@ -11,7 +11,7 @@ def LWEToPolynomial : Pass<"lwe-to-polynomial"> {
   }];
 
   let dependentDialects = [
-    "mlir::polynomial::PolynomialDialect",
+    "mlir::heir::polynomial::PolynomialDialect",
     "mlir::tensor::TensorDialect",
     "mlir::heir::random::RandomDialect"
   ];

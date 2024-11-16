@@ -6,7 +6,7 @@
 
 #my_poly = #polynomial.int_polynomial<1 + x**32>
 
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = #my_poly>
+#ring = #polynomial.ring<coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus = #my_poly>
 #params = #lwe.rlwe_params<ring = #ring>
 
 !pt_i16 = !lwe.rlwe_plaintext<encoding = #encoding_i16, ring = #ring, underlying_type = tensor<32xi16>>
