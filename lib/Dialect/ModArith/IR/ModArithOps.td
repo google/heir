@@ -168,36 +168,47 @@ def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, Elemen
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-// TODO(#1084): migrate barrett/subifge to mod arith type
-def ModArith_BarrettReduceOp : ModArith_Op<"barrett_reduce", [SameOperandsAndResultType]> {
+def ModArith_BarrettReduceOp : ModArith_Op<"barrett_reduce"> {
   let summary = "Compute the first step of the Barrett reduction.";
   let description = [{
+    Used internally in mod-arith-to-mod-arith.
+
+    It requires the input type twice the bitwidth as that of the result mod arith type.
+
     Let $q$ denote a statically known modulus and $b = 4^{w}$, where $w$ is the
-    smallest bit-width that contains the range $[0, q)$. The Barrett reduce
-    operation computes `barret_reduce x = x - floor(x * floor(b / q) / b) * q`.
+    mod arith type storage type bit-width. The Barrett reduce operation computes
+    `barret_reduce x = x - floor(x * floor(b / q) / b) * q`.
 
     Given $0 <= x < q^2$, then this will compute $(x \mod q)$ or $(x \mod q) + q$.
   }];
 
   let arguments = (ins
-    SignlessIntegerLike:$input,
-    APIntAttr:$modulus
+    SignlessIntegerLike:$input
   );
-  let results = (outs SignlessIntegerLike:$output);
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input))";
+  let results = (outs ModArithLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 
-  let hasVerifier = 1;
+  // let hasVerifier = 1;
 }
 
-def ModArith_SubIfGEOp : ModArith_Op<"subifge", [SameOperandsAndResultType]> {
-  let summary = "Compute (x >= y) ? x - y : x.";
+def ModArith_SubIfGEOp : ModArith_Op<"subifge"> {
+  let summary = "Compute (x >= q) ? x - q : x.";
+
+  let description = [{
+    Used internally in mod-arith-to-mod-arith.
+
+    It requires the bitwidth of input type the same as the result mod arith type.
+
+    It assumes the input is in `[0, 2 * q)` and guarantees the result is in `[0, q)`
+  }];
 
   let arguments = (ins
-    SignlessIntegerLike:$lhs,
-    SignlessIntegerLike:$rhs
+    SignlessIntegerLike:$input
   );
-  let results = (outs SignlessIntegerLike:$output);
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
+  let results = (outs ModArithLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+
+  // let hasVerifier = 1;
 }
 
 #endif  // LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_

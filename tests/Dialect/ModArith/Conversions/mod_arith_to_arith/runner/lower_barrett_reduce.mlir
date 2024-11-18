@@ -5,15 +5,21 @@
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
-func.func @test_lower_barrett_reduce() {
-  %coeffs = arith.constant dense<[29498763, 58997760, 17, 7681]> : tensor<4xi26>
-  %1 = mod_arith.barrett_reduce %coeffs { modulus = 7681 } : tensor<4xi26>
+!Zp = !mod_arith.int<7681 : i32>
+!Zpv = tensor<4x!Zp>
 
-  %2 = arith.extui %1 : tensor<4xi26> to tensor<4xi32>
+func.func @test_lower_barrett_reduce() {
+  %coeffs = arith.constant dense<[29498763, 58997760, 17, 7681]> : tensor<4xi64>
+  %1 = mod_arith.barrett_reduce %coeffs  : tensor<4xi64> -> !Zpv
+
+  %2 = mod_arith.extract %1 : !Zpv -> tensor<4xi32>
+
+  
   %3 = bufferization.to_memref %2 : tensor<4xi32> to memref<4xi32>
   %U = memref.cast %3 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }
+
 
 // CHECK_TEST_BARRETT: [3723, 7680, 17, 7681]
