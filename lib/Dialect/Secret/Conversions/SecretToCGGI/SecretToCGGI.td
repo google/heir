@@ -14,6 +14,7 @@ def SecretToCGGI : Pass<"secret-to-cggi"> {
     "mlir::heir::comb::CombDialect",
     "mlir::heir::cggi::CGGIDialect",
     "mlir::memref::MemRefDialect",
+    "mlir::affine::AffineDialect",
   ];
 }
 

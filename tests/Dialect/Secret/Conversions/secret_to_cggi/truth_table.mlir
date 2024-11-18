@@ -47,7 +47,7 @@ func.func @truth_table_no_secret(%arg0: !secret.secret<i1>, %bool1: i1, %bool2: 
   // CHECK: [[TRUE:%.+]] = arith.constant true
   // CHECK: [[FALSE:%.+]] = arith.constant false
   %true = arith.constant true
-  // CHECK-COUNT-5: arith.select
+  // CHECK-COUNT-2: arith.select
   // CHECK: [[VAL:%.+]] = arith.select
   // CHECK: [[ENCTRUE:%.+]] = lwe.encode [[TRUE]]
   // CHECK: [[LWETRUE:%.+]] = lwe.trivial_encrypt [[ENCTRUE]]
