@@ -160,6 +160,7 @@ int main(int argc, char **argv) {
   // Misc
   registerTransformsPasses();      // canonicalize, cse, etc.
   affine::registerAffinePasses();  // loop unrolling
+  registerLinalgPasses();          // linalg to loops
 
   // These are only needed by two tests that build a pass pipeline
   // from the CLI. Those tests can probably eventually be removed.
