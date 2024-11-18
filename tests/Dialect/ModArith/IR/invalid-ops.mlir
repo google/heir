@@ -1,5 +1,27 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s | FileCheck %s
 
+!Zp = !mod_arith.mod_arith<255 : i8>
+
+// CHECK-NOT: @test_bad_mod
+func.func @test_bad_mod(%lhs : i8) -> !Zp {
+  // expected-error@+1 {{underlying type's bitwidth must be 1 bit larger than the modulus bitwidth, but got 8 while modulus requires width 8.}}
+  %m = mod_arith.encapsulate %lhs : i8 -> !Zp
+  return %m : !Zp
+}
+
+// -----
+
+!Zp = !mod_arith.mod_arith<255 : i32>
+
+// CHECK-NOT: @test_bad_extract
+func.func @test_bad_extract(%lhs : !Zp) -> i8 {
+  // expected-error@+1 {{the result integer type should be of the same width as the mod arith type width, but got 8 while mod arith type width 32}}
+  %m = mod_arith.extract %lhs : !Zp -> i8
+  return %m : i8
+}
+
+// -----
+
 // CHECK-NOT: @test_bad_arith_syntax
 func.func @test_bad_arith_syntax() {
   %c_vec = arith.constant dense<[1, 2, 1, 2]> : tensor<4xi4>
@@ -12,45 +34,9 @@ func.func @test_bad_arith_syntax() {
 
 // -----
 
-// CHECK-NOT: @test_bad_mod
-func.func @test_bad_mod(%lhs : i8, %rhs : i8) -> i8 {
-  // expected-error@+1 {{underlying type's bitwidth must be at least as large as the modulus bitwidth, but got 8 while modulus requires width 23.}}
-  %res = mod_arith.add %lhs, %rhs {modulus = 6666666 }: i8
-  return %res : i8
-}
-
-// -----
-
-// CHECK-NOT: @test_bad_mod_reduce
-func.func @test_bad_mod_reduce(%arg0 : i8) -> i8 {
-  // expected-error@+1 {{underlying type's bitwidth must be larger than the modulus bitwidth, but got 8 while modulus requires width 8.}}
-  %res = mod_arith.reduce %arg0 {modulus = 217 }: i8
-  return %res : i8
-}
-
-// -----
-
-// CHECK-NOT: @test_neg_mod_err
-func.func @test_neg_mod_err(%arg : i8) -> i8 {
-  // expected-error@+1 {{provided modulus -3 is not a positive integer.}}
-  %res = mod_arith.reduce %arg { modulus = -3 : i7 } : i8
-  return %res : i8
-}
-
-// -----
-
 // CHECK-NOT: @test_barrett_neg_mod_err
 func.func @test_barrett_neg_mod_err(%arg : i8) -> i8 {
   // expected-error@+1 {{provided modulus -3 is not a positive integer.}}
   %res = mod_arith.barrett_reduce %arg { modulus = -3 : i7 } : i8
-  return %res : i8
-}
-
-// -----
-
-// CHECK: @test_bad_mod_warning
-func.func @test_bad_mod_warning(%lhs : i8, %rhs : i8) -> i8 {
-  // expected-warning@+1 {{for signed (or signless) underlying types, the bitwidth of the underlying type must be at least as large as modulus bitwidth + 1 (for the sign bit), but found 8 while modulus requires width 8.}}
-  %res = mod_arith.add %lhs, %rhs {modulus = 135 }: i8
   return %res : i8
 }

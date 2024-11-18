@@ -15,10 +15,12 @@ cc_library(
     hdrs = [
         "ModArithDialect.h",
         "ModArithOps.h",
+        "ModArithTypes.h",
     ],
     deps = [
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        ":types_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
@@ -32,6 +34,7 @@ td_library(
     srcs = [
         "ModArithDialect.td",
         "ModArithOps.td",
+        "ModArithTypes.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
@@ -63,6 +66,30 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ModArithDialect.td",
     deps = [
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "types_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-typedef-decls"],
+            "ModArithTypes.h.inc",
+        ),
+        (
+            ["-gen-typedef-defs"],
+            "ModArithTypes.cpp.inc",
+        ),
+        (
+            ["-gen-typedef-doc"],
+            "ModArithTypes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "ModArithTypes.td",
+    deps = [
+        ":dialect_inc_gen",
         ":td_files",
     ],
 )

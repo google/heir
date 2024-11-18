@@ -21,7 +21,8 @@ struct PolyMulToNTT : impl::PolyMulToNTTBase<PolyMulToNTT> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     RewritePatternSet patterns(context);
-    patterns.add<rewrites::NTTRewritePolyMul>(patterns.getContext());
+    // TODO(#1095): migrate to mod arith type
+    // patterns.add<rewrites::NTTRewritePolyMul>(patterns.getContext());
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
   }
 };

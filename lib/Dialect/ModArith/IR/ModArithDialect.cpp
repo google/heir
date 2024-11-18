@@ -2,19 +2,25 @@
 
 #include <cassert>
 
-#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
-// NOLINTBEGIN(misc-include-cleaner): Required to define ModArithDialect and
-// ModArithOps
+// NOLINTBEGIN(misc-include-cleaner): Required to define ModArithDialect,
+// ModArithTypes, ModArithOps
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 // NOLINTEND(misc-include-cleaner)
 
 // Generated definitions
 #include "lib/Dialect/ModArith/IR/ModArithDialect.cpp.inc"
+
+#define GET_TYPEDEF_CLASSES
+#include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
 
 #define GET_OP_CLASSES
 #include "lib/Dialect/ModArith/IR/ModArithOps.cpp.inc"
@@ -24,6 +30,10 @@ namespace heir {
 namespace mod_arith {
 
 void ModArithDialect::initialize() {
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
+      >();
   addOperations<
 #define GET_OP_LIST
 #include "lib/Dialect/ModArith/IR/ModArithOps.cpp.inc"
@@ -32,45 +42,65 @@ void ModArithDialect::initialize() {
 
 /// Ensures that the underlying integer type is wide enough for the coefficient
 template <typename OpType>
-LogicalResult verifyModArithOpMod(OpType op, bool reduce = false) {
-  auto type =
-      llvm::cast<IntegerType>(getElementTypeOrSelf(op.getResult().getType()));
-  unsigned bitWidth = type.getWidth();
-  unsigned modWidth = (op.getModulus() - 1).getActiveBits();
-  if (modWidth > bitWidth)
+LogicalResult verifyModArithType(OpType op, ModArithType type) {
+  APInt modulus = type.getModulus().getValue();
+  unsigned bitWidth = modulus.getBitWidth();
+  unsigned modWidth = modulus.getActiveBits();
+  if (modWidth > bitWidth - 1)
     return op.emitOpError()
-           << "underlying type's bitwidth must be at least as "
-           << "large as the modulus bitwidth, but got " << bitWidth
-           << " while modulus requires width " << modWidth << ".";
-  if (reduce && modWidth == bitWidth)
-    return op.emitOpError()
-           << "underlying type's bitwidth must be larger than "
+           << "underlying type's bitwidth must be 1 bit larger than "
            << "the modulus bitwidth, but got " << bitWidth
            << " while modulus requires width " << modWidth << ".";
-  if (!type.isUnsigned() && modWidth == bitWidth)
-    emitWarning(op.getLoc())
-        << "for signed (or signless) underlying types, the bitwidth of the "
-           "underlying type must be at least as large as modulus bitwidth + "
-           "1 (for the sign bit), but found "
-        << bitWidth << " while modulus requires width " << modWidth << ".";
-
-  if (op.getModulus().slt(0))
-    return op.emitOpError()
-           << "provided modulus " << op.getModulus().getSExtValue()
-           << " is not a positive integer.";
   return success();
 }
 
-LogicalResult AddOp::verify() { return verifyModArithOpMod<AddOp>(*this); }
+template <typename OpType>
+LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
+                              IntegerType integerType) {
+  unsigned bitWidth = modArithType.getModulus().getValue().getBitWidth();
+  unsigned intWidth = integerType.getWidth();
+  if (intWidth != bitWidth)
+    return op.emitOpError()
+           << "the result integer type should be of the same width as the "
+           << "mod arith type width, but got " << intWidth
+           << " while mod arith type width " << bitWidth << ".";
+  return success();
+}
 
-LogicalResult SubOp::verify() { return verifyModArithOpMod<SubOp>(*this); }
+LogicalResult EncapsulateOp::verify() {
+  auto modArithType = getResultModArithType(*this);
+  auto integerType = getOperandIntegerType(*this);
+  auto result = verifySameWidth(*this, modArithType, integerType);
+  if (result.failed()) return result;
+  return verifyModArithType(*this, getResultModArithType(*this));
+}
 
-LogicalResult MulOp::verify() { return verifyModArithOpMod<MulOp>(*this); }
-
-LogicalResult MacOp::verify() { return verifyModArithOpMod<MacOp>(*this); }
+LogicalResult ExtractOp::verify() {
+  auto modArithType = getOperandModArithType(*this);
+  auto integerType = getResultIntegerType(*this);
+  auto result = verifySameWidth(*this, modArithType, integerType);
+  if (result.failed()) return result;
+  return verifyModArithType(*this, modArithType);
+}
 
 LogicalResult ReduceOp::verify() {
-  return verifyModArithOpMod<ReduceOp>(*this, true);
+  return verifyModArithType(*this, getResultModArithType(*this));
+}
+
+LogicalResult AddOp::verify() {
+  return verifyModArithType(*this, getResultModArithType(*this));
+}
+
+LogicalResult SubOp::verify() {
+  return verifyModArithType(*this, getResultModArithType(*this));
+}
+
+LogicalResult MulOp::verify() {
+  return verifyModArithType(*this, getResultModArithType(*this));
+}
+
+LogicalResult MacOp::verify() {
+  return verifyModArithType(*this, getResultModArithType(*this));
 }
 
 LogicalResult BarrettReduceOp::verify() {

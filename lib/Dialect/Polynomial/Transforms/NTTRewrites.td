@@ -30,24 +30,25 @@ def HasDegreePowerOfTwo : Constraint<
 def Nullptr
   : NativeCodeCall<"nullptr">;
 
-def NTTRewritePolyMul : Pattern<
-  (Polynomial_MulOp:$mulOp $p1, $p2),
-  [
-    // Transform to NTT point-value representation
-    (Polynomial_NTTOp:$p1NTT $p1, (Nullptr),
-      (returnType (InputTensorType (GetRingAttr $p1)))),
-    (Polynomial_NTTOp:$p2NTT $p2, (Nullptr),
-      (returnType (InputTensorType (GetRingAttr $p2)))),
-
-    // Compute elementwise multiplication modulo cmod
-    (ModArith_MulOp:$mulNTT $p1NTT, $p2NTT, (GetRingModAttr $p1)),
-
-    // Compute inverse transform back to coefficient representation
-    (Polynomial_INTTOp:$res $mulNTT, (Nullptr))
-  ],
-  [
-    (HasDegreePowerOfTwo $p1)
-  ]
->;
+// TODO(#1095): migrate to mod arith type
+// def NTTRewritePolyMul : Pattern<
+//   (Polynomial_MulOp:$mulOp $p1, $p2),
+//   [
+//     // Transform to NTT point-value representation
+//     (Polynomial_NTTOp:$p1NTT $p1, (Nullptr),
+//       (returnType (InputTensorType (GetRingAttr $p1)))),
+//     (Polynomial_NTTOp:$p2NTT $p2, (Nullptr),
+//       (returnType (InputTensorType (GetRingAttr $p2)))),
+//
+//     // Compute elementwise multiplication modulo cmod
+//     (ModArith_MulOp:$mulNTT $p1NTT, $p2NTT, (GetRingModAttr $p1)),
+//
+//     // Compute inverse transform back to coefficient representation
+//     (Polynomial_INTTOp:$res $mulNTT, (Nullptr))
+//   ],
+//   [
+//     (HasDegreePowerOfTwo $p1)
+//   ]
+// >;
 
 #endif  // LIB_DIALECT_POLYNOMIAL_TRANSFORMS_NTTREWRITES_TD_
