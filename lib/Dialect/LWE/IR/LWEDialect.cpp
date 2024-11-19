@@ -276,6 +276,19 @@ LogicalResult PlaintextSpaceAttr::verify(
   return success();
 }
 
+LogicalResult NewLWECiphertextType::verify(
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+    mlir::heir::lwe::ApplicationDataAttr, mlir::heir::lwe::PlaintextSpaceAttr,
+    mlir::heir::lwe::CiphertextSpaceAttr ciphertextSpace,
+    mlir::heir::lwe::KeyAttr keyAttr, mlir::heir::lwe::ModulusChainAttr) {
+  if (keyAttr.getSlotIndex() != 0 && (ciphertextSpace.getSize() != 2)) {
+    return emitError() << "a ciphertext with nontrivial slot rotation must "
+                          "have size 2, but found size "
+                       << ciphertextSpace.getSize();
+  }
+  return success();
+}
+
 }  // namespace lwe
 }  // namespace heir
 }  // namespace mlir

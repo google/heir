@@ -146,9 +146,9 @@ func.func @test_fn() {
 
 // -----
 
-#key = #lwe.key<id = "1234">
-#key_rlwe_rotate = #lwe.key<id = "1234", basis = 0, 2>
-#key_rlwe_2 = #lwe.key<id = "1234", size = 2>
+#key = #lwe.key<>
+#key_rlwe_rotate = #lwe.key<slot_index = 2>
+#key_rlwe_2 = #lwe.key<slot_index = 0>
 
 // CHECK-LABEL: test_fn
 func.func @test_fn() {

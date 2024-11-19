@@ -66,6 +66,8 @@ def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext"> {
     "KeyAttr":$key,
     OptionalParameter<"ModulusChainAttr">:$modulus_chain
   );
+
+  let genVerifyDecl = 1;
 }
 
 def NewLWECiphertextLike : TypeOrContainer<NewLWECiphertext, "new-lwe-ciphertext-like">;

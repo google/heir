@@ -271,30 +271,23 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
 def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key"> {
   let mnemonic = "key";
   let description = [{
-    An attribute describing the key used for encrypting the ciphertext.
+    An attribute describing the key with which the message is currently
+    encrypted.
 
-    This attribute includes a key identifier for the original key used to
-    encrypt the secret key.
+    The key attribute describes the key with which the message is currently
+    encrypted and decryption can be performed. For example, if the decryption of
+    a ciphertext $c = (c_0(x), c_1(x))$ is performed by computing the inner
+    product $(c_0(x), c_1(x)) \cdot (1, s(x))$ then the key is $(1, s(x))$.
 
-    The `key_size` parameter is used to describe the number of polynomials of
-    the secret key. This is typically $1$ for RLWE ciphertexts and greater than
-    $1$ for LWE instances. A ciphertext encrypted with a `key_size` of $k$ will
-    have size $k+1$.
-
-    The key basis describes the inner product used in the phase calculation in
-    decryption. This attribute is only supported for RLWE ciphertexts whose
-    `key_size` is $1$. An RLWE ciphertext is canonically encrypted against key
-    basis `(1, s)`. After a multiplication, its size will increase and the basis
-    will be `(1, s, s^2)`. The array that represents the key basis is
-    constructed by listing the powers of `s` at each position of the array. For
-    example, `(1, s, s^2)` corresponds to `[0, 1, 2]`, while `(1, s^2)`
-    corresponds to `[0, 2]`.
+    The `slot_index` describes the key after using a Galois automorphism to
+    rotate the plaintext slots by `slot_index`. This will correspond to an
+    action $\phi_k: x \rightarrow x^k$ for some `k` that depends on the
+    structure of the Galois group for the chosen scheme parameters. The
+    corresponding key will have a new basis $(1, s(x^(k)))$.
   }];
 
   let parameters = (ins
-    "::mlir::StringAttr":$id,
-    DefaultValuedParameter<"unsigned", "1">:$size,
-    OptionalArrayRefParameter<"unsigned int">:$basis
+    DefaultValuedParameter<"int", "0">:$slot_index
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
@@ -314,19 +307,56 @@ def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace"> {
     An attribute describing the ciphertext space and the transformation from
     plaintext space to ciphertext space of an FHE scheme.
 
-    The ciphertext space information includes the ring structure, which contains
-    the ciphertext modulus $q$. Ciphertexts using an RNS representation for $q$
-    will represent their ciphertext components in the ring attribute. Scalar LWE
-    ciphertexts (as opposed to RLWE) use an ideal polynomial of degree 1, $x$.
-    CGGI ciphertexts will typically use a power of two modulus.
+    The ciphertext space information includes the ring attribute, describing the
+    space that the ciphertext elements belong to. The ring attribute contains a
+    coefficient type attribute that describes the semantics of the coefficient.
+    For example, a ring modulo $1 + x^1024$ with coefficients modulo $q =
+    298374$ will be described as
+
+    ```
+    !ideal = !polynomial.int_polynomial<1 + x**1024>
+    !cmod = !mod_arith.mod_arith<modulus=298374 : i64>
+    #ring = #polynomial.ring<coefficientType = !cmod, modulus = !ideal>
+    #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = #encryption_type>
+    ```
+
+    Ciphertexts using an RNS representation for $q$ will use an RNS type in
+    their ring's coefficient type attribute.
+
+    // TODO(#1085): Validate syntax of polynomial ring after coefficientType changes.
+    ```
+    !ideal = !polynomial.int_polynomial<1 + x**1024>
+    !limb1 = !mod_arith.mod_arith<modulus=2251799814045697 : i64>
+    !limb2 = !mod_arith.mod_arith<modulus=65537 : i64>
+    #rns_mod = !rns.rns<!limb1, !limb2>
+    #ring = #polynomial.ring<coefficientType = #rns_mod, modulus = #ideal>
+    #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = #encryption_type>
+    ```
+
+    Scalar LWE ciphertexts (like those used in CGGI) use an ideal polynomial of
+    degree 1, $x$. CGGI ciphertexts will typically use a power of two modulus
+    and may use a native integer type for its coefficient modulus.
+
+    ```
+    !ideal = !polynomial.int_polynomial<1 + x**1024>
+    #ring = #polynomial.ring<coefficientType = i32, modulus = #ideal>
+    #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = #encryption_type>
+    ```
 
     The ciphertext encoding info is used to describe the way the plaintext data
     is encoded into the ciphertext (in the MSB, LSB, or mixed).
+
+    The `size` parameter is used to describe the number of polynomials
+    comprising the ciphertext. This is typically 2 for RLWE ciphertexts that
+    are made up of an $(a, b)$ pair and greater than 2 for LWE instances. For
+    example, after an RLWE multiplication of two size 2 ciphertexts,
+    the ciphertext's size will be 3.
   }];
 
   let parameters = (ins
     "::mlir::polynomial::RingAttr":$ring,
-    "::mlir::heir::lwe::LweEncryptionType":$encryption_type
+    "::mlir::heir::lwe::LweEncryptionType":$encryption_type,
+    DefaultValuedParameter<"unsigned", "2">:$size
   );
 
   let assemblyFormat = "`<` struct(params) `>`";

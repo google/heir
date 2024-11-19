@@ -33,7 +33,7 @@ func.func @test_valid_rlwe_ciphertext(%arg0 : !ciphertext_rlwe) -> !ciphertext_r
   return %arg0 : !ciphertext_rlwe
 }
 
-#key = #lwe.key<id = "1234", size = 1>
+#key = #lwe.key<>
 !secret_key = !lwe.new_lwe_secret_key<key = #key, ring = #ring>
 
 // CHECK-LABEL: test_new_lwe_secret_key
