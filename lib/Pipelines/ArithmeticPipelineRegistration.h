@@ -48,6 +48,8 @@ struct MlirToRLWEPipelineOptions
 using RLWEPipelineBuilder =
     std::function<void(OpPassManager &, const MlirToRLWEPipelineOptions &)>;
 
+void tosaToArithPipelineBuilder(OpPassManager &pm);
+
 void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         RLWEScheme scheme);
@@ -57,6 +59,8 @@ void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm);
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 
 RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(RLWEScheme scheme);
+
+void registerTosaToArithPipeline();
 
 }  // namespace mlir::heir
 

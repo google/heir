@@ -93,9 +93,9 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
   pm.addPass(createCanonicalizerPass());
 
   // Booleanize and Yosys Optimize
-  pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast,
-                                  options.unrollFactor, /*useSubmodules=*/true,
-                                  abcBooleanGates ? Mode::Boolean : Mode::LUT));
+  pm.addPass(createYosysOptimizer(
+      yosysFilesPath, abcPath, options.abcFast, options.unrollFactor,
+      /*useSubmodules=*/true, abcBooleanGates ? Mode::Boolean : Mode::LUT));
 
   // Cleanup
   pm.addPass(mlir::createCSEPass());

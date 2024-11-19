@@ -28,7 +28,8 @@ FailureOr<int64_t> get1DExtractionIndex(Op op) {
   // -sccp before this pass to apply folding rules (use -sccp if you need to
   // fold constants through control flow).
   Value insertIndex = *insertIndices.begin();
-  auto insertIndexConstOp = insertIndex.getDefiningOp<arith::ConstantIndexOp>();
+  auto insertIndexConstOp =
+      insertIndex.getDefiningOp<mlir::arith::ConstantIndexOp>();
   if (!insertIndexConstOp) return failure();
 
   auto insertOffsetAttr =
