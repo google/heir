@@ -32,6 +32,7 @@ cc_binary(
     }),
     includes = ["include"],
     deps = [
+        "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
         "@heir//lib/Dialect/BGV/Conversions/BGVToOpenfhe",
         "@heir//lib/Dialect/BGV/IR:Dialect",
@@ -52,6 +53,8 @@ cc_binary(
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/ModArith/Conversions/ModArithToArith",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/ModArith/Transforms",
+        "@heir//lib/Dialect/ModArith/Transforms:ConvertToMac",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/Transforms",
         "@heir//lib/Dialect/Openfhe/Transforms:ConfigureCryptoContext",
