@@ -157,6 +157,8 @@ void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
                                   /*abcBooleanGates=*/true);
 
         // Vectorize CGGI operations
+        // pm.addPass(createStraightLineVectorizer(
+        //     StraightLineVectorizerOptions{.dialect = "cggi"}));
         pm.addPass(cggi::createBooleanVectorizer());
         pm.addPass(createCanonicalizerPass());
         pm.addPass(createCSEPass());

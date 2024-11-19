@@ -143,6 +143,17 @@ int bucketSize(const SmallVector<SmallVector<Operation *>> &buckets) {
   return size;
 }
 
+int countNotOps(DenseMap<Operation *, SmallVector<SmallVector<Operation *>>>
+                    compatibleOps) {
+  int count = 0;
+  DenseMap<Operation *, SmallVector<SmallVector<Operation *>>>::iterator it;
+
+  for (it = compatibleOps.begin(); it != compatibleOps.end(); it++) {
+    if (isa<cggi::NotOp>(it->first)) count++;
+  }
+  return count;
+}
+
 DenseMap<Operation *, SmallVector<SmallVector<Operation *>>> buildCompatibleOps(
     std::vector<mlir::Operation *> level, int parallelism) {
   DenseMap<Operation *, SmallVector<SmallVector<Operation *>>> compatibleOps;
@@ -162,10 +173,7 @@ DenseMap<Operation *, SmallVector<SmallVector<Operation *>>> buildCompatibleOps(
         }
         foundCompatible = true;
 
-      } else if (isa<NotOp>(op) &&
-                 llvm::count_if(compatibleOps, [](const auto &pair) {
-                   return isa<cggi::NotOp>(pair.first);
-                 }) == 0) {
+      } else if (isa<NotOp>(op) && countNotOps(compatibleOps) == 0) {
         SmallVector<Operation *> newBucket;
         newBucket.push_back(op);
         compatibleOps[op].push_back(newBucket);
