@@ -225,7 +225,8 @@ class SecretGenericOpRotateConversion
       ConversionPatternRewriter &rewriter) const override {
     // Check that the offset is a constant.
     auto offset = inputs[1];
-    auto constantOffset = dyn_cast<arith::ConstantOp>(offset.getDefiningOp());
+    auto constantOffset =
+        dyn_cast<mlir::arith::ConstantOp>(offset.getDefiningOp());
     if (!constantOffset) {
       op.emitError("expected constant offset for rotate");
     }
