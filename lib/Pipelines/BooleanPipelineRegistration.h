@@ -20,7 +20,7 @@ struct TosaToBooleanTfheOptions
       *this, "unroll-factor",
       llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
                      "value of zero (default) prevents unrolling."),
-      llvm::cl::init(0)};
+      llvm::cl::init(4)};
 
   PassOptions::Option<std::string> entryFunction{
       *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
@@ -33,11 +33,15 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
                                const std::string &abcPath,
                                bool abcBooleanGates);
 
+void tosaToArithPipelineBuilder(OpPassManager &pm);
+
 void registerTosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
                                        const std::string &abcPath);
 
 void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
                                            const std::string &abcPath);
+
+void registerTosaToArithPipeline();
 
 void registerTosaToJaxitePipeline(const std::string &yosysFilesPath,
                                   const std::string &abcPath);

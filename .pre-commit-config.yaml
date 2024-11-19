@@ -38,7 +38,7 @@ repos:
     rev: "v2.2.5"
     hooks:
       - id: codespell
-        args: ["-L", "crate"]
+        args: ["-L", "crate, fpt"]
 
 
 # Changes tabs to spaces

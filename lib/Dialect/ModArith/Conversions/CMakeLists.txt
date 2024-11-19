@@ -1,1 +1,2 @@
 add_subdirectory(ModArithToArith)
+add_subdirectory(ArithToModArith)

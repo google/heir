@@ -50,6 +50,7 @@ cc_binary(
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/LWE/Transforms:AddClientInterface",
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
+        "@heir//lib/Dialect/ModArith/Conversions/ArithToModArith",
         "@heir//lib/Dialect/ModArith/Conversions/ModArithToArith",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",

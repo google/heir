@@ -33,7 +33,7 @@ def TfheRustBool_ServerKey : TfheRustBool_Type<"ServerKey", "server_key", [PassB
 }
 
 def TfheRustBool_PackedServerKey : TfheRustBool_Type<"PackedServerKey", "server_key_enum", [PassByReference, ServerKeyTrait]> {
-  let summary = "The Belfort packed API boolean server key.";
+  let summary = "The FPT packed API boolean server key.";
 }
 
 #endif  // LIB_DIALECT_TFHERUSTBOOL_IR_TFHERUSTBOOLTYPES_TD_

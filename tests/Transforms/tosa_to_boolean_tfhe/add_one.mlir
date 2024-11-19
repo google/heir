@@ -11,6 +11,7 @@ module {
   func.func @add_one(%in: i8) -> (i8) {
     %1 = arith.constant 1 : i8
     %2 = arith.addi %in, %1 : i8
-    return %2 : i8
+    %3 = arith.addi %in, %2 : i8
+    return %3 : i8
   }
 }

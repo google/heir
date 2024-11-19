@@ -19,6 +19,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
+#include "lib/Dialect/ModArith/Conversions/ArithToModArith/ArithToModArith.h"
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
@@ -76,6 +77,9 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/NarrowTypeEmulationConverter.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/WideIntEmulationConverter.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
@@ -147,6 +151,7 @@ int main(int argc, char **argv) {
 
   // Upstream passes used by HEIR
   // Converting to LLVM
+  arith::registerArithEmulateWideInt();
   arith::registerConvertArithToLLVMInterface(registry);
   cf::registerConvertControlFlowToLLVMInterface(registry);
   func::registerAllExtensions(registry);
@@ -245,8 +250,11 @@ int main(int argc, char **argv) {
   registerTosaToJaxitePipeline(yosysRunfilesEnvPath, abcEnvPath);
 #endif
 
+  registerTosaToArithPipeline();
+
   // Dialect conversion passes in HEIR
   mod_arith::registerModArithToArithPasses();
+  mod_arith::registerArithToModArithPasses();
   bgv::registerBGVToLWEPasses();
   bgv::registerBGVToOpenfhePasses();
   ckks::registerCKKSToOpenfhePasses();
