@@ -45,6 +45,8 @@ using RLWEPipelineBuilder =
 
 void tosaToArithPipelineBuilder(OpPassManager &pm);
 
+void tosaToArithPipelineBuilder(OpPassManager &pm);
+
 void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         RLWEScheme scheme);
