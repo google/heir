@@ -13,11 +13,13 @@ cc_library(
         "ModArithDialect.cpp",
     ],
     hdrs = [
+        "ModArithAttributes.h",
         "ModArithDialect.h",
         "ModArithOps.h",
         "ModArithTypes.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
@@ -32,6 +34,7 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "ModArithAttributes.td",
         "ModArithDialect.td",
         "ModArithOps.td",
         "ModArithTypes.td",
@@ -66,6 +69,36 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ModArithDialect.td",
     deps = [
+        ":td_files",
+    ],
+)
+
+gentbl_cc_library(
+    name = "attributes_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-attrdef-decls",
+                "-attrdefs-dialect=mod_arith",
+            ],
+            "ModArithAttributes.h.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-defs",
+                "-attrdefs-dialect=mod_arith",
+            ],
+            "ModArithAttributes.cpp.inc",
+        ),
+        (
+            ["-gen-attrdef-doc"],
+            "ModArithAttributes.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "ModArithAttributes.td",
+    deps = [
+        ":dialect_inc_gen",
         ":td_files",
     ],
 )

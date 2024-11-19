@@ -10,7 +10,8 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 // NOLINTBEGIN(misc-include-cleaner): Required to define ModArithDialect,
-// ModArithTypes, ModArithOps
+// ModArithTypes, ModArithOps, ModArithAttributes
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
@@ -18,6 +19,9 @@
 
 // Generated definitions
 #include "lib/Dialect/ModArith/IR/ModArithDialect.cpp.inc"
+
+#define GET_ATTRDEF_CLASSES
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.cpp.inc"
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
@@ -33,6 +37,10 @@ void ModArithDialect::initialize() {
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
+      >();
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "lib/Dialect/ModArith/IR/ModArithAttributes.cpp.inc"
       >();
   addOperations<
 #define GET_OP_LIST
@@ -125,6 +133,54 @@ LogicalResult BarrettReduceOp::verify() {
   if (getModulus().slt(0))
     return emitOpError() << "provided modulus " << getModulus().getSExtValue()
                          << " is not a positive integer.";
+  return success();
+}
+
+ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
+  APInt parsedValue(64, 0);
+  Type parsedType;
+
+  if (failed(parser.parseInteger(parsedValue))) {
+    parser.emitError(parser.getCurrentLocation(),
+                     "found invalid integer value");
+    return failure();
+  }
+
+  if (parser.parseColon() || parser.parseType(parsedType)) return failure();
+
+  auto modArithType = dyn_cast<ModArithType>(parsedType);
+  if (!modArithType) return failure();
+
+  auto outputBitWidth =
+      modArithType.getModulus().getType().getIntOrFloatBitWidth();
+  if (parsedValue.getActiveBits() > outputBitWidth)
+    return parser.emitError(parser.getCurrentLocation(),
+                            "constant value is too large for the modulus");
+
+  auto intValue = IntegerAttr::get(modArithType.getModulus().getType(),
+                                   parsedValue.trunc(outputBitWidth));
+  result.addAttribute(
+      "value", ModArithAttr::get(parser.getContext(), modArithType, intValue));
+  result.addTypes(modArithType);
+  return success();
+}
+
+void ConstantOp::print(OpAsmPrinter &p) {
+  p << " ";
+  // getValue chain:
+  // op's ModArithAttribute value
+  //   -> ModArithAttribute's IntegerAttr value
+  //   -> IntegerAttr's APInt value
+  getValue().getValue().getValue().print(p.getStream(), true);
+  p << " : ";
+  p.printType(getOutput().getType());
+}
+
+LogicalResult ConstantOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> loc,
+    ConstantOpAdaptor adaptor, llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  adaptor.getValue().dump();
+  returnTypes.push_back(adaptor.getValue().getType());
   return success();
 }
 

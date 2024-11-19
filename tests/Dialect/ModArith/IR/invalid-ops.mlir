@@ -1,6 +1,6 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s | FileCheck %s
 
-!Zp = !mod_arith.mod_arith<255 : i8>
+!Zp = !mod_arith.int<255 : i8>
 
 // CHECK-NOT: @test_bad_mod
 func.func @test_bad_mod(%lhs : i8) -> !Zp {
@@ -11,7 +11,7 @@ func.func @test_bad_mod(%lhs : i8) -> !Zp {
 
 // -----
 
-!Zp = !mod_arith.mod_arith<255 : i32>
+!Zp = !mod_arith.int<255 : i32>
 
 // CHECK-NOT: @test_bad_extract
 func.func @test_bad_extract(%lhs : !Zp) -> i8 {

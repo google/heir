@@ -12,16 +12,16 @@ class ModArith_Type<string name, string typeMnemonic>
   let mnemonic = typeMnemonic;
 }
 
-def ModArith_ModArith : ModArith_Type<"ModArith", "mod_arith"> {
+def ModArith_ModArithType : ModArith_Type<"ModArith", "int"> {
   let summary = "Integer type with modular arithmetic";
   let description = [{
-    `mod_arith.mod_arith<p>` represents an element of the ring of integers modulo $p$.
+    `mod_arith.int<p>` represents an element of the ring of integers modulo $p$.
     The `modulus` attribute is the ring modulus, and `mod_arith` operations lower to
     `arith` operations that produce results in the range `[0, modulus)`, often called
     the _canonical representative_.
 
     `modulus` is specified with an integer type suffix, for example,
-    `mod_arith.mod_arith<65537 : i32>`. This corresponds to the storage type for the
+    `mod_arith.int<65537 : i32>`. This corresponds to the storage type for the
     modulus, and is `i64` by default.
 
     It is required that the underlying integer type should be larger than
@@ -40,9 +40,9 @@ def ModArith_ModArith : ModArith_Type<"ModArith", "mod_arith"> {
 
     Examples:
     ```
-    !Zp1 = !mod_arith.mod_arith<7> // implicitly being i64
-    !Zp2 = !mod_arith.mod_arith<65537 : i32>
-    !Zp3 = !mod_arith.mod_arith<536903681 : i64>
+    !Zp1 = !mod_arith.int<7> // implicitly being i64
+    !Zp2 = !mod_arith.int<65537 : i32>
+    !Zp3 = !mod_arith.int<536903681 : i64>
     ```
   }];
   let parameters = (ins
@@ -51,6 +51,6 @@ def ModArith_ModArith : ModArith_Type<"ModArith", "mod_arith"> {
   let assemblyFormat = "`<` $modulus `>`";
 }
 
-def ModArithLike: TypeOrContainer<ModArith_ModArith, "mod_arith-like">;
+def ModArithLike: TypeOrContainer<ModArith_ModArithType, "mod_arith-like">;
 
 #endif  // LIB_TYPES_MODARITH_IR_MODARITHTYPES_TD_

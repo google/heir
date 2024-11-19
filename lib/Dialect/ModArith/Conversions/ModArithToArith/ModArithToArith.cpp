@@ -39,8 +39,8 @@ class ModArithToArithTypeConverter : public TypeConverter {
   }
 };
 
-// A herlper function to generate the attribute or type
-// needed to represent the result of modarith op as an integer
+// A helper function to generate the attribute or type
+// needed to represent the result of mod_arith op as an integer
 // before applying a remainder operation
 template <typename Op>
 TypedAttr modulusAttr(Op op, bool mul = false) {

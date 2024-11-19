@@ -5,10 +5,10 @@
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
-!Zp1 = !mod_arith.mod_arith<7681 : i26>
+!Zp1 = !mod_arith.int<7681 : i26>
 !Zp1v = tensor<6x!Zp1>
 // 33554431 = 2 ** 25 - 1
-!Zp2 = !mod_arith.mod_arith<33554431 : i26>
+!Zp2 = !mod_arith.int<33554431 : i26>
 !Zp2v = tensor<6x!Zp2>
 
 func.func @test_lower_reduce() {
