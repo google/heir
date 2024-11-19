@@ -2,6 +2,7 @@
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 
 include "lib/Dialect/ModArith/IR/ModArithDialect.td"
+include "lib/Dialect/ModArith/IR/ModArithAttributes.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
@@ -28,8 +29,8 @@ def ModArith_EncapsulateOp : ModArith_Op<"encapsulate", [Pure, ElementwiseMappab
 
     Examples:
     ```
-    mod_arith.encapsulate %c0 : i32 -> mod_arith.mod_arith<65537 : i32>
-    mod_arith.encapsulate %c1 : i64 -> mod_arith.mod_arith<65537>
+    mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
+    mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537>
     ```
   }];
 
@@ -52,10 +53,10 @@ def ModArith_ExtractOp : ModArith_Op<"extract", [Pure, ElementwiseMappable]> {
 
     Examples:
     ```
-    %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.mod_arith<65537 : i32>
-    %m1 = mod_arith.encapsulate %c1 : i64 -> mod_arith.mod_arith<65537>
-    %c2 = mod_arith.extract %m0 : mod_arith.mod_arith<65537 : i32> -> i32
-    %c3 = mod_arith.extract %m1 : mod_arith.mod_arith<65537> -> i64
+    %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
+    %m1 = mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537>
+    %c2 = mod_arith.extract %m0 : mod_arith.int<65537 : i32> -> i32
+    %c3 = mod_arith.extract %m1 : mod_arith.int<65537> -> i64
     ```
   }];
 
@@ -67,6 +68,28 @@ def ModArith_ExtractOp : ModArith_Op<"extract", [Pure, ElementwiseMappable]> {
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
+def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
+    [Pure, InferTypeOpAdaptor]> {
+  let summary = "Define a constant value via an attribute.";
+  let description = [{
+    Example:
+
+    ```mlir
+    %0 = mod_arith.constant 123 : !mod_arith.int<65537:i32>
+    ```
+  }];
+  let arguments = (ins ModArith_ModArithAttr:$value);
+  let results = (outs ModArith_ModArithType:$output);
+  let hasCustomAssemblyFormat = 1;
+
+  let builders = [
+    OpBuilder<(ins "::mlir::heir::mod_arith::ModArithType":$ty, "int64_t":$value), [{
+      return build($_builder, $_state, ty, mod_arith::ModArithAttr::get(ty, value));
+    }]>
+  ];
+}
+
+
 def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOperandsAndResultType]> {
   let summary = "reduce the mod arith type to its canonical representative";
 
@@ -77,9 +100,9 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOp
     Examples:
     ```
     %c0 = arith.constant 65538 : i32
-    %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.mod_arith<65537 : i32>
+    %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
     // mod_arith.extract %m0 produces 65538
-    %m1 = mod_arith.reduce %m0 : mod_arith.mod_arith<65537: i32>
+    %m1 = mod_arith.reduce %m0 : mod_arith.int<65537: i32>
     // mod_arith.extract %m1 produces 1
     ```
   }];

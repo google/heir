@@ -5,7 +5,7 @@
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
-!Zp = !mod_arith.mod_arith<7681 : i26>
+!Zp = !mod_arith.int<7681 : i26>
 !Zpv = tensor<4x!Zp>
 
 func.func @test_lower_sub() {
