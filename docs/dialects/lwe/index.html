@@ -10,7 +10,7 @@ This attribute also contains information about the overflow semantics of the dat
 ApplicationDataAttr Syntax:
 #lwe.application_data< mlir::Type, # message_type Attribute # overflow > An attribute describing the semantics of the underlying application data.
 The messageType parameter is used to describe the type and bits of the original application data, e.g. i1, i32, f32. This type is later mapped into the plaintext space of an FHE scheme by embedding, scaling, or other techniques.
-This attribute also contains information about the overflow semantics of the data in the application."><meta itemprop=wordCount content="4332"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="LWE"><meta name=twitter:description content="LWE attributes PlaintextEncodingAttr Syntax: #lwe.plaintext_encoding
+This attribute also contains information about the overflow semantics of the data in the application."><meta itemprop=wordCount content="4478"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="LWE"><meta name=twitter:description content="LWE attributes PlaintextEncodingAttr Syntax: #lwe.plaintext_encoding
 ApplicationDataAttr Syntax:
 #lwe.application_data< mlir::Type, # message_type Attribute # overflow > An attribute describing the semantics of the underlying application data.
 The messageType parameter is used to describe the type and bits of the original application data, e.g. i1, i32, f32. This type is later mapped into the plaintext space of an FHE scheme by embedding, scaling, or other techniques.
@@ -64,15 +64,36 @@ This corresponds to the following.</p><pre tabindex=0><code>   nn...n|bbbb
 MSB^         ^LSB
 </code></pre><h4 id=parameters-1>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>cleartext_start</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>cleartext_bitwidth</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=ciphertextspaceattr>CiphertextSpaceAttr</h3><p>Syntax:</p><pre tabindex=0><code>#lwe.ciphertext_space&lt;
   ::mlir::polynomial::RingAttr,   # ring
-  ::mlir::heir::lwe::LweEncryptionType   # encryption_type
+  ::mlir::heir::lwe::LweEncryptionType,   # encryption_type
+  unsigned   # size
 &gt;
 </code></pre><p>An attribute describing the ciphertext space and the transformation from
-plaintext space to ciphertext space of an FHE scheme.</p><p>The ciphertext space information includes the ring structure, which contains
-the ciphertext modulus $q$. Ciphertexts using an RNS representation for $q$
-will represent their ciphertext components in the ring attribute. Scalar LWE
-ciphertexts (as opposed to RLWE) use an ideal polynomial of degree 1, $x$.
-CGGI ciphertexts will typically use a power of two modulus.</p><p>The ciphertext encoding info is used to describe the way the plaintext data
-is encoded into the ciphertext (in the MSB, LSB, or mixed).</p><h4 id=parameters-2>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>ring</td><td style=text-align:center><code>::mlir::polynomial::RingAttr</code></td><td></td></tr><tr><td style=text-align:center>encryption_type</td><td style=text-align:center><code>::mlir::heir::lwe::LweEncryptionType</code></td><td></td></tr></tbody></table><h3 id=coefficientencodingattr>CoefficientEncodingAttr</h3><p>An encoding of cleartexts directly as coefficients.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.coefficient_encoding&lt;
+plaintext space to ciphertext space of an FHE scheme.</p><p>The ciphertext space information includes the ring attribute, describing the
+space that the ciphertext elements belong to. The ring attribute contains a
+coefficient type attribute that describes the semantics of the coefficient.
+For example, a ring modulo $1 + x^1024$ with coefficients modulo $q =
+298374$ will be described as</p><pre tabindex=0><code>!ideal = !polynomial.int_polynomial&lt;1 + x**1024&gt;
+!cmod = !mod_arith.mod_arith&lt;modulus=298374 : i64&gt;
+#ring = #polynomial.ring&lt;coefficientType = !cmod, modulus = !ideal&gt;
+#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = #encryption_type&gt;
+</code></pre><p>Ciphertexts using an RNS representation for $q$ will use an RNS type in
+their ring&rsquo;s coefficient type attribute.</p><p>// TODO(#1085): Validate syntax of polynomial ring after coefficientType changes.</p><pre tabindex=0><code>!ideal = !polynomial.int_polynomial&lt;1 + x**1024&gt;
+!limb1 = !mod_arith.mod_arith&lt;modulus=2251799814045697 : i64&gt;
+!limb2 = !mod_arith.mod_arith&lt;modulus=65537 : i64&gt;
+#rns_mod = !rns.rns&lt;!limb1, !limb2&gt;
+#ring = #polynomial.ring&lt;coefficientType = #rns_mod, modulus = #ideal&gt;
+#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = #encryption_type&gt;
+</code></pre><p>Scalar LWE ciphertexts (like those used in CGGI) use an ideal polynomial of
+degree 1, $x$. CGGI ciphertexts will typically use a power of two modulus
+and may use a native integer type for its coefficient modulus.</p><pre tabindex=0><code>!ideal = !polynomial.int_polynomial&lt;1 + x**1024&gt;
+#ring = #polynomial.ring&lt;coefficientType = i32, modulus = #ideal&gt;
+#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = #encryption_type&gt;
+</code></pre><p>The ciphertext encoding info is used to describe the way the plaintext data
+is encoded into the ciphertext (in the MSB, LSB, or mixed).</p><p>The <code>size</code> parameter is used to describe the number of polynomials
+comprising the ciphertext. This is typically 2 for RLWE ciphertexts that
+are made up of an $(a, b)$ pair and greater than 2 for LWE instances. For
+example, after an RLWE multiplication of two size 2 ciphertexts,
+the ciphertext&rsquo;s size will be 3.</p><h4 id=parameters-2>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>ring</td><td style=text-align:center><code>::mlir::polynomial::RingAttr</code></td><td></td></tr><tr><td style=text-align:center>encryption_type</td><td style=text-align:center><code>::mlir::heir::lwe::LweEncryptionType</code></td><td></td></tr><tr><td style=text-align:center>size</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=coefficientencodingattr>CoefficientEncodingAttr</h3><p>An encoding of cleartexts directly as coefficients.</p><p>Syntax:</p><pre tabindex=0><code>#lwe.coefficient_encoding&lt;
   unsigned   # scaling_factor
 &gt;
 </code></pre><p>A coefficient encoding of a list of integers asserts that the coefficients
@@ -139,22 +160,17 @@ with real coefficients, then encrypt scale the resulting polynomial&rsquo;s
 coefficients according to the scaling parameters, then round to get integer
 coefficients.</p><p>Example:</p><pre tabindex=0><code>#canonical_encoding = #lwe.inverse_canonical_encoding&lt;scaling_factor=10000&gt;
 </code></pre><h4 id=parameters-6>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>scaling_factor</td><td style=text-align:center><code>unsigned</code></td><td></td></tr></tbody></table><h3 id=keyattr>KeyAttr</h3><p>Syntax:</p><pre tabindex=0><code>#lwe.key&lt;
-  ::mlir::StringAttr,   # id
-  unsigned,   # size
-  ::llvm::ArrayRef&lt;unsigned int&gt;   # basis
+  int   # slot_index
 &gt;
-</code></pre><p>An attribute describing the key used for encrypting the ciphertext.</p><p>This attribute includes a key identifier for the original key used to
-encrypt the secret key.</p><p>The <code>key_size</code> parameter is used to describe the number of polynomials of
-the secret key. This is typically $1$ for RLWE ciphertexts and greater than
-$1$ for LWE instances. A ciphertext encrypted with a <code>key_size</code> of $k$ will
-have size $k+1$.</p><p>The key basis describes the inner product used in the phase calculation in
-decryption. This attribute is only supported for RLWE ciphertexts whose
-<code>key_size</code> is $1$. An RLWE ciphertext is canonically encrypted against key
-basis <code>(1, s)</code>. After a multiplication, its size will increase and the basis
-will be <code>(1, s, s^2)</code>. The array that represents the key basis is
-constructed by listing the powers of <code>s</code> at each position of the array. For
-example, <code>(1, s, s^2)</code> corresponds to <code>[0, 1, 2]</code>, while <code>(1, s^2)</code>
-corresponds to <code>[0, 2]</code>.</p><h4 id=parameters-7>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>id</td><td style=text-align:center><code>::mlir::StringAttr</code></td><td></td></tr><tr><td style=text-align:center>size</td><td style=text-align:center><code>unsigned</code></td><td></td></tr><tr><td style=text-align:center>basis</td><td style=text-align:center><code>::llvm::ArrayRef&lt;unsigned int></code></td><td></td></tr></tbody></table><h3 id=lweparamsattr>LWEParamsAttr</h3><p>Syntax:</p><pre tabindex=0><code>#lwe.lwe_params&lt;
+</code></pre><p>An attribute describing the key with which the message is currently
+encrypted.</p><p>The key attribute describes the key with which the message is currently
+encrypted and decryption can be performed. For example, if the decryption of
+a ciphertext $c = (c_0(x), c_1(x))$ is performed by computing the inner
+product $(c_0(x), c_1(x)) \cdot (1, s(x))$ then the key is $(1, s(x))$.</p><p>The <code>slot_index</code> describes the key after using a Galois automorphism to
+rotate the plaintext slots by <code>slot_index</code>. This will correspond to an
+action $\phi_k: x \rightarrow x^k$ for some <code>k</code> that depends on the
+structure of the Galois group for the chosen scheme parameters. The
+corresponding key will have a new basis $(1, s(x^(k)))$.</p><h4 id=parameters-7>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>slot_index</td><td style=text-align:center><code>int</code></td><td></td></tr></tbody></table><h3 id=lweparamsattr>LWEParamsAttr</h3><p>Syntax:</p><pre tabindex=0><code>#lwe.lwe_params&lt;
   IntegerAttr,   # cmod
   unsigned   # dimension
 &gt;
