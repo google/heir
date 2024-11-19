@@ -68,6 +68,26 @@ def ModArith_ExtractOp : ModArith_Op<"extract", [Pure, ElementwiseMappable]> {
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
+def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure, SameOperandsAndResultShape]> {
+  let summary = "change the modulus of a mod_arith";
+
+  let description = [{
+    "mod_switch" operation to change the modulus of a mod_arith type to a
+    bigger space. Operation will not allow to switch to a smaller space.
+
+    Examples:
+    ```
+    `mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<65539 : i32>`
+    ```
+  }];
+
+  let arguments = (ins ModArith_ModArithType:$input);
+  let results = (outs ModArith_ModArithType:$output);
+  let hasVerifier = 1;
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
+}
+
 def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
     [Pure, InferTypeOpAdaptor]> {
   let summary = "Define a constant value via an attribute.";

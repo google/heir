@@ -4,13 +4,15 @@
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Utils/ConversionUtils/ConversionUtils.h"
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -62,6 +64,10 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    if (isa<IndexType>(op.getValue().getType())) {
+      return failure();
+    }
+
     auto result = b.create<mod_arith::ConstantOp>(mod_arith::ModArithAttr::get(
         convertArithType(op.getType()),
         cast<IntegerAttr>(op.getValue()).getValue().getSExtValue()));
@@ -71,6 +77,39 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
   }
 };
 
+struct ConvertExt : public OpConversionPattern<mlir::arith::ExtSIOp> {
+  ConvertExt(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ::mlir::arith::ExtSIOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    if (auto originOp = op.getOperand().getDefiningOp<memref::LoadOp>()) {
+      if (auto *globalOp = originOp.getMemRef().getDefiningOp()) {
+        if (isa<memref::GetGlobalOp>(globalOp)) {
+          auto encapOp = b.create<mod_arith::EncapsulateOp>(
+              convertArithType(originOp.getType()), originOp.getResult());
+          auto result = b.create<mod_arith::ModSwitchOp>(
+              op.getLoc(), convertArithType(op.getType()), encapOp);
+          rewriter.replaceOp(op, result);
+          return success();
+        }
+      }
+    }
+
+    auto result = b.create<mod_arith::ModSwitchOp>(
+        op.getLoc(), convertArithType(op.getType()), adaptor.getIn());
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+// FIXME: Now it is assumed that everything is in the same field, i.e. i32 or
+// i64. Need to check if an additional modulus switch is necessary.
 template <typename SourceArithOp, typename TargetModArithOp>
 struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
   ConvertBinOp(mlir::MLIRContext *context)
@@ -83,9 +122,72 @@ struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto result =
-        b.create<TargetModArithOp>(adaptor.getLhs(), adaptor.getRhs());
+    auto lhsDefOp = op.getLhs().template getDefiningOp<memref::LoadOp>();
+    auto rhsDefOp = op.getRhs().template getDefiningOp<memref::LoadOp>();
+
+    auto lhsOp = adaptor.getLhs();
+    auto rhsOp = adaptor.getRhs();
+
+    // If the operand comes from a global variable, we need to encapsulate it
+    // If the operand comes from a function input, leave it as is
+    if (lhsDefOp) {
+      if (auto check = cast<memref::LoadOp>(lhsDefOp)
+                           .getMemRef()
+                           .template getDefiningOp<memref::GetGlobalOp>())
+        lhsOp = b.create<mod_arith::EncapsulateOp>(
+            convertArithType(lhsDefOp.getType()), lhsDefOp.getResult());
+    }
+
+    if (rhsDefOp) {
+      if (auto check = cast<memref::LoadOp>(rhsDefOp)
+                           .getMemRef()
+                           .template getDefiningOp<memref::GetGlobalOp>())
+        rhsOp = b.create<mod_arith::EncapsulateOp>(
+            convertArithType(rhsDefOp.getType()), rhsDefOp.getResult());
+    }
+
+    auto result = b.create<TargetModArithOp>(lhsOp, rhsOp);
     rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+template <class Op>
+struct GenericOpPattern : public OpConversionPattern<Op> {
+  using OpConversionPattern<Op>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      Op op, typename Op::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    SmallVector<Type> retTypes;
+    if (failed(this->getTypeConverter()->convertTypes(op->getResultTypes(),
+                                                      retTypes)))
+      return failure();
+    rewriter.replaceOpWithNewOp<Op>(op, retTypes, adaptor.getOperands(),
+                                    op->getAttrs());
+
+    return success();
+  }
+};
+
+struct ConvertMemRefLoad : public OpConversionPattern<mlir::memref::LoadOp> {
+  ConvertMemRefLoad(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::memref::LoadOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      mlir::memref::LoadOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    SmallVector<Type> retTypes;
+    if (failed(this->getTypeConverter()->convertTypes(op->getResultTypes(),
+                                                      retTypes)))
+      return failure();
+    rewriter.replaceOpWithNewOp<memref::LoadOp>(
+        op, retTypes, adaptor.getOperands(), op->getAttrs());
+
     return success();
   }
 };
@@ -105,12 +207,36 @@ void ArithToModArith::runOnOperation() {
   target.addLegalDialect<mod_arith::ModArithDialect>();
   target.addIllegalDialect<mlir::arith::ArithDialect>();
 
+  target.addDynamicallyLegalOp<mlir::arith::ConstantOp>(
+      [](mlir::arith::ConstantOp op) {
+        return isa<IndexType>(op.getValue().getType());
+      });
+
+  target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation *op) {
+    return cast<memref::LoadOp>(op).getMemRef().getDefiningOp();
+  });
+
+  target.addDynamicallyLegalOp<
+      memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::SubViewOp,
+      memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp>(
+      [&](Operation *op) {
+        return typeConverter.isLegal(op->getOperandTypes()) &&
+               typeConverter.isLegal(op->getResultTypes());
+      });
+
   RewritePatternSet patterns(context);
-  patterns
-      .add<ConvertConstant, ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
-           ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
-           ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>>(typeConverter,
-                                                                context);
+  patterns.add<
+      ConvertConstant, ConvertExt, ConvertMemRefLoad,
+      ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
+      ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
+      ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>,
+      GenericOpPattern<memref::LoadOp>, GenericOpPattern<memref::AllocOp>,
+      GenericOpPattern<memref::DeallocOp>, GenericOpPattern<memref::StoreOp>,
+      GenericOpPattern<memref::SubViewOp>, GenericOpPattern<memref::CopyOp>,
+      GenericOpPattern<tensor::FromElementsOp>,
+      GenericOpPattern<tensor::ExtractOp>
+
+      >(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
