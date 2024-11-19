@@ -40,6 +40,7 @@ def CGGI_CGGIBoolGates : CGGI_Attr<"CGGIBoolGates", "cggi_bool_gates"> {
      NOR_GATE = 3;
      XOR_GATE = 4;
      XNOR_GATE = 5;
+     NOT_GATE = 6;
   }];
 
   let parameters = (ins

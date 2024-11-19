@@ -8,6 +8,7 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
+#include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Pipelines/PipelineRegistration.h"
@@ -156,8 +157,7 @@ void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
                                   /*abcBooleanGates=*/true);
 
         // Vectorize CGGI operations
-        pm.addPass(createStraightLineVectorizer(
-            StraightLineVectorizerOptions{.dialect = "cggi"}));
+        pm.addPass(cggi::createBooleanVectorizer());
         pm.addPass(createCanonicalizerPass());
         pm.addPass(createCSEPass());
         pm.addPass(createSCCPPass());
