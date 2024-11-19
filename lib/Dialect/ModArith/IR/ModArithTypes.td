@@ -5,14 +5,15 @@ include "lib/Dialect/ModArith/IR/ModArithDialect.td"
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
+include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/AttrTypeBase.td"
 
-class ModArith_Type<string name, string typeMnemonic>
-    : TypeDef<ModArith_Dialect, name> {
+class ModArith_Type<string name, string typeMnemonic, list<Trait> traits = []>
+    : TypeDef<ModArith_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
 }
 
-def ModArith_ModArithType : ModArith_Type<"ModArith", "int"> {
+def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeInterface]> {
   let summary = "Integer type with modular arithmetic";
   let description = [{
     `mod_arith.int<p>` represents an element of the ring of integers modulo $p$.

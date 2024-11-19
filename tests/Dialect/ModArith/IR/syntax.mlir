@@ -68,5 +68,8 @@ func.func @test_arith_syntax() {
   %subifge = mod_arith.subifge %zero, %cmod : i10
   %subifge_vec = mod_arith.subifge %c_vec, %cmod_vec : tensor<4xi10>
 
+  // CHECK: mod_arith.mod_switch
+  %mod_switch = mod_arith.mod_switch %e6: !Zp to !mod_arith.int<31 : i10>
+
   return
 }

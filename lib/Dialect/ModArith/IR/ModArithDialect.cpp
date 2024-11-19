@@ -101,14 +101,6 @@ LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
   return success();
 }
 
-LogicalResult EncapsulateOp::verify() {
-  auto modArithType = getResultModArithType(*this);
-  auto integerType = getOperandIntegerType(*this);
-  auto result = verifySameWidth(*this, modArithType, integerType);
-  if (result.failed()) return result;
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
 LogicalResult ExtractOp::verify() {
   auto modArithType = getOperandModArithType(*this);
   auto integerType = getResultIntegerType(*this);
