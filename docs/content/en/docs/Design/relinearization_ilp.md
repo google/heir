@@ -1,8 +1,7 @@
-______________________________________________________________________
-
+---
 title: Optimizing relinearization
-
-## weight: 10
+weight: 10
+---
 
 This document outlines the integer linear program model used in the
 [`optimize-relinearization`](https://heir.dev/docs/passes/optimizerelinearizationpasses/#-optimize-relinearization)
@@ -21,16 +20,16 @@ In such schemes, the homomorphic multiplication of two ciphertexts $\\mathbf{c}
 = (f_0, f_1, f_2)$. This triple can be decrypted by taking a dot product with
 $(1, s, s^2)$.
 
-With this in mind, each RLWE ciphertext $\\mathbf{c}$ has an associated *key
-basis*, which is the vector $\\mathbf{s_c}$ whose dot product with $\\mathbf{c}$
+With this in mind, each RLWE ciphertext $\\mathbf{c}$ has an associated _key
+basis_, which is the vector $\\mathbf{s_c}$ whose dot product with $\\mathbf{c}$
 decrypts it.
 
 Usually a larger key basis is undesirable. For one, operations in a higher key
 basis are more expensive and have higher rates of noise growth. Repeated
 multiplications exponentially increase the length of the key basis. So to avoid
-this, an operation called *relinearization* was designed that converts a
+this, an operation called _relinearization_ was designed that converts a
 ciphertext from a given key basis back to $(1, s)$. Doing this requires a set of
-*relinearization keys* to be provided by the client and stored by the server.
+_relinearization keys_ to be provided by the client and stored by the server.
 
 In general, key bases can be arbitrary. Rotation of an RLWE ciphertext by a
 shift of $k$, for example, first applies the automorphism $x \\mapsto x^k$. This
@@ -54,8 +53,8 @@ multiplications are performed, and the results are added together. Addition can
 operate in any key basis (though all inputs must have the same key basis), and
 so the relinearization op that follows each multiplication can be deferred until
 after the additions are complete, at which point there is only one
-relinearization to perform. This technique is usually called *lazy
-relinearization*. It has the benefit of avoiding expensive relinearization
+relinearization to perform. This technique is usually called _lazy
+relinearization_. It has the benefit of avoiding expensive relinearization
 operations, as well as reducing noise growth, as relinearization adds noise to
 the ciphertext, which can further reduce the need for bootstrapping.
 
@@ -105,12 +104,12 @@ Define the following variables:
   representing the degree of the key basis of $v$. For example, if the key basis
   of a ciphertext is $(1, s)$, then $\\textup{KB}\_v = 1$. If $v$ is the result
   of an operation $o$, $\\textup{KB}\_v$ is the key basis of the result of $o$
-  *after* relinearization has been optionally applied to it, depending on the
+  _after_ relinearization has been optionally applied to it, depending on the
   value of the decision variable $R_o$.
 - For each SSA value $v$ that is an operation result, $\\textup{KB}^{br}\_v$ is
   a continuous variable whose value represents the key basis degree of $v$
-  *before* relinearization is applied (`br` = "before relin"). These SSA values
-  are mainly for *after* the model is solved and relinearization operations need
+  _before_ relinearization is applied (`br` = "before relin"). These SSA values
+  are mainly for _after_ the model is solved and relinearization operations need
   to be inserted into the IR. Here, type conflicts require us to reconstruct the
   key basis degree, and saving the values allows us to avoid recomputing the
   values.
@@ -134,18 +133,18 @@ The simple constraints are as follows:
 - Initial key basis degree: For each block argument, $\\textup{KB}\_v$ is fixed
   to equal the `dimension` parameter on the RLWE ciphertext type.
 - Operand agreement: For each operation with operand SSA values $v_1, \\dots,
-  v_k$, $\\textup{KB}_{v_1} = \\dots = \\textup{KB}_{v_k}$, i.e., all key basis
-  inputs must match.
+  v_k$, $\\textup{KB}\_{v_1} = \\dots = \\textup{KB}\_{v_k}$, i.e., all key
+  basis inputs must match.
 - Special linearized ops: `bgv.rotate` and `func.return` require linearized
   inputs, i.e., $\\textup{KB}\_{v_i} = 1$ for all inputs $v_i$ to these
   operations.
 - Before relinearization key basis: for each operation $o$ with operands $v_1,
-  \\dots, v_k$, constrain $\\textup{KB}^{br}_{\\textup{result}(o)} =
-  f(\\textup{KB}_{v_1}, \\dots, \\textup{KB}\_{v_k})$, where $f$ is a statically
-  known linear function. For multiplication $f$ is addition, and for all other
-  ops it is the projection onto any input, since multiplication is the only op
-  that increases the degree, and all operands are constrained to have equal
-  degree.
+  \\dots, v_k$, constrain $\\textup{KB}^{br}\_{\\textup{result}(o)} =
+  f(\\textup{KB}\_{v_1}, \\dots, \\textup{KB}\_{v_k})$, where $f$ is a
+  statically known linear function. For multiplication $f$ it addition, and for
+  all other ops it is the projection onto any input, since multiplication is the
+  only op that increases the degree, and all operands are constrained to have
+  equal degree.
 
 The remaining constraints control the dynamics of how the key basis degree
 changes as relinearizations are inserted.
@@ -153,9 +152,9 @@ changes as relinearizations are inserted.
 They can be thought of as implementing this (non-linear) constraint for each
 operation $o$:
 
-\[ \\textup{KB}_{\\textup{result}(o)} = \\begin{cases}
-\\textup{KB}^{br}_{\\textup{result(o)}} & \\text{ if } R_o = 0 \\ 1 & \\text{ if
-} R_o = 1 \\end{cases} \]
+\\\[ \\textup{KB}\_{\\textup{result}(o)} = \\begin{cases}
+\\textup{KB}^{br}\_{\\textup{result(o)}} & \\text{ if } R_o = 0 \\ 1 & \\text{
+if } R_o = 1 \\end{cases} \\\]
 
 Note that $\\textup{KB}^{br}\_{\\textup{result}(o)}$ is constrained by one of
 the simple constraints to be a linear expression containing key basis variables
@@ -164,31 +163,30 @@ an ILP. Instead, one can implement it via four constraints that effectively
 linearize (in the sense of making non-linear constraints linear) the multiplexer
 formula
 
-\[ \\textup{KB}_{\\textup{result}(o)} = (1 - R_o) \\cdot
-\\textup{KB}^{br}_{\\textup{result}(o)} + R_o \\cdot 1 \]
+\\\[ \\textup{KB}\_{\\textup{result}(o)} = (1 - R_o) \\cdot
+\\textup{KB}^{br}\_{\\textup{result}(o)} + R_o \\cdot 1 \\\]
 
 (Note the above is not linear because in includes the product of two variables.)
 The four constraints are:
 
-\[ \\begin{aligned} \\textup{KB}_\\textup{result}(o) &\\geq \\textup{ R}_o \\
-\
-\\textup{KB}_\\textup{result}(o) &\\leq 1 + C(1 – \\textup{R}_o) \\
-\
-\\textup{KB}_\\textup{result}(o) &\\geq
-\\textup{KB}^{br}_{\\textup{result}(o)} – C \\textup{ R}_o \\
-\
-\\textup{KB}_\\textup{result}(o) &\\leq
-\\textup{KB}^{br}\_{\\textup{result}(o)}
-
-- C \\textup{ R}\_o \\ \
-  \\end{aligned} \]
+\\\[ \\begin{aligned} \\textup{KB}\_\\textup{result}(o) &\\geq \\textup{ R}\_o
+\\\
+\\textup{KB}\\\_\\textup{result}(o) &\\leq 1 + C(1 – \\textup{R}\_o)
+\\\
+\\textup{KB}\_\\textup{result}(o) &\\geq
+\\textup{KB}^{br}\_{\\textup{result}(o)} – C \\textup{ R}\_o
+\\\
+\\textup{KB}\_\\textup{result}(o) &\\leq
+\\textup{KB}^{br}\_{\\textup{result}(o)} + C \\textup{ R}\_o \\\
+\\end{aligned}
+\\\]
 
 Here $C$ is a constant that can be set to any value larger than
 `MAX_KEY_BASIS_DEGREE`. We set it to 100.
 
 Setting $R_o = 0$ makes constraints 1 and 2 trivially satisfied, while
-constraints 3 and 4 enforce the equality $\\textup{KB}_{\\textup{result}(o)} =
-\\textup{KB}^{br}_{\\textup{result}(o)}$. Likewise, setting $R_o = 1$ makes
+constraints 3 and 4 enforce the equality $\\textup{KB}\_{\\textup{result}(o)} =
+\\textup{KB}^{br}\_{\\textup{result}(o)}$. Likewise, setting $R_o = 1$ makes
 constraints 3 and 4 trivially satisfied, while constraints 1 and 2 enforce the
 equality $\\textup{KB}\_{\\textup{result}(o)} = 1$.
 
