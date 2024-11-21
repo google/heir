@@ -36,6 +36,10 @@ gentbl_cc_library(
             ["-gen-rewriters"],
             "ModArithToArith.cpp.inc",
         ),
+        (
+            ["-gen-pass-doc"],
+            "ModArithToArith.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ModArithToArith.td",
