@@ -484,7 +484,8 @@ NAND_GATE = 1;
 OR_GATE = 2;
 NOR_GATE = 3;
 XOR_GATE = 4;
-XNOR_GATE = 5;&lt;/p>
+XNOR_GATE = 5;
+NOT_GATE = 6;&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -10135,7 +10136,8 @@ NAND_GATE = 1;
 OR_GATE = 2;
 NOR_GATE = 3;
 XOR_GATE = 4;
-XNOR_GATE = 5;&lt;/p>
+XNOR_GATE = 5;
+NOT_GATE = 6;&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -10224,7 +10226,7 @@ XNOR_GATE = 5;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
@@ -10268,7 +10270,7 @@ XNOR_GATE = 5;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>cnd&lt;/code>&lt;/td>
@@ -10317,7 +10319,7 @@ XNOR_GATE = 5;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
@@ -10362,7 +10364,7 @@ XNOR_GATE = 5;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
@@ -10406,7 +10408,7 @@ XNOR_GATE = 5;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
@@ -10447,7 +10449,7 @@ XNOR_GATE = 5;&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
@@ -10505,7 +10507,7 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The Belfort packed API boolean server key.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
@@ -10550,7 +10552,7 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
@@ -10595,7 +10597,7 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>serverKey&lt;/code>&lt;/td>
-&lt;td>The boolean server key required to perform homomorphic operations.&lt;/td>
+&lt;td>The boolean server key required to perform homomorphic operations. or The Belfort packed API boolean server key.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
