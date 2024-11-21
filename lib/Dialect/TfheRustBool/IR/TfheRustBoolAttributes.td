@@ -25,7 +25,7 @@ def TfheRustBoolGates_Attr : TfheRustBool_Attr<"TfheRustBoolGates", "tfhe_rust_b
      NOR_GATE = 3;
      XOR_GATE = 4;
      XNOR_GATE = 5;
-
+     NOT_GATE = 6;
   }];
 
   let parameters = (ins

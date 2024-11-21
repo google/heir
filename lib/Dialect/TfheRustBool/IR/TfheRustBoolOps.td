@@ -41,7 +41,7 @@ class TfheRustBool_BinaryGateOp<string mnemonic>
     Commutative,
     AllTypesMatch<["lhs", "rhs", "output"]>
 ]> {
-  let arguments = (ins TfheRustBool_ServerKey:$serverKey,
+  let arguments = (ins AnyTypeOf<[TfheRustBool_ServerKey, TfheRustBool_PackedServerKey]>:$serverKey,
     TfheRustBoolLike:$lhs,
     TfheRustBoolLike:$rhs
   );
@@ -61,7 +61,7 @@ def TfheRustBool_PackedOp : TfheRustBool_Op<"gates_packed", [
     AllTypesMatch<["lhs", "rhs", "output"]>
   ]> {
   let arguments = (ins
-    TfheRustBool_PackedServerKey:$serverKey,
+    AnyTypeOf<[TfheRustBool_ServerKey, TfheRustBool_PackedServerKey]>:$serverKey,
     TfheRustBoolGates_Attr: $gates,
     TfheRustBoolLike:$lhs,
     TfheRustBoolLike:$rhs
@@ -92,20 +92,18 @@ def TfheRustBool_NotOp : TfheRustBool_Op<"not", [
     AllTypesMatch<["input", "output"]>
 ]> {
   let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
+    AnyTypeOf<[TfheRustBool_ServerKey, TfheRustBool_PackedServerKey]>: $serverKey,
     TfheRustBoolLike:$input
   );
   let results = (outs TfheRustBoolLike:$output);
 }
-
-
 
 def TfheRustBool_MuxOp : TfheRustBool_Op<"mux", [
     Pure,
     AllTypesMatch<["cnd", "lhs", "rhs", "output"]>
 ]> {
   let arguments = (ins
-    TfheRustBool_ServerKey:$serverKey,
+    AnyTypeOf<[TfheRustBool_ServerKey, TfheRustBool_PackedServerKey]>:$serverKey,
     TfheRustBool_Encrypted:$cnd,
     TfheRustBool_Encrypted:$lhs,
     TfheRustBool_Encrypted:$rhs

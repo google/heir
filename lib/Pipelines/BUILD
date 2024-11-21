@@ -52,6 +52,7 @@ cc_library(
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRust",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
+        "@heir//lib/Dialect/CGGI/Transforms:BooleanVectorizer",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",

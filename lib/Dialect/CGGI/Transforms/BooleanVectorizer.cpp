@@ -1,5 +1,6 @@
 #include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <vector>
@@ -50,7 +51,7 @@ bool areCompatibleBool(Operation *lhs, Operation *rhs) {
   return OpTrait::hasElementwiseMappableTraits(lhs);
 }
 
-FailureOr<SmallVector<Attribute>> BuildGateOperands(
+FailureOr<SmallVector<Attribute>> buildGateOperands(
     const SmallVector<Operation *> &bucket, MLIRContext &context) {
   SmallVector<Attribute> vectorizedGateOperands;
   for (auto *op : bucket) {
@@ -76,6 +77,9 @@ FailureOr<SmallVector<Attribute>> BuildGateOperands(
             .Case<cggi::NorOp>([&context](NorOp op) {
               return CGGIBoolGateEnumAttr::get(&context, CGGIBoolGateEnum::NOR);
             })
+            .Case<cggi::NotOp>([&context](NotOp op) {
+              return CGGIBoolGateEnumAttr::get(&context, CGGIBoolGateEnum::NOT);
+            })
             .Case<cggi::Lut3Op>(
                 [&](cggi::Lut3Op op) { return op.getLookupTable(); })
             .Default([&](Operation &op) -> FailureOr<Attribute> {
@@ -97,7 +101,7 @@ FailureOr<SmallVector<Attribute>> BuildGateOperands(
   return vectorizedGateOperands;
 }
 
-SmallVector<Value> BuildVectorizedOperands(
+SmallVector<Value> buildVectorizedOperands(
     Operation *key, const SmallVector<Operation *> &bucket,
     RankedTensorType tensorType, OpBuilder builder) {
   SmallVector<Value> vectorizedOperands;
@@ -142,33 +146,47 @@ int bucketSize(const SmallVector<SmallVector<Operation *>> &buckets) {
 DenseMap<Operation *, SmallVector<SmallVector<Operation *>>> buildCompatibleOps(
     std::vector<mlir::Operation *> level, int parallelism) {
   DenseMap<Operation *, SmallVector<SmallVector<Operation *>>> compatibleOps;
+
   for (auto *op : level) {
     bool foundCompatible = false;
+
     for (auto &[key, buckets] : compatibleOps) {
-      if (areCompatibleBool(key, op)) {
+      if (areCompatibleBool(key, op) || (isa<NotOp>(key) && isa<NotOp>(op))) {
         if (parallelism == 0 ||
             compatibleOps[key].back().size() < parallelism) {
           compatibleOps[key].back().push_back(op);
         } else {
-          SmallVector<Operation *> new_bucket;
-          new_bucket.push_back(op);
-          compatibleOps[key].push_back(new_bucket);
+          SmallVector<Operation *> newBucket;
+          newBucket.push_back(op);
+          compatibleOps[key].push_back(newBucket);
         }
         foundCompatible = true;
+
+      } else if (isa<NotOp>(op) &&
+                 llvm::count_if(compatibleOps, [](const auto &pair) {
+                   return isa<cggi::NotOp>(pair.first);
+                 }) == 0) {
+        SmallVector<Operation *> newBucket;
+        newBucket.push_back(op);
+        compatibleOps[op].push_back(newBucket);
+        foundCompatible = true;
+        break;  // Now we extend the compatible ops when looping over the
+                // structure: Possible to now iterate over the newly created key
       }
     }
+
     if (!foundCompatible) {
-      SmallVector<Operation *> new_bucket;
-      new_bucket.push_back(op);
-      compatibleOps[op].push_back(new_bucket);
+      SmallVector<Operation *> newBucket;
+      newBucket.push_back(op);
+      compatibleOps[op].push_back(newBucket);
     }
   }
+
   LLVM_DEBUG(llvm::dbgs() << "Partitioned level of size " << level.size()
                           << " into " << compatibleOps.size()
                           << " groups of compatible ops\n");
   return compatibleOps;
 }
-
 bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
                            int parallelism) {
   graph::Graph<Operation *> graph;
@@ -216,6 +234,20 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
     DenseMap<Operation *, SmallVector<SmallVector<Operation *>>> compatibleOps =
         buildCompatibleOps(level, parallelism);
 
+    LLVM_DEBUG({
+      llvm::dbgs()
+          << " ########## Overview of the Compatible Ops object ##########\n";
+      for (const auto &elem : compatibleOps) {
+        llvm::dbgs() << " KEY " << *elem.first << "\n";
+        for (const auto op : elem.getSecond()) {
+          for (const auto opp : op) {
+            llvm::dbgs() << " - " << *opp << "\n";
+          }
+          llvm::dbgs() << " next \n";
+        }
+      }
+    });
+
     // Loop over all the compatibleOp groups
     // Each loop will have the key and a bucket with all the operations in
     for (const auto &[key, buckets] : compatibleOps) {
@@ -224,7 +256,10 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
       }
       for (const auto &bucket : buckets) {
         LLVM_DEBUG({
-          llvm::dbgs() << "[**START] Bucket \t Vectorizing ops:\n";
+          llvm::dbgs() << "[**START] Bucket (" << key->getName()
+                       << ") \t Vectorizing ops:\n"
+                       << *key << "\n";
+
           for (const auto op : bucket) {
             llvm::dbgs() << " - " << *op << "\n";
           }
@@ -237,8 +272,8 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
             {static_cast<int64_t>(bucket.size())}, elementType);
 
         SmallVector<Value> vectorizedOperands =
-            BuildVectorizedOperands(key, bucket, tensorType, builder);
-        auto vectorizedGateOperands = BuildGateOperands(bucket, context);
+            buildVectorizedOperands(key, bucket, tensorType, builder);
+        auto vectorizedGateOperands = buildGateOperands(bucket, context);
         if (failed(vectorizedGateOperands)) return false;
 
         Operation *vectorizedOp;
@@ -247,6 +282,9 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
           vectorizedOp = builder.create<cggi::PackedLut3Op>(
               key->getLoc(), tensorType, oplist, vectorizedOperands[0],
               vectorizedOperands[1], vectorizedOperands[2]);
+        } else if (llvm::isa<cggi::NotOp>(key)) {
+          vectorizedOp = builder.create<cggi::NotOp>(key->getLoc(), tensorType,
+                                                     vectorizedOperands[0]);
         } else {
           auto operands = vectorizedGateOperands.value();
           auto oplist = CGGIBoolGatesAttr::get(
