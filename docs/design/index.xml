@@ -766,10 +766,7 @@ operand of the arithmetic operation.&lt;/p>
 &lt;p>Note that the index computations in the patterns above (e.g., &lt;code>k+l&lt;/code>,
 &lt;code>k mod t.size&lt;/code> are realized via emitting &lt;code>arith&lt;/code> operations. However, for
 constant/compile-time-known indices, these will be subsequently constant-folded
-away by the canonicalization pass.&lt;/p></description></item><item><title>Docs:</title><link>https://heir.dev/docs/design/relinearization_ilp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/relinearization_ilp/</guid><description>
-&lt;hr>
-&lt;p>title: Optimizing relinearization&lt;/p>
-&lt;h2 id="weight-10">weight: 10&lt;/h2>
+away by the canonicalization pass.&lt;/p></description></item><item><title>Docs: Optimizing relinearization</title><link>https://heir.dev/docs/design/relinearization_ilp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/relinearization_ilp/</guid><description>
 &lt;p>This document outlines the integer linear program model used in the
 &lt;a href="https://heir.dev/docs/passes/optimizerelinearizationpasses/#-optimize-relinearization">&lt;code>optimize-relinearization&lt;/code>&lt;/a>
 pass.&lt;/p>
@@ -878,54 +875,52 @@ $\min \sum_o R_o$.&lt;/p>
 &lt;li>Initial key basis degree: For each block argument, $\textup{KB}_v$ is fixed
 to equal the &lt;code>dimension&lt;/code> parameter on the RLWE ciphertext type.&lt;/li>
 &lt;li>Operand agreement: For each operation with operand SSA values $v_1, \dots,
-v_k$, $\textup{KB}&lt;em>{v_1} = \dots = \textup{KB}&lt;/em>{v_k}$, i.e., all key basis
-inputs must match.&lt;/li>
+v_k$, $\textup{KB}_{v_1} = \dots = \textup{KB}_{v_k}$, i.e., all key
+basis inputs must match.&lt;/li>
 &lt;li>Special linearized ops: &lt;code>bgv.rotate&lt;/code> and &lt;code>func.return&lt;/code> require linearized
 inputs, i.e., $\textup{KB}_{v_i} = 1$ for all inputs $v_i$ to these
 operations.&lt;/li>
 &lt;li>Before relinearization key basis: for each operation $o$ with operands $v_1,
-\dots, v_k$, constrain $\textup{KB}^{br}&lt;em>{\textup{result}(o)} =
-f(\textup{KB}&lt;/em>{v_1}, \dots, \textup{KB}_{v_k})$, where $f$ is a statically
-known linear function. For multiplication $f$ is addition, and for all other
-ops it is the projection onto any input, since multiplication is the only op
-that increases the degree, and all operands are constrained to have equal
-degree.&lt;/li>
+\dots, v_k$, constrain $\textup{KB}^{br}_{\textup{result}(o)} =
+f(\textup{KB}_{v_1}, \dots, \textup{KB}_{v_k})$, where $f$ is a
+statically known linear function. For multiplication $f$ it addition, and for
+all other ops it is the projection onto any input, since multiplication is the
+only op that increases the degree, and all operands are constrained to have
+equal degree.&lt;/li>
 &lt;/ul>
 &lt;p>The remaining constraints control the dynamics of how the key basis degree
 changes as relinearizations are inserted.&lt;/p>
 &lt;p>They can be thought of as implementing this (non-linear) constraint for each
 operation $o$:&lt;/p>
-&lt;p>[ \textup{KB}&lt;em>{\textup{result}(o)} = \begin{cases}
-\textup{KB}^{br}&lt;/em>{\textup{result(o)}} &amp;amp; \text{ if } R_o = 0 \ 1 &amp;amp; \text{ if
-} R_o = 1 \end{cases} ]&lt;/p>
+&lt;p>\[ \textup{KB}_{\textup{result}(o)} = \begin{cases}
+\textup{KB}^{br}_{\textup{result(o)}} &amp;amp; \text{ if } R_o = 0 \ 1 &amp;amp; \text{
+if } R_o = 1 \end{cases} \]&lt;/p>
 &lt;p>Note that $\textup{KB}^{br}_{\textup{result}(o)}$ is constrained by one of
 the simple constraints to be a linear expression containing key basis variables
 for the operands of $o$. The conditional above cannot be implemented directly in
 an ILP. Instead, one can implement it via four constraints that effectively
 linearize (in the sense of making non-linear constraints linear) the multiplexer
 formula&lt;/p>
-&lt;p>[ \textup{KB}&lt;em>{\textup{result}(o)} = (1 - R_o) \cdot
-\textup{KB}^{br}&lt;/em>{\textup{result}(o)} + R_o \cdot 1 ]&lt;/p>
+&lt;p>\[ \textup{KB}_{\textup{result}(o)} = (1 - R_o) \cdot
+\textup{KB}^{br}_{\textup{result}(o)} + R_o \cdot 1 \]&lt;/p>
 &lt;p>(Note the above is not linear because in includes the product of two variables.)
 The four constraints are:&lt;/p>
-&lt;p>[ \begin{aligned} \textup{KB}&lt;em>\textup{result}(o) &amp;amp;\geq \textup{ R}&lt;em>o \
-&lt;br>
-\textup{KB}&lt;/em>\textup{result}(o) &amp;amp;\leq 1 + C(1 – \textup{R}&lt;em>o) \
-&lt;br>
-\textup{KB}&lt;/em>\textup{result}(o) &amp;amp;\geq
-\textup{KB}^{br}&lt;/em>{\textup{result}(o)} – C \textup{ R}&lt;em>o \
-&lt;br>
-\textup{KB}&lt;/em>\textup{result}(o) &amp;amp;\leq
-\textup{KB}^{br}_{\textup{result}(o)}&lt;/p>
-&lt;ul>
-&lt;li>C \textup{ R}_o \ &lt;br>
-\end{aligned} ]&lt;/li>
-&lt;/ul>
+&lt;p>\[ \begin{aligned} \textup{KB}_\textup{result}(o) &amp;amp;\geq \textup{ R}_o
+\\
+\textup{KB}\_\textup{result}(o) &amp;amp;\leq 1 + C(1 – \textup{R}_o)
+\\
+\textup{KB}_\textup{result}(o) &amp;amp;\geq
+\textup{KB}^{br}_{\textup{result}(o)} – C \textup{ R}_o
+\\
+\textup{KB}_\textup{result}(o) &amp;amp;\leq
+\textup{KB}^{br}_{\textup{result}(o)} + C \textup{ R}_o \\
+\end{aligned}
+\]&lt;/p>
 &lt;p>Here $C$ is a constant that can be set to any value larger than
 &lt;code>MAX_KEY_BASIS_DEGREE&lt;/code>. We set it to 100.&lt;/p>
 &lt;p>Setting $R_o = 0$ makes constraints 1 and 2 trivially satisfied, while
-constraints 3 and 4 enforce the equality $\textup{KB}&lt;em>{\textup{result}(o)} =
-\textup{KB}^{br}&lt;/em>{\textup{result}(o)}$. Likewise, setting $R_o = 1$ makes
+constraints 3 and 4 enforce the equality $\textup{KB}_{\textup{result}(o)} =
+\textup{KB}^{br}_{\textup{result}(o)}$. Likewise, setting $R_o = 1$ makes
 constraints 3 and 4 trivially satisfied, while constraints 1 and 2 enforce the
 equality $\textup{KB}_{\textup{result}(o)} = 1$.&lt;/p>
 &lt;h2 id="notes">Notes&lt;/h2>
