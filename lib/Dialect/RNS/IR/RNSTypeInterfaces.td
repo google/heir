@@ -20,11 +20,13 @@ def RNSBasisTypeInterface : TypeInterface<"RNSBasisTypeInterface"> {
       are both polynomial types, even if they have different coefficient
       moduli.
 
-      `isCompatibleWith` must be both commutative and associative, in the sense
+      Another example is using mod arith types as the basis types, where
+      by the nature of chinese reminder theorem, it is required that
+      the modulus of them must be mutually coprime.
+
+      `isCompatibleWith` must be commutative, in the sense
       that `type1.isCompatibleWith(type2)` if and only if
-      `type2.isCompatibleWith(type1)`, and further
-      `type2.isCompatibleWith(type3)` if and only if
-      `type1.isCompatibleWith(type3)`.
+      `type2.isCompatibleWith(type1)`.
     }],
     "bool", "isCompatibleWith", (ins "::mlir::Type":$otherRnsBasisType)>
   ];
