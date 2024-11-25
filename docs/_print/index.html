@@ -2715,11 +2715,11 @@ RNS basis are never equal as types, but instead have some common
 attribute that must be checked here. For example, an RNS type where
 the basis types are polynomials would return true if the two types
 are both polynomial types, even if they have different coefficient
-moduli.</p><p><code>isCompatibleWith</code> must be both commutative and associative, in the sense
+moduli.</p><p>Another example is using mod arith types as the basis types, where
+by the nature of chinese reminder theorem, it is required that
+the modulus of them must be mutually coprime.</p><p><code>isCompatibleWith</code> must be commutative, in the sense
 that <code>type1.isCompatibleWith(type2)</code> if and only if
-<code>type2.isCompatibleWith(type1)</code>, and further
-<code>type2.isCompatibleWith(type3)</code> if and only if
-<code>type1.isCompatibleWith(type3)</code>.</p><p>NOTE: This method <em>must</em> be implemented by the user.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-f7ffac8ba93b73b8a62e185ec8643d63>7.12 - Secret</h1><h1 id=secret-dialect>&lsquo;secret&rsquo; Dialect</h1><p>Secret is a dialect for computations that operate on encrypted data.</p><p>Secret is intended to serve as a scheme-agnostic front-end for the HEIR
+<code>type2.isCompatibleWith(type1)</code>.</p><p>NOTE: This method <em>must</em> be implemented by the user.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-f7ffac8ba93b73b8a62e185ec8643d63>7.12 - Secret</h1><h1 id=secret-dialect>&lsquo;secret&rsquo; Dialect</h1><p>Secret is a dialect for computations that operate on encrypted data.</p><p>Secret is intended to serve as a scheme-agnostic front-end for the HEIR
 ecosystem of dialects. It is supposed to be fully interoperable with the
 rest of MLIR via secret.generic, while lower-level HEIR dialects would have
 custom types for arithmetic on secret integers of various bit widths.</p><h2 id=secret-types>Secret types</h2><h3 id=secrettype>SecretType</h3><p>A secret value</p><p>Syntax:</p><pre tabindex=0><code>!secret.secret&lt;
