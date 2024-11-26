@@ -1,8 +1,7 @@
 #ifndef LIB_DIALECT_MODARITH_TRANSFORMS_ARITHTOMODARITH_H_
 #define LIB_DIALECT_MODARITH_TRANSFORMS_ARITHTOMODARITH_H_
 
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/Pass.h"               // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
