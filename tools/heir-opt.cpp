@@ -22,6 +22,7 @@
 #include "lib/Dialect/ModArith/Conversions/ArithToModArith/ArithToModArith.h"
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
+#include "lib/Dialect/ModArith/Transforms/ArithToNewMod.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
@@ -255,6 +256,7 @@ int main(int argc, char **argv) {
   // Dialect conversion passes in HEIR
   mod_arith::registerModArithToArithPasses();
   mod_arith::registerArithToModArithPasses();
+  mod_arith::registerArithToNewMod();
   bgv::registerBGVToLWEPasses();
   bgv::registerBGVToOpenfhePasses();
   ckks::registerCKKSToOpenfhePasses();

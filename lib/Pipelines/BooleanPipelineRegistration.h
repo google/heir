@@ -20,7 +20,7 @@ struct TosaToBooleanTfheOptions
       *this, "unroll-factor",
       llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
                      "value of zero (default) prevents unrolling."),
-      llvm::cl::init(4)};
+      llvm::cl::init(0)};
 
   PassOptions::Option<std::string> entryFunction{
       *this, "entry-function", llvm::cl::desc("Entry function to secretize"),

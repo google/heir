@@ -20,7 +20,7 @@ namespace mod_arith {
 #define GEN_PASS_DEF_ARITHTOMODARITH
 #include "lib/Dialect/ModArith/Conversions/ArithToModArith/ArithToModArith.h.inc"
 
-ModArithType convertArithType(Type type) {
+static ModArithType convertArithType(IntegerType type) {
   auto modulus = type.getIntOrFloatBitWidth();
   return ModArithType::get(type.getContext(),
                            mlir::IntegerAttr::get(type, modulus));
@@ -39,7 +39,7 @@ class ArithToModArithTypeConverter : public TypeConverter {
  public:
   ArithToModArithTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([](ModArithType type) -> ModArithType {
+    addConversion([](IntegerType type) -> ModArithType {
       return convertArithType(type);
     });
     // addConversion(
@@ -92,15 +92,17 @@ inline Type modulusType(Op op, bool mul = false) {
 //   }
 // };
 
-// struct ConvertExtract : public OpConversionPattern<ExtractOp> {
-//   ConvertExtract(mlir::MLIRContext *context)
-//       : OpConversionPattern<ExtractOp>(context) {}
+// struct ConvertConstant : public
+// OpConversionPattern<::mlir::arith::ConstantOp> {
+//   ConvertConstant(mlir::MLIRContext *context)
+//       : OpConversionPattern<::mlir::arith::ConstantOp>(context) {}
 
 //   using OpConversionPattern::OpConversionPattern;
 
 //   LogicalResult matchAndRewrite(
-//       ExtractOp op, OpAdaptor adaptor,
+//       ::mlir::arith::ConstantOp op, OpAdaptor adaptor,
 //       ConversionPatternRewriter &rewriter) const override {
+
 //     rewriter.replaceAllUsesWith(op.getResult(), adaptor.getOperands()[0]);
 //     rewriter.eraseOp(op);
 //     return success();
@@ -131,24 +133,28 @@ inline Type modulusType(Op op, bool mul = false) {
 
 // // It is assumed inputs are canonical representatives
 // // ModArithType ensures add/sub result can not overflow
-struct ConvertToAdd : public OpConversionPattern<arith::MulIOp> {
+struct ConvertToAdd : public OpConversionPattern<::mlir::arith::MulIOp> {
   ConvertToAdd(mlir::MLIRContext *context)
-      : OpConversionPattern<arith::MulIOp>(context) {}
+      : OpConversionPattern<::mlir::arith::MulIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      arith::MulIOp op, OpAdaptor adaptor,
+      ::mlir::arith::MulIOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     LLVM_DEBUG({ llvm::dbgs() << "################### Found one  mult:\n"; });
 
     // auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
-    auto add = b.create<AddOp>(adaptor.getLhs(), adaptor.getRhs());
+    auto add = b.create<arith::AddIOp>(op->getLoc(), adaptor.getLhs(),
+                                       adaptor.getRhs());
     // auto remu = b.create<arith::RemUIOp>(add, cmod);
 
-    rewriter.replaceOp(op, add);
+    rewriter.replaceAllUsesWith(op, add);
+    rewriter.eraseOp(op);
+
+    // rewriter.replaceOp(op, add);
     return success();
   }
 };
@@ -174,46 +180,47 @@ struct ConvertToAdd : public OpConversionPattern<arith::MulIOp> {
 //   }
 // };
 
-struct ConvertToMAC : public OpConversionPattern<arith::AddIOp> {
-  ConvertToMAC(mlir::MLIRContext *context)
-      : OpConversionPattern<arith::AddIOp>(context) {}
+// struct ConvertToMAC : public OpConversionPattern<arith::AddIOp> {
+//   ConvertToMAC(mlir::MLIRContext *context)
+//       : OpConversionPattern<arith::AddIOp>(context) {}
 
-  using OpConversionPattern::OpConversionPattern;
+//   using OpConversionPattern::OpConversionPattern;
 
-  LogicalResult matchAndRewrite(
-      arith::AddIOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+//   LogicalResult matchAndRewrite(
+//       arith::AddIOp op, OpAdaptor adaptor,
+//       ConversionPatternRewriter &rewriter) const override {
+//     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    LLVM_DEBUG({
-      llvm::dbgs() << "################### Found one "
-                   << op->getParentOp()->getName() << ":\n";
-    });
+//     LLVM_DEBUG({
+//       llvm::dbgs() << "################### Found one "
+//                    << op->getParentOp()->getName() << ":\n";
+//     });
 
-    auto mulOp = mlir::dyn_cast<arith::MulIOp>(
-        op->getParentOp());  // Trust on the canonalisation?
+//     auto mulOp = mlir::dyn_cast<arith::MulIOp>(
+//         op->getParentOp());  // Trust on the canonalisation?
 
-    if (!mulOp) return failure();
+//     if (!mulOp) return failure();
 
-    // Create a new ArithMacOp
-    auto macOp =
-        b.create<heir::mod_arith::MacOp>(op.getType(), mulOp.getOperand(0),
-                                         mulOp.getOperand(1), adaptor.getLhs());
+//     // Create a new ArithMacOp
+//     auto macOp =
+//         b.create<heir::mod_arith::MacOp>(op.getType(), mulOp.getOperand(0),
+//                                          mulOp.getOperand(1),
+//                                          adaptor.getLhs());
 
-    // Replace the old operations
-    rewriter.replaceOp(op, macOp);
-    return success();
+//     // Replace the old operations
+//     rewriter.replaceOp(op, macOp);
+//     return success();
 
-    // auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
-    // auto lhs =
-    //     b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
-    // auto rhs =
-    //     b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getRhs());
-    // auto mul = b.create<arith::MulIOp>(lhs, rhs);
-    // auto remu = b.create<arith::RemUIOp>(mul, cmod);
-    // auto trunc = b.create<arith::TruncIOp>(modulusType(op), remu);
-  }
-};
+//     // auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
+//     // auto lhs =
+//     //     b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
+//     // auto rhs =
+//     //     b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getRhs());
+//     // auto mul = b.create<arith::MulIOp>(lhs, rhs);
+//     // auto remu = b.create<arith::RemUIOp>(mul, cmod);
+//     // auto trunc = b.create<arith::TruncIOp>(modulusType(op), remu);
+//   }
+// };
 
 // struct ConvertToMac : public OpConversionPattern<MacOp> {
 //   ConvertToMac(mlir::MLIRContext *context)
@@ -256,11 +263,14 @@ void ArithToModArith::runOnOperation() {
 
   ConversionTarget target(*context);
   target.addLegalDialect<ModArithDialect>();
+  target.addLegalDialect<arith::ArithDialect>();
   // target.addIllegalOp(arith::AddIOp()->getName());
   // target.addIllegalOp(arith::MulIOp()->getName());
 
+  LLVM_DEBUG({ llvm::dbgs() << "################### Found one \n"; });
+
   RewritePatternSet patterns(context);
-  patterns.add<ConvertToMAC, ConvertToAdd>(typeConverter, context);
+  patterns.add<ConvertToAdd>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

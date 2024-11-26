@@ -71,7 +71,7 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
   pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
   pm.addPass(createForwardStoreToLoad());
   pm.addPass(affine::createAffineParallelizePass());
-  // pm.addPass(createFullLoopUnroll());
+  pm.addPass(createFullLoopUnroll());
   pm.addPass(createForwardStoreToLoad());
   pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
 
@@ -79,7 +79,8 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
   pm.addPass(createMemrefGlobalReplacePass());
   arith::ArithIntRangeNarrowingOptions arithOps;
   arithOps.bitwidthsSupported = llvm::to_vector(bitWidths);
-  pm.addPass(arith::createArithIntRangeNarrowing(arithOps));
+  pm.addPass(arith::createArithIntRangeNarrowing(arithOps));  // Check what is
+  // this?
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createSCCPPass());
   pm.addPass(createCSEPass());
@@ -93,32 +94,30 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
   pm.addPass(createCanonicalizerPass());
 
   // Booleanize and Yosys Optimize
-  // pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast,
-  //                                 options.unrollFactor,
-  //                                 /*useSubmodules=*/true, abcBooleanGates ?
-  //                                 Mode::Boolean : Mode::LUT));
+  pm.addPass(createYosysOptimizer(
+      yosysFilesPath, abcPath, options.abcFast, options.unrollFactor,
+      /*useSubmodules=*/true, abcBooleanGates ? Mode::Boolean : Mode::LUT));
 
-  // // Cleanup
-  // pm.addPass(mlir::createCSEPass());
-  // pm.addPass(createCanonicalizerPass());
-  // pm.addPass(createSCCPPass());
-  // pm.addPass(createSymbolDCEPass());
-  // pm.addPass(memref::createFoldMemRefAliasOpsPass());
-  // pm.addPass(createForwardStoreToLoad());
+  // Cleanup
+  pm.addPass(mlir::createCSEPass());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createSCCPPass());
+  pm.addPass(createSymbolDCEPass());
+  pm.addPass(memref::createFoldMemRefAliasOpsPass());
+  pm.addPass(createForwardStoreToLoad());
 
-  // // Lower combinational circuit to CGGI
-  // pm.addPass(secret::createSecretDistributeGeneric());
-  // pm.addPass(createSecretToCGGI());
+  // Lower combinational circuit to CGGI
+  pm.addPass(secret::createSecretDistributeGeneric());
+  pm.addPass(createSecretToCGGI());
 
-  // // Cleanup CombToCGGI
-  // pm.addPass(
-  //     createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop =
-  //     true}));
-  // pm.addPass(memref::createFoldMemRefAliasOpsPass());
-  // pm.addPass(createForwardStoreToLoad());
-  // pm.addPass(createRemoveUnusedMemRef());
-  // pm.addPass(createCSEPass());
-  // pm.addPass(createSCCPPass());
+  // Cleanup CombToCGGI
+  pm.addPass(
+      createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop = true}));
+  pm.addPass(memref::createFoldMemRefAliasOpsPass());
+  pm.addPass(createForwardStoreToLoad());
+  pm.addPass(createRemoveUnusedMemRef());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSCCPPass());
 }
 
 void tosaToArithPipelineBuilder(OpPassManager &pm) {
