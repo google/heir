@@ -1,6 +1,7 @@
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
@@ -48,8 +49,8 @@ void registerToOpenFhePkeTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         openfhe::OpenfheDialect, lwe::LWEDialect,
-                        ::mlir::polynomial::PolynomialDialect,
-                        tensor::TensorDialect>();
+                        ::mlir::heir::polynomial::PolynomialDialect,
+                        tensor::TensorDialect, mod_arith::ModArithDialect>();
       });
 }
 
@@ -62,10 +63,10 @@ void registerToOpenFhePkeHeaderTranslation() {
         return translateToOpenFhePkeHeader(op, output, options->openfheScheme);
       },
       [](DialectRegistry &registry) {
-        registry
-            .insert<arith::ArithDialect, func::FuncDialect,
-                    tensor::TensorDialect, openfhe::OpenfheDialect,
-                    lwe::LWEDialect, ::mlir::polynomial::PolynomialDialect>();
+        registry.insert<arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, openfhe::OpenfheDialect,
+                        lwe::LWEDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect>();
       });
 }
 

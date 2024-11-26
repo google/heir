@@ -24,7 +24,7 @@ def RNS_Dialect : Dialect {
   let useDefaultTypePrinterParser = 1;
 
   let dependentDialects = [
-    "mlir::polynomial::PolynomialDialect",
+    "mlir::heir::polynomial::PolynomialDialect",
   ];
 }
 

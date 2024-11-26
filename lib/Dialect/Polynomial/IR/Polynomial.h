@@ -14,6 +14,7 @@ namespace mlir {
 
 class MLIRContext;
 
+namespace heir {
 namespace polynomial {
 
 /// This restricts statically defined polynomials to have at most 64-bit
@@ -267,6 +268,7 @@ inline raw_ostream &operator<<(raw_ostream &os,
 }
 
 }  // namespace polynomial
+}  // namespace heir
 }  // namespace mlir
 
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIAL_H_

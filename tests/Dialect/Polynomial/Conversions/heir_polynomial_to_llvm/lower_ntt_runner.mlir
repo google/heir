@@ -9,13 +9,15 @@
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
 #cycl = #polynomial.int_polynomial<1 + x**4>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7681 : i32, polynomialModulus=#cycl>
+!coeff_ty = !mod_arith.int<7681:i32>
+#ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=1925:i32, degree=8:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func @test_poly_ntt() {
-  %coeffs = arith.constant dense<[1,2,3,4]> : tensor<4xi32>
-  %poly = polynomial.from_tensor %coeffs : tensor<4xi32> -> !poly_ty
+  %coeffsRaw = arith.constant dense<[1,2,3,4]> : tensor<4xi32>
+  %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<4xi32> -> tensor<4x!coeff_ty>
+  %poly = polynomial.from_tensor %coeffs : tensor<4x!coeff_ty> -> !poly_ty
   %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<4xi32, #ring>
 
   %1 = tensor.cast %0 : tensor<4xi32, #ring> to tensor<4xi32>

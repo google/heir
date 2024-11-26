@@ -3,6 +3,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 
 namespace mlir {
+namespace heir {
 namespace polynomial {
 
 template <typename PolyT, typename MonomialT>
@@ -57,4 +58,5 @@ FloatPolynomial FloatPolynomial::fromCoefficients(ArrayRef<double> coeffs) {
 }
 
 }  // namespace polynomial
+}  // namespace heir
 }  // namespace mlir

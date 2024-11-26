@@ -21,7 +21,8 @@ def SecretToCKKS : Pass<"secret-to-ckks"> {
   }];
 
   let dependentDialects = [
-    "mlir::polynomial::PolynomialDialect",
+    "mlir::heir::polynomial::PolynomialDialect",
+    "mlir::heir::mod_arith::ModArithDialect",
     "mlir::heir::ckks::CKKSDialect",
     "mlir::heir::lwe::LWEDialect",
   ];

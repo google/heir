@@ -55,7 +55,7 @@ cc_binary(
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/Transforms",
         "@heir//lib/Dialect/Openfhe/Transforms:ConfigureCryptoContext",
-        "@heir//lib/Dialect/Polynomial/Conversions/PolynomialToStandard",
+        "@heir//lib/Dialect/Polynomial/Conversions/PolynomialToModArith",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/Transforms",
         "@heir//lib/Dialect/Polynomial/Transforms:NTTRewrites",

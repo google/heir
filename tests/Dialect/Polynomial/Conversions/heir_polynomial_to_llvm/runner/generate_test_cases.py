@@ -35,6 +35,7 @@ def test_setup(i: int):
 # Params:
 #  - ideal
 #  - cmod
+#  - cmod_type
 #  - p0
 #  - p1
 #  - test_number
@@ -44,7 +45,8 @@ def test_setup(i: int):
 #  - coefficient_list
 TEST_TEMPLATE = """
 #ideal_{{test_number}} = #polynomial.int_polynomial<{{ideal}}>
-#ring_{{test_number}} = #polynomial.ring<coefficientType = i32, coefficientModulus={{cmod}} : {{cmod_type}}, polynomialModulus=#ideal_{{test_number}}>
+!coeff_ty_{{test_number}} = !mod_arith.int<{{cmod}}:{{cmod_type}}>
+#ring_{{test_number}} = #polynomial.ring<coefficientType=!coeff_ty_{{test_number}}, polynomialModulus=#ideal_{{test_number}}>
 !poly_ty_{{test_number}} = !polynomial.polynomial<ring=#ring_{{test_number}}>
 
 func.func @test_{{test_number}}() {{{{
@@ -68,11 +70,13 @@ func.func @test_{{test_number}}() {{{{
 # I have not looked into the possibility of adding more functions to the
 # upstream mlir-cpu-runner.
 GEN_TENSOR_OP_TEMPLATE_WITH_TRUNC = """
-  %3 = polynomial.to_tensor %2 : !poly_ty_{{test_number}} -> tensor<{{degree}}x{{container_type}}>
-  %tensor = arith.{trunc_ext_op} %3 : tensor<{{degree}}x{{container_type}}> to tensor<{{degree}}xi32>
+  %3 = polynomial.to_tensor %2 : !poly_ty_{{test_number}} -> tensor<{{degree}}x!coeff_ty_{{test_number}}>
+  %4 = mod_arith.extract %3 : tensor<{{degree}}x!coeff_ty_{{test_number}}> -> tensor<{{degree}}x{{cmod_type}}>
+  %tensor = arith.{trunc_ext_op} %4 : tensor<{{degree}}x{{cmod_type}}> to tensor<{{degree}}xi32>
 """
 GEN_TENSOR_OP_TEMPLATE = """
-  %tensor = polynomial.to_tensor %2 : !poly_ty_{test_number} -> tensor<{degree}x{container_type}>
+  %3 = polynomial.to_tensor %2 : !poly_ty_{test_number} -> tensor<{degree}x!coeff_ty_{test_number}>
+  %tensor = mod_arith.extract %3 : tensor<{degree}x!coeff_ty_{test_number}> -> tensor<{degree}x{cmod_type}>
 """
 
 
@@ -182,9 +186,9 @@ def main(args: argparse.Namespace) -> None:
   print(f'Generating {test_count} tests...')
   output_tests = []
   for i, test in enumerate(tests):
-    (ideal, cmod, p0, p1, cmod_type, coefficient_type) = (
+    (ideal, cmod, p0, p1, cmod_type) = (
         get_key_or_err(test, s)
-        for s in ['ideal', 'cmod', 'p0', 'p1', 'cmod_type', 'coefficient_type']
+        for s in ['ideal', 'cmod', 'p0', 'p1', 'cmod_type']
     )
 
     x = sympy.Symbol('x')
@@ -200,7 +204,7 @@ def main(args: argparse.Namespace) -> None:
     )
     coeff_list_len = parsed_ideal.degree()
     expected_coeffs = list(reversed(expected_remainder.all_coeffs()))
-    container_width = int(coefficient_type[1:])
+    container_width = int(cmod_type[1:])
 
     # For whatever reason, sympy won't preserve the domain of the coefficients
     # after `rem`, so I have to manually convert any fractional coefficients to
@@ -237,7 +241,6 @@ def main(args: argparse.Namespace) -> None:
                 p0=p0,
                 p1=p1,
                 test_number=i,
-                container_type=coefficient_type,
                 degree=parsed_ideal.degree(),
                 expected=expected_remainder,
                 coefficient_list=coefficient_list_regex,

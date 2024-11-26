@@ -12,7 +12,6 @@ def BGVToLWE : Pass<"bgv-to-lwe"> {
 
   let dependentDialects = [
     "mlir::heir::bgv::BGVDialect",
-    "mlir::polynomial::PolynomialDialect",
     "mlir::heir::lwe::LWEDialect",
     "mlir::tensor::TensorDialect",
   ];

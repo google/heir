@@ -1,13 +1,28 @@
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 
+#include <utility>
+
+#include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Utils/ConversionUtils/ConversionUtils.h"
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -78,8 +93,7 @@ struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
   LogicalResult matchAndRewrite(
       EncapsulateOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceAllUsesWith(op.getResult(), adaptor.getOperands()[0]);
-    rewriter.eraseOp(op);
+    rewriter.replaceOp(op, adaptor.getOperands()[0]);
     return success();
   }
 };
@@ -93,8 +107,23 @@ struct ConvertExtract : public OpConversionPattern<ExtractOp> {
   LogicalResult matchAndRewrite(
       ExtractOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceAllUsesWith(op.getResult(), adaptor.getOperands()[0]);
-    rewriter.eraseOp(op);
+    rewriter.replaceOp(op, adaptor.getOperands()[0]);
+    return success();
+  }
+};
+
+struct ConvertConstant : public OpConversionPattern<ConstantOp> {
+  ConvertConstant(mlir::MLIRContext *context)
+      : OpConversionPattern<ConstantOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ConstantOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto constOp = rewriter.create<arith::ConstantOp>(op.getLoc(),
+                                                      op.getValue().getValue());
+    rewriter.replaceOp(op, constOp);
     return success();
   }
 };
@@ -298,11 +327,20 @@ void ModArithToArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
-               ConvertSub, ConvertMul, ConvertMac, ConvertBarrettReduce>(
-      typeConverter, context);
+  patterns
+      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
+           ConvertSub, ConvertMul, ConvertMac, ConvertBarrettReduce,
+           ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
+          typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
+
+  target.addDynamicallyLegalOp<
+      tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp, affine::AffineForOp,
+      affine::AffineYieldOp, linalg::GenericOp, linalg::YieldOp,
+      tensor::ExtractSliceOp, tensor::InsertSliceOp>(
+      [&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();

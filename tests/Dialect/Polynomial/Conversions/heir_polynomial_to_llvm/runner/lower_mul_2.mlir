@@ -18,7 +18,8 @@ func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interf
 // RUN: %{compile} | %{run} | %{check}
 
 #ideal_2 = #polynomial.int_polynomial<1 + x**12>
-#ring_2 = #polynomial.ring<coefficientType = i32, coefficientModulus=16 : i32, polynomialModulus=#ideal_2>
+!coeff_ty_2 = !mod_arith.int<16:i32>
+#ring_2 = #polynomial.ring<coefficientType=!coeff_ty_2, polynomialModulus=#ideal_2>
 !poly_ty_2 = !polynomial.polynomial<ring=#ring_2>
 
 func.func @test_2() {
@@ -28,7 +29,8 @@ func.func @test_2() {
   %2 = polynomial.mul %0, %1 : !poly_ty_2
 
 
-  %tensor = polynomial.to_tensor %2 : !poly_ty_2 -> tensor<12xi32>
+  %3 = polynomial.to_tensor %2 : !poly_ty_2 -> tensor<12x!coeff_ty_2>
+  %tensor = mod_arith.extract %3 : tensor<12x!coeff_ty_2> -> tensor<12xi32>
 
   %ref = bufferization.to_memref %tensor : memref<12xi32>
   %U = memref.cast %ref : memref<12xi32> to memref<*xi32>

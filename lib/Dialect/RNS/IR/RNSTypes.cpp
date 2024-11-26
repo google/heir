@@ -14,14 +14,11 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
 namespace mlir {
-
-using polynomial::PolynomialDialect;
-using polynomial::PolynomialType;
-
 namespace heir {
 
 using mod_arith::ModArithDialect;
 using mod_arith::ModArithType;
+using polynomial::PolynomialType;
 
 namespace rns {
 
@@ -114,7 +111,8 @@ struct ModArithRNSBasisTypeInterface
 
 void registerExternalRNSTypeInterfaces(DialectRegistry &registry) {
   registry.addExtension(
-      +[](MLIRContext *ctx, ::mlir::polynomial::PolynomialDialect *dialect) {
+      +[](MLIRContext *ctx,
+          ::mlir::heir::polynomial::PolynomialDialect *dialect) {
         PolynomialType::attachInterface<PolynomialRNSBasisTypeInterface>(*ctx);
       });
   registry.addExtension(+[](MLIRContext *ctx, ModArithDialect *dialect) {

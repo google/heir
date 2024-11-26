@@ -1,6 +1,7 @@
 #include "lib/Pipelines/PipelineRegistration.h"
 
-#include "lib/Dialect/Polynomial/Conversions/PolynomialToStandard/PolynomialToStandard.h"
+#include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
+#include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
 #include "lib/Transforms/ConvertSecretExtractToStaticExtract/ConvertSecretExtractToStaticExtract.h"
 #include "lib/Transforms/ConvertSecretForToStaticFor/ConvertSecretForToStaticFor.h"
@@ -92,7 +93,8 @@ void tosaPipelineBuilder(OpPassManager &manager) {
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // Poly
   manager.addPass(createElementwiseToAffine());
-  manager.addPass(::mlir::heir::polynomial::createPolynomialToStandard());
+  manager.addPass(::mlir::heir::polynomial::createPolynomialToModArith());
+  manager.addPass(::mlir::heir::mod_arith::createModArithToArith());
   manager.addPass(createCanonicalizerPass());
 
   // Linalg

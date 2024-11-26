@@ -1,5 +1,6 @@
+!coeff_ty = !mod_arith.int<786433:i32>
 #cycl = #polynomial.int_polynomial<1 + x**65536>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 786433 : i32, polynomialModulus=#cycl>
+#ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl>
 #root = #polynomial.primitive_root<value=283965:i32, degree=131072:i32>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
@@ -9,7 +10,8 @@ func.func @input_generation() -> !poly_ty attributes { llvm.emit_c_interface } {
   %full = tensor.splat %c42 : tensor<65536xi32>
   %insert_rand0 = tensor.insert_slice %rand_coeffs into %full[0] [256] [1] : tensor<256xi32> into tensor<65536xi32>
   %insert_rand1 = tensor.insert_slice %rand_coeffs into %insert_rand0[65280] [256] [1] : tensor<256xi32> into tensor<65536xi32>
-  %poly = polynomial.from_tensor %insert_rand1 : tensor<65536xi32> -> !poly_ty
+  %rand1_enc = mod_arith.encapsulate %insert_rand1 : tensor<65536xi32> -> tensor<65536x!coeff_ty>
+  %poly = polynomial.from_tensor %rand1_enc : tensor<65536x!coeff_ty> -> !poly_ty
   return %poly : !poly_ty
 }
 

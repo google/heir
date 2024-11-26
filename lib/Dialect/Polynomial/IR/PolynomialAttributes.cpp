@@ -18,6 +18,7 @@
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
+namespace heir {
 namespace polynomial {
 
 void IntPolynomialAttr::print(AsmPrinter &p) const {
@@ -203,33 +204,6 @@ Attribute FloatPolynomialAttr::parse(AsmParser &parser, Type type) {
   return FloatPolynomialAttr::get(parser.getContext(), result.value());
 }
 
-LogicalResult RingAttr::verify(
-    function_ref<mlir::InFlightDiagnostic()> emitError, Type coefficientType,
-    IntegerAttr coefficientModulus, IntPolynomialAttr polynomialModulus) {
-  if (coefficientModulus) {
-    auto coeffIntType = llvm::dyn_cast<IntegerType>(coefficientType);
-    if (!coeffIntType) {
-      return emitError() << "coefficientModulus specified but coefficientType "
-                            "is not integral";
-    }
-    APInt coeffModValue = coefficientModulus.getValue();
-    if (coeffModValue == 0) {
-      return emitError() << "coefficientModulus should not be 0";
-    }
-    if (coeffModValue.slt(0)) {
-      return emitError() << "coefficientModulus should be positive";
-    }
-    auto coeffModWidth = (coeffModValue - 1).getActiveBits();
-    auto coeffWidth = coeffIntType.getWidth();
-    if (coeffModWidth > coeffWidth) {
-      return emitError() << "coefficientModulus needs bit width of "
-                         << coeffModWidth
-                         << " but coefficientType can only contain "
-                         << coeffWidth << " bits";
-    }
-  }
-  return success();
-}
-
 }  // namespace polynomial
+}  // namespace heir
 }  // namespace mlir

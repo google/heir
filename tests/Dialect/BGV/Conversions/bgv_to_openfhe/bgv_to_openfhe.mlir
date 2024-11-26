@@ -4,8 +4,8 @@
 
 #my_poly = #polynomial.int_polynomial<1 + x**1024>
 // cmod is 64153 * 2521
-#ring1 = #polynomial.ring<coefficientType = i32, coefficientModulus = 161729713 : i32, polynomialModulus=#my_poly>
-#ring2 = #polynomial.ring<coefficientType = i32, coefficientModulus = 2521 : i32, polynomialModulus=#my_poly>
+#ring1 = #polynomial.ring<coefficientType=!mod_arith.int<161729713:i32>, polynomialModulus=#my_poly>
+#ring2 = #polynomial.ring<coefficientType=!mod_arith.int<2521:i32>, polynomialModulus=#my_poly>
 
 #params1 = #lwe.rlwe_params<dimension=2, ring=#ring1>
 #params2 = #lwe.rlwe_params<dimension=4, ring=#ring1>

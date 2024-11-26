@@ -18,6 +18,7 @@ cc_library(
         ":OpenFhePkeHeaderEmitter",
         ":OpenFheUtils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",

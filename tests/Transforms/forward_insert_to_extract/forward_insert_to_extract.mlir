@@ -3,7 +3,7 @@
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 32, cleartext_bitwidth = 32>
 #my_poly = #polynomial.int_polynomial<1 + x**16>
-#ring= #polynomial.ring<coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus=#my_poly>
+#ring= #polynomial.ring<coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#my_poly>
 #rlwe_params = #lwe.rlwe_params<ring=#ring>
 
 
@@ -43,9 +43,9 @@ func.func @successful_forwarding(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: ten
   //  CHECK-NOT: tensor.extract %[[INSERTED0]]
   %extracted_2 = tensor.extract %inserted[%c0, %c0] : tensor<1x16x!ct>
   //  CHECK-NEXT: %[[VAL3:.*]] = openfhe.make_ckks_packed_plaintext
-  %3 = openfhe.make_ckks_packed_plaintext %arg0, %arg4 : (!cc, tensor<16xf64>) -> !lwe.rlwe_plaintext<encoding = #encoding, ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**16>>, underlying_type = f32>
+  %3 = openfhe.make_ckks_packed_plaintext %arg0, %arg4 : (!cc, tensor<16xf64>) -> !lwe.rlwe_plaintext<encoding = #encoding, ring = <coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus = <1 + x**16>>, underlying_type = f32>
   //  CHECK-NEXT: %[[VAL4:.*]] = openfhe.mul_plain
-  %4 = openfhe.mul_plain %arg0, %extracted_1, %3 : (!cc, !ct, !lwe.rlwe_plaintext<encoding = #encoding, ring = <coefficientType = i32, coefficientModulus = 463187969 : i32, polynomialModulus = <1 + x**16>>, underlying_type = f32>) -> !ct
+  %4 = openfhe.mul_plain %arg0, %extracted_1, %3 : (!cc, !ct, !lwe.rlwe_plaintext<encoding = #encoding, ring = <coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus = <1 + x**16>>, underlying_type = f32>) -> !ct
   //  CHECK-NEXT: %[[VAL5:.*]] = openfhe.add
   %5 = openfhe.add %arg0, %extracted_2, %4 : (!cc, !ct, !ct) -> !ct
   //  CHECK-NEXT: %[[INSERTED1:.*]] = tensor.insert

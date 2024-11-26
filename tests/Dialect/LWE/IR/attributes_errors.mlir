@@ -37,7 +37,7 @@ func.func @test_invalid_coefficient_encoding_type(%a : i16, %b: i16) {
 // -----
 
 #generator2 = #polynomial.int_polynomial<1 + x**1024>
-#ring2 = #polynomial.ring<coefficientType = i16, coefficientModulus = 123 : i16, polynomialModulus=#generator2>
+#ring2 = #polynomial.ring<coefficientType=!mod_arith.int<123:i16>, polynomialModulus=#generator2>
 #coeff_encoding2 = #lwe.polynomial_coefficient_encoding<cleartext_start=30, cleartext_bitwidth=3>
 func.func @test_invalid_coefficient_encoding_width(%coeffs1 : tensor<10xi16>, %coeffs2 : tensor<10xi16>) {
   %poly1 = polynomial.from_tensor %coeffs1 : tensor<10xi16> -> !polynomial.polynomial<ring=#ring2>
@@ -73,7 +73,7 @@ func.func @test_invalid_inverse_canonical_embedding_encoding() {
 // -----
 
 #poly = #polynomial.int_polynomial<x**1024 + 10>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 65536 : i32, polynomialModulus=#poly>
+#ring = #polynomial.ring<coefficientType=!mod_arith.int<65536:i32>, polynomialModulus=#poly>
 #crt = #lwe.full_crt_packing_encoding<scaling_factor = 10000>
 // expected-error@below {{polynomial modulus must be of the form x^n + 1}}
 #plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #crt>
@@ -81,7 +81,7 @@ func.func @test_invalid_inverse_canonical_embedding_encoding() {
 // -----
 
 #poly = #polynomial.int_polynomial<x**1024 + 1>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 12220 : i32, polynomialModulus=#poly>
+#ring = #polynomial.ring<coefficientType=!mod_arith.int<12220:i32>, polynomialModulus=#poly>
 #crt = #lwe.full_crt_packing_encoding<scaling_factor = 10000>
 // expected-error@below {{modulus must be 1 mod n for full CRT packing}}
 #plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #crt>
@@ -90,7 +90,7 @@ func.func @test_invalid_inverse_canonical_embedding_encoding() {
 
 #key = #lwe.key<slot_index = 1>
 #my_poly = #polynomial.int_polynomial<1 + x**1024>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7917 : i32, polynomialModulus=#my_poly>
+#ring = #polynomial.ring<coefficientType = !mod_arith.int<12220:i32>, polynomialModulus=#my_poly>
 !public_key = !lwe.new_lwe_public_key<key = #key, ring = #ring>
 
 #preserve_overflow = #lwe.preserve_overflow<>

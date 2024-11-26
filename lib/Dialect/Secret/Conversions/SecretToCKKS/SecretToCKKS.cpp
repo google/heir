@@ -12,6 +12,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -50,20 +51,21 @@ namespace {
 // modulus degree.
 // TODO(#536): Integrate a general library to compute appropriate prime moduli
 // given any number of bits.
-FailureOr<::mlir::polynomial::RingAttr> getRlweRing(MLIRContext *ctx,
-                                                    int coefficientModBits,
-                                                    int polyModDegree) {
-  std::vector<::mlir::polynomial::IntMonomial> monomials;
+FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
+    MLIRContext *ctx, int coefficientModBits, int polyModDegree) {
+  std::vector<::mlir::heir::polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
-  auto result = ::mlir::polynomial::IntPolynomial::fromMonomials(monomials);
+  auto result =
+      ::mlir::heir::polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
-  ::mlir::polynomial::IntPolynomial xnPlusOne = result.value();
+  ::mlir::heir::polynomial::IntPolynomial xnPlusOne = result.value();
   switch (coefficientModBits) {
     case 29: {
       auto type = IntegerType::get(ctx, 32);
-      return ::mlir::polynomial::RingAttr::get(
-          type, IntegerAttr::get(type, APInt(32, 463187969)),
+      APInt defaultMod(32, 463187969);
+      return ::mlir::heir::polynomial::RingAttr::get(
+          mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, defaultMod)),
           polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
     }
     default:
@@ -92,7 +94,7 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 class SecretToCKKSTypeConverter : public TypeConverter {
  public:
   SecretToCKKSTypeConverter(MLIRContext *ctx,
-                            ::mlir::polynomial::RingAttr rlweRing,
+                            ::mlir::heir::polynomial::RingAttr rlweRing,
                             bool packTensorInSlots) {
     addConversion([](Type type) { return type; });
 
@@ -127,7 +129,7 @@ class SecretToCKKSTypeConverter : public TypeConverter {
   }
 
  private:
-  ::mlir::polynomial::RingAttr ring_;
+  ::mlir::heir::polynomial::RingAttr ring_;
   bool packTensorInSlots_;
 };
 

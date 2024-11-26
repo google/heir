@@ -1,10 +1,10 @@
-add_heir_pass(PolynomialToStandard)
+add_heir_pass(PolynomialToModArith)
 
-add_mlir_conversion_library(HEIRPolynomialToStandard
-    PolynomialToStandard.cpp
+add_mlir_conversion_library(HEIRPolynomialToModArith
+    PolynomialToModArith.cpp
 
     DEPENDS
-    HEIRPolynomialToStandardIncGen
+    HEIRPolynomialToModArithIncGen
 
     LINK_LIBS PUBLIC
     HEIRConversionUtils

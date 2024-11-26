@@ -2,7 +2,7 @@
 
 #encoding = #lwe.polynomial_coefficient_encoding<cleartext_start=15, cleartext_bitwidth=15>
 #my_poly = #polynomial.int_polynomial<1 + x**1024>
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 7917 : i32, polynomialModulus=#my_poly>
+#ring = #polynomial.ring<coefficientType=!mod_arith.int<7917:i32>, polynomialModulus=#my_poly>
 #rlwe_params = #lwe.rlwe_params<dimension=2, ring=#ring>
 !plaintext_rlwe = !lwe.rlwe_plaintext<encoding = #encoding, ring = #ring, underlying_type=i3>
 !ciphertext_rlwe = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params, underlying_type=i3>
@@ -17,11 +17,13 @@ func.func @test_rlwe_sk_encrypt(%arg0: !plaintext_rlwe, %arg1: !rlwe_key) -> !ci
 
   // CHECK-DAG: %[[UNIFORM:.*]] = random.discrete_uniform_distribution %[[PRNG]]
   // CHECK-DAG: %[[SAMPLE_U:.*]] = random.sample %[[UNIFORM]]
-  // CHECK-DAG: %[[U:.*]] = polynomial.from_tensor %[[SAMPLE_U]]
+  // CHECK-DAG: %[[MOD_ARITH_U:.*]] = mod_arith.encapsulate %[[SAMPLE_U]]
+  // CHECK-DAG: %[[U:.*]] = polynomial.from_tensor %[[MOD_ARITH_U]]
 
   // CHECK-DAG: %[[GAUSSIAN:.*]] = random.discrete_gaussian_distribution %[[PRNG]]
   // CHECK-DAG: %[[SAMPLE_E:.*]] = random.sample %[[GAUSSIAN]]
-  // CHECK-DAG: %[[E:.*]] = polynomial.from_tensor %[[SAMPLE_E]]
+  // CHECK-DAG: %[[MOD_ARITH_E:.*]] = mod_arith.encapsulate %[[SAMPLE_E]]
+  // CHECK-DAG: %[[E:.*]] = polynomial.from_tensor %[[MOD_ARITH_E]]
 
   // CHECK-DAG: %[[SK:.*]] = tensor.extract %arg1[%[[ZERO]]]
 

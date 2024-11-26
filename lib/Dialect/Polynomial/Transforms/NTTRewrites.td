@@ -8,10 +8,10 @@ include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/IR/PatternBase.td"
 
 def GetRingAttr : NativeCodeCall<
-      "(dyn_cast<::mlir::polynomial::PolynomialType>($0.getType())).getRing()">;
+      "(dyn_cast<::mlir::heir::polynomial::PolynomialType>($0.getType())).getRing()">;
 
 def GetRingModAttr : NativeCodeCall<
-      "(dyn_cast<::mlir::polynomial::PolynomialType>($0.getType())).getRing().getCoefficientModulus()">;
+      "(dyn_cast<::mlir::heir::polynomial::PolynomialType>($0.getType())).getRing().getCoefficientModulus()">;
 
 def InputTensorType : NativeCodeCall<
       "RankedTensorType::get({$0.getPolynomialModulus().getPolynomial().getDegree()},"
@@ -23,7 +23,7 @@ def CreateCModConstant : NativeCodeCall<
       "  $1.getCoefficientModulus().getValue().sextOrTrunc($2.getElementTypeBitWidth())))">;
 
 def HasDegreePowerOfTwo : Constraint<
-    CPred<"APInt(64, (dyn_cast<::mlir::polynomial::PolynomialType>($0.getType())).getRing()"
+    CPred<"APInt(64, (dyn_cast<::mlir::heir::polynomial::PolynomialType>($0.getType())).getRing()"
           ".getPolynomialModulus().getPolynomial().getDegree()).isPowerOf2()">,
     "rings are NTT compatible">;
 

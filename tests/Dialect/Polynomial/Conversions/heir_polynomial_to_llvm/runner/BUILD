@@ -34,6 +34,7 @@ glob_lit_tests(
     data = [
         "@heir//tests:test_utilities",
     ],
+    default_tags = ["notap"],
     driver = "@heir//tests:run_lit.sh",
     exclude = ["ntt_benchmark.mlir"],
     test_file_exts = ["mlir"],

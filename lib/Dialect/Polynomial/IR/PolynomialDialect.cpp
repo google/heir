@@ -15,7 +15,7 @@
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 
 using namespace mlir;
-using namespace mlir::polynomial;
+using namespace mlir::heir::polynomial;
 
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.cpp.inc"
 

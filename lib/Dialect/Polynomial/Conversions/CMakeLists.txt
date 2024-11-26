@@ -1,1 +1,1 @@
-add_subdirectory(PolynomialToStandard)
+add_subdirectory(PolynomialToModArith)

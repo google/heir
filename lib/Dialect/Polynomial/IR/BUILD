@@ -15,6 +15,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
@@ -166,6 +167,7 @@ gentbl_cc_library(
     td_file = "PolynomialCanonicalization.td",
     deps = [
         ":td_files",
+        "@heir//lib/Dialect/ModArith/IR:td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",
     ],
 )
