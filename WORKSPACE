@@ -33,6 +33,46 @@ load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 
 bazel_skylib_workspace()
 
+# Depend on a hermetic python version
+new_git_repository(
+    name = "rules_python",
+    commit = "9ffb1ecd9b4e46d2a0bca838ac80d7128a352f9f",  # v0.23.1
+    remote = "https://github.com/bazelbuild/rules_python.git",
+)
+
+load("@rules_python//python:repositories.bzl", "python_register_toolchains")
+
+python_register_toolchains(
+    name = "python3_10",
+    # Available versions are listed at
+    # https://github.com/bazelbuild/rules_python/blob/main/python/versions.bzl
+    python_version = "3.10",
+)
+
+load("@python3_10//:defs.bzl", "interpreter")
+load("@rules_python//python:pip.bzl", "pip_parse")
+
+## ortools needs to be loaded earlier so later rules can get access to its
+## patch files.
+git_repository(
+    name = "com_google_ortools",
+    commit = "ed94162b910fa58896db99191378d3b71a5313af",
+    remote = "https://github.com/google/or-tools.git",
+    shallow_since = "1726144997 +0200",
+)
+
+## Protobuf
+git_repository(
+    name = "com_google_protobuf",
+    commit = "2434ef2adf0c74149b9d547ac5fb545a1ff8b6b5",
+    remote = "https://github.com/protocolbuffers/protobuf.git",
+)
+
+# Load common dependencies.
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()
+
 # LLVM is pinned to the same commit used in the Google monorepo, and then
 # imported into this workspace as a git repository. Then the build files
 # defined in the LLVM monorepo are overlaid using llvm_configure in the setup
@@ -101,31 +141,6 @@ http_archive(
     strip_prefix = "benchmark-1.8.4",
     url = "https://github.com/google/benchmark/archive/refs/tags/v1.8.4.tar.gz",  # 2024-05-23
 )
-
-# googletest comes with abseil as @com_google_absl, see
-# https://github.com/google/googletest/blob/23f642ab2317c632d93326c65efd44671c1d9985/googletest_deps.bzl
-load("@googletest//:googletest_deps.bzl", "googletest_deps")
-
-googletest_deps()
-
-# Depend on a hermetic python version
-new_git_repository(
-    name = "rules_python",
-    commit = "9ffb1ecd9b4e46d2a0bca838ac80d7128a352f9f",  # v0.23.1
-    remote = "https://github.com/bazelbuild/rules_python.git",
-)
-
-load("@rules_python//python:repositories.bzl", "python_register_toolchains")
-
-python_register_toolchains(
-    name = "python3_10",
-    # Available versions are listed at
-    # https://github.com/bazelbuild/rules_python/blob/main/python/versions.bzl
-    python_version = "3.10",
-)
-
-load("@python3_10//:defs.bzl", "interpreter")
-load("@rules_python//python:pip.bzl", "pip_parse")
 
 pip_parse(
     name = "heir_pip_deps",
@@ -210,12 +225,6 @@ git_repository(
     remote = "https://github.com/bazelbuild/platforms.git",
 )
 
-git_repository(
-    name = "rules_proto",
-    commit = "3f1ab99b718e3e7dd86ebdc49c580aa6a126b1cd",
-    remote = "https://github.com/bazelbuild/rules_proto.git",
-)
-
 ## ZLIB
 # Would be nice to use llvm-zlib instead here.
 new_git_repository(
@@ -229,15 +238,16 @@ new_git_repository(
 git_repository(
     name = "com_google_re2",
     remote = "https://github.com/google/re2.git",
-    tag = "2023-07-01",
+    repo_mapping = {"@abseil-cpp": "@com_google_absl"},
+    tag = "2024-04-01",
 )
 
 ## Abseil-cpp
 git_repository(
     name = "com_google_absl",
-    commit = "c2435f8342c2d0ed8101cb43adfd605fdc52dca2",
+    commit = "4447c7562e3bc702ade25105912dce503f0c4010",
     patch_args = ["-p1"],
-    patches = ["@com_google_ortools//patches:abseil-cpp-20230125.3.patch"],
+    patches = ["@com_google_ortools//patches:abseil-cpp-20240722.0.patch"],
     remote = "https://github.com/abseil/abseil-cpp.git",
 )
 
@@ -248,32 +258,17 @@ new_git_repository(
     remote = "https://github.com/abseil/abseil-py",
 )
 
-## Protobuf
-git_repository(
-    name = "com_google_protobuf",
-    # there's a patch for the CMake build in protobuf, ignoring
-    # patches = ["@com_google_ortools//patches:protobuf-v23.3.patch"],
-    commit = "4dd15db6eb3955745f379d28fb4a2fcfb6753de3",
-    patch_args = ["-p1"],
-    remote = "https://github.com/protocolbuffers/protobuf.git",
-)
-
-# Load common dependencies.
-load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
-
-protobuf_deps()
-
 ## Solvers
 http_archive(
     name = "glpk",
-    build_file = "@com_google_ortools//bazel:glpk.BUILD",
+    build_file = "@com_google_ortools//bazel:glpk.BUILD.bazel",
     sha256 = "4a1013eebb50f728fc601bdd833b0b2870333c3b3e5a816eeba921d95bec6f15",
     url = "http://ftp.gnu.org/gnu/glpk/glpk-5.0.tar.gz",
 )
 
 http_archive(
     name = "bliss",
-    build_file = "@com_google_ortools//bazel:bliss.BUILD",
+    build_file = "@com_google_ortools//bazel:bliss.BUILD.bazel",
     patches = ["@com_google_ortools//bazel:bliss-0.73.patch"],
     sha256 = "f57bf32804140cad58b1240b804e0dbd68f7e6bf67eba8e0c0fa3a62fd7f0f84",
     url = "https://github.com/google/or-tools/releases/download/v9.0/bliss-0.73.zip",
@@ -282,10 +277,10 @@ http_archive(
 
 new_git_repository(
     name = "scip",
-    build_file = "@com_google_ortools//bazel:scip.BUILD",
-    commit = "62fab8a2e3708f3452fad473a6f48715c367316b",
+    build_file = "@com_google_ortools//bazel:scip.BUILD.bazel",
+    commit = "7205bedd942f87faeb9a0552839710941d1ffc2c",
     patch_args = ["-p1"],
-    patches = ["@com_google_ortools//bazel:scip.patch"],
+    patches = ["@com_google_ortools//bazel:scip-v900.patch"],
     remote = "https://github.com/scipopt/scip.git",
 )
 
@@ -311,22 +306,6 @@ git_repository(
     name = "highs",
     branch = "bazel",
     remote = "https://github.com/ERGO-Code/HiGHS.git",
-)
-
-# ## Swig support
-# # pcre source code repository
-# new_git_repository(
-#     name = "pcre2",
-#     build_file = "@com_google_ortools//bazel:pcre2.BUILD",
-#     remote = "https://github.com/PCRE2Project/pcre2.git",
-#     tag = "pcre2-10.42",
-# )
-
-git_repository(
-    name = "com_google_ortools",
-    commit = "1d696f9108a0ebfd99feb73b9211e2f5a6b0812b",
-    remote = "https://github.com/google/or-tools.git",
-    shallow_since = "1693402646 -0400",
 )
 
 # OpenFHE backend and dependencies
