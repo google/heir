@@ -44,7 +44,7 @@ func.func @test() {
   %2 = polynomial.mul %0, %1 : !poly_ty
 
   %tensor = polynomial.to_tensor %2 : !poly_ty -> tensor<12xi32>
-  %ref = bufferization.to_memref %tensor : memref<12xi32>
+  %ref = bufferization.to_memref %tensor : tensor<12xi32> to memref<12xi32>
   %U = memref.cast %ref : memref<12xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return

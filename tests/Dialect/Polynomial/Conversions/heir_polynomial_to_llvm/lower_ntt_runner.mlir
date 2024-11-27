@@ -21,7 +21,7 @@ func.func @test_poly_ntt() {
   %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<4xi32, #ring>
 
   %1 = tensor.cast %0 : tensor<4xi32, #ring> to tensor<4xi32>
-  %2 = bufferization.to_memref %1 : memref<4xi32>
+  %2 = bufferization.to_memref %1 : tensor<4xi32> to memref<4xi32>
   %U = memref.cast %2 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return

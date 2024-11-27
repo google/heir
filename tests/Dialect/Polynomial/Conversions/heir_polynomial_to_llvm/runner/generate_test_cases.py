@@ -56,7 +56,7 @@ func.func @test_{{test_number}}() {{{{
   %2 = polynomial.mul %0, %1 : !poly_ty_{{test_number}}
 
 {gen_tensor_op}
-  %ref = bufferization.to_memref %tensor : memref<{{degree}}xi32>
+  %ref = bufferization.to_memref %tensor : tensor<{{degree}}xi32> to memref<{{degree}}xi32>
   %U = memref.cast %ref : memref<{{degree}}xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return

@@ -21,7 +21,7 @@ func.func @test_lower_reduce() {
   // CHECK_TEST_REDUCE: [3723, 42, 7679, 0, 7680, 7680]
 
   %2 = arith.extui %1 : tensor<6xi26> to tensor<6xi32>
-  %3 = bufferization.to_memref %2 : memref<6xi32>
+  %3 = bufferization.to_memref %2 : tensor<6xi32> to memref<6xi32>
   %U = memref.cast %3 : memref<6xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
 
@@ -35,7 +35,7 @@ func.func @test_lower_reduce() {
   // CHECK_TEST_REDUCE: [29498763, 42, 33554429, 33554430, 33554430, 7680]
 
   %5 = arith.extui %4 : tensor<6xi26> to tensor<6xi32>
-  %6 = bufferization.to_memref %5 : memref<6xi32>
+  %6 = bufferization.to_memref %5 : tensor<6xi32> to memref<6xi32>
   %V = memref.cast %6 : memref<6xi32> to memref<*xi32>
   func.call @printMemrefI32(%V) : (memref<*xi32>) -> ()
   return
