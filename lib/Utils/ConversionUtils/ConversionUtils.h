@@ -4,6 +4,9 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
@@ -71,6 +74,64 @@ struct ConvertAny<void> : public ConversionPattern {
   }
 };
 
+struct ContextAwareTypeConverter : public TypeConverter {
+ public:
+  // Convert types of the values in the input range, taking into account the
+  // context of the values (e.g., defining ops or uses).
+  // NOTE that this also converts the types of the values themselves,
+  // beyond just calculate the new type
+  virtual void convertValueRangeTypes(
+      ValueRange values, SmallVectorImpl<Type> &newTypes) const = 0;
+
+  // Convert types of the results of an op, taking into account the context of
+  // the op when selecting the new type.
+  // NOTE that this also converts the types of the results themselves,
+  // beyond just calculate the new type
+  virtual void convertOpResultTypes(
+      Operation *op, SmallVectorImpl<Type> &newResultTypes) const = 0;
+
+  // Convert types of the arguments and results of a function, taking into
+  // account the context of the function when selecting the new types.
+  // Note that this method is not used for converting the function type itself.
+  // NOTE that this also converts the types of the arguments/results themselves,
+  // beyond just calculate the new type
+  virtual void convertFuncArgumentAndResultTypes(
+      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
+      SmallVectorImpl<Type> &newResultTypes) const = 0;
+};
+
+struct ConvertFuncWithContextAwareTypeConverter
+    : public OpRewritePattern<func::FuncOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  ConvertFuncWithContextAwareTypeConverter(
+      const ContextAwareTypeConverter &contextAwareTypeConverter,
+      MLIRContext *context)
+      : OpRewritePattern(context),
+        contextAwareTypeConverter(&contextAwareTypeConverter) {}
+
+  LogicalResult matchAndRewrite(func::FuncOp op,
+                                PatternRewriter &rewriter) const override {
+    auto funcOp = cast<func::FuncOp>(op);
+
+    SmallVector<Type> newFuncOperandsType;
+    SmallVector<Type> newFuncResultsType;
+    contextAwareTypeConverter->convertFuncArgumentAndResultTypes(
+        op, newFuncOperandsType, newFuncResultsType);
+
+    // update the signature
+    auto newFuncType = FunctionType::get(getContext(), newFuncOperandsType,
+                                         newFuncResultsType);
+    rewriter.modifyOpInPlace(funcOp, [&] { funcOp.setType(newFuncType); });
+
+    return success();
+  }
+
+ private:
+  const ContextAwareTypeConverter *contextAwareTypeConverter;
+};
+
 template <typename T, typename Y = T>
 class SecretGenericOpConversion
     : public OpConversionPattern<secret::GenericOp> {
@@ -92,7 +153,12 @@ class SecretGenericOpConversion
       return failure();
     }
 
-    // Assemble the arguments for the BGV operation.
+    // NOTE: use C++ RTTI instead of LLVM RTTI
+    // because TypeConverter does not support LLVM RTTI
+    const auto *contextAwareTypeConverter =
+        dynamic_cast<const ContextAwareTypeConverter *>(getTypeConverter());
+
+    // Assemble the arguments for the Scheme operation.
     SmallVector<Value> inputs;
     for (OpOperand &operand : innerOp.getOpOperands()) {
       if (auto *secretArg = op.getOpOperandForBlockArgument(operand.get())) {
@@ -103,11 +169,22 @@ class SecretGenericOpConversion
       }
     }
 
-    // Directly convert the op if all operands are ciphertext.
+    if (contextAwareTypeConverter) {
+      // manually do the OpAdaptor's work
+      SmallVector<Type> inputTypes;
+      contextAwareTypeConverter->convertValueRangeTypes(inputs, inputTypes);
+    }
+    // else OpAdaptor will do it for us
+
+    // convert the result types
     SmallVector<Type> resultTypes;
-    auto result =
-        getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes);
-    if (failed(result)) return failure();
+    if (contextAwareTypeConverter) {
+      contextAwareTypeConverter->convertOpResultTypes(op, resultTypes);
+    } else {
+      auto result =
+          getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes);
+      if (failed(result)) return failure();
+    }
 
     return matchAndRewriteInner(op, resultTypes, inputs, innerOp.getAttrs(),
                                 rewriter);
@@ -189,6 +266,33 @@ class SecretGenericOpCipherPlainConversion
   }
 };
 
+template <typename T>
+class SecretGenericOpRelinearizeConversion
+    : public SecretGenericOpConversion<mgmt::RelinearizeOp, T> {
+ public:
+  using SecretGenericOpConversion<mgmt::RelinearizeOp,
+                                  T>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    auto inputDimension = cast<lwe::RLWECiphertextType>(inputs[0].getType())
+                              .getRlweParams()
+                              .getDimension();
+    SmallVector<int32_t> fromBasis;
+    for (int i = 0; i < inputDimension; ++i) {
+      fromBasis.push_back(i);
+    }
+    SmallVector<int32_t> toBasis = {0, 1};
+
+    rewriter.replaceOpWithNewOp<T>(op, inputs[0],
+                                   rewriter.getDenseI32ArrayAttr(fromBasis),
+                                   rewriter.getDenseI32ArrayAttr(toBasis));
+    return success();
+  }
+};
+
 template <typename M, typename T, typename Y>
 class SecretGenericOpMulConversion : public SecretGenericOpConversion<M, T> {
  public:
@@ -205,6 +309,8 @@ class SecretGenericOpMulConversion : public SecretGenericOpConversion<M, T> {
     if (!plaintextValues.empty()) {
       return failure();
     }
+
+    // only left for CKKS, should be removed later
     rewriter.replaceOpWithNewOp<Y>(op, rewriter.create<T>(op.getLoc(), inputs),
                                    rewriter.getDenseI32ArrayAttr({0, 1, 2}),
                                    rewriter.getDenseI32ArrayAttr({0, 1}));
@@ -230,7 +336,28 @@ class SecretGenericOpRotateConversion
       op.emitError("expected constant offset for rotate");
     }
     auto offsetAttr = llvm::dyn_cast<IntegerAttr>(constantOffset.getValue());
+
     rewriter.replaceOpWithNewOp<T>(op, inputs[0], offsetAttr);
+    return success();
+  }
+};
+
+template <typename Y>
+class SecretGenericOpModulusSwitchConversion
+    : public SecretGenericOpConversion<mgmt::ModReduceOp, Y> {
+ public:
+  using SecretGenericOpConversion<mgmt::ModReduceOp,
+                                  Y>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    auto outputType = outputTypes[0];
+    auto outputRing =
+        cast<lwe::RLWECiphertextType>(outputType).getRlweParams().getRing();
+
+    rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0], outputRing);
     return success();
   }
 };

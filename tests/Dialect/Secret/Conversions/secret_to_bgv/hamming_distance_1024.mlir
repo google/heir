@@ -1,11 +1,13 @@
-// RUN: heir-opt --secret-distribute-generic --secret-to-bgv %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-bgv=include-first-mul=false --secret-distribute-generic --secret-to-bgv %s | FileCheck %s
 
 // CHECK-LABEL: @hamming
 // CHECK: bgv.sub
 // CHECK-NEXT: bgv.mul
 // CHECK-NEXT: bgv.relinearize
 // CHECK-COUNT-10: bgv.rotate
-// CHECK: bgv.extract
+// CHECK: bgv.modulus_switch
+// CHECK-NEXT: bgv.extract
+// CHECK-NEXT: bgv.modulus_switch
 // CHECK-NEXT: return
 
 func.func @hamming(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) -> !secret.secret<i16> {
