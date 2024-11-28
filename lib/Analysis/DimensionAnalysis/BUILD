@@ -1,0 +1,19 @@
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "DimensionAnalysis",
+    srcs = ["DimensionAnalysis.cpp"],
+    hdrs = ["DimensionAnalysis.h"],
+    deps = [
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
