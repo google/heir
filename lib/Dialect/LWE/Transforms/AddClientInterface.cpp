@@ -25,7 +25,7 @@ namespace lwe {
 #define GEN_PASS_DEF_ADDCLIENTINTERFACE
 #include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
-FailureOr<lwe::RLWEParamsAttr> getRlweParmsFromFuncOp(func::FuncOp op) {
+FailureOr<lwe::RLWEParamsAttr> getEncRlweParmsFromFuncOp(func::FuncOp op) {
   lwe::RLWEParamsAttr rlweParams = nullptr;
   auto argTypes = op.getArgumentTypes();
   for (auto argTy : argTypes) {
@@ -42,6 +42,27 @@ FailureOr<lwe::RLWEParamsAttr> getRlweParmsFromFuncOp(func::FuncOp op) {
   }
   if (!rlweParams) {
     return op.emitError() << "Func op has no RLWE ciphertext arguments.";
+  }
+  return rlweParams;
+}
+
+FailureOr<lwe::RLWEParamsAttr> getDecRlweParmsFromFuncOp(func::FuncOp op) {
+  lwe::RLWEParamsAttr rlweParams = nullptr;
+  auto resultTypes = op.getFunctionType().getResults();
+  for (auto resultTy : resultTypes) {
+    // Strip containers (tensor/etc)
+    resultTy = getElementTypeOrSelf(resultTy);
+    // Check that parameters are unique
+    if (auto resultCtTy = dyn_cast<lwe::RLWECiphertextType>(resultTy)) {
+      if (rlweParams && rlweParams != resultCtTy.getRlweParams()) {
+        return op.emitError() << "Func op has multiple distinct RLWE params"
+                              << " but only 1 is currently supported per func.";
+      }
+      rlweParams = resultCtTy.getRlweParams();
+    }
+  }
+  if (!rlweParams) {
+    return op.emitError() << "Func op has no RLWE ciphertext results.";
   }
   return rlweParams;
 }
@@ -154,11 +175,13 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
 LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
                           bool oneValuePerHelperFn) {
   auto module = op->getParentOfType<ModuleOp>();
-  auto rlweParamsResult = getRlweParmsFromFuncOp(op);
-  if (failed(rlweParamsResult)) {
+  auto rlweEncParamsResult = getEncRlweParmsFromFuncOp(op);
+  auto rlweDecParamsResult = getDecRlweParmsFromFuncOp(op);
+  if (failed(rlweEncParamsResult) || failed(rlweDecParamsResult)) {
     return failure();
   }
-  lwe::RLWEParamsAttr rlweParams = rlweParamsResult.value();
+  lwe::RLWEParamsAttr rlweEncParams = rlweEncParamsResult.value();
+  lwe::RLWEParamsAttr rlweDecParams = rlweDecParamsResult.value();
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
 
@@ -189,7 +212,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
 
     if (failed(generateEncryptionFunc(op, encFuncName, encFuncArgTypes,
                                       encFuncResultTypes, usePublicKey,
-                                      rlweParams, builder))) {
+                                      rlweEncParams, builder))) {
       return failure();
     }
 
@@ -212,7 +235,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
     }
 
     if (failed(generateDecryptionFunc(op, decFuncName, decFuncArgTypes,
-                                      decFuncResultTypes, rlweParams,
+                                      decFuncResultTypes, rlweDecParams,
                                       builder))) {
       return failure();
     }
@@ -230,7 +253,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
       encNameOs << op.getSymName() << "__encrypt__arg" << val.getArgNumber();
       if (failed(generateEncryptionFunc(
               op, encFuncName, {argCtTy.getUnderlyingType()}, {argCtTy},
-              usePublicKey, rlweParams, builder))) {
+              usePublicKey, rlweEncParams, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -247,7 +270,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
       encNameOs << op.getSymName() << "__decrypt__result" << i;
       if (failed(generateDecryptionFunc(op, decFuncName, {returnCtTy},
                                         {returnCtTy.getUnderlyingType()},
-                                        rlweParams, builder))) {
+                                        rlweDecParams, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out

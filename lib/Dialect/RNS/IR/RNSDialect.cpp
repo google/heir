@@ -26,17 +26,9 @@ struct RNSOpAsmDialectInterface : public OpAsmDialectInterface {
     auto res = llvm::TypeSwitch<Type, AliasResult>(type)
                    .Case<RNSType>([&](auto &rnsType) {
                      os << "rns";
-                     for (auto basisType : rnsType.getBasisTypes()) {
-                       os << "_";
-                       auto *interface = dyn_cast<OpAsmDialectInterface>(
-                           &basisType.getDialect());
-                       auto res = interface->getAlias(basisType, os);
-                       if (res == AliasResult::NoAlias) {
-                         // always safe as MLIR will sanitize it into an
-                         // identifier
-                         os << basisType;
-                       }
-                     }
+                     auto size = rnsType.getBasisTypes().size();
+                     os << "_L";
+                     os << size - 1;  // start from 0
                      return AliasResult::FinalAlias;
                    })
                    .Default([&](Type) { return AliasResult::NoAlias; });

@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-distribute-generic --split-input-file --secret-to-cggi --cse %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --secret-distribute-generic --split-input-file --secret-to-cggi --cse %s | FileCheck %s
 
 // CHECK-NOT: secret
 // CHECK: @boolean_gates([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*>]]) -> [[LWET]]

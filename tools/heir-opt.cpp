@@ -21,6 +21,7 @@
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
@@ -58,6 +59,7 @@
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
@@ -128,6 +130,7 @@ int main(int argc, char **argv) {
   registry.insert<jaxite::JaxiteDialect>();
   registry.insert<lattigo::LattigoDialect>();
   registry.insert<lwe::LWEDialect>();
+  registry.insert<mgmt::MgmtDialect>();
   registry.insert<random::RandomDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
@@ -216,6 +219,7 @@ int main(int argc, char **argv) {
   openfhe::registerOpenfhePasses();
   registerElementwiseToAffinePasses();
   registerSecretizePasses();
+  registerSecretInsertMgmtPasses();
   registerFullLoopUnrollPasses();
   registerConvertIfToSelectPasses();
   registerConvertSecretForToStaticForPasses();

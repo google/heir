@@ -5,10 +5,12 @@
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -34,7 +36,6 @@ using namespace heir;
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
-  registry.insert<mod_arith::ModArithDialect>();
   registry.insert<bgv::BGVDialect>();
   registry.insert<ckks::CKKSDialect>();
   registry.insert<cggi::CGGIDialect>();
@@ -42,6 +43,8 @@ int main(int argc, char **argv) {
   registry.insert<jaxite::JaxiteDialect>();
   registry.insert<lattigo::LattigoDialect>();
   registry.insert<lwe::LWEDialect>();
+  registry.insert<mod_arith::ModArithDialect>();
+  registry.insert<mgmt::MgmtDialect>();
   registry.insert<random::RandomDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
@@ -49,6 +52,8 @@ int main(int argc, char **argv) {
   registry.insert<tensor_ext::TensorExtDialect>();
   registry.insert<tfhe_rust::TfheRustDialect>();
   registry.insert<tfhe_rust_bool::TfheRustBoolDialect>();
+
+  rns::registerExternalRNSTypeInterfaces(registry);
 
   // Add expected MLIR dialects to the registry.
   registry.insert<LLVM::LLVMDialect>();

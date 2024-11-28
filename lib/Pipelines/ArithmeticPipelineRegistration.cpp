@@ -20,6 +20,7 @@
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
@@ -94,6 +95,20 @@ void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         const RLWEScheme scheme) {
   mlirToSecretArithmeticPipelineBuilder(pm);
+
+  // place mgmt.op and MgmtAttr for BGV
+  // which is required for secret-to-<scheme> lowering
+  switch (scheme) {
+    case RLWEScheme::bgvScheme: {
+      auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
+      secretInsertMgmtBGVOptions.includeFirstMul =
+          options.modulusSwitchBeforeFirstMul;
+      pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
+      break;
+    }
+    default:
+      break;
+  }
 
   // Prepare to lower to RLWE Scheme
   pm.addPass(secret::createSecretDistributeGeneric());

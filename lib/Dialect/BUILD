@@ -34,6 +34,7 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
