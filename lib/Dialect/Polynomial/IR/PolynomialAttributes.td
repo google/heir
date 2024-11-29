@@ -157,7 +157,7 @@ def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring"> {
     "Type": $coefficientType,
     OptionalParameter<"::mlir::heir::polynomial::IntPolynomialAttr">: $polynomialModulus
   );
-  let assemblyFormat = "`<` struct(params) `>`";
+  let assemblyFormat = "`<` $coefficientType (`,` custom<RingIntPolyAttr>($polynomialModulus)^)?`>`";
   let builders = [
     AttrBuilderWithInferredContext<
         (ins "::mlir::Type":$coefficientTy,

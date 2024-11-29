@@ -204,6 +204,20 @@ Attribute FloatPolynomialAttr::parse(AsmParser &parser, Type type) {
   return FloatPolynomialAttr::get(parser.getContext(), result.value());
 }
 
+// ring
+LogicalResult parseRingIntPolyAttr(AsmParser &parser, IntPolynomialAttr &attr) {
+  auto parsed = IntPolynomialAttr::parse(parser, nullptr);
+  if (parsed) {
+    attr = mlir::dyn_cast<IntPolynomialAttr>(parsed);
+    return success();
+  }
+  return failure();
+}
+
+void printRingIntPolyAttr(AsmPrinter &p, IntPolynomialAttr attr) {
+  attr.print(p);
+}
+
 }  // namespace polynomial
 }  // namespace heir
 }  // namespace mlir

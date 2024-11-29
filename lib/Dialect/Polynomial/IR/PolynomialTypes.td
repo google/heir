@@ -15,7 +15,7 @@ def Polynomial_PolynomialType : Polynomial_Type<"Polynomial", "polynomial"> {
     A type for polynomials in a polynomial quotient ring.
   }];
   let parameters = (ins Polynomial_RingAttr:$ring);
-  let assemblyFormat = "`<` struct(params) `>`";
+  let assemblyFormat = "`<` $ring `>`";
 }
 
 def PolynomialLike: TypeOrContainer<Polynomial_PolynomialType, "polynomial-like">;
