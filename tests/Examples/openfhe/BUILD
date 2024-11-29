@@ -4,6 +4,8 @@ load("@heir//tests/Examples/openfhe:test.bzl", "openfhe_end_to_end_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
+# BGV
+
 openfhe_end_to_end_test(
     name = "binops_test",
     generated_lib_header = "binops_lib.h",
@@ -46,6 +48,18 @@ openfhe_end_to_end_test(
     mlir_src = "roberts_cross_64x64.mlir",
     tags = ["notap"],
     test_src = "roberts_cross_test.cpp",
+)
+
+# CKKS
+
+openfhe_end_to_end_test(
+    name = "dot_product_8f_test",
+    generated_lib_header = "dot_product_8f_lib.h",
+    heir_opt_flags = ["--mlir-to-openfhe-ckks=entry-function=dot_product ciphertext-degree=8"],
+    heir_translate_flags = ["--openfhe-scheme=ckks"],
+    mlir_src = "dot_product_8f.mlir",
+    tags = ["notap"],
+    test_src = "dot_product_8f_test.cpp",
 )
 
 openfhe_end_to_end_test(

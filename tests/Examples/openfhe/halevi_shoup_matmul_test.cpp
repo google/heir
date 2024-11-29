@@ -49,7 +49,6 @@ TEST(NaiveMatmulTest, RunTest) {
   // 0.099224686622619628) and adds -0.45141533017158508
   double expected = -0.35219;
 
-  // TODO(#645): support cyclic repetition in add-client-interface
   // TODO(#891): support other schemes besides BGV in add-client-interface
   auto arg0Encrypted =
       matmul__encrypt__arg0(cryptoContext, arg0Vals, publicKey);

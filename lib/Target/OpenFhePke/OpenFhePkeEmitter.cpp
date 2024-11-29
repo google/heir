@@ -510,12 +510,27 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakePackedPlaintextOp op) {
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
+  std::string inputVarFilledName = inputVarName + "_filled";
+  std::string inputVarFilledLengthName = inputVarName + "_filled_n";
 
-  emitAutoAssignPrefix(op.getResult());
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
-  os << variableNames->getNameForValue(resultCC.value())
-     << "->MakePackedPlaintext(" << inputVarName << ");\n";
+  std::string cc = variableNames->getNameForValue(resultCC.value());
+
+  // cyclic repetition to mitigate openfhe zero-padding (#645)
+  os << "auto " << inputVarFilledLengthName << " = " << cc
+     << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
+        "2;\n";
+  os << "auto " << inputVarFilledName << " = " << inputVarName << ";\n";
+  os << inputVarFilledName << ".clear();\n";
+  os << inputVarFilledName << ".reserve(" << inputVarFilledLengthName << ");\n";
+  os << "for (auto i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
+  os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
+     << inputVarName << ".size()]);\n";
+  os << "}\n";
+
+  emitAutoAssignPrefix(op.getResult());
+  os << cc << "->MakePackedPlaintext(" << inputVarFilledName << ");\n";
   return success();
 }
 
@@ -527,12 +542,28 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   }
 
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
+  std::string inputVarFilledName = inputVarName + "_filled";
+  std::string inputVarFilledLengthName = inputVarName + "_filled_n";
 
-  emitAutoAssignPrefix(op.getResult());
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
+  std::string cc = variableNames->getNameForValue(resultCC.value());
+
+  // cyclic repetition to mitigate openfhe zero-padding (#645)
+  os << "auto " << inputVarFilledLengthName << " = " << cc
+     << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
+        "2;\n";
+  os << "auto " << inputVarFilledName << " = " << inputVarName << ";\n";
+  os << inputVarFilledName << ".clear();\n";
+  os << inputVarFilledName << ".reserve(" << inputVarFilledLengthName << ");\n";
+  os << "for (auto i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
+  os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
+     << inputVarName << ".size()]);\n";
+  os << "}\n";
+
+  emitAutoAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(resultCC.value())
-     << "->MakeCKKSPackedPlaintext(" << inputVarName << ");\n";
+     << "->MakeCKKSPackedPlaintext(" << inputVarFilledName << ");\n";
   return success();
 }
 

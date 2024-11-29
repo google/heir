@@ -26,24 +26,9 @@ TEST(BinopsTest, TestInput1) {
   cryptoContext =
       simple_sum__configure_crypto_context(cryptoContext, secretKey);
 
-  int32_t n = cryptoContext->GetCryptoParameters()
-                  ->GetElementParams()
-                  ->GetCyclotomicOrder() /
-              2;
-  std::vector<int16_t> input;
-  // TODO(#645): support cyclic repetition in add-client-interface
-  // I want to do this, but MakePackedPlaintext does not repeat the values.
-  // It zero pads, and rotating the zero-padded values will not achieve the
-  // rotate-and-reduce trick required for simple_sum
-  //
-  // = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-  //    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-  //    23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
-  input.reserve(n);
-
-  for (int i = 0; i < n; ++i) {
-    input.push_back((i % 32) + 1);
-  }
+  std::vector<int16_t> input = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+                                23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
   int64_t expected = 16 * 33;
 
   auto inputEncrypted =
