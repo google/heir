@@ -66,7 +66,8 @@ void registerToOpenFhePkeHeaderTranslation() {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect, openfhe::OpenfheDialect,
                         lwe::LWEDialect,
-                        ::mlir::heir::polynomial::PolynomialDialect>();
+                        ::mlir::heir::polynomial::PolynomialDialect,
+                        mod_arith::ModArithDialect>();
       });
 }
 
