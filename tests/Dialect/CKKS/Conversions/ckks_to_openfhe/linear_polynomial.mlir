@@ -1,4 +1,4 @@
-// RUN: heir-opt --ckks-to-openfhe %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --ckks-to-openfhe %s | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
 #ring = #polynomial.ring<coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#polynomial.int_polynomial<1 + x**64>>

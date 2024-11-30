@@ -1,4 +1,4 @@
-// RUN: heir-opt --secretize --wrap-generic --full-loop-unroll --secret-distribute-generic --canonicalize --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --secretize --wrap-generic --full-loop-unroll --secret-distribute-generic --canonicalize --secret-to-ckks %s | FileCheck %s
 
 module {
   // CHECK-LABEL: func @main

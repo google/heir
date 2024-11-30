@@ -1,4 +1,4 @@
-// RUN: heir-opt %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope %s | FileCheck %s
 
 !Zp = !mod_arith.int<17 : i10>
 !Zp_vec = tensor<4x!Zp>

@@ -1,4 +1,4 @@
-// RUN: heir-opt --canonicalize --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --canonicalize --secret-to-ckks %s | FileCheck %s
 
 !eui1 = !secret.secret<tensor<1024xi1>>
 !efi1 = !secret.secret<tensor<1024xf32>>

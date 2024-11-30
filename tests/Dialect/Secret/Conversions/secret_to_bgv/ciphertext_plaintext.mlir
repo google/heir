@@ -1,4 +1,4 @@
-// RUN: heir-opt --canonicalize --secret-to-bgv %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --canonicalize --secret-to-bgv %s | FileCheck %s
 
 !eui1 = !secret.secret<tensor<1024xi1>>
 

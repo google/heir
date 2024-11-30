@@ -1,4 +1,4 @@
-// RUN: heir-opt --affine-loop-normalize='promote-single-iter=1' --mlir-to-openfhe-ckks %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --affine-loop-normalize='promote-single-iter=1' --mlir-to-openfhe-ckks %s | FileCheck %s
 
 // This pipeline fully loop unrolls the matmul.
 

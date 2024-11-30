@@ -1,60 +1,60 @@
 // THE FOLLOWING SHOULD CONVERT BOTH ADD AND MUL
 
-// RUN: heir-opt --convert-elementwise-to-affine %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_MUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-ops=polynomial.add,polynomial.mul_scalar' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-ops=polynomial.add,polynomial.mul_scalar' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_MUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-ops=polynomial.add,polynomial.mul_scalar  convert-dialects=arith' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-ops=polynomial.add,polynomial.mul_scalar  convert-dialects=arith' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_MUL %s
 
-// RUN: heir-opt --convert-elementwise-to-affine=convert-dialects=polynomial %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine=convert-dialects=polynomial %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_MUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-dialects=polynomial convert-ops=arith.addi' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-dialects=polynomial convert-ops=arith.addi' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_MUL %s
 
 // THE FOLLOWING SHOULD ONLY CONVERT ADD (AND "ARITH" OPS FOR SOME, BUT THERE ARE NONE IN THE TESTS)
 
-// RUN: heir-opt --convert-elementwise-to-affine=convert-ops=polynomial.add %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine=convert-ops=polynomial.add %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-dialects= convert-ops=polynomial.add' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-dialects= convert-ops=polynomial.add' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-dialects=arith convert-ops=polynomial.add' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-dialects=arith convert-ops=polynomial.add' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_ADD --check-prefix=CHECK_NOTMUL %s
 
 // THE FOLLOWING SHOULD ONLY CONVERT MUL (AND "ARITH" OPS FOR SOME, BUT THERE ARE NONE IN THE TESTS)
 
-// RUN: heir-opt --convert-elementwise-to-affine=convert-ops=polynomial.mul_scalar %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine=convert-ops=polynomial.mul_scalar %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_MUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-dialects= convert-ops=polynomial.mul_scalar' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-dialects= convert-ops=polynomial.mul_scalar' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_MUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-dialects=arith convert-ops=polynomial.mul_scalar' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-dialects=arith convert-ops=polynomial.mul_scalar' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_MUL %s
 
 // THE FOLLOWING SHOULD CONVERT NOTHING (EXCEPT "ARITH" OPS FOR SOME, BUT THERE ARE NONE IN THE TESTS)
 
-// RUN: heir-opt --convert-elementwise-to-affine=convert-ops= %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine=convert-ops= %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt --convert-elementwise-to-affine=convert-dialects= %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine=convert-dialects= %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-ops= convert-dialects=' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-ops= convert-dialects=' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-dialects=arith' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-dialects=arith' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-ops=arith.addi' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-ops=arith.addi' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt '--convert-elementwise-to-affine=convert-ops=artih.addi convert-dialects=arith' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-ops=artih.addi convert-dialects=arith' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
 !coeff_ty = !mod_arith.int<33538049:i32>

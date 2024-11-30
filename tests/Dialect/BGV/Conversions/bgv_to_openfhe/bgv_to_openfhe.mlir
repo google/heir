@@ -1,4 +1,4 @@
-// RUN: heir-opt --bgv-to-openfhe %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --bgv-to-openfhe %s | FileCheck %s
 
 #encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
 

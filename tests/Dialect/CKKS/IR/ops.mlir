@@ -1,4 +1,4 @@
-// RUN: heir-opt --color %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --color %s | FileCheck %s
 
 // This simply tests for syntax.
 

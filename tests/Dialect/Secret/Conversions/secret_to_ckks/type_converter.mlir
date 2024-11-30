@@ -1,7 +1,7 @@
 // Tests that the type converter handles both converting tensors to SIMD slots
 // if aligned, or to tensors of ciphertext.
 
-// RUN: heir-opt --secret-distribute-generic --canonicalize --secret-to-ckks --split-input-file %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --secret-distribute-generic --canonicalize --secret-to-ckks --split-input-file %s | FileCheck %s
 
 // CHECK-LABEL: func @test_arg_packed
 // CHECK-SAME: %[[arg0:.*]]: !lwe.rlwe_ciphertext<{{.*}}, underlying_type = tensor<1024xf32>>
