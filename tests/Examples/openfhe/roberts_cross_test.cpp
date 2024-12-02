@@ -29,18 +29,13 @@ TEST(RobertsCrossTest, TestInput1) {
   cryptoContext =
       roberts_cross__configure_crypto_context(cryptoContext, secretKey);
 
-  int32_t n = cryptoContext->GetCryptoParameters()
-                  ->GetElementParams()
-                  ->GetCyclotomicOrder() /
-              2;
   std::vector<int16_t> input;
   std::vector<int16_t> expected;
-  input.reserve(n);
+  input.reserve(4096);
   expected.reserve(4096);
 
-  // TODO(#645): support cyclic repetition in add-client-interface
-  for (int i = 0; i < n; ++i) {
-    input.push_back(i % 4096);
+  for (int i = 0; i < 4096; ++i) {
+    input.push_back(i);
   }
 
   for (int row = 0; row < 64; ++row) {
