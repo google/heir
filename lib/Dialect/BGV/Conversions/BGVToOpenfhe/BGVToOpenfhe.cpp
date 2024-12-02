@@ -88,12 +88,12 @@ struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
               hasCryptoContextArg);
     });
 
-    patterns
-        .add<AddCryptoContextArg<bgv::BGVDialect>, ConvertAddOp, ConvertSubOp,
-             ConvertMulOp, ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,
-             ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp,
-             lwe::ConvertEncryptOp, lwe::ConvertDecryptOp>(typeConverter,
-                                                           context);
+    patterns.add<AddCryptoContextArg<bgv::BGVDialect>, ConvertAddOp,
+                 ConvertSubOp, ConvertAddPlainOp, ConvertMulOp,
+                 ConvertMulPlainOp, ConvertNegateOp, ConvertRotateOp,
+                 ConvertRelinOp, ConvertModulusSwitchOp, ConvertExtractOp,
+                 lwe::ConvertEncryptOp, lwe::ConvertDecryptOp>(typeConverter,
+                                                               context);
     patterns.add<lwe::ConvertEncodeOp>(typeConverter, context, /*ckks=*/false);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
