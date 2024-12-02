@@ -1,4 +1,4 @@
-// RUN: heir-opt -affine-loop-normalize='promote-single-iter=1' --secretize --wrap-generic --secret-distribute-generic --canonicalize --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope -affine-loop-normalize='promote-single-iter=1' --secretize --wrap-generic --secret-distribute-generic --canonicalize --secret-to-ckks %s | FileCheck %s
 
 module {
   // CHECK-LABEL: func @main

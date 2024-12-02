@@ -1,4 +1,4 @@
-// RUN: heir-opt --polynomial-to-mod-arith %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --polynomial-to-mod-arith %s | FileCheck %s
 
 #poly = #polynomial.int_polynomial<-1 + x**1024>
 !coeff_ty = !mod_arith.int<65536:i32>

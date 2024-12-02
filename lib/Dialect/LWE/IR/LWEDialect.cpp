@@ -13,6 +13,7 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
@@ -20,6 +21,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.cpp.inc"
 #include "lib/Dialect/LWE/IR/LWEEnums.cpp.inc"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -34,6 +36,25 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
+class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
+ public:
+  using OpAsmDialectInterface::OpAsmDialectInterface;
+
+  AliasResult getAlias(Type type, raw_ostream& os) const override {
+    auto res = llvm::TypeSwitch<Type, AliasResult>(type)
+                   .Case<RLWECiphertextType>([&](Type) {
+                     os << "rlwe_ct";
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<RLWEPlaintextType>([&](Type) {
+                     os << "rlwe_pt";
+                     return AliasResult::FinalAlias;
+                   })
+                   .Default([&](Type) { return AliasResult::NoAlias; });
+    return res;
+  }
+};
+
 void LWEDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
@@ -47,6 +68,8 @@ void LWEDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/LWE/IR/LWEOps.cpp.inc"
       >();
+
+  addInterface<LWEOpAsmDialectInterface>();
 }
 
 LogicalResult RMulOp::verify() {

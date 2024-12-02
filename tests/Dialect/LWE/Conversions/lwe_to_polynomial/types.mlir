@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --lwe-to-polynomial | FileCheck %s
+// RUN: heir-opt %s --mlir-print-local-scope --lwe-to-polynomial | FileCheck %s
 
 #encoding = #lwe.polynomial_coefficient_encoding<cleartext_start=15, cleartext_bitwidth=4>
 #my_poly = #polynomial.int_polynomial<1 + x**1024>
