@@ -2,10 +2,11 @@
 
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -30,6 +31,34 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
       isSecret = isa<secret::SecretType>(genericOperand->get().getType());
     }
   }
+
+  // If operand is defined by a func.func operation,
+  // check if the operand is either of secret type or annotated with
+  // {secret.secret}
+  if (auto funcOp = dyn_cast<func::FuncOp>(*operation)) {
+    // identify which function argument the operand corresponds to
+    auto blockArgs = funcOp.getBody().getArguments();
+    int index = std::find(blockArgs.begin(), blockArgs.end(), operand) -
+                blockArgs.begin();
+
+    // Check if it has secret type
+    isSecret = isa<secret::SecretType>(funcOp.getArgumentTypes()[index]);
+
+    // check if it is annotated as {secret.secret}
+    auto attrs = funcOp.getArgAttrs();
+    if (attrs) {
+      auto arr = attrs->getValue();
+      if (auto dictattr = dyn_cast<DictionaryAttr>(arr[index])) {
+        for (auto attr : dictattr) {
+          isSecret =
+              isSecret ||
+              attr.getName() == secret::SecretDialect::kArgSecretAttrName.str();
+          break;
+        }
+      }
+    }
+  }
+
   propagateIfChanged(lattice, lattice->join(Secretness(isSecret)));
 }
 
