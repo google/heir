@@ -179,7 +179,6 @@ void ConstantOp::print(OpAsmPrinter &p) {
 LogicalResult ConstantOp::inferReturnTypes(
     mlir::MLIRContext *context, std::optional<mlir::Location> loc,
     ConstantOpAdaptor adaptor, llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
-  adaptor.getValue().dump();
   returnTypes.push_back(adaptor.getValue().getType());
   return success();
 }
