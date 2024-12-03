@@ -1,4 +1,4 @@
-// RUN: heir-opt --secretize=entry-function=main --wrap-generic \
+// RUN: heir-opt --secretize --wrap-generic \
 // RUN:   --align-tensor-sizes --canonicalize --cse --split-input-file %s | FileCheck %s
 
 module  {

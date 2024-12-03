@@ -139,7 +139,7 @@ but eventually we would use an MLIR-based tool to convert an input language to
 MLIR like in that file. The program is below:
 
 ```mlir
-func.func @dot_product(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> i16 {
+func.func @dot_product(%arg0: tensor<8xi16> {secret.secret}, %arg1: tensor<8xi16> {secret.secret}) -> i16 {
   %c0 = arith.constant 0 : index
   %c0_si16 = arith.constant 0 : i16
   %0 = affine.for %arg2 = 0 to 8 iter_args(%iter = %c0_si16) -> (i16) {
@@ -400,7 +400,7 @@ Which outputs
 
 ```bash
 bazel run --noallow_analysis_cache_discard //tools:heir-opt -- \
---secretize=entry-function=box_blur --wrap-generic --canonicalize --cse --full-loop-unroll \
+--secretize --wrap-generic --canonicalize --cse --full-loop-unroll \
 --insert-rotate --cse --canonicalize --collapse-insertion-chains \
 --canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
 ```

@@ -1,6 +1,6 @@
 // Ported from https://github.com/MarbleHE/HECO/blob/ba027a51f4e0a376a19ca05b1dcc7ab76da78a3e/evaluation/comparison/heco_input/gxkernel_64x64.mlir
 
-// RUN: heir-opt --secretize=entry-function=gx_kernel --wrap-generic --canonicalize --cse \
+// RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 // CHECK-LABEL: @gx_kernel

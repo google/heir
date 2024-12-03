@@ -1,4 +1,4 @@
-func.func @roberts_cross(%img: tensor<4096xi16>) -> tensor<4096xi16> {
+func.func @roberts_cross(%img: tensor<4096xi16> {secret.secret}) -> tensor<4096xi16> {
   %c4096 = arith.constant 4096 : index
   %c64 = arith.constant 64 : index
   %c1 = arith.constant 1 : index

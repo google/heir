@@ -16,13 +16,6 @@ enum RLWEScheme { ckksScheme, bgvScheme };
 
 void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager);
 
-struct MlirToSecretArithmeticPipelineOptions
-    : public PassPipelineOptions<MlirToSecretArithmeticPipelineOptions> {
-  PassOptions::Option<std::string> entryFunction{
-      *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
-      llvm::cl::init("main")};
-};
-
 struct MlirToRLWEPipelineOptions
     : public PassPipelineOptions<MlirToRLWEPipelineOptions> {
   PassOptions::Option<std::string> entryFunction{
@@ -44,8 +37,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         RLWEScheme scheme);
 
-void mlirToSecretArithmeticPipelineBuilder(
-    OpPassManager &pm, const MlirToSecretArithmeticPipelineOptions &options);
+void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm);
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 

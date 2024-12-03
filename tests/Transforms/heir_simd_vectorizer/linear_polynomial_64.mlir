@@ -1,6 +1,6 @@
 // Ported from: https://github.com/MarbleHE/HECO/blob/3e13744233ab0c09030a41ef98b4e061b6fa2eac/evaluation/comparison/heco_input/linearpolynomial_64.mlir
 
-// RUN: heir-opt --secretize=entry-function=linear_polynomial --wrap-generic --canonicalize --cse \
+// RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 // CHECK-LABEL: @linear_polynomial
