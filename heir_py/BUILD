@@ -16,6 +16,10 @@ py_library(
             "**/*_test.py",
         ],
     ),
+    data = [
+        "@heir//tools:heir-opt",
+        "@heir//tools:heir-translate",
+    ],
     deps = [
         "@heir_py_pip_deps_numba//:pkg",
         # FIXME: add pybind deps
