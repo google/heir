@@ -152,6 +152,17 @@ load("@heir_pip_deps//:requirements.bzl", "install_deps")
 
 install_deps()
 
+# separate pip deps for heir_py
+pip_parse(
+    name = "heir_py_pip_deps",
+    python_interpreter_target = interpreter,
+    requirements_lock = "//heir_py:requirements.txt",
+)
+
+load("@heir_py_pip_deps//:requirements.bzl", "install_deps")  # buildifier: disable=load
+
+install_deps()
+
 # compile_commands extracts the relevant compile data from bazel into
 # `compile_commands.json` so that clangd, clang-tidy, etc., can use it.
 # Whenever a build file changes, you must re-run
