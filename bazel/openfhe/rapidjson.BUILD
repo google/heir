@@ -5,6 +5,13 @@ package(
 
 licenses(["notice"])
 
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "include/**/*.h",
+    ]),
+)
+
 cc_library(
     name = "rapidjson",
     srcs = [

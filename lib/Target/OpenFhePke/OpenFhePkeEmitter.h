@@ -25,20 +25,22 @@ namespace heir {
 namespace openfhe {
 
 /// Translates the given operation to OpenFhePke.
-::mlir::LogicalResult translateToOpenFhePke(::mlir::Operation *op,
-                                            llvm::raw_ostream &os,
-                                            const OpenfheScheme &scheme);
+::mlir::LogicalResult translateToOpenFhePke(
+    ::mlir::Operation *op, llvm::raw_ostream &os, const OpenfheScheme &scheme,
+    const OpenfheImportType &importType);
 
 class OpenFhePkeEmitter {
  public:
   OpenFhePkeEmitter(raw_ostream &os, SelectVariableNames *variableNames,
-                    const OpenfheScheme &scheme);
+                    const OpenfheScheme &scheme,
+                    const OpenfheImportType &importType);
 
   LogicalResult translate(::mlir::Operation &operation);
 
  private:
   /// OpenFHE scheme to emit.
   OpenfheScheme scheme_;
+  OpenfheImportType importType_;
 
   /// Output stream to emit to.
   raw_indented_ostream os;

@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
   mlir::heir::openfhe::registerTranslateOptions();
   mlir::heir::openfhe::registerToOpenFhePkeTranslation();
   mlir::heir::openfhe::registerToOpenFhePkeHeaderTranslation();
+  mlir::heir::openfhe::registerToOpenFhePkePybindTranslation();
 
   // AutoHOG input
   mlir::heir::registerFromAutoHogTranslation();

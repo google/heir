@@ -21,9 +21,15 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-std::string getModulePrelude(OpenfheScheme scheme) {
-  return llvm::formatv(kModulePreludeTemplate.data(),
-                       scheme == OpenfheScheme::CKKS ? "CKKS" : "BGV");
+std::string getModulePrelude(OpenfheScheme scheme,
+                             OpenfheImportType importType) {
+  auto import = importType == OpenfheImportType::SOURCE_RELATIVE
+                    ? kSourceRelativeOpenfheImport
+                    : kInstallationRelativeOpenfheImport;
+  auto prelude = std::string(
+      llvm::formatv(kModulePreludeTemplate.data(),
+                    scheme == OpenfheScheme::CKKS ? "CKKS" : "BGV"));
+  return std::string(import) + prelude;
 }
 
 FailureOr<std::string> convertType(Type type, Location loc) {
