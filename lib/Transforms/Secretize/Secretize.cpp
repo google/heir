@@ -19,20 +19,29 @@ struct Secretize : impl::SecretizeBase<Secretize> {
     ModuleOp module = getOperation();
     OpBuilder builder(module);
 
-    auto mainFunction = dyn_cast_or_null<func::FuncOp>(
-        SymbolTable::lookupSymbolIn(module, entryFunction));
-    if (!mainFunction) {
-      module.emitError("could not find entry point function");
-      signalPassFailure();
-      return;
-    }
-
     auto secretArgAttr =
         StringAttr::get(ctx, secret::SecretDialect::kArgSecretAttrName);
-    for (unsigned i = 0; i < mainFunction.getNumArguments(); i++) {
-      if (!isa<secret::SecretType>(mainFunction.getArgument(i).getType())) {
-        mainFunction.setArgAttr(i, secretArgAttr, UnitAttr::get(ctx));
+
+    auto setSecretAttr = [&](func::FuncOp func) {
+      for (unsigned i = 0; i < func.getNumArguments(); i++) {
+        if (!isa<secret::SecretType>(func.getArgument(i).getType())) {
+          func.setArgAttr(i, secretArgAttr, UnitAttr::get(ctx));
+        }
       }
+    };
+
+    if (function.empty()) {
+      module.walk([&](func::FuncOp func) { setSecretAttr(func); });
+    } else {
+      auto mainFunction = dyn_cast_or_null<func::FuncOp>(
+          SymbolTable::lookupSymbolIn(module, function));
+      if (!mainFunction) {
+        module.emitError("could not find function \"" + function +
+                         "\" to secretize");
+        signalPassFailure();
+        return;
+      }
+      setSecretAttr(mainFunction);
     }
   }
 };

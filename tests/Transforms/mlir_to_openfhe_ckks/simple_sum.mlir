@@ -3,7 +3,7 @@
 // CHECK-LABEL: @simple_sum
 // CHECK-COUNT-6: openfhe.rot
 // CHECK: return
-func.func @simple_sum(%arg0: tensor<32xi16>) -> i16 {
+func.func @simple_sum(%arg0: tensor<32xi16> {secret.secret}) -> i16 {
   %c0 = arith.constant 0 : index
   %c0_si16 = arith.constant 0 : i16
   %0 = affine.for %i = 0 to 32 iter_args(%sum_iter = %c0_si16) -> i16 {

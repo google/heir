@@ -7,9 +7,9 @@ def Secretize : Pass<"secretize", "ModuleOp"> {
   let summary = "Adds secret argument attributes to entry function";
 
   let description = [{
-    Adds a secret.secret attribute argument to each argument in the entry
-    function of an MLIR module. By default, the function is `main`. This may be
-    overridden with the option -entry-function=top_level_func.
+    Helper pass that adds a secret.secret attribute argument to each function argument.
+    By default, the pass applies to all functions in the module.
+    This may be overridden with the option -function=func_name to apply to a single function only.
   }];
 
   let dependentDialects = [
@@ -18,7 +18,7 @@ def Secretize : Pass<"secretize", "ModuleOp"> {
   ];
 
   let options = [
-    Option<"entryFunction", "entry-function", "std::string", "\"main\"", "entry function of the module">
+    Option<"function", "function", "std::string", "\"\"", "function to add secret annotations to">
   ];
 }
 
@@ -26,13 +26,9 @@ def WrapGeneric : Pass<"wrap-generic", "ModuleOp"> {
   let summary = "Wraps regions using secret args in secret.generic bodies";
 
   let description = [{
-    This pass wraps function regions of `func.func` that use secret arguments in
-    `secret.generic` bodies.
-
-    Secret arguments are annotated using a `secret.secret` argument attribute.
-    This pass converts these to secret types and then inserts a `secret.generic`
-    body to hold the functions region. The output type is also converted to a
-    secret.
+    This pass converts functions (`func.func`) with `{secret.secret}` annotated arguments
+    to use `!secret.secret<...>` types and wraps the function body in a `secret.generic` region.
+    The output type is also converted to `!secret.secret<...>`.
 
     Example input:
     ```mlir
