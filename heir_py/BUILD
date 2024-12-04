@@ -22,9 +22,8 @@ py_library(
     ],
     deps = [
         "@heir_py_pip_deps_numba//:pkg",
-        # FIXME: add pybind deps
-        # "@heir_py_deps_pybind11//:pkg",
-        # "@heir_py_deps_pybind11_global//:pkg",
+        "@heir_py_pip_deps_pybind11//:pkg",
+        "@heir_py_pip_deps_pybind11_global//:pkg",
     ],
 )
 

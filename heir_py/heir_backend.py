@@ -25,7 +25,7 @@ class CLIBackend:
             message = f"Error running {self.binary_path}. "
             message += "stderr was:\n\n" + completed_process.stderr + "\n\n"
             message += "input was:\n\n" + input + "\n\n"
-            message += "options were:\n\n" + " ".join(options)
+            message += "options were:\n\n" + " ".join([str(x) for x in options])
             raise ValueError(message)
 
         return completed_process.stdout

@@ -42,6 +42,7 @@ class ClangBackend:
         include_paths: list[str] = None,
         linker_search_paths: list[str] = None,
         link_libs: list[str] = None,
+        linker_args: list[str] = None,
     ) -> Path:
         """Compile C++ source to a shared object file.
 
@@ -52,6 +53,8 @@ class ClangBackend:
             include_paths: include paths (-I) to pass to clang
             linker_search_paths: linker search paths (-L) to pass to clang
             link_libs: link libraries (-l) to pass to clang
+            linker_args: arguments to pass to the linker, via `-Wl,` prefix.
+              The commas separating the values are added by this function.
         """
         # err if output filepath does not end with .so
         if shared_object_output_filepath.suffix != ".so":
@@ -61,7 +64,21 @@ class ClangBackend:
 
         include_args = to_clang_args("-I", include_paths)
         linker_search_path_args = to_clang_args("-L", linker_search_paths)
+
+        # since we default to -stdlib=libc++, we need to add c++ to the link libs
+        if not link_libs:
+            link_libs = []
+        if "c++" not in link_libs:
+            link_libs.append("c++")
         link_lib_args = to_clang_args("-l", link_libs)
+
+        if linker_args:
+            linker_args = (
+                "-Wl," + ",".join(str(x) for x in linker_args) if linker_args else []
+            )
+        else:
+            linker_args = ""
+
         args = (
             [
                 self.compiler_binary_path,
@@ -73,6 +90,7 @@ class ClangBackend:
             + include_args
             + linker_search_path_args
             + link_lib_args
+            + [linker_args]
         )
         completed_process = subprocess.run(
             args,
