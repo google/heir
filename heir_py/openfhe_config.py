@@ -43,6 +43,22 @@ def from_os_env(debug=False) -> OpenFHEConfig:
 
     Note, this is required for running tests under bazel, as the openfhe libraries,
     headers, and locations are not in the default locations.
+
+    Environment variables and meanings:
+
+    - OPENFHE_LIB_DIR: a string containing the directory containing the OpenFHE .so files.
+    - OPENFHE_INCLUDE_DIR: a colon-separated string of directories containing OpenFHE headers.
+    - OPENFHE_LINK_LIBS: a colon-separated string of libraries to link against
+        (without `lib` or `.so`).
+    - OPENFHE_INCLUDE_TYPE: a string indicating the include path type to use
+        (see options on heir-translate --emit-openfhe).
+    - RUNFILES_DIR: a directory prefix for all other paths provided, mainly for
+        bazel runtime sandboxing.
+
+    Args:
+        debug: whether to print debug information
+
+    Returns: the OpenFHEConfig
     """
     if debug:
         print("Env:")
@@ -64,10 +80,6 @@ def from_os_env(debug=False) -> OpenFHEConfig:
         # bazel data dep on @openfhe//:headers copies header files
         # to $RUNFILES_DIR/openfhe/src/...
         include_dirs = [os.path.join(path_base, dir) for dir in include_dirs]
-
-        subprocess.run(
-            ["ls", "-l", lib_dir],
-        )
 
     return OpenFHEConfig(
         include_dirs=include_dirs,

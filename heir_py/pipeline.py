@@ -15,7 +15,8 @@ from heir_py.clang import ClangBackend
 
 
 def run_compiler(
-    function, openfhe_config: OpenFHEConfig = DEFAULT_INSTALLED_OPENFHE_CONFIG
+    function,
+    openfhe_config: OpenFHEConfig = DEFAULT_INSTALLED_OPENFHE_CONFIG
 ):
     """Run the compiler."""
     # The temporary workspace dir is so that heir-opt, heir-translate, and
