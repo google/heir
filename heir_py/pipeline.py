@@ -86,7 +86,7 @@ def run_compiler(function, openfhe_lib_dir=OPENFHE_LIB_DIR, openfhe_include_path
         )
 
         clang = ClangBackend()
-        so_filepath = Path(workspace_dir) / f"lib{func_id.func_name}.so"
+        so_filepath = Path(workspace_dir) / f"{func_id.func_name}.so"
         clang.compile_to_shared_object(
             cpp_source_filepath=cpp_filepath,
             shared_object_output_filepath=so_filepath,
@@ -94,20 +94,17 @@ def run_compiler(function, openfhe_lib_dir=OPENFHE_LIB_DIR, openfhe_include_path
             link_libs=OPENFHE_LINK_LIBS,
         )
 
-        pybind_includes = pybind11_includes()
         ext_suffix = pyconfig_ext_suffix()
         pybind_so_filepath = Path(workspace_dir) / f"{module_name}{ext_suffix}"
-        linker_search_paths = [workspace_dir, openfhe_lib_dir]
+        linker_search_paths = [openfhe_lib_dir]
         clang.compile_to_shared_object(
             cpp_source_filepath=pybind_filepath,
             shared_object_output_filepath=pybind_so_filepath,
-            include_paths=openfhe_include_paths + pybind_includes + [workspace_dir],
+            include_paths=openfhe_include_paths + pybind11_includes() + [workspace_dir],
             linker_search_paths=linker_search_paths,
-            # note the so_filepath above is lib{func_name{.so}, so this ensures
-            # libfoo.so can be found via `-lfoo`; consider instead just passing
-            # the absolute path to the .so file...
-            link_libs=OPENFHE_LINK_LIBS + [func_id.func_name],
+            link_libs=OPENFHE_LINK_LIBS,
             linker_args=["-rpath", ":".join(linker_search_paths)],
+            abs_link_lib_paths=[so_filepath],
         )
 
         sys.path.append(workspace_dir)

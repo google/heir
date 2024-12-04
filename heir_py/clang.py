@@ -37,6 +37,7 @@ class ClangBackend:
         linker_search_paths: list[str] = None,
         link_libs: list[str] = None,
         linker_args: list[str] = None,
+        abs_link_lib_paths: list[str] = None,
     ) -> Path:
         """Compile C++ source to a shared object file.
 
@@ -49,6 +50,7 @@ class ClangBackend:
             link_libs: link libraries (-l) to pass to clang
             linker_args: arguments to pass to the linker, via `-Wl,` prefix.
               The commas separating the values are added by this function.
+            abs_link_lib_paths: absolute paths to libraries to link against.
         """
         # err if output filepath does not end with .so
         if shared_object_output_filepath.suffix != ".so":
@@ -59,6 +61,7 @@ class ClangBackend:
         include_args = to_clang_args("-I", include_paths)
         linker_search_path_args = to_clang_args("-L", linker_search_paths)
         link_lib_args = to_clang_args("-l", link_libs)
+        abs_link_lib_paths = abs_link_lib_paths or []
 
         if linker_args:
             linker_args = (
@@ -74,6 +77,7 @@ class ClangBackend:
                 "-o",
                 shared_object_output_filepath,
             ]
+            + abs_link_lib_paths
             + compiler_flags
             + include_args
             + linker_search_path_args
