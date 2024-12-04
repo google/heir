@@ -9,21 +9,27 @@ from heir_py.heir_backend import HeirOptBackend, HeirTranslateBackend
 from heir_py.clang import ClangBackend
 
 
-
 # TODO: better organization of OpenFHE libs and includes
 OPENFHE_INCLUDE_PATHS = [
     "/usr/local/include/openfhe",
+    "/usr/local/include/openfhe/binfhe",
     "/usr/local/include/openfhe/core",
     "/usr/local/include/openfhe/pke",
 ]
 OPENFHE_LINK_LIBS = [
-    "OPENFHEpke",
+    "OPENFHEbinfhe",
     "OPENFHEcore",
+    "OPENFHEpke",
+]
+# TODO: figure out how to discover these, and make them overridable by the user
+LIBCXX_LIBS = [
+    "/usr/include/c++/11/",
+    "/usr/include/x86_64-linux-gnu/c++/11/",
 ]
 
 
 def run_compiler(function):
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory() as workspace_dir:
         func_id = FunctionIdentity.from_function(function)
         bytecode = ByteCode(func_id)
         ssa_ir = Interpreter(func_id).interpret(bytecode)
@@ -53,12 +59,13 @@ def run_compiler(function):
         )
 
         clang = ClangBackend()
+        so_filepath = Path(workspace_dir) / f"{func_id.func_name}.so"
         clang.compile_to_shared_object(
             openfhe_pke_source,
-            shared_object_output_filepath=Path(tmpdir) / f"{func_id.func_name}.so",
-            include_paths=OPENFHE_INCLUDE_PATHS,
+            shared_object_output_filepath=so_filepath,
+            include_paths=OPENFHE_INCLUDE_PATHS + LIBCXX_LIBS,
             link_libs=OPENFHE_LINK_LIBS,
-            temp_cpp_filepath=Path(tmpdir) / f"{func_id.func_name}.cpp",
+            temp_cpp_filepath=Path(workspace_dir) / f"{func_id.func_name}.cpp",
         )
 
     return openfhe_pke_source, openfhe_pke_header
