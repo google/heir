@@ -21,102 +21,97 @@ OPENFHE_INCLUDE_PATHS = [
     "/usr/local/include/openfhe/pke",
 ]
 # The directory containing libOPENFHEbinfhe.so, etc.
-OPENFHE_LIB_DIRS = [
-    "/usr/local/lib",
-]
+OPENFHE_LIB_DIR = "/usr/local/lib"
 # The names of the libraries to link against (without lib prefix or .so suffix)
 OPENFHE_LINK_LIBS = [
     "OPENFHEbinfhe",
     "OPENFHEcore",
     "OPENFHEpke",
 ]
-# FIXME: figure out how to discover these, and make them overridable by the user
-# maybe check $CPLUS_INCLUDE_PATH
-LIBCXX_INCLUDES = [
-    "/usr/include/c++/11/",
-    "/usr/include/x86_64-linux-gnu/c++/11/",
-]
-LIBCXX_LIBS = [
-    "/usr/lib/gcc/x86_64-linux-gnu/11/",
-]
 
 
+def run_compiler(function, openfhe_lib_dir=OPENFHE_LIB_DIR, openfhe_include_paths=None):
+    openfhe_include_paths = openfhe_include_paths or OPENFHE_INCLUDE_PATHS
 
-def run_compiler(function):
-    # FIXME: can we do this entirely with a tmpdir that is deleted after the
-    # module has been loaded?
-    workspace_dir = tempfile.mkdtemp()
+    # The temporary workspace dir is so that heir-opt, heir-translate, and
+    # clang can have places to write their output files. It is cleaned up once
+    # the function returns, at which point the compiled python module has been
+    # loaded into memory and the raw files are not needed.
+    #
+    # For debugging, add delete=False to TemporaryDirectory (python3.12+)
+    # to leave the directory around after the context manager closes.
+    # Otherwise, replace the context manager with `workspace_dir =
+    # tempfile.mkdtemp()` and manually clean it up.
+    with tempfile.TemporaryDirectory() as workspace_dir:
+        func_id = FunctionIdentity.from_function(function)
+        bytecode = ByteCode(func_id)
+        ssa_ir = Interpreter(func_id).interpret(bytecode)
+        mlir_textual = TextualMlirEmitter(ssa_ir).emit()
+        module_name = f"_heir_{func_id.func_name}"
 
-    func_id = FunctionIdentity.from_function(function)
-    bytecode = ByteCode(func_id)
-    ssa_ir = Interpreter(func_id).interpret(bytecode)
-    mlir_textual = TextualMlirEmitter(ssa_ir).emit()
-    module_name = f"_heir_{func_id.func_name}"
+        # FIXME: allow user to configure heir-opt path
+        heir_opt = HeirOptBackend(binary_path="tools/heir-opt")
+        # FIXME: construct heir-opt pipeline options from decorator
+        heir_opt_options = [
+            "--mlir-to-openfhe-bgv="
+            f"entry-function={func_id.func_name} ciphertext-degree=32",
+        ]
+        heir_opt_output = heir_opt.run_binary(
+            input=mlir_textual,
+            options=heir_opt_options,
+        )
 
-    # FIXME: allow user to configure heir-opt path
-    heir_opt = HeirOptBackend(binary_path="tools/heir-opt")
-    # FIXME: construct heir-opt pipeline options from decorator
-    heir_opt_options = [
-        "--mlir-to-openfhe-bgv="
-        f"entry-function={func_id.func_name} ciphertext-degree=32",
-    ]
-    heir_opt_output = heir_opt.run_binary(
-        input=mlir_textual,
-        options=heir_opt_options,
-    )
+        heir_translate = HeirTranslateBackend(binary_path="tools/heir-translate")
+        cpp_filepath = Path(workspace_dir) / f"{func_id.func_name}.cpp"
+        h_filepath = Path(workspace_dir) / f"{func_id.func_name}.h"
+        pybind_filepath = Path(workspace_dir) / f"{func_id.func_name}_bindings.cpp"
+        # FIXME: construct heir-translate pipeline options from decorator
+        heir_translate.run_binary(
+            input=heir_opt_output,
+            options=["--emit-openfhe-pke-header", "-o", h_filepath],
+        )
+        heir_translate.run_binary(
+            input=heir_opt_output,
+            options=["--emit-openfhe-pke", "-o", cpp_filepath],
+        )
+        heir_translate.run_binary(
+            input=heir_opt_output,
+            options=[
+                "--emit-openfhe-pke-pybind",
+                f"--pybind-header-include={h_filepath.name}",
+                f"--pybind-module-name={module_name}",
+                "-o",
+                pybind_filepath,
+            ],
+        )
 
-    heir_translate = HeirTranslateBackend(binary_path="tools/heir-translate")
-    cpp_filepath = Path(workspace_dir) / f"{func_id.func_name}.cpp"
-    h_filepath = Path(workspace_dir) / f"{func_id.func_name}.h"
-    pybind_filepath = Path(workspace_dir) / f"{func_id.func_name}_bindings.cpp"
-    # FIXME: construct heir-translate pipeline options from decorator
-    heir_translate.run_binary(
-        input=heir_opt_output,
-        options=["--emit-openfhe-pke-header", "-o", h_filepath],
-    )
-    heir_translate.run_binary(
-        input=heir_opt_output,
-        options=["--emit-openfhe-pke", "-o", cpp_filepath],
-    )
-    heir_translate.run_binary(
-        input=heir_opt_output,
-        options=[
-            "--emit-openfhe-pke-pybind",
-            f"--pybind-header-include={h_filepath.name}",
-            f"--pybind-module-name={module_name}",
-            "-o",
-            pybind_filepath,
-        ],
-    )
+        clang = ClangBackend()
+        so_filepath = Path(workspace_dir) / f"lib{func_id.func_name}.so"
+        clang.compile_to_shared_object(
+            cpp_source_filepath=cpp_filepath,
+            shared_object_output_filepath=so_filepath,
+            include_paths=openfhe_include_paths,
+            link_libs=OPENFHE_LINK_LIBS,
+        )
 
-    clang = ClangBackend()
-    so_filepath = Path(workspace_dir) / f"lib{func_id.func_name}.so"
-    clang.compile_to_shared_object(
-        cpp_source_filepath=cpp_filepath,
-        shared_object_output_filepath=so_filepath,
-        include_paths=OPENFHE_INCLUDE_PATHS + LIBCXX_INCLUDES,
-        link_libs=OPENFHE_LINK_LIBS,
-    )
+        pybind_includes = pybind11_includes()
+        ext_suffix = pyconfig_ext_suffix()
+        pybind_so_filepath = Path(workspace_dir) / f"{module_name}{ext_suffix}"
+        linker_search_paths = [workspace_dir, openfhe_lib_dir]
+        clang.compile_to_shared_object(
+            cpp_source_filepath=pybind_filepath,
+            shared_object_output_filepath=pybind_so_filepath,
+            include_paths=openfhe_include_paths + pybind_includes + [workspace_dir],
+            linker_search_paths=linker_search_paths,
+            # note the so_filepath above is lib{func_name{.so}, so this ensures
+            # libfoo.so can be found via `-lfoo`; consider instead just passing
+            # the absolute path to the .so file...
+            link_libs=OPENFHE_LINK_LIBS + [func_id.func_name],
+            linker_args=["-rpath", ":".join(linker_search_paths)],
+        )
 
-    pybind_includes = pybind11_includes()
-    ext_suffix = pyconfig_ext_suffix()
-    pybind_so_filepath = Path(workspace_dir) / f"{module_name}{ext_suffix}"
-    linker_search_paths = [workspace_dir] + OPENFHE_LIB_DIRS + LIBCXX_LIBS
-    clang.compile_to_shared_object(
-        cpp_source_filepath=pybind_filepath,
-        shared_object_output_filepath=pybind_so_filepath,
-        include_paths=OPENFHE_INCLUDE_PATHS
-        + LIBCXX_INCLUDES
-        + pybind_includes
-        + [workspace_dir],
-        linker_search_paths=linker_search_paths,
-        # allow, e.g., libfoo.so to be found via `-lfoo`
-        link_libs=OPENFHE_LINK_LIBS + [func_id.func_name],
-        linker_args=["-rpath", ":".join(linker_search_paths)],
-    )
-
-    sys.path.append(workspace_dir)
-    importlib.invalidate_caches()
-    bound_module = importlib.import_module(module_name)
+        sys.path.append(workspace_dir)
+        importlib.invalidate_caches()
+        bound_module = importlib.import_module(module_name)
 
     return bound_module

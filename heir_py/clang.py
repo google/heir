@@ -2,10 +2,14 @@
 
 import os
 import subprocess
+import shutil
 from pathlib import Path
 
 
-DEFAULT_COMPILER_FLAGS = "-O3 -fPIC -shared -stdlib=libc++ -std=c++17".split()
+# I would specify -stdlib here, but that would prevent clang from discovering
+# the includes automatically and searching for them when compiling. Probably best
+# to let clang try to automate it, rather than manually pass in stdlib paths.
+DEFAULT_COMPILER_FLAGS = "-O3 -fPIC -shared -std=c++17".split()
 
 
 def to_clang_args(prefix, strs):
@@ -19,20 +23,10 @@ class ClangBackend:
         self.compiler_binary_path = path_to_clang or self._find_clang()
 
     def _find_clang(self):
-        # FIXME: can I use $CXX, or else just allow GCC to be used in place of clang?
         clang = os.environ.get("CLANG")
         if clang is not None:
             return clang
-
-        try:
-            clang = subprocess.check_output(["which", "clang"]).strip().decode()
-            return clang
-        except subprocess.CalledProcessError:
-            raise RuntimeError(
-                "Could not find clang executable. It should be passed to"
-                "ClangBackend via path_to_clang, or specified in the CLANG"
-                "environment variable, or be on the PATH."
-            )
+        return shutil.which("clang")
 
     def compile_to_shared_object(
         self,
@@ -64,12 +58,6 @@ class ClangBackend:
 
         include_args = to_clang_args("-I", include_paths)
         linker_search_path_args = to_clang_args("-L", linker_search_paths)
-
-        # since we default to -stdlib=libc++, we need to add c++ to the link libs
-        if not link_libs:
-            link_libs = []
-        if "c++" not in link_libs:
-            link_libs.append("c++")
         link_lib_args = to_clang_args("-l", link_libs)
 
         if linker_args:
