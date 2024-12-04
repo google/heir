@@ -42,26 +42,15 @@ struct PolynomialOpAsmDialectInterface : public OpAsmDialectInterface {
                    .Case<RingAttr>([&](auto &ringAttr) {
                      os << "ring_";
 
-                     auto coefficientType = ringAttr.getCoefficientType();
-                     auto res =
-                         llvm::TypeSwitch<Type, AliasResult>(coefficientType)
-                             .Case<IntegerType>([&](auto &integerType) {
-                               os << integerType;
-                               return AliasResult::FinalAlias;
-                             })
-                             .template Case<mod_arith::ModArithType>(
-                                 [&](auto &modArithType) {
-                                   os << "Z";
-                                   os << modArithType.getModulus().getValue();
-                                   os << "_";
-                                   os << modArithType.getModulus().getType();
-                                   return AliasResult::FinalAlias;
-                                 })
-                             .Default([&](auto &type) {
-                               return AliasResult::NoAlias;
-                             });
+                     auto type = ringAttr.getCoefficientType();
+                     auto *interface =
+                         dyn_cast<OpAsmDialectInterface>(&type.getDialect());
+
+                     auto res = interface->getAlias(type, os);
                      if (res == AliasResult::NoAlias) {
-                       return res;
+                       // always safe as MLIR will sanitize it into an
+                       // identifier
+                       os << type;
                      }
 
                      auto polynomialModulus = ringAttr.getPolynomialModulus();
