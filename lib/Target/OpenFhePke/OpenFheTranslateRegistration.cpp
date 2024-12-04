@@ -6,6 +6,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
+#include "lib/Target/OpenFhePke/OpenFhePkePybindEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "llvm/include/llvm/Support/CommandLine.h"       // from @llvm-project
 #include "llvm/include/llvm/Support/ManagedStatic.h"     // from @llvm-project
@@ -47,9 +48,22 @@ struct TranslateOptions {
 };
 static llvm::ManagedStatic<TranslateOptions> options;
 
+struct PybindOptions {
+  llvm::cl::opt<std::string> pybindHeaderInclude{
+      "pybind-header-include",
+      llvm::cl::desc(
+          "The HEIR-generated header to include for the pybind11 bindings")};
+  llvm::cl::opt<std::string> pybindModuleName{
+      "pybind-module-name",
+      llvm::cl::desc(
+          "The name of the generated python module (must match the .so file)")};
+};
+static llvm::ManagedStatic<PybindOptions> pybindOptions;
+
 void registerTranslateOptions() {
   // Forces initialization of options.
   *options;
+  *pybindOptions;
 }
 
 void registerToOpenFhePkeTranslation() {
@@ -76,6 +90,26 @@ void registerToOpenFhePkeHeaderTranslation() {
       [](Operation *op, llvm::raw_ostream &output) {
         return translateToOpenFhePkeHeader(op, output, options->openfheScheme,
                                            options->openfheImportType);
+      },
+      [](DialectRegistry &registry) {
+        registry.insert<arith::ArithDialect, func::FuncDialect,
+                        tensor::TensorDialect, openfhe::OpenfheDialect,
+                        lwe::LWEDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect,
+                        mod_arith::ModArithDialect>();
+      });
+}
+
+void registerToOpenFhePkePybindTranslation() {
+  TranslateFromMLIRRegistration reg(
+      "emit-openfhe-pke-pybind",
+      "Emit a C++ file containing pybind11 bindings for the input openfhe "
+      "dialect IR"
+      "--emit-openfhe-pke-pybind",
+      [](Operation *op, llvm::raw_ostream &output) {
+        return translateToOpenFhePkePybind(op, output,
+                                           pybindOptions->pybindHeaderInclude,
+                                           pybindOptions->pybindModuleName);
       },
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
