@@ -20,7 +20,7 @@ std::optional<ValueRange> Lut2Op::getLookupTableInputs() {
 }
 
 LogicalResult Lut2Op::canonicalize(Lut2Op op, PatternRewriter &rewriter) {
-  SmallVector<int32_t> coeffs2 = {1, 2};
+  SmallVector<int32_t> coeffs2 = {2, 1};
   auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
       op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs2,
       op.getLookupTable());
@@ -33,7 +33,7 @@ std::optional<ValueRange> Lut3Op::getLookupTableInputs() {
 }
 
 LogicalResult Lut3Op::canonicalize(Lut3Op op, PatternRewriter &rewriter) {
-  SmallVector<int> coeffs3 = {1, 2, 4};
+  SmallVector<int> coeffs3 = {4, 2, 1};
 
   auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
       op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs3,
