@@ -175,7 +175,7 @@ def ModArith_BarrettReduceOp : ModArith_Op<"barrett_reduce"> {
 
     It requires the input type twice the bitwidth as that of the result mod arith type.
 
-    Let $q$ denote a statically known modulus and $b = 2^{w}$, where $w$ is the
+    Let $q$ denote a statically known modulus and $b = 4^{w}$, where $w$ is the
     mod arith type storage type bit-width. The Barrett reduce operation computes
     `barret_reduce x = x - floor(x * floor(b / q) / b) * q`.
 

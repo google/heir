@@ -14,9 +14,9 @@ func.func @test_lower_barrett_reduce() {
 
   %2 = mod_arith.extract %1 : !Zpv -> tensor<4xi32>
 
-  // %3 = arith.extui %2 : tensor<4xi32> to tensor<4xi32>
-  %4 = bufferization.to_memref %2 : memref<4xi32>
-  %U = memref.cast %4 : memref<4xi32> to memref<*xi32>
+  
+  %3 = bufferization.to_memref %2 : tensor<4xi32> to memref<4xi32>
+  %U = memref.cast %3 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }

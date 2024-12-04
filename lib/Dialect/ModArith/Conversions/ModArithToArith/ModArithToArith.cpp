@@ -58,8 +58,7 @@ class ModArithToArithTypeConverter : public TypeConverter {
 // needed to represent the result of mod_arith op as an integer
 // before applying a remainder operation
 template <typename Op>
-TypedAttr modulusAttr(Op op, bool mul = false,
-                      std::optional<APInt> constant = std::nullopt) {
+TypedAttr modulusAttr(Op op, bool mul = false) {
   auto type = op.getResult().getType();
   auto modArithType = getResultModArithType(op);
   APInt modulus = modArithType.getModulus().getValue();
@@ -70,8 +69,7 @@ TypedAttr modulusAttr(Op op, bool mul = false,
   }
 
   auto intType = IntegerType::get(op.getContext(), width);
-  APInt intValue = constant == std::nullopt ? modulus : *constant;
-  auto truncmod = intValue.zextOrTrunc(width);
+  auto truncmod = modulus.zextOrTrunc(width);
 
   if (auto st = mlir::dyn_cast<ShapedType>(type)) {
     auto containerType = st.cloneWith(st.getShape(), intType);
