@@ -9,11 +9,15 @@ namespace openfhe {
 
 // The `// from @openfhe` is a bit of a hack to avoid default copybara
 // transforms for HEIR includes.
+constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
+#include "src/pke/include/openfhe.h"  // from @openfhe
+)cpp";
+constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
+#include "openfhe/pke/openfhe.h"  // from @openfhe
+)cpp";
 
 // clang-format off
 constexpr std::string_view kModulePreludeTemplate = R"cpp(
-#include "src/pke/include/openfhe.h" // from @openfhe
-
 using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;
 using CCParamsT = CCParams<CryptoContext{0}RNS>;
