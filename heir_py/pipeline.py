@@ -48,24 +48,34 @@ def run_compiler(function):
         )
 
         heir_translate = HeirTranslateBackend(binary_path="tools/heir-translate")
+        cpp_filepath = Path(workspace_dir) / f"{func_id.func_name}.cpp"
+        h_filepath = Path(workspace_dir) / f"{func_id.func_name}.h"
+        pybind_filepath = Path(workspace_dir) / f"{func_id.func_name}_bindings.cpp"
         # TODO: construct heir-translate pipeline options from decorator
-        openfhe_pke_header = heir_translate.run_binary(
+        heir_translate.run_binary(
             input=heir_opt_output,
-            options=["--emit-openfhe-pke-header"],
+            options=["--emit-openfhe-pke-header", "-o", h_filepath],
         )
-        openfhe_pke_source = heir_translate.run_binary(
+        heir_translate.run_binary(
             input=heir_opt_output,
-            options=["--emit-openfhe-pke"],
+            options=["--emit-openfhe-pke", "-o", cpp_filepath],
+        )
+        heir_translate.run_binary(
+            input=heir_opt_output,
+            options=[
+                f"--emit-openfhe-pke-pybind=header={h_filepath}",
+                "-o",
+                pybind_filepath,
+            ],
         )
 
         clang = ClangBackend()
         so_filepath = Path(workspace_dir) / f"{func_id.func_name}.so"
         clang.compile_to_shared_object(
-            openfhe_pke_source,
+            cpp_source_filepath=cpp_filepath,
             shared_object_output_filepath=so_filepath,
             include_paths=OPENFHE_INCLUDE_PATHS + LIBCXX_LIBS,
             link_libs=OPENFHE_LINK_LIBS,
-            temp_cpp_filepath=Path(workspace_dir) / f"{func_id.func_name}.cpp",
         )
 
-    return openfhe_pke_source, openfhe_pke_header
+    return None

@@ -36,24 +36,22 @@ class ClangBackend:
 
     def compile_to_shared_object(
         self,
-        cpp_source: str,
+        cpp_source_filepath: Path,
         shared_object_output_filepath: Path,
         compiler_flags: str = DEFAULT_COMPILER_FLAGS,
         include_paths: list[str] = None,
         linker_search_paths: list[str] = None,
         link_libs: list[str] = None,
-        temp_cpp_filepath: str = None,
     ) -> Path:
         """Compile C++ source to a shared object file.
 
         Args:
             cpp_source: the C++ source code to compile
             shared_object_output_filepath: the path to the output .so file
-            compiler_flags:
-            include_paths: list[str] = None,
-            linker_search_paths: list[str] = None,
-            link_libs: list[str] = None,
-            temp_cpp_filepath: str = None,
+            compiler_flags: the compiler flags to pass to clang
+            include_paths: include paths (-I) to pass to clang
+            linker_search_paths: linker search paths (-L) to pass to clang
+            link_libs: link libraries (-l) to pass to clang
         """
         # err if output filepath does not end with .so
         if shared_object_output_filepath.suffix != ".so":
@@ -61,16 +59,13 @@ class ClangBackend:
                 f"Expected shared object output filepath to end with .so, but got {shared_object_output_filepath}"
             )
 
-        with open(temp_cpp_filepath, mode="w") as f:
-            f.write(cpp_source)
-
         include_args = to_clang_args("-I", include_paths)
         linker_search_path_args = to_clang_args("-L", linker_search_paths)
         link_lib_args = to_clang_args("-l", link_libs)
         args = (
             [
                 self.compiler_binary_path,
-                temp_cpp_filepath,
+                cpp_source_filepath,
                 "-o",
                 shared_object_output_filepath,
             ]
