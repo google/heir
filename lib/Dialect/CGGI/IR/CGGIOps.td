@@ -85,6 +85,29 @@ def CGGI_PackedOp : CGGI_Op<"packed_gates",
   let results = (outs LWECiphertextLike:$output);
 }
 
+def CGGI_ProgrammableBootstrapOp : CGGI_Op<"programmable_bootstrap", [
+    Pure,
+    SameOperandsAndResultType,
+    ElementwiseMappable,
+    Scalarizable
+]> {
+  let arguments = (ins LWECiphertextLike:$input, Builtin_IntegerAttr:$lookup_table);
+  let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
+  let summary = "Programmable Bootstrap with a given lookup table.";
+
+  let description = [{
+    An op representing a programmable bootstrap applied to an LWE ciphertext.
+
+    This operation evaluates a univariate function homomorphically on the
+    ciphertext by selecting the correct value from a lookup table. The bit size
+    of the lookup table integer attribute should be equal to the plaintext space
+    size. For example, if there ciphertext can hold 3 plaintext message bits,
+    then the lookup table must be represented at most by an integer with 8 bits.
+  }];
+  let hasVerifier = 1;
+}
+
 class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
   : CGGI_Op<mnemonic, traits # [
   Pure,

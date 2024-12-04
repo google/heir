@@ -22,6 +22,22 @@ def SetDefaultParameters : Pass<"cggi-set-default-parameters"> {
   ];
 }
 
+def ExpandLUT : Pass<"cggi-expand-lut"> {
+  let summary = "Expands LUTs into LWE operations and programmable bootstraps";
+  let description = [{
+    This pass expands the linear combination performed in a LUT operation into
+    the component LWE scalar operations and a programmable bootstrap operation.
+
+    For example, a LUT3 operation is composed of three LWE ciphertext inputs $c,
+    b, a$ (in MSB to LSB ordering) which must be combined via the linear
+    combination $4 * c + 2 * b + a$ before being fed into a programmable
+    bootstrap defined by the lookup table.
+
+    This pass supports LUT2, LUT3, and LutLincomb operations.
+  }];
+  let dependentDialects = ["mlir::heir::cggi::CGGIDialect"];
+}
+
 def BooleanVectorizer : Pass<"cggi-boolean-vectorize"> {
   let summary = "Group different logic gates with the packed API";
   let description = [{

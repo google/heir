@@ -12,6 +12,7 @@ cc_library(
     ],
     deps = [
         ":BooleanVectorizer",
+        ":ExpandLUT",
         ":SetDefaultParameters",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
@@ -59,6 +60,31 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "ExpandLUT",
+    srcs = ["ExpandLUT.cpp"],
+    hdrs = [
+        "ExpandLUT.h",
+    ],
+    deps = [
+        ":expand_lut_inc_gen",
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/CGGI/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Utils/ConversionUtils",
+        "@heir//lib/Utils/Graph",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
 gentbl_cc_library(
     name = "pass_inc_gen",
     tbl_outs = [
@@ -79,5 +105,27 @@ gentbl_cc_library(
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "expand_lut_inc_gen",
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "ExpandLUT.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "ExpandLUT.td",
+    deps = [
+        "@heir//lib/Dialect:td_files",
+        "@heir//lib/Dialect/CGGI/IR:ops_inc_gen",
+        "@heir//lib/Dialect/CGGI/IR:td_files",
+        "@heir//lib/Dialect/LWE/IR:ops_inc_gen",
+        "@heir//lib/Dialect/LWE/IR:td_files",
+        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        "@llvm-project//mlir:ArithOpsTdFiles",
+        "@llvm-project//mlir:TensorOpsTdFiles",
     ],
 )

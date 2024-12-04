@@ -87,6 +87,27 @@ LogicalResult LutLinCombOp::verify() {
   return success();
 }
 
+LogicalResult ProgrammableBootstrapOp::verify() {
+  lwe::LWECiphertextType type =
+      cast<lwe::LWECiphertextType>(getElementTypeOrSelf(getOutput().getType()));
+  auto encoding = dyn_cast<lwe::BitFieldEncodingAttr>(type.getEncoding());
+
+  if (encoding) {
+    int64_t maxCoeff = (1 << encoding.getCleartextBitwidth()) - 1;
+    if (getLookupTable().getValue().getActiveBits() > maxCoeff + 1) {
+      InFlightDiagnostic diag =
+          emitOpError("LUT is larger than available cleartext bit width");
+      diag.attachNote() << "LUT has "
+                        << getLookupTable().getValue().getActiveBits()
+                        << " active bits";
+      diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
+      return diag;
+    }
+  }
+
+  return success();
+}
+
 LogicalResult MultiLutLinCombOp::verify() {
   if (getInputs().size() != getCoefficients().size())
     return emitOpError("number of coefficients must match number of inputs");
