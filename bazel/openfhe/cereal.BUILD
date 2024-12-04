@@ -5,6 +5,14 @@ package(
 
 licenses(["notice"])
 
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "include/**/*.h",
+        "include/**/*.hpp",
+    ]),
+)
+
 cc_library(
     name = "cereal",
     copts = ["-fexceptions"],

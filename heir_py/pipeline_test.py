@@ -1,13 +1,15 @@
+from heir_py import openfhe_config
 from heir_py.pipeline import run_compiler
 
 from absl.testing import absltest  # fmt: skip
+
 
 class PipelineTest(absltest.TestCase):
     def test_simple_arithmetic(self):
         def foo(a, b):
             return a * a - b * b
 
-        _heir_foo = run_compiler(foo)
+        _heir_foo = run_compiler(foo, openfhe_config=openfhe_config.from_os_env(debug=True))
 
         cc = _heir_foo.foo__generate_crypto_context()
         kp = cc.KeyGen()
@@ -44,5 +46,5 @@ class PipelineTest(absltest.TestCase):
     #     )
 
 
-if __name__ == '__main__':
-  absltest.main()
+if __name__ == "__main__":
+    absltest.main()

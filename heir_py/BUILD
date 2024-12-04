@@ -1,4 +1,5 @@
-load("@rules_python//python:defs.bzl", "py_library", "py_test")
+load("@rules_python//python:defs.bzl", "py_library")
+load("//heir_py:testing.bzl", "heir_py_test")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -27,14 +28,7 @@ py_library(
     ],
 )
 
-# Test rules are below, though the source files are in subdirectories.
-py_test(
+heir_py_test(
     name = "pipeline_test",
     srcs = ["pipeline_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
-    deps = [
-        ":heir_py",
-        "@com_google_absl_py//absl/testing:absltest",
-    ],
 )
