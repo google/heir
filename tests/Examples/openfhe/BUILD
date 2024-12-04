@@ -75,7 +75,7 @@ openfhe_end_to_end_test(
     ],
     heir_translate_flags = [
         "--openfhe-scheme=ckks",
-        "--openfhe-import-type=source-relative",
+        "--openfhe-include-type=source-relative",
     ],
     mlir_src = "naive_matmul.mlir",
     tags = ["notap"],
@@ -88,7 +88,7 @@ openfhe_end_to_end_test(
     heir_opt_flags = ["--mlir-to-openfhe-ckks=entry-function=matmul ciphertext-degree=16"],
     heir_translate_flags = [
         "--openfhe-scheme=ckks",
-        "--openfhe-import-type=source-relative",
+        "--openfhe-include-type=source-relative",
     ],
     mlir_src = "halevi_shoup_matmul.mlir",
     tags = ["notap"],

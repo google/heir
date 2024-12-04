@@ -33,7 +33,7 @@ struct TranslateOptions {
                        clEnumValN(mlir::heir::openfhe::OpenfheScheme::CKKS,
                                   "ckks", "Emit with OpenFHE CKKS scheme"))};
   llvm::cl::opt<mlir::heir::openfhe::OpenfheImportType> openfheImportType{
-      "openfhe-import-type",
+      "openfhe-include-type",
       llvm::cl::desc("The type of imports to use for OpenFHE"),
       llvm::cl::init(mlir::heir::openfhe::OpenfheImportType::INSTALL_RELATIVE),
       llvm::cl::values(
