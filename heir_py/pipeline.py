@@ -33,14 +33,16 @@ def run_compiler(
         bytecode = ByteCode(func_id)
         ssa_ir = Interpreter(func_id).interpret(bytecode)
         mlir_textual = TextualMlirEmitter(ssa_ir).emit()
-        module_name = f"_heir_{func_id.func_name}"
+        func_name = func_id.func_name
+        module_name = f"_heir_{func_name}"
 
         # FIXME: allow user to configure heir-opt path
         heir_opt = HeirOptBackend(binary_path="tools/heir-opt")
         # FIXME: construct heir-opt pipeline options from decorator
         heir_opt_options = [
+            f"--secretize=function={func_name}",
             "--mlir-to-openfhe-bgv="
-            f"entry-function={func_id.func_name} ciphertext-degree=32",
+            f"entry-function={func_name} ciphertext-degree=32",
         ]
         heir_opt_output = heir_opt.run_binary(
             input=mlir_textual,
@@ -48,9 +50,9 @@ def run_compiler(
         )
 
         heir_translate = HeirTranslateBackend(binary_path="tools/heir-translate")
-        cpp_filepath = Path(workspace_dir) / f"{func_id.func_name}.cpp"
-        h_filepath = Path(workspace_dir) / f"{func_id.func_name}.h"
-        pybind_filepath = Path(workspace_dir) / f"{func_id.func_name}_bindings.cpp"
+        cpp_filepath = Path(workspace_dir) / f"{func_name}.cpp"
+        h_filepath = Path(workspace_dir) / f"{func_name}.h"
+        pybind_filepath = Path(workspace_dir) / f"{func_name}_bindings.cpp"
         # FIXME: construct heir-translate pipeline options from decorator
         include_type_flag = "--openfhe-include-type=" + openfhe_config.include_type
         heir_translate.run_binary(
@@ -73,7 +75,7 @@ def run_compiler(
         )
 
         clang = ClangBackend()
-        so_filepath = Path(workspace_dir) / f"{func_id.func_name}.so"
+        so_filepath = Path(workspace_dir) / f"{func_name}.so"
         linker_search_paths = [openfhe_config.lib_dir]
         clang.compile_to_shared_object(
             cpp_source_filepath=cpp_filepath,
