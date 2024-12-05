@@ -5,7 +5,7 @@
 module {
   // CHECK-LABEL: func @main
   // CHECK-SAME: %[[arg0:.*]]: tensor<1x16x!lwe.rlwe_ciphertext<{{.*}}, underlying_type = f32>>, %[[arg1:.*]]: tensor<1x16x!lwe.rlwe_ciphertext<{{.*}}, underlying_type = f32>>
-  func.func @main(%arg0: tensor<1x16xf32>, %arg1: tensor<1x16xf32>) -> tensor<1x16xf32> {
+  func.func @main(%arg0: tensor<1x16xf32> {secret.secret}, %arg1: tensor<1x16xf32> {secret.secret}) -> tensor<1x16xf32> {
     // CHECK-NOT: secret
     // CHECK-COUNT-256: openfhe.mul_plain
     // CHECK: return

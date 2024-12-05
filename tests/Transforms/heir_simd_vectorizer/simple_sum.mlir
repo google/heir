@@ -1,5 +1,4 @@
-// RUN: heir-opt --secretize=entry-function=simple_sum \
-// RUN:   --secretize=entry-function=simple_sum_nested \
+// RUN: heir-opt --secretize \
 // RUN:   --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 

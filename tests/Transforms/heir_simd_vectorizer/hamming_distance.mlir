@@ -1,4 +1,4 @@
-// RUN: heir-opt --secretize=entry-function=hamming --wrap-generic --canonicalize --cse \
+// RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 // CHECK-LABEL: @hamming
