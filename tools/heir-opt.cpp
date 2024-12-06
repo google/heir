@@ -81,6 +81,7 @@
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/ControlFlow/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/EmitC/IR/EmitC.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Extensions/AllExtensions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
@@ -129,6 +130,7 @@ int main(int argc, char **argv) {
 
   // Add expected MLIR dialects to the registry.
   registry.insert<LLVM::LLVMDialect>();
+  registry.insert<::mlir::emitc::EmitCDialect>();
   registry.insert<::mlir::linalg::LinalgDialect>();
   registry.insert<TosaDialect>();
   registry.insert<affine::AffineDialect>();
