@@ -20,13 +20,43 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
   LogicalResult matchAndRewrite(func::FuncOp op,
                                 PatternRewriter &rewriter) const override {
     bool hasSecrets = false;
+    bool secretHasUse = false;
 
+    // check if any of the arguments are secret
+    // and if any of the secret arguments are used
+    for (unsigned i = 0; i < op.getNumArguments(); i++) {
+      if (op.getArgAttr(i, secret::SecretDialect::kArgSecretAttrName) !=
+          nullptr) {
+        hasSecrets = true;
+
+        if (!op.getArgument(i).getUses().empty()) {
+          secretHasUse = true;
+        }
+      }
+    }
+
+    if (!hasSecrets) {
+      // Match failure, no secret inputs.
+      return failure();
+    }
+    if (!secretHasUse) {
+      // No need to wrap the function, no secret inputs are used.
+      // remove secret attribute
+      for (unsigned i = 0; i < op.getNumArguments(); i++) {
+        if (op.getArgAttr(i, secret::SecretDialect::kArgSecretAttrName) !=
+            nullptr) {
+          op.removeArgAttr(i, secret::SecretDialect::kArgSecretAttrName);
+        }
+      }
+      return failure();
+    }
+
+    // begin transform
     SmallVector<Type, 4> newInputs;
     for (unsigned i = 0; i < op.getNumArguments(); i++) {
       auto argTy = op.getArgument(i).getType();
       if (op.getArgAttr(i, secret::SecretDialect::kArgSecretAttrName) !=
           nullptr) {
-        hasSecrets = true;
         op.removeArgAttr(i, secret::SecretDialect::kArgSecretAttrName);
 
         auto newTy = secret::SecretType::get(argTy);
@@ -35,11 +65,6 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
       } else {
         newInputs.push_back(argTy);
       }
-    }
-
-    if (!hasSecrets) {
-      // Match failure, no secret inputs.
-      return failure();
     }
 
     auto newOutputs = llvm::to_vector<6>(llvm::map_range(
@@ -89,6 +114,13 @@ struct WrapGeneric : impl::WrapGenericBase<WrapGeneric> {
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
+
+    // call CSE and Canonicalize here
+    // to avoid secretless function body
+    OpPassManager eliminateSecretlessBodyPipeline("builtin.module");
+    eliminateSecretlessBodyPipeline.addPass(createCSEPass());
+    eliminateSecretlessBodyPipeline.addPass(createCanonicalizerPass());
+    (void)runPipeline(eliminateSecretlessBodyPipeline, getOperation());
 
     mlir::RewritePatternSet patterns(context);
     patterns.add<WrapWithGeneric>(context);
