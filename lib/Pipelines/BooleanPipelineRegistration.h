@@ -25,6 +25,13 @@ struct TosaToBooleanTfheOptions
   PassOptions::Option<std::string> entryFunction{
       *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
       llvm::cl::init("main")};
+
+  PassOptions::Option<int> parallelism{
+      *this, "parallelism",
+      llvm::cl::desc(
+          "batching size for parallel execution. A value of 0 is infinite "
+          "parallelism and a value of -1 is to turn off parallelism."),
+      llvm::cl::init(-1)};
 };
 
 void tosaToCGGIPipelineBuilder(OpPassManager &pm,
