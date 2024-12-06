@@ -37,13 +37,16 @@ def from_os_env() -> HEIRConfig:
   """
   which_heir_opt = shutil.which("heir-opt")
   which_heir_translate = shutil.which("heir-translate")
+  resolved_heir_opt_path = os.environ.get(
+      "HEIR_OPT_PATH",
+      which_heir_opt or DEVELOPMENT_HEIR_CONFIG.heir_opt_path,
+  )
+  resolved_heir_translate_path = os.environ.get(
+      "HEIR_TRANSLATE_PATH",
+      which_heir_translate or DEVELOPMENT_HEIR_CONFIG.heir_translate_path,
+  )
+
   return HEIRConfig(
-      heir_opt_path=os.environ.get(
-          "HEIR_OPT_PATH",
-          which_heir_opt or DEVELOPMENT_HEIR_CONFIG.heir_opt_path,
-      ),
-      heir_translate_path=os.environ.get(
-          "HEIR_TRANSLATE_PATH",
-          which_heir_translate or DEVELOPMENT_HEIR_CONFIG.heir_translate_path,
-      ),
+      heir_opt_path=resolved_heir_opt_path,
+      heir_translate_path=resolved_heir_translate_path,
   )

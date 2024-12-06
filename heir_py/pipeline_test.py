@@ -15,7 +15,7 @@ class PipelineTest(absltest.TestCase):
         foo,
         openfhe_config=openfhe_config.from_os_env(),
         heir_config=heir_config.from_os_env(),
-    )
+    ).module
 
     cc = heir_foo.foo__generate_crypto_context()
     kp = cc.KeyGen()

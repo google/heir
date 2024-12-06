@@ -1,13 +1,11 @@
 """The compilation pipeline."""
 
+import dataclasses
 import importlib
 import pathlib
 import shutil
 import sys
 import tempfile
-
-from numba.core import bytecode
-from numba.core import interpreter
 
 from heir_py import clang
 from heir_py import heir_backend
@@ -15,12 +13,39 @@ from heir_py import heir_config as heir_config_lib
 from heir_py import mlir_emitter
 from heir_py import openfhe_config as openfhe_config_lib
 from heir_py import pybind_helpers
+from numba.core import bytecode
+from numba.core import interpreter
 
+dataclass = dataclasses.dataclass
 Path = pathlib.Path
 pyconfig_ext_suffix = pybind_helpers.pyconfig_ext_suffix
 OpenFHEConfig = openfhe_config_lib.OpenFHEConfig
 pybind11_includes = pybind_helpers.pybind11_includes
 HEIRConfig = heir_config_lib.HEIRConfig
+
+
+@dataclass
+class CompilationResult:
+  # The module object containing the compiled functions
+  module: object
+
+  # The function name used to generate the various compiled functions
+  func_name: str
+
+  # A list of arg names (in order)
+  arg_names: list[str]
+
+  # A mapping from argument name to the compiled encryption function
+  arg_enc_funcs: dict[str, object]
+
+  # The compiled decryption function for the function result
+  result_dec_func: object
+
+  # The main compiled function
+  main_func: object
+
+  # Backend setup functions, if any
+  setup_funcs: dict[str, object]
 
 
 def run_compiler(
@@ -131,4 +156,24 @@ def run_compiler(
     else:
       shutil.rmtree(workspace_dir)
 
-  return bound_module
+  result = CompilationResult(
+      module=bound_module,
+      func_name=func_name,
+      arg_names=func_id.arg_names,
+      arg_enc_funcs={
+          arg_name: getattr(bound_module, f"{func_name}__encrypt__arg{i}")
+          for i, arg_name in enumerate(func_id.arg_names)
+      },
+      result_dec_func=getattr(bound_module, f"{func_name}__decrypt__result0"),
+      main_func=getattr(bound_module, func_name),
+      setup_funcs={
+          "generate_crypto_context": getattr(
+              bound_module, f"{func_name}__generate_crypto_context"
+          ),
+          "configure_crypto_context": getattr(
+              bound_module, f"{func_name}__configure_crypto_context"
+          ),
+      },
+  )
+
+  return result

@@ -6,6 +6,21 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+DATA_DEPS = [
+    "@cereal//:headers",
+    "@heir//tools:heir-opt",
+    "@heir//tools:heir-translate",
+    "@openfhe//:headers",
+    "@openfhe//:binfhe",
+    # copybara: openfhe_binfhe_headers
+    "@openfhe//:core",
+    # copybara: openfhe_core_headers
+    "@openfhe//:pke",
+    # copybara: openfhe_pke_headers
+    # copybara: python_runtime_headers
+    "@rapidjson//:headers",
+]
+
 # a single-source build dependency that gives the whole (non-test) source tree;
 # note we chose the style of putting all test rules below, because glob does
 # not recurse into subdirectories with BUILD files in them.
@@ -17,20 +32,7 @@ py_library(
             "**/*_test.py",
         ],
     ),
-    data = [
-        "@cereal//:headers",
-        "@heir//tools:heir-opt",
-        "@heir//tools:heir-translate",
-        "@openfhe//:headers",
-        "@openfhe//:binfhe",
-        # copybara: openfhe_binfhe_headers
-        "@openfhe//:core",
-        # copybara: openfhe_core_headers
-        "@openfhe//:pke",
-        # copybara: openfhe_pke_headers
-        # copybara: python_runtime_headers
-        "@rapidjson//:headers",
-    ],
+    data = DATA_DEPS,
     deps = [
         "@heir_py_pip_deps_numba//:pkg",
         "@heir_py_pip_deps_pybind11//:pkg",
@@ -41,6 +43,15 @@ py_library(
 heir_py_test(
     name = "pipeline_test",
     srcs = ["pipeline_test.py"],
+    tags = [
+        # copybara: manual
+        "notap",
+    ],
+)
+
+heir_py_test(
+    name = "e2e_test",
+    srcs = ["e2e_test.py"],
     tags = [
         # copybara: manual
         "notap",
