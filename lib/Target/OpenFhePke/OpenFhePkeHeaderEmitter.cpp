@@ -64,20 +64,20 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
   }
 
   Type result = funcOp.getResultTypes()[0];
-  if (failed(emitType(result))) {
+  if (failed(emitType(result, funcOp->getLoc()))) {
     return funcOp.emitOpError() << "Failed to emit type " << result;
   }
 
   os << " " << funcOp.getName() << "(";
 
   for (Value arg : funcOp.getArguments()) {
-    if (failed(convertType(arg.getType()))) {
+    if (failed(convertType(arg.getType(), arg.getLoc()))) {
       return funcOp.emitOpError() << "Failed to emit type " << arg.getType();
     }
   }
 
   os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
-    auto res = convertType(value.getType());
+    auto res = convertType(value.getType(), funcOp->getLoc());
     return res.value() + " " + variableNames->getNameForValue(value);
   });
   os << ");\n";
@@ -85,8 +85,8 @@ LogicalResult OpenFhePkeHeaderEmitter::printOperation(func::FuncOp funcOp) {
   return success();
 }
 
-LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type) {
-  auto result = convertType(type);
+LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type, Location loc) {
+  auto result = convertType(type, loc);
   if (failed(result)) {
     return failure();
   }

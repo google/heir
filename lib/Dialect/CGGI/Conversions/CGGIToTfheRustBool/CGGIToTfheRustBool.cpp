@@ -241,7 +241,7 @@ struct ConvertBoolTrivialEncryptOp
     auto outputType = tfhe_rust_bool::EncryptedBoolType::get(getContext());
 
     auto createTrivialOp = rewriter.create<tfhe_rust_bool::CreateTrivialOp>(
-        op.getLoc(), outputType, serverKey, encodeOp.getPlaintext());
+        op.getLoc(), outputType, serverKey, encodeOp.getInput());
     rewriter.replaceOp(op, createTrivialOp);
     return success();
   }

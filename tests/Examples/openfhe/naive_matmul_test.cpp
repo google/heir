@@ -13,31 +13,47 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-std::vector<std::vector<CiphertextT>> matmul__encrypt__arg0(
-    CryptoContextT v16, std::vector<double> v17, PublicKeyT v18) {
-  std::vector<double> v17_cast(std::begin(v17), std::end(v17));
+// TODO (#1147): Add support for tensor<ctxt> to add-client-interface
+std::vector<CiphertextT> matmul__encrypt__arg0(CryptoContextT v16,
+                                               std::vector<double> v17,
+                                               PublicKeyT v18) {
+  std::vector<float> v17_cast(std::begin(v17), std::end(v17));
   int32_t n =
       v16->GetCryptoParameters()->GetElementParams()->GetRingDimension() / 2;
   // create a 1x16 vector of ciphertexts encrypting each value
-  std::vector<std::vector<CiphertextT>> outputs;
-  outputs.reserve(1);
-  std::vector<CiphertextT> inner;
-  inner.reserve(16);
+  std::vector<CiphertextT> outputs;
+  outputs.reserve(16);
   for (auto v17_val : v17_cast) {
     std::vector<double> single(n, v17_val);
     const auto& v19 = v16->MakeCKKSPackedPlaintext(single);
     const auto& v20 = v16->Encrypt(v18, v19);
-    inner.push_back(v20);
+    outputs.push_back(v20);
   }
-  outputs.push_back(inner);
+  return outputs;
+}
+
+std::vector<CiphertextT> matmul__encrypt__arg1(CryptoContextT v16,
+                                               std::vector<double> v17,
+                                               PublicKeyT v18) {
+  std::vector<float> v17_cast(std::begin(v17), std::end(v17));
+  int32_t n =
+      v16->GetCryptoParameters()->GetElementParams()->GetRingDimension() / 2;
+  // create a 1x16 vector of ciphertexts encrypting each value
+  std::vector<CiphertextT> outputs;
+  outputs.reserve(16);
+  for (auto v17_val : v17_cast) {
+    std::vector<double> single(n, v17_val);
+    const auto& v19 = v16->MakeCKKSPackedPlaintext(single);
+    const auto& v20 = v16->Encrypt(v18, v19);
+    outputs.push_back(v20);
+  }
   return outputs;
 }
 
 double matmul__decrypt__result0(CryptoContextT v26,
-                                std::vector<std::vector<CiphertextT>> v27,
-                                PrivateKeyT v28) {
+                                std::vector<CiphertextT> v27, PrivateKeyT v28) {
   PlaintextT v29;
-  v26->Decrypt(v28, v27[0][0], &v29);  // just decrypt first element
+  v26->Decrypt(v28, v27[0], &v29);  // just decrypt first element
   double v30 = v29->GetCKKSPackedValue()[0].real();
   return v30;
 }
@@ -69,11 +85,10 @@ TEST(NaiveMatmulTest, RunTest) {
   // adds 0.25
   double expected = 0.3492247;
 
-  // TODO(#891): support other schemes besides BGV in add-client-interface
   auto arg0Encrypted =
       matmul__encrypt__arg0(cryptoContext, arg0Vals, publicKey);
   auto arg1Encrypted =
-      matmul__encrypt__arg0(cryptoContext, arg1Vals, publicKey);
+      matmul__encrypt__arg1(cryptoContext, arg1Vals, publicKey);
 
   // Insert timing info
   std::clock_t c_start = std::clock();

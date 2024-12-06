@@ -118,6 +118,15 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       llvm::errs() << "Unsupported RLWE scheme: " << scheme;
       exit(EXIT_FAILURE);
   }
+
+  // Add client interface (helper functions)
+  auto addClientInterfaceOptions = lwe::AddClientInterfaceOptions{};
+  addClientInterfaceOptions.usePublicKey = options.usePublicKey;
+  addClientInterfaceOptions.oneValuePerHelperFn = options.oneValuePerHelperFn;
+  pm.addPass(lwe::createAddClientInterface(addClientInterfaceOptions));
+
+  // TODO (#1145): This should also generate keygen/param gen functions,
+  // which can then be lowered to backend specific stuff later.
 }
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
@@ -131,16 +140,9 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
     // lower to RLWE scheme
     mlirToRLWEPipeline(pm, options, scheme);
 
-    // Add client interface
-    // TODO(#891): Extend add client interface to schemes other than BGV.
+    // Convert to OpenFHE
     switch (scheme) {
       case RLWEScheme::bgvScheme: {
-        auto addClientInterfaceOptions = lwe::AddClientInterfaceOptions{};
-        // OpenFHE's pke API, which this pipeline generates, is always
-        // public-key
-        addClientInterfaceOptions.usePublicKey = true;
-        addClientInterfaceOptions.oneValuePerHelperFn = true;
-        pm.addPass(lwe::createAddClientInterface(addClientInterfaceOptions));
         pm.addPass(bgv::createBGVToOpenfhe());
         break;
       }
@@ -154,6 +156,8 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
     }
 
     pm.addPass(createCanonicalizerPass());
+    // TODO (#1145): OpenFHE context configuration should NOT do its own
+    // analysis but instead use information put into the IR by previous passes
     auto configureCryptoContextOptions =
         openfhe::ConfigureCryptoContextOptions{};
     configureCryptoContextOptions.entryFunction = options.entryFunction;

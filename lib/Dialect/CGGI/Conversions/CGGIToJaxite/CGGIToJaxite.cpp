@@ -207,16 +207,15 @@ struct ConvertCGGIToJaxiteTrivialEncryptOp
     if (failed(result)) return result;
     Value serverParams = result.value();
     lwe::EncodeOp encodeOp = op.getInput().getDefiningOp<lwe::EncodeOp>();
-    if (!encodeOp ||
-        !encodeOp.getPlaintext().getType().isSignlessIntOrFloat() ||
-        encodeOp.getPlaintext().getType().getIntOrFloatBitWidth() != 1) {
+    if (!encodeOp || !encodeOp.getInput().getType().isSignlessIntOrFloat() ||
+        encodeOp.getInput().getType().getIntOrFloatBitWidth() != 1) {
       return op.emitError() << "Expected input to TrivialEncrypt to be a "
                                "boolean LWEPlaintext but found "
                             << op.getInput().getType();
     }
     auto createConstantOp = rewriter.create<jaxite::ConstantOp>(
         op.getLoc(), typeConverter->convertType(op.getOutput().getType()),
-        encodeOp.getPlaintext(), serverParams);
+        encodeOp.getInput(), serverParams);
     rewriter.replaceOp(op, createConstantOp);
     return success();
   }

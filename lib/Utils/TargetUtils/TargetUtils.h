@@ -32,9 +32,9 @@ FailureOr<std::string> commaSeparatedTypes(
 std::string bracketEnclosedValues(
     ValueRange values, std::function<std::string(Value)> valueToString);
 
-// Returns a string expression for the flattened index of a MemRefType.
+// Returns a string expression for the flattened index of a ShapedType.
 std::string flattenIndexExpression(
-    MemRefType memRefType, ValueRange indices,
+    ShapedType type, ValueRange indices,
     std::function<std::string(Value)> valueToString);
 
 // sum of products

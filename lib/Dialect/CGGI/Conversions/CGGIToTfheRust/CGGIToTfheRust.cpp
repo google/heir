@@ -375,7 +375,7 @@ struct ConvertTrivialEncryptOp
     auto outputType = encrytpedUIntTypeFromWidth(
         getContext(), widthFromEncodingAttr(encodeOp.getEncoding()));
     auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
-        op.getLoc(), outputType, serverKey, encodeOp.getPlaintext());
+        op.getLoc(), outputType, serverKey, encodeOp.getInput());
     rewriter.replaceOp(op, createTrivialOp);
     return success();
   }
