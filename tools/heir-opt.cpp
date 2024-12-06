@@ -104,6 +104,8 @@
 #include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #endif
 
+#include "lib/Dialect/Optalysys/IR/OptalysysDialect.h"
+
 using namespace mlir;
 using namespace tosa;
 using namespace heir;
@@ -111,6 +113,8 @@ using mlir::func::FuncOp;
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
+
+  registry.insert<optalysys::OptalysysDialect>();
 
   registry.insert<mod_arith::ModArithDialect>();
   registry.insert<bgv::BGVDialect>();
