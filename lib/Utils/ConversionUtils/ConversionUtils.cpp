@@ -193,7 +193,7 @@ struct ConvertFromElements
         newShape.append(shape.begin(), shape.end());
 
         // Create a dense constant for targetShape
-        auto shapeOp = rewriter.create<arith::ConstantOp>(
+        auto shapeOp = rewriter.create<mlir::arith::ConstantOp>(
             op.getLoc(),
             RankedTensorType::get(newShape.size(), rewriter.getIndexType()),
             rewriter.getIndexTensorAttr(newShape));
