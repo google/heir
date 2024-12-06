@@ -51,13 +51,6 @@ namespace heir {
 
 #define DEBUG_TYPE "optimize-relinearization-analysis"
 
-std::string nameAndLoc(Operation *op) {
-  std::string varName;
-  llvm::raw_string_ostream ss(varName);
-  ss << op->getName() << "_" << op->getLoc();
-  return ss.str();
-}
-
 bool hasCiphertextType(ValueRange range) {
   return llvm::any_of(range, [](Value value) {
     return isa<lwe::RLWECiphertextType>(value.getType());
@@ -66,6 +59,29 @@ bool hasCiphertextType(ValueRange range) {
 
 LogicalResult OptimizeRelinearizationAnalysis::solve() {
   math_opt::Model model("OptimizeRelinearizationAnalysis");
+
+  // If the pass option use-loc-based-variable-names is set, then the variable
+  // names will use the op's Location attribute. This should only be set when
+  // --optimize-relinearization is the only pass applied, as otherwise the loc
+  // is not guaranteed to be unique and this analysis may fail. This is useful
+  // when debugging, as a failing IR can be printed before running this pass in
+  // isolation.
+  int nextOpaqueId = 0;
+  llvm::DenseMap<Operation *, int> opaqueIds;
+  auto uniqueName = [&](Operation *op) {
+    std::string varName;
+    llvm::raw_string_ostream ss(varName);
+    ss << op->getName() << "_";
+    if (useLocBasedVariableNames) {
+      ss << op->getLoc();
+    } else {
+      if (opaqueIds.count(op) == 0)
+        opaqueIds.insert(std::make_pair(op, nextOpaqueId++));
+
+      ss << opaqueIds.lookup(op);
+    }
+    return ss.str();
+  };
 
   // Map an operation to a decision to relinearize its results.
   llvm::DenseMap<Operation *, math_opt::Variable> decisionVariables;
@@ -86,7 +102,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // variable to track whether to insert a relinearization operation after the
   // operation.
   opToRunOn->walk([&](Operation *op) {
-    std::string name = nameAndLoc(op);
+    std::string name = uniqueName(op);
 
     if (isa<ModuleOp>(op)) {
       return;
@@ -171,7 +187,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
       return;
     }
 
-    std::string name = nameAndLoc(op);
+    std::string name = uniqueName(op);
     auto anchorVar = keyBasisVars.at(op->getOperand(0));
 
     // degree(operand 0) == degree(operand i)
@@ -205,7 +221,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
               assert(false && "Operand not found in keyBasisVars");
             }
             auto operandDegreeVar = keyBasisVars.at(operand);
-            cstName = "RequireLinearized_" + nameAndLoc(op);
+            cstName = "RequireLinearized_" + uniqueName(op);
             model.AddLinearConstraint(operandDegreeVar == 1, cstName);
           }
         });
@@ -218,7 +234,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           auto lhsDegreeVar = keyBasisVars.at(op.getLhs());
           auto rhsDegreeVar = keyBasisVars.at(op.getRhs());
           auto resultBeforeRelinVar = beforeRelinVars.at(op.getResult());
-          std::string opName = nameAndLoc(op);
+          std::string opName = uniqueName(op);
           std::string ddPrefix = "BeforeRelin_" + opName;
 
           // before_relin = arg1_degree + arg2_degree
@@ -246,7 +262,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
 
           for (Value result : op.getResults()) {
             auto resultBeforeRelinVar = beforeRelinVars.at(result);
-            std::string opName = nameAndLoc(&op);
+            std::string opName = uniqueName(&op);
             std::string ddPrefix = "DecisionDynamics_" + opName;
 
             cstName = ddPrefix + "_0";
@@ -280,7 +296,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
       auto resultBeforeRelinVar = beforeRelinVars.at(result);
       auto resultAfterRelinVar = keyBasisVars.at(result);
       auto insertRelinOpDecision = decisionVariables.at(op);
-      std::string opName = nameAndLoc(op);
+      std::string opName = uniqueName(op);
       std::string ddPrefix = "DecisionDynamics_" + opName;
 
       cstName = ddPrefix + "_1";

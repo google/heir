@@ -104,6 +104,7 @@ cc_library(
         "@heir//lib/Transforms/FullLoopUnroll",
         "@heir//lib/Transforms/LinalgCanonicalizations",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
+        "@heir//lib/Transforms/OptimizeRelinearization",
         "@heir//lib/Transforms/Secretize",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:MlirOptLib",

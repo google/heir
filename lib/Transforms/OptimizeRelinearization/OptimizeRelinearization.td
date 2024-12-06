@@ -28,6 +28,18 @@ def OptimizeRelinearization : Pass <"optimize-relinearization"> {
 
     // TODO(#1032): generalize to support other schemes
     let dependentDialects = ["mlir::heir::bgv::BGVDialect"];
+
+  let options = [
+    // When using this option, one should generally write the IR to disk and
+    // run `--optimize-relinearization` as the first or only pass, otherwise the
+    // ILP model construction may fail due to having non-unique variable names
+    Option<"useLocBasedVariableNames",
+           "use-loc-based-variable-names",
+           "bool",
+           /*default=*/"false",
+           "When true, the ILP uses op source locations in variable names, "
+           "which can help debug ILP model bugs.">,
+  ];
 }
 
 #endif  // LIB_TRANSFORMS_OPTIMIZE_RELINEARIZATION_TD_
