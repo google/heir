@@ -318,3 +318,36 @@ func.func @unknown_region(%p : i1, %s: !secret.secret<i1>) -> !secret.secret<i1>
   } -> !secret.secret<i1>
   return %0 : !secret.secret<i1>
 }
+
+// CHECK-LABEL: @secret_condition_with_two_if
+func.func @secret_condition_with_two_if(%inp: i16, %cond: !secret.secret<i1>) -> !secret.secret<i16> {
+  // CHECK:      %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : [[T:.*]], !secret.secret<i1>) {
+  // CHECK-NEXT:   ^[[bb0:.*]](%[[CPY_INP:.*]]: [[T]], %[[SCRT_COND:.*]]: i1):
+  // CHECK-NEXT:     %[[ADD:.*]] = arith.addi %[[CPY_INP]], %[[CPY_INP]] : [[T]]
+  // CHECK-NEXT:     %[[SEL:.*]] = arith.select %[[SCRT_COND]], %[[ADD]], %[[CPY_INP]] : [[T]]
+  // CHECK:          %[[SEL2:.*]] = arith.select
+  // CHECK-NEXT:     secret.yield %[[SEL2]] : [[T]]
+  // CHECK-NEXT:   } -> !secret.secret<[[T]]>
+  // CHECK-NEXT: return %[[RESULT]] : !secret.secret<[[T]]>
+  %0 = secret.generic ins(%inp, %cond : i16, !secret.secret<i1>) {
+  ^bb0(%copy_inp: i16, %secret_cond: i1):
+    %1 = scf.if %secret_cond -> (i16) {
+      %2 = arith.addi %copy_inp, %copy_inp : i16
+      scf.yield %2 : i16
+    } else {
+      scf.yield %copy_inp : i16
+    }
+    %2 = arith.addi %1, %1 : i16
+    %3 = arith.muli %2, %2 : i16
+    %c0 = arith.constant 8 : i16
+    %4 = arith.cmpi "slt", %3, %c0 : i16
+    %5 = scf.if %4 -> (i16) {
+      %6 = arith.addi %3, %3 : i16
+      scf.yield %6 : i16
+    } else {
+      scf.yield %3 : i16
+    }
+    secret.yield %5 : i16
+  } -> !secret.secret<i16>
+  return %0 : !secret.secret<i16>
+}

@@ -102,5 +102,30 @@ LogicalResult SecretnessAnalysis::visitOperation(
   return mlir::success();
 }
 
+void annotateSecretness(Operation *top, DataFlowSolver *solver) {
+  // Add an attribute to the operations to show determined secretness
+  top->walk([&](Operation *op) {
+    for (unsigned i = 0; i < op->getNumResults(); ++i) {
+      std::string name = op->getNumResults() == 1
+                             ? "secretness"
+                             : "result_" + std::to_string(i) + "_secretness";
+      auto *secretnessLattice =
+          solver->lookupState<SecretnessLattice>(op->getOpResult(i));
+      if (!secretnessLattice) {
+        op->setAttr(name, StringAttr::get(op->getContext(), "null"));
+        return;
+      }
+      if (!secretnessLattice->getValue().isInitialized()) {
+        op->setAttr(name, StringAttr::get(op->getContext(), ("unknown")));
+        return;
+      }
+      op->setAttr(name,
+                  BoolAttr::get(op->getContext(),
+                                secretnessLattice->getValue().getSecretness()));
+    }
+    return;
+  });
+}
+
 }  // namespace heir
 }  // namespace mlir
