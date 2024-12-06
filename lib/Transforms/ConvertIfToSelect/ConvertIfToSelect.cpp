@@ -33,8 +33,9 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
   using OpRewritePattern<scf::IfOp>::OpRewritePattern;
 
  public:
-  IfToSelectConversion(DataFlowSolver *solver, MLIRContext *context)
-      : OpRewritePattern(context), solver(solver) {}
+  IfToSelectConversion(Operation *top, DataFlowSolver *solver,
+                       MLIRContext *context)
+      : OpRewritePattern(context), top(top), solver(solver) {}
 
   LogicalResult matchAndRewrite(scf::IfOp ifOp,
                                 PatternRewriter &rewriter) const override {
@@ -88,20 +89,17 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
             ifOp.getLoc(), cond, trueVal, falseVal);
       }
 
-      // Update the secretness of the new results, using the "secretness" of
-      // the condition which could have been either "secret" or "uninitialized"
-      for (auto &r : newResults) {
-        auto *lattice = solver->getOrCreateState<SecretnessLattice>(r);
-        solver->propagateIfChanged(lattice, lattice->join(secretness));
-      }
-
       rewriter.replaceOp(ifOp, newResults);
     }
 
-    return success();
+    // re-run the analysis propagate secretness across
+    // newly created Values
+    return solver->initializeAndRun(top);
   }
 
  private:
+  // root operation the pass is on, should never be altered hence never null
+  Operation *top;
   DataFlowSolver *solver;
 };
 
@@ -126,30 +124,10 @@ struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
       return;
     }
 
-    patterns.add<IfToSelectConversion>(&solver, context);
+    patterns.add<IfToSelectConversion>(getOperation(), &solver, context);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
 
-    LLVM_DEBUG({
-      // Add an attribute to the operations to show determined secretness
-      OpBuilder builder(context);
-      getOperation()->walk([&](Operation *op) {
-        if (op->getNumResults() == 0) return;
-        auto *secretnessLattice =
-            solver.lookupState<SecretnessLattice>(op->getResult(0));
-        if (!secretnessLattice) {
-          op->setAttr("secretness", builder.getStringAttr("null"));
-          return;
-        }
-        if (!secretnessLattice->getValue().isInitialized()) {
-          op->setAttr("secretness", builder.getStringAttr("unknown"));
-          return;
-        }
-        op->setAttr(
-            "secretness",
-            builder.getBoolAttr(secretnessLattice->getValue().getSecretness()));
-        return;
-      });
-    });
+    LLVM_DEBUG({ annotateSecretness(getOperation(), &solver); });
   }
 };
 

@@ -19,8 +19,6 @@ struct AnnotateSecretness : impl::AnnotateSecretnessBase<AnnotateSecretness> {
   using AnnotateSecretnessBase::AnnotateSecretnessBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
@@ -34,28 +32,7 @@ struct AnnotateSecretness : impl::AnnotateSecretnessBase<AnnotateSecretness> {
       return;
     }
 
-    // Add an attribute to the operations to show determined secretness
-    OpBuilder builder(context);
-    getOperation()->walk([&](Operation *op) {
-      for (unsigned i = 0; i < op->getNumResults(); ++i) {
-        std::string name = op->getNumResults() == 1
-                               ? "secretness"
-                               : "result_" + std::to_string(i) + "_secretness";
-        auto *secretnessLattice =
-            solver.lookupState<SecretnessLattice>(op->getOpResult(i));
-        if (!secretnessLattice) {
-          op->setAttr(name, builder.getStringAttr("null"));
-          return;
-        }
-        if (!secretnessLattice->getValue().isInitialized()) {
-          op->setAttr(name, builder.getStringAttr("unknown"));
-          return;
-        }
-        op->setAttr(name, builder.getBoolAttr(
-                              secretnessLattice->getValue().getSecretness()));
-      }
-      return;
-    });
+    annotateSecretness(getOperation(), &solver);
   }
 };
 

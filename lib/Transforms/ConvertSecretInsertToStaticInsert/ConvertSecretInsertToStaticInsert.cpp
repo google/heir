@@ -35,9 +35,9 @@ struct SecretInsertToStaticInsertConversion
   using OpRewritePattern<tensor::InsertOp>::OpRewritePattern;
 
  public:
-  SecretInsertToStaticInsertConversion(DataFlowSolver *solver,
+  SecretInsertToStaticInsertConversion(Operation *top, DataFlowSolver *solver,
                                        MLIRContext *context)
-      : OpRewritePattern(context), solver(solver) {}
+      : OpRewritePattern(context), top(top), solver(solver) {}
 
   LogicalResult matchAndRewrite(tensor::InsertOp insertOp,
                                 PatternRewriter &rewriter) const override {
@@ -128,15 +128,19 @@ struct SecretInsertToStaticInsertConversion
     // Replace the old tensor.insert op with forOp's result
     rewriter.replaceOp(insertOp, forOp);
 
-    return success();
+    return solver->initializeAndRun(top);
   }
 
  private:
+  // root operation the pass is on, should never be altered hence never null
+  Operation *top;
   DataFlowSolver *solver;
+
   static inline void setValueToSecretness(DataFlowSolver *solver, Value value,
                                           Secretness secretness) {
     auto *lattice = solver->getOrCreateState<SecretnessLattice>(value);
-    solver->propagateIfChanged(lattice, lattice->join(secretness));
+    // solver->propagateIfChanged is bogus
+    (void)lattice->join(secretness);
   }
 };
 
@@ -164,29 +168,11 @@ struct ConvertSecretInsertToStaticInsert
       return;
     }
 
-    patterns.add<SecretInsertToStaticInsertConversion>(&solver, context);
+    patterns.add<SecretInsertToStaticInsertConversion>(getOperation(), &solver,
+                                                       context);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
-    LLVM_DEBUG({
-      // Add an attribute to the operations to show determined secretness
-      OpBuilder builder(context);
-      getOperation()->walk([&](Operation *op) {
-        if (op->getNumResults() == 0) return;
-        auto *secretnessLattice =
-            solver.lookupState<SecretnessLattice>(op->getResult(0));
-        if (!secretnessLattice) {
-          op->setAttr("secretness", builder.getStringAttr("null"));
-          return;
-        }
-        if (!secretnessLattice->getValue().isInitialized()) {
-          op->setAttr("secretness", builder.getStringAttr("unknown"));
-          return;
-        }
-        op->setAttr(
-            "secretness",
-            builder.getBoolAttr(secretnessLattice->getValue().getSecretness()));
-        return;
-      });
-    });
+
+    LLVM_DEBUG({ annotateSecretness(getOperation(), &solver); });
   }
 };
 

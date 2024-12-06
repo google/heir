@@ -106,6 +106,8 @@ class SecretnessAnalysis
                                ArrayRef<SecretnessLattice *> results) override;
 };
 
+void annotateSecretness(Operation *top, DataFlowSolver *solver);
+
 }  // namespace heir
 }  // namespace mlir
 
