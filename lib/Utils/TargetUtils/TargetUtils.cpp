@@ -57,12 +57,12 @@ std::string bracketEnclosedValues(
 }
 
 std::string flattenIndexExpression(
-    MemRefType memRefType, ValueRange indices,
+    ShapedType type, ValueRange indices,
     std::function<std::string(Value)> valueToString) {
   std::string accum = llvm::formatv("{0}", valueToString(indices[0]));
   for (size_t i = 1; i < indices.size(); ++i) {
     accum = llvm::formatv("{0} + {1} * ({2})", valueToString(indices[i]),
-                          memRefType.getShape()[i], accum);
+                          type.getShape()[i], accum);
   }
   return accum;
 }

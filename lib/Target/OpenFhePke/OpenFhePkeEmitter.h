@@ -93,10 +93,11 @@ class OpenFhePkeEmitter {
                                 std::string_view op);
 
   // Emit an OpenFhe type
-  LogicalResult emitType(Type type);
+  LogicalResult emitType(::mlir::Type type, ::mlir::Location loc);
 
   void emitAutoAssignPrefix(::mlir::Value result);
-  LogicalResult emitTypedAssignPrefix(::mlir::Value result);
+  LogicalResult emitTypedAssignPrefix(::mlir::Value result,
+                                      ::mlir::Location loc);
 };
 
 }  // namespace openfhe

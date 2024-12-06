@@ -47,7 +47,7 @@ class OpenFhePkeHeaderEmitter {
   LogicalResult printOperation(::mlir::func::FuncOp op);
 
   // Emit an OpenFhe type
-  LogicalResult emitType(Type type);
+  LogicalResult emitType(::mlir::Type type, ::mlir::Location loc);
 };
 
 }  // namespace openfhe
