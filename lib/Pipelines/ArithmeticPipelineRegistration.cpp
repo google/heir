@@ -18,6 +18,7 @@
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
@@ -106,6 +107,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       auto secretToBGVOpts = SecretToBGVOptions{};
       secretToBGVOpts.polyModDegree = options.ciphertextDegree;
       pm.addPass(createSecretToBGV(secretToBGVOpts));
+      pm.addPass(createOptimizeRelinearization());
       break;
     }
     default:

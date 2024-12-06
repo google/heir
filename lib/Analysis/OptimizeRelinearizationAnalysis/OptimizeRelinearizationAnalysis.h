@@ -9,7 +9,8 @@ namespace mlir {
 namespace heir {
 class OptimizeRelinearizationAnalysis {
  public:
-  OptimizeRelinearizationAnalysis(Operation *op) : opToRunOn(op) {}
+  OptimizeRelinearizationAnalysis(Operation *op, bool useLocBasedVariableNames)
+      : opToRunOn(op), useLocBasedVariableNames(useLocBasedVariableNames) {}
   ~OptimizeRelinearizationAnalysis() = default;
 
   LogicalResult solve();
@@ -32,6 +33,7 @@ class OptimizeRelinearizationAnalysis {
 
  private:
   Operation *opToRunOn;
+  bool useLocBasedVariableNames = false;
   llvm::DenseMap<Operation *, bool> solution;
   llvm::DenseMap<Value, int> solutionKeyBasisDegreeBeforeRelin;
 };

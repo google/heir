@@ -116,7 +116,7 @@ struct OptimizeRelinearization
       op.erase();
     });
 
-    OptimizeRelinearizationAnalysis analysis(funcOp);
+    OptimizeRelinearizationAnalysis analysis(funcOp, useLocBasedVariableNames);
     if (failed(analysis.solve())) {
       funcOp->emitError("Failed to solve the optimization problem");
       return signalPassFailure();
