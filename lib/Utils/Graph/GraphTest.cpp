@@ -32,12 +32,12 @@ TEST(LevelSortTest, SimpleGraphLevelSort) {
   graph.addVertex(2);
   graph.addVertex(3);
   graph.addVertex(4);
-  EXPECT_TRUE(graph.addEdge(0, 1));
-  EXPECT_TRUE(graph.addEdge(1, 2));
-  EXPECT_TRUE(graph.addEdge(1, 3));
-  EXPECT_TRUE(graph.addEdge(1, 4));
-  EXPECT_TRUE(graph.addEdge(2, 4));
-  EXPECT_TRUE(graph.addEdge(3, 4));
+  EXPECT_TRUE(graph.addEdge(0, 1, 1));
+  EXPECT_TRUE(graph.addEdge(1, 2, 100));
+  EXPECT_TRUE(graph.addEdge(1, 3, 1));
+  EXPECT_TRUE(graph.addEdge(1, 4, 1));
+  EXPECT_TRUE(graph.addEdge(2, 4, 1));
+  EXPECT_TRUE(graph.addEdge(3, 4, 1));
 
   auto levelSorted = graph.sortGraphByLevels();
   EXPECT_TRUE(succeeded(levelSorted));
