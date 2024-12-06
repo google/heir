@@ -18,6 +18,7 @@
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
@@ -84,6 +85,9 @@ void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm) {
 
   // Vectorize and optimize rotations
   heirSIMDVectorizerPipelineBuilder(pm);
+
+  // Balance Operations
+  pm.addPass(createOperationBalancer());
 }
 
 void mlirToRLWEPipeline(OpPassManager &pm,
