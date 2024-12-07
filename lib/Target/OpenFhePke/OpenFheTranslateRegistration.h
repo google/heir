@@ -12,6 +12,8 @@ void registerToOpenFhePkeTranslation();
 
 void registerToOpenFhePkeHeaderTranslation();
 
+void registerToOpenFhePkePybindTranslation();
+
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

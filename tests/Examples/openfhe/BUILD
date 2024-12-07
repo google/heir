@@ -73,7 +73,10 @@ openfhe_end_to_end_test(
         "--cse",
         "--openfhe-configure-crypto-context",
     ],
-    heir_translate_flags = ["--openfhe-scheme=ckks"],
+    heir_translate_flags = [
+        "--openfhe-scheme=ckks",
+        "--openfhe-include-type=source-relative",
+    ],
     mlir_src = "naive_matmul.mlir",
     tags = ["notap"],
     test_src = "naive_matmul_test.cpp",
@@ -83,7 +86,10 @@ openfhe_end_to_end_test(
     name = "halevi_shoup_matmul_test",
     generated_lib_header = "halevi_shoup_matmul_lib.h",
     heir_opt_flags = ["--mlir-to-openfhe-ckks=entry-function=matmul ciphertext-degree=16"],
-    heir_translate_flags = ["--openfhe-scheme=ckks"],
+    heir_translate_flags = [
+        "--openfhe-scheme=ckks",
+        "--openfhe-include-type=source-relative",
+    ],
     mlir_src = "halevi_shoup_matmul.mlir",
     tags = ["notap"],
     test_src = "halevi_shoup_matmul_test.cpp",

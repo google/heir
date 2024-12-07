@@ -28,4 +28,4 @@ jobs:
           pip install -r requirements-dev.txt --require-hashes
       - name: Run tests
         run: |
-          python -m pytest
+          python -m pytest scripts/
