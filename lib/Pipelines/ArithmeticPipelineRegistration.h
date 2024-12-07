@@ -27,6 +27,11 @@ struct MlirToRLWEPipelineOptions
                      "equivalently, the number of messages that can be packed "
                      "into a single ciphertext."),
       llvm::cl::init(1024)};
+  PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
+      *this, "modulus-switch-before-first-mul",
+      llvm::cl::desc("Modulus switching right before the first multiplication "
+                     "(default to false)"),
+      llvm::cl::init(false)};
 };
 
 typedef std::function<void(OpPassManager &pm,
