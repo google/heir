@@ -33,6 +33,7 @@ cc_binary(
     includes = ["include"],
     deps = [
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
+        "@heir//lib/Dialect/BGV/Conversions/BGVToLattigo",
         "@heir//lib/Dialect/BGV/Conversions/BGVToOpenfhe",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
@@ -49,6 +50,7 @@ cc_binary(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/LWE/Transforms:AddClientInterface",
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/ModArith/Conversions/ModArithToArith",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
@@ -156,6 +158,7 @@ cc_binary(
     deps = [
         "@heir//lib/Source/AutoHog:AutoHogImporter",
         "@heir//lib/Target/Jaxite:JaxiteEmitter",
+        "@heir//lib/Target/Lattigo:LattigoEmitter",
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFheRegistration",
         "@heir//lib/Target/TfheRust:TfheRustEmitter",
@@ -178,6 +181,7 @@ cc_binary(
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Jaxite/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
