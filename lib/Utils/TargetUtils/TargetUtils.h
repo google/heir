@@ -2,6 +2,7 @@
 #define LIB_UTILS_TARGETUTILS_TARGETUTILS_H_
 
 #include <functional>
+#include <numeric>
 #include <string>
 
 #include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
@@ -20,6 +21,18 @@ namespace heir {
 // function.
 std::string commaSeparatedValues(
     ValueRange values, std::function<std::string(Value)> valueToString);
+
+// Return a comma-separated string containing the values in the given
+// ArrayRef, with each value being converted to a string by std::to_string
+template <typename T>
+std::string commaSeparated(ArrayRef<T> values) {
+  if (values.empty()) {
+    return std::string();
+  }
+  return std::accumulate(
+      std::next(values.begin()), values.end(), std::to_string(values[0]),
+      [&](const std::string& a, T b) { return a + ", " + std::to_string(b); });
+}
 
 // Return a comma-separated string containing the types in a given TypeRange,
 // or failure if the mapper fails to convert any of the types.
