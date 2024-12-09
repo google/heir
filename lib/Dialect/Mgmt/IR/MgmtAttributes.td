@@ -41,5 +41,33 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
+def Mgmt_OpenfheParamsAttr : Mgmt_Attr<"OpenfheParams", "openfhe_params"> {
+  let summary = "Container attribute for some OpenFHE-specific parameters";
+  let description = [{
+    This attribute is used to store some OpenFHE-specific parameters.
+
+    The attribute is a struct with the following fields:
+      - `evalAddCount` : param for OpenFHE SetEvalAddCount
+      - `keySwitchCount` : param for OpenFHE SetKeySwitchCount
+
+    When this attribute presents, the lowering of openfhe pass
+    will use these parameters to set the corresponding OpenFHE
+    parameters.
+
+    It should be populated by --secret-with-mgmt-bgv before
+    going through the secret-to-bgv bgv-to-openfhe pass.
+
+    Example:
+    ```
+    #openfhe_params = #mgmt.openfhe_params<evalAddCount = 1, keySwitchCount = 1>
+    ```
+  }];
+
+  let parameters = (ins
+    "int": $evalAddCount,
+    "int": $keySwitchCount
+  );
+  let assemblyFormat = "`<` struct(params) `>`";
+}
 
 #endif  // LIB_DIALECT_MGMT_IR_MGMTATTRIBUTES_TD_
