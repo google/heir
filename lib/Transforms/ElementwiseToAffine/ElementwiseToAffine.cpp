@@ -51,8 +51,8 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
     auto ip = rewriter.saveInsertionPoint();
 
     // Create an empty tensor as initial value of the iter_args
-    Value target =
-        rewriter.create<tensor::EmptyOp>(op->getLoc(), shape, elementType);
+    Value target = rewriter.create<tensor::EmptyOp>(
+        op->getLoc(), shape, elementType, resultType.getEncoding());
 
     llvm::SmallVector<Value, 1> indices;
 

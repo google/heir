@@ -18,11 +18,12 @@ func.func @test_poly_ntt() {
   %coeffsRaw = arith.constant dense<[1,2,3,4]> : tensor<4xi32>
   %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<4xi32> -> tensor<4x!coeff_ty>
   %poly = polynomial.from_tensor %coeffs : tensor<4x!coeff_ty> -> !poly_ty
-  %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<4xi32, #ring>
+  %res = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<4x!coeff_ty, #ring>
 
-  %1 = tensor.cast %0 : tensor<4xi32, #ring> to tensor<4xi32>
-  %2 = bufferization.to_memref %1 : tensor<4xi32> to memref<4xi32>
-  %U = memref.cast %2 : memref<4xi32> to memref<*xi32>
+  %extract = mod_arith.extract %res : tensor<4x!coeff_ty, #ring> -> tensor<4xi32, #ring>
+  %0 = tensor.cast %extract : tensor<4xi32, #ring> to tensor<4xi32>
+  %1 = bufferization.to_memref %0 : tensor<4xi32> to memref<4xi32>
+  %U = memref.cast %1 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
 }
