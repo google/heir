@@ -737,6 +737,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
   auto paramsName = variableNames->getNameForValue(op.getResult());
   int64_t mulDepth = op.getMulDepthAttr().getValue().getSExtValue();
   int64_t plainMod = op.getPlainModAttr().getValue().getSExtValue();
+  int64_t evalAddCount = op.getEvalAddCountAttr().getValue().getSExtValue();
+  int64_t keySwitchCount = op.getKeySwitchCountAttr().getValue().getSExtValue();
 
   os << "CCParamsT " << paramsName << ";\n";
   os << paramsName << ".SetMultiplicativeDepth(" << mulDepth << ");\n";
@@ -746,6 +748,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
   if (op.getInsecure()) {
     os << paramsName << ".SetSecurityLevel(lbcrypto::HEStd_NotSet);\n";
     os << paramsName << ".SetRingDim(128);\n";
+  }
+  if (evalAddCount != 0) {
+    os << paramsName << ".SetEvalAddCount(" << evalAddCount << ");\n";
+  }
+  if (keySwitchCount != 0) {
+    os << paramsName << ".SetKeySwitchCount(" << keySwitchCount << ");\n";
   }
   return success();
 }
