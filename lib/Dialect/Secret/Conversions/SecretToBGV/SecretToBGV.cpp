@@ -10,9 +10,12 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -41,12 +44,14 @@ namespace mlir::heir {
 
 namespace {
 
-// Returns an RLWE ring given the specified number of bits needed and polynomial
-// modulus degree.
+// Returns an RLWE RNS ring given the specified number of bits needed and
+// polynomial modulus degree.
 // TODO(#536): Integrate a general library to compute appropriate prime moduli
 // given any number of bits.
-FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
-    MLIRContext *ctx, int coefficientModBits, int polyModDegree) {
+FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext *ctx,
+                                               int currentLevel,
+                                               int coefficientModBits,
+                                               int polyModDegree) {
   std::vector<::mlir::heir::polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
@@ -54,46 +59,162 @@ FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
       ::mlir::heir::polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
   ::mlir::heir::polynomial::IntPolynomial xnPlusOne = result.value();
-  switch (coefficientModBits) {
-    case 29: {
-      auto type = IntegerType::get(ctx, 32);
-      APInt defaultMod(32, 463187969);
-      return ::mlir::heir::polynomial::RingAttr::get(
-          mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, defaultMod)),
-          polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
-    }
-    default:
-      return failure();
+  // all 40 bit primes...
+  std::vector<int64_t> primes = {1095233372161, 1032955396097, 1005037682689,
+                                 998595133441,  972824936449,  959939837953};
+  SmallVector<Type, 4> modTypes;
+  for (int i = 0; i <= currentLevel; i++) {
+    auto type = IntegerType::get(ctx, 64);
+    modTypes.push_back(
+        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, primes[i])));
   }
+  auto rnsType = rns::RNSType::get(ctx, modTypes);
+  return ::mlir::heir::polynomial::RingAttr::get(
+      rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
+}
+
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level) {
+  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+
+  auto newRnsType = rns::RNSType::get(
+      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
+  return ::mlir::heir::polynomial::RingAttr::get(
+      newRnsType, ringAttr.getPolynomialModulus());
 }
 
 }  // namespace
 
-// Remove this class if no type conversions are necessary
-class SecretToBGVTypeConverter : public TypeConverter {
+class SecretToBGVTypeConverter : public ContextAwareTypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
                            ::mlir::heir::polynomial::RingAttr rlweRing) {
+    ring = rlweRing;
+
+    // isLegal/isSignatureLegal will always be true
     addConversion([](Type type) { return type; });
+  }
 
-    // Convert secret types to BGV ciphertext types
-    addConversion([ctx, this](secret::SecretType type) -> Type {
-      int bitWidth =
-          llvm::TypeSwitch<Type, int>(type.getValueType())
-              .Case<RankedTensorType>(
-                  [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
-              .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
-      return lwe::RLWECiphertextType::get(
-          ctx,
-          lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
-          lwe::RLWEParamsAttr::get(ctx, 2, ring_), type.getValueType());
-    });
+  Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
+                                     mgmt::MgmtAttr mgmtAttr) const {
+    int bitWidth =
+        llvm::TypeSwitch<Type, int>(type.getValueType())
+            .Case<RankedTensorType>(
+                [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
+            .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
 
-    ring_ = rlweRing;
+    auto level = mgmtAttr.getLevel();
+    auto dimension = mgmtAttr.getDimension();
+
+    auto *ctx = type.getContext();
+    return lwe::RLWECiphertextType::get(
+        ctx,
+        lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
+        lwe::RLWEParamsAttr::get(ctx, dimension,
+                                 getRlweRNSRingWithLevel(ring, level)),
+        type.getValueType());
+  }
+
+  Type convertTypeWithAttr(Type type, Attribute attr) const {
+    auto secretTy = dyn_cast<secret::SecretType>(type);
+    // guard against null attribute
+    if (secretTy && attr) {
+      auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr);
+      if (mgmtAttr) {
+        return convertSecretTypeWithMgmtAttr(secretTy, mgmtAttr);
+      }
+    }
+    return type;
+  }
+
+  Attribute getValueAttr(Value value) const {
+    Attribute attr;
+    if (auto blockArg = dyn_cast<BlockArgument>(value)) {
+      auto *parentOp = blockArg.getOwner()->getParentOp();
+      auto funcOp = dyn_cast<FunctionOpInterface>(parentOp);
+      if (funcOp) {
+        attr = funcOp.getArgAttr(blockArg.getArgNumber(), attrName);
+      }
+    } else {
+      auto *parentOp = value.getDefiningOp();
+      attr = parentOp->getAttr(attrName);
+    }
+    return attr;
+  }
+
+  void convertValueRangeTypes(ValueRange values,
+                              SmallVectorImpl<Type> &newTypes) const override {
+    newTypes.reserve(values.size());
+    for (auto value : values) {
+      Attribute attr = getValueAttr(value);
+      auto newType = convertTypeWithAttr(value.getType(), attr);
+      // this is actually unsafe...
+      // all the thing should be done through the rewriter,
+      // if we are using the rewriter
+      value.setType(newType);
+      newTypes.push_back(newType);
+    }
+  }
+
+  void convertOpResultTypes(
+      Operation *op, SmallVectorImpl<Type> &newResultTypes) const override {
+    newResultTypes.reserve(op->getResultTypes().size());
+    auto attr = op->getAttr(attrName);
+    for (auto resultType : op->getResultTypes()) {
+      auto newType = convertTypeWithAttr(resultType, attr);
+      newResultTypes.push_back(newType);
+    }
+  }
+
+  void convertFuncArgumentAndResultTypes(
+      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
+      SmallVectorImpl<Type> &newResultTypes) const override {
+    for (auto argument : funcOp.getArguments()) {
+      auto attr = funcOp.getArgAttr(argument.getArgNumber(), attrName);
+      auto newType = convertTypeWithAttr(argument.getType(), attr);
+      // this is actually unsafe...
+      // we should go through rewriter.convertRegionTypes,
+      // which will create unresolved_materializaton,
+      // and everything is safe.
+      argument.setType(newType);
+      newArgTypes.push_back(newType);
+    }
+    // did not convert block arg/signature though..
+    for (auto &block : funcOp.getBlocks()) {
+      for (auto result : block.getTerminator()->getOperands()) {
+        auto attr = getValueAttr(result);
+        auto newType = convertTypeWithAttr(result.getType(), attr);
+        result.setType(newType);
+        newResultTypes.push_back(newType);
+      }
+    }
+  }
+
+  bool isValueLegal(Value value) {
+    auto attr = getValueAttr(value);
+    return value.getType() == convertTypeWithAttr(value.getType(), attr);
+  }
+
+  bool isFuncArgumentAndResultLegal(FunctionOpInterface funcOp) {
+    for (auto argument : funcOp.getArguments()) {
+      if (!isValueLegal(argument)) {
+        return false;
+      }
+    }
+    for (auto &block : funcOp.getBlocks()) {
+      for (auto result : block.getTerminator()->getOperands()) {
+        if (!isValueLegal(result)) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
  private:
-  ::mlir::heir::polynomial::RingAttr ring_;
+  ::mlir::heir::polynomial::RingAttr ring;
+
+  llvm::StringLiteral attrName = mgmt::MgmtDialect::kArgMgmtAttrName;
 };
 
 struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
@@ -103,7 +224,9 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
 
-    auto rlweRing = getRlweRing(context, coefficientModBits, polyModDegree);
+    auto maxLevel = 5;
+    auto rlweRing =
+        getRlweRNSRing(context, maxLevel, coefficientModBits, polyModDegree);
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
@@ -131,21 +254,34 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       return signalPassFailure();
     }
 
+    // Invariant: for every SecretType, there is a
+    // corresponding MgmtAttr attached to it,
+    // either in its DefiningOp or getOwner()->getParentOp()
+    // (i.e., the FuncOp).
+    // Otherwise the typeConverter won't find the proper type information
+    // and fail
     SecretToBGVTypeConverter typeConverter(context, rlweRing.value());
+
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
     target.addLegalDialect<bgv::BGVDialect>();
+    target.addLegalDialect<lwe::LWEDialect>();
     target.addIllegalDialect<secret::SecretDialect>();
+    target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
     target.addIllegalOp<secret::GenericOp>();
+    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+      return typeConverter.isFuncArgumentAndResultLegal(op);
+    });
 
-    addStructuralConversionPatterns(typeConverter, patterns, target);
     patterns.add<
+        ConvertFuncWithContextAwareTypeConverter,
         SecretGenericOpCipherConversion<arith::AddIOp, bgv::AddOp>,
         SecretGenericOpCipherConversion<arith::SubIOp, bgv::SubOp>,
+        SecretGenericOpCipherConversion<arith::MulIOp, bgv::MulOp>,
+        SecretGenericOpRelinearizeConversion<bgv::RelinearizeOp>,
+        SecretGenericOpModulusSwitchConversion<bgv::ModulusSwitchOp>,
         SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
         SecretGenericOpRotateConversion<bgv::RotateOp>,
-        SecretGenericOpMulConversion<arith::MulIOp, bgv::MulOp,
-                                     bgv::RelinearizeOp>,
         SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>>(
@@ -154,6 +290,17 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
     }
+
+    // cleanup MgmtAttr
+    getOperation()->walk([&](Operation *op) {
+      if (auto funcOp = dyn_cast<FunctionOpInterface>(op)) {
+        for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
+          funcOp.removeArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
+        }
+      } else {
+        op->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+      }
+    });
   }
 };
 

@@ -38,6 +38,11 @@ struct MlirToRLWEPipelineOptions
           "If true, split encryption helpers into separate functions "
           "for each SSA value."),
       llvm::cl::init(true)};
+  PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
+      *this, "modulus-switch-before-first-mul",
+      llvm::cl::desc("Modulus switching right before the first multiplication "
+                     "(default to false)"),
+      llvm::cl::init(false)};
 };
 
 using RLWEPipelineBuilder =

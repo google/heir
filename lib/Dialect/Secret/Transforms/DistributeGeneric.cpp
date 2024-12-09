@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -587,6 +588,38 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   DataFlowSolver *solver;
 };
 
+// should be called right before all spilting
+void moveMgmtAttrAnnotationToFuncArgument(Operation *top) {
+  top->walk([&](secret::GenericOp genericOp) {
+    for (auto i = 0; i != genericOp->getNumOperands(); ++i) {
+      auto operand = genericOp.getOperand(i);
+      auto funcBlockArg = dyn_cast<BlockArgument>(operand);
+      if (isa<SecretType>(operand.getType()) && funcBlockArg) {
+        auto funcOp =
+            dyn_cast<func::FuncOp>(funcBlockArg.getOwner()->getParentOp());
+        auto mgmtAttr =
+            genericOp.removeArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
+        if (mgmtAttr) {
+          funcOp.setArgAttr(funcBlockArg.getArgNumber(),
+                            mgmt::MgmtDialect::kArgMgmtAttrName, mgmtAttr);
+        }
+      }
+    }
+  });
+}
+
+// should be called when done with all splitting
+// assume only one inner op
+void moveMgmtAttrAnnotationFromInnerToOuter(Operation *top) {
+  top->walk([&](secret::GenericOp genericOp) {
+    auto *innerOp = &genericOp.getBody()->front();
+    auto mgmtAttr = innerOp->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+    if (mgmtAttr) {
+      genericOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, mgmtAttr);
+    }
+  });
+}
+
 struct DistributeGeneric
     : impl::SecretDistributeGenericBase<DistributeGeneric> {
   using SecretDistributeGenericBase::SecretDistributeGenericBase;
@@ -620,11 +653,17 @@ struct DistributeGeneric
       return;
     }
 
+    // used by secret-to-<scheme> lowering
+    moveMgmtAttrAnnotationToFuncArgument(getOperation());
+
     patterns.add<SplitGeneric>(context, opsToDistribute, &solver);
     // These patterns are shared with canonicalization
     patterns.add<FoldSecretSeparators, CollapseSecretlessGeneric,
                  RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs>(context);
     (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+
+    // used by secret-to-<scheme> lowering
+    moveMgmtAttrAnnotationFromInnerToOuter(getOperation());
   }
 };
 

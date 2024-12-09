@@ -10,6 +10,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
@@ -42,17 +43,73 @@ class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
  public:
   using OpAsmDialectInterface::OpAsmDialectInterface;
 
+  void getRingAttrAliasSuffix(polynomial::RingAttr ring,
+                              raw_ostream& os) const {
+    auto rnsType = dyn_cast<rns::RNSType>(ring.getCoefficientType());
+    if (rnsType) {
+      auto level = rnsType.getBasisTypes().size() - 1;
+      os << "_L" << level;
+    }
+  }
+
+  void getRLWEParamsAttrAliasSuffix(RLWEParamsAttr rlweParams,
+                                    raw_ostream& os) const {
+    auto dimension = rlweParams.getDimension();
+    auto ring = rlweParams.getRing();
+    getRingAttrAliasSuffix(ring, os);
+    if (dimension != 2) {
+      os << "_D" << dimension;
+    }
+  }
+
   AliasResult getAlias(Type type, raw_ostream& os) const override {
     auto res = llvm::TypeSwitch<Type, AliasResult>(type)
-                   .Case<RLWECiphertextType>([&](Type) {
+                   .Case<RLWECiphertextType>([&](auto& type) {
                      os << "rlwe_ct";
+                     getRLWEParamsAttrAliasSuffix(type.getRlweParams(), os);
                      return AliasResult::FinalAlias;
                    })
-                   .Case<RLWEPlaintextType>([&](Type) {
+                   .Case<RLWEPlaintextType>([&](auto& type) {
                      os << "rlwe_pt";
+                     getRingAttrAliasSuffix(type.getRing(), os);
                      return AliasResult::FinalAlias;
                    })
                    .Default([&](Type) { return AliasResult::NoAlias; });
+    return res;
+  }
+
+  AliasResult getAlias(Attribute attr, raw_ostream& os) const override {
+    auto res = llvm::TypeSwitch<Attribute, AliasResult>(attr)
+                   .Case<RLWEParamsAttr>([&](auto rlweParams) {
+                     os << "rlwe_params";
+                     getRLWEParamsAttrAliasSuffix(rlweParams, os);
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<BitFieldEncodingAttr>([&](auto bitFieldEncoding) {
+                     os << "bit_field_encoding";
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<UnspecifiedBitFieldEncodingAttr>(
+                       [&](auto unspecifiedBitFieldEncoding) {
+                         os << "unspecified_bit_field_encoding";
+                         return AliasResult::FinalAlias;
+                       })
+                   .Case<PolynomialCoefficientEncodingAttr>(
+                       [&](auto polynomialCoefficientEncoding) {
+                         os << "polynomial_coefficient_encoding";
+                         return AliasResult::FinalAlias;
+                       })
+                   .Case<PolynomialEvaluationEncodingAttr>(
+                       [&](auto polynomialEvaluationEncoding) {
+                         os << "polynomial_evaluation_encoding";
+                         return AliasResult::FinalAlias;
+                       })
+                   .Case<InverseCanonicalEncodingAttr>(
+                       [&](auto inverseCanonicalEncoding) {
+                         os << "inverse_canonical_encoding";
+                         return AliasResult::FinalAlias;
+                       })
+                   .Default([&](Attribute) { return AliasResult::NoAlias; });
     return res;
   }
 };
