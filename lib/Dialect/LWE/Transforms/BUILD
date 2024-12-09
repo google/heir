@@ -26,7 +26,6 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",

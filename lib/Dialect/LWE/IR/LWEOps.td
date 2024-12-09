@@ -85,12 +85,15 @@ def LWE_EncodeOp : LWE_Op<"encode", [HasEncoding<"output", "encoding", "LWEPlain
   }];
 
   let arguments = (ins
-    SignlessIntegerLike:$plaintext,
+    SignlessIntegerOrFloatLike:$input,
     AnyLWEEncodingAttr:$encoding
   );
 
   let results = (outs LWEPlaintext:$output);
-  let assemblyFormat = "$plaintext attr-dict `:` qualified(type($plaintext)) `to` qualified(type($output))";
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `to` qualified(type($output))";
+
+  // Verify that the input type and the encoding are compatible.
+  let hasVerifier = 1;
 }
 
 def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
@@ -174,6 +177,9 @@ def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [HasEncoding<"output", "encoding", 
 
   let results = (outs RLWEPlaintext:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
+
+  // Verify that the input type and the encoding are compatible.
+  let hasVerifier = true;
 }
 
 def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [HasEncoding<"input", "encoding", "RLWEPlaintextType">]> {
@@ -185,8 +191,11 @@ def LWE_RLWEDecodeOp : LWE_Op<"rlwe_decode", [HasEncoding<"input", "encoding", "
     Polynomial_RingAttr:$ring
   );
 
-  let results = (outs SignlessIntegerLike:$output);
+  let results = (outs SignlessIntegerOrFloatLike:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($output))";
+
+  // Verify that the expected output type and the encoding are compatible.
+  let hasVerifier = true;
 }
 
 def LWE_RLWEEncryptOp : LWE_Op<"rlwe_encrypt", [

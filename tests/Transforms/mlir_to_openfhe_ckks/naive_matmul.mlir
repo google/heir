@@ -1,9 +1,9 @@
 // RUN: heir-opt --mlir-to-openfhe-ckks='ciphertext-degree=16 entry-function=matmul' %s | heir-translate --emit-openfhe-pke --openfhe-scheme=ckks | FileCheck %s
 
-// CHECK-LABEL: std::vector<std::vector<CiphertextT>> matmul(
+// CHECK-LABEL: std::vector<CiphertextT> matmul(
 // CHECK-SAME:    CryptoContextT [[v0:[^,]*]],
-// CHECK-SAME:    std::vector<std::vector<CiphertextT>> [[v1:[^,]*]],
-// CHECK-SAME:    std::vector<std::vector<CiphertextT>> [[v2:[^,]*]])
+// CHECK-SAME:    std::vector<CiphertextT> [[v1:[^,]*]],
+// CHECK-SAME:    std::vector<CiphertextT> [[v2:[^,]*]])
 // CHECK-DAG:      std::vector<double> [[v3:.*]](16, 6.000000e+00);
 // CHECK-DAG:      std::vector<double> [[v4:.*]](16, 3.000000e+00);
 // CHECK-DAG:      std::vector<double> [[v5:.*]](16, 4.000000e+00);
@@ -12,12 +12,12 @@
 // CHECK-DAG:      [[v6_filled]].push_back([[v6]]
 // CHECK-DAG:      size_t [[v7:.*]] = 1;
 // CHECK-DAG:      size_t [[v8:.*]] = 0;
-// CHECK-DAG:      const auto& [[v9:.*]] = [[v1]][0][0];
-// CHECK-DAG:      const auto& [[v10:.*]] = [[v2]][0][0];
+// CHECK-DAG:      const auto& [[v9:.*]] = [[v1]][0 + 2 * (0)];
+// CHECK-DAG:      const auto& [[v10:.*]] = [[v2]][0 + 2 * (0)];
 // CHECK:          const auto& [[v11:.*]] = [[v0]]->MakeCKKSPackedPlaintext([[v6_filled]]);
 // CHECK-NEXT:     const auto& [[v12:.*]] = [[v0]]->EvalMult([[v9]], [[v11]]);
 // CHECK-NEXT:     const auto& [[v13:.*]] = [[v0]]->EvalAdd([[v10]], [[v12]]);
-// CHECK-NEXT:     [[v2]][0][0] = [[v13]];
+// CHECK-NEXT:     [[v2]][0 + 2 * (0)] = [[v13]];
 // CHECK-COUNT-3:                  [[v0]]->EvalMult
 // CHECK:          return
 

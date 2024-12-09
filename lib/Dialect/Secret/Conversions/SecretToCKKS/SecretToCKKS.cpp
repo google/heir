@@ -105,7 +105,8 @@ class SecretToCKKSTypeConverter : public TypeConverter {
       // TODO(#785): Set a scaling parameter for floating point values.
       auto ciphertext = lwe::RLWECiphertextType::get(
           ctx,
-          lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
+          lwe::InverseCanonicalEmbeddingEncodingAttr::get(ctx, bitWidth,
+                                                          bitWidth),
           lwe::RLWEParamsAttr::get(ctx, 2, ring_), valueTy);
       // Return a single ciphertext if inputs are packed into a single
       // ciphertext SIMD slot or the secret value type is a scalar.

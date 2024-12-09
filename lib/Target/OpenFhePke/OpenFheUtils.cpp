@@ -10,6 +10,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
@@ -25,7 +26,7 @@ std::string getModulePrelude(OpenfheScheme scheme) {
                        scheme == OpenfheScheme::CKKS ? "CKKS" : "BGV");
 }
 
-FailureOr<std::string> convertType(Type type) {
+FailureOr<std::string> convertType(Type type, Location loc) {
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
       // For now, these types are defined in the prelude as aliases.
       .Case<CryptoContextType>(
@@ -54,23 +55,28 @@ FailureOr<std::string> convertType(Type type) {
       })
       .Case<FloatType>([&](auto ty) -> FailureOr<std::string> {
         auto width = ty.getWidth();
-        if (width == 32) {
-          return std::string("float");
-        } else if (width == 64) {
-          return std::string("double");
+        switch (width) {
+          case 8:
+          case 16:
+            emitWarning(
+                loc,
+                "Floating point width " + std::to_string(width) +
+                    " is not supported in C++, using 32-bit float instead.");
+            [[fallthrough]];
+          case 32:
+            return std::string("float");
+          case 64:
+            return std::string("double");
+          default:
+            return failure();
         }
-        return failure();
       })
       .Case<RankedTensorType>([&](auto ty) {
-        auto eltTyResult = convertType(ty.getElementType());
+        auto eltTyResult = convertType(ty.getElementType(), loc);
         if (failed(eltTyResult)) {
           return FailureOr<std::string>();
         }
-        auto result = eltTyResult.value();
-        for (int i = 0; i < ty.getRank(); ++i) {
-          // For each dimension, wrap the element in a std::vector.
-          result = "std::vector<" + result + ">";
-        }
+        auto result = "std::vector<" + eltTyResult.value() + ">";
         return FailureOr<std::string>(std::string(result));
       })
       .Default([&](Type &) { return failure(); });

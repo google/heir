@@ -1,5 +1,6 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 
+#include <cassert>
 #include <cstdint>
 #include <optional>
 
@@ -16,6 +17,7 @@
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 
 // Generated definitions
 #include "lib/Dialect/LWE/IR/LWEDialect.cpp.inc"
@@ -320,6 +322,60 @@ LogicalResult NewLWECiphertextType::verify(
                        << ciphertextSpace.getSize();
   }
   return success();
+}
+
+// Verify Encoding and Type match
+LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
+                                         mlir::Attribute encoding) {
+  // En/Decode Ops only allow IntegerOrFloatLike (-> assert not if)
+  assert(getElementTypeOrSelf(type).isIntOrFloat() &&
+         "Encoding Ops only allow IntegerOrFloatLike types");
+
+  // Verification conditions for each encoding we have:
+
+  if (isa<BitFieldEncodingAttr>(encoding)) {
+    // Bit field encodings only work on (scalar/individual) integer
+    return success(type.isInteger());
+  }
+
+  if (isa<UnspecifiedBitFieldEncodingAttr>(encoding)) {
+    // same as BitFieldEncoding
+    return success(type.isInteger());
+  }
+
+  if (isa<PolynomialCoefficientEncodingAttr>(encoding)) {
+    // supports lists of integers and scalars via replication
+    return success(getElementTypeOrSelf(type).isInteger());
+  }
+
+  if (isa<PolynomialEvaluationEncodingAttr>(encoding)) {
+    // also supports lists of integers and scalars via replication
+    return success(getElementTypeOrSelf(type).isInteger());
+  }
+
+  if (isa<InverseCanonicalEmbeddingEncodingAttr>(encoding)) {
+    // CKKS-style Encoding should support everything
+    // (ints via cast to float/double, scalars via replication)
+    return success();
+  }
+
+  // This code should never be hit unless we added an encoding and forgot to
+  // update this function. Assert(false) for DEBUG, return failure for NDEBUG.
+  encoding.dump();
+  assert(false && "Encoding not handled in encode/decode verifier.");
+  return failure();
+}
+
+LogicalResult EncodeOp::verify() {
+  return verifyEncodingAndTypeMatch(getInput().getType(), getEncoding());
+}
+
+LogicalResult RLWEEncodeOp::verify() {
+  return verifyEncodingAndTypeMatch(getInput().getType(), getEncoding());
+}
+
+LogicalResult RLWEDecodeOp::verify() {
+  return verifyEncodingAndTypeMatch(getResult().getType(), getEncoding());
 }
 
 }  // namespace lwe

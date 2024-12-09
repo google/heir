@@ -29,6 +29,9 @@ FailureOr<lwe::RLWEParamsAttr> getRlweParmsFromFuncOp(func::FuncOp op) {
   lwe::RLWEParamsAttr rlweParams = nullptr;
   auto argTypes = op.getArgumentTypes();
   for (auto argTy : argTypes) {
+    // Strip containers (tensor/etc)
+    argTy = getElementTypeOrSelf(argTy);
+    // Check that parameters are unique
     if (auto argCtTy = dyn_cast<lwe::RLWECiphertextType>(argTy)) {
       if (rlweParams && rlweParams != argCtTy.getRlweParams()) {
         return op.emitError() << "Func op has multiple distinct RLWE params"
@@ -153,7 +156,6 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
   auto module = op->getParentOfType<ModuleOp>();
   auto rlweParamsResult = getRlweParmsFromFuncOp(op);
   if (failed(rlweParamsResult)) {
-    // TODO (#891): Add support for schemes other than BGV
     return failure();
   }
   lwe::RLWEParamsAttr rlweParams = rlweParamsResult.value();

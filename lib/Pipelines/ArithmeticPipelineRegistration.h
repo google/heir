@@ -27,11 +27,21 @@ struct MlirToRLWEPipelineOptions
                      "equivalently, the number of messages that can be packed "
                      "into a single ciphertext."),
       llvm::cl::init(1024)};
+  PassOptions::Option<bool> usePublicKey{
+      *this, "use-public-key",
+      llvm::cl::desc("If true, generate a client interface that uses a public "
+                     "key for encryption."),
+      llvm::cl::init(true)};
+  PassOptions::Option<bool> oneValuePerHelperFn{
+      *this, "one-value-per-helper-fn",
+      llvm::cl::desc(
+          "If true, split encryption helpers into separate functions "
+          "for each SSA value."),
+      llvm::cl::init(true)};
 };
 
-typedef std::function<void(OpPassManager &pm,
-                           const MlirToRLWEPipelineOptions &options)>
-    RLWEPipelineBuilder;
+using RLWEPipelineBuilder =
+    std::function<void(OpPassManager &, const MlirToRLWEPipelineOptions &)>;
 
 void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,

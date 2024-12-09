@@ -5,6 +5,7 @@
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
@@ -128,7 +129,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   }
 
   Type result = funcOp.getResultTypes()[0];
-  if (failed(emitType(result))) {
+  if (failed(emitType(result, funcOp->getLoc()))) {
     return emitError(funcOp.getLoc(),
                      llvm::formatv("Failed to emit type {0}", result));
   }
@@ -141,14 +142,14 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   // the results into a FailureOr, like commaSeparatedTypes in tfhe_rust
   // emitter.
   for (Value arg : funcOp.getArguments()) {
-    if (failed(convertType(arg.getType()))) {
+    if (failed(convertType(arg.getType(), arg.getLoc()))) {
       return emitError(funcOp.getLoc(),
                        llvm::formatv("Failed to emit type {0}", arg.getType()));
     }
   }
 
   os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
-    return convertType(value.getType()).value() + " " +
+    return convertType(value.getType(), funcOp->getLoc()).value() + " " +
            variableNames->getNameForValue(value);
   });
   os.unindent();
@@ -183,8 +184,9 @@ void OpenFhePkeEmitter::emitAutoAssignPrefix(Value result) {
   os << "const auto& " << variableNames->getNameForValue(result) << " = ";
 }
 
-LogicalResult OpenFhePkeEmitter::emitTypedAssignPrefix(Value result) {
-  if (failed(emitType(result.getType()))) {
+LogicalResult OpenFhePkeEmitter::emitTypedAssignPrefix(Value result,
+                                                       Location loc) {
+  if (failed(emitType(result.getType(), loc))) {
     return failure();
   }
   os << " " << variableNames->getNameForValue(result) << " = ";
@@ -297,7 +299,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
   // call if it becomes necessary.
   std::string mapName =
       variableNames->getNameForValue(op.getResult()) + "evalkeymap";
-  auto result = convertType(op.getEvalKey().getType());
+  auto result = convertType(op.getEvalKey().getType(), op->getLoc());
   os << "std::map<uint32_t, " << result << "> " << mapName << " = {{0, "
      << variableNames->getNameForValue(op.getEvalKey()) << "}};\n";
 
@@ -321,12 +323,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
     // constant value (e.g. tensor.insert and tensor.extract use the defining
     // constant values of indices if available).
     os << "[[maybe_unused]] ";
-    if (failed(emitTypedAssignPrefix(op.getResult()))) {
+    if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc()))) {
       return failure();
     }
     os << intAttr.getValue() << ";\n";
   } else if (auto floatAttr = dyn_cast<FloatAttr>(valueAttr)) {
-    if (failed(emitTypedAssignPrefix(op.getResult()))) {
+    if (failed(emitTypedAssignPrefix(op.getResult(), op->getLoc()))) {
       return failure();
     }
     auto floatStr = printFloatAttr(floatAttr);
@@ -345,11 +347,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
       // multi-dimensional when there is only one non-unit dimension.
       if (printMultiDimAsOneDim) {
         os << "std::vector<";
-        if (failed(emitType(denseElementsAttr.getType().getElementType()))) {
+        if (failed(emitType(denseElementsAttr.getType().getElementType(),
+                            op.getLoc()))) {
           return failure();
         }
         os << ">";
-      } else if (failed(emitType(op.getResult().getType()))) {
+      } else if (failed(emitType(op.getResult().getType(), op->getLoc()))) {
         return failure();
       }
       os << " " << variableNames->getNameForValue(op.getResult());
@@ -420,11 +423,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtFOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::IndexCastOp op) {
   Type outputType = op.getOut().getType();
-  if (failed(emitTypedAssignPrefix(op.getResult()))) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op->getLoc()))) {
     return failure();
   }
   os << "static_cast<";
-  if (failed(emitType(outputType))) {
+  if (failed(emitType(outputType, op->getLoc()))) {
     return op.emitOpError() << "Unsupported index_cast op";
   }
   os << ">(" << variableNames->getNameForValue(op.getIn()) << ");\n";
@@ -436,11 +439,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
   // std::vector<CiphertextT>(dim1)); initStr = (dim1) initStr = (dim0,
   // std::vector<CiphertextT>{initStr})
   RankedTensorType resultTy = op.getResult().getType();
-  auto elementTy = convertType(resultTy.getElementType());
+  auto elementTy = convertType(resultTy.getElementType(), op.getLoc());
   if (failed(elementTy)) {
     return failure();
   }
-  if (failed(emitType(resultTy))) {
+  if (failed(emitType(resultTy, op->getLoc()))) {
     return failure();
   }
   os << " " << variableNames->getNameForValue(op.getResult());
@@ -458,10 +461,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   // const auto& v1 = in[0, 1];
   emitAutoAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(op.getTensor());
-  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
-    auto constantStr = getStringForConstant(value);
-    return constantStr.value_or(variableNames->getNameForValue(value));
-  });
+  os << "[";
+  os << flattenIndexExpression(
+      op.getTensor().getType(), op.getIndices(), [&](Value value) {
+        auto constantStr = getStringForConstant(value);
+        return constantStr.value_or(variableNames->getNameForValue(value));
+      });
+  os << "]";
   os << ";\n";
   return success();
 }
@@ -469,16 +475,19 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
   // For a tensor.insert MLIR statement, we assign the destination vector and
   // then move the vector to the result.
-  //   %result = tensor.insert %scalar into %dest[%idx]
+  // // %result = tensor.insert %scalar into %dest[%idx]
   // dest[idx] = scalar;
   // Type result = std::move(dest);
   os << variableNames->getNameForValue(op.getDest());
-  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
-    auto constantStr = getStringForConstant(value);
-    return constantStr.value_or(variableNames->getNameForValue(value));
-  });
+  os << "[";
+  os << flattenIndexExpression(
+      op.getResult().getType(), op.getIndices(), [&](Value value) {
+        auto constantStr = getStringForConstant(value);
+        return constantStr.value_or(variableNames->getNameForValue(value));
+      });
+  os << "]";
   os << " = " << variableNames->getNameForValue(op.getScalar()) << ";\n";
-  if (failed(emitTypedAssignPrefix(op.getResult()))) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op->getLoc()))) {
     return failure();
   }
   os << "std::move(" << variableNames->getNameForValue(op.getDest()) << ");\n";
@@ -488,7 +497,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::SplatOp op) {
   // std::vector<CiphertextType> result(num, value);
   auto result = op.getResult();
-  if (failed(emitType(result.getType()))) {
+  if (failed(emitType(result.getType(), op->getLoc()))) {
     return failure();
   }
   if (result.getType().getRank() != 1) {
@@ -567,6 +576,23 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   return success();
 }
 
+// Returns the unique non-unit dimension of a tensor and its rank.
+// Returns failure if the tensor has more than one non-unit dimension.
+// Utility function copied from SecretToCKKS.cpp
+FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
+    RankedTensorType tensorTy) {
+  auto shape = tensorTy.getShape();
+
+  if (llvm::count_if(shape, [](auto dim) { return dim != 1; }) != 1) {
+    return failure();
+  }
+
+  unsigned nonUnitIndex = std::distance(
+      shape.begin(), llvm::find_if(shape, [&](auto dim) { return dim != 1; }));
+
+  return std::make_pair(nonUnitIndex, shape[nonUnitIndex]);
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
   // In OpenFHE a plaintext is already decoded by decrypt. The internal OpenFHE
   // implementation is simple enough (and dependent on currently-hard-coded
@@ -574,35 +600,55 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
   // the API to support this operation properly.
   auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType());
   if (tensorTy) {
-    if (tensorTy.getRank() != 1) {
+    auto nonUnitDim = getNonUnitDimension(tensorTy);
+    if (failed(nonUnitDim)) {
       return emitError(op.getLoc(), "Only 1D tensors supported");
     }
     // OpenFHE plaintexts must be manually resized to the decoded output size
     // via plaintext->SetLength(<size>);
-    auto size = tensorTy.getShape()[0];
+    auto size = nonUnitDim.value().second;
     auto inputVarName = variableNames->getNameForValue(op.getInput());
     os << inputVarName << "->SetLength(" << size << ");\n";
 
+    // Get the packed values in OpenFHE's type (vector of int_64t/complex/etc)
     std::string tmpVar =
         variableNames->getNameForValue(op.getResult()) + "_cast";
     os << "const auto& " << tmpVar << " = ";
-    os << inputVarName << "->GetPackedValue();\n";
+    if (scheme_ == OpenfheScheme::CKKS) {
+      os << inputVarName << "->GetCKKSPackedValue();\n";
+    } else {
+      os << inputVarName << "->GetPackedValue();\n";
+    }
 
+    // Convert to the intended type defined by the program
     auto outputVarName = variableNames->getNameForValue(op.getResult());
-    if (failed(emitType(tensorTy))) {
+    if (failed(emitType(tensorTy, op->getLoc()))) {
       return failure();
     }
-    os << " " << outputVarName << "(std::begin(" << tmpVar << "), std::end("
-       << tmpVar << "));\n";
-
+    if (scheme_ == OpenfheScheme::CKKS) {
+      // need to drop the complex down to real:  first create the vector,
+      os << " " << outputVarName << "(" << tmpVar << ".size());\n";
+      // then use std::transform
+      os << "std::transform(std::begin(" << tmpVar << "), std::end(" << tmpVar
+         << "), std::begin(" << outputVarName
+         << "), [](const std::complex<double>& c) { return c.real(); });\n";
+    } else {
+      // directly use a copy constructor
+      os << " " << outputVarName << "(std::begin(" << tmpVar << "), std::end("
+         << tmpVar << "));\n";
+    }
     return success();
   }
 
   // By convention, a plaintext stores a scalar value in index 0
-  auto result = emitTypedAssignPrefix(op.getResult());
+  auto result = emitTypedAssignPrefix(op.getResult(), op->getLoc());
   if (failed(result)) return result;
-  os << variableNames->getNameForValue(op.getInput())
-     << "->GetPackedValue()[0];\n";
+  os << variableNames->getNameForValue(op.getInput());
+  if (scheme_ == OpenfheScheme::CKKS) {
+    os << "->GetCKKSPackedValue()[0].real();\n";
+  } else {
+    os << "->GetPackedValue()[0];\n";
+  }
   return success();
 }
 
@@ -668,8 +714,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenRotKeyOp op) {
   return success();
 }
 
-LogicalResult OpenFhePkeEmitter::emitType(Type type) {
-  auto result = convertType(type);
+LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc) {
+  auto result = convertType(type, loc);
   if (failed(result)) {
     return failure();
   }

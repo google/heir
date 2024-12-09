@@ -6,6 +6,7 @@
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
@@ -47,7 +48,7 @@ class OpenFhePkeHeaderEmitter {
   LogicalResult printOperation(::mlir::func::FuncOp op);
 
   // Emit an OpenFhe type
-  LogicalResult emitType(Type type);
+  LogicalResult emitType(::mlir::Type type, ::mlir::Location loc);
 };
 
 }  // namespace openfhe
