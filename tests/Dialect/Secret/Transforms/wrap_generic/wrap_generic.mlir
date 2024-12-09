@@ -84,3 +84,23 @@ module {
     return %alloc : memref<1x80xi8>
   }
 }
+
+// ---
+
+module {
+  // CHECK: @constant(%arg0: i32) -> i32
+  func.func @constant(%arg0: i32 {secret.secret}) -> i32 {
+    %c0 = arith.constant 0 : i32
+    return %c0 : i32
+  }
+}
+
+// ---
+
+module {
+  // CHECK: @constant_after_canonicalize(%arg0: i32) -> i32
+  func.func @constant_after_canonicalize(%arg0: i32 {secret.secret}) -> i32 {
+    %0 = arith.subi %arg0, %arg0 : i32
+    return %0 : i32
+  }
+}
