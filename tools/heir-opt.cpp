@@ -107,8 +107,9 @@
 #include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #endif
 
-// Include internal conversions
-// Include internal dialects
+// This comment includes internal conversions
+// This comment includes internal dialects
+// This comment includes internal pipelines
 
 using namespace mlir;
 using namespace tosa;
@@ -118,7 +119,7 @@ using mlir::func::FuncOp;
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
 
-  // Inserts internal dialects
+  // This comment inserts internal dialects
 
   registry.insert<mod_arith::ModArithDialect>();
   registry.insert<bgv::BGVDialect>();
@@ -255,6 +256,7 @@ int main(int argc, char **argv) {
   registerTosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
   registerTosaToBooleanFpgaTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
   registerTosaToJaxitePipeline(yosysRunfilesEnvPath, abcEnvPath);
+  // Register internal pipeline
 #endif
 
   // Dialect conversion passes in HEIR
@@ -270,7 +272,7 @@ int main(int argc, char **argv) {
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();
-  // Register internal passes
+  // This comement registers internal passes
   registerSecretToBGVPasses();
   registerSecretToCKKSPasses();
   mlir::heir::tosa::registerTosaToSecretArithPasses();
