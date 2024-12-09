@@ -16,17 +16,26 @@
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
+#include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/Secretize/Passes.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"         // from @llvm-project
+#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
+#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Passes.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/Passes.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"            // from @llvm-project
 #include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
+
+using mlir::func::FuncOp;
 
 namespace mlir::heir {
 
@@ -88,6 +97,41 @@ void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm) {
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
+}
+
+void tosaToArithPipelineBuilder(OpPassManager &pm) {
+  // TOSA to linalg
+  ::mlir::heir::tosaToLinalg(pm);
+
+  // Bufferize
+  ::mlir::heir::oneShotBufferize(pm);
+
+  // Affine
+  pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
+  pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+  pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+  pm.addPass(createExpandCopyPass());
+  pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+  pm.addPass(memref::createFoldMemRefAliasOpsPass());
+
+  // Affine loop optimizations
+  pm.addNestedPass<FuncOp>(
+      affine::createLoopFusionPass(0, 0, true, affine::FusionMode::Greedy));
+  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
+  pm.addPass(createForwardStoreToLoad());
+  pm.addPass(affine::createAffineParallelizePass());
+  pm.addPass(createFullLoopUnroll());
+  pm.addPass(createForwardStoreToLoad());
+  pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
+
+  // Cleanup
+  pm.addPass(createMemrefGlobalReplacePass());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createSCCPPass());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSymbolDCEPass());
 }
 
 void mlirToRLWEPipeline(OpPassManager &pm,
@@ -164,6 +208,12 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
     pm.addPass(
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
   };
+}
+
+void registerTosaToArithPipeline() {
+  PassPipelineRegistration<>(
+      "tosa-to-arith", "Arithmetic modules to arith tfhe-rs pipeline.",
+      [](OpPassManager &pm) { tosaToArithPipelineBuilder(pm); });
 }
 
 }  // namespace mlir::heir
