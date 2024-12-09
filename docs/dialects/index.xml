@@ -5088,7 +5088,7 @@ RLWEParamsAttr # rlwe_params
 &lt;h3 id="lweencode-heirlweencodeop">&lt;code>lwe.encode&lt;/code> (heir::lwe::EncodeOp)&lt;/h3>
 &lt;p>&lt;em>Encode an integer to yield an LWE plaintext&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.encode` $plaintext attr-dict `:` qualified(type($plaintext)) `to` qualified(type($output))
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.encode` $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an LWE plaintext.&lt;/p>
 &lt;p>This op uses a an encoding attribute to encode the bits of the integer into
 an LWE plaintext value that can then be encrypted.&lt;/p>
@@ -5112,8 +5112,8 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>signless-integer-like or floating-point-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -5253,7 +5253,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer-like or floating-point-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
