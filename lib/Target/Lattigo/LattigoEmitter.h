@@ -1,0 +1,127 @@
+#ifndef LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
+#define LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
+
+#include <string_view>
+
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/Lattigo/IR/LattigoOps.h"
+#include "lib/Utils/TargetUtils/TargetUtils.h"
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
+
+namespace mlir {
+namespace heir {
+namespace lattigo {
+
+/// Translates the given operation to Lattigo
+::mlir::LogicalResult translateToLattigo(::mlir::Operation *op,
+                                         llvm::raw_ostream &os);
+
+class LattigoEmitter {
+ public:
+  LattigoEmitter(raw_ostream &os, SelectVariableNames *variableNames);
+
+  LogicalResult translate(::mlir::Operation &operation);
+
+ private:
+  /// Output stream to emit to.
+  raw_indented_ostream os;
+
+  /// Pre-populated analysis selecting unique variable names for all the SSA
+  /// values.
+  SelectVariableNames *variableNames;
+
+  // Functions for printing individual ops
+  LogicalResult printOperation(::mlir::ModuleOp op);
+  LogicalResult printOperation(::mlir::func::FuncOp op);
+  LogicalResult printOperation(::mlir::func::ReturnOp op);
+  LogicalResult printOperation(::mlir::func::CallOp op);
+  LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  // Lattigo ops
+  LogicalResult printOperation(RLWENewEncryptorOp op);
+  LogicalResult printOperation(RLWENewDecryptorOp op);
+  LogicalResult printOperation(RLWENewKeyGeneratorOp op);
+  LogicalResult printOperation(RLWEGenKeyPairOp op);
+  LogicalResult printOperation(RLWEEncryptOp op);
+  LogicalResult printOperation(RLWEDecryptOp op);
+  LogicalResult printOperation(BGVNewParametersFromLiteralOp op);
+  LogicalResult printOperation(BGVNewEncoderOp op);
+  LogicalResult printOperation(BGVNewEvaluatorOp op);
+  LogicalResult printOperation(BGVNewPlaintextOp op);
+  LogicalResult printOperation(BGVEncodeOp op);
+  LogicalResult printOperation(BGVDecodeOp op);
+  LogicalResult printOperation(BGVAddOp op);
+  LogicalResult printOperation(BGVSubOp op);
+  LogicalResult printOperation(BGVMulOp op);
+
+  // Helpers for above
+  void printErrPanic();
+
+  LogicalResult printNewMethod(::mlir::Value result,
+                               ::mlir::ValueRange operands, std::string_view op,
+                               bool err);
+
+  LogicalResult printEvalInplaceMethod(::mlir::Value result,
+                                       ::mlir::Value evaluator,
+                                       ::mlir::Value operand,
+                                       ::mlir::Value operandInplace,
+                                       std::string_view op, bool err);
+
+  LogicalResult printEvalNewMethod(::mlir::ValueRange results,
+                                   ::mlir::Value evaluator,
+                                   ::mlir::ValueRange operands,
+                                   std::string_view op, bool err);
+
+  LogicalResult printEvalNewMethod(::mlir::Value result,
+                                   ::mlir::Value evaluator,
+                                   ::mlir::ValueRange operands,
+                                   std::string_view op, bool err) {
+    return printEvalNewMethod(::mlir::ValueRange(result), evaluator, operands,
+                              op, err);
+  }
+
+  // helper on name and type
+  std::string getName(::mlir::Value value) {
+    return variableNames->getNameForValue(value);
+  }
+
+  std::string getCommaSeparatedNames(::mlir::ValueRange values) {
+    return commaSeparatedValues(values,
+                                [&](Value value) { return getName(value); });
+  }
+
+  std::string getCommaSeparatedNamesWithTypes(::mlir::ValueRange values) {
+    return commaSeparatedValues(values, [&](Value value) {
+      return getName(value) + " " + convertType(value.getType()).value();
+    });
+  }
+
+  FailureOr<std::string> getCommaSeparatedTypes(::mlir::TypeRange types) {
+    return commaSeparatedTypes(types,
+                               [&](Type type) { return convertType(type); });
+  }
+
+  // Emit an Lattigo type
+  FailureOr<std::string> convertType(::mlir::Type type);
+
+  LogicalResult emitType(Type type);
+};
+
+void registerToLattigoTranslation(void);
+
+}  // namespace lattigo
+}  // namespace heir
+}  // namespace mlir
+
+#endif  // LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
