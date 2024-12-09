@@ -112,6 +112,7 @@ cc_binary(
         "@llvm-project//mlir:ControlFlowToLLVM",
         "@llvm-project//mlir:ControlFlowTransforms",
         "@llvm-project//mlir:ConvertToLLVM",
+        "@llvm-project//mlir:EmitCDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FuncExtensions",
         "@llvm-project//mlir:FuncToLLVM",
