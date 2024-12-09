@@ -111,10 +111,14 @@ void tosaToArithPipelineBuilder(OpPassManager &pm) {
   pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
   pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
   pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
+  // pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
   pm.addPass(createExpandCopyPass());
   pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
   pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
   pm.addPass(memref::createFoldMemRefAliasOpsPass());
+
+  // pm.addPass(createExtractLoopBodyPass());
+  // pm.addPass(createUnrollAndForwardPass());
 
   // Affine loop optimizations
   pm.addNestedPass<FuncOp>(

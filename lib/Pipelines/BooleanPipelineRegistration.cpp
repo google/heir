@@ -98,25 +98,26 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
       /*useSubmodules=*/true, abcBooleanGates ? Mode::Boolean : Mode::LUT));
 
   // Cleanup
-  pm.addPass(mlir::createCSEPass());
-  pm.addPass(createCanonicalizerPass());
-  pm.addPass(createSCCPPass());
-  pm.addPass(createSymbolDCEPass());
-  pm.addPass(memref::createFoldMemRefAliasOpsPass());
-  pm.addPass(createForwardStoreToLoad());
+  // pm.addPass(mlir::createCSEPass());
+  // pm.addPass(createCanonicalizerPass());
+  // pm.addPass(createSCCPPass());
+  // pm.addPass(createSymbolDCEPass());
+  // pm.addPass(memref::createFoldMemRefAliasOpsPass());
+  // pm.addPass(createForwardStoreToLoad());
 
-  // Lower combinational circuit to CGGI
-  pm.addPass(secret::createSecretDistributeGeneric());
-  pm.addPass(createSecretToCGGI());
+  // // Lower combinational circuit to CGGI
+  // pm.addPass(secret::createSecretDistributeGeneric());
+  // pm.addPass(createSecretToCGGI());
 
-  // Cleanup CombToCGGI
-  pm.addPass(
-      createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop = true}));
-  pm.addPass(memref::createFoldMemRefAliasOpsPass());
-  pm.addPass(createForwardStoreToLoad());
-  pm.addPass(createRemoveUnusedMemRef());
-  pm.addPass(createCSEPass());
-  pm.addPass(createSCCPPass());
+  // // Cleanup CombToCGGI
+  // pm.addPass(
+  //     createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop =
+  //     true}));
+  // pm.addPass(memref::createFoldMemRefAliasOpsPass());
+  // pm.addPass(createForwardStoreToLoad());
+  // pm.addPass(createRemoveUnusedMemRef());
+  // pm.addPass(createCSEPass());
+  // pm.addPass(createSCCPPass());
 }
 
 void registerTosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
@@ -156,27 +157,27 @@ void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
         tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
                                   /*abcBooleanGates=*/true);
 
-        // Vectorize CGGI operations
-        pm.addPass(cggi::createBooleanVectorizer());
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(createCSEPass());
-        pm.addPass(createSCCPPass());
+        // // Vectorize CGGI operations
+        // pm.addPass(cggi::createBooleanVectorizer());
+        // pm.addPass(createCanonicalizerPass());
+        // pm.addPass(createCSEPass());
+        // pm.addPass(createSCCPPass());
 
-        // CGGI to Tfhe-Rust exit dialect
-        pm.addPass(createCGGIToTfheRustBool());
-        // CSE must be run before canonicalizer, so that redundant ops are
-        // cleared before the canonicalizer hoists TfheRust ops.
-        pm.addPass(createCSEPass());
-        pm.addPass(createCanonicalizerPass());
+        // // CGGI to Tfhe-Rust exit dialect
+        // pm.addPass(createCGGIToTfheRustBool());
+        // // CSE must be run before canonicalizer, so that redundant ops are
+        // // cleared before the canonicalizer hoists TfheRust ops.
+        // pm.addPass(createCSEPass());
+        // pm.addPass(createCanonicalizerPass());
 
-        // Cleanup loads and stores
-        pm.addPass(createExpandCopyPass(
-            ExpandCopyPassOptions{.disableAffineLoop = true}));
-        pm.addPass(memref::createFoldMemRefAliasOpsPass());
-        pm.addPass(createForwardStoreToLoad());
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(createCSEPass());
-        pm.addPass(createSCCPPass());
+        // // Cleanup loads and stores
+        // pm.addPass(createExpandCopyPass(
+        //     ExpandCopyPassOptions{.disableAffineLoop = true}));
+        // pm.addPass(memref::createFoldMemRefAliasOpsPass());
+        // pm.addPass(createForwardStoreToLoad());
+        // pm.addPass(createCanonicalizerPass());
+        // pm.addPass(createCSEPass());
+        // pm.addPass(createSCCPPass());
       });
 }
 
