@@ -467,7 +467,7 @@ void populateGenericCanonicalizers(RewritePatternSet &patterns,
                                    MLIRContext *ctx) {
   patterns.add<CollapseSecretlessGeneric, RemoveUnusedYieldedValues,
                RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs,
-               HoistPlaintextOps>(ctx);
+               HoistPlaintextOps, FixSecretInFunctionType>(ctx);
 }
 
 // When replacing a generic op with a new one, and given an op in the original

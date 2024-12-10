@@ -771,6 +771,61 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
   return success();
 }
 
+LogicalResult FixSecretInFunctionType::matchAndRewrite(
+    func::FuncOp funcOp, PatternRewriter &rewriter) const {
+  // For this pattern to work, the function must have a body
+  if (funcOp.isExternal()) {
+    return failure();
+  }
+
+  // Result Types
+  auto funcResultTypes = funcOp.getFunctionType().getResults();
+
+  // Get terminator (func.return) types
+  auto terminatorTypes =
+      funcOp.getBody().getBlocks().front().getTerminator()->getOperandTypes();
+
+  // If these are not the same length, something went VERY wrong
+  assert(
+      funcResultTypes.size() == terminatorTypes.size() &&
+      "Function Result Types and Terminator result types must be same length.");
+
+  // Iterate over return types and check if there are any mismatches
+  // where the func.func type is secret<T> but the return op has T
+  SmallVector<Type, 1> newFuncResultTypes;
+  newFuncResultTypes.reserve(funcResultTypes.size());
+  bool changed = false;
+  for (auto [funcResultType, terminatorResultType] :
+       llvm::zip(funcResultTypes, terminatorTypes)) {
+    if (funcResultType != terminatorResultType) {  // cheap check first
+      if (auto secretType = dyn_cast<SecretType>(funcResultType)) {
+        if (!isa<SecretType>(terminatorResultType)) {
+          // These should never disagree on the underlying type
+          assert(terminatorResultType == secretType.getValueType() &&
+                 "Secret type mismatch in function return type");
+
+          // Removing the secret<..> here is safe(-ish) because the only time
+          // this happens is if one of the other patterns removed the secret
+          // type from the return value (e.g., CollapseSecretlessGeneric)
+          newFuncResultTypes.push_back(secretType.getValueType());
+          changed = true;
+          continue;
+        }
+      }
+    }
+    newFuncResultTypes.push_back(funcResultType);
+    llvm::dbgs() << "Pushing back " << funcResultType << "\n";
+  }
+
+  // We can only signal success if there's actually a real change to the IR
+  if (changed) {
+    funcOp.setFunctionType(rewriter.getFunctionType(funcOp.getArgumentTypes(),
+                                                    newFuncResultTypes));
+    return success();
+  }
+  return failure();
+}
+
 }  // namespace secret
 }  // namespace heir
 }  // namespace mlir
