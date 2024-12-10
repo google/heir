@@ -1,4 +1,5 @@
-// RUN: heir-opt %s --heir-polynomial-to-llvm \
+// RUN: heir-opt %s --polynomial-to-mod-arith \
+// RUN:  --mod-arith-to-arith --heir-polynomial-to-llvm \
 // RUN:   | mlir-cpu-runner -e test_poly_ntt -entry-point-result=void \
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_POLY_NTT < %t
@@ -19,14 +20,14 @@ func.func @test_poly_ntt() {
   %insert_rand1 = tensor.insert_slice %rand_coeffs into %insert_rand0[65280] [256] [1] : tensor<256xi32> into tensor<65536xi32>
   %rand1_enc = mod_arith.encapsulate %insert_rand1 : tensor<65536xi32> -> tensor<65536x!coeff_ty>
   %poly = polynomial.from_tensor %rand1_enc : tensor<65536x!coeff_ty> -> !poly_ty
-  %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<65536xi32, #ring>
+  %0 = polynomial.ntt %poly {root=#root} : !poly_ty -> tensor<65536x!coeff_ty, #ring>
 
   // Insert casts so that intt(ntt()) does not get folded away during polynomial
   // canonicalization
-  %cast = tensor.cast %0 : tensor<65536xi32, #ring> to tensor<65536xi32>
-  %cast_back = tensor.cast %cast : tensor<65536xi32> to tensor<65536xi32, #ring>
+  %cast = tensor.cast %0 : tensor<65536x!coeff_ty, #ring> to tensor<65536x!coeff_ty>
+  %cast_back = tensor.cast %cast : tensor<65536x!coeff_ty> to tensor<65536x!coeff_ty, #ring>
 
-  %1 = polynomial.intt %cast_back {root=#root} : tensor<65536xi32, #ring> -> !poly_ty
+  %1 = polynomial.intt %cast_back {root=#root} : tensor<65536x!coeff_ty, #ring> -> !poly_ty
 
   %2 = polynomial.to_tensor %1 : !poly_ty -> tensor<65536x!coeff_ty>
   %ext2 = mod_arith.extract %2 : tensor<65536x!coeff_ty> -> tensor<65536xi32>
