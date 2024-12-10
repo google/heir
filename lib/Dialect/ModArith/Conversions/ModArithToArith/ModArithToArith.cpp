@@ -337,9 +337,9 @@ void ModArithToArith::runOnOperation() {
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
   target.addDynamicallyLegalOp<
-      tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp, affine::AffineForOp,
-      affine::AffineYieldOp, linalg::GenericOp, linalg::YieldOp,
-      tensor::ExtractSliceOp, tensor::InsertSliceOp>(
+      tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp, tensor::CastOp,
+      affine::AffineForOp, affine::AffineYieldOp, linalg::GenericOp,
+      linalg::YieldOp, tensor::ExtractSliceOp, tensor::InsertSliceOp>(
       [&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

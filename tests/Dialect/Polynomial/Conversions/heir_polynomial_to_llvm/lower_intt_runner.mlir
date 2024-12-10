@@ -1,4 +1,5 @@
-// RUN: heir-opt %s --heir-polynomial-to-llvm \
+// RUN: heir-opt %s --polynomial-to-mod-arith \
+// RUN:  --mod-arith-to-arith --heir-polynomial-to-llvm \
 // RUN:   | mlir-cpu-runner -e test_poly_ntt -entry-point-result=void \
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_POLY_NTT < %t
@@ -15,9 +16,10 @@ func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interf
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func @test_poly_ntt() {
-  %coeffsRaw = arith.constant dense<[1467,2807,3471,7621]> : tensor<4xi32, #ring>
-  %coeffs = mod_arith.encapsulate %coeffsRaw : tensor<4xi32, #ring> -> tensor<4x!coeff_ty, #ring>
-  %0 = polynomial.intt %coeffs {root=#root} : tensor<4x!coeff_ty, #ring> -> !poly_ty
+  %coeffsRaw = arith.constant dense<[1467,2807,3471,7621]> : tensor<4xi32>
+  %coeffs = tensor.cast %coeffsRaw : tensor<4xi32> to tensor <4xi32, #ring>
+  %coeffs_enc = mod_arith.encapsulate %coeffs : tensor<4xi32, #ring> -> tensor<4x!coeff_ty, #ring>
+  %0 = polynomial.intt %coeffs_enc {root=#root} : tensor<4x!coeff_ty, #ring> -> !poly_ty
 
   %1 = polynomial.to_tensor %0 : !poly_ty -> tensor<4x!coeff_ty>
   %2 = mod_arith.extract %1 : tensor<4x!coeff_ty> -> tensor<4xi32>

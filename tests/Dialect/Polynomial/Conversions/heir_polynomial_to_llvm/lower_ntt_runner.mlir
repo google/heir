@@ -1,4 +1,5 @@
-// RUN: heir-opt %s --heir-polynomial-to-llvm \
+// RUN: heir-opt %s --polynomial-to-mod-arith \
+// RUN:  --mod-arith-to-arith --heir-polynomial-to-llvm \
 // RUN:   | mlir-cpu-runner -e test_poly_ntt -entry-point-result=void \
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_POLY_NTT < %t
