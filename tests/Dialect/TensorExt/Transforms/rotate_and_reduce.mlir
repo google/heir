@@ -910,3 +910,10 @@ func.func @test_dot_product_regression(%arg0: !secret.secret<tensor<8xi16>>, %ar
   } -> !secret.secret<i16>
   return %0 : !secret.secret<i16>
 }
+
+// Another crash regression test, this time for tensors of size 1
+// CHECK-LABEL: @test_size_one_regression
+func.func @test_size_one_regression(%arg0: tensor<1xi16>, %arg1: tensor<1xi16>) -> tensor<1xi16> {
+  %0 = arith.addi %arg0, %arg1 : tensor<1xi16>
+  return %0 : tensor<1xi16>
+}
