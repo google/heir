@@ -21,9 +21,10 @@ namespace heir {
 namespace openfhe {
 
 LogicalResult translateToOpenFhePkeHeader(Operation *op, llvm::raw_ostream &os,
-                                          OpenfheScheme scheme) {
+                                          OpenfheScheme scheme,
+                                          OpenfheImportType importType) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeHeaderEmitter emitter(os, &variableNames, scheme);
+  OpenFhePkeHeaderEmitter emitter(os, &variableNames, scheme, importType);
   return emitter.translate(*op);
 }
 
@@ -44,7 +45,7 @@ LogicalResult OpenFhePkeHeaderEmitter::translate(Operation &op) {
 }
 
 LogicalResult OpenFhePkeHeaderEmitter::printOperation(ModuleOp moduleOp) {
-  os << getModulePrelude(scheme_) << "\n";
+  os << getModulePrelude(scheme_, importType_) << "\n";
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -95,8 +96,12 @@ LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type, Location loc) {
 }
 
 OpenFhePkeHeaderEmitter::OpenFhePkeHeaderEmitter(
-    raw_ostream &os, SelectVariableNames *variableNames, OpenfheScheme scheme)
-    : scheme_(scheme), os(os), variableNames(variableNames) {}
+    raw_ostream &os, SelectVariableNames *variableNames, OpenfheScheme scheme,
+    OpenfheImportType importType)
+    : scheme_(scheme),
+      importType_(importType),
+      os(os),
+      variableNames(variableNames) {}
 
 }  // namespace openfhe
 }  // namespace heir

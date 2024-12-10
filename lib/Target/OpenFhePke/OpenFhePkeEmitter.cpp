@@ -66,9 +66,10 @@ FailureOr<std::string> getStringForConstant(Value value) {
 }  // namespace
 
 LogicalResult translateToOpenFhePke(Operation *op, llvm::raw_ostream &os,
-                                    const OpenfheScheme &scheme) {
+                                    const OpenfheScheme &scheme,
+                                    const OpenfheImportType &importType) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeEmitter emitter(os, &variableNames, scheme);
+  OpenFhePkeEmitter emitter(os, &variableNames, scheme, importType);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -109,7 +110,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
-  os << getModulePrelude(scheme_) << "\n";
+  os << getModulePrelude(scheme_, importType_) << "\n";
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -725,8 +726,12 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc) {
 
 OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream &os,
                                      SelectVariableNames *variableNames,
-                                     const OpenfheScheme &scheme)
-    : scheme_(scheme), os(os), variableNames(variableNames) {}
+                                     const OpenfheScheme &scheme,
+                                     const OpenfheImportType &importType)
+    : scheme_(scheme),
+      importType_(importType),
+      os(os),
+      variableNames(variableNames) {}
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

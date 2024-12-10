@@ -25,7 +25,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
     generated_cc_filename = "%s_lib.inc.cc" % name
     heir_opt_name = "%s_heir_opt" % name
     generated_heir_opt_name = "%s_heir_opt.mlir" % name
-    heir_translate_flags = heir_translate_flags + ["--emit-openfhe-pke"]
+    heir_translate_flags = heir_translate_flags + ["--emit-openfhe-pke", "--openfhe-include-type=source-relative"]
 
     if heir_opt_flags:
         heir_opt(

@@ -31,6 +31,17 @@ OPENFHE_DEFINES = [
     "OPENFHE_VERSION=" + OPENFHE_VERSION,
 ]
 
+# This rule exists so that the python frontend can get access to the headers to
+# pass dynamically to clang when building compiled code.
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "src/binfhe/include/**/*.h",
+        "src/core/include/**/*.h",
+        "src/pke/include/**/*.h",
+    ]),
+)
+
 cc_library(
     name = "core",
     srcs = glob([
