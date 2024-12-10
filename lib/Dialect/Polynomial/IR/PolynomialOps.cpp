@@ -176,7 +176,7 @@ bool isPrimitiveNthRootOfUnity(const APInt &root, const APInt &n,
 
 /// Verify that the types involved in an NTT or INTT operation are
 /// compatible.
-static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
+static LogicalResult verifyNTTOp(Operation *op, PolynomialType poly,
                                  RankedTensorType tensorType,
                                  std::optional<PrimitiveRootAttr> root) {
   Attribute encoding = tensorType.getEncoding();
@@ -190,6 +190,7 @@ static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
            << "the provided tensor encoding is not a ring attribute";
   }
 
+  RingAttr ring = poly.getRing();
   if (encodedRing != ring) {
     return op->emitOpError()
            << "encoded ring type " << encodedRing
@@ -208,6 +209,15 @@ static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
                          "the polynomial type's ring attribute";
     return diag;
   }
+
+  auto coeffType = dyn_cast<mod_arith::ModArithType>(ring.getCoefficientType());
+  if (!coeffType) {
+    return op->emitOpError()
+           << "expected coefficient type to be mod_arith type";
+  }
+  if (failed(coefficientTypeMatchesScalarType(poly, tensorType.getElementType(),
+                                              op)))
+    return failure();
 
   if (root.has_value()) {
     APInt rootValue = root.value().getValue().getValue();
@@ -234,15 +244,13 @@ static LogicalResult verifyNTTOp(Operation *op, RingAttr ring,
   return success();
 }
 
-// TODO(#1113): use coefficientTypeMatchesScalarType for verifier to ensure the
-// output tensor element type agrees with the polynomial type.
 LogicalResult NTTOp::verify() {
-  return verifyNTTOp(this->getOperation(), getInput().getType().getRing(),
+  return verifyNTTOp(this->getOperation(), getInput().getType(),
                      getOutput().getType(), getRoot());
 }
 
 LogicalResult INTTOp::verify() {
-  return verifyNTTOp(this->getOperation(), getOutput().getType().getRing(),
+  return verifyNTTOp(this->getOperation(), getOutput().getType(),
                      getInput().getType(), getRoot());
 }
 
