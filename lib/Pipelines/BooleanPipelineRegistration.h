@@ -27,6 +27,15 @@ struct TosaToBooleanTfheOptions
       llvm::cl::init("main")};
 };
 
+struct TosaToBooleanJaxiteOptions : public TosaToBooleanTfheOptions {
+  PassOptions::Option<int> parallelism{
+      *this, "parallelism",
+      llvm::cl::desc(
+          "batching size for parallel execution on tpu. A value of 0 is no "
+          "parallelism"),
+      llvm::cl::init(0)};
+};
+
 void tosaToCGGIPipelineBuilder(OpPassManager &pm,
                                const TosaToBooleanTfheOptions &options,
                                const std::string &yosysFilesPath,
