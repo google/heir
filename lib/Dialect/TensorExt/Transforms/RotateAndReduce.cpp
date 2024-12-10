@@ -46,7 +46,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
                << "Trying to replace rotations ending in " << *op << "\n");
     auto b = ImplicitLocOpBuilder(op->getLoc(), op);
     auto tensor = reduction.getTensor();
-    Operation *finalOp;
+    Operation *finalOp = nullptr;
     auto tensorShape =
         mlir::cast<RankedTensorType>(tensor.getType()).getShape();
     for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
@@ -70,7 +70,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     for (auto value : reduction.getSavedValues()) {
       finalOp = b.create<ArithOp>(finalOp->getResult(0), value);
     }
-    op->replaceAllUsesWith(finalOp);
+    if (finalOp) op->replaceAllUsesWith(finalOp);
     LLVM_DEBUG(llvm::dbgs() << "Post-replacement: " << *parentOp << "\n");
   }
 
