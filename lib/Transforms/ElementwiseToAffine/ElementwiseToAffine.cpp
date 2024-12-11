@@ -70,7 +70,11 @@ struct ConvertAnyElementwiseMappableOpOnRankedTensors : public RewritePattern {
 
       // If first loop: replace scalar op
       if (i == 0) {
-        rewriter.replaceOp(op, loop);
+        // We will cast back to the return type to retain an embedding if
+        // included
+        auto cast = rewriter.create<tensor::CastOp>(op->getLoc(), resultType,
+                                                    loop.getResults());
+        rewriter.replaceOp(op, cast);
       } else {  // yield the result of this loop
         rewriter.create<affine::AffineYieldOp>(op->getLoc(),
                                                loop->getResults());
