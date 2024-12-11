@@ -865,44 +865,61 @@ MLIR like in that file. The program is below:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel run //tools:heir-opt -- &lt;span style="color:#4e9a06">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--mlir-to-openfhe-bgv&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;entry-function=dot_product ciphertext-degree=8&amp;#39;&lt;/span> &lt;span style="color:#4e9a06">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>&lt;span style="color:#000">$PWD&lt;/span>/tests/Examples/openfhe/dot_product_8.mlir &amp;gt; output.mlir
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This produces a file in the &lt;code>openfhe&lt;/code> exit dialect (part of HEIR). The raw
-output is rather verbose, and an abbreviated version is shown below.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">tensor_ct =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;...,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">scalar_ct =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;...,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">mul_ct =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;...,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">tensor_plaintext =&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_plaintext&lt;span style="color:#000;font-weight:bold">&amp;lt;...,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This produces a file in the &lt;code>openfhe&lt;/code> exit dialect (part of HEIR).&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">Z1005037682689_i64_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mod_arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>int&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1005037682689&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">Z1032955396097_i64_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mod_arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>int&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1032955396097&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">Z1095233372161_i64_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mod_arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>int&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1095233372161&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#lwe.polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">cleartext_start =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">cleartext_bitwidth =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rns_L0_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns&lt;span style="color:#000;font-weight:bold">.&lt;/span>rns&lt;span style="color:#000;font-weight:bold">&amp;lt;!&lt;/span>Z1095233372161_i64_&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rns_L1_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns&lt;span style="color:#000;font-weight:bold">.&lt;/span>rns&lt;span style="color:#000;font-weight:bold">&amp;lt;!&lt;/span>Z1095233372161_i64_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>Z1032955396097_i64_&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rns_L2_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns&lt;span style="color:#000;font-weight:bold">.&lt;/span>rns&lt;span style="color:#000;font-weight:bold">&amp;lt;!&lt;/span>Z1095233372161_i64_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>Z1032955396097_i64_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>Z1005037682689_i64_&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#ring_rns_L0_1_x8_&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.ring&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">coefficientType =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L0_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">polynomialModulus =&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#000;font-weight:bold">x**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#ring_rns_L1_1_x8_&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.ring&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">coefficientType =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L1_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">polynomialModulus =&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#000;font-weight:bold">x**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#ring_rns_L2_1_x8_&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#polynomial.ring&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">coefficientType =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rns_L2_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">polynomialModulus =&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#000;font-weight:bold">x**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_pt_L0_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_plaintext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L0_1_x8_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_pt_L1_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_plaintext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L1_1_x8_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_pt_L2_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_plaintext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L2_1_x8_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#rlwe_params_L0_&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#lwe.rlwe_params&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L0_1_x8_&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#rlwe_params_L1_&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#lwe.rlwe_params&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L1_1_x8_&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#rlwe_params_L2_&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#lwe.rlwe_params&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L2_1_x8_&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#rlwe_params_L2_D3_&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#lwe.rlwe_params&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">dimension =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#ring_rns_L2_1_x8_&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_ct_L0_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">rlwe_params =&lt;/span> &lt;span style="color:#000">#rlwe_params_L0_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_ct_L1_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">rlwe_params =&lt;/span> &lt;span style="color:#000">#rlwe_params_L1_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_ct_L1_1 =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">rlwe_params =&lt;/span> &lt;span style="color:#000">#rlwe_params_L1_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_ct_L2_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">rlwe_params =&lt;/span> &lt;span style="color:#000">#rlwe_params_L2_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#f57900">rlwe_ct_L2_D3_ =&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_ciphertext&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">rlwe_params =&lt;/span> &lt;span style="color:#000">#rlwe_params_L2_D3_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">underlying_type =&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>module &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>scalar_ct &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>mul_no_relin &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mul_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>relin &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>mul_ct&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">index&lt;/span>_cast &lt;span style="color:#000">%c4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> to &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>add &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%5&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">index&lt;/span>_cast &lt;span style="color:#000">%c2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> to &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%6&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%4&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%5&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%7&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>add &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%4&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%6&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%8&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">index&lt;/span>_cast &lt;span style="color:#000">%c1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> to &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%9&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%7&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%8&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%10&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>add &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%7&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%9&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">]&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%11&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rlwe_encode &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">encoding =&lt;/span> &lt;span style="color:#000">#lwe.polynomial_evaluation_encoding&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">cleartext_start =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">cleartext_bitwidth =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#f57900">ring =&lt;/span> &lt;span style="color:#000">#_polynomial.ring&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">cmod=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">463187969&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">ideal=&lt;/span>&lt;span style="color:#000">#_polynomial.polynomial&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#a40000">+&lt;/span> &lt;span style="color:#000;font-weight:bold">x**&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_plaintext
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%12&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>mul_plain &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%10&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%11&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_plaintext&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%13&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">index&lt;/span>_cast &lt;span style="color:#000">%c7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span> to &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%14&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%12&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%13&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%15&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>reinterpret_underlying_type &lt;span style="color:#000">%14&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct to &lt;span style="color:#000;font-weight:bold">!&lt;/span>scalar_ct
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%15&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>scalar_ct
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L0_ &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">constant&lt;/span> dense&lt;span style="color:#000;font-weight:bold">&amp;lt;[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">]&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>mul_no_relin &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_D3_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>relin &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_D3_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>add &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%5&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>add &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%6&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%5&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%7&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>add &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%5&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%6&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%8&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>mod_reduce &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%9&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>make_packed_plaintext &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%cst&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_pt_L1_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%10&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>mul_plain &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%8&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%9&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_pt_L1_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%11&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>rot &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%10&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">index =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">index&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%12&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> lwe&lt;span style="color:#000;font-weight:bold">.&lt;/span>reinterpret_underlying_type &lt;span style="color:#000">%11&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_ to &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%13&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>mod_reduce &lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%12&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L1_1&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L0_
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%13&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L0_
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__encrypt__arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>public_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__encrypt__arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>public_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_ &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__encrypt__arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>public_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ct
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__encrypt__arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>public_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L2_ &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__decrypt__result0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>scalar_ct&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__decrypt__result0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>rlwe_ct_L0_&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@dot_product__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
@@ -916,6 +933,7 @@ output is rather verbose, and an abbreviated version is shown below.&lt;/p>
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#204a87;font-weight:bold">namespace&lt;/span> &lt;span style="color:#000">lbcrypto&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">ConstCiphertext&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">DCRTPoly&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#000">CCParamsT&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">CCParams&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">CryptoContextBGVRNS&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">CryptoContext&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">DCRTPoly&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#000">EvalKeyT&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">EvalKey&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">DCRTPoly&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#000">PlaintextT&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">Plaintext&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
@@ -923,9 +941,12 @@ output is rather verbose, and an abbreviated version is shown below.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#000">PublicKeyT&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">PublicKey&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">DCRTPoly&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">dot_product&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">v1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">v2&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">dot_product__encrypt__arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v24&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v25&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PublicKeyT&lt;/span> &lt;span style="color:#000">v26&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">dot_product__encrypt__arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v29&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v30&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PublicKeyT&lt;/span> &lt;span style="color:#000">v31&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span> &lt;span style="color:#000">dot_product__decrypt__result0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v34&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">v35&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PrivateKeyT&lt;/span> &lt;span style="color:#000">v36&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">dot_product__encrypt__arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v18&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v19&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PublicKeyT&lt;/span> &lt;span style="color:#000">v20&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">dot_product__encrypt__arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v24&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v25&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PublicKeyT&lt;/span> &lt;span style="color:#000">v26&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span> &lt;span style="color:#000">dot_product__decrypt__result0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v30&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">v31&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PrivateKeyT&lt;/span> &lt;span style="color:#000">v32&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">dot_product__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">dot_product__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v37&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PrivateKeyT&lt;/span> &lt;span style="color:#000">v38&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// heir_output.cpp
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#8f5902;font-style:italic">#include&lt;/span> &lt;span style="color:#8f5902;font-style:italic">&amp;#34;src/pke/include/openfhe.h&amp;#34; // from @openfhe&lt;/span>&lt;span style="color:#8f5902;font-style:italic">
@@ -939,29 +960,29 @@ output is rather verbose, and an abbreviated version is shown below.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">using&lt;/span> &lt;span style="color:#000">PublicKeyT&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">PublicKey&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">DCRTPoly&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">dot_product&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">v1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">v2&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">size_t&lt;/span> &lt;span style="color:#000">v3&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">size_t&lt;/span> &lt;span style="color:#000">v4&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">size_t&lt;/span> &lt;span style="color:#000">v5&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">size_t&lt;/span> &lt;span style="color:#000">v6&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v7&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalMultNoRelin&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v2&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v8&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">Relinearize&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v7&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span> &lt;span style="color:#000">v9&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">static_cast&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v5&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v10&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v8&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v9&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v11&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalAdd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v8&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v10&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span> &lt;span style="color:#000">v12&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">static_cast&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v4&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v13&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v11&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v12&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v14&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalAdd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v11&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v13&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span> &lt;span style="color:#000">v15&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">static_cast&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v3&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v16&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v14&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v15&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v17&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalAdd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v14&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v16&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v18&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">};&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v18_cast&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">begin&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v18&lt;/span>&lt;span style="color:#000;font-weight:bold">),&lt;/span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">end&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v18&lt;/span>&lt;span style="color:#000;font-weight:bold">));&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v19&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">MakePackedPlaintext&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v18_cast&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v20&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalMult&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v17&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v19&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span> &lt;span style="color:#000">v21&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">static_cast&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v6&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v22&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v20&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v21&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v23&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v22&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">v23&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int64_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v3&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">};&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v4&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalMultNoRelin&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v2&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v5&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">Relinearize&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v4&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v6&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v5&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v7&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalAdd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v5&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v6&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v8&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v7&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v9&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalAdd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v7&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v8&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v10&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v9&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v11&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalAdd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v9&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v10&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v12&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">ModReduce&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v11&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span> &lt;span style="color:#000">v3_filled_n&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">GetCryptoParameters&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">GetElementParams&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">GetRingDimension&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">/&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span> &lt;span style="color:#000">v3_filled&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v3&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">v3_filled&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">clear&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">v3_filled&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">reserve&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v3_filled_n&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">auto&lt;/span> &lt;span style="color:#000">i&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span> &lt;span style="color:#000">i&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span> &lt;span style="color:#000">v3_filled_n&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">++&lt;/span>&lt;span style="color:#000">i&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">v3_filled&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">push_back&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v3&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">i&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">%&lt;/span> &lt;span style="color:#000">v3&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">size&lt;/span>&lt;span style="color:#000;font-weight:bold">()]);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v13&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">MakePackedPlaintext&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v3_filled&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v14&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalMult&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v12&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">v13&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v15&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">EvalRotate&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v14&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v16&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v15&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">const&lt;/span> &lt;span style="color:#204a87;font-weight:bold">auto&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span> &lt;span style="color:#000">v17&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">v0&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">-&amp;gt;&lt;/span>&lt;span style="color:#000">ModReduce&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">v16&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">v17&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">dot_product__encrypt__arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v24&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">std&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">vector&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000">v25&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PublicKeyT&lt;/span> &lt;span style="color:#000">v26&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
@@ -970,6 +991,12 @@ output is rather verbose, and an abbreviated version is shown below.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">int16_t&lt;/span> &lt;span style="color:#000">dot_product__decrypt__result0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v34&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">CiphertextT&lt;/span> &lt;span style="color:#000">v35&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PrivateKeyT&lt;/span> &lt;span style="color:#000">v36&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">dot_product__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">dot_product__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">CryptoContextT&lt;/span> &lt;span style="color:#000">v37&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">PrivateKeyT&lt;/span> &lt;span style="color:#000">v38&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>At this point we can compile the program as we would a normal OpenFHE program.
@@ -2506,7 +2533,54 @@ the &lt;code>generic&lt;/code> body.&lt;/p>
 &lt;p>&lt;em>Copy deallocs of internal memrefs into a secret.generic body&lt;/em>&lt;/p>
 &lt;p>For each memref allocated and used only within a body of a &lt;code>secret.generic&lt;/code>
 op, add it&amp;rsquo;s dealloc of the memref into its &lt;code>generic&lt;/code> body.&lt;/p>
-&lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
+&lt;h3 id="-secret-insert-mgmt-bgv">&lt;code>-secret-insert-mgmt-bgv&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Place BGV ciphertext management operations&lt;/em>&lt;/p>
+&lt;p>This pass implements the following placement strategy:&lt;/p>
+&lt;p>For relinearize, after every homomorphic ciphertext-ciphertext multiplication,
+a mgmt.relinearize is placed after the operation. This is done to ensure that
+the ciphertext keeps &lt;em>linear&lt;/em>.&lt;/p>
+&lt;p>For modulus switching, it is inserted right before a homomorphic multiplication,
+including ciphertext-plaintext ones. There is an option &lt;code>include-first&lt;/code> controlling
+whether to switch modulus before the first multiplication.&lt;/p>
+&lt;p>User can check the FLEXIBLEAUTOEXT and FLEXIBLEAUTO mode in OpenFHE as a reference.
+To know more technical difference about them, user can refer to the paper
+&lt;a href="https://ia.cr/2021/204">&amp;ldquo;Revisiting homomorphic encryption schemes for finite firelds&amp;rdquo;&lt;/a>.&lt;/p>
+&lt;p>Then, for level-mismatching binary operations like addition and subtraction,
+additional modulus switch is placed for the operand until it reaches the same level.&lt;/p>
+&lt;p>This is different from crosslevel operation handling in other implementations like using
+modulus switching and level drop together. The reason we only use modulus switching is
+for simplicity for now. Further optimization on this pass could implement such a strategy.&lt;/p>
+&lt;p>Before yield the final result, a modulus switching is placed if it is a result
+of multiplication or derived value of a multiplication.&lt;/p>
+&lt;p>Also, it annotates the mgmt.mgmt attribute for each operation, which
+includes the level and dimension information of a ciphertext. This information
+is subsequently used by the secret-to-bgv pass to properly lower to corresponding
+RNS Type.&lt;/p>
+&lt;p>Example of multiplication+addition:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@func&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic ins&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg3&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg3&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg3&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>which get transformed to:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@func&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic ins&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span> &lt;span style="color:#f57900">attrs =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">arg0 =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">mgmt.mgmt =&lt;/span> &lt;span style="color:#000">#mgmt.mgmt&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">level =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;},&lt;/span> &lt;span style="color:#f57900">arg1 =&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">mgmt.mgmt =&lt;/span> &lt;span style="color:#000">#mgmt.mgmt&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">level =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}}&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">^bb0&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg3&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000">%arg2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg3&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">mgmt.mgmt =&lt;/span> &lt;span style="color:#000">#mgmt.mgmt&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">level =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#f57900">dimension =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> mgmt&lt;span style="color:#000;font-weight:bold">.&lt;/span>relinearize &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">mgmt.mgmt =&lt;/span> &lt;span style="color:#000">#mgmt.mgmt&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">level =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%arg3&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">mgmt.mgmt =&lt;/span> &lt;span style="color:#000">#mgmt.mgmt&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">level =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> mgmt&lt;span style="color:#000;font-weight:bold">.&lt;/span>modreduce &lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">mgmt.mgmt =&lt;/span> &lt;span style="color:#000">#mgmt.mgmt&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#f57900">level =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-10">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
+&lt;/code>&lt;/pre>&lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Merge two adjacent generics into a single generic&lt;/em>&lt;/p>
 &lt;p>This pass merges two immedaitely sequential generics into a single
 generic. Useful as a sub-operation in some passes, and extracted into
@@ -2522,7 +2596,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-10">Options&lt;/h4>
+&lt;h4 id="options-11">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
@@ -2539,7 +2613,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-11">Options&lt;/h4>
+&lt;h4 id="options-12">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
@@ -2547,13 +2621,13 @@ dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code
 &lt;p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
 This may be overridden with the option -function=func_name to apply to a single function only.&lt;/p>
-&lt;h4 id="options-12">Options&lt;/h4>
+&lt;h4 id="options-13">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-function : function to add secret annotations to
 &lt;/code>&lt;/pre>&lt;h3 id="-straight-line-vectorize">&lt;code>-straight-line-vectorize&lt;/code>&lt;/h3>
 &lt;p>&lt;em>A vectorizer for straight line programs.&lt;/em>&lt;/p>
 &lt;p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.&lt;/p>
-&lt;h4 id="options-13">Options&lt;/h4>
+&lt;h4 id="options-14">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 &lt;/code>&lt;/pre>&lt;h3 id="-tosa-to-secret-arith">&lt;code>-tosa-to-secret-arith&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>tosa.sigmoid&lt;/code> to secret arith dialects.&lt;/em>&lt;/p>
@@ -2629,27 +2703,22 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-19.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
-from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
@@ -8917,6 +8986,740 @@ does not keep track of types for you.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
 &lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: Mgmt</title><link>https://heir.dev/docs/dialects/mgmt/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/mgmt/</guid><description>
+&lt;h2 id="mgmt-attributes">Mgmt attributes&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="affinemapattr">AffineMapAttr&lt;/h3>
+&lt;p>An Attribute containing an AffineMap object&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>affine-map-attribute ::= `affine_map` `&amp;lt;` affine-map `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">,&lt;/span> d2&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>AffineMap&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="arrayattr">ArrayAttr&lt;/h3>
+&lt;p>A collection of other Attribute values&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>array-attribute ::= `[` (attribute-value (`,` attribute-value)*)? `]`
+&lt;/code>&lt;/pre>&lt;p>An array attribute is an attribute that represents a collection of attribute
+values.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">[]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">10&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>affine_map&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">,&lt;/span> d2&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">,&lt;/span> d1&lt;span style="color:#000;font-weight:bold">)&amp;gt;,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;string attribute&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;Attribute&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="densearrayattr">DenseArrayAttr&lt;/h3>
+&lt;p>A dense array of integer or floating point elements.&lt;/p>
+&lt;p>A dense array attribute is an attribute that represents a dense array of
+primitive element types. Contrary to DenseIntOrFPElementsAttr this is a
+flat unidimensional array which does not have a storage optimization for
+splat. This allows to expose the raw array through a C++ API as
+&lt;code>ArrayRef&amp;lt;T&amp;gt;&lt;/code> for compatible types. The element type must be bool or an
+integer or float whose bitwidth is a multiple of 8. Bool elements are stored
+as bytes.&lt;/p>
+&lt;p>This is the base class attribute. Access to C++ types is intended to be
+managed through the subclasses &lt;code>DenseI8ArrayAttr&lt;/code>, &lt;code>DenseI16ArrayAttr&lt;/code>,
+&lt;code>DenseI32ArrayAttr&lt;/code>, &lt;code>DenseI64ArrayAttr&lt;/code>, &lt;code>DenseF32ArrayAttr&lt;/code>,
+and &lt;code>DenseF64ArrayAttr&lt;/code>.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>dense-array-attribute ::= `array` `&amp;lt;` (integer-type | float-type)
+(`:` tensor-literal)? `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>array&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i8&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>array&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">42&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>array&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">f64&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">42&lt;/span>&lt;span style="color:#000;font-weight:bold">.,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">12&lt;/span>&lt;span style="color:#000;font-weight:bold">.&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>When a specific subclass is used as argument of an operation, the
+declarative assembly will omit the type and print directly:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-2">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">elementType&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">size&lt;/td>
+&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">rawData&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;char&amp;gt;&lt;/code>&lt;/td>
+&lt;td>64-bit aligned storage for dense array elements&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="denseintorfpelementsattr">DenseIntOrFPElementsAttr&lt;/h3>
+&lt;p>An Attribute containing a dense multi-dimensional array of integer or floating-point values&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>tensor-literal ::= integer-literal | float-literal | bool-literal | [] | [tensor-literal (, tensor-literal)* ]
+dense-intorfloat-elements-attribute ::= `dense` `&amp;lt;` tensor-literal `&amp;gt;` `:`
+( tensor-type | vector-type )
+&lt;/code>&lt;/pre>&lt;p>A dense int-or-float elements attribute is an elements attribute containing
+a densely packed vector or tensor of integer or floating-point values. The
+element type of this attribute is required to be either an &lt;code>IntegerType&lt;/code> or
+a &lt;code>FloatType&lt;/code>.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;pre tabindex="0">&lt;code>// A splat tensor of integer values.
+dense&amp;lt;10&amp;gt; : tensor&amp;lt;2xi32&amp;gt;
+// A tensor of 2 float32 elements.
+dense&amp;lt;[10.0, 11.0]&amp;gt; : tensor&amp;lt;2xf32&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-3">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>ShapedType&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">rawData&lt;/td>
+&lt;td style="text-align:center">&lt;code>ArrayRef&amp;lt;char&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="denseresourceelementsattr">DenseResourceElementsAttr&lt;/h3>
+&lt;p>An Attribute containing a dense multi-dimensional array backed by a resource&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>dense-resource-elements-attribute ::=
+`dense_resource` `&amp;lt;` resource-handle `&amp;gt;` `:` shaped-type
+&lt;/code>&lt;/pre>&lt;p>A dense resource elements attribute is an elements attribute backed by a
+handle to a builtin dialect resource containing a densely packed array of
+values. This class provides the low-level attribute, which should only be
+interacted with in very generic terms, actual access to the underlying
+resource data is intended to be managed through one of the subclasses, such
+as; &lt;code>DenseBoolResourceElementsAttr&lt;/code>, &lt;code>DenseUI64ResourceElementsAttr&lt;/code>,
+&lt;code>DenseI32ResourceElementsAttr&lt;/code>, &lt;code>DenseF32ResourceElementsAttr&lt;/code>,
+&lt;code>DenseF64ResourceElementsAttr&lt;/code>, etc.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&amp;#34;example.user_op&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">attr =&lt;/span> dense_resource&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>blob1&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">3x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#a40000">-#&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>dialect_resources&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> builtin&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> blob1&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;0x08000000010000000000000002000000000000000300000000000000&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">#-&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-4">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>ShapedType&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">rawHandle&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseResourceElementsHandle&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="densestringelementsattr">DenseStringElementsAttr&lt;/h3>
+&lt;p>An Attribute containing a dense multi-dimensional array of strings&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>dense-string-elements-attribute ::= `dense` `&amp;lt;` attribute-value `&amp;gt;` `:`
+( tensor-type | vector-type )
+&lt;/code>&lt;/pre>&lt;p>A dense string elements attribute is an elements attribute containing a
+densely packed vector or tensor of string values. There are no restrictions
+placed on the element type of this attribute, enabling the use of dialect
+specific string types.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;pre tabindex="0">&lt;code>// A splat tensor of strings.
+dense&amp;lt;&amp;#34;example&amp;#34;&amp;gt; : tensor&amp;lt;2x!foo.string&amp;gt;
+// A tensor of 2 string elements.
+dense&amp;lt;[&amp;#34;example1&amp;#34;, &amp;#34;example2&amp;#34;]&amp;gt; : tensor&amp;lt;2x!foo.string&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-5">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>ShapedType&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>ArrayRef&amp;lt;StringRef&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="dictionaryattr">DictionaryAttr&lt;/h3>
+&lt;p>An dictionary of named Attribute values&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>dictionary-attribute ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
+&lt;/code>&lt;/pre>&lt;p>A dictionary attribute is an attribute that represents a sorted collection of
+named attribute values. The elements are sorted by name, and each name must be
+unique within the collection.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">attr_name =&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;string attribute&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">int_attr =&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">10&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;string attr name&amp;#34;&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;string attribute&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-6">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;NamedAttribute&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="floatattr">FloatAttr&lt;/h3>
+&lt;p>An Attribute containing a floating-point value&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>float-attribute ::= (float-literal (`:` float-type)?)
+| (hexadecimal-literal `:` float-type)
+&lt;/code>&lt;/pre>&lt;p>A float attribute is a literal attribute that represents a floating point
+value of the specified &lt;a href="#floating-point-types">float type&lt;/a>. It can be
+represented in the hexadecimal form where the hexadecimal value is
+interpreted as bits of the underlying binary representation. This form is
+useful for representing infinity and NaN floating point values. To avoid
+confusion with integer attributes, hexadecimal literals &lt;em>must&lt;/em> be followed
+by a float type to define a float attribute.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;pre tabindex="0">&lt;code>42.0 // float attribute defaults to f64 type
+42.0 : f32 // float attribute of f32 type
+0x7C00 : f16 // positive infinity
+0x7CFF : f16 // NaN (one of possible values)
+42 : f32 // Error: expected integer type
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-7">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::APFloat&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="integerattr">IntegerAttr&lt;/h3>
+&lt;p>An Attribute containing a integer value&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>integer-attribute ::= (integer-literal ( `:` (index-type | integer-type) )?)
+| `true` | `false`
+&lt;/code>&lt;/pre>&lt;p>An integer attribute is a literal attribute that represents an integral
+value of the specified integer or index type. &lt;code>i1&lt;/code> integer attributes are
+treated as &lt;code>boolean&lt;/code> attributes, and use a unique assembly format of either
+&lt;code>true&lt;/code> or &lt;code>false&lt;/code> depending on the value. The default type for non-boolean
+integer attributes, if a type is not specified, is signless 64-bit integer.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#0000cf;font-weight:bold">10&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#0000cf;font-weight:bold">10&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// : i64 is implied here.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>true &lt;span style="color:#8f5902;font-style:italic">// A bool, i.e. i1, value.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>false &lt;span style="color:#8f5902;font-style:italic">// A bool, i.e. i1, value.
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-8">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>APInt&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="integersetattr">IntegerSetAttr&lt;/h3>
+&lt;p>An Attribute containing an IntegerSet object&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>integer-set-attribute ::= `affine_set` `&amp;lt;` integer-set `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>affine_set&lt;span style="color:#000;font-weight:bold">&amp;lt;(&lt;/span>d0&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>d0 &lt;span style="color:#a40000">-&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;gt;=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-9">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>IntegerSet&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="opaqueattr">OpaqueAttr&lt;/h3>
+&lt;p>An opaque representation of another Attribute&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>opaque-attribute ::= dialect-namespace `&amp;lt;` attr-data `&amp;gt;`
+&lt;/code>&lt;/pre>&lt;p>Opaque attributes represent attributes of non-registered dialects. These are
+attribute represented in their raw string form, and can only usefully be
+tested for attribute equality.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#dialect&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;opaque attribute data&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-10">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">dialectNamespace&lt;/td>
+&lt;td style="text-align:center">&lt;code>StringAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">attrData&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::StringRef&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="sparseelementsattr">SparseElementsAttr&lt;/h3>
+&lt;p>An opaque representation of a multi-dimensional array&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>sparse-elements-attribute ::= `sparse` `&amp;lt;` attribute-value `,`
+attribute-value `&amp;gt;` `:`
+( tensor-type | vector-type )
+&lt;/code>&lt;/pre>&lt;p>A sparse elements attribute is an elements attribute that represents a
+sparse vector or tensor object. This is where very few of the elements are
+non-zero.&lt;/p>
+&lt;p>The attribute uses COO (coordinate list) encoding to represent the sparse
+elements of the elements attribute. The indices are stored via a 2-D tensor
+of 64-bit integer elements with shape [N, ndims], which specifies the
+indices of the elements in the sparse tensor that contains non-zero values.
+The element values are stored via a 1-D tensor with shape [N], that supplies
+the corresponding values for the indices.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>sparse&lt;span style="color:#000;font-weight:bold">&amp;lt;[[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">],&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">]],&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">5&lt;/span>&lt;span style="color:#000;font-weight:bold">]&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">3x4x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// This represents the following tensor:
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">/// [[1, 0, 0, 0],
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">/// [0, 0, 5, 0],
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">/// [0, 0, 0, 0]]
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-11">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>ShapedType&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">indices&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseIntElementsAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">values&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseElementsAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="stringattr">StringAttr&lt;/h3>
+&lt;p>An Attribute containing a string&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>string-attribute ::= string-literal (`:` type)?
+&lt;/code>&lt;/pre>&lt;p>A string attribute is an attribute that represents a string literal value.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&amp;#34;An important string&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&amp;#34;string with a type&amp;#34;&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>dialect&lt;span style="color:#000;font-weight:bold">.&lt;/span>string
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-12">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::StringRef&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">type&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="symbolrefattr">SymbolRefAttr&lt;/h3>
+&lt;p>An Attribute containing a symbolic reference to an Operation&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>symbol-ref-attribute ::= symbol-ref-id (`::` symbol-ref-id)*
+&lt;/code>&lt;/pre>&lt;p>A symbol reference attribute is a literal attribute that represents a named
+reference to an operation that is nested within an operation with the
+&lt;code>OpTrait::SymbolTable&lt;/code> trait. As such, this reference is given meaning by
+the nearest parent operation containing the &lt;code>OpTrait::SymbolTable&lt;/code> trait. It
+may optionally contain a set of nested references that further resolve to a
+symbol nested within a different symbol table.&lt;/p>
+&lt;p>&lt;strong>Rationale:&lt;/strong> Identifying accesses to global data is critical to
+enabling efficient multi-threaded compilation. Restricting global
+data access to occur through symbols and limiting the places that can
+legally hold a symbol reference simplifies reasoning about these data
+accesses.&lt;/p>
+&lt;p>See &lt;a href="../SymbolsAndSymbolTables.md">&lt;code>Symbols And SymbolTables&lt;/code>&lt;/a> for more
+information.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">@flat_reference&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">@parent_reference&lt;/span>&lt;span style="color:#000;font-weight:bold">::&lt;/span>&lt;span style="color:#000">@nested_reference&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-13">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">rootReference&lt;/td>
+&lt;td style="text-align:center">&lt;code>StringAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">nestedReferences&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;FlatSymbolRefAttr&amp;gt;&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="typeattr">TypeAttr&lt;/h3>
+&lt;p>An Attribute containing a Type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>type-attribute ::= type
+&lt;/code>&lt;/pre>&lt;p>A type attribute is an attribute that represents a
+&lt;a href="#type-system">type object&lt;/a>.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>dialect&lt;span style="color:#000;font-weight:bold">.&lt;/span>type
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="parameters-14">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">value&lt;/td>
+&lt;td style="text-align:center">&lt;code>Type&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="unitattr">UnitAttr&lt;/h3>
+&lt;p>An Attribute value of &lt;code>unit&lt;/code> type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>unit-attribute ::= `unit`
+&lt;/code>&lt;/pre>&lt;p>A unit attribute is an attribute that represents a value of &lt;code>unit&lt;/code> type. The
+&lt;code>unit&lt;/code> type allows only one value forming a singleton set. This attribute
+value is used to represent attributes that only have meaning from their
+existence.&lt;/p>
+&lt;p>One example of such an attribute could be the &lt;code>swift.self&lt;/code> attribute. This
+attribute indicates that a function parameter is the self/context parameter.
+It could be represented as a &lt;a href="#boolean-attribute">boolean attribute&lt;/a>(true or
+false), but a value of false doesn&amp;rsquo;t really bring any value. The parameter
+either is the self/context or it isn&amp;rsquo;t.&lt;/p>
+&lt;p>Examples:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A unit attribute defined with the `unit` value specifier.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@verbose_form&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">dialectName.unitAttr =&lt;/span> unit&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// A unit attribute in an attribute dictionary can also be defined without
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// the value specifier.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@simple_form&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> attributes &lt;span style="color:#000;font-weight:bold">{&lt;/span>dialectName&lt;span style="color:#000;font-weight:bold">.&lt;/span>unitAttr&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="mgmtattr">MgmtAttr&lt;/h3>
+&lt;p>Container attribute for all mgmt parameter&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#mgmt.mgmt&amp;lt;
+int, # level
+int # dimension
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute is used to store all mgmt parameters.&lt;/p>
+&lt;p>The attribute is a struct with the following fields:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>level&lt;/code> : the level of the ciphertext, from L to 0&lt;/li>
+&lt;li>&lt;code>dimension&lt;/code> : the dimension of the ciphertext, defaults to 2&lt;/li>
+&lt;/ul>
+&lt;p>Internally, this attribute is used by secret-to-&lt;scheme>
+for determining the level and dimension of the ciphertext.&lt;/p>
+&lt;p>It should be populated by &amp;ndash;secret-with-mgmt-&lt;scheme> before
+going through the secret-to-&lt;scheme> pass.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#mgmt = #mgmt.mgmt&amp;lt;level = 1&amp;gt; // dimension defaults to 2
+#mgmt1 = #mgmt.mgmt&amp;lt;level = 1, dimension = 3&amp;gt;
+%0 = secret.generic ins(%arg0, %arg1 : !secret.secret&amp;lt;i16&amp;gt;) attrs = {mgmt.mgmt = #mgmt} {
+...
+} -&amp;gt; !secret.secret&amp;lt;i16&amp;gt;
+&lt;/code>&lt;/pre>&lt;h4 id="parameters-15">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">level&lt;/td>
+&lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">dimension&lt;/td>
+&lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="stridedlayoutattr">StridedLayoutAttr&lt;/h3>
+&lt;p>An Attribute representing a strided layout of a shaped type&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>strided-layout-attribute ::= `strided` `&amp;lt;` `[` stride-list `]`
+(`,` `offset` `:` dimension)? `&amp;gt;`
+stride-list ::= /*empty*/
+| dimension (`,` dimension)*
+dimension ::= decimal-literal | `?`
+&lt;/code>&lt;/pre>&lt;p>A strided layout attribute captures layout information of the memref type in
+the canonical form. Specifically, it contains a list of &lt;em>strides&lt;/em>, one for
+each dimension. A stride is the number of elements in the linear storage
+one must step over to reflect an increment in the given dimension. For
+example, a &lt;code>MxN&lt;/code> row-major contiguous shaped type would have the strides
+&lt;code>[N, 1]&lt;/code>. The layout attribute also contains the &lt;em>offset&lt;/em> from the base
+pointer of the shaped type to the first effectively accessed element,
+expressed in terms of the number of contiguously stored elements.&lt;/p>
+&lt;p>Strides must be positive and the offset must be non-negative. Both the
+strides and the offset may be &lt;em>dynamic&lt;/em>, i.e. their value may not be known
+at compile time. This is expressed as a &lt;code>?&lt;/code> in the assembly syntax and as
+&lt;code>ShapedType::kDynamic&lt;/code> in the code. Stride and offset values
+must satisfy the constraints above at runtime, the behavior is undefined
+otherwise.&lt;/p>
+&lt;p>See [Dialects/Builtin.md#memreftype](MemRef type) for more information.&lt;/p>
+&lt;h4 id="parameters-16">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">offset&lt;/td>
+&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">strides&lt;/td>
+&lt;td style="text-align:center">&lt;code>::llvm::ArrayRef&amp;lt;int64_t&amp;gt;&lt;/code>&lt;/td>
+&lt;td>array of strides (64-bit integer)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="mgmt-ops">Mgmt ops&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="mgmtmodreduce-heirmgmtmodreduceop">&lt;code>mgmt.modreduce&lt;/code> (heir::mgmt::ModReduceOp)&lt;/h3>
+&lt;p>&lt;em>Modulus switch the input ciphertext down by one limb (RNS assumed)&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.modreduce` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies modulus switching/rescaling
+by one limb.&lt;/p>
+&lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.modulus_switch
+or ckks.rescale depending on the scheme.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="mgmtrelinearize-heirmgmtrelinearizeop">&lt;code>mgmt.relinearize&lt;/code> (heir::mgmt::RelinearizeOp)&lt;/h3>
+&lt;p>&lt;em>Relinearize the input ciphertext to be &lt;em>linear&lt;/em>&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.relinearize` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies relinearization
+of the input ciphertext to be &lt;em>linear&lt;/em> (i.e. returns to dimension 2).&lt;/p>
+&lt;p>This is used solely by multiplication. For rotation, currently HEIR
+assumes relinearization is done internally and does not have a separate
+scheme-specific operation for it.&lt;/p>
+&lt;p>This accepts a ciphertext with dimension &amp;gt; 2 and returns a ciphertext
+with dimension 2. Note that the semantic includes the relinearization
+of higher dimension input like input with dimension 4 or higher,
+which when materialized should require multiple relinearization keys.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.relinearize
+or ckks.relinearize depending on the scheme.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-1">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: ModArith</title><link>https://heir.dev/docs/dialects/modarith/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/modarith/</guid><description>
