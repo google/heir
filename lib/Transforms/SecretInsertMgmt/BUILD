@@ -9,6 +9,7 @@ cc_library(
     name = "SecretInsertMgmt",
     srcs = [
         "SecretInsertMgmtBGV.cpp",
+        "SecretInsertMgmtCKKS.cpp",
     ],
     hdrs = [
         "Passes.h",

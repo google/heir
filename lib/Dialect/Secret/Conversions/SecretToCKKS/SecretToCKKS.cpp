@@ -12,6 +12,8 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
@@ -51,8 +53,10 @@ namespace {
 // modulus degree.
 // TODO(#536): Integrate a general library to compute appropriate prime moduli
 // given any number of bits.
-FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
-    MLIRContext *ctx, int coefficientModBits, int polyModDegree) {
+FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext *ctx,
+                                               int currentLevel,
+                                               int coefficientModBits,
+                                               int polyModDegree) {
   std::vector<::mlir::heir::polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
@@ -60,17 +64,28 @@ FailureOr<::mlir::heir::polynomial::RingAttr> getRlweRing(
       ::mlir::heir::polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
   ::mlir::heir::polynomial::IntPolynomial xnPlusOne = result.value();
-  switch (coefficientModBits) {
-    case 29: {
-      auto type = IntegerType::get(ctx, 32);
-      APInt defaultMod(32, 463187969);
-      return ::mlir::heir::polynomial::RingAttr::get(
-          mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, defaultMod)),
-          polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
-    }
-    default:
-      return failure();
+  // all 40 bit primes...
+  std::vector<int64_t> primes = {1095233372161, 1032955396097, 1005037682689,
+                                 998595133441,  972824936449,  959939837953};
+  SmallVector<Type, 4> modTypes;
+  for (int i = 0; i <= currentLevel; i++) {
+    auto type = IntegerType::get(ctx, 64);
+    modTypes.push_back(
+        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, primes[i])));
   }
+  auto rnsType = rns::RNSType::get(ctx, modTypes);
+  return ::mlir::heir::polynomial::RingAttr::get(
+      rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
+}
+
+polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
+                                             int level) {
+  auto rnsType = cast<rns::RNSType>(ringAttr.getCoefficientType());
+
+  auto newRnsType = rns::RNSType::get(
+      rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
+  return ::mlir::heir::polynomial::RingAttr::get(
+      newRnsType, ringAttr.getPolynomialModulus());
 }
 
 // Returns the unique non-unit dimension of a tensor and its rank.
@@ -91,42 +106,61 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 
 }  // namespace
 
-class SecretToCKKSTypeConverter : public TypeConverter {
+class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
  public:
   SecretToCKKSTypeConverter(MLIRContext *ctx,
                             ::mlir::heir::polynomial::RingAttr rlweRing,
-                            bool packTensorInSlots) {
+                            bool packTensorInSlots)
+      : TypeWithAttrTypeConverter(mgmt::MgmtDialect::kArgMgmtAttrName) {
     addConversion([](Type type) { return type; });
-
-    // Convert secret types to LWE ciphertext types.
-    addConversion([ctx, this](secret::SecretType type) -> Type {
-      Type valueTy = type.getValueType();
-      int bitWidth = getElementTypeOrSelf(valueTy).getIntOrFloatBitWidth();
-      // TODO(#785): Set a scaling parameter for floating point values.
-      auto ciphertext = lwe::RLWECiphertextType::get(
-          ctx,
-          lwe::InverseCanonicalEmbeddingEncodingAttr::get(ctx, bitWidth,
-                                                          bitWidth),
-          lwe::RLWEParamsAttr::get(ctx, 2, ring_), valueTy);
-      // Return a single ciphertext if inputs are packed into a single
-      // ciphertext SIMD slot or the secret value type is a scalar.
-      if (this->packTensorInSlots_ || !isa<TensorType>(valueTy)) {
-        return ciphertext;
-      }
-      // If the input IR does not contain aligned ciphertexts, we will not
-      // pack tensors into ciphertext SIMD slots, so tensors are converted
-      // into tensors of RLWE ciphertexts.
-      assert(dyn_cast<RankedTensorType>(valueTy) &&
-             "expected ranked tensor type");
-      ciphertext = lwe::RLWECiphertextType::get(
-          ctx, ciphertext.getEncoding(), ciphertext.getRlweParams(),
-          cast<RankedTensorType>(valueTy).getElementType());
-      return RankedTensorType::get(cast<RankedTensorType>(valueTy).getShape(),
-                                   ciphertext);
-    });
 
     ring_ = rlweRing;
     packTensorInSlots_ = packTensorInSlots;
+  }
+
+  Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
+                                     mgmt::MgmtAttr mgmtAttr) const {
+    auto *ctx = type.getContext();
+    auto level = mgmtAttr.getLevel();
+    auto dimension = mgmtAttr.getDimension();
+
+    Type valueTy = type.getValueType();
+    int bitWidth = getElementTypeOrSelf(valueTy).getIntOrFloatBitWidth();
+    // TODO(#785): Set a scaling parameter for floating point values.
+    auto ciphertext = lwe::RLWECiphertextType::get(
+        ctx,
+        lwe::InverseCanonicalEmbeddingEncodingAttr::get(ctx, bitWidth,
+                                                        bitWidth),
+        lwe::RLWEParamsAttr::get(ctx, dimension,
+                                 getRlweRNSRingWithLevel(ring_, level)),
+        valueTy);
+    // Return a single ciphertext if inputs are packed into a single
+    // ciphertext SIMD slot or the secret value type is a scalar.
+    if (this->packTensorInSlots_ || !isa<TensorType>(valueTy)) {
+      return ciphertext;
+    }
+    // If the input IR does not contain aligned ciphertexts, we will not
+    // pack tensors into ciphertext SIMD slots, so tensors are converted
+    // into tensors of RLWE ciphertexts.
+    assert(dyn_cast<RankedTensorType>(valueTy) &&
+           "expected ranked tensor type");
+    ciphertext = lwe::RLWECiphertextType::get(
+        ctx, ciphertext.getEncoding(), ciphertext.getRlweParams(),
+        cast<RankedTensorType>(valueTy).getElementType());
+    return RankedTensorType::get(cast<RankedTensorType>(valueTy).getShape(),
+                                 ciphertext);
+  }
+
+  Type convertTypeWithAttr(Type type, Attribute attr) const override {
+    auto secretTy = dyn_cast<secret::SecretType>(type);
+    // guard against null attribute
+    if (secretTy && attr) {
+      auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr);
+      if (mgmtAttr) {
+        return convertSecretTypeWithMgmtAttr(secretTy, mgmtAttr);
+      }
+    }
+    return type;
   }
 
  private:
@@ -149,15 +183,17 @@ class SecretGenericTensorExtractConversion
       return failure();
     }
     if (isa<RankedTensorType>(inputTy)) {
-      // Extracts an element out of a tensor (the secret tensor is not packed).
+      // TODO(#1174): decide this in earlier pipeline
+      // Extracts an element out of a tensor (the secret tensor is not
+      // packed).
       rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, outputTypes, inputs);
       return success();
     }
     // Extracts an element out of a slot of a single ciphertext.
     // TODO(#913): Once we have a layout descriptor, we should be able to
     // translate a tensor.extract into the appropriate ckks.extract operation.
-    // For now, if there we are extracting a multi-dimensional tensor with only
-    // one non-unit dimension stored in a single ciphertext along that
+    // For now, if there we are extracting a multi-dimensional tensor with
+    // only one non-unit dimension stored in a single ciphertext along that
     // dimension, then extract on the index of the non-unit dimension.
     auto lweCiphertextInputTy = cast<lwe::RLWECiphertextType>(inputTy);
     auto underlyingTy =
@@ -211,12 +247,16 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
 
-    auto rlweRing = getRlweRing(context, coefficientModBits, polyModDegree);
+    auto maxLevel = 5;
+    auto rlweRing =
+        getRlweRNSRing(context, maxLevel, coefficientModBits, polyModDegree);
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
     // Ensure that all secret types are uniform and matching the ring
     // parameter size in order to pack tensors into ciphertext SIMD slots.
+    // TODO(#1174): decide this earlier, remove polyModDegree param to earlier
+    // pipeline
     bool packTensorInSlots = true;
     WalkResult compatibleTensors = module->walk([&](Operation *op) {
       for (auto value : op->getOperands()) {
@@ -246,6 +286,12 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
       packTensorInSlots = false;
     }
 
+    // Invariant: for every SecretType, there is a
+    // corresponding MgmtAttr attached to it,
+    // either in its DefiningOp or getOwner()->getParentOp()
+    // (i.e., the FuncOp).
+    // Otherwise the typeConverter won't find the proper type information
+    // and fail
     SecretToCKKSTypeConverter typeConverter(context, rlweRing.value(),
                                             packTensorInSlots);
     RewritePatternSet patterns(context);
@@ -253,27 +299,35 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     target.addLegalDialect<ckks::CKKSDialect, lwe::LWEDialect>();
     target.addIllegalDialect<secret::SecretDialect>();
     target.addIllegalOp<secret::GenericOp>();
-    addStructuralConversionPatterns(typeConverter, patterns, target);
+    target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
+    // for mod reduce on tensor ciphertext
+    target.addLegalOp<arith::ConstantOp, tensor::EmptyOp>();
+    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+      return typeConverter.isFuncArgumentAndResultLegal(op);
+    });
 
     // We add an explicit allowlist of operations to mark legal. If we use
     // markUnknownOpDynamicallyLegal, then ConvertAny will be applied to any
     // remaining operations and potentially cause a crash.
     target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp>(
-        [&](Operation *op) { return typeConverter.isLegal(op); });
+        [&](Operation *op) { return typeConverter.isOperationLegal(op); });
+    target.addDynamicallyLegalOp<tensor::ExtractOp, tensor::InsertOp>(
+        [&](Operation *op) { return typeConverter.isOperationLegal(op); });
 
     patterns.add<
+        ConvertFuncWithContextAwareTypeConverter,
         SecretGenericOpCipherConversion<arith::AddIOp, ckks::AddOp>,
         SecretGenericOpCipherConversion<arith::SubIOp, ckks::SubOp>,
+        SecretGenericOpCipherConversion<arith::MulIOp, ckks::MulOp>,
         SecretGenericOpCipherConversion<arith::AddFOp, ckks::AddOp>,
         SecretGenericOpCipherConversion<arith::SubFOp, ckks::SubOp>,
+        SecretGenericOpCipherConversion<arith::MulFOp, ckks::MulOp>,
         SecretGenericOpCipherConversion<tensor::EmptyOp, tensor::EmptyOp>,
+        SecretGenericOpRelinearizeConversion<ckks::RelinearizeOp>,
+        SecretGenericOpModulusSwitchConversion<ckks::RescaleOp>,
         SecretGenericTensorExtractConversion,
         SecretGenericTensorInsertConversion,
         SecretGenericOpRotateConversion<ckks::RotateOp>,
-        SecretGenericOpMulConversion<arith::MulIOp, ckks::MulOp,
-                                     ckks::RelinearizeOp>,
-        SecretGenericOpMulConversion<arith::MulFOp, ckks::MulOp,
-                                     ckks::RelinearizeOp>,
         SecretGenericOpCipherPlainConversion<arith::AddFOp, ckks::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubFOp, ckks::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulFOp, ckks::MulPlainOp>,
@@ -286,6 +340,17 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
     }
+
+    // cleanup MgmtAttr
+    getOperation()->walk([&](Operation *op) {
+      if (auto funcOp = dyn_cast<FunctionOpInterface>(op)) {
+        for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
+          funcOp.removeArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
+        }
+      } else {
+        op->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+      }
+    });
   }
 };
 

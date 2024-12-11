@@ -48,6 +48,7 @@ using ConvertMulPlainOp =
     ConvertRlweCiphertextPlaintextOp<MulPlainOp, openfhe::MulPlainOp>;
 using ConvertRotateOp = ConvertRlweRotateOp<RotateOp>;
 using ConvertRelinOp = ConvertRlweRelinOp<RelinearizeOp>;
+using ConvertRescaleOp = ConvertModulusSwitchOp<RescaleOp>;
 using ConvertExtractOp =
     lwe::ConvertRlweExtractOp<ExtractOp, MulPlainOp, RotateOp>;
 
@@ -79,9 +80,9 @@ struct CKKSToOpenfhe : public impl::CKKSToOpenfheBase<CKKSToOpenfhe> {
     patterns
         .add<AddCryptoContextArg<ckks::CKKSDialect>, ConvertAddOp, ConvertSubOp,
              ConvertMulOp, ConvertAddPlainOp, ConvertMulPlainOp,
-             ConvertNegateOp, ConvertRotateOp, ConvertRelinOp, ConvertExtractOp,
-             lwe::ConvertEncryptOp, lwe::ConvertDecryptOp>(typeConverter,
-                                                           context);
+             ConvertNegateOp, ConvertRotateOp, ConvertRelinOp, ConvertRescaleOp,
+             ConvertExtractOp, lwe::ConvertEncryptOp, lwe::ConvertDecryptOp>(
+            typeConverter, context);
     patterns.add<lwe::ConvertEncodeOp>(typeConverter, context, /*ckks=*/true);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

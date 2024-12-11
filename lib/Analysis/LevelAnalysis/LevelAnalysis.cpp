@@ -93,6 +93,10 @@ static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
       if (op->getNumResults() == 0) {
         return;
       }
+      if (!ensureSecretness(op->getResult(0), solver)) {
+        return;
+      }
+      // ensure result is secret
       auto level = solver->lookupState<LevelLattice>(op->getResult(0))
                        ->getValue()
                        .getLevel();
@@ -124,6 +128,9 @@ void annotateLevel(Operation *top, DataFlowSolver *solver) {
 
     genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
       if (op->getNumResults() == 0) {
+        return;
+      }
+      if (!ensureSecretness(op->getResult(0), solver)) {
         return;
       }
       auto level = getLevel(op->getResult(0));

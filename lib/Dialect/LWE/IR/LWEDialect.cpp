@@ -109,6 +109,11 @@ class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
                          os << "inverse_canonical_encoding";
                          return AliasResult::FinalAlias;
                        })
+                   .Case<InverseCanonicalEmbeddingEncodingAttr>(
+                       [&](auto inverseCanonicalEmbeddingEncoding) {
+                         os << "inverse_canonical_embedding_encoding";
+                         return AliasResult::FinalAlias;
+                       })
                    .Default([&](Attribute) { return AliasResult::NoAlias; });
     return res;
   }

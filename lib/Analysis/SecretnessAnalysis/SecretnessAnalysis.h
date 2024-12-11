@@ -108,6 +108,8 @@ class SecretnessAnalysis
 
 void annotateSecretness(Operation *top, DataFlowSolver *solver);
 
+bool ensureSecretness(Value value, DataFlowSolver *solver);
+
 }  // namespace heir
 }  // namespace mlir
 
