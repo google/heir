@@ -1,6 +1,8 @@
 #ifndef LIB_UTILS_CONVERSIONUTILS_CONVERSIONUTILS_H_
 #define LIB_UTILS_CONVERSIONUTILS_CONVERSIONUTILS_H_
 
+#include <numeric>
+
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -9,22 +11,23 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/Dialect.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/TypeRange.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -387,13 +390,47 @@ class SecretGenericOpModulusSwitchConversion
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
     auto outputType = outputTypes[0];
-    auto outputRing =
-        cast<lwe::RLWECiphertextType>(getElementTypeOrSelf(outputType))
-            .getRlweParams()
-            .getRing();
+    auto outputElementType = getElementTypeOrSelf(outputType);
+    auto outputRing = cast<lwe::RLWECiphertextType>(outputElementType)
+                          .getRlweParams()
+                          .getRing();
 
-    rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0], outputRing);
-    return success();
+    // secret-to-ckks allow tensor of ciphertext
+    if (auto outputTensorType = dyn_cast<RankedTensorType>(outputType)) {
+      // need tensor::extract/tensor::insert
+      // manually fully unroll it
+      auto shape = outputTensorType.getShape();
+      auto totalSize = std::accumulate(shape.begin(), shape.end(), 1,
+                                       std::multiplies<int64_t>());
+      auto emptyOp = rewriter.create<tensor::EmptyOp>(op.getLoc(), shape,
+                                                      outputElementType);
+      Operation *finalOp = emptyOp;
+      for (int i = 0; i < totalSize; ++i) {
+        SmallVector<int64_t> indices;
+        auto iCopy = i;
+        for (long j : shape) {
+          indices.push_back(iCopy % j);
+          iCopy /= j;
+        }
+        SmallVector<Value> constants;
+        for (int64_t index : indices) {
+          constants.push_back(rewriter.create<arith::ConstantOp>(
+              op.getLoc(), rewriter.getIndexAttr(index)));
+        }
+        auto extract = rewriter.create<tensor::ExtractOp>(op.getLoc(),
+                                                          inputs[0], constants);
+        auto modulusSwitchOp = rewriter.create<Y>(
+            op.getLoc(), outputElementType, extract.getResult(), outputRing);
+        auto insert = rewriter.create<tensor::InsertOp>(
+            op.getLoc(), modulusSwitchOp.getResult(), emptyOp, constants);
+        finalOp = insert;
+      }
+      rewriter.replaceOp(op, finalOp);
+      return success();
+    } else {
+      rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0], outputRing);
+      return success();
+    }
   }
 };
 

@@ -300,6 +300,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     target.addIllegalDialect<secret::SecretDialect>();
     target.addIllegalOp<secret::GenericOp>();
     target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
+    // for mod reduce on tensor ciphertext
+    target.addLegalOp<arith::ConstantOp, tensor::EmptyOp>();
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       return typeConverter.isFuncArgumentAndResultLegal(op);
     });

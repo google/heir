@@ -26,6 +26,7 @@ def SecretToCKKS : Pass<"secret-to-ckks"> {
     "mlir::heir::rns::RNSDialect",
     "mlir::heir::ckks::CKKSDialect",
     "mlir::heir::lwe::LWEDialect",
+    "mlir::tensor::TensorDialect",
   ];
 
   let options = [
