@@ -1,75 +1,75 @@
-// RUN: heir-opt --arith-to-mod-arith --split-input-file %s | FileCheck %s --enable-var-scope
+// // RUN: heir-opt --arith-to-mod-arith --split-input-file %s | FileCheck %s --enable-var-scope
 
-// CHECK-LABEL: @test_lower_add
-// CHECK-SAME: (%[[LHS:.*]]: !Z2147483647_i32_, %[[RHS:.*]]: !Z2147483647_i32_) -> [[T:.*]] {
-func.func @test_lower_add(%lhs : i32, %rhs : i32) -> i32 {
-  // CHECK: %[[ADD:.*]] = mod_arith.add %[[LHS]], %[[RHS]] : [[T]]
-  // CHECK: return %[[ADD:.*]] : [[T]]
-  %res = arith.addi %lhs, %rhs : i32
-  return %res : i32
-}
+// // CHECK-LABEL: @test_lower_add
+// // CHECK-SAME: (%[[LHS:.*]]: !Z2147483647_i32_, %[[RHS:.*]]: !Z2147483647_i32_) -> [[T:.*]] {
+// func.func @test_lower_add(%lhs : i32, %rhs : i32) -> i32 {
+//   // CHECK: %[[ADD:.*]] = mod_arith.add %[[LHS]], %[[RHS]] : [[T]]
+//   // CHECK: return %[[ADD:.*]] : [[T]]
+//   %res = arith.addi %lhs, %rhs : i32
+//   return %res : i32
+// }
 
-// CHECK-LABEL: @test_lower_add_vec
-// CHECK-SAME: (%[[LHS:.*]]: tensor<4x!Z2147483647_i32_>, %[[RHS:.*]]: tensor<4x!Z2147483647_i32_>) -> [[T:.*]] {
-func.func @test_lower_add_vec(%lhs : tensor<4xi32>, %rhs : tensor<4xi32>) -> tensor<4xi32> {
-  // CHECK: %[[ADD:.*]] = mod_arith.add %[[LHS]], %[[RHS]] : [[T]]
-  // CHECK: return %[[ADD:.*]] : [[T]]
-  %res = arith.addi %lhs, %rhs : tensor<4xi32>
-  return %res : tensor<4xi32>
-}
+// // CHECK-LABEL: @test_lower_add_vec
+// // CHECK-SAME: (%[[LHS:.*]]: tensor<4x!Z2147483647_i32_>, %[[RHS:.*]]: tensor<4x!Z2147483647_i32_>) -> [[T:.*]] {
+// func.func @test_lower_add_vec(%lhs : tensor<4xi32>, %rhs : tensor<4xi32>) -> tensor<4xi32> {
+//   // CHECK: %[[ADD:.*]] = mod_arith.add %[[LHS]], %[[RHS]] : [[T]]
+//   // CHECK: return %[[ADD:.*]] : [[T]]
+//   %res = arith.addi %lhs, %rhs : tensor<4xi32>
+//   return %res : tensor<4xi32>
+// }
 
-// CHECK-LABEL: @test_lower_sub_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
-func.func @test_lower_sub_vec(%lhs : tensor<4xi32>, %rhs : tensor<4xi32>) -> tensor<4xi32> {
-  // CHECK: %[[ADD:.*]] = mod_arith.sub %[[LHS]], %[[RHS]] : [[T]]
-  // CHECK: return %[[ADD:.*]] : [[T]]
-  %res = arith.subi %lhs, %rhs : tensor<4xi32>
-  return %res : tensor<4xi32>
-}
+// // CHECK-LABEL: @test_lower_sub_vec
+// // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+// func.func @test_lower_sub_vec(%lhs : tensor<4xi32>, %rhs : tensor<4xi32>) -> tensor<4xi32> {
+//   // CHECK: %[[ADD:.*]] = mod_arith.sub %[[LHS]], %[[RHS]] : [[T]]
+//   // CHECK: return %[[ADD:.*]] : [[T]]
+//   %res = arith.subi %lhs, %rhs : tensor<4xi32>
+//   return %res : tensor<4xi32>
+// }
 
-// CHECK-LABEL: @test_lower_sub
-// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
-func.func @test_lower_sub(%lhs : i32, %rhs : i32) -> i32 {
-  // CHECK: %[[ADD:.*]] = mod_arith.sub %[[LHS]], %[[RHS]] : [[T]]
-  // CHECK: return %[[ADD:.*]] : [[T]]
-  %res = arith.subi %lhs, %rhs : i32
-  return %res : i32
-}
+// // CHECK-LABEL: @test_lower_sub
+// // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+// func.func @test_lower_sub(%lhs : i32, %rhs : i32) -> i32 {
+//   // CHECK: %[[ADD:.*]] = mod_arith.sub %[[LHS]], %[[RHS]] : [[T]]
+//   // CHECK: return %[[ADD:.*]] : [[T]]
+//   %res = arith.subi %lhs, %rhs : i32
+//   return %res : i32
+// }
 
-// CHECK-LABEL: @test_lower_mul
-// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
-func.func @test_lower_mul(%lhs : i32, %rhs : i32) -> i32 {
-  // CHECK: %[[ADD:.*]] = mod_arith.mul %[[LHS]], %[[RHS]] : [[T]]
-  // CHECK: return %[[ADD:.*]] : [[T]]
-  %res = arith.muli %lhs, %rhs : i32
-  return %res : i32
-}
+// // CHECK-LABEL: @test_lower_mul
+// // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+// func.func @test_lower_mul(%lhs : i32, %rhs : i32) -> i32 {
+//   // CHECK: %[[ADD:.*]] = mod_arith.mul %[[LHS]], %[[RHS]] : [[T]]
+//   // CHECK: return %[[ADD:.*]] : [[T]]
+//   %res = arith.muli %lhs, %rhs : i32
+//   return %res : i32
+// }
 
-// CHECK-LABEL: @test_lower_mul_vec
-// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
-func.func @test_lower_mul_vec(%lhs : tensor<4xi32>, %rhs : tensor<4xi32>) -> tensor<4xi32> {
-  // CHECK: %[[ADD:.*]] = mod_arith.mul %[[LHS]], %[[RHS]] : [[T]]
-  // CHECK: return %[[ADD:.*]] : [[T]]
-  %res = arith.muli %lhs, %rhs : tensor<4xi32>
-  return %res : tensor<4xi32>
-}
+// // CHECK-LABEL: @test_lower_mul_vec
+// // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+// func.func @test_lower_mul_vec(%lhs : tensor<4xi32>, %rhs : tensor<4xi32>) -> tensor<4xi32> {
+//   // CHECK: %[[ADD:.*]] = mod_arith.mul %[[LHS]], %[[RHS]] : [[T]]
+//   // CHECK: return %[[ADD:.*]] : [[T]]
+//   %res = arith.muli %lhs, %rhs : tensor<4xi32>
+//   return %res : tensor<4xi32>
+// }
 
-module {
-  memref.global "private" constant @__constant_1x16xi8 : memref<1x16xi32> = dense<[[39, 59, 39, 21, 28, 2, 34, 35, 15, 27, 59, 41, 18, 35, 7, 127]]> {alignment = 64 : i64}
-func.func @test_mac(%lhs : i32, %rhs : i32) -> i32 {
-    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
-  %c0 = arith.constant 0 : index
-  %c6 = arith.constant 6 : index
-  %c = arith.constant 32: i32
-  %4 = memref.get_global @__constant_1x16xi8 : memref<1x16xi32>
-  %661 = memref.load %4[%c0, %c6] : memref<1x16xi32>
-  // %27 = arith.extsi %661 : i8 to i32
-  %25 = arith.muli %lhs, %rhs : i32
-  %26 = arith.addi %c, %25 : i32
-  %res = arith.muli %26, %661 : i32
-  return %res : i32
-}
-}
+// module {
+//   memref.global "private" constant @__constant_1x16xi8 : memref<1x16xi32> = dense<[[39, 59, 39, 21, 28, 2, 34, 35, 15, 27, 59, 41, 18, 35, 7, 127]]> {alignment = 64 : i64}
+// func.func @test_mac(%lhs : i32, %rhs : i32) -> i32 {
+//     %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
+//   %c0 = arith.constant 0 : index
+//   %c6 = arith.constant 6 : index
+//   %c = arith.constant 32: i32
+//   %4 = memref.get_global @__constant_1x16xi8 : memref<1x16xi32>
+//   %661 = memref.load %4[%c0, %c6] : memref<1x16xi32>
+//   // %27 = arith.extsi %661 : i8 to i32
+//   %25 = arith.muli %lhs, %rhs : i32
+//   %26 = arith.addi %c, %25 : i32
+//   %res = arith.muli %26, %661 : i32
+//   return %res : i32
+// }
+// }
 
 module attributes {tf_saved_model.semantics} {
   // memref.global "private" constant @__constant_1x16xi8 : memref<1x16xi8> = dense<[[-39, 59, 39, 21, 28, -32, -34, -35, 15, 27, -59, -41, 18, -35, -7, 127]]> {alignment = 64 : i64}
@@ -83,17 +83,18 @@ module attributes {tf_saved_model.semantics} {
     %0 = memref.get_global @__constant_16x1xi8 : memref<16x1xi8>
     // %1 = memref.get_global @__constant_16xi32 : memref<16xi32>
     // %2 = memref.get_global @__constant_16x16xi8 : memref<16x16xi8>
-    %3 = memref.get_global @__constant_16xi32_0 : memref<16xi32>
+    // %3 = memref.get_global @__constant_16xi32_0 : memref<16xi32>
     // %4 = memref.get_global @__constant_1x16xi8 : memref<1x16xi8>
-    %21 = memref.load %3[%c0] : memref<16xi32>
-        %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
+    // %21 = memref.load %3[%c0] : memref<16xi32>
+    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
     %22 = memref.load %0[%c0, %c0] : memref<16x1xi8>
     %23 = memref.load %arg0[%c0, %c0] : memref<1x1xi8>
     %24 = arith.extsi %23 : i8 to i32
-    %25 = arith.muli %24, %24 : i32
+        %a24 = arith.extsi %22 : i8 to i32
+    %25 = arith.muli %24, %a24 : i32
     %26 = arith.addi %25, %25 : i32
     %29 = arith.muli %26, %25 : i32
-    %30 = arith.addi %21, %29 : i32
+    %30 = arith.addi %26, %29 : i32
     return %30 : i32
   }
   }

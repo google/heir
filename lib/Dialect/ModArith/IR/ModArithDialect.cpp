@@ -137,6 +137,24 @@ LogicalResult MacOp::verify() {
   return verifyModArithType(*this, getResultModArithType(*this));
 }
 
+LogicalResult ModSwitchOp::verify() {
+  // auto srcModulus = getInput().getType().getModulus().getInt();
+  // auto dstModulus = getOutput().getType().getModulus().getInt();
+
+  auto srcModulus =
+      cast<ModArithType>(getInput().getType()).getModulus().getInt();
+  auto dstModulus =
+      cast<ModArithType>(getOutput().getType()).getModulus().getInt();
+
+  if (srcModulus >= dstModulus)
+    return emitOpError() << "source modulus " << srcModulus
+                         << " must be smaller than destination modulus "
+                         << dstModulus << "\n"
+                         << " This situations leads to information loss.";
+
+  return success();
+}
+
 LogicalResult BarrettReduceOp::verify() {
   auto inputType = getInput().getType();
   unsigned bitWidth;
