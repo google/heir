@@ -814,7 +814,7 @@ LogicalResult FixSecretInFunctionType::matchAndRewrite(
       }
     }
     newFuncResultTypes.push_back(funcResultType);
-    llvm::dbgs() << "Pushing back " << funcResultType << "\n";
+    LLVM_DEBUG(llvm::dbgs() << "Pushing back " << funcResultType << "\n");
   }
 
   // We can only signal success if there's actually a real change to the IR
