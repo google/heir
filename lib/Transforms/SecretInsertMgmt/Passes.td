@@ -94,7 +94,9 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
 
   let options = [
     Option<"includeFirstMul", "include-first-mul", "bool",
-           /*default=*/"false", "Modulus switching right before the first multiplication (default to false)">
+           /*default=*/"false", "Modulus switching right before the first multiplication (default to false)">,
+    Option<"slotNumber", "slot-number", "int",
+           /*default=*/"1024", "Default number of slots use for ciphertext space.">,
   ];
 }
 

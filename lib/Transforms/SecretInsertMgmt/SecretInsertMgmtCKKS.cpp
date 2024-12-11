@@ -21,6 +21,75 @@ namespace heir {
 #define GEN_PASS_DEF_SECRETINSERTMGMTCKKS
 #include "lib/Transforms/SecretInsertMgmt/Passes.h.inc"
 
+namespace {
+
+// Returns the unique non-unit dimension of a tensor and its rank.
+// Returns failure if the tensor has more than one non-unit dimension.
+FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
+    RankedTensorType tensorTy) {
+  auto shape = tensorTy.getShape();
+
+  if (llvm::count_if(shape, [](auto dim) { return dim != 1; }) != 1) {
+    return failure();
+  }
+
+  unsigned nonUnitIndex = std::distance(
+      shape.begin(), llvm::find_if(shape, [&](auto dim) { return dim != 1; }));
+
+  return std::make_pair(nonUnitIndex, shape[nonUnitIndex]);
+}
+
+bool isTensorInSlots(Operation *top, DataFlowSolver *solver, int slotNumber) {
+  // Ensure that all secret types are uniform and matching the ring
+  // parameter size in order to pack tensors into ciphertext SIMD slots.
+  bool packTensorInSlots = true;
+  WalkResult compatibleTensors = top->walk([&](Operation *op) {
+    for (auto value : op->getOperands()) {
+      auto secretness =
+          solver->lookupState<SecretnessLattice>(value)->getValue();
+      if (secretness.isInitialized() && secretness.getSecretness()) {
+        auto tensorTy = dyn_cast<RankedTensorType>(value.getType());
+        if (tensorTy) {
+          // TODO(#913): Multidimensional tensors with a single non-unit
+          // dimension are assumed to be packed in the order of that
+          // dimensions.
+          auto nonUnitDim = getNonUnitDimension(tensorTy);
+          if (failed(nonUnitDim)) {
+            return WalkResult::interrupt();
+          }
+          if (nonUnitDim.value().second != slotNumber) {
+            return WalkResult::interrupt();
+          }
+        }
+      }
+    }
+    return WalkResult::advance();
+  });
+  if (compatibleTensors.wasInterrupted()) {
+    emitWarning(top->getLoc(),
+                "expected secret types to be tensors with dimension matching "
+                "ring parameter, pass will not pack tensors into ciphertext "
+                "SIMD slots");
+    packTensorInSlots = false;
+  }
+  return packTensorInSlots;
+}
+
+void annotateTensorExtractAsNotSlotExtract(Operation *top,
+                                           DataFlowSolver *solver) {
+  top->walk([&](tensor::ExtractOp extractOp) {
+    auto secretness =
+        solver->lookupState<SecretnessLattice>(extractOp.getOperand(0))
+            ->getValue();
+    if (secretness.isInitialized() && secretness.getSecretness()) {
+      extractOp->setAttr("slot_extract",
+                         BoolAttr::get(extractOp.getContext(), false));
+    }
+  });
+}
+
+}  // namespace
+
 struct SecretInsertMgmtCKKS
     : impl::SecretInsertMgmtCKKSBase<SecretInsertMgmtCKKS> {
   using SecretInsertMgmtCKKSBase::SecretInsertMgmtCKKSBase;
@@ -30,9 +99,27 @@ struct SecretInsertMgmtCKKS
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
     solver.load<SecretnessAnalysis>();
-    solver.load<MulResultAnalysis>();
     solver.load<LevelAnalysis>();
 
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+
+    // TODO(#1174): decide packing earlier in the pipeline instead of annotation
+    // determine whether tensor::Extract is extracting slot from ciphertext
+    // or generic tensor extract from tensor ciphertext
+    // This is directly copied from secret-to-ckks
+    // should merge into earlier pipeline
+    bool packTensorInSlots =
+        isTensorInSlots(getOperation(), &solver, slotNumber);
+    if (!packTensorInSlots) {
+      annotateTensorExtractAsNotSlotExtract(getOperation(), &solver);
+    }
+
+    // re-run analysis as MulResultAnalysis is affected by slot_extract
+    solver.load<MulResultAnalysis>();
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
@@ -84,10 +171,6 @@ struct SecretInsertMgmtCKKS
         &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
         getOperation(), &solver);
     patternsAddModReduce.add<ModReduceBefore<arith::SubFOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    // ensure inserter and insertee have the same level
-    patternsAddModReduce.add<ModReduceBefore<tensor::InsertOp>>(
         &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
         getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsAddModReduce));

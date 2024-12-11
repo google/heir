@@ -183,6 +183,7 @@ class SecretGenericTensorExtractConversion
       return failure();
     }
     if (isa<RankedTensorType>(inputTy)) {
+      // TODO(#1174): decide this in earlier pipeline
       // Extracts an element out of a tensor (the secret tensor is not
       // packed).
       rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, outputTypes, inputs);
@@ -254,6 +255,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     }
     // Ensure that all secret types are uniform and matching the ring
     // parameter size in order to pack tensors into ciphertext SIMD slots.
+    // TODO(#1174): decide this earlier, remove polyModDegree param to earlier
+    // pipeline
     bool packTensorInSlots = true;
     WalkResult compatibleTensors = module->walk([&](Operation *op) {
       for (auto value : op->getOperands()) {

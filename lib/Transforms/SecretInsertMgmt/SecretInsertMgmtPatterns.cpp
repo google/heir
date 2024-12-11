@@ -58,6 +58,17 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   }
   // condition on result being secret
 
+  // guard against tensor::ExtractOp with slot_extract = false
+  // TODO(#1174): decide packing earlier in the pipeline instead of annotation
+  // workaround
+  if (isa<tensor::ExtractOp>(op)) {
+    auto slotExtractAttr = op->getAttr("slot_extract");
+    if (isa_and_nonnull<BoolAttr>(slotExtractAttr)) {
+      // must be false!
+      return success();
+    }
+  }
+
   auto maxLevel = 0;
   auto isMulResult = false;
   // use map in case we have same operands
@@ -125,13 +136,13 @@ template struct MultRelinearize<arith::MulIOp>;
 
 // isMul = true
 template struct ModReduceBefore<arith::MulIOp>;
-// extract = mulplain + rotate
+// extract = mulplain + rotate for annotated slot_extract = true
+// TODO(#1174): decide packing earlier in the pipeline instead of annotation
 template struct ModReduceBefore<tensor::ExtractOp>;
 template struct ModReduceBefore<secret::YieldOp>;
 // isMul = false
 template struct ModReduceBefore<arith::AddIOp>;
 template struct ModReduceBefore<arith::SubIOp>;
-template struct ModReduceBefore<tensor::InsertOp>;
 
 // for CKKS
 template struct MultRelinearize<arith::MulFOp>;

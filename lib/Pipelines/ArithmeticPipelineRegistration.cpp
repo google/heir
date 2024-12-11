@@ -110,6 +110,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
       secretInsertMgmtCKKSOptions.includeFirstMul =
           options.modulusSwitchBeforeFirstMul;
+      secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
       pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
       break;
     }
