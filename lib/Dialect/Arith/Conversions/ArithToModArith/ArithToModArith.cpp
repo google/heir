@@ -86,13 +86,28 @@ struct ConvertExt : public OpConversionPattern<mlir::arith::ExtSIOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    if (auto originOp = op.getOperand().getDefiningOp<memref::LoadOp>()) {
+      if (auto *globalOp = originOp.getMemRef().getDefiningOp()) {
+        if (isa<memref::GetGlobalOp>(globalOp)) {
+          auto encapOp = b.create<mod_arith::EncapsulateOp>(
+              convertArithType(originOp.getType()), originOp.getResult());
+          auto result = b.create<mod_arith::ModSwitchOp>(
+              op.getLoc(), convertArithType(op.getType()), encapOp);
+          rewriter.replaceOp(op, result);
+          return success();
+        }
+      }
+    }
+
     auto result = b.create<mod_arith::ModSwitchOp>(
-        op.getLoc(), convertArithType(op.getType()), op.getIn());
+        op.getLoc(), convertArithType(op.getType()), adaptor.getIn());
     rewriter.replaceOp(op, result);
     return success();
   }
 };
 
+// FIXME: Now it is assumed that everything is in the same field, i.e. i32 or
+// i64. Need to check if an additional modulus switch is necessary.
 template <typename SourceArithOp, typename TargetModArithOp>
 struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
   ConvertBinOp(mlir::MLIRContext *context)
@@ -105,20 +120,28 @@ struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    // Check if origin is memref.load -> Add encapsulate
     auto lhsDefOp = op.getLhs().template getDefiningOp<memref::LoadOp>();
     auto rhsDefOp = op.getRhs().template getDefiningOp<memref::LoadOp>();
 
     auto lhsOp = adaptor.getLhs();
     auto rhsOp = adaptor.getRhs();
 
+    // If the operand comes from a global variable, we need to encapsulate it
+    // If the operand comes from a function input, leave it as is
     if (lhsDefOp) {
-      lhsOp = b.create<mod_arith::EncapsulateOp>(
-          convertArithType(lhsDefOp.getType()), lhsDefOp.getResult());
+      if (auto check = cast<memref::LoadOp>(lhsDefOp)
+                           .getMemRef()
+                           .template getDefiningOp<memref::GetGlobalOp>())
+        lhsOp = b.create<mod_arith::EncapsulateOp>(
+            convertArithType(lhsDefOp.getType()), lhsDefOp.getResult());
     }
+
     if (rhsDefOp) {
-      rhsOp = b.create<mod_arith::EncapsulateOp>(
-          convertArithType(rhsDefOp.getType()), rhsDefOp.getResult());
+      if (auto check = cast<memref::LoadOp>(rhsDefOp)
+                           .getMemRef()
+                           .template getDefiningOp<memref::GetGlobalOp>())
+        rhsOp = b.create<mod_arith::EncapsulateOp>(
+            convertArithType(rhsDefOp.getType()), rhsDefOp.getResult());
     }
 
     auto result = b.create<TargetModArithOp>(lhsOp, rhsOp);
@@ -154,7 +177,6 @@ struct ConvertMemRefLoad : public OpConversionPattern<mlir::memref::LoadOp> {
   LogicalResult matchAndRewrite(
       mlir::memref::LoadOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    // auto *parent = op.getMemRef().getDefiningOp();
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     SmallVector<Type> retTypes;
@@ -190,18 +212,15 @@ void ArithToModArith::runOnOperation() {
 
   target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation *op) {
     return cast<memref::LoadOp>(op).getMemRef().getDefiningOp();
-    // auto elementType = cast<memref::LoadOp>(op).getMemRef().getDefiningOp();
   });
 
-  // target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
-  //                              memref::StoreOp, memref::GlobalOp,
-  //                              memref::GetGlobalOp,
-  //                              memref::SubViewOp, memref::CopyOp,
-  //                              tensor::FromElementsOp, tensor::ExtractOp>(
-  //     [&](Operation *op) {
-  //       return typeConverter.isLegal(op->getOperandTypes()) &&
-  //              typeConverter.isLegal(op->getResultTypes());
-  //     });
+  target.addDynamicallyLegalOp<
+      memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::SubViewOp,
+      memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp>(
+      [&](Operation *op) {
+        return typeConverter.isLegal(op->getOperandTypes()) &&
+               typeConverter.isLegal(op->getResultTypes());
+      });
 
   RewritePatternSet patterns(context);
   patterns.add<
@@ -209,12 +228,11 @@ void ArithToModArith::runOnOperation() {
       ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
       ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
       ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>,
-      GenericOpPattern<memref::LoadOp>
-      // GenericOpPattern<memref::AllocOp>, GenericOpPattern<memref::DeallocOp>,
-      // GenericOpPattern<memref::StoreOp>, GenericOpPattern<memref::SubViewOp>,
-      // GenericOpPattern<memref::CopyOp>,
-      // GenericOpPattern<tensor::FromElementsOp>,
-      // GenericOpPattern<tensor::ExtractOp>
+      GenericOpPattern<memref::LoadOp>, GenericOpPattern<memref::AllocOp>,
+      GenericOpPattern<memref::DeallocOp>, GenericOpPattern<memref::StoreOp>,
+      GenericOpPattern<memref::SubViewOp>, GenericOpPattern<memref::CopyOp>,
+      GenericOpPattern<tensor::FromElementsOp>,
+      GenericOpPattern<tensor::ExtractOp>
 
       >(typeConverter, context);
 
