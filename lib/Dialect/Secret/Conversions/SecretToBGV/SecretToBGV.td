@@ -23,6 +23,7 @@ def SecretToBGV : Pass<"secret-to-bgv"> {
   let dependentDialects = [
     "mlir::heir::polynomial::PolynomialDialect",
     "mlir::heir::mod_arith::ModArithDialect",
+    "mlir::heir::rns::RNSDialect",
     "mlir::heir::bgv::BGVDialect",
     "mlir::heir::lwe::LWEDialect",
   ];

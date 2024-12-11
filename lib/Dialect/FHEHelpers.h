@@ -1,9 +1,12 @@
 #ifndef LIB_DIALECT_FHEHELPERS_H_
 #define LIB_DIALECT_FHEHELPERS_H_
 
+#include <cstddef>
+
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
@@ -66,27 +69,57 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
     return op->emitOpError() << "output ring should match to_ring";
   }
 
+  bool isModArith = false;
+  bool isRNS = false;
+
   auto xRingCoeffType =
       dyn_cast<mod_arith::ModArithType>(xRing.getCoefficientType());
   auto outRingCoeffType =
       dyn_cast<mod_arith::ModArithType>(outRing.getCoefficientType());
 
-  if (!xRingCoeffType || !outRingCoeffType) {
-    return op->emitOpError()
-           << "input and output rings should have mod_arith coefficient types";
+  if (xRingCoeffType && outRingCoeffType) {
+    isModArith = true;
+    if (xRingCoeffType.getModulus().getValue().ule(
+            outRingCoeffType.getModulus().getValue())) {
+      return op->emitOpError() << "output ring modulus should be less than the "
+                                  "input ring modulus";
+    }
+    if (!xRingCoeffType.getModulus()
+             .getValue()
+             .urem(outRingCoeffType.getModulus().getValue())
+             .isZero()) {
+      return op->emitOpError()
+             << "output ring modulus should divide the input ring modulus";
+    }
   }
 
-  if (xRingCoeffType.getModulus().getValue().ule(
-          outRingCoeffType.getModulus().getValue())) {
-    return op->emitOpError()
-           << "output ring modulus should be less than the input ring modulus";
+  auto xRNSRingCoeffType = dyn_cast<rns::RNSType>(xRing.getCoefficientType());
+  auto outRNSRingCoeffType =
+      dyn_cast<rns::RNSType>(outRing.getCoefficientType());
+
+  if (xRNSRingCoeffType && outRNSRingCoeffType) {
+    isRNS = true;
+
+    auto xBasis = xRNSRingCoeffType.getBasisTypes();
+    auto outBasis = outRNSRingCoeffType.getBasisTypes();
+
+    if (xBasis.size() <= outBasis.size()) {
+      return op->emitOpError()
+             << "output ring basis size should be less than the "
+                "input ring basis size";
+    }
+
+    for (size_t i = 0; i < outBasis.size(); ++i) {
+      if (xBasis[i] != outBasis[i]) {
+        return op->emitOpError() << "output ring basis should be a prefix of "
+                                    "the input ring basis";
+      }
+    }
   }
-  if (!xRingCoeffType.getModulus()
-           .getValue()
-           .urem(outRingCoeffType.getModulus().getValue())
-           .isZero()) {
-    return op->emitOpError()
-           << "output ring modulus should divide the input ring modulus";
+
+  if (!isModArith && !isRNS) {
+    return op->emitOpError() << "input and output rings should have "
+                                "either mod_arith or rns coefficient types";
   }
 
   return success();

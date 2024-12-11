@@ -106,6 +106,7 @@ cc_library(
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/OperationBalancer",
         "@heir//lib/Transforms/OptimizeRelinearization",
+        "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/Secretize",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:MlirOptLib",
