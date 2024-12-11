@@ -1209,7 +1209,7 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     auto coeffStorageType = coeffType.getModulus().getType();
     auto intTensorType =
         RankedTensorType::get(inputType.getShape(), coeffStorageType);
-    auto modType = typeConverter->convertType(op.getInput().getType());
+    auto modType = adaptor.getInput().getType();
 
     // Compute the ntt and extract the values
     Value nttResult = fastNTT<false>(
