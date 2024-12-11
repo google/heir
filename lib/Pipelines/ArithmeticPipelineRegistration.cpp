@@ -106,6 +106,13 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
       break;
     }
+    case RLWEScheme::ckksScheme: {
+      auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
+      secretInsertMgmtCKKSOptions.includeFirstMul =
+          options.modulusSwitchBeforeFirstMul;
+      pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
+      break;
+    }
     default:
       break;
   }

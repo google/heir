@@ -85,10 +85,11 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 
 }  // namespace
 
-class SecretToBGVTypeConverter : public ContextAwareTypeConverter {
+class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
-                           ::mlir::heir::polynomial::RingAttr rlweRing) {
+                           ::mlir::heir::polynomial::RingAttr rlweRing)
+      : TypeWithAttrTypeConverter(mgmt::MgmtDialect::kArgMgmtAttrName) {
     ring = rlweRing;
 
     // isLegal/isSignatureLegal will always be true
@@ -115,7 +116,7 @@ class SecretToBGVTypeConverter : public ContextAwareTypeConverter {
         type.getValueType());
   }
 
-  Type convertTypeWithAttr(Type type, Attribute attr) const {
+  Type convertTypeWithAttr(Type type, Attribute attr) const override {
     auto secretTy = dyn_cast<secret::SecretType>(type);
     // guard against null attribute
     if (secretTy && attr) {
@@ -127,94 +128,8 @@ class SecretToBGVTypeConverter : public ContextAwareTypeConverter {
     return type;
   }
 
-  Attribute getValueAttr(Value value) const {
-    Attribute attr;
-    if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-      auto *parentOp = blockArg.getOwner()->getParentOp();
-      auto funcOp = dyn_cast<FunctionOpInterface>(parentOp);
-      if (funcOp) {
-        attr = funcOp.getArgAttr(blockArg.getArgNumber(), attrName);
-      }
-    } else {
-      auto *parentOp = value.getDefiningOp();
-      attr = parentOp->getAttr(attrName);
-    }
-    return attr;
-  }
-
-  void convertValueRangeTypes(ValueRange values,
-                              SmallVectorImpl<Type> &newTypes) const override {
-    newTypes.reserve(values.size());
-    for (auto value : values) {
-      Attribute attr = getValueAttr(value);
-      auto newType = convertTypeWithAttr(value.getType(), attr);
-      // this is actually unsafe...
-      // all the thing should be done through the rewriter,
-      // if we are using the rewriter
-      value.setType(newType);
-      newTypes.push_back(newType);
-    }
-  }
-
-  void convertOpResultTypes(
-      Operation *op, SmallVectorImpl<Type> &newResultTypes) const override {
-    newResultTypes.reserve(op->getResultTypes().size());
-    auto attr = op->getAttr(attrName);
-    for (auto resultType : op->getResultTypes()) {
-      auto newType = convertTypeWithAttr(resultType, attr);
-      newResultTypes.push_back(newType);
-    }
-  }
-
-  void convertFuncArgumentAndResultTypes(
-      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
-      SmallVectorImpl<Type> &newResultTypes) const override {
-    for (auto argument : funcOp.getArguments()) {
-      auto attr = funcOp.getArgAttr(argument.getArgNumber(), attrName);
-      auto newType = convertTypeWithAttr(argument.getType(), attr);
-      // this is actually unsafe...
-      // we should go through rewriter.convertRegionTypes,
-      // which will create unresolved_materializaton,
-      // and everything is safe.
-      argument.setType(newType);
-      newArgTypes.push_back(newType);
-    }
-    // did not convert block arg/signature though..
-    for (auto &block : funcOp.getBlocks()) {
-      for (auto result : block.getTerminator()->getOperands()) {
-        auto attr = getValueAttr(result);
-        auto newType = convertTypeWithAttr(result.getType(), attr);
-        result.setType(newType);
-        newResultTypes.push_back(newType);
-      }
-    }
-  }
-
-  bool isValueLegal(Value value) {
-    auto attr = getValueAttr(value);
-    return value.getType() == convertTypeWithAttr(value.getType(), attr);
-  }
-
-  bool isFuncArgumentAndResultLegal(FunctionOpInterface funcOp) {
-    for (auto argument : funcOp.getArguments()) {
-      if (!isValueLegal(argument)) {
-        return false;
-      }
-    }
-    for (auto &block : funcOp.getBlocks()) {
-      for (auto result : block.getTerminator()->getOperands()) {
-        if (!isValueLegal(result)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
  private:
   ::mlir::heir::polynomial::RingAttr ring;
-
-  llvm::StringLiteral attrName = mgmt::MgmtDialect::kArgMgmtAttrName;
 };
 
 struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {

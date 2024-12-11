@@ -100,6 +100,39 @@ struct ContextAwareTypeConverter : public TypeConverter {
       SmallVectorImpl<Type> &newResultTypes) const = 0;
 };
 
+struct TypeWithAttrTypeConverter : public ContextAwareTypeConverter {
+  TypeWithAttrTypeConverter(llvm::StringLiteral attrName)
+      : attrName(attrName) {}
+
+  // inherited TypeConverter should implement this to do actual type conversion
+  virtual Type convertTypeWithAttr(Type type, Attribute attr) const = 0;
+
+  // Find the attribute associated with the value, if any.
+  Attribute getValueAttr(Value value) const;
+
+  // Impl the ContextAwareTypeConverter interface
+  // in it we will use convertTypeWithAttr to do the actual conversion
+  void convertValueRangeTypes(ValueRange values,
+                              SmallVectorImpl<Type> &newTypes) const override;
+
+  void convertOpResultTypes(
+      Operation *op, SmallVectorImpl<Type> &newResultTypes) const override;
+
+  void convertFuncArgumentAndResultTypes(
+      FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
+      SmallVectorImpl<Type> &newResultTypes) const override;
+
+  // Custom hook to check legality
+  bool isValueLegal(Value value);
+
+  bool isOperationLegal(Operation *op);
+
+  bool isFuncArgumentAndResultLegal(FunctionOpInterface funcOp);
+
+ protected:
+  llvm::StringLiteral attrName;
+};
+
 struct ConvertFuncWithContextAwareTypeConverter
     : public OpRewritePattern<func::FuncOp> {
  public:
@@ -355,7 +388,9 @@ class SecretGenericOpModulusSwitchConversion
       ConversionPatternRewriter &rewriter) const override {
     auto outputType = outputTypes[0];
     auto outputRing =
-        cast<lwe::RLWECiphertextType>(outputType).getRlweParams().getRing();
+        cast<lwe::RLWECiphertextType>(getElementTypeOrSelf(outputType))
+            .getRlweParams()
+            .getRing();
 
     rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0], outputRing);
     return success();
