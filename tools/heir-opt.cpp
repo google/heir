@@ -4,6 +4,7 @@
 #include <string>
 
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
+#include "lib/Dialect/Arith/Transforms/Passes.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -83,6 +84,9 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/NarrowTypeEmulationConverter.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/Transforms/WideIntEmulationConverter.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
@@ -164,6 +168,7 @@ int main(int argc, char **argv) {
 
   // Upstream passes used by HEIR
   // Converting to LLVM
+  mlir::arith::registerArithEmulateWideInt();
   mlir::arith::registerConvertArithToLLVMInterface(registry);
   cf::registerConvertControlFlowToLLVMInterface(registry);
   func::registerAllExtensions(registry);
@@ -214,6 +219,7 @@ int main(int argc, char **argv) {
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
 
   // Custom passes in HEIR
+  heir::arith::registerArithPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   ::mlir::heir::polynomial::registerPolynomialPasses();

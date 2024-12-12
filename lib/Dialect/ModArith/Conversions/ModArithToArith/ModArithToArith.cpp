@@ -193,6 +193,20 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
   }
 };
 
+// arith::MulIOp karatsubaMultiply(ImplicitLocOpBuilder b, Value lhs, Value rhs)
+// {
+//   // Stop recursion
+//   if(auto lhs_integerType = dyn_cast<IntegerType>(lhs)){
+//     if (lhs_integerType.getWidth() == 8) {
+//       if (auto rhs_integerType = dyn_cast<IntegerType>(rhs)) {
+//         if (rhs_integerType.getWidth() == 8) {
+//           return b.create<arith::MulIOp>(lhs, rhs);
+//         }
+//       }
+//     }
+//   }
+// }
+
 struct ConvertMul : public OpConversionPattern<MulOp> {
   ConvertMul(mlir::MLIRContext *context)
       : OpConversionPattern<MulOp>(context) {}
@@ -204,6 +218,8 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    // Already existing MUL code
+    // DONT REMOVE
     auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
     auto lhs =
         b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
