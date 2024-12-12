@@ -26,8 +26,7 @@ def OptimizeRelinearization : Pass <"optimize-relinearization"> {
         [a blog post by Jeremy Kun](https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis).
     }];
 
-    // TODO(#1032): generalize to support other schemes
-    let dependentDialects = ["mlir::heir::bgv::BGVDialect"];
+    let dependentDialects = ["mlir::heir::mgmt::MgmtDialect"];
 
   let options = [
     // When using this option, one should generally write the IR to disk and

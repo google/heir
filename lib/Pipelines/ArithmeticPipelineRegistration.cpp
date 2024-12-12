@@ -162,6 +162,9 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       break;
   }
 
+  // Optimize relinearization at mgmt dialect level
+  pm.addPass(createOptimizeRelinearization());
+
   // Prepare to lower to RLWE Scheme
   pm.addPass(secret::createSecretDistributeGeneric());
   pm.addPass(createCanonicalizerPass());
@@ -178,7 +181,6 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       auto secretToBGVOpts = SecretToBGVOptions{};
       secretToBGVOpts.polyModDegree = options.ciphertextDegree;
       pm.addPass(createSecretToBGV(secretToBGVOpts));
-      pm.addPass(createOptimizeRelinearization());
       break;
     }
     default:

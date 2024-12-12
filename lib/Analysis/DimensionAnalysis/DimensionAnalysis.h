@@ -77,6 +77,10 @@ class DimensionAnalysis
                                ArrayRef<DimensionLattice *> results) override;
 };
 
+// this function will assert false when Lattice does not exist or not
+// initialized
+DimensionState::DimensionType getDimension(Value value, DataFlowSolver *solver);
+
 void annotateDimension(Operation *top, DataFlowSolver *solver);
 
 }  // namespace heir
