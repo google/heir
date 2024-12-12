@@ -5,7 +5,7 @@
 
 // A minor hack to avoid copybara mangling this transformation when it is synced
 // internally to Google.
-// CHECK: #include 
+// CHECK: #include
 // CHECK-SAME: "foo.h"
 
 // CHECK: using namespace lbcrypto;

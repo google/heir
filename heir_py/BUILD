@@ -32,8 +32,8 @@ py_library(
         "@rapidjson//:headers",
     ],
     deps = [
-        "@heir_pip_deps_numba//:pkg",
-        "@heir_pip_deps_pybind11//:pkg",
+        "@heir_py_pip_deps_numba//:pkg",
+        "@heir_py_pip_deps_pybind11//:pkg",
         "@heir_py_pip_deps_pybind11_global//:pkg",
     ],
 )
