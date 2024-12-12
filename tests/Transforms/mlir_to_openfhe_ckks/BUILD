@@ -6,8 +6,5 @@ glob_lit_tests(
     name = "all_tests",
     data = ["@heir//tests:test_utilities"],
     driver = "@heir//tests:run_lit.sh",
-    size_override = {
-        "matmul.mlir": "large",
-    },
     test_file_exts = ["mlir"],
 )

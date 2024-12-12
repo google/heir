@@ -8,8 +8,5 @@ glob_lit_tests(
     driver = "@heir//tests:run_lit.sh",
     # TODO(#1181): make level analysis work for affine loop
     exclude = ["matmul_loop.mlir"],
-    size_override = {
-        "matmul_unrolled.mlir": "large",
-    },
     test_file_exts = ["mlir"],
 )

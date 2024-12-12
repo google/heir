@@ -117,18 +117,25 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: " << op
                           << " Level: " << resultLevel << "\n");
 
+  bool inserted = false;
   for (auto [operand, operandLevel] : operandsInsertLevel) {
     Value managed = operand;
     rewriter.setInsertionPoint(op);
     for (auto i = 0; i < resultLevel - operandLevel; ++i) {
+      inserted = true;
       managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
     };
     op->replaceUsesOfWith(operand, managed);
   }
 
-  // propagateIfChanged only push workitem to the worklist queue
-  // actually execute the transfer for the new values
-  return solver->initializeAndRun(top);
+  // when actually created new op, re-run the solver
+  // otherwise performance issue
+  if (inserted) {
+    // propagateIfChanged only push workitem to the worklist queue
+    // actually execute the transfer for the new values
+    return solver->initializeAndRun(top);
+  }
+  return success();
 }
 
 // for BGV
