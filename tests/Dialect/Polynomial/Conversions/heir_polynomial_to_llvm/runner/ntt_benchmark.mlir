@@ -16,11 +16,13 @@ func.func @input_generation() -> !poly_ty attributes { llvm.emit_c_interface } {
 }
 
 func.func @ntt(%arg0 : !poly_ty) -> tensor<65536xi32, #ring> attributes { llvm.emit_c_interface } {
-  %0 = polynomial.ntt %arg0 {root=#root} : !poly_ty -> tensor<65536xi32, #ring>
-  return %0 : tensor<65536xi32, #ring>
+  %0 = polynomial.ntt %arg0 {root=#root} : !poly_ty -> tensor<65536x!coeff_ty, #ring>
+  %1 = mod_arith.extract %0 : tensor<65536x!coeff_ty, #ring> -> tensor<65536xi32, #ring>
+  return %1 : tensor<65536xi32, #ring>
 }
 
 func.func @intt(%arg0 : tensor<65536xi32, #ring>) -> !poly_ty attributes { llvm.emit_c_interface } {
-  %0 = polynomial.intt %arg0 {root=#root} : tensor<65536xi32, #ring> -> !poly_ty
-  return %0 :!poly_ty
+  %0 = mod_arith.encapsulate %arg0 : tensor<65536xi32, #ring> -> tensor<65536x!coeff_ty, #ring>
+  %1 = polynomial.intt %0 {root=#root} : tensor<65536x!coeff_ty, #ring> -> !poly_ty
+  return %1 :!poly_ty
 }

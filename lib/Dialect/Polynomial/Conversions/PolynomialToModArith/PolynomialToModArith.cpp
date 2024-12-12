@@ -954,15 +954,16 @@ static SmallVector<APInt> precomputeRoots(APInt root, const APInt &cmod,
 }
 
 static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
-                                    RankedTensorType type, Value tensor) {
-  unsigned degree = type.getShape()[0];
+                                    RankedTensorType tensorType, Type modType,
+                                    Value tensor) {
+  unsigned degree = tensorType.getShape()[0];
   double degreeLog = std::log2((double)degree);
   assert(std::floor(degreeLog) == degreeLog &&
          "expected the degree to be a power of 2");
 
   unsigned indexBitWidth = (unsigned)degreeLog;
-  auto indicesType =
-      RankedTensorType::get(type.getShape(), IndexType::get(b.getContext()));
+  auto indicesType = RankedTensorType::get(tensorType.getShape(),
+                                           IndexType::get(b.getContext()));
 
   SmallVector<APInt> _indices(degree);
   for (unsigned index = 0; index < degree; index++) {
@@ -977,13 +978,13 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
   bindDims(b.getContext(), d0);
   SmallVector<AffineMap> indexingMaps = {AffineMap::get(1, 0, {d0}),
                                          AffineMap::get(1, 0, {d0})};
-  auto out = b.create<arith::ConstantOp>(
-      type,
-      DenseElementsAttr::get(type, APInt(type.getElementTypeBitWidth(), 0L)));
+  auto out = b.create<arith::ConstantOp>(tensorType,
+                                         DenseElementsAttr::get(tensorType, 0));
+  auto modOut = b.create<mod_arith::EncapsulateOp>(modType, out);
   auto shuffleOp = b.create<linalg::GenericOp>(
-      /*resultTypes=*/TypeRange{type},
+      /*resultTypes=*/TypeRange{modType},
       /*inputs=*/ValueRange{indices.getResult()},
-      /*outputs=*/ValueRange{out.getResult()},
+      /*outputs=*/ValueRange{modOut.getResult()},
       /*indexingMaps=*/indexingMaps,
       /*iteratorTypes=*/iteratorTypes,
       /*bodyBuilder=*/
@@ -997,78 +998,42 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
 }
 
 static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder &b, Value A, Value B,
-                                      Value root, Value cMod) {
-  // Since root * B -> [0, cmod^2) then RemUI will compute the modulus
-  auto rootB = b.create<arith::MulIOp>(B, root);
-  auto rootBModded = b.create<arith::RemUIOp>(rootB, cMod);
-
-  // Since A + rootB -> [0, 2 * cmod) then RemUI will
-  // compute the modulus
-  auto ctPlus = b.create<arith::AddIOp>(A, rootBModded);
-  auto ctPlusModded = b.create<arith::RemUIOp>(ctPlus, cMod);
-
-  // Since A - rootB -> (-cmod, cmod) then we can add cmod
-  // such that the range is shifted to (0, 2 * cmod) and use
-  // RemUI to compute the modulus
-  auto ctMinus = b.create<arith::SubIOp>(A, rootBModded);
-  auto ctMinusShifted = b.create<arith::AddIOp>(ctMinus, cMod);
-  auto ctMinusModded = b.create<arith::RemUIOp>(ctMinusShifted, cMod);
-
-  return {ctPlusModded, ctMinusModded};
+                                      Value root) {
+  auto rootB = b.create<mod_arith::MulOp>(B, root);
+  auto ctPlus = b.create<mod_arith::AddOp>(A, rootB);
+  auto ctMinus = b.create<mod_arith::SubOp>(A, rootB);
+  return {ctPlus, ctMinus};
 }
 
 static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
-                                      Value root, Value cMod) {
-  // Since A + B -> [0, 2 * cmod) then RemUI will
-  // compute the modulus
-  auto gsPlus = b.create<arith::AddIOp>(A, B);
-  auto gsPlusModded = b.create<arith::RemUIOp>(gsPlus, cMod);
-
-  // Since A - rootB -> (-cmod, cmod) then we can add cmod such that the range
-  // is shifted to (0, 2 * cmod) and use RemUI to compute the modulus
-  auto gsMinus = b.create<arith::SubIOp>(A, B);
-  auto gsMinusShifted = b.create<arith::AddIOp>(gsMinus, cMod);
-  auto gsMinusModded = b.create<arith::RemUIOp>(gsMinusShifted, cMod);
-
-  // Since root * (A - B) -> [0, cmod^2) then RemUI will compute the modulus
-  auto gsMinusRoot = b.create<arith::MulIOp>(gsMinusModded, root);
-  auto gsMinusRootModded = b.create<arith::RemUIOp>(gsMinusRoot, cMod);
-
-  return {gsPlusModded, gsMinusRootModded};
+                                      Value root) {
+  auto gsPlus = b.create<mod_arith::AddOp>(A, B);
+  auto gsMinus = b.create<mod_arith::SubOp>(A, B);
+  auto gsMinusRoot = b.create<mod_arith::MulOp>(gsMinus, root);
+  return {gsPlus, gsMinusRoot};
 }
 
 template <bool inverse>
 static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
-                     PrimitiveRootAttr rootAttr, RankedTensorType inputType,
-                     Value input) {
-  // Cast to intermediate type to avoid integer overflow during arithmetic
-  auto intermediateElemType =
-      IntegerType::get(b.getContext(), 2 * inputType.getElementTypeBitWidth());
-  auto intermediateType =
-      inputType.clone(inputType.getShape(), intermediateElemType);
-
-  Value initialValue = b.create<arith::ExtUIOp>(intermediateType, input);
-
-  // Create cmod for modulo arithmetic ops
-  auto modArithType = cast<ModArithType>(ring.getCoefficientType());
-  APInt cmod = modArithType.getModulus().getValue();
-  Value cMod =
-      b.create<arith::ConstantIntOp>(cmod.getZExtValue(), intermediateElemType);
-
+                     PrimitiveRootAttr rootAttr, RankedTensorType tensorType,
+                     Type modType, Value input) {
   // Compute the number of stages required to compute the NTT
-  auto degree = intermediateType.getShape()[0];
+  auto degree = tensorType.getShape()[0];
   unsigned stages = (unsigned)std::log2((double)degree);
 
   // Precompute the roots
+  auto modArithType = cast<ModArithType>(ring.getCoefficientType());
+  APInt cmod = modArithType.getModulus().getValue();
   APInt root = rootAttr.getValue().getValue();
   root = !inverse ? root
                   : multiplicativeInverse(root.zext(cmod.getBitWidth()), cmod)
                         .trunc(root.getBitWidth());
-
-  auto rootsType = intermediateType.clone({degree});
-  auto roots = b.create<arith::ConstantOp>(
+  // Initialize the mod_arith roots constant
+  auto rootsType = tensorType.clone({degree});
+  Value roots = b.create<arith::ConstantOp>(
       rootsType,
       DenseElementsAttr::get(rootsType, precomputeRoots(root, cmod, degree)));
+  roots = b.create<mod_arith::EncapsulateOp>(modType, roots);
 
   // Here is a slightly modified implementation of the standard iterative NTT
   // computation using Cooley-Turkey/Gentleman-Sande butterfly. For reader
@@ -1107,6 +1072,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
   //      (A + B % cmod, (A - B) * root % cmod)
 
   // Initialize the variables
+  Value initialValue = b.create<mod_arith::ReduceOp>(input);
   Value initialBatchSize =
       b.create<arith::ConstantIndexOp>(inverse ? degree : 2);
   Value initialRootExp =
@@ -1168,8 +1134,8 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
                         (2 * x + 1) * y, ValueRange{indexJ, rootExp});
                     Value root = b.create<tensor::ExtractOp>(roots, rootIndex);
 
-                    auto bflyResult = inverse ? bflyGS(b, A, B, root, cMod)
-                                              : bflyCT(b, A, B, root, cMod);
+                    auto bflyResult =
+                        inverse ? bflyGS(b, A, B, root) : bflyCT(b, A, B, root);
 
                     // Store updated values into accumulator
                     auto insertPlus = b.create<tensor::InsertOp>(
@@ -1201,19 +1167,11 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
             .trunc(root.getBitWidth());
     Value nInv = b.create<arith::ConstantOp>(
         rootsType, DenseElementsAttr::get(rootsType, degreeInv));
-    Value cModVec = b.create<arith::ConstantOp>(
-        rootsType, DenseElementsAttr::get(
-                       rootsType, cmod.zextOrTrunc(root.getBitWidth() + 1)));
-
-    auto mulOp = b.create<arith::MulIOp>(result, nInv);
-    auto remOp = b.create<arith::RemUIOp>(mulOp, cModVec);
-    result = remOp.getResult();
+    nInv = b.create<mod_arith::EncapsulateOp>(modType, nInv);
+    result = b.create<mod_arith::MulOp>(result, nInv);
   }
 
-  // Truncate back to cmod bitwidth as nttRes < cmod
-  auto truncOp = b.create<arith::TruncIOp>(inputType, result);
-
-  return truncOp.getResult();
+  return result;
 }
 
 struct ConvertNTT : public OpConversionPattern<NTTOp> {
@@ -1251,17 +1209,17 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     auto coeffStorageType = coeffType.getModulus().getType();
     auto intTensorType =
         RankedTensorType::get(inputType.getShape(), coeffStorageType);
-    // TODO(#1113): convert fastNTT to emit mod_arith ops.
-    auto inputConvertedFromModArith =
-        b.create<mod_arith::ExtractOp>(intTensorType, adaptor.getInput());
-    auto nttResult = fastNTT<false>(
-        b, ring, op.getRoot().value(), intTensorType,
-        computeReverseBitOrder(b, intTensorType, inputConvertedFromModArith));
+    auto modType = adaptor.getInput().getType();
+
+    // Compute the ntt and extract the values
+    Value nttResult = fastNTT<false>(
+        b, ring, op.getRoot().value(), intTensorType, modType,
+        computeReverseBitOrder(b, intTensorType, modType, adaptor.getInput()));
 
     // Insert the ring encoding here to the input type
-    auto intResultType =
-        RankedTensorType::get(inputType.getShape(), coeffStorageType, ring);
-    auto intResult = b.create<tensor::CastOp>(intResultType, nttResult);
+    auto outputType =
+        RankedTensorType::get(inputType.getShape(), coeffType, ring);
+    auto intResult = b.create<tensor::CastOp>(outputType, nttResult);
     rewriter.replaceOp(op, intResult);
 
     return success();
@@ -1287,26 +1245,27 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
     }
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
-    // Remove the encoded ring from the input tensor type
-    auto resultType =
-        RankedTensorType::get(inputType.getShape(), inputType.getElementType());
+
     auto coeffType = dyn_cast<ModArithType>(typeInfo.coefficientType);
     if (!coeffType) {
       op.emitError("expected coefficient type to be mod_arith type");
       return failure();
     }
+    auto coeffStorageType = coeffType.getModulus().getType();
+    auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
+    auto intTensorType =
+        RankedTensorType::get(inputType.getShape(), coeffStorageType);
+    auto modType = typeConverter->convertType(op.getOutput().getType());
 
-    auto input = b.create<tensor::CastOp>(resultType, adaptor.getInput());
+    // Remove the encoded ring from input tensor type and convert to mod_arith
+    // type
+    auto input = b.create<tensor::CastOp>(modType, adaptor.getInput());
     auto nttResult = fastNTT<true>(b, typeInfo.ringAttr, op.getRoot().value(),
-                                   resultType, input);
+                                   intTensorType, modType, input);
 
-    auto reversedBitOrder = computeReverseBitOrder(b, resultType, nttResult);
-    auto outputType = typeConverter->convertType(op.getOutput().getType());
-    // TODO(#1113): convert fastNTT to emit mod_arith ops.
-    auto converted =
-        b.create<mod_arith::EncapsulateOp>(outputType, reversedBitOrder);
-    rewriter.replaceOp(op, converted);
+    auto reversedBitOrder =
+        computeReverseBitOrder(b, intTensorType, modType, nttResult);
+    rewriter.replaceOp(op, reversedBitOrder);
 
     return success();
   }
