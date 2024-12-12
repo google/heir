@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/BGV/Conversions/BGVToOpenfhe/BGVToOpenfhe.h"
@@ -24,6 +25,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
+#include "lib/Dialect/ModArith/Transforms/Passes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/Passes.h"
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToModArith/PolynomialToModArith.h"
@@ -146,7 +148,7 @@ int main(int argc, char **argv) {
   registry.insert<::mlir::linalg::LinalgDialect>();
   registry.insert<TosaDialect>();
   registry.insert<affine::AffineDialect>();
-  registry.insert<arith::ArithDialect>();
+  registry.insert<mlir::arith::ArithDialect>();
   registry.insert<bufferization::BufferizationDialect>();
   registry.insert<func::FuncDialect>();
   registry.insert<math::MathDialect>();
@@ -162,7 +164,7 @@ int main(int argc, char **argv) {
 
   // Upstream passes used by HEIR
   // Converting to LLVM
-  arith::registerConvertArithToLLVMInterface(registry);
+  mlir::arith::registerConvertArithToLLVMInterface(registry);
   cf::registerConvertControlFlowToLLVMInterface(registry);
   func::registerAllExtensions(registry);
   index::registerConvertIndexToLLVMInterface(registry);
@@ -202,8 +204,8 @@ int main(int argc, char **argv) {
 
   // Bufferization and external models
   bufferization::registerBufferizationPasses();
-  arith::registerBufferizableOpInterfaceExternalModels(registry);
-  arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
   bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
       registry);
   cf::registerBufferizableOpInterfaceExternalModels(registry);
@@ -263,8 +265,12 @@ int main(int argc, char **argv) {
   // Register internal pipeline
 #endif
 
+  registerTosaToArithPipeline();
+
   // Dialect conversion passes in HEIR
   mod_arith::registerModArithToArithPasses();
+  heir::arith::registerArithToModArithPasses();
+  mod_arith::registerConvertToMacPass();
   bgv::registerBGVToLWEPasses();
   bgv::registerBGVToLattigoPasses();
   bgv::registerBGVToOpenfhePasses();
