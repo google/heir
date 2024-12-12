@@ -100,9 +100,10 @@ void registerToOpenFhePkeHeaderTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect,
+                        lwe::LWEDialect, rns::RNSDialect,
                         ::mlir::heir::polynomial::PolynomialDialect,
                         mod_arith::ModArithDialect>();
+        rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
 

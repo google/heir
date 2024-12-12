@@ -7,6 +7,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
+#include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
@@ -392,7 +393,7 @@ void registerToLattigoTranslation() {
         return translateToLattigo(op, output);
       },
       [](DialectRegistry &registry) {
-        registry.insert<arith::ArithDialect, func::FuncDialect,
+        registry.insert<rns::RNSDialect, arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect, lattigo::LattigoDialect>();
       });
 }
