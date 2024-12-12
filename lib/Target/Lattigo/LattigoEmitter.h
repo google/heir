@@ -53,6 +53,9 @@ class LattigoEmitter {
   LogicalResult printOperation(RLWENewDecryptorOp op);
   LogicalResult printOperation(RLWENewKeyGeneratorOp op);
   LogicalResult printOperation(RLWEGenKeyPairOp op);
+  LogicalResult printOperation(RLWEGenRelinearizationKeyOp op);
+  LogicalResult printOperation(RLWEGenGaloisKeyOp op);
+  LogicalResult printOperation(RLWENewEvaluationKeySetOp op);
   LogicalResult printOperation(RLWEEncryptOp op);
   LogicalResult printOperation(RLWEDecryptOp op);
   LogicalResult printOperation(BGVNewParametersFromLiteralOp op);
@@ -64,9 +67,13 @@ class LattigoEmitter {
   LogicalResult printOperation(BGVAddOp op);
   LogicalResult printOperation(BGVSubOp op);
   LogicalResult printOperation(BGVMulOp op);
+  LogicalResult printOperation(BGVRelinearizeOp op);
+  LogicalResult printOperation(BGVRescaleOp op);
+  LogicalResult printOperation(BGVRotateColumnsOp op);
+  LogicalResult printOperation(BGVRotateRowsOp op);
 
   // Helpers for above
-  void printErrPanic();
+  void printErrPanic(std::string_view errName);
 
   LogicalResult printNewMethod(::mlir::Value result,
                                ::mlir::ValueRange operands, std::string_view op,
@@ -94,6 +101,11 @@ class LattigoEmitter {
   // helper on name and type
   std::string getName(::mlir::Value value) {
     return variableNames->getNameForValue(value);
+  }
+
+  std::string getErrName() {
+    static int errCount = 0;
+    return "err" + std::to_string(errCount++);
   }
 
   std::string getCommaSeparatedNames(::mlir::ValueRange values) {

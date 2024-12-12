@@ -76,9 +76,16 @@ def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator"> {
   let summary = "Create a new evaluator in the Lattigo BGV dialect";
   let description = [{
     This operation creates a new evaluator for performing operations on ciphertexts in the Lattigo BGV dialect.
+
+    By default, the evaluator is created with the provided parameters and could execute
+    operations which does not relying on evaluation keys.
+
+    To support operations that require evaluation keys,
+    the optional evaluation key set should be provided.
   }];
   let arguments = (ins
-    Lattigo_BGVParameter:$params
+    Lattigo_BGVParameter:$params,
+    Optional<Lattigo_RLWEEvaluationKeySet>:$evaluationKeySet
   );
   let results = (outs Lattigo_BGVEvaluator:$evaluator);
 }
@@ -113,6 +120,55 @@ def Lattigo_BGVMulOp : Lattigo_BGVBinaryOp<"mul"> {
   let summary = "Multiply two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo BGV dialect.
+  }];
+}
+
+class Lattigo_BGVUnaryOp<string mnemonic> :
+        Lattigo_BGVOp<mnemonic> {
+  let arguments = (ins
+    Lattigo_BGVEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+def Lattigo_BGVRelinearizeOp : Lattigo_BGVUnaryOp<"relinearize"> {
+  let summary = "Relinearize a ciphertext in the Lattigo BGV dialect";
+  let description = [{
+    This operation relinearizes a ciphertext value in the Lattigo BGV dialect.
+  }];
+}
+
+def Lattigo_BGVRescaleOp : Lattigo_BGVUnaryOp<"rescale"> {
+  let summary = "Rescale a ciphertext in the Lattigo BGV dialect";
+  let description = [{
+    This operation rescales a ciphertext value in the Lattigo BGV dialect.
+  }];
+}
+
+def Lattigo_BGVRotateColumnsOp : Lattigo_BGVOp<"rotate_columns"> {
+  let summary = "Rotate columns of a ciphertext in the Lattigo BGV dialect";
+  let description = [{
+    This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.
+
+    Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.
+
+    offset is valid in (-N/2, N/2).
+  }];
+  let arguments = (ins
+    Lattigo_BGVEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    Builtin_IntegerAttr:$offset
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+def Lattigo_BGVRotateRowsOp : Lattigo_BGVUnaryOp<"rotate_rows"> {
+  let summary = "Rotate rows of a ciphertext in the Lattigo BGV dialect";
+  let description = [{
+    This operation swap the rows of a ciphertext value in the Lattigo BGV dialect.
+
+    Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where 2 is the row.
   }];
 }
 

@@ -64,6 +64,27 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
   }
 };
 
+template <typename EvaluatorType, typename UnaryOp, typename LattigoUnaryOp>
+struct ConvertRlweUnaryOp : public OpConversionPattern<UnaryOp> {
+  using OpConversionPattern<UnaryOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      UnaryOp op, typename UnaryOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result)) return result;
+
+    Value evaluator = result.value();
+    rewriter.replaceOp(
+        op, rewriter.create<LattigoUnaryOp>(
+                op.getLoc(),
+                this->typeConverter->convertType(op.getOutput().getType()),
+                evaluator, adaptor.getInput()));
+    return success();
+  }
+};
+
 template <typename EvaluatorType, typename BinOp, typename LattigoBinOp>
 struct ConvertRlweBinOp : public OpConversionPattern<BinOp> {
   using OpConversionPattern<BinOp>::OpConversionPattern;
@@ -79,6 +100,31 @@ struct ConvertRlweBinOp : public OpConversionPattern<BinOp> {
     rewriter.replaceOpWithNewOp<LattigoBinOp>(
         op, this->typeConverter->convertType(op.getOutput().getType()),
         evaluator, adaptor.getLhs(), adaptor.getRhs());
+    return success();
+  }
+};
+
+template <typename EvaluatorType, typename RlweRotateOp,
+          typename LattigoRotateOp>
+struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
+  ConvertRlweRotateOp(mlir::MLIRContext *context)
+      : OpConversionPattern<RlweRotateOp>(context) {}
+
+  using OpConversionPattern<RlweRotateOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RlweRotateOp op, typename RlweRotateOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result)) return result;
+
+    Value evaluator = result.value();
+    rewriter.replaceOp(
+        op, rewriter.create<LattigoRotateOp>(
+                op.getLoc(),
+                this->typeConverter->convertType(op.getOutput().getType()),
+                evaluator, adaptor.getInput(), adaptor.getOffset()));
     return success();
   }
 };

@@ -33,6 +33,16 @@ using ConvertSubOp =
     ConvertRlweBinOp<lattigo::BGVEvaluatorType, SubOp, lattigo::BGVSubOp>;
 using ConvertMulOp =
     ConvertRlweBinOp<lattigo::BGVEvaluatorType, MulOp, lattigo::BGVMulOp>;
+using ConvertRelinOp =
+    ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, RelinearizeOp,
+                       lattigo::BGVRelinearizeOp>;
+using ConvertModulusSwitchOp =
+    ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, ModulusSwitchOp,
+                       lattigo::BGVRescaleOp>;
+
+// TODO(#1186): figure out generic rotating using BGVRotateColumns/RowsOp
+using ConvertRotateOp = ConvertRlweRotateOp<lattigo::BGVEvaluatorType, RotateOp,
+                                            lattigo::BGVRotateColumnsOp>;
 
 struct BGVToLattigo : public impl::BGVToLattigoBase<BGVToLattigo> {
   void runOnOperation() override {
@@ -60,8 +70,9 @@ struct BGVToLattigo : public impl::BGVToLattigoBase<BGVToLattigo> {
     });
 
     patterns.add<AddEvaluatorArg<bgv::BGVDialect, lattigo::BGVEvaluatorType>,
-                 ConvertAddOp, ConvertSubOp, ConvertMulOp>(typeConverter,
-                                                           context);
+                 ConvertAddOp, ConvertSubOp, ConvertMulOp, ConvertRelinOp,
+                 ConvertModulusSwitchOp, ConvertRotateOp>(typeConverter,
+                                                          context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

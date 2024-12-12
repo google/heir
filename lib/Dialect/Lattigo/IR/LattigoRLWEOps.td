@@ -31,6 +31,45 @@ def Lattigo_RLWEGenKeyPairOp : Lattigo_RLWEOp<"gen_key_pair"> {
   );
 }
 
+def Lattigo_RLWEGenRelinearizationKeyOp : Lattigo_RLWEOp<"gen_relinearization_key"> {
+  let summary = "Generates a new RLWE relinearization key";
+  let description = [{
+    This operation generates a new RLWE relinearization key
+  }];
+  let arguments = (ins
+    Lattigo_RLWEKeyGenerator:$keyGenerator,
+    Lattigo_RLWESecretKey:$secretKey
+  );
+  let results = (outs Lattigo_RLWERelinearizationKey:$relinearizationKey);
+}
+
+def Lattigo_RLWEGenGaloisKeyOp : Lattigo_RLWEOp<"gen_galois_key"> {
+  let summary = "Generates a new RLWE Galois key";
+  let description = [{
+    This operation generates a new RLWE Galois key
+
+    galoisElement: Enabling the automorphism X -> X^{galoisElement}.
+  }];
+  let arguments = (ins
+    Lattigo_RLWEKeyGenerator:$keyGenerator,
+    Lattigo_RLWESecretKey:$secretKey,
+    Builtin_IntegerAttr:$galoisElement
+  );
+  let results = (outs Lattigo_RLWEGaloisKey:$galoisKey);
+}
+
+def Lattigo_RLWENewEvaluationKeySetOp : Lattigo_RLWEOp<"new_evaluation_key_set"> {
+  let summary = "Generates a new RLWE evaluation key set";
+  let description = [{
+    This operation generates a new RLWE evaluation key set
+  }];
+  let arguments = (ins
+    Lattigo_RLWERelinearizationKey:$relinearizationKey,
+    Variadic<Lattigo_RLWEGaloisKey>:$galoisKeys
+  );
+  let results = (outs Lattigo_RLWEEvaluationKeySet:$evaluationKeySet);
+}
+
 def Lattigo_RLWENewEncryptorOp : Lattigo_RLWEOp<"new_encryptor"> {
   let summary = "Creates a new RLWE encryptor";
   let description = [{

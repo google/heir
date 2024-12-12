@@ -28,6 +28,28 @@ def Lattigo_RLWEPublicKey : Lattigo_RLWEType<"PublicKey", "public_key"> {
   }];
 }
 
+def Lattigo_RLWERelinearizationKey : Lattigo_RLWEType<"RelinearizationKey", "relinearization_key"> {
+  let description = [{
+    This type represents the relinearization key for the RLWE encryption scheme.
+  }];
+}
+
+def Lattigo_RLWEGaloisKey : Lattigo_RLWEType<"GaloisKey", "galois_key"> {
+  let description = [{
+    This type represents the Galois key for the RLWE encryption scheme.
+
+    galoisElement: Enabling the automorphism X -> X^{galoisElement}.
+  }];
+  let parameters = (ins Builtin_IntegerAttr:$galoisElement);
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+def Lattigo_RLWEEvaluationKeySet : Lattigo_RLWEType<"EvaluationKeySet", "evaluation_key_set"> {
+  let description = [{
+    This type represents the evaluation key set for the RLWE encryption scheme.
+  }];
+}
+
 def Lattigo_RLWEEncryptor : Lattigo_RLWEType<"Encryptor", "encryptor"> {
   let description = [{
     This type represents the encryptor for the RLWE encryption scheme.

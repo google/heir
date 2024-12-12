@@ -2,6 +2,9 @@
 
 !pk = !lattigo.rlwe.public_key
 !sk = !lattigo.rlwe.secret_key
+!rk = !lattigo.rlwe.relinearization_key
+!gk5 = !lattigo.rlwe.galois_key<galoisElement = 5>
+!eval_key_set = !lattigo.rlwe.evaluation_key_set
 !ct = !lattigo.rlwe.ciphertext
 !pt = !lattigo.rlwe.plaintext
 
@@ -32,71 +35,84 @@
 module {
   // CHECK-LABEL: func compute
   // CHECK-SAME: ([[v0:v.*]] *bgv.Evaluator, [[v1:v.*]] *rlwe.Ciphertext, [[v2:v.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
-  // CHECK: [[v3:v.*]], err := [[v0]].AddNew([[v1]], [[v2]])
-  // CHECK: [[v4:v.*]], err := [[v0]].MulNew([[v3]], [[v2]])
-  // CHECK: return [[v4]]
-  func.func @compute(%evaluator : !lattigo.bgv.evaluator, %ct1 : !lattigo.rlwe.ciphertext, %ct2 : !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
-    %added = lattigo.bgv.add %evaluator, %ct1, %ct2 : (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
-    %mul = lattigo.bgv.mul %evaluator, %added, %ct2 : (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
-    return %mul : !lattigo.rlwe.ciphertext
+  // CHECK: [[v3:v.*]], [[err:.*]] := [[v0]].AddNew([[v1]], [[v2]])
+  // CHECK: [[v4:v.*]], [[err:.*]] := [[v0]].MulNew([[v3]], [[v2]])
+  // CHECK: [[v5:v.*]], [[err:.*]] := [[v0]].RelinearizeNew([[v4]])
+  // CHECK: [[err:.*]] := [[v0]].Rescale([[v5]], [[v5]])
+  // CHECK: [[v6:v.*]] := [[v5]]
+  // CHECK: [[v7:v.*]], [[err:.*]] := [[v0]].RotateColumnsNew([[v6]], 1)
+  // CHECK: return [[v7]]
+  func.func @compute(%evaluator : !evaluator, %ct1 : !ct, %ct2 : !ct) -> (!ct) {
+    %added = lattigo.bgv.add %evaluator, %ct1, %ct2 : (!evaluator, !ct, !ct) -> !ct
+    %mul = lattigo.bgv.mul %evaluator, %added, %ct2 : (!evaluator, !ct, !ct) -> !ct
+    %relin = lattigo.bgv.relinearize %evaluator, %mul : (!evaluator, !ct) -> !ct
+    %rescale = lattigo.bgv.rescale %evaluator, %relin : (!evaluator, !ct) -> !ct
+    %rotate = lattigo.bgv.rotate_columns %evaluator, %rescale {offset = 1} : (!evaluator, !ct) -> !ct
+    return %rotate : !ct
   }
 
   // CHECK-LABEL: func test_basic_emitter
-  // CHECK: [[v1:v.*]], err := bgv.NewParametersFromLiteral
+  // CHECK: [[param:v.*]], [[err:.*]] := bgv.NewParametersFromLiteral
   // CHECK: bgv.ParametersLiteral
   // CHECK: LogN
   // CHECK: LogQ
   // CHECK: LogP
   // CHECK: PlaintextModulus
-  // CHECK: [[v2:v.*]] := bgv.NewEncoder([[v1]])
-  // CHECK: [[v3:v.*]] := rlwe.NewKeyGenerator([[v1]])
-  // CHECK: [[v4:v.*]], [[v5:v.*]] := [[v3]].GenKeyPairNew()
-  // CHECK: [[v6:v.*]] := rlwe.NewEncryptor([[v1]], [[v5]])
-  // CHECK: [[v7:v.*]] := rlwe.NewDecryptor([[v1]], [[v4]])
-  // CHECK: [[v8:v.*]] := bgv.NewEvaluator([[v1]], nil)
-  // CHECK: [[v9:v.*]] := []int64
-  // CHECK: [[v10:v.*]] := []int64
-  // CHECK: [[v11:v.*]] := bgv.NewPlaintext([[v1]], [[v1]].MaxLevel())
-  // CHECK: [[v12:v.*]] := bgv.NewPlaintext([[v1]], [[v1]].MaxLevel())
-  // CHECK: [[v2]].Encode([[v9]], [[v11]])
-  // CHECK: [[v13:v.*]] := [[v11]]
-  // CHECK: [[v2]].Encode([[v10]], [[v12]])
-  // CHECK: [[v14:v.*]] := [[v12]]
-  // CHECK: [[v15:v.*]], err := [[v6]].EncryptNew([[v13]])
-  // CHECK: [[v16:v.*]], err := [[v6]].EncryptNew([[v14]])
-  // CHECK: [[v17:v.*]] := compute([[v8]], [[v15]], [[v16]])
-  // CHECK: [[v18:v.*]] := [[v7]].DecryptNew([[v17]])
-  // CHECK: [[v19:v.*]] := []int64
-  // CHECK: [[v2]].Decode([[v18]], [[v19]])
-  // CHECK: [[v20:v.*]] := [[v19]]
+  // CHECK: [[encoder:v.*]] := bgv.NewEncoder([[param]])
+  // CHECK: [[kgen:v.*]] := rlwe.NewKeyGenerator([[param]])
+  // CHECK: [[sk:v.*]], [[pk:v.*]] := [[kgen]].GenKeyPairNew()
+  // CHECK: [[rk:v.*]] := [[kgen]].GenRelinearizationKeyNew([[sk]])
+  // CHECK: [[gk5:v.*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
+  // CHECK: [[evalKeySet:v.*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
+  // CHECK: [[enc:v.*]] := rlwe.NewEncryptor([[param]], [[pk]])
+  // CHECK: [[dec:v.*]] := rlwe.NewDecryptor([[param]], [[sk]])
+  // CHECK: [[eval:v.*]] := bgv.NewEvaluator([[param]], [[evalKeySet]])
+  // CHECK: [[value1:v.*]] := []int64
+  // CHECK: [[value2:v.*]] := []int64
+  // CHECK: [[pt1:v.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
+  // CHECK: [[pt2:v.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
+  // CHECK: [[encoder]].Encode([[value1]], [[pt1]])
+  // CHECK: [[pt3:v.*]] := [[pt1]]
+  // CHECK: [[encoder]].Encode([[value2]], [[pt2]])
+  // CHECK: [[pt4:v.*]] := [[pt2]]
+  // CHECK: [[ct1:v.*]], [[err:.*]] := [[enc]].EncryptNew([[pt3]])
+  // CHECK: [[ct2:v.*]], [[err:.*]] := [[enc]].EncryptNew([[pt4]])
+  // CHECK: [[res:v.*]] := compute([[eval]], [[ct1]], [[ct2]])
+  // CHECK: [[pt5:v.*]] := [[dec]].DecryptNew([[res]])
+  // CHECK: [[value3:v.*]] := []int64
+  // CHECK: [[encoder]].Decode([[pt5]], [[value3]])
+  // CHECK: [[value4:v.*]] := [[value3]]
   func.func @test_basic_emitter() -> () {
-    %param = lattigo.bgv.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !lattigo.bgv.parameter
-    %encoder = lattigo.bgv.new_encoder %param : (!lattigo.bgv.parameter) -> !lattigo.bgv.encoder
-    %kgen = lattigo.rlwe.new_key_generator %param : (!lattigo.bgv.parameter) -> !lattigo.rlwe.key_generator
-    %sk, %pk = lattigo.rlwe.gen_key_pair %kgen : (!lattigo.rlwe.key_generator) -> (!lattigo.rlwe.secret_key, !lattigo.rlwe.public_key)
-    %encryptor = lattigo.rlwe.new_encryptor %param, %pk : (!lattigo.bgv.parameter, !lattigo.rlwe.public_key) -> !lattigo.rlwe.encryptor
-    %decryptor = lattigo.rlwe.new_decryptor %param, %sk : (!lattigo.bgv.parameter, !lattigo.rlwe.secret_key) -> !lattigo.rlwe.decryptor
+    %param = lattigo.bgv.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
+    %encoder = lattigo.bgv.new_encoder %param : (!params) -> !encoder
+    %kgen = lattigo.rlwe.new_key_generator %param : (!params) -> !key_generator
+    %sk, %pk = lattigo.rlwe.gen_key_pair %kgen : (!key_generator) -> (!sk, !pk)
+    %rk = lattigo.rlwe.gen_relinearization_key %kgen, %sk : (!key_generator, !sk) -> !rk
+    %gk5 = lattigo.rlwe.gen_galois_key %kgen, %sk {galoisElement = 5} : (!key_generator, !sk) -> !gk5
+    %eval_key_set = lattigo.rlwe.new_evaluation_key_set %rk, %gk5 : (!rk, !gk5) -> !eval_key_set
+    %encryptor = lattigo.rlwe.new_encryptor %param, %pk : (!params, !pk) -> !encryptor
+    %decryptor = lattigo.rlwe.new_decryptor %param, %sk : (!params, !sk) -> !decryptor
 
-    %evaluator = lattigo.bgv.new_evaluator %param : (!lattigo.bgv.parameter) -> !lattigo.bgv.evaluator
+    %evaluator = lattigo.bgv.new_evaluator %param, %eval_key_set : (!params, !eval_key_set) -> !evaluator
 
-    %value1 = arith.constant dense<10> : tensor<8xi64>
-    %value2 = arith.constant dense<10> : tensor<8xi64>
+    %value1 = arith.constant dense<[1, 2, 3, 10]> : tensor<4xi64>
+    %value2 = arith.constant dense<[10, 2, 3, 1]> : tensor<4xi64>
 
-    %pt_raw1 = lattigo.bgv.new_plaintext %param : (!lattigo.bgv.parameter) -> !lattigo.rlwe.plaintext
-    %pt_raw2 = lattigo.bgv.new_plaintext %param : (!lattigo.bgv.parameter) -> !lattigo.rlwe.plaintext
+    %pt_raw1 = lattigo.bgv.new_plaintext %param : (!params) -> !pt
+    %pt_raw2 = lattigo.bgv.new_plaintext %param : (!params) -> !pt
 
-    %pt1 = lattigo.bgv.encode %encoder, %value1, %pt_raw1 : (!lattigo.bgv.encoder, tensor<8xi64>, !lattigo.rlwe.plaintext) -> !lattigo.rlwe.plaintext
-    %pt2 = lattigo.bgv.encode %encoder, %value2, %pt_raw2 : (!lattigo.bgv.encoder, tensor<8xi64>, !lattigo.rlwe.plaintext) -> !lattigo.rlwe.plaintext
-    %ct1 = lattigo.rlwe.encrypt %encryptor, %pt1 : (!lattigo.rlwe.encryptor, !lattigo.rlwe.plaintext) -> !lattigo.rlwe.ciphertext
-    %ct2 = lattigo.rlwe.encrypt %encryptor, %pt2 : (!lattigo.rlwe.encryptor, !lattigo.rlwe.plaintext) -> !lattigo.rlwe.ciphertext
+    %pt1 = lattigo.bgv.encode %encoder, %value1, %pt_raw1 : (!encoder, tensor<4xi64>, !pt) -> !pt
+    %pt2 = lattigo.bgv.encode %encoder, %value2, %pt_raw2 : (!encoder, tensor<4xi64>, !pt) -> !pt
+    %ct1 = lattigo.rlwe.encrypt %encryptor, %pt1 : (!encryptor, !pt) -> !ct
+    %ct2 = lattigo.rlwe.encrypt %encryptor, %pt2 : (!encryptor, !pt) -> !ct
 
-    %mul = func.call @compute(%evaluator, %ct1, %ct2) : (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    %mul = func.call @compute(%evaluator, %ct1, %ct2) : (!evaluator, !ct, !ct) -> !ct
 
-    %dec = lattigo.rlwe.decrypt %decryptor, %mul : (!lattigo.rlwe.decryptor, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.plaintext
+    %dec = lattigo.rlwe.decrypt %decryptor, %mul : (!decryptor, !ct) -> !pt
 
-    %result = arith.constant dense<0> : tensor<8xi64>
+    %result = arith.constant dense<0> : tensor<4xi64>
 
-    %updated = lattigo.bgv.decode %encoder, %dec, %result : (!lattigo.bgv.encoder, !lattigo.rlwe.plaintext, tensor<8xi64>) -> tensor<8xi64>
+    %updated = lattigo.bgv.decode %encoder, %dec, %result : (!encoder, !pt, tensor<4xi64>) -> tensor<4xi64>
 
     return
   }
