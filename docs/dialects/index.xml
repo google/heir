@@ -10061,7 +10061,7 @@ encoding attribute of the tensor.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>ranked tensor of integer values&lt;/td>
+&lt;td>ranked tensor of Integer type with modular arithmetic values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10384,7 +10384,7 @@ the list of $n$ evaluations&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ranked tensor of integer values&lt;/td>
+&lt;td>ranked tensor of Integer type with modular arithmetic values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
