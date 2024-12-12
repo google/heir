@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_
 #define LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_
 
+include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "lib/Dialect/Polynomial/IR/PolynomialDialect.td"
 include "lib/Dialect/Polynomial/IR/PolynomialTypes.td"
@@ -309,7 +310,7 @@ def Polynomial_NTTOp : Polynomial_Op<"ntt", [Pure]> {
     Polynomial_PolynomialType:$input,
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
-  let results = (outs RankedTensorOf<[AnyInteger]>:$output);
+  let results = (outs RankedTensorOf<[ModArith_ModArithType]>:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` type($output)";
   let hasCanonicalizer = 1;
   let hasVerifier = 1;
@@ -330,7 +331,7 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
     The choice of primitive root may be optionally specified.
   }];
   let arguments = (
-    ins RankedTensorOf<[AnyInteger]>:$input,
+    ins RankedTensorOf<[ModArith_ModArithType]>:$input,
     OptionalAttr<Polynomial_PrimitiveRootAttr>:$root
   );
   let results = (outs Polynomial_PolynomialType:$output);

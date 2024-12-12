@@ -152,6 +152,7 @@ gentbl_cc_library(
         ":dialect_inc_gen",
         ":td_files",
         ":types_inc_gen",
+        "@heir//lib/Dialect/ModArith/IR:td_files",
     ],
 )
 

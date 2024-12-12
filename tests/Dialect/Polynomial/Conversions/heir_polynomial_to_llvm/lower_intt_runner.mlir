@@ -15,9 +15,10 @@ func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interf
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 func.func @test_poly_ntt() {
-  %coeffs = arith.constant dense<[1467,2807,3471,7621]> : tensor<4xi32>
-  %ntt_coeffs = tensor.cast %coeffs : tensor<4xi32> to tensor<4xi32, #ring>
-  %0 = polynomial.intt %ntt_coeffs {root=#root} : tensor<4xi32, #ring> -> !poly_ty
+  %coeffsRaw = arith.constant dense<[1467,2807,3471,7621]> : tensor<4xi32>
+  %coeffs = tensor.cast %coeffsRaw : tensor<4xi32> to tensor <4xi32, #ring>
+  %coeffs_enc = mod_arith.encapsulate %coeffs : tensor<4xi32, #ring> -> tensor<4x!coeff_ty, #ring>
+  %0 = polynomial.intt %coeffs_enc {root=#root} : tensor<4x!coeff_ty, #ring> -> !poly_ty
 
   %1 = polynomial.to_tensor %0 : !poly_ty -> tensor<4x!coeff_ty>
   %2 = mod_arith.extract %1 : tensor<4x!coeff_ty> -> tensor<4xi32>

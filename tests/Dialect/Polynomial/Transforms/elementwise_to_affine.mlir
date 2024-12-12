@@ -74,7 +74,8 @@ func.func @test_elementwise(%arg0: tensor<2x!poly>, %arg1: tensor<2x!poly>) ->  
     // CHECK_ADD-NOT: polynomial.add{{.*}} : [[T]]
     // CHECK_ADD: [[R:%.+]] = tensor.insert [[S]] into [[T0]][[[I]]] : [[T]]
     // CHECK_ADD: affine.yield [[R]] : [[T]]
-  // CHECK_ADD: return [[LOOP]] : [[T]]
+  // CHECK_ADD: [[CAST:%.+]] = tensor.cast [[LOOP]] : [[T]] to [[T]]
+  // CHECK_ADD: return [[CAST]] : [[T]]
 }
 
 // CHECK-LABEL:  @test_partially_elementwise
@@ -90,7 +91,8 @@ func.func @test_partially_elementwise(%arg0: tensor<2x!poly>, %arg1: !coeff_ty) 
     // CHECK_MUL-NOT: polynomial.mul_scalar{{.*}} : [[T]], [[MOD_ARITH_TY]]
     // CHECK_MUL: [[R:%.+]] = tensor.insert [[S]] into [[T0]][[[I]]] : [[T]]
     // CHECK_MUL: affine.yield [[R]] : [[T]]
-  // CHECK_MUL: return [[LOOP]] : [[T]]
+  // CHECK_MUL: [[CAST:%.+]] = tensor.cast [[LOOP]] : [[T]] to [[T]]
+  // CHECK_MUL: return [[CAST]] : [[T]]
 }
 
 // CHECK-LABEL:  @test_elementwise_multidim
@@ -109,5 +111,6 @@ func.func @test_elementwise_multidim(%arg0: tensor<2x3x!poly>, %arg1: tensor<2x3
       // CHECK_ADD: [[R:%.+]] = tensor.insert [[S]] into [[T1]][[[I]], [[J]]] : [[T]]
       // CHECK_ADD: affine.yield [[R]] : [[T]]
     // CHECK_ADD: affine.yield [[INNERLOOP]] : [[T]]
-  // CHECK_ADD: return [[LOOP]] : [[T]]
+  // CHECK_ADD: [[CAST:%.+]] = tensor.cast [[LOOP]] : [[T]] to [[T]]
+  // CHECK_ADD: return [[CAST]] : [[T]]
 }
