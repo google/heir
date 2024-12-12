@@ -16,6 +16,7 @@ cc_library(
     deps = [
         ":OpenFhePkeEmitter",
         ":OpenFhePkeHeaderEmitter",
+        ":OpenFhePkePybindEmitter",
         ":OpenFheUtils",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
@@ -82,6 +83,23 @@ cc_library(
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Utils/TargetUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "OpenFhePkePybindEmitter",
+    srcs = ["OpenFhePkePybindEmitter.cpp"],
+    hdrs = [
+        "OpenFhePkePybindEmitter.h",
+        "OpenFhePkeTemplates.h",
+    ],
+    deps = [
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
