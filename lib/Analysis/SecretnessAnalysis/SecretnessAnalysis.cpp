@@ -127,5 +127,16 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver) {
   });
 }
 
+bool ensureSecretness(Value value, DataFlowSolver *solver) {
+  auto *lattice = solver->lookupState<SecretnessLattice>(value);
+  if (!lattice) {
+    return false;
+  }
+  if (!lattice->getValue().isInitialized()) {
+    return false;
+  }
+  return lattice->getValue().getSecretness();
+}
+
 }  // namespace heir
 }  // namespace mlir

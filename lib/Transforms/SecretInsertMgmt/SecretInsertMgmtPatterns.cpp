@@ -177,6 +177,9 @@ void annotateMgmtAttr(Operation *top) {
         }
         auto levelAttr = op->removeAttr("level");
         auto dimensionAttr = op->removeAttr("dimension");
+        if (!levelAttr || !dimensionAttr) {
+          return;
+        }
         op->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName,
                     mergeIntoMgmtAttr(levelAttr, dimensionAttr));
       });

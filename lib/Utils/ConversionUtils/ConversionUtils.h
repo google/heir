@@ -404,7 +404,7 @@ class SecretGenericOpModulusSwitchConversion
                                        std::multiplies<int64_t>());
       auto emptyOp = rewriter.create<tensor::EmptyOp>(op.getLoc(), shape,
                                                       outputElementType);
-      Operation *finalOp = emptyOp;
+      Operation *resultOp = emptyOp;
       for (int i = 0; i < totalSize; ++i) {
         SmallVector<int64_t> indices;
         auto iCopy = i;
@@ -422,10 +422,11 @@ class SecretGenericOpModulusSwitchConversion
         auto modulusSwitchOp = rewriter.create<Y>(
             op.getLoc(), outputElementType, extract.getResult(), outputRing);
         auto insert = rewriter.create<tensor::InsertOp>(
-            op.getLoc(), modulusSwitchOp.getResult(), emptyOp, constants);
-        finalOp = insert;
+            op.getLoc(), modulusSwitchOp.getResult(), resultOp->getResult(0),
+            constants);
+        resultOp = insert;
       }
-      rewriter.replaceOp(op, finalOp);
+      rewriter.replaceOp(op, resultOp);
       return success();
     } else {
       rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0], outputRing);
