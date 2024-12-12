@@ -23,8 +23,10 @@ def SecretToCKKS : Pass<"secret-to-ckks"> {
   let dependentDialects = [
     "mlir::heir::polynomial::PolynomialDialect",
     "mlir::heir::mod_arith::ModArithDialect",
+    "mlir::heir::rns::RNSDialect",
     "mlir::heir::ckks::CKKSDialect",
     "mlir::heir::lwe::LWEDialect",
+    "mlir::tensor::TensorDialect",
   ];
 
   let options = [

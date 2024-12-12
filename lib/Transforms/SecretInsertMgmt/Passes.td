@@ -77,4 +77,27 @@ def SecretInsertMgmtBGV : Pass<"secret-insert-mgmt-bgv", "ModuleOp"> {
   ];
 }
 
+def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
+  let summary = "Place CKKS ciphertext management operations";
+
+  let description = [{
+    Check the description of secret-insert-mgmt-bgv. This pass
+    implements similar strategy, where mgmt.modreduce stands for
+    ckks.rescale here.
+  }];
+
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::heir::mgmt::MgmtDialect",
+    "mlir::func::FuncDialect"
+  ];
+
+  let options = [
+    Option<"includeFirstMul", "include-first-mul", "bool",
+           /*default=*/"false", "Modulus switching right before the first multiplication (default to false)">,
+    Option<"slotNumber", "slot-number", "int",
+           /*default=*/"1024", "Default number of slots use for ciphertext space.">,
+  ];
+}
+
 #endif  // LIB_TRANSFORMS_SECRETINSERTMGMT_PASSES_TD_
