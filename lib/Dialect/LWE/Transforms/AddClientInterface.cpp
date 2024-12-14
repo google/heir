@@ -25,60 +25,64 @@ namespace lwe {
 #define GEN_PASS_DEF_ADDCLIENTINTERFACE
 #include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
-FailureOr<lwe::RLWEParamsAttr> getEncRlweParmsFromFuncOp(func::FuncOp op) {
-  lwe::RLWEParamsAttr rlweParams = nullptr;
+FailureOr<mlir::heir::polynomial::RingAttr> getEncRingFromFuncOp(
+    func::FuncOp op) {
+  mlir::heir::polynomial::RingAttr ring = nullptr;
   auto argTypes = op.getArgumentTypes();
   for (auto argTy : argTypes) {
     // Strip containers (tensor/etc)
     argTy = getElementTypeOrSelf(argTy);
     // Check that parameters are unique
-    if (auto argCtTy = dyn_cast<lwe::RLWECiphertextType>(argTy)) {
-      if (rlweParams && rlweParams != argCtTy.getRlweParams()) {
+    if (auto argCtTy = dyn_cast<lwe::NewLWECiphertextType>(argTy)) {
+      if (ring && ring != argCtTy.getCiphertextSpace().getRing()) {
         return op.emitError() << "Func op has multiple distinct RLWE params"
                               << " but only 1 is currently supported per func.";
       }
-      rlweParams = argCtTy.getRlweParams();
+      ring = argCtTy.getCiphertextSpace().getRing();
     }
   }
-  if (!rlweParams) {
+  if (!ring) {
     return op.emitError() << "Func op has no RLWE ciphertext arguments.";
   }
-  return rlweParams;
+  return ring;
 }
 
-FailureOr<lwe::RLWEParamsAttr> getDecRlweParmsFromFuncOp(func::FuncOp op) {
-  lwe::RLWEParamsAttr rlweParams = nullptr;
+FailureOr<mlir::heir::polynomial::RingAttr> getDecRingFromFuncOp(
+    func::FuncOp op) {
+  mlir::heir::polynomial::RingAttr ring = nullptr;
   auto resultTypes = op.getFunctionType().getResults();
   for (auto resultTy : resultTypes) {
     // Strip containers (tensor/etc)
     resultTy = getElementTypeOrSelf(resultTy);
     // Check that parameters are unique
-    if (auto resultCtTy = dyn_cast<lwe::RLWECiphertextType>(resultTy)) {
-      if (rlweParams && rlweParams != resultCtTy.getRlweParams()) {
+    if (auto resultCtTy = dyn_cast<lwe::NewLWECiphertextType>(resultTy)) {
+      if (ring && ring != resultCtTy.getCiphertextSpace().getRing()) {
         return op.emitError() << "Func op has multiple distinct RLWE params"
                               << " but only 1 is currently supported per func.";
       }
-      rlweParams = resultCtTy.getRlweParams();
+      ring = resultCtTy.getCiphertextSpace().getRing();
     }
   }
-  if (!rlweParams) {
+  if (!ring) {
     return op.emitError() << "Func op has no RLWE ciphertext results.";
   }
-  return rlweParams;
+  return ring;
 }
 
 /// Generates an encryption func for one or more types.
 LogicalResult generateEncryptionFunc(
     func::FuncOp op, const std::string &encFuncName, TypeRange encFuncArgTypes,
     TypeRange encFuncResultTypes, bool usePublicKey,
-    lwe::RLWEParamsAttr rlweParams, ImplicitLocOpBuilder &builder) {
+    mlir::heir::polynomial::RingAttr ring, ImplicitLocOpBuilder &builder) {
   // The enryption function converts each plaintext operand to its encrypted
   // form. We also have to add a public/secret key arg, and we put it at the
   // end to maintain zippability of the non-key args.
+  auto *ctx = op->getContext();
   Type encryptionKeyType =
-      usePublicKey
-          ? (Type)lwe::RLWEPublicKeyType::get(op.getContext(), rlweParams)
-          : (Type)lwe::RLWESecretKeyType::get(op.getContext(), rlweParams);
+      usePublicKey ? (Type)lwe::NewLWEPublicKeyType::get(
+                         op.getContext(), KeyAttr::get(ctx, 0), ring)
+                   : (Type)lwe::NewLWESecretKeyType::get(
+                         op.getContext(), KeyAttr::get(ctx, 0), ring);
   SmallVector<Type> funcArgTypes(encFuncArgTypes.begin(),
                                  encFuncArgTypes.end());
   funcArgTypes.push_back(encryptionKeyType);
@@ -97,13 +101,14 @@ LogicalResult generateEncryptionFunc(
     auto resultTy = encFuncResultTypes[i];
 
     // If the output is encrypted, we need to encode and encrypt
-    if (auto resultCtTy = dyn_cast<lwe::RLWECiphertextType>(resultTy)) {
-      auto plaintextTy = lwe::RLWEPlaintextType::get(
-          op.getContext(), resultCtTy.getEncoding(),
-          resultCtTy.getRlweParams().getRing(), argTy);
+    if (auto resultCtTy = dyn_cast<lwe::NewLWECiphertextType>(resultTy)) {
+      auto plaintextTy = lwe::NewLWEPlaintextType::get(
+          op.getContext(), resultCtTy.getApplicationData(),
+          resultCtTy.getPlaintextSpace());
       auto encoded = builder.create<lwe::RLWEEncodeOp>(
-          plaintextTy, encFuncOp.getArgument(i), resultCtTy.getEncoding(),
-          resultCtTy.getRlweParams().getRing());
+          plaintextTy, encFuncOp.getArgument(i),
+          resultCtTy.getPlaintextSpace().getEncoding(),
+          resultCtTy.getPlaintextSpace().getRing());
       auto encrypted = builder.create<lwe::RLWEEncryptOp>(
           resultCtTy, encoded.getResult(), secretKey);
       encValuesToReturn.push_back(encrypted.getResult());
@@ -123,10 +128,10 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
                                      const std::string &decFuncName,
                                      TypeRange decFuncArgTypes,
                                      TypeRange decFuncResultTypes,
-                                     lwe::RLWEParamsAttr rlweParams,
+                                     mlir::heir::polynomial::RingAttr ring,
                                      ImplicitLocOpBuilder &builder) {
-  Type decryptionKeyType =
-      lwe::RLWESecretKeyType::get(op.getContext(), rlweParams);
+  Type decryptionKeyType = lwe::NewLWESecretKeyType::get(
+      op.getContext(), KeyAttr::get(op.getContext(), 0), ring);
   SmallVector<Type> funcArgTypes(decFuncArgTypes.begin(),
                                  decFuncArgTypes.end());
   funcArgTypes.push_back(decryptionKeyType);
@@ -146,15 +151,16 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
     auto resultTy = decFuncResultTypes[i];
 
     // If the input is ciphertext, we need to decode and decrypt
-    if (auto argCtTy = dyn_cast<lwe::RLWECiphertextType>(argTy)) {
-      auto plaintextTy = lwe::RLWEPlaintextType::get(
-          op.getContext(), argCtTy.getEncoding(),
-          argCtTy.getRlweParams().getRing(), resultTy);
+    if (auto argCtTy = dyn_cast<lwe::NewLWECiphertextType>(argTy)) {
+      auto plaintextTy = lwe::NewLWEPlaintextType::get(
+          op.getContext(), argCtTy.getApplicationData(),
+          argCtTy.getPlaintextSpace());
       auto decrypted = builder.create<lwe::RLWEDecryptOp>(
           plaintextTy, decFuncOp.getArgument(i), secretKey);
       auto decoded = builder.create<lwe::RLWEDecodeOp>(
-          resultTy, decrypted.getResult(), argCtTy.getEncoding(),
-          argCtTy.getRlweParams().getRing());
+          resultTy, decrypted.getResult(),
+          argCtTy.getPlaintextSpace().getEncoding(),
+          argCtTy.getPlaintextSpace().getRing());
       // FIXME: if the input is a scalar type, we must add a tensor.extract op.
       // The decode op's tablegen should also support having tensor types as
       // outputs if it doesn't already.
@@ -175,13 +181,13 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
 LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
                           bool oneValuePerHelperFn) {
   auto module = op->getParentOfType<ModuleOp>();
-  auto rlweEncParamsResult = getEncRlweParmsFromFuncOp(op);
-  auto rlweDecParamsResult = getDecRlweParmsFromFuncOp(op);
-  if (failed(rlweEncParamsResult) || failed(rlweDecParamsResult)) {
+  auto ringEncResult = getEncRingFromFuncOp(op);
+  auto ringDecResult = getDecRingFromFuncOp(op);
+  if (failed(ringEncResult) || failed(ringDecResult)) {
     return failure();
   }
-  lwe::RLWEParamsAttr rlweEncParams = rlweEncParamsResult.value();
-  lwe::RLWEParamsAttr rlweDecParams = rlweDecParamsResult.value();
+  mlir::heir::polynomial::RingAttr ringEnc = ringEncResult.value();
+  mlir::heir::polynomial::RingAttr ringDec = ringDecResult.value();
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
 
@@ -199,8 +205,9 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
     auto argTypes = op.getArgumentTypes();
 
     for (auto argTy : argTypes) {
-      if (auto argCtTy = dyn_cast<lwe::RLWECiphertextType>(argTy)) {
-        encFuncArgTypes.push_back(argCtTy.getUnderlyingType());
+      if (auto argCtTy = dyn_cast<lwe::NewLWECiphertextType>(argTy)) {
+        encFuncArgTypes.push_back(
+            argCtTy.getApplicationData().getMessageType());
         encFuncResultTypes.push_back(argCtTy);
         continue;
       }
@@ -211,8 +218,8 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
     }
 
     if (failed(generateEncryptionFunc(op, encFuncName, encFuncArgTypes,
-                                      encFuncResultTypes, usePublicKey,
-                                      rlweEncParams, builder))) {
+                                      encFuncResultTypes, usePublicKey, ringEnc,
+                                      builder))) {
       return failure();
     }
 
@@ -223,9 +230,10 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
     SmallVector<Type> decFuncArgTypes;
     SmallVector<Type> decFuncResultTypes;
     for (auto returnTy : returnTypes) {
-      if (auto returnCtTy = dyn_cast<lwe::RLWECiphertextType>(returnTy)) {
+      if (auto returnCtTy = dyn_cast<lwe::NewLWECiphertextType>(returnTy)) {
         decFuncArgTypes.push_back(returnCtTy);
-        decFuncResultTypes.push_back(returnCtTy.getUnderlyingType());
+        decFuncResultTypes.push_back(
+            returnCtTy.getApplicationData().getMessageType());
         continue;
       }
 
@@ -235,8 +243,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
     }
 
     if (failed(generateDecryptionFunc(op, decFuncName, decFuncArgTypes,
-                                      decFuncResultTypes, rlweDecParams,
-                                      builder))) {
+                                      decFuncResultTypes, ringDec, builder))) {
       return failure();
     }
     return success();
@@ -247,13 +254,13 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
   // when encrypting multiple inputs which requires out-params.
   for (auto val : op.getArguments()) {
     auto argTy = val.getType();
-    if (auto argCtTy = dyn_cast<lwe::RLWECiphertextType>(argTy)) {
+    if (auto argCtTy = dyn_cast<lwe::NewLWECiphertextType>(argTy)) {
       std::string encFuncName("");
       llvm::raw_string_ostream encNameOs(encFuncName);
       encNameOs << op.getSymName() << "__encrypt__arg" << val.getArgNumber();
       if (failed(generateEncryptionFunc(
-              op, encFuncName, {argCtTy.getUnderlyingType()}, {argCtTy},
-              usePublicKey, rlweEncParams, builder))) {
+              op, encFuncName, {argCtTy.getApplicationData().getMessageType()},
+              {argCtTy}, usePublicKey, ringEnc, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -264,13 +271,14 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
   ArrayRef<Type> returnTypes = op.getFunctionType().getResults();
   for (size_t i = 0; i < returnTypes.size(); ++i) {
     auto returnTy = returnTypes[i];
-    if (auto returnCtTy = dyn_cast<lwe::RLWECiphertextType>(returnTy)) {
+    if (auto returnCtTy = dyn_cast<lwe::NewLWECiphertextType>(returnTy)) {
       std::string decFuncName("");
       llvm::raw_string_ostream encNameOs(decFuncName);
       encNameOs << op.getSymName() << "__decrypt__result" << i;
-      if (failed(generateDecryptionFunc(op, decFuncName, {returnCtTy},
-                                        {returnCtTy.getUnderlyingType()},
-                                        rlweDecParams, builder))) {
+      if (failed(generateDecryptionFunc(
+              op, decFuncName, {returnCtTy},
+              {returnCtTy.getApplicationData().getMessageType()}, ringDec,
+              builder))) {
         return failure();
       }
       // insertion point is inside func, move back out

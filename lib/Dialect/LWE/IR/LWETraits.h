@@ -19,28 +19,28 @@ class SameOperandsAndResultRings
   static LogicalResult verifyTrait(Operation *op) {
     ::mlir::heir::polynomial::RingAttr rings = nullptr;
     for (auto rTy : op->getResultTypes()) {
-      auto ct = dyn_cast<lwe::RLWECiphertextType>(rTy);
+      auto ct = dyn_cast<lwe::NewLWECiphertextType>(rTy);
       if (!ct) continue;
       if (rings == nullptr) {
-        rings = ct.getRlweParams().getRing();
+        rings = ct.getCiphertextSpace().getRing();
         continue;
       }
-      if (rings != ct.getRlweParams().getRing()) {
+      if (rings != ct.getCiphertextSpace().getRing()) {
         return op->emitOpError()
                << "requires all operands and results to have the same rings";
       }
     }
 
     for (auto oTy : op->getOperandTypes()) {
-      auto ct = dyn_cast<lwe::RLWECiphertextType>(oTy);
+      auto ct = dyn_cast<lwe::NewLWECiphertextType>(oTy);
       if (!ct) continue;  // Check only ciphertexts
 
       if (rings == nullptr) {
-        rings = ct.getRlweParams().getRing();
+        rings = ct.getCiphertextSpace().getRing();
         continue;
       }
 
-      if (rings != ct.getRlweParams().getRing()) {
+      if (rings != ct.getCiphertextSpace().getRing()) {
         return op->emitOpError()
                << "requires all operands and results to have the same rings";
       }

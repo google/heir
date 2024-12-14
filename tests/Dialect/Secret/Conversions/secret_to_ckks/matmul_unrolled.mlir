@@ -2,7 +2,7 @@
 
 module {
   // CHECK-LABEL: func @main
-  // CHECK-SAME: %[[arg0:.*]]: tensor<1x16x!lwe.rlwe_ciphertext<{{.*}}, underlying_type = f32>>, %[[arg1:.*]]: tensor<1x16x!lwe.rlwe_ciphertext<{{.*}}, underlying_type = f32>>
+  // CHECK-SAME: %[[arg0:.*]]: tensor<1x16x!lwe.new_lwe_ciphertext<{{.*}}message_type = f32{{.*}}>>, %[[arg1:.*]]: tensor<1x16x!lwe.new_lwe_ciphertext<{{.*}}message_type = f32{{.*}}>>
   func.func @main(%arg0: tensor<1x16xf32>, %arg1: tensor<1x16xf32>) -> tensor<1x16xf32> {
     // CHECK-NOT: secret
     // CHECK-COUNT-256: ckks.mul_plain
@@ -24,7 +24,7 @@ module {
       affine.yield %2 : tensor<1x16xf32>
     }
     // CHECK: return
-    // CHECK-SAME: tensor<1x16x!lwe.rlwe_ciphertext<{{.*}}, underlying_type = f32>>
+    // CHECK-SAME: tensor<1x16x!lwe.new_lwe_ciphertext<{{.*}}message_type = f32{{.*}}>>
     return %1 : tensor<1x16xf32>
   }
 }

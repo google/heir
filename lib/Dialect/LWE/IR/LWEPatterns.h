@@ -53,15 +53,17 @@ struct ConvertRlweExtractOp : public OpConversionPattern<RlweExtractOp> {
     int64_t offset = offsetAttr.getInt();
 
     auto ctTy = op.getInput().getType();
-    auto ring = ctTy.getRlweParams().getRing();
+    auto ring = ctTy.getCiphertextSpace().getRing();
     auto degree = ring.getPolynomialModulus().getPolynomial().getDegree();
-    auto elementTy = op.getOutput().getType().getUnderlyingType();
+    auto elementTy =
+        op.getOutput().getType().getApplicationData().getMessageType();
     if (!elementTy.isIntOrFloat()) {
-      op.emitError() << "Expected extract op to extract scalar from tensor "
-                        "type, but found input underlying type "
-                     << op.getInput().getType().getUnderlyingType()
-                     << " and output underlying type "
-                     << op.getOutput().getType().getUnderlyingType();
+      op.emitError()
+          << "Expected extract op to extract scalar from tensor "
+             "type, but found input underlying type "
+          << op.getInput().getType().getApplicationData().getMessageType()
+          << " and output underlying type "
+          << op.getOutput().getType().getApplicationData().getMessageType();
     }
     auto tensorTy = RankedTensorType::get({degree}, elementTy);
 
@@ -83,11 +85,12 @@ struct ConvertRlweExtractOp : public OpConversionPattern<RlweExtractOp> {
         b.create<arith::ConstantOp>(
              tensorTy, DenseElementsAttr::get(tensorTy, oneHotCleartextAttrs))
             .getResult();
-    auto plaintextTy = lwe::RLWEPlaintextType::get(
-        op.getContext(), ctTy.getEncoding(), ring, tensorTy);
+    auto plaintextTy = lwe::NewLWEPlaintextType::get(
+        op.getContext(), ctTy.getApplicationData(), ctTy.getPlaintextSpace());
     auto oneHotPlaintext =
         b.create<lwe::RLWEEncodeOp>(plaintextTy, oneHotCleartext,
-                                    ctTy.getEncoding(), ring)
+                                    ctTy.getPlaintextSpace().getEncoding(),
+                                    ctTy.getPlaintextSpace().getRing())
             .getResult();
     auto plainMul =
         b.create<RlweMulPlainOp>(adaptor.getInput(), oneHotPlaintext)

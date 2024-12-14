@@ -44,33 +44,32 @@ class CiphertextTypeConverter : public TypeConverter {
   // dimension, and the ciphertext has two dimensions. (i.e.) The key is a
   // single polynomial and not a tensor of higher dimensions. We may support
   // higher dimensions in the future (for schemes such as TFHE).
+  // TODO(#1199): properly lower NewLWEType (often RNS) to PolynomialType.
   CiphertextTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::RLWECiphertextType type) -> Type {
-      auto rlweParams = type.getRlweParams();
-      auto ring = rlweParams.getRing();
+    addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
+      auto ring = type.getCiphertextSpace().getRing();
       auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
 
-      return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
+      return RankedTensorType::get({type.getCiphertextSpace().getSize()},
+                                   polyTy);
     });
-    addConversion([ctx](lwe::RLWEPlaintextType type) -> Type {
-      auto ring = type.getRing();
+    addConversion([ctx](lwe::NewLWEPlaintextType type) -> Type {
+      auto ring = type.getPlaintextSpace().getRing();
       auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
       return polyTy;
     });
-    addConversion([ctx](lwe::RLWESecretKeyType type) -> Type {
-      auto rlweParams = type.getRlweParams();
-      auto ring = rlweParams.getRing();
+    addConversion([ctx](lwe::NewLWESecretKeyType type) -> Type {
+      auto ring = type.getRing();
       auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
 
-      return RankedTensorType::get({rlweParams.getDimension() - 1}, polyTy);
+      return RankedTensorType::get({2}, polyTy);
     });
-    addConversion([ctx](lwe::RLWEPublicKeyType type) -> Type {
-      auto rlweParams = type.getRlweParams();
-      auto ring = rlweParams.getRing();
+    addConversion([ctx](lwe::NewLWEPublicKeyType type) -> Type {
+      auto ring = type.getRing();
       auto polyTy = ::mlir::heir::polynomial::PolynomialType::get(ctx, ring);
 
-      return RankedTensorType::get({rlweParams.getDimension()}, polyTy);
+      return RankedTensorType::get({2}, polyTy);
     });
   }
 };
@@ -198,8 +197,9 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
 
     auto isPublicKey =
         llvm::TypeSwitch<Type, bool>(op.getKey().getType())
-            .Case<lwe::RLWEPublicKeyType>([](auto key) -> bool { return true; })
-            .Case<lwe::RLWESecretKeyType>(
+            .Case<lwe::NewLWEPublicKeyType>(
+                [](auto key) -> bool { return true; })
+            .Case<lwe::NewLWESecretKeyType>(
                 [](auto key) -> bool { return false; })
             .Default([](Type key) -> bool {
               llvm_unreachable(

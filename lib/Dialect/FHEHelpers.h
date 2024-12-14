@@ -21,12 +21,12 @@ template <typename Op>
 LogicalResult verifyMulOp(Op* op) {
   auto x = op->getLhs().getType();
   auto y = op->getRhs().getType();
-  if (x.getRlweParams().getDimension() != y.getRlweParams().getDimension()) {
+  if (x.getCiphertextSpace().getSize() != y.getCiphertextSpace().getSize()) {
     return op->emitOpError() << "input dimensions do not match";
   }
   auto out = op->getOutput().getType();
-  if (out.getRlweParams().getDimension() !=
-      y.getRlweParams().getDimension() + x.getRlweParams().getDimension() - 1) {
+  if (out.getCiphertextSpace().getSize() !=
+      y.getCiphertextSpace().getSize() + x.getCiphertextSpace().getSize() - 1) {
     return op->emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
   }
   return success();
@@ -35,11 +35,11 @@ LogicalResult verifyMulOp(Op* op) {
 template <typename Op>
 LogicalResult verifyRotateOp(Op* op) {
   auto x = op->getInput().getType();
-  if (x.getRlweParams().getDimension() != 2) {
+  if (x.getCiphertextSpace().getSize() != 2) {
     return op->emitOpError() << "x.dim == 2 does not hold";
   }
   auto out = op->getOutput().getType();
-  if (out.getRlweParams().getDimension() != 2) {
+  if (out.getCiphertextSpace().getSize() != 2) {
     return op->emitOpError() << "output.dim == 2 does not hold";
   }
   return success();
@@ -49,10 +49,10 @@ template <typename Op>
 LogicalResult verifyRelinearizeOp(Op* op) {
   auto x = op->getInput().getType();
   auto out = op->getOutput().getType();
-  if (x.getRlweParams().getDimension() != op->getFromBasis().size()) {
+  if (x.getCiphertextSpace().getSize() != op->getFromBasis().size()) {
     return op->emitOpError() << "input dimension does not match from_basis";
   }
-  if (out.getRlweParams().getDimension() != op->getToBasis().size()) {
+  if (out.getCiphertextSpace().getSize() != op->getToBasis().size()) {
     return op->emitOpError() << "output dimension does not match to_basis";
   }
   return success();
@@ -61,10 +61,10 @@ LogicalResult verifyRelinearizeOp(Op* op) {
 template <typename Op>
 LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
   auto x = op->getInput().getType();
-  auto xRing = x.getRlweParams().getRing();
+  auto xRing = x.getCiphertextSpace().getRing();
 
   auto out = op->getOutput().getType();
-  auto outRing = out.getRlweParams().getRing();
+  auto outRing = out.getCiphertextSpace().getRing();
   if (outRing != op->getToRing()) {
     return op->emitOpError() << "output ring should match to_ring";
   }
@@ -129,14 +129,16 @@ template <typename Adaptor>
 LogicalResult inferMulOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::RLWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::RLWECiphertextType>(adaptor.getRhs().getType());
+  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
   auto newDim =
-      x.getRlweParams().getDimension() + y.getRlweParams().getDimension() - 1;
-  inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
-      ctx, x.getEncoding(),
-      lwe::RLWEParamsAttr::get(ctx, newDim, x.getRlweParams().getRing()),
-      x.getUnderlyingType()));
+      x.getCiphertextSpace().getSize() + y.getCiphertextSpace().getSize() - 1;
+  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    newDim),
+      x.getKey(), x.getModulusChain()));
   return success();
 }
 
@@ -144,25 +146,29 @@ template <typename Adaptor>
 LogicalResult inferRelinearizeOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::RLWECiphertextType>(adaptor.getInput().getType());
-  inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
-      ctx, x.getEncoding(),
-      lwe::RLWEParamsAttr::get(ctx, 2, x.getRlweParams().getRing()),
-      x.getUnderlyingType()));
+  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getInput().getType());
+  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    2),
+      x.getKey(), x.getModulusChain()));
   return success();
 }
 
 template <typename Op>
 LogicalResult verifyExtractOp(Op* op) {
   auto inputTy = op->getInput().getType();
-  auto tensorTy = dyn_cast<RankedTensorType>(inputTy.getUnderlyingType());
+  auto tensorTy =
+      dyn_cast<RankedTensorType>(inputTy.getApplicationData().getMessageType());
   if (!tensorTy) {
     return op->emitOpError() << "input RLWE ciphertext type must have a ranked "
                                 "tensor as its underlying_type, but found "
-                             << inputTy.getUnderlyingType();
+                             << inputTy.getApplicationData().getMessageType();
   }
 
-  auto outputScalarType = op->getOutput().getType().getUnderlyingType();
+  auto outputScalarType =
+      op->getOutput().getType().getApplicationData().getMessageType();
   if (tensorTy.getElementType() != outputScalarType) {
     return op->emitOpError()
            << "output RLWE ciphertext's underlying_type must be "

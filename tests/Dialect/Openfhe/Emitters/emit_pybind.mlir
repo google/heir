@@ -33,14 +33,30 @@
 // CHECK:   m.def("simple_sum__decrypt", &simple_sum__decrypt);
 // CHECK: }
 
-#degree_32_poly = #polynomial.int_polynomial<1 + x**32>
-#eval_encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
-#ring2 = #polynomial.ring<coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#degree_32_poly>
-#params2 = #lwe.rlwe_params<ring = #ring2>
-!tensor_pt_ty = !lwe.rlwe_plaintext<encoding = #eval_encoding, ring = #ring2, underlying_type = tensor<32xi16>>
-!scalar_pt_ty = !lwe.rlwe_plaintext<encoding = #eval_encoding, ring = #ring2, underlying_type = i16>
-!tensor_ct_ty = !lwe.rlwe_ciphertext<encoding = #eval_encoding, rlwe_params = #params2, underlying_type = tensor<32xi16>>
-!scalar_ct_ty = !lwe.rlwe_ciphertext<encoding = #eval_encoding, rlwe_params = #params2, underlying_type = i16>
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
+
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+
+#ring_Z65537_i64_1_x32_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**32>>
+#ring_rns_L0_1_x32_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**32>>
+
+#full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
+#key = #lwe.key<>
+
+#modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
+
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #full_crt_packing_encoding>
+
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x32_, encryption_type = lsb>
+
+!cc = !openfhe.crypto_context
+!ek = !openfhe.eval_key
+
+!tensor_pt_ty = !lwe.new_lwe_plaintext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space>
+!scalar_pt_ty = !lwe.new_lwe_plaintext<application_data = <message_type = i16>, plaintext_space = #plaintext_space>
+!tensor_ct_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!scalar_ct_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 func.func @simple_sum(%arg0: !openfhe.crypto_context, %arg1: !tensor_ct_ty) -> !scalar_ct_ty {
   %1 = openfhe.rot %arg0, %arg1 { index = 16 } : (!openfhe.crypto_context, !tensor_ct_ty) -> !tensor_ct_ty
@@ -67,6 +83,6 @@ func.func @simple_sum__encrypt(%arg0: !openfhe.crypto_context, %arg1: tensor<32x
 }
 func.func @simple_sum__decrypt(%arg0: !openfhe.crypto_context, %arg1: !scalar_ct_ty, %arg2: !openfhe.private_key) -> i16 {
   %0 = openfhe.decrypt %arg0, %arg1, %arg2 : (!openfhe.crypto_context, !scalar_ct_ty, !openfhe.private_key) -> !scalar_pt_ty
-  %1 = lwe.rlwe_decode %0 {encoding = #eval_encoding, ring = #ring2} : !scalar_pt_ty -> i16
+  %1 = lwe.rlwe_decode %0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : !scalar_pt_ty -> i16
   return %1 : i16
 }

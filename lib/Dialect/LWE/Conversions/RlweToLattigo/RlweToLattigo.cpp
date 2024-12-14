@@ -8,17 +8,17 @@ namespace mlir::heir {
 
 ToLattigoTypeConverter::ToLattigoTypeConverter(MLIRContext *ctx) {
   addConversion([](Type type) { return type; });
-  addConversion([ctx](lwe::RLWEPublicKeyType type) -> Type {
-    return lattigo::RLWEPublicKeyType::get(ctx);
-  });
-  addConversion([ctx](lwe::RLWESecretKeyType type) -> Type {
-    return lattigo::RLWESecretKeyType::get(ctx);
-  });
-  addConversion([ctx](lwe::RLWECiphertextType type) -> Type {
+  addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
     return lattigo::RLWECiphertextType::get(ctx);
   });
-  addConversion([ctx](lwe::RLWEPlaintextType type) -> Type {
+  addConversion([ctx](lwe::NewLWEPlaintextType type) -> Type {
     return lattigo::RLWEPlaintextType::get(ctx);
+  });
+  addConversion([ctx](lwe::NewLWEPublicKeyType type) -> Type {
+    return lattigo::RLWEPublicKeyType::get(ctx);
+  });
+  addConversion([ctx](lwe::NewLWESecretKeyType type) -> Type {
+    return lattigo::RLWESecretKeyType::get(ctx);
   });
 }
 

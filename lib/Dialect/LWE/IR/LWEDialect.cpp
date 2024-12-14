@@ -62,59 +62,107 @@ class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
     }
   }
 
+  void getCiphertextSpaceAttrAliasSuffix(CiphertextSpaceAttr ciphertextSpace,
+                                         raw_ostream& os) const {
+    auto ring = ciphertextSpace.getRing();
+    getRingAttrAliasSuffix(ring, os);
+    auto size = ciphertextSpace.getSize();
+    if (size != 2) {
+      os << "_D" << size;
+    }
+  }
+
   AliasResult getAlias(Type type, raw_ostream& os) const override {
-    auto res = llvm::TypeSwitch<Type, AliasResult>(type)
-                   .Case<RLWECiphertextType>([&](auto& type) {
-                     os << "rlwe_ct";
-                     getRLWEParamsAttrAliasSuffix(type.getRlweParams(), os);
-                     return AliasResult::FinalAlias;
-                   })
-                   .Case<RLWEPlaintextType>([&](auto& type) {
-                     os << "rlwe_pt";
-                     getRingAttrAliasSuffix(type.getRing(), os);
-                     return AliasResult::FinalAlias;
-                   })
-                   .Default([&](Type) { return AliasResult::NoAlias; });
+    auto res =
+        llvm::TypeSwitch<Type, AliasResult>(type)
+            .Case<NewLWECiphertextType>([&](auto& type) {
+              os << "ct";
+              getCiphertextSpaceAttrAliasSuffix(type.getCiphertextSpace(), os);
+              return AliasResult::FinalAlias;
+            })
+            .Case<NewLWEPlaintextType>([&](auto& type) {
+              os << "pt";
+              getRingAttrAliasSuffix(type.getPlaintextSpace().getRing(), os);
+              return AliasResult::FinalAlias;
+            })
+            .Case<NewLWESecretKeyType>([&](auto& type) {
+              os << "skey";
+              getRingAttrAliasSuffix(type.getRing(), os);
+              return AliasResult::FinalAlias;
+            })
+            .Case<NewLWEPublicKeyType>([&](auto& type) {
+              os << "pkey";
+              getRingAttrAliasSuffix(type.getRing(), os);
+              return AliasResult::FinalAlias;
+            })
+            .Default([&](Type) { return AliasResult::NoAlias; });
     return res;
   }
 
   AliasResult getAlias(Attribute attr, raw_ostream& os) const override {
-    auto res = llvm::TypeSwitch<Attribute, AliasResult>(attr)
-                   .Case<RLWEParamsAttr>([&](auto rlweParams) {
-                     os << "rlwe_params";
-                     getRLWEParamsAttrAliasSuffix(rlweParams, os);
-                     return AliasResult::FinalAlias;
-                   })
-                   .Case<BitFieldEncodingAttr>([&](auto bitFieldEncoding) {
-                     os << "bit_field_encoding";
-                     return AliasResult::FinalAlias;
-                   })
-                   .Case<UnspecifiedBitFieldEncodingAttr>(
-                       [&](auto unspecifiedBitFieldEncoding) {
-                         os << "unspecified_bit_field_encoding";
-                         return AliasResult::FinalAlias;
-                       })
-                   .Case<PolynomialCoefficientEncodingAttr>(
-                       [&](auto polynomialCoefficientEncoding) {
-                         os << "polynomial_coefficient_encoding";
-                         return AliasResult::FinalAlias;
-                       })
-                   .Case<PolynomialEvaluationEncodingAttr>(
-                       [&](auto polynomialEvaluationEncoding) {
-                         os << "polynomial_evaluation_encoding";
-                         return AliasResult::FinalAlias;
-                       })
-                   .Case<InverseCanonicalEncodingAttr>(
-                       [&](auto inverseCanonicalEncoding) {
-                         os << "inverse_canonical_encoding";
-                         return AliasResult::FinalAlias;
-                       })
-                   .Case<InverseCanonicalEmbeddingEncodingAttr>(
-                       [&](auto inverseCanonicalEmbeddingEncoding) {
-                         os << "inverse_canonical_embedding_encoding";
-                         return AliasResult::FinalAlias;
-                       })
-                   .Default([&](Attribute) { return AliasResult::NoAlias; });
+    auto res =
+        llvm::TypeSwitch<Attribute, AliasResult>(attr)
+            .Case<RLWEParamsAttr>([&](auto rlweParams) {
+              os << "rlwe_params";
+              getRLWEParamsAttrAliasSuffix(rlweParams, os);
+              return AliasResult::FinalAlias;
+            })
+            .Case<BitFieldEncodingAttr>([&](auto bitFieldEncoding) {
+              os << "bit_field_encoding";
+              return AliasResult::FinalAlias;
+            })
+            .Case<UnspecifiedBitFieldEncodingAttr>(
+                [&](auto unspecifiedBitFieldEncoding) {
+                  os << "unspecified_bit_field_encoding";
+                  return AliasResult::FinalAlias;
+                })
+            .Case<PolynomialCoefficientEncodingAttr>(
+                [&](auto polynomialCoefficientEncoding) {
+                  os << "polynomial_coefficient_encoding";
+                  return AliasResult::FinalAlias;
+                })
+            .Case<PolynomialEvaluationEncodingAttr>(
+                [&](auto polynomialEvaluationEncoding) {
+                  os << "polynomial_evaluation_encoding";
+                  return AliasResult::FinalAlias;
+                })
+            .Case<InverseCanonicalEncodingAttr>(
+                [&](auto inverseCanonicalEncoding) {
+                  os << "inverse_canonical_encoding";
+                  return AliasResult::FinalAlias;
+                })
+            .Case<InverseCanonicalEmbeddingEncodingAttr>(
+                [&](auto inverseCanonicalEmbeddingEncoding) {
+                  os << "inverse_canonical_embedding_encoding";
+                  return AliasResult::FinalAlias;
+                })
+            .Case<ModulusChainAttr>([&](auto modulusChain) {
+              os << "modulus_chain";
+              auto size = modulusChain.getElements().size();
+              os << "_L" << size - 1;
+              auto current = modulusChain.getCurrent();
+              os << "_C" << current;
+              return AliasResult::FinalAlias;
+            })
+            .Case<CiphertextSpaceAttr>([&](auto ciphertextSpace) {
+              os << "ciphertext_space";
+              getCiphertextSpaceAttrAliasSuffix(ciphertextSpace, os);
+              return AliasResult::FinalAlias;
+            })
+            .Case<PlaintextSpaceAttr>([&](auto plaintextSpace) {
+              os << "plaintext_space";
+              getRingAttrAliasSuffix(plaintextSpace.getRing(), os);
+              return AliasResult::FinalAlias;
+            })
+            .Case<KeyAttr>([&](auto key) {
+              os << "key";
+              return AliasResult::FinalAlias;
+            })
+            .Case<FullCRTPackingEncodingAttr>([&](auto fullCRTPackingEncoding) {
+              os << "full_crt_packing_encoding";
+              return AliasResult::FinalAlias;
+            })
+            .Default([&](Attribute) { return AliasResult::NoAlias; });
     return res;
   }
 };
@@ -139,12 +187,12 @@ void LWEDialect::initialize() {
 LogicalResult RMulOp::verify() {
   auto x = getLhs().getType();
   auto y = getRhs().getType();
-  if (x.getRlweParams().getDimension() != y.getRlweParams().getDimension()) {
+  if (x.getCiphertextSpace().getSize() != y.getCiphertextSpace().getSize()) {
     return emitOpError() << "input dimensions do not match";
   }
   auto out = getOutput().getType();
-  if (out.getRlweParams().getDimension() !=
-      y.getRlweParams().getDimension() + x.getRlweParams().getDimension() - 1) {
+  if (out.getCiphertextSpace().getSize() !=
+      y.getCiphertextSpace().getSize() + x.getCiphertextSpace().getSize() - 1) {
     return emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
   }
   return success();
@@ -153,14 +201,17 @@ LogicalResult RMulOp::verify() {
 LogicalResult RMulOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x = cast<lwe::RLWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::RLWECiphertextType>(adaptor.getRhs().getType());
+  // NOT using FHEHelpers.h here because cyclic dependency
+  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
   auto newDim =
-      x.getRlweParams().getDimension() + y.getRlweParams().getDimension() - 1;
-  inferredReturnTypes.push_back(lwe::RLWECiphertextType::get(
-      ctx, x.getEncoding(),
-      lwe::RLWEParamsAttr::get(ctx, newDim, x.getRlweParams().getRing()),
-      x.getUnderlyingType()));
+      x.getCiphertextSpace().getSize() + y.getCiphertextSpace().getSize() - 1;
+  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    newDim),
+      x.getKey(), x.getModulusChain()));
   return success();
 }
 
@@ -292,11 +343,13 @@ LogicalResult TrivialEncryptOp::verify() {
 LogicalResult ReinterpretUnderlyingTypeOp::verify() {
   auto inputType = getInput().getType();
   auto outputType = getOutput().getType();
-  if (inputType.getEncoding() != outputType.getEncoding() ||
-      inputType.getRlweParams() != outputType.getRlweParams()) {
+  if (inputType.getPlaintextSpace() != outputType.getPlaintextSpace() ||
+      inputType.getCiphertextSpace() != outputType.getCiphertextSpace() ||
+      inputType.getKey() != outputType.getKey() ||
+      inputType.getModulusChain() != outputType.getModulusChain()) {
     return emitOpError()
            << "the only allowed difference in the input and output are in the "
-              "underlying_type field, but found input type "
+              "application_data field, but found input type "
            << inputType << " and output type " << outputType;
   }
 
@@ -306,21 +359,20 @@ LogicalResult ReinterpretUnderlyingTypeOp::verify() {
 // Verification for RLWE_EncryptOp
 LogicalResult RLWEEncryptOp::verify() {
   Type keyType = getKey().getType();
-  lwe::RLWEParamsAttr keyParams =
-      llvm::TypeSwitch<Type, lwe::RLWEParamsAttr>(keyType)
-          .Case<lwe::RLWEPublicKeyType, lwe::RLWESecretKeyType>(
-              [](auto key) { return key.getRlweParams(); })
+  auto keyRing =
+      llvm::TypeSwitch<Type, mlir::heir::polynomial::RingAttr>(keyType)
+          .Case<lwe::NewLWEPublicKeyType, lwe::NewLWESecretKeyType>(
+              [](auto key) { return key.getRing(); })
           .Default([](Type) {
             llvm_unreachable("impossible by type constraints");
             return nullptr;
           });
 
-  lwe::RLWEParamsAttr outputParams = getOutput().getType().getRlweParams();
-  if (outputParams != keyParams) {
-    return emitOpError()
-           << "RLWEEncryptOp input dimensions do not match. Keyparams: "
-           << keyParams << ". Output ciphertext params: " << outputParams
-           << ".";
+  auto outputRing = getOutput().getType().getCiphertextSpace().getRing();
+  if (outputRing != keyRing) {
+    return emitOpError() << "RLWEEncryptOp input ring do not match. Key ring: "
+                         << keyRing
+                         << ". Output ciphertext ring: " << outputRing << ".";
   }
   return success();
 }
@@ -416,6 +468,19 @@ LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
   }
 
   if (isa<InverseCanonicalEmbeddingEncodingAttr>(encoding)) {
+    // CKKS-style Encoding should support everything
+    // (ints via cast to float/double, scalars via replication)
+    return success();
+  }
+
+  // New LWE Encoding Attr
+
+  if (isa<FullCRTPackingEncodingAttr>(encoding)) {
+    // also supports lists of integers and scalars via replication
+    return success(getElementTypeOrSelf(type).isInteger());
+  }
+
+  if (isa<InverseCanonicalEncodingAttr>(encoding)) {
     // CKKS-style Encoding should support everything
     // (ints via cast to float/double, scalars via replication)
     return success();

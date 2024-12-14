@@ -38,9 +38,9 @@ FailureOr<std::string> convertType(Type type, Location loc) {
       .Case<CryptoContextType>(
           [&](auto ty) { return std::string("CryptoContextT"); })
       .Case<CCParamsType>([&](auto ty) { return std::string("CCParamsT"); })
-      .Case<lwe::RLWECiphertextType>(
+      .Case<lwe::NewLWECiphertextType>(
           [&](auto ty) { return std::string("CiphertextT"); })
-      .Case<lwe::RLWEPlaintextType>(
+      .Case<lwe::NewLWEPlaintextType>(
           [&](auto ty) { return std::string("Plaintext"); })
       .Case<openfhe::EvalKeyType>(
           [&](auto ty) { return std::string("EvalKeyT"); })
