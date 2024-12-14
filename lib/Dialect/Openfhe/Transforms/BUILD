@@ -25,8 +25,8 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Analysis/MulDepthAnalysis",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
