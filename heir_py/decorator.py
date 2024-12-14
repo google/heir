@@ -115,6 +115,7 @@ def compile(
     backend: str = "openfhe",
     backend_config: Optional[openfhe_config.OpenFHEConfig] = None,
     heir_config: Optional[_heir_config.HEIRConfig] = None,
+    debug : Optional[bool] = False
 ):
   """Compile a function to its private equivalent in FHE.
 
@@ -135,6 +136,7 @@ def compile(
         func,
         openfhe_config=backend_config or openfhe_config.from_os_env(),
         heir_config=heir_config or _heir_config.from_os_env(),
+        debug = debug
     )
     if backend == "openfhe":
       return OpenfheClientInterface(compilation_result)
