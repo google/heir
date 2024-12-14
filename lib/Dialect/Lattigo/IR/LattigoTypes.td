@@ -6,6 +6,7 @@ include "LattigoAttributes.td"
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinAttributes.td"
 
 // A base class for all types in this dialect
 class Lattigo_Type<string name, string typeMnemonic>

@@ -52,10 +52,12 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
-                RLWEGenKeyPairOp, RLWEEncryptOp, RLWEDecryptOp,
-                BGVNewParametersFromLiteralOp, BGVNewEncoderOp,
+                RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp,
+                RLWEGenGaloisKeyOp, RLWENewEvaluationKeySetOp, RLWEEncryptOp,
+                RLWEDecryptOp, BGVNewParametersFromLiteralOp, BGVNewEncoderOp,
                 BGVNewEvaluatorOp, BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp,
-                BGVAddOp, BGVSubOp, BGVMulOp>(
+                BGVAddOp, BGVSubOp, BGVMulOp, BGVRelinearizeOp, BGVRescaleOp,
+                BGVRotateColumnsOp, BGVRotateRowsOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -181,6 +183,32 @@ LogicalResult LattigoEmitter::printOperation(RLWEGenKeyPairOp op) {
                             "GenKeyPairNew", false);
 }
 
+LogicalResult LattigoEmitter::printOperation(RLWEGenRelinearizationKeyOp op) {
+  return printEvalNewMethod(op.getResult(), op.getKeyGenerator(),
+                            {op.getSecretKey()}, "GenRelinearizationKeyNew",
+                            false);
+}
+
+LogicalResult LattigoEmitter::printOperation(RLWEGenGaloisKeyOp op) {
+  os << getName(op.getResult()) << " := " << getName(op.getKeyGenerator())
+     << ".GenGaloisKeyNew(";
+  os << op.getGaloisElement().getInt() << ", ";
+  os << getName(op.getSecretKey()) << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(RLWENewEvaluationKeySetOp op) {
+  // merge relinearization key and galois key into single value range
+  SmallVector<Value, 4> keys;
+  keys.push_back(op.getRelinearizationKey());
+  for (auto key : op.getGaloisKeys()) {
+    keys.push_back(key);
+  }
+  // EvaluationKeySet is an interface, so we need to use the concrete type
+  return printNewMethod(op.getResult(), keys, "rlwe.NewMemEvaluationKeySet",
+                        false);
+}
+
 LogicalResult LattigoEmitter::printOperation(RLWEEncryptOp op) {
   return printEvalNewMethod(op.getResult(), op.getEncryptor(),
                             {op.getPlaintext()}, "EncryptNew", true);
@@ -198,7 +226,13 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEncoderOp op) {
 
 LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
   os << getName(op.getResult()) << " := " << "bgv.NewEvaluator(";
-  os << getName(op.getParams()) << ", nil)\n";
+  os << getName(op.getParams()) << ", ";
+  if (op.getEvaluationKeySet()) {
+    os << getName(op.getEvaluationKeySet());
+  } else {
+    os << "nil";
+  }
+  os << ")\n";
   return success();
 }
 
@@ -236,6 +270,31 @@ LogicalResult LattigoEmitter::printOperation(BGVMulOp op) {
                             {op.getLhs(), op.getRhs()}, "MulNew", true);
 }
 
+LogicalResult LattigoEmitter::printOperation(BGVRelinearizeOp op) {
+  return printEvalNewMethod(op.getOutput(), op.getEvaluator(), op.getInput(),
+                            "RelinearizeNew", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRescaleOp op) {
+  return printEvalInplaceMethod(op.getOutput(), op.getEvaluator(),
+                                op.getInput(), op.getInput(), "Rescale", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
+  auto errName = getErrName();
+  os << getName(op.getOutput()) << ", " << errName
+     << " := " << getName(op.getEvaluator()) << ".RotateColumnsNew(";
+  os << getName(op.getInput()) << ", ";
+  os << op.getOffset().getInt() << ")\n";
+  printErrPanic(errName);
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRotateRowsOp op) {
+  return printEvalNewMethod(op.getOutput(), op.getEvaluator(), {op.getInput()},
+                            "RotateRowsNew", true);
+}
+
 std::string printDenseI32ArrayAttr(DenseI32ArrayAttr attr) {
   std::string res = "[]int{";
   res += commaSeparated(attr.asArrayRef());
@@ -252,8 +311,8 @@ std::string printDenseU64ArrayAttr(DenseI64ArrayAttr attr) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewParametersFromLiteralOp op) {
-  std::string errResult = ", err";
-  os << getName(op.getResult()) << errResult
+  auto errName = getErrName();
+  os << getName(op.getResult()) << ", " << errName
      << " := bgv.NewParametersFromLiteral(";
   os << "bgv.ParametersLiteral{\n";
   os.indent();
@@ -274,14 +333,14 @@ LogicalResult LattigoEmitter::printOperation(BGVNewParametersFromLiteralOp op) {
      << ",\n";
   os.unindent();
   os << "})\n";
-  printErrPanic();
+  printErrPanic(errName);
   return success();
 }
 
-void LattigoEmitter::printErrPanic() {
-  os << "if err != nil {\n";
+void LattigoEmitter::printErrPanic(std::string_view errName) {
+  os << "if " << errName << " != nil {\n";
   os.indent();
-  os << "panic(err)\n";
+  os << "panic(" << errName << ")\n";
   os.unindent();
   os << "}\n";
 }
@@ -289,13 +348,16 @@ void LattigoEmitter::printErrPanic() {
 LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
                                              ::mlir::ValueRange operands,
                                              std::string_view op, bool err) {
-  std::string errResult = err ? ", err" : "";
+  std::string errName = getErrName();
   os << getName(result);
-  os << errResult << " := " << op << "(";
+  if (err) {
+    os << ", " << errName;
+  }
+  os << " := " << op << "(";
   os << getCommaSeparatedNames(operands);
   os << ")\n";
   if (err) {
-    printErrPanic();
+    printErrPanic(errName);
   }
   return success();
 }
@@ -303,11 +365,14 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
 LogicalResult LattigoEmitter::printEvalInplaceMethod(
     ::mlir::Value result, ::mlir::Value evaluator, ::mlir::Value operand,
     ::mlir::Value operandInplace, std::string_view op, bool err) {
-  std::string errResult = err ? ", err := " : "";
-  os << errResult << getName(evaluator) << "." << op << "(" << getName(operand)
-     << ", " << getName(operandInplace) << ");\n";
+  std::string errName = getErrName();
   if (err) {
-    printErrPanic();
+    os << errName << " := ";
+  }
+  os << getName(evaluator) << "." << op << "(" << getName(operand) << ", "
+     << getName(operandInplace) << ");\n";
+  if (err) {
+    printErrPanic(errName);
   }
   // for inplace operation, operandInplace is actually a pointer in GO
   // so assigning it is not costly, but for lowering pass to Lattigo, they
@@ -321,13 +386,16 @@ LogicalResult LattigoEmitter::printEvalNewMethod(::mlir::ValueRange results,
                                                  ::mlir::ValueRange operands,
                                                  std::string_view op,
                                                  bool err) {
-  std::string errResult = err ? ", err" : "";
+  std::string errName = getErrName();
   os << getCommaSeparatedNames(results);
-  os << errResult << " := " << getName(evaluator) << "." << op << "(";
+  if (err) {
+    os << ", " << errName;
+  }
+  os << " := " << getName(evaluator) << "." << op << "(";
   os << getCommaSeparatedNames(operands);
   os << ")\n";
   if (err) {
-    printErrPanic();
+    printErrPanic(errName);
   }
   return success();
 }
@@ -344,6 +412,12 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           [&](auto ty) { return std::string("*rlwe.PublicKey"); })
       .Case<RLWEKeyGeneratorType>(
           [&](auto ty) { return std::string("*rlwe.KeyGenerator"); })
+      .Case<RLWERelinearizationKeyType>(
+          [&](auto ty) { return std::string("*rlwe.RelinearizationKey"); })
+      .Case<RLWEGaloisKeyType>(
+          [&](auto ty) { return std::string("*rlwe.GaloisKey"); })
+      .Case<RLWEEvaluationKeySetType>(
+          [&](auto ty) { return std::string("*rlwe.EvaluationKeySet"); })
       .Case<RLWEEncryptorType>(
           [&](auto ty) { return std::string("*rlwe.Encryptor"); })
       .Case<RLWEDecryptorType>(
