@@ -4059,6 +4059,33 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;h3 id="rlweencryptortype">RLWEEncryptorType&lt;/h3>
 &lt;p>Syntax: &lt;code>!lattigo.rlwe.encryptor&lt;/code>&lt;/p>
 &lt;p>This type represents the encryptor for the RLWE encryption scheme.&lt;/p>
+&lt;h3 id="rlweevaluationkeysettype">RLWEEvaluationKeySetType&lt;/h3>
+&lt;p>Syntax: &lt;code>!lattigo.rlwe.evaluation_key_set&lt;/code>&lt;/p>
+&lt;p>This type represents the evaluation key set for the RLWE encryption scheme.&lt;/p>
+&lt;h3 id="rlwegaloiskeytype">RLWEGaloisKeyType&lt;/h3>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lattigo.rlwe.galois_key&amp;lt;
+::mlir::IntegerAttr # galoisElement
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This type represents the Galois key for the RLWE encryption scheme.&lt;/p>
+&lt;p>galoisElement: Enabling the automorphism X -&amp;gt; X^{galoisElement}.&lt;/p>
+&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">galoisElement&lt;/td>
+&lt;td style="text-align:center">&lt;code>::mlir::IntegerAttr&lt;/code>&lt;/td>
+&lt;td>An Attribute containing a integer value&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="rlwekeygeneratortype">RLWEKeyGeneratorType&lt;/h3>
 &lt;p>Syntax: &lt;code>!lattigo.rlwe.key_generator&lt;/code>&lt;/p>
 &lt;p>This type represents the key generator for the RLWE encryption scheme.&lt;/p>
@@ -4068,6 +4095,9 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;h3 id="rlwepublickeytype">RLWEPublicKeyType&lt;/h3>
 &lt;p>Syntax: &lt;code>!lattigo.rlwe.public_key&lt;/code>&lt;/p>
 &lt;p>This type represents the public key for the RLWE encryption scheme.&lt;/p>
+&lt;h3 id="rlwerelinearizationkeytype">RLWERelinearizationKeyType&lt;/h3>
+&lt;p>Syntax: &lt;code>!lattigo.rlwe.relinearization_key&lt;/code>&lt;/p>
+&lt;p>This type represents the relinearization key for the RLWE encryption scheme.&lt;/p>
 &lt;h3 id="rlwesecretkeytype">RLWESecretKeyType&lt;/h3>
 &lt;p>Syntax: &lt;code>!lattigo.rlwe.secret_key&lt;/code>&lt;/p>
 &lt;p>This type represents the secret key for the RLWE encryption scheme.&lt;/p>
@@ -4285,6 +4315,10 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_evaluator` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new evaluator for performing operations on ciphertexts in the Lattigo BGV dialect.&lt;/p>
+&lt;p>By default, the evaluator is created with the provided parameters and could execute
+operations which does not relying on evaluation keys.&lt;/p>
+&lt;p>To support operations that require evaluation keys,
+the optional evaluation key set should be provided.&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4296,6 +4330,10 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>params&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluationKeySet&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -4375,12 +4413,176 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigobgvrelinearize-heirlattigobgvrelinearizeop">&lt;code>lattigo.bgv.relinearize&lt;/code> (heir::lattigo::BGVRelinearizeOp)&lt;/h3>
+&lt;p>&lt;em>Relinearize a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.relinearize` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation relinearizes a ciphertext value in the Lattigo BGV dialect.&lt;/p>
+&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lattigobgvrescale-heirlattigobgvrescaleop">&lt;code>lattigo.bgv.rescale&lt;/code> (heir::lattigo::BGVRescaleOp)&lt;/h3>
+&lt;p>&lt;em>Rescale a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rescale` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation rescales a ciphertext value in the Lattigo BGV dialect.&lt;/p>
+&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lattigobgvrotate_columns-heirlattigobgvrotatecolumnsop">&lt;code>lattigo.bgv.rotate_columns&lt;/code> (heir::lattigo::BGVRotateColumnsOp)&lt;/h3>
+&lt;p>&lt;em>Rotate columns of a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_columns` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.&lt;/p>
+&lt;p>offset is valid in (-N/2, N/2).&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lattigobgvrotate_rows-heirlattigobgvrotaterowsop">&lt;code>lattigo.bgv.rotate_rows&lt;/code> (heir::lattigo::BGVRotateRowsOp)&lt;/h3>
+&lt;p>&lt;em>Rotate rows of a ciphertext in the Lattigo BGV dialect&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_rows` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation swap the rows of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where 2 is the row.&lt;/p>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-11">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigobgvsub-heirlattigobgvsubop">&lt;code>lattigo.bgv.sub&lt;/code> (heir::lattigo::BGVSubOp)&lt;/h3>
 &lt;p>&lt;em>Subtract two ciphertexts in the Lattigo BGV dialect&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.sub` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation subtracts one ciphertext value from another in the Lattigo BGV dialect.&lt;/p>
-&lt;h4 id="operands-7">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4403,7 +4605,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-8">Results:&lt;/h4>
+&lt;h4 id="results-12">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4423,7 +4625,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.decrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decrypts a ciphertext using RLWE&lt;/p>
-&lt;h4 id="operands-8">Operands:&lt;/h4>
+&lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4442,7 +4644,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-13">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4462,7 +4664,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.encrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encrypts a plaintext using RLWE&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-13">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4481,7 +4683,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-14">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4496,12 +4698,57 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigorlwegen_galois_key-heirlattigorlwegengaloiskeyop">&lt;code>lattigo.rlwe.gen_galois_key&lt;/code> (heir::lattigo::RLWEGenGaloisKeyOp)&lt;/h3>
+&lt;p>&lt;em>Generates a new RLWE Galois key&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_galois_key` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE Galois key&lt;/p>
+&lt;p>galoisElement: Enabling the automorphism X -&amp;gt; X^{galoisElement}.&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>galoisElement&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-14">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>keyGenerator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>secretKey&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-15">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>galoisKey&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigorlwegen_key_pair-heirlattigorlwegenkeypairop">&lt;code>lattigo.rlwe.gen_key_pair&lt;/code> (heir::lattigo::RLWEGenKeyPairOp)&lt;/h3>
 &lt;p>&lt;em>Generates a new RLWE key pair&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_key_pair` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key pair&lt;/p>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-15">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4516,7 +4763,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-11">Results:&lt;/h4>
+&lt;h4 id="results-16">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4535,12 +4782,51 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigorlwegen_relinearization_key-heirlattigorlwegenrelinearizationkeyop">&lt;code>lattigo.rlwe.gen_relinearization_key&lt;/code> (heir::lattigo::RLWEGenRelinearizationKeyOp)&lt;/h3>
+&lt;p>&lt;em>Generates a new RLWE relinearization key&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_relinearization_key` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE relinearization key&lt;/p>
+&lt;h4 id="operands-16">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>keyGenerator&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>secretKey&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-17">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>relinearizationKey&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigorlwenew_decryptor-heirlattigorlwenewdecryptorop">&lt;code>lattigo.rlwe.new_decryptor&lt;/code> (heir::lattigo::RLWENewDecryptorOp)&lt;/h3>
 &lt;p>&lt;em>Creates a new RLWE decryptor&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_decryptor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE decryptor&lt;/p>
-&lt;h4 id="operands-11">Operands:&lt;/h4>
+&lt;h4 id="operands-17">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4559,7 +4845,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-12">Results:&lt;/h4>
+&lt;h4 id="results-18">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4579,7 +4865,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_encryptor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE encryptor&lt;/p>
-&lt;h4 id="operands-12">Operands:&lt;/h4>
+&lt;h4 id="operands-18">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4598,7 +4884,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-13">Results:&lt;/h4>
+&lt;h4 id="results-19">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4613,12 +4899,51 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigorlwenew_evaluation_key_set-heirlattigorlwenewevaluationkeysetop">&lt;code>lattigo.rlwe.new_evaluation_key_set&lt;/code> (heir::lattigo::RLWENewEvaluationKeySetOp)&lt;/h3>
+&lt;p>&lt;em>Generates a new RLWE evaluation key set&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_evaluation_key_set` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE evaluation key set&lt;/p>
+&lt;h4 id="operands-19">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>relinearizationKey&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>galoisKeys&lt;/code>&lt;/td>
+&lt;td>variadic of&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-20">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluationKeySet&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigorlwenew_key_generator-heirlattigorlwenewkeygeneratorop">&lt;code>lattigo.rlwe.new_key_generator&lt;/code> (heir::lattigo::RLWENewKeyGeneratorOp)&lt;/h3>
 &lt;p>&lt;em>Generates a new RLWE key generator&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_key_generator` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key generator&lt;/p>
-&lt;h4 id="operands-13">Operands:&lt;/h4>
+&lt;h4 id="operands-20">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4633,7 +4958,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-14">Results:&lt;/h4>
+&lt;h4 id="results-21">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
