@@ -94,8 +94,9 @@ def from_os_env(debug=False) -> OpenFHEConfig:
       print(f"Warning: include directory {include_dir} does not exist")
 
   return OpenFHEConfig(
-      include_dirs=include_dirs,
-      lib_dir=lib_dir,
-      link_libs=link_libs,
+      include_dirs=include_dirs
+      or DEFAULT_INSTALLED_OPENFHE_CONFIG.include_dirs,
+      lib_dir=lib_dir or DEFAULT_INSTALLED_OPENFHE_CONFIG.lib_dir,
+      link_libs=link_libs or DEFAULT_INSTALLED_OPENFHE_CONFIG.link_libs,
       include_type=os.environ.get("OPENFHE_INCLUDE_TYPE", "install-relative"),
   )
