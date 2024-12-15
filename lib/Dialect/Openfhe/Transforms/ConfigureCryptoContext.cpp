@@ -56,9 +56,23 @@ SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
   return rotIndicesResult;
 }
 
+// Helper function to check if the function has BootstrapOp
+bool hasBootstrapOp(func::FuncOp op) {
+  bool result = false;
+  op.walk<WalkOrder::PreOrder>([&](Operation *op) {
+    if (isa<openfhe::BootstrapOp>(op)) {
+      result = true;
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+  return result;
+}
+
 // function that generates the crypto context with proper parameters
 LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
-                              int64_t mulDepth, ImplicitLocOpBuilder &builder) {
+                              int64_t mulDepth, bool hasBootstrapOp,
+                              bool insecure, ImplicitLocOpBuilder &builder) {
   Type openfheContextType =
       openfhe::CryptoContextType::get(builder.getContext());
   SmallVector<Type> funcArgTypes;
@@ -73,21 +87,21 @@ LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
   // TODO(#661) : Calculate the appropriate values by analyzing the function
   int64_t plainMod = 4295294977;
   Type openfheParamsType = openfhe::CCParamsType::get(builder.getContext());
-  Value ccParams = builder.create<openfhe::GenParamsOp>(openfheParamsType,
-                                                        mulDepth, plainMod);
-  Value cryptoContext =
-      builder.create<openfhe::GenContextOp>(openfheContextType, ccParams);
+  Value ccParams = builder.create<openfhe::GenParamsOp>(
+      openfheParamsType, mulDepth, plainMod, insecure);
+  Value cryptoContext = builder.create<openfhe::GenContextOp>(
+      openfheContextType, ccParams,
+      BoolAttr::get(builder.getContext(), hasBootstrapOp));
 
   builder.create<func::ReturnOp>(cryptoContext);
   return success();
 }
 
 // function that configures the crypto context with proper keygeneration
-LogicalResult generateConfigFunc(func::FuncOp op,
-                                 const std::string &configFuncName,
-                                 bool hasRelinOp,
-                                 SmallVector<int64_t> rotIndices,
-                                 ImplicitLocOpBuilder &builder) {
+LogicalResult generateConfigFunc(
+    func::FuncOp op, const std::string &configFuncName, bool hasRelinOp,
+    SmallVector<int64_t> rotIndices, bool hasBootstrapOp, int levelBudgetEncode,
+    int levelBudgetDecode, ImplicitLocOpBuilder &builder) {
   Type openfheContextType =
       openfhe::CryptoContextType::get(builder.getContext());
   Type privateKeyType = openfhe::PrivateKeyType::get(builder.getContext());
@@ -108,18 +122,28 @@ LogicalResult generateConfigFunc(func::FuncOp op,
   Value cryptoContext = configFuncOp.getArgument(0);
   Value privateKey = configFuncOp.getArgument(1);
 
-  if (hasRelinOp) {
+  if (hasRelinOp || hasBootstrapOp) {
     builder.create<openfhe::GenMulKeyOp>(cryptoContext, privateKey);
   }
   if (!rotIndices.empty()) {
     builder.create<openfhe::GenRotKeyOp>(cryptoContext, privateKey, rotIndices);
+  }
+  if (hasBootstrapOp) {
+    builder.create<openfhe::SetupBootstrapOp>(
+        cryptoContext,
+        IntegerAttr::get(IndexType::get(builder.getContext()),
+                         levelBudgetEncode),
+        IntegerAttr::get(IndexType::get(builder.getContext()),
+                         levelBudgetDecode));
+    builder.create<openfhe::GenBootstrapKeyOp>(cryptoContext, privateKey);
   }
 
   builder.create<func::ReturnOp>(cryptoContext);
   return success();
 }
 
-LogicalResult convertFunc(func::FuncOp op) {
+LogicalResult convertFunc(func::FuncOp op, int levelBudgetEncode,
+                          int levelBudgetDecode, bool insecure) {
   auto module = op->getParentOfType<ModuleOp>();
   std::string genFuncName("");
   llvm::raw_string_ostream genNameOs(genFuncName);
@@ -146,7 +170,16 @@ LogicalResult convertFunc(func::FuncOp op) {
     }
   }
 
-  if (failed(generateGenFunc(op, genFuncName, mulDepth, builder))) {
+  bool hasBootstrapOpResult = hasBootstrapOp(op);
+  // TODO(#1207): determine mulDepth earlier in mgmt level
+  // approxModDepth = 14, this solely depends on secretKeyDist
+  // here we use the value for UNIFORM_TERNARY
+  int bootstrapDepth = levelBudgetEncode + 14 + levelBudgetDecode;
+  if (hasBootstrapOpResult) {
+    mulDepth += bootstrapDepth;
+  }
+  if (failed(generateGenFunc(op, genFuncName, mulDepth, hasBootstrapOpResult,
+                             insecure, builder))) {
     return failure();
   }
 
@@ -155,7 +188,9 @@ LogicalResult convertFunc(func::FuncOp op) {
   bool hasRelinOpResult = hasRelinOp(op);
   SmallVector<int64_t> rotIndices = findAllRotIndices(op);
   if (failed(generateConfigFunc(op, configFuncName, hasRelinOpResult,
-                                rotIndices, builder))) {
+                                rotIndices, hasBootstrapOpResult,
+                                levelBudgetEncode, levelBudgetDecode,
+                                builder))) {
     return failure();
   }
   return success();
@@ -169,7 +204,9 @@ struct ConfigureCryptoContext
     auto result =
         getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
           auto funcName = op.getSymName();
-          if ((funcName == entryFunction) && failed(convertFunc(op))) {
+          if ((funcName == entryFunction) &&
+              failed(convertFunc(op, levelBudgetEncode, levelBudgetDecode,
+                                 insecure))) {
             op->emitError("Failed to configure the crypto context for func");
             return WalkResult::interrupt();
           }

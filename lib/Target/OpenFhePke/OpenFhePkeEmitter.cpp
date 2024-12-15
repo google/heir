@@ -96,7 +96,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
                 SquareOp, NegateOp, MulConstOp, RelinOp, ModReduceOp,
                 LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp, EncryptOp,
                 DecryptOp, GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp,
-                MakePackedPlaintextOp, MakeCKKSPackedPlaintextOp>(
+                GenBootstrapKeyOp, MakePackedPlaintextOp,
+                MakeCKKSPackedPlaintextOp, SetupBootstrapOp, BootstrapOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -315,6 +316,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(AutomorphOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(KeySwitchOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getCiphertext(), op.getEvalKey()}, "KeySwitch");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(BootstrapOp op) {
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext()}, "EvalBootstrap");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
@@ -679,6 +685,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
   os << "CCParamsT " << paramsName << ";\n";
   os << paramsName << ".SetMultiplicativeDepth(" << mulDepth << ");\n";
   os << paramsName << ".SetPlaintextModulus(" << plainMod << ");\n";
+  if (op.getInsecure()) {
+    os << paramsName << ".SetSecurityLevel(lbcrypto::HEStd_NotSet);\n";
+    os << paramsName << ".SetRingDim(128);\n";
+  }
   return success();
 }
 
@@ -691,6 +701,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenContextOp op) {
   os << contextName << "->Enable(PKE);\n";
   os << contextName << "->Enable(KEYSWITCH);\n";
   os << contextName << "->Enable(LEVELEDSHE);\n";
+  if (op.getSupportFHE()) {
+    os << contextName << "->Enable(ADVANCEDSHE);\n";
+    os << contextName << "->Enable(FHE);\n";
+  }
   return success();
 }
 
@@ -711,6 +725,26 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenRotKeyOp op) {
 
   os << contextName << "->EvalRotateKeyGen(" << privateKeyName << ", {";
   os << llvm::join(rotIndices, ", ");
+  os << "});\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(GenBootstrapKeyOp op) {
+  auto contextName = variableNames->getNameForValue(op.getCryptoContext());
+  auto privateKeyName = variableNames->getNameForValue(op.getPrivateKey());
+  // compiler can not determine slot num for now
+  // full packing for CKKS, as we currently always full packing
+  os << "auto numSlots = " << contextName << "->GetRingDimension() / 2;\n";
+  os << contextName << "->EvalBootstrapKeyGen(" << privateKeyName
+     << ", numSlots);\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(SetupBootstrapOp op) {
+  auto contextName = variableNames->getNameForValue(op.getCryptoContext());
+  os << contextName << "->EvalBootstrapSetup({";
+  os << op.getLevelBudgetEncode().getValue() << ", ";
+  os << op.getLevelBudgetDecode().getValue();
   os << "});\n";
   return success();
 }

@@ -50,14 +50,16 @@ class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
 def GenParamsOp : Openfhe_Op<"gen_params"> {
   let arguments = (ins
     I64Attr:$mulDepth,
-    I64Attr:$plainMod
+    I64Attr:$plainMod,
+    BoolAttr:$insecure
   );
   let results = (outs Openfhe_CCParams:$params);
 }
 
 def GenContextOp : Openfhe_Op<"gen_context"> {
   let arguments = (ins
-    Openfhe_CCParams:$params
+    Openfhe_CCParams:$params,
+    BoolAttr:$supportFHE
   );
   let results = (outs Openfhe_CryptoContext:$context);
 }
@@ -74,6 +76,21 @@ def GenRotKeyOp : Openfhe_Op<"gen_rotkey"> {
     Openfhe_CryptoContext:$cryptoContext,
     Openfhe_PrivateKey:$privateKey,
     DenseI64ArrayAttr:$indices
+  );
+}
+
+def SetupBootstrapOp : Openfhe_Op<"setup_bootstrap"> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Builtin_IntegerAttr:$levelBudgetEncode,
+    Builtin_IntegerAttr:$levelBudgetDecode
+  );
+}
+
+def GenBootstrapKeyOp : Openfhe_Op<"gen_bootstrapkey"> {
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    Openfhe_PrivateKey:$privateKey
   );
 }
 
@@ -207,5 +224,7 @@ def KeySwitchOp : Openfhe_Op<"key_switch", [
   );
   let results = (outs NewLWECiphertext:$output);
 }
+
+def BootstrapOp : Openfhe_UnaryTypeSwitchOp<"bootstrap"> { let summary = "OpenFHE bootstrap operation of a ciphertext. (For CKKS)"; }
 
 #endif  // LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_TD_

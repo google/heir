@@ -25,6 +25,7 @@
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 
 !pk = !openfhe.public_key
+!sk = !openfhe.private_key
 !ek = !openfhe.eval_key
 !cc = !openfhe.crypto_context
 !ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
@@ -148,6 +149,24 @@ module {
   func.func @test_level_reduce(%cc : !cc, %pt : !pt, %pk3 : !pk) {
     %ct = openfhe.encrypt %cc, %pt, %pk3 : (!cc, !pt, !pk) -> !ct
     %out = openfhe.level_reduce %cc, %ct: (!cc, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_bootstrap
+  func.func @test_bootstrap(%cc : !cc, %ct : !ct) {
+    %out = openfhe.bootstrap %cc, %ct: (!cc, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_gen_bootstrap_key
+  func.func @test_gen_bootstrap_key(%cc : !cc, %sk : !sk) {
+    openfhe.gen_bootstrapkey %cc, %sk: (!cc, !sk) -> ()
+    return
+  }
+
+  // CHECK-LABEL: func @test_setup_bootstrap
+  func.func @test_setup_bootstrap(%cc : !cc) {
+    openfhe.setup_bootstrap %cc {levelBudgetEncode = 3, levelBudgetDecode = 3}: (!cc) -> ()
     return
   }
 }
