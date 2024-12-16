@@ -20,7 +20,7 @@ namespace arith {
 #define GEN_PASS_DEF_EMUWIDEINTH
 #include "lib/Dialect/Arith/Transforms/Passes.h.inc"
 
-static constexpr unsigned maxIntWidth = 8;
+static constexpr unsigned maxIntWidth = 16;
 
 class EmuWideTypeConverter : public TypeConverter {
  public:
@@ -34,7 +34,7 @@ class EmuWideTypeConverter : public TypeConverter {
       if (width <= maxIntWidth) return ty;
 
       // i2N --> vector<2xiN>
-      if (width == 4 * maxIntWidth)
+      if (width == 2 * maxIntWidth)
         return RankedTensorType::get(
             4, IntegerType::get(ty.getContext(), maxIntWidth));
 
@@ -50,7 +50,7 @@ class EmuWideTypeConverter : public TypeConverter {
       if (width <= maxIntWidth) return ty;
 
       // vector<...xi2N> --> vector<...x2xiN>
-      if (width == 4 * maxIntWidth) {
+      if (width == 2 * maxIntWidth) {
         auto newShape = to_vector(ty.getShape());
         newShape.push_back(4);
         return RankedTensorType::get(
