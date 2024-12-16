@@ -2,7 +2,7 @@
 #define LIB_DIALECT_MGMT_IR_MGMTATTRIBUTES_TD_
 
 include "lib/Dialect/Mgmt/IR/MgmtDialect.td"
-include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/OpBase.td"
 
 class Mgmt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<Mgmt_Dialect, name, traits> {

@@ -2,7 +2,8 @@
 #define LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALATTRIBUTES_TD_
 
 include "lib/Dialect/Polynomial/IR/PolynomialDialect.td"
-include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/IR/OpBase.td"
 
 class Polynomial_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<Polynomial_Dialect, name, traits> {
