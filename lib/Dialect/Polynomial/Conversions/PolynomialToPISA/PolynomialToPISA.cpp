@@ -37,8 +37,15 @@ struct ConvertAddOp : public OpConversionPattern<polynomial::AddOp> {
       ConversionPatternRewriter &rewriter) const override {
     auto polynomialType =
         llvm::cast<polynomial::PolynomialType>(op.getResult().getType());
-    auto q = rewriter.getI32IntegerAttr(
-        polynomialType.getRing().getCoefficientModulus().getInt());
+
+    auto modArithType = dyn_cast<mod_arith::ModArithType>(
+        polynomialType.getRing().getCoefficientType());
+    if (!modArithType) {
+      op.emitOpError() << "Expected Polynomial's coefficient type to be "
+                          "mod_arith type when lowering to PISA.";
+      return failure();
+    }
+    auto q = rewriter.getI32IntegerAttr(modArithType.getModulus().getInt());
     // TODO: add RNS support
     auto i = rewriter.getI32IntegerAttr(0);
     rewriter.replaceOpWithNewOp<pisa::AddOp>(op, adaptor.getLhs(),
