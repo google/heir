@@ -22,11 +22,11 @@
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -41,7 +41,7 @@
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -63,11 +63,11 @@
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -82,7 +82,7 @@
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -112,7 +112,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>offset&lt;/code>&lt;/td>
@@ -131,7 +131,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -155,7 +155,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -170,7 +170,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -192,11 +192,11 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -211,7 +211,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -233,11 +233,11 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -252,7 +252,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -274,7 +274,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -289,7 +289,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -322,7 +322,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -337,7 +337,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -364,7 +364,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -379,7 +379,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -401,11 +401,11 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -420,7 +420,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -442,11 +442,11 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -461,7 +461,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: CGGI</title><link>https://heir.dev/docs/dialects/cggi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/cggi/</guid><description>
@@ -1853,11 +1853,11 @@ otherwise.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1872,7 +1872,7 @@ otherwise.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1894,11 +1894,11 @@ otherwise.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1913,7 +1913,7 @@ otherwise.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1941,7 +1941,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>offset&lt;/code>&lt;/td>
@@ -1960,7 +1960,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1982,11 +1982,11 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2001,7 +2001,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2023,11 +2023,11 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2042,7 +2042,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2064,7 +2064,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2079,7 +2079,7 @@ that tensor type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2113,7 +2113,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2128,7 +2128,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2155,7 +2155,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2170,7 +2170,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2197,7 +2197,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2212,7 +2212,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2233,11 +2233,11 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2252,7 +2252,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2274,11 +2274,11 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2293,7 +2293,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Comb</title><link>https://heir.dev/docs/dialects/comb/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/comb/</guid><description>
@@ -4975,8 +4975,6 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/table></description></item><item><title>Docs: LWE</title><link>https://heir.dev/docs/dialects/lwe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/lwe/</guid><description>
 &lt;h2 id="lwe-attributes">LWE attributes&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="plaintextencodingattr">PlaintextEncodingAttr&lt;/h3>
-&lt;p>Syntax: &lt;code>#lwe.plaintext_encoding&lt;/code>&lt;/p>
 &lt;h3 id="applicationdataattr">ApplicationDataAttr&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>#lwe.application_data&amp;lt;
@@ -5452,7 +5450,7 @@ multiplication and rescaling.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">encoding&lt;/td>
 &lt;td style="text-align:center">&lt;code>Attribute&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>An encoding of a scalar in the constant coefficient or An encoding of cleartexts directly as coefficients. or An encoding of cleartexts via the inverse canonical embedding. or An encoding of cleartexts via CRT slots.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6193,11 +6191,11 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6212,7 +6210,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6226,7 +6224,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded RLWE plaintexts via coefficients. or An attribute describing encoded RLWE plaintexts via evaluations at fixed points. or An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An encoding of a scalar in the constant coefficient or An encoding of cleartexts directly as coefficients. or An encoding of cleartexts via the inverse canonical embedding. or An encoding of cleartexts via CRT slots.&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
@@ -6240,7 +6238,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6278,11 +6276,11 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>secret_key&lt;/code>&lt;/td>
-&lt;td>A secret key for RLWE&lt;/td>
+&lt;td>A secret key for LWE&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6297,7 +6295,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6318,7 +6316,7 @@ applied.&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded RLWE plaintexts via coefficients. or An attribute describing encoded RLWE plaintexts via evaluations at fixed points. or An attribute describing encoded RLWE plaintexts via the rounded inverse canonical embedding.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An encoding of a scalar in the constant coefficient or An encoding of cleartexts directly as coefficients. or An encoding of cleartexts via the inverse canonical embedding. or An encoding of cleartexts via CRT slots.&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
@@ -6347,7 +6345,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6370,11 +6368,11 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>key&lt;/code>&lt;/td>
-&lt;td>A secret key for RLWE or A public key for RLWE&lt;/td>
+&lt;td>A secret key for LWE or A public key for LWE&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6389,7 +6387,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6411,11 +6409,11 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6430,7 +6428,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6452,7 +6450,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6467,7 +6465,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6489,11 +6487,11 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6508,7 +6506,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6575,7 +6573,7 @@ does not keep track of types for you.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6590,7 +6588,7 @@ does not keep track of types for you.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Mgmt</title><link>https://heir.dev/docs/dialects/mgmt/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/mgmt/</guid><description>
@@ -8477,11 +8475,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8496,7 +8494,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8522,11 +8520,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8541,7 +8539,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8566,7 +8564,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>evalKey&lt;/code>&lt;/td>
@@ -8585,7 +8583,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8610,7 +8608,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>privateKey&lt;/code>&lt;/td>
@@ -8629,7 +8627,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8654,7 +8652,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>publicKey&lt;/code>&lt;/td>
@@ -8673,7 +8671,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8806,7 +8804,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>evalKey&lt;/code>&lt;/td>
@@ -8825,7 +8823,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8851,7 +8849,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8866,7 +8864,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8906,7 +8904,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8946,7 +8944,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8972,7 +8970,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8987,7 +8985,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9013,7 +9011,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>constant&lt;/code>&lt;/td>
@@ -9032,7 +9030,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9058,11 +9056,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9077,7 +9075,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9103,11 +9101,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9122,7 +9120,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9148,11 +9146,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9167,7 +9165,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9193,7 +9191,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9208,7 +9206,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9234,7 +9232,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9249,7 +9247,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9279,7 +9277,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9294,7 +9292,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9320,7 +9318,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9335,7 +9333,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9361,11 +9359,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9380,7 +9378,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for RLWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Polynomial</title><link>https://heir.dev/docs/dialects/polynomial/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/polynomial/</guid><description>
