@@ -6,5 +6,9 @@ glob_lit_tests(
     name = "all_tests",
     data = ["@heir//tests:test_utilities"],
     driver = "@heir//tests:run_lit.sh",
+    # TODO(#1199): support RNS lowering
+    exclude = [
+        "to_polynomial.mlir",
+    ],
     test_file_exts = ["mlir"],
 )

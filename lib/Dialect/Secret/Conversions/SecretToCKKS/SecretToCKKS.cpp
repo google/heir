@@ -128,15 +128,34 @@ class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
     auto dimension = mgmtAttr.getDimension();
 
     Type valueTy = type.getValueType();
-    int bitWidth = getElementTypeOrSelf(valueTy).getIntOrFloatBitWidth();
+
+    auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
+        type.getContext(),
+        mod_arith::ModArithType::get(
+            ctx, IntegerAttr::get(IntegerType::get(ctx, 64), 65537)),
+        ring_.getPolynomialModulus());
+
+    SmallVector<IntegerAttr, 6> moduliChain;
+    for (auto modArithType :
+         cast<rns::RNSType>(ring_.getCoefficientType()).getBasisTypes()) {
+      auto modulus = cast<mod_arith::ModArithType>(modArithType).getModulus();
+      moduliChain.push_back(modulus);
+    }
+
     // TODO(#785): Set a scaling parameter for floating point values.
-    auto ciphertext = lwe::RLWECiphertextType::get(
+    auto ciphertext = lwe::NewLWECiphertextType::get(
         ctx,
-        lwe::InverseCanonicalEmbeddingEncodingAttr::get(ctx, bitWidth,
-                                                        bitWidth),
-        lwe::RLWEParamsAttr::get(ctx, dimension,
-                                 getRlweRNSRingWithLevel(ring_, level)),
-        valueTy);
+        lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
+                                      lwe::NoOverflowAttr::get(ctx)),
+        lwe::PlaintextSpaceAttr::get(
+            ctx, plaintextRing,
+            lwe::InverseCanonicalEncodingAttr::get(ctx, 1 << 10)),
+        lwe::CiphertextSpaceAttr::get(ctx,
+                                      getRlweRNSRingWithLevel(ring_, level),
+                                      lwe::LweEncryptionType::lsb, dimension),
+        lwe::KeyAttr::get(ctx, 0),
+        lwe::ModulusChainAttr::get(ctx, moduliChain, level));
+
     // Return a single ciphertext if inputs are packed into a single
     // ciphertext SIMD slot or the secret value type is a scalar.
     if (this->packTensorInSlots_ || !isa<TensorType>(valueTy)) {
@@ -147,9 +166,13 @@ class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
     // into tensors of RLWE ciphertexts.
     assert(dyn_cast<RankedTensorType>(valueTy) &&
            "expected ranked tensor type");
-    ciphertext = lwe::RLWECiphertextType::get(
-        ctx, ciphertext.getEncoding(), ciphertext.getRlweParams(),
-        cast<RankedTensorType>(valueTy).getElementType());
+    auto scalarType = cast<RankedTensorType>(valueTy).getElementType();
+    ciphertext = lwe::NewLWECiphertextType::get(
+        ctx,
+        lwe::ApplicationDataAttr::get(ctx, scalarType,
+                                      lwe::NoOverflowAttr::get(ctx)),
+        ciphertext.getPlaintextSpace(), ciphertext.getCiphertextSpace(),
+        ciphertext.getKey(), ciphertext.getModulusChain());
     return RankedTensorType::get(cast<RankedTensorType>(valueTy).getShape(),
                                  ciphertext);
   }
@@ -182,7 +205,7 @@ class SecretGenericTensorExtractConversion
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
     auto inputTy = inputs[0].getType();
-    if (!isa<lwe::RLWECiphertextType>(getElementTypeOrSelf(inputTy))) {
+    if (!isa<lwe::NewLWECiphertextType>(getElementTypeOrSelf(inputTy))) {
       return failure();
     }
     if (isa<RankedTensorType>(inputTy)) {
@@ -198,9 +221,9 @@ class SecretGenericTensorExtractConversion
     // For now, if there we are extracting a multi-dimensional tensor with
     // only one non-unit dimension stored in a single ciphertext along that
     // dimension, then extract on the index of the non-unit dimension.
-    auto lweCiphertextInputTy = cast<lwe::RLWECiphertextType>(inputTy);
-    auto underlyingTy =
-        cast<RankedTensorType>(lweCiphertextInputTy.getUnderlyingType());
+    auto lweCiphertextInputTy = cast<lwe::NewLWECiphertextType>(inputTy);
+    auto underlyingTy = cast<RankedTensorType>(
+        lweCiphertextInputTy.getApplicationData().getMessageType());
     auto nonUnitDim = getNonUnitDimension(underlyingTy);
     if (failed(nonUnitDim)) {
       return failure();
@@ -224,7 +247,7 @@ class SecretGenericTensorInsertConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
-    if (!isa<lwe::RLWECiphertextType>(inputs[0].getType())) {
+    if (!isa<lwe::NewLWECiphertextType>(inputs[0].getType())) {
       op.emitError()
           << "expected scalar to insert to be of type RLWE ciphertext"
           << inputs[0].getType();

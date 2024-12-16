@@ -38,7 +38,7 @@ LogicalResult ConvertEncryptOp::matchAndRewrite(
   FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
   if (failed(result)) return result;
 
-  auto keyType = dyn_cast<lwe::RLWEPublicKeyType>(op.getKey().getType());
+  auto keyType = dyn_cast<lwe::NewLWEPublicKeyType>(op.getKey().getType());
   if (!keyType)
     return op.emitError()
            << "OpenFHE only supports public key encryption for LWE.";
@@ -126,9 +126,12 @@ LogicalResult ConvertEncodeOp::matchAndRewrite(
     }
   }
 
-  lwe::RLWEPlaintextType plaintextType =
-      lwe::RLWEPlaintextType::get(op.getContext(), op.getEncoding(),
-                                  op.getRing(), adaptor.getInput().getType());
+  lwe::NewLWEPlaintextType plaintextType = lwe::NewLWEPlaintextType::get(
+      op.getContext(),
+      lwe::ApplicationDataAttr::get(adaptor.getInput().getType(),
+                                    lwe::NoOverflowAttr::get(getContext())),
+      lwe::PlaintextSpaceAttr::get(getContext(), op.getRing(),
+                                   op.getEncoding()));
   if (this->ckks_) {
     rewriter.replaceOpWithNewOp<openfhe::MakeCKKSPackedPlaintextOp>(
         op, plaintextType, cryptoContext, input);

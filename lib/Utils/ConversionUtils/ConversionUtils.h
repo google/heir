@@ -251,7 +251,7 @@ class SecretGenericOpCipherConversion : public SecretGenericOpConversion<T, Y> {
       ConversionPatternRewriter &rewriter) const override {
     // Check that all inputs are ciphertext.
     if (!llvm::all_of(inputs, [&](Value input) {
-          return isa<lwe::RLWECiphertextType>(input.getType());
+          return isa<lwe::NewLWECiphertextType>(input.getType());
         })) {
       return failure();
     }
@@ -272,13 +272,13 @@ class SecretGenericOpCipherPlainConversion
       ConversionPatternRewriter &rewriter) const override {
     auto ciphertextValues =
         llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
-          return isa<lwe::RLWECiphertextType>(input.getType());
+          return isa<lwe::NewLWECiphertextType>(input.getType());
         }));
     if (ciphertextValues.size() != 1) {
       return failure();
     }
     auto ciphertext =
-        dyn_cast<TypedValue<lwe::RLWECiphertextType>>(ciphertextValues[0]);
+        dyn_cast<TypedValue<lwe::NewLWECiphertextType>>(ciphertextValues[0]);
     if (!ciphertext) {
       return failure();
     }
@@ -286,19 +286,20 @@ class SecretGenericOpCipherPlainConversion
     auto cleartextValues =
         llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
           // The cleartext value could be a tensor of values or a scalar.
-          return !isa<lwe::RLWECiphertextType>(input.getType());
+          return !isa<lwe::NewLWECiphertextType>(input.getType());
         }));
     if (cleartextValues.size() != 1) {
       return failure();
     }
     Value cleartext = cleartextValues[0];
-    auto ciphertextTy = ciphertext.getType();
-    auto plaintextTy = lwe::RLWEPlaintextType::get(
-        op.getContext(), ciphertextTy.getEncoding(),
-        ciphertextTy.getRlweParams().getRing(), cleartext.getType());
+    lwe::NewLWECiphertextType ciphertextTy = ciphertext.getType();
+    auto plaintextTy = lwe::NewLWEPlaintextType::get(
+        op.getContext(), ciphertextTy.getApplicationData(),
+        ciphertextTy.getPlaintextSpace());
     auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
-        op.getLoc(), plaintextTy, cleartext, ciphertextTy.getEncoding(),
-        ciphertextTy.getRlweParams().getRing());
+        op.getLoc(), plaintextTy, cleartext,
+        ciphertextTy.getPlaintextSpace().getEncoding(),
+        ciphertextTy.getPlaintextSpace().getRing());
 
     rewriter.replaceOpWithNewOp<Y>(op, ciphertext, plaintext);
     return success();
@@ -316,9 +317,9 @@ class SecretGenericOpRelinearizeConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const override {
-    auto inputDimension = cast<lwe::RLWECiphertextType>(inputs[0].getType())
-                              .getRlweParams()
-                              .getDimension();
+    auto inputDimension = cast<lwe::NewLWECiphertextType>(inputs[0].getType())
+                              .getCiphertextSpace()
+                              .getSize();
     SmallVector<int32_t> fromBasis;
     for (int i = 0; i < inputDimension; ++i) {
       fromBasis.push_back(i);
@@ -343,7 +344,7 @@ class SecretGenericOpMulConversion : public SecretGenericOpConversion<M, T> {
       ConversionPatternRewriter &rewriter) const override {
     auto plaintextValues =
         llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
-          return !isa<lwe::RLWECiphertextType>(input.getType());
+          return !isa<lwe::NewLWECiphertextType>(input.getType());
         }));
     if (!plaintextValues.empty()) {
       return failure();
@@ -395,8 +396,8 @@ class SecretGenericOpModulusSwitchConversion
       ConversionPatternRewriter &rewriter) const override {
     auto outputType = outputTypes[0];
     auto outputElementType = getElementTypeOrSelf(outputType);
-    auto outputRing = cast<lwe::RLWECiphertextType>(outputElementType)
-                          .getRlweParams()
+    auto outputRing = cast<lwe::NewLWECiphertextType>(outputElementType)
+                          .getCiphertextSpace()
                           .getRing();
 
     // secret-to-ckks allow tensor of ciphertext

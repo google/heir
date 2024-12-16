@@ -1,16 +1,20 @@
 // RUN: heir-opt -forward-insert-to-extract %s | FileCheck %s
 
 
-#encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 32, cleartext_bitwidth = 32>
-#my_poly = #polynomial.int_polynomial<1 + x**16>
-#ring= #polynomial.ring<coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#my_poly>
-#rlwe_params = #lwe.rlwe_params<ring=#ring>
-
-
 !cc = !openfhe.crypto_context
-!pt = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring, underlying_type=f32>
-!ptf16 = !lwe.rlwe_plaintext<encoding = #encoding, ring=#ring, underlying_type=f16>
-!ct = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params, underlying_type=f32>
+
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
+#key = #lwe.key<>
+#modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+#ring_rns_L0_1_x16_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**16>>
+#ring_Z65537_i64_1_x16_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**16>>
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 1024>
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x16_, encoding = #inverse_canonical_encoding>
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x16_, encryption_type = lsb>
+!pt = !lwe.new_lwe_plaintext<application_data = <message_type = f32>, plaintext_space = #plaintext_space>
+!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = f32>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 
 //  CHECK-LABEL: @successful_forwarding
@@ -43,9 +47,9 @@ func.func @successful_forwarding(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: ten
   //  CHECK-NOT: tensor.extract %[[INSERTED0]]
   %extracted_2 = tensor.extract %inserted[%c0, %c0] : tensor<1x16x!ct>
   //  CHECK-NEXT: %[[VAL3:.*]] = openfhe.make_ckks_packed_plaintext
-  %3 = openfhe.make_ckks_packed_plaintext %arg0, %arg4 : (!cc, tensor<16xf64>) -> !lwe.rlwe_plaintext<encoding = #encoding, ring = <coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus = <1 + x**16>>, underlying_type = f32>
+  %3 = openfhe.make_ckks_packed_plaintext %arg0, %arg4 : (!cc, tensor<16xf64>) -> !pt
   //  CHECK-NEXT: %[[VAL4:.*]] = openfhe.mul_plain
-  %4 = openfhe.mul_plain %arg0, %extracted_1, %3 : (!cc, !ct, !lwe.rlwe_plaintext<encoding = #encoding, ring = <coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus = <1 + x**16>>, underlying_type = f32>) -> !ct
+  %4 = openfhe.mul_plain %arg0, %extracted_1, %3 : (!cc, !ct, !pt) -> !ct
   //  CHECK-NEXT: %[[VAL5:.*]] = openfhe.add
   %5 = openfhe.add %arg0, %extracted_2, %4 : (!cc, !ct, !ct) -> !ct
   //  CHECK-NEXT: %[[INSERTED1:.*]] = tensor.insert

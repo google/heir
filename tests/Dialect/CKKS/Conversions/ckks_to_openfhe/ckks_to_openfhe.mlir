@@ -1,33 +1,47 @@
 // RUN: heir-opt --mlir-print-local-scope --ckks-to-openfhe %s | FileCheck %s
 
-#encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
+!Z1032955396097_i64_ = !mod_arith.int<1032955396097 : i64>
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
 
-#my_poly = #polynomial.int_polynomial<1 + x**1024>
-// cmod is 64153 * 2521
-#ring1 = #polynomial.ring<coefficientType=!mod_arith.int<161729713:i32>, polynomialModulus=#my_poly>
-#ring2 = #polynomial.ring<coefficientType=!mod_arith.int<2521:i32>, polynomialModulus=#my_poly>
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+!rns_L1_ = !rns.rns<!Z1095233372161_i64_, !Z1032955396097_i64_>
 
-#params1 = #lwe.rlwe_params<dimension=2, ring=#ring1>
-#params2 = #lwe.rlwe_params<dimension=4, ring=#ring1>
-#params3 = #lwe.rlwe_params<dimension=2, ring=#ring2>
-#params4 = #lwe.rlwe_params<dimension=3, ring=#ring1>
+#ring_Z65537_i64_1_x1024_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**1024>>
+#ring_rns_L0_1_x1024_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**1024>>
+#ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
 
-!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
-!ct_dim = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2, underlying_type=i3>
-!ct_level = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params3, underlying_type=i3>
-!ct_level3 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params4, underlying_type=i3>
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 1024>
+#key = #lwe.key<>
+
+#modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
+#modulus_chain_L5_C1_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 1>
+
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #inverse_canonical_encoding>
+
+!pt = !lwe.new_lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
+
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
+#ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
+#ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
+#ciphertext_space_L1_D4_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 4>
+
+!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_D3 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_D4 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_D4_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_L0 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 // CHECK: module
 module {
   // CHECK-LABEL: @test_fn
-  // CHECK-SAME: ([[X:%.+]]: [[T:.*161729713.*]]) -> [[T]]
+  // CHECK-SAME: ([[X:%.+]]: [[T:.*]]) -> [[T]]
   func.func @test_fn(%x : !ct) -> !ct {
     // CHECK: return [[X]] : [[T]]
     return %x : !ct
   }
 
   // CHECK-LABEL: @test_ops
-  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*161729713.*]], [[Y:%.+]]: [[T]])
+  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
     %negate = ckks.negate %x  : !ct
@@ -36,7 +50,7 @@ module {
     // CHECK: %[[v3:.*]] = openfhe.sub [[C]], %[[x3:.*]], %[[y3:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
     %sub = ckks.sub %x, %y  : !ct
     // CHECK: %[[v4:.*]] = openfhe.mul_no_relin [[C]], %[[x4:.*]], %[[y4:.*]]: ([[S]], [[T]], [[T]]) -> [[T2:.*]]
-    %mul = ckks.mul %x, %y  : (!ct, !ct) -> !ct_level3
+    %mul = ckks.mul %x, %y  : (!ct, !ct) -> !ct_D3
     // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {index = 4 : i64}
     // CHECK-SAME: ([[S]], [[T]]) -> [[T]]
     %rot = ckks.rotate %x { offset = 4 } : !ct
@@ -44,12 +58,12 @@ module {
   }
 
   // CHECK-LABEL: @test_relin
-  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*dimension = 4.*]])
-  func.func @test_relin(%x : !ct_dim) {
+  // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]])
+  func.func @test_relin(%x : !ct_D4) {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
     %relin = ckks.relinearize %x  {
       from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 1>
-    }: !ct_dim -> !ct
+    }: !ct_D4 -> !ct
     return
   }
 }

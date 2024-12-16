@@ -1,10 +1,26 @@
 // RUN: heir-opt '--lwe-add-client-interface=use-public-key=true one-value-per-helper-fn=true' %s | FileCheck %s
 
-#encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>
-#params = #lwe.rlwe_params<ring = <coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#polynomial.int_polynomial<1 + x**8>>>
-!in_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = tensor<8xi16>>
-!out_ty = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #params, underlying_type = i16>
-!mul_ty = !lwe.rlwe_ciphertext<encoding = #lwe.polynomial_evaluation_encoding<cleartext_start = 16, cleartext_bitwidth = 16>, rlwe_params = <dimension = 3, ring = <coefficientType=!mod_arith.int<463187969:i32>, polynomialModulus=#polynomial.int_polynomial<1 + x**8>>>, underlying_type = tensor<8xi16>>
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
+
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+
+#ring_Z65537_i64_1_x32_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**32>>
+#ring_rns_L0_1_x32_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**32>>
+
+#full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
+#key = #lwe.key<>
+
+#modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
+
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #full_crt_packing_encoding>
+
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x32_, encryption_type = lsb>
+#ciphertext_space_L0_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x32_, encryption_type = lsb, size = 3>
+
+!in_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!mul_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D3_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!out_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 func.func @dot_product(%arg0: !in_ty, %arg1: !in_ty) -> (!out_ty, !out_ty) {
   %c7 = arith.constant 7 : index

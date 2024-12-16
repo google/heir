@@ -223,16 +223,8 @@ def LWE_FullCRTPackingEncoding
   }];
 }
 
-def LWE_AnyPlaintextEncodingAttr : LWE_EncodingAttrForLWE<"PlaintextEncoding", "plaintext_encoding"> {
-  let returnType = "Attribute";
-  let convertFromStorage = "$_self";
+def AnyPlaintextEncodingAttr : AnyAttrOf<[LWE_ConstantCoefficientEncoding, LWE_CoefficientEncoding, LWE_InverseCanonicalEmbeddingEncoding, LWE_FullCRTPackingEncoding]> {
   string cppType = "Attribute";
-  let predicate = Or<[
-      LWE_ConstantCoefficientEncoding.predicate,
-      LWE_CoefficientEncoding.predicate,
-      LWE_InverseCanonicalEmbeddingEncoding.predicate,
-      LWE_FullCRTPackingEncoding.predicate
-    ]>;
 }
 
 def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
@@ -260,7 +252,7 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
 
   let parameters = (ins
     "::mlir::heir::polynomial::RingAttr":$ring,
-    LWE_AnyPlaintextEncodingAttr:$encoding
+    AnyPlaintextEncodingAttr:$encoding
   );
 
   let assemblyFormat = "`<` struct(params) `>`";

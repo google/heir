@@ -23,18 +23,17 @@ class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
     [Pure, AllTypesMatch<["ciphertextInput", "output"]>,
     TypesMatchWith<"type of 'plaintextInput' matches encoding type of 'ciphertextInput'",
                     "ciphertextInput", "plaintextInput",
-                    "lwe::RLWEPlaintextType::get($_ctxt, "
-                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getEncoding(),"
-                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getRlweParams().getRing(),"
-                      "::llvm::cast<lwe::RLWECiphertextType>($_self).getUnderlyingType())">]> :
+                    "lwe::NewLWEPlaintextType::get($_ctxt, "
+                      "::llvm::cast<lwe::NewLWECiphertextType>($_self).getApplicationData(),"
+                      "::llvm::cast<lwe::NewLWECiphertextType>($_self).getPlaintextSpace())">]> :
         CKKS_Op<mnemonic, traits> {
   let arguments = (ins
-    RLWECiphertext:$ciphertextInput,
-    RLWEPlaintext:$plaintextInput
+    NewLWECiphertext:$ciphertextInput,
+    NewLWEPlaintext:$plaintextInput
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 }
 
@@ -42,12 +41,12 @@ def CKKS_AddOp : CKKS_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> 
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
-    RLWECiphertext:$lhs,
-    RLWECiphertext:$rhs
+    NewLWECiphertext:$lhs,
+    NewLWECiphertext:$rhs
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
@@ -61,12 +60,12 @@ def CKKS_SubOp : CKKS_Op<"sub", [SameOperandsAndResultType]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
-    RLWECiphertext:$lhs,
-    RLWECiphertext:$rhs
+    NewLWECiphertext:$lhs,
+    NewLWECiphertext:$rhs
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
@@ -80,12 +79,12 @@ def CKKS_MulOp : CKKS_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, 
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
-    RLWECiphertext:$lhs,
-    RLWECiphertext:$rhs
+    NewLWECiphertext:$lhs,
+    NewLWECiphertext:$rhs
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -99,12 +98,12 @@ def CKKS_RotateOp : CKKS_Op<"rotate", [Pure, AllTypesMatch<["input", "output"]>]
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
-    RLWECiphertext:$input,
+    NewLWECiphertext:$input,
     Builtin_IntegerAttr:$offset
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -128,12 +127,12 @@ def CKKS_ExtractOp : CKKS_Op<"extract", [SameOperandsAndResultRings]> {
   }];
 
   let arguments = (ins
-    RLWECiphertext:$input,
+    NewLWECiphertext:$input,
     AnySignlessIntegerOrIndex:$offset
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -143,11 +142,11 @@ def CKKS_NegateOp : CKKS_Op<"negate", [Pure, SameOperandsAndResultType, Involuti
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
-    RLWECiphertext:$input
+    NewLWECiphertext:$input
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
@@ -167,13 +166,13 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [Pure, SameOperandsAndResultRing
   }];
 
   let arguments = (ins
-    RLWECiphertext:$input,
+    NewLWECiphertext:$input,
     DenseI32ArrayAttr:$from_basis,
     DenseI32ArrayAttr:$to_basis
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let hasVerifier = 1;
@@ -184,12 +183,12 @@ def CKKS_RescaleOp : CKKS_Op<"rescale", [Pure]> {
   let summary = "Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.";
 
   let arguments = (ins
-    RLWECiphertext:$input,
+    NewLWECiphertext:$input,
     Polynomial_RingAttr:$to_ring
   );
 
   let results = (outs
-    RLWECiphertext:$output
+    NewLWECiphertext:$output
   );
 
   let hasVerifier = 1;

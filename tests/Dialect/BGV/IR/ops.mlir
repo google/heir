@@ -2,23 +2,37 @@
 
 // This simply tests for syntax.
 
-#encoding = #lwe.polynomial_evaluation_encoding<cleartext_start=30, cleartext_bitwidth=3>
+!Z1032955396097_i64_ = !mod_arith.int<1032955396097 : i64>
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
 
-#my_poly = #polynomial.int_polynomial<1 + x**1024>
-// cmod is 64153 * 2521
-#ring1 = #polynomial.ring<coefficientType=!mod_arith.int<161729713:i32>, polynomialModulus=#my_poly>
-#ring2 = #polynomial.ring<coefficientType=!mod_arith.int<2521:i32>, polynomialModulus=#my_poly>
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+!rns_L1_ = !rns.rns<!Z1095233372161_i64_, !Z1032955396097_i64_>
 
-#params = #lwe.rlwe_params<dimension=2, ring=#ring1>
-#params1 = #lwe.rlwe_params<dimension=3, ring=#ring1>
-#params2 = #lwe.rlwe_params<dimension=2, ring=#ring2>
+#ring_Z65537_i64_1_x1024_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**1024>>
+#ring_rns_L0_1_x1024_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**1024>>
+#ring_rns_L1_1_x1024_ = #polynomial.ring<coefficientType = !rns_L1_, polynomialModulus = <1 + x**1024>>
 
-!pt = !lwe.rlwe_plaintext<encoding=#encoding, ring=#ring1, underlying_type=i3>
-!ct = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i3>
-!ct_tensor = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=tensor<32xi16>>
-!ct_scalar = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i16>
-!ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
-!ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params2, underlying_type=i3>
+#full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
+#key = #lwe.key<>
+
+#modulus_chain_L5_C0_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 0>
+#modulus_chain_L5_C1_ = #lwe.modulus_chain<elements = <1095233372161 : i64, 1032955396097 : i64, 1005037682689 : i64, 998595133441 : i64, 972824936449 : i64, 959939837953 : i64>, current = 1>
+
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #full_crt_packing_encoding>
+
+!pt = !lwe.new_lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
+
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
+#ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
+#ciphertext_space_L1_D3_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb, size = 3>
+
+!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct1 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_D3_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct2 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+
+!ct_tensor = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
+!ct_scalar = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 
 // CHECK: module
 module {
@@ -30,8 +44,8 @@ module {
 
     %0 = bgv.mul %arg0, %arg1  : (!ct, !ct) -> !ct1
     %1 = bgv.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1> } : !ct1 -> !ct
-    %2 = bgv.modulus_switch %1  {to_ring = #ring2} : !ct -> !ct2
-    // CHECK: rlwe_params = <dimension = 3, ring = <coefficientType = !mod_arith.int<161729713 : i32>, polynomialModulus = <1 + x**1024>>>
+    %2 = bgv.modulus_switch %1  {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
+    // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>>
     return %arg0 : !ct
   }
 
@@ -40,7 +54,7 @@ module {
     %add = bgv.add_plain %arg3, %arg0 : (!ct, !pt) -> !ct
     %sub = bgv.sub_plain %add, %arg1 : (!ct, !pt) -> !ct
     %mul = bgv.mul_plain %sub, %arg2 : (!ct, !pt) -> !ct
-    // CHECK: rlwe_params = <ring = <coefficientType = !mod_arith.int<161729713 : i32>, polynomialModulus = <1 + x**1024>>>
+    // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>
     return %mul : !ct
   }
 
@@ -49,7 +63,8 @@ module {
     %c0 = arith.constant 0 : index
     %add = bgv.rotate %arg3 { offset = 1 } : !ct_tensor
     %ext = bgv.extract %add, %c0 : (!ct_tensor, index) -> !ct_scalar
-    // CHECK: rlwe_params = <ring = <coefficientType = !mod_arith.int<161729713 : i32>, polynomialModulus = <1 + x**1024>>>
+    // CHECK: message_type = i16
+    // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>
     return %ext : !ct_scalar
   }
 }

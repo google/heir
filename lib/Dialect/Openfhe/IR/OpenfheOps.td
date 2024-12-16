@@ -24,9 +24,9 @@ class Openfhe_UnaryTypeSwitchOp<string mnemonic, list<Trait> traits = []>
 ]>{
  let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext
+    NewLWECiphertext:$ciphertext
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 class Openfhe_UnaryOp<string mnemonic, list<Trait> traits = []>
@@ -41,10 +41,10 @@ class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
 ]>{
  let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$lhs,
-    RLWECiphertext:$rhs
+    NewLWECiphertext:$lhs,
+    NewLWECiphertext:$rhs
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def GenParamsOp : Openfhe_Op<"gen_params"> {
@@ -82,7 +82,7 @@ def MakePackedPlaintextOp : Openfhe_Op<"make_packed_plaintext", [Pure]> {
     Openfhe_CryptoContext:$cryptoContext,
     RankedTensorOf<[AnyInteger]>:$value)
   ;
-  let results = (outs RLWEPlaintext:$plaintext);
+  let results = (outs NewLWEPlaintext:$plaintext);
 }
 
 def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure]> {
@@ -90,25 +90,25 @@ def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure]>
     Openfhe_CryptoContext:$cryptoContext,
     RankedTensorOf<[AnyFloat, AnyInteger]>:$value)
   ;
-  let results = (outs RLWEPlaintext:$plaintext);
+  let results = (outs NewLWEPlaintext:$plaintext);
 }
 
 def EncryptOp : Openfhe_Op<"encrypt", [Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWEPlaintext:$plaintext,
+    NewLWEPlaintext:$plaintext,
     Openfhe_PublicKey:$publicKey)
   ;
-  let results = (outs RLWECiphertext:$ciphertext);
+  let results = (outs NewLWECiphertext:$ciphertext);
 }
 
 def DecryptOp : Openfhe_Op<"decrypt", [Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext,
+    NewLWECiphertext:$ciphertext,
     Openfhe_PrivateKey:$privateKey)
   ;
-  let results = (outs RLWEPlaintext:$plaintext);
+  let results = (outs NewLWEPlaintext:$plaintext);
 }
 
 def AddOp : Openfhe_BinaryOp<"add"> { let summary = "OpenFHE add operation of two ciphertexts."; }
@@ -121,10 +121,10 @@ def AddPlainOp : Openfhe_Op<"add_plain",[
   let summary = "OpenFHE add operation of a ciphertext and a plaintext.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext,
-    RLWEPlaintext:$plaintext
+    NewLWECiphertext:$ciphertext,
+    NewLWEPlaintext:$plaintext
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def MulOp : Openfhe_BinaryOp<"mul"> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
@@ -133,10 +133,10 @@ def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, AllTypesMatch<["lhs", "rhs"
   let summary = "OpenFHE mul operation of two ciphertexts without relinearization.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$lhs,
-    RLWECiphertext:$rhs
+    NewLWECiphertext:$lhs,
+    NewLWECiphertext:$rhs
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def MulPlainOp : Openfhe_Op<"mul_plain",[
@@ -146,10 +146,10 @@ def MulPlainOp : Openfhe_Op<"mul_plain",[
   let summary = "OpenFHE mul operation of a ciphertext and a plaintext.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext,
-    RLWEPlaintext:$plaintext
+    NewLWECiphertext:$ciphertext,
+    NewLWEPlaintext:$plaintext
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def MulConstOp : Openfhe_Op<"mul_const",[
@@ -159,10 +159,10 @@ def MulConstOp : Openfhe_Op<"mul_const",[
   let summary = "OpenFHE mul operation of a ciphertext and a constant.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext,
+    NewLWECiphertext:$ciphertext,
     I64:$constant
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def NegateOp : Openfhe_UnaryOp<"negate"> { let summary = "OpenFHE negate operation of a ciphertext."; }
@@ -178,10 +178,10 @@ def RotOp : Openfhe_Op<"rot",[
 ]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext,
+    NewLWECiphertext:$ciphertext,
     Builtin_IntegerAttr:$index
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def AutomorphOp : Openfhe_Op<"automorph", [
@@ -190,10 +190,10 @@ def AutomorphOp : Openfhe_Op<"automorph", [
 ]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext,
+    NewLWECiphertext:$ciphertext,
     Openfhe_EvalKey:$evalKey
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def KeySwitchOp : Openfhe_Op<"key_switch", [
@@ -202,10 +202,10 @@ def KeySwitchOp : Openfhe_Op<"key_switch", [
 ]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    RLWECiphertext:$ciphertext,
+    NewLWECiphertext:$ciphertext,
     Openfhe_EvalKey:$evalKey
   );
-  let results = (outs RLWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 #endif  // LIB_DIALECT_OPENFHE_IR_OPENFHEOPS_TD_

@@ -99,22 +99,33 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
 
   Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
                                      mgmt::MgmtAttr mgmtAttr) const {
-    int bitWidth =
-        llvm::TypeSwitch<Type, int>(type.getValueType())
-            .Case<RankedTensorType>(
-                [&](auto ty) -> int { return ty.getElementTypeBitWidth(); })
-            .Case<IntegerType>([&](auto ty) -> int { return ty.getWidth(); });
-
     auto level = mgmtAttr.getLevel();
     auto dimension = mgmtAttr.getDimension();
 
     auto *ctx = type.getContext();
-    return lwe::RLWECiphertextType::get(
+    auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
+        type.getContext(),
+        mod_arith::ModArithType::get(
+            ctx, IntegerAttr::get(IntegerType::get(ctx, 64), 65537)),
+        ring.getPolynomialModulus());
+
+    SmallVector<IntegerAttr, 6> moduliChain;
+    for (auto modArithType :
+         cast<rns::RNSType>(ring.getCoefficientType()).getBasisTypes()) {
+      auto modulus = cast<mod_arith::ModArithType>(modArithType).getModulus();
+      moduliChain.push_back(modulus);
+    }
+
+    return lwe::NewLWECiphertextType::get(
         ctx,
-        lwe::PolynomialEvaluationEncodingAttr::get(ctx, bitWidth, bitWidth),
-        lwe::RLWEParamsAttr::get(ctx, dimension,
-                                 getRlweRNSRingWithLevel(ring, level)),
-        type.getValueType());
+        lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
+                                      lwe::NoOverflowAttr::get(ctx)),
+        lwe::PlaintextSpaceAttr::get(
+            ctx, plaintextRing, lwe::FullCRTPackingEncodingAttr::get(ctx, 0)),
+        lwe::CiphertextSpaceAttr::get(ctx, getRlweRNSRingWithLevel(ring, level),
+                                      lwe::LweEncryptionType::lsb, dimension),
+        lwe::KeyAttr::get(ctx, 0),
+        lwe::ModulusChainAttr::get(ctx, moduliChain, level));
   }
 
   Type convertTypeWithAttr(Type type, Attribute attr) const override {
