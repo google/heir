@@ -276,37 +276,67 @@ struct ConvertAddI final : OpConversionPattern<mlir::arith::AddIOp> {
     auto [rhsElem0, rhsElem1, rhsElem2, rhsElem3] =
         extractLastDimHalves(rewriter, loc, adaptor.getRhs());
 
-    llvm::dbgs() << "### lhsElem0 " << lhsElem0 << "\n";
+    // Create Constant
+    auto intAttr = rewriter.getIntegerAttr(newElemTy, maxIntWidth >> 1);
+    auto constantOp = rewriter.create<mlir::arith::ConstantOp>(loc, intAttr);
+
     auto lowSum0 =
-        rewriter.create<mlir::arith::AddUIExtendedOp>(loc, lhsElem0, rhsElem0);
-    Value overflowVal0 = rewriter.create<mlir::arith::ExtUIOp>(
-        loc, newElemTy, lowSum0.getOverflow());
+        rewriter.create<mlir::arith::AddIOp>(loc, lhsElem0, rhsElem0);
+    auto lowSum1 =
+        rewriter.create<mlir::arith::AddIOp>(loc, lhsElem1, rhsElem1);
+    auto lowSum2 =
+        rewriter.create<mlir::arith::AddIOp>(loc, lhsElem2, rhsElem2);
+    auto lowSum3 =
+        rewriter.create<mlir::arith::AddIOp>(loc, lhsElem3, rhsElem3);
 
-    Value carryProp0 =
-        rewriter.create<mlir::arith::AddIOp>(loc, overflowVal0, lhsElem1);
+    auto carry0 = rewriter.create<mlir::arith::ShRSIOp>(loc, lowSum0,
+                                                        constantOp.getResult());
+    auto carry1 = rewriter.create<mlir::arith::ShRSIOp>(loc, lowSum1,
+                                                        constantOp.getResult());
+    auto carry2 = rewriter.create<mlir::arith::ShRSIOp>(loc, lowSum2,
+                                                        constantOp.getResult());
 
-    auto lowSum1 = rewriter.create<mlir::arith::AddUIExtendedOp>(
-        loc, carryProp0, rhsElem1);
-    Value overflowVal1 = rewriter.create<mlir::arith::ExtUIOp>(
-        loc, newElemTy, lowSum1.getOverflow());
+    auto high1 = rewriter.create<mlir::arith::AddIOp>(loc, lowSum1, carry0);
+    auto high2 = rewriter.create<mlir::arith::AddIOp>(loc, lowSum2, carry1);
+    auto high3 = rewriter.create<mlir::arith::AddIOp>(loc, lowSum3, carry2);
 
-    Value carryProp1 =
-        rewriter.create<mlir::arith::AddIOp>(loc, overflowVal1, lhsElem2);
+    Value resultVec = constructResultVector(rewriter, loc, newTy,
+                                            {lowSum0, high1, high2, high3});
+    rewriter.replaceOp(op, resultVec);
+    return success();
+  }
+};
 
-    auto lowSum2 = rewriter.create<mlir::arith::AddUIExtendedOp>(
-        loc, carryProp1, rhsElem2);
-    Value overflowVal2 = rewriter.create<mlir::arith::ExtUIOp>(
-        loc, newElemTy, lowSum2.getOverflow());
+struct ConvertMulI final : OpConversionPattern<mlir::arith::MulIOp> {
+  using OpConversionPattern::OpConversionPattern;
 
-    Value carryProp2 =
-        rewriter.create<mlir::arith::AddIOp>(loc, overflowVal2, lhsElem3);
-    Value high =
-        rewriter.create<mlir::arith::AddIOp>(loc, carryProp2, rhsElem3);
+  LogicalResult matchAndRewrite(
+      mlir::arith::MulIOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    llvm::dbgs() << "Lets start " << op.getType() << "\n";
+    Location loc = op->getLoc();
 
-    llvm::dbgs() << "### HIGH " << high << "\n";
-    Value resultVec = constructResultVector(
-        rewriter, loc, newTy,
-        {lowSum0.getSum(), lowSum1.getSum(), lowSum2.getSum(), high});
+    auto newTy =
+        getTypeConverter()->convertType<RankedTensorType>(op.getType());
+    llvm::dbgs() << "newTy " << newTy << "\n";
+    if (!newTy)
+      return rewriter.notifyMatchFailure(
+          loc, llvm::formatv("unsupported type: {0}", op.getType()));
+
+    Type newElemTy = reduceInnermostDim(newTy);
+    llvm::dbgs() << "newElemTy " << newElemTy << "\n";
+
+    auto [lhsElem0, lhsElem1, lhsElem2, lhsElem3] =
+        extractLastDimHalves(rewriter, loc, adaptor.getLhs());
+    auto [rhsElem0, rhsElem1, rhsElem2, rhsElem3] =
+        extractLastDimHalves(rewriter, loc, adaptor.getRhs());
+
+    // Create Constant
+    auto intAttr = rewriter.getIntegerAttr(newElemTy, maxIntWidth >> 1);
+    auto constantOp = rewriter.create<mlir::arith::ConstantOp>(loc, intAttr);
+
+    Value resultVec = constructResultVector(rewriter, loc, newTy,
+                                            {lowSum0, high1, high2, high3});
     rewriter.replaceOp(op, resultVec);
     return success();
   }
