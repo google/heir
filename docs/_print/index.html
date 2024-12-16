@@ -3541,6 +3541,10 @@ RNS Type.</p><p>Example of multiplication+addition:</p><div class=highlight><pre
 </span></span><span style=display:flex><span>  <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#000;font-weight:700>!</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>&lt;</span><span style=color:#204a87;font-weight:700>i16</span><span style=color:#000;font-weight:700>&gt;</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><h4 id=options-10>Options</h4><pre tabindex=0><code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
+</code></pre><h3 id=-secret-insert-mgmt-ckks><code>-secret-insert-mgmt-ckks</code></h3><p><em>Place CKKS ciphertext management operations</em></p><p>Check the description of secret-insert-mgmt-bgv. This pass
+implements similar strategy, where mgmt.modreduce stands for
+ckks.rescale here.</p><h4 id=options-11>Options</h4><pre tabindex=0><code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
+-slot-number       : Default number of slots use for ciphertext space.
 </code></pre><h3 id=-secret-merge-adjacent-generics><code>-secret-merge-adjacent-generics</code></h3><p><em>Merge two adjacent generics into a single generic</em></p><p>This pass merges two immedaitely sequential generics into a single
 generic. Useful as a sub-operation in some passes, and extracted into
 its own pass for testing purposes.</p><h3 id=-secret-to-bgv><code>-secret-to-bgv</code></h3><p><em>Lower <code>secret</code> to <code>bgv</code> dialect.</em></p><p>This pass lowers an IR with <code>secret.generic</code> blocks containing arithmetic
@@ -3549,7 +3553,7 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-11>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-12>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 </code></pre><h3 id=-secret-to-cggi><code>-secret-to-cggi</code></h3><p><em>Lower <code>secret</code> to <code>cggi</code> dialect.</em></p><p>This pass lowers the <code>secret</code> dialect to <code>cggi</code> dialect.</p><h3 id=-secret-to-ckks><code>-secret-to-ckks</code></h3><p><em>Lower <code>secret</code> to <code>ckks</code> dialect.</em></p><p>This pass lowers an IR with <code>secret.generic</code> blocks containing arithmetic
 operations to operations on ciphertexts with the CKKS dialect.</p><p>The pass assumes that the <code>secret.generic</code> regions have been distributed
@@ -3557,13 +3561,13 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-12>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-13>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 </code></pre><h3 id=-secretize><code>-secretize</code></h3><p><em>Adds secret argument attributes to entry function</em></p><p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
-This may be overridden with the option -function=func_name to apply to a single function only.</p><h4 id=options-13>Options</h4><pre tabindex=0><code>-function : function to add secret annotations to
+This may be overridden with the option -function=func_name to apply to a single function only.</p><h4 id=options-14>Options</h4><pre tabindex=0><code>-function : function to add secret annotations to
 </code></pre><h3 id=-straight-line-vectorize><code>-straight-line-vectorize</code></h3><p><em>A vectorizer for straight line programs.</em></p><p>This pass ignores control flow and only vectorizes straight-line programs
-within a given region.</p><h4 id=options-14>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
+within a given region.</p><h4 id=options-15>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 </code></pre><h3 id=-tosa-to-secret-arith><code>-tosa-to-secret-arith</code></h3><p><em>Lower <code>tosa.sigmoid</code> to secret arith dialects.</em></p><p>This pass lowers the <code>tosa.sigmoid</code> dialect to the polynomial approximation
 -0.004 * x^3 + 0.197 * x + 0.5 (composed of arith, affine, and tensor operations).</p><p>This polynomial approximation of sigmoid only works over the range [-5, 5]
 and is taken from the paper <a href=https://eprint.iacr.org/2018/462.pdf>&lsquo;Logisitic regression over encrypted data from
