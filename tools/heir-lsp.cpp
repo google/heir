@@ -11,6 +11,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/PISA/IR/PISADialect.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -45,6 +46,7 @@ int main(int argc, char **argv) {
   registry.insert<lwe::LWEDialect>();
   registry.insert<mod_arith::ModArithDialect>();
   registry.insert<mgmt::MgmtDialect>();
+  registry.insert<pisa::PISADialect>();
   registry.insert<random::RandomDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
