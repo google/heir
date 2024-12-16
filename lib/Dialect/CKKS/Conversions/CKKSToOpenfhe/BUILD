@@ -20,13 +20,10 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Patterns",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils/ConversionUtils",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
     ],
 )

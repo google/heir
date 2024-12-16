@@ -164,6 +164,29 @@ struct ConvertRlweRelinOp : public OpConversionPattern<RlweRelinOp> {
   }
 };
 
+// for CKKS, it is called Rescale but internally for OpenFHE it is an
+// alias for openfhe::ModReduceOp
+template <typename ModulusSwitchOp>
+struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
+  ConvertModulusSwitchOp(mlir::MLIRContext *context)
+      : OpConversionPattern<ModulusSwitchOp>(context) {}
+
+  using OpConversionPattern<ModulusSwitchOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ModulusSwitchOp op, typename ModulusSwitchOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+
+    Value cryptoContext = result.value();
+    rewriter.replaceOp(op, rewriter.create<openfhe::ModReduceOp>(
+                               op.getLoc(), op.getOutput().getType(),
+                               cryptoContext, adaptor.getInput()));
+    return success();
+  }
+};
+
 }  // namespace mlir::heir
 
 #endif  // LIB_DIALECT_LWE_CONVERSIONS_RLWETOOPENFHEUTILS_RLWETOOPENFHE_H_

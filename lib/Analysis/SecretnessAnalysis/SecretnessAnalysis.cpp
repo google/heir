@@ -1,12 +1,18 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 
+#include <algorithm>
+#include <string>
+
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -125,6 +131,17 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver) {
     }
     return;
   });
+}
+
+bool ensureSecretness(Value value, DataFlowSolver *solver) {
+  auto *lattice = solver->lookupState<SecretnessLattice>(value);
+  if (!lattice) {
+    return false;
+  }
+  if (!lattice->getValue().isInitialized()) {
+    return false;
+  }
+  return lattice->getValue().getSecretness();
 }
 
 }  // namespace heir

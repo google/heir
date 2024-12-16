@@ -1,11 +1,13 @@
-// RUN: heir-opt --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks=include-first-mul=false --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
 
 // CHECK-LABEL: @hamming
 // CHECK: ckks.sub
 // CHECK-NEXT: ckks.mul
 // CHECK-NEXT: ckks.relinearize
 // CHECK-COUNT-10: ckks.rotate
-// CHECK: ckks.extract
+// CHECK: ckks.rescale
+// CHECK-NEXT: ckks.extract
+// CHECK-NEXT: ckks.rescale
 // CHECK-NEXT: return
 
 func.func @hamming(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) -> !secret.secret<i16> {

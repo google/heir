@@ -35,13 +35,15 @@ module {
 }
 // -----
 
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
+
 // Currently we don't support lowering adds on tensor.insert on into slots of a single ciphertext.
 
 module {
-  func.func @test_tensor_insert_slot(%arg0 : !secret.secret<tensor<1024xf32>>, %arg1 : !secret.secret<f32>) -> (!secret.secret<tensor<1024xf32>>) {
+  func.func @test_tensor_insert_slot(%arg0 : !secret.secret<tensor<1024xf32>> {mgmt.mgmt = #mgmt}, %arg1 : !secret.secret<f32> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1024xf32>>) {
     %c0 = arith.constant 0 : index
     // expected-error@below {{failed to legalize}}
-    %0 = secret.generic ins(%arg0, %arg1 :  !secret.secret<tensor<1024xf32>>, !secret.secret<f32>) {
+    %0 = secret.generic ins(%arg0, %arg1 :  !secret.secret<tensor<1024xf32>>, !secret.secret<f32>) attrs = {mgmt.mgmt = #mgmt} {
       ^bb0(%ARG0 : tensor<1024xf32>, %ARG1 : f32):
         %1 = tensor.insert %ARG1 into %ARG0[%c0] : tensor<1024xf32>
         secret.yield %1 : tensor<1024xf32>

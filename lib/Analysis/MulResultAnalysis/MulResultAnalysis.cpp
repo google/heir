@@ -53,9 +53,19 @@ LogicalResult MulResultAnalysis::visitOperation(
         }
 
         auto isMulResult = false;
-        // NOTE: special case for ExtractOp... it is a mulconst+rotate
-        if (isa<arith::MulIOp, arith::MulFOp, tensor::ExtractOp>(op)) {
+        if (isa<arith::MulIOp, arith::MulFOp>(op)) {
           isMulResult = true;
+        }
+
+        // NOTE: special case for ExtractOp... it is a mulconst+rotate
+        // if not annotated with slot_extract
+        // TODO(#1174): decide packing earlier in the pipeline instead of
+        // annotation
+        if (auto extractOp = dyn_cast<tensor::ExtractOp>(op)) {
+          if (!extractOp->getAttr("slot_extract")) {
+            // must be true
+            isMulResult = true;
+          }
         }
 
         for (const auto *operand : operands) {

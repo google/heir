@@ -40,28 +40,9 @@ using ConvertMulPlainOp =
     ConvertRlweCiphertextPlaintextOp<MulPlainOp, openfhe::MulPlainOp>;
 using ConvertRotateOp = ConvertRlweRotateOp<RotateOp>;
 using ConvertRelinOp = ConvertRlweRelinOp<RelinearizeOp>;
+using ConvertModulusSwitchOp = ConvertModulusSwitchOp<ModulusSwitchOp>;
 using ConvertExtractOp =
     lwe::ConvertRlweExtractOp<ExtractOp, MulPlainOp, RotateOp>;
-
-struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
-  ConvertModulusSwitchOp(mlir::MLIRContext *context)
-      : OpConversionPattern<ModulusSwitchOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ModulusSwitchOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
-    if (failed(result)) return result;
-
-    Value cryptoContext = result.value();
-    rewriter.replaceOp(op, rewriter.create<openfhe::ModReduceOp>(
-                               op.getLoc(), op.getOutput().getType(),
-                               cryptoContext, adaptor.getInput()));
-    return success();
-  }
-};
 
 struct BGVToOpenfhe : public impl::BGVToOpenfheBase<BGVToOpenfhe> {
   void runOnOperation() override {

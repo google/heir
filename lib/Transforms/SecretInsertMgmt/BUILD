@@ -9,6 +9,7 @@ cc_library(
     name = "SecretInsertMgmt",
     srcs = [
         "SecretInsertMgmtBGV.cpp",
+        "SecretInsertMgmtCKKS.cpp",
     ],
     hdrs = [
         "Passes.h",
@@ -28,6 +29,7 @@ cc_library(
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:Transforms",
@@ -52,7 +54,9 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],
 )

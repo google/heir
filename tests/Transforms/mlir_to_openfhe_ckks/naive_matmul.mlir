@@ -19,6 +19,7 @@
 // CHECK-NEXT:     const auto& [[v13:.*]] = [[v0]]->EvalAdd([[v10]], [[v12]]);
 // CHECK-NEXT:     [[v2]][0 + 2 * (0)] = [[v13]];
 // CHECK-COUNT-3:                  [[v0]]->EvalMult
+// CHECK-COUNT-2:  [[v0]]->ModReduce
 // CHECK:          return
 
 // CHECK-LABEL: matmul__generate_crypto_context
