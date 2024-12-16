@@ -14,7 +14,7 @@ def PolynomialToPISA : Pass<"polynomial-to-pisa"> {
   }];
 
   let dependentDialects = [
-    "mlir::polynomial::PolynomialDialect",
+    "mlir::heir::polynomial::PolynomialDialect",
     "mlir::heir::pisa::PISADialect",
   ];
 }

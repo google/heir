@@ -1,10 +1,11 @@
 #include "lib/Dialect/Polynomial/Conversions/PolynomialToPISA/PolynomialToPISA.h"
 
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/PISA/IR/PISADialect.h"
 #include "lib/Dialect/PISA/IR/PISAOps.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Utils/ConversionUtils/ConversionUtils.h"
-#include "mlir/include/mlir/Dialect/Polynomial/IR/PolynomialOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir {

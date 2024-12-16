@@ -13,10 +13,10 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/PISA/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Utils/ConversionUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:Transforms",
     ],
 )
