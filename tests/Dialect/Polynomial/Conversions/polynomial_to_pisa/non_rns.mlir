@@ -1,7 +1,7 @@
 //RUN: heir-opt --polynomial-to-pisa %s | FileCheck %s
 
-#ring = #polynomial.ring<coefficientType = i32, coefficientModulus = 33538049 : i32, polynomialModulus=#polynomial.int_polynomial<1 + x**8192>>
-!p = !polynomial.polynomial<ring=#ring>
+!coeff_ty = !mod_arith.int<33538049:i32>
+!p = !polynomial.polynomial<ring=<coefficientType=!coeff_ty, polynomialModulus=#polynomial.int_polynomial<1 + x**8192>>>
 
 //CHECK-LABEL: @test_add
 //CHECK: [[X:%.+]]: tensor<8192xi32>, [[Y:%.+]]: tensor<8192xi32>
