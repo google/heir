@@ -1,6 +1,7 @@
 #ifndef LIB_ANALYSIS_DIMENSIONANALYSIS_DIMENSIONANALYSIS_H_
 #define LIB_ANALYSIS_DIMENSIONANALYSIS_DIMENSIONANALYSIS_H_
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"    // from @llvm-project
@@ -64,9 +65,11 @@ class DimensionLattice : public dataflow::Lattice<DimensionState> {
 };
 
 class DimensionAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<DimensionLattice> {
+    : public dataflow::SparseForwardDataFlowAnalysis<DimensionLattice>,
+      public SecretnessAnalysisDependent<DimensionAnalysis> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
+  friend class SecretnessAnalysisDependent<DimensionAnalysis>;
 
   void setToEntryState(DimensionLattice *lattice) override {
     propagateIfChanged(lattice, lattice->join(DimensionState()));

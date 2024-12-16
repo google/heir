@@ -106,8 +106,88 @@ class SecretnessAnalysis
                                ArrayRef<SecretnessLattice *> results) override;
 };
 
+/**
+ * @class SecretnessAnalysisDependent
+ * @brief A class that provides methods to analyze and ensure the secretness of
+ * operations and their operands/results.
+ *
+ * This class is designed to be used within an analysis framework to determine
+ * the secretness of values and create dependencies on SecretnessAnalysis.
+ */
+template <typename ChildAnalysis>
+class SecretnessAnalysisDependent {
+ private:
+  ChildAnalysis *getChildAnalysis() {
+    return static_cast<ChildAnalysis *>(this);
+  }
+
+ protected:
+  /**
+   * @brief Ensures the secretness of a given value within an operation.
+   *
+   * This method creates a SecretnessLattice for the given value and establishes
+   * a dependency on SecretnessAnalysis.
+   *
+   * @param op The operation containing the value (either Operand or Result).
+   * @param value The value to check for secretness.
+   * @return true if the value is secret, false if the secretness of the value
+   * is unknown or false.
+   */
+  bool ensureSecretness(Operation *op, Value value) {
+    // create dependency on SecretnessAnalysis
+    auto *lattice =
+        getChildAnalysis()->template getOrCreateFor<SecretnessLattice>(
+            getChildAnalysis()->getProgramPointAfter(op), value);
+    if (!lattice->getValue().isInitialized()) {
+      return false;
+    }
+    return lattice->getValue().getSecretness();
+  };
+
+  /**
+   * @brief Selects the OpResults of an operation that are secret (secretness =
+   * true).
+   *
+   * This method iterates through the results of the given operation and adds
+   * those that are secret to the provided vector.
+   *
+   * @param op The operation to analyze.
+   * @param secretResults A vector to store the secret results.
+   */
+  void getSecretResults(Operation *op,
+                        SmallVectorImpl<OpResult> &secretResults) {
+    for (const auto &result : op->getOpResults()) {
+      if (ensureSecretness(op, result)) {
+        secretResults.push_back(result);
+      }
+    }
+  }
+
+  /**
+   * @brief Selects the OpOperands of an operation that are secret (secretness =
+   * true).
+   *
+   * This method iterates through the operands of the given operation and adds
+   * those that are secret to the provided vector.
+   *
+   * @param op The operation to analyze.
+   * @param secretOperands A vector to store the secret operands.
+   */
+  void getSecretOperands(Operation *op,
+                         SmallVectorImpl<OpOperand *> &secretOperands) {
+    for (auto &operand : op->getOpOperands()) {
+      if (ensureSecretness(op, operand.get())) {
+        secretOperands.push_back(&operand);
+      }
+    }
+  }
+};
+
+// Annotate the secretness of operation based on the secretness of its results
 void annotateSecretness(Operation *top, DataFlowSolver *solver);
 
+// this method is used when DataFlowSolver has finished running the secretness
+// analysis
 bool ensureSecretness(Value value, DataFlowSolver *solver);
 
 }  // namespace heir

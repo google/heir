@@ -5,6 +5,7 @@
 #include <cassert>
 #include <optional>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -68,9 +69,11 @@ class LevelLattice : public dataflow::Lattice<LevelState> {
 };
 
 class LevelAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<LevelLattice> {
+    : public dataflow::SparseForwardDataFlowAnalysis<LevelLattice>,
+      public SecretnessAnalysisDependent<LevelAnalysis> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
+  friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
   void setToEntryState(LevelLattice *lattice) override {
     propagateIfChanged(lattice, lattice->join(LevelState()));
