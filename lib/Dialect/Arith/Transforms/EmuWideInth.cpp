@@ -332,11 +332,56 @@ struct ConvertMulI final : OpConversionPattern<mlir::arith::MulIOp> {
         extractLastDimHalves(rewriter, loc, adaptor.getRhs());
 
     // Create Constant
-    auto intAttr = rewriter.getIntegerAttr(newElemTy, maxIntWidth >> 1);
-    auto constantOp = rewriter.create<mlir::arith::ConstantOp>(loc, intAttr);
+    // auto intAttr = rewriter.getIntegerAttr(newElemTy, maxIntWidth >> 1);
+    // auto constantOp = rewriter.create<mlir::arith::ConstantOp>(loc, intAttr);
+
+    // First part of Karatsuba algorithm
+    auto z00 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem0, rhsElem0);
+    auto z02 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem1, rhsElem1);
+    auto z01_p1 = rewriter.create<mlir::arith::AddIOp>(loc, lhsElem0, lhsElem1);
+    auto z01_p2 = rewriter.create<mlir::arith::AddIOp>(loc, rhsElem0, rhsElem1);
+    auto z01_m = rewriter.create<mlir::arith::MulIOp>(loc, z01_p1, z01_p2);
+    auto z01_s = rewriter.create<mlir::arith::SubIOp>(loc, z01_m, z00);
+    auto z01 = rewriter.create<mlir::arith::SubIOp>(loc, z01_s, z02);
+
+    // Second part I of Karatsuba algorithm
+    auto z1a0 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem0, rhsElem2);
+    auto z1a2 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem1, rhsElem3);
+    auto z1a1_p1 =
+        rewriter.create<mlir::arith::AddIOp>(loc, lhsElem0, lhsElem1);
+    auto z1a1_p2 =
+        rewriter.create<mlir::arith::AddIOp>(loc, rhsElem2, rhsElem3);
+    auto z1a1_m = rewriter.create<mlir::arith::MulIOp>(loc, z1a1_p1, z1a1_p2);
+    auto z1a1_s = rewriter.create<mlir::arith::SubIOp>(loc, z1a1_m, z1a0);
+    auto z1a1 = rewriter.create<mlir::arith::SubIOp>(loc, z1a1_s, z1a2);
+
+    // Second part II of Karatsuba algorithm
+    auto z1b0 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem2, rhsElem0);
+    auto z1b2 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem3, rhsElem1);
+    auto z1b1_p1 =
+        rewriter.create<mlir::arith::AddIOp>(loc, lhsElem2, lhsElem3);
+    auto z1b1_p2 =
+        rewriter.create<mlir::arith::AddIOp>(loc, rhsElem0, rhsElem1);
+    auto z1b1_m = rewriter.create<mlir::arith::MulIOp>(loc, z1b1_p1, z1b1_p2);
+    auto z1b1_s = rewriter.create<mlir::arith::SubIOp>(loc, z1b1_m, z1b0);
+    auto z1b1 = rewriter.create<mlir::arith::SubIOp>(loc, z1b1_s, z1b2);
+
+    // Third part of Karatsuba algorithm
+    // auto z20 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem2, rhsElem2);
+    // auto z22 = rewriter.create<mlir::arith::MulIOp>(loc, lhsElem3, rhsElem3);
+    // auto z21_p1 = rewriter.create<mlir::arith::AddIOp>(loc, lhsElem2,
+    // lhsElem3); auto z21_p2 = rewriter.create<mlir::arith::AddIOp>(loc,
+    // rhsElem2, rhsElem3); auto z21_m =
+    // rewriter.create<mlir::arith::MulIOp>(loc, z21_p1, z21_p2); auto z21_s =
+    // rewriter.create<mlir::arith::SubIOp>(loc, z21_m, z20); auto z21 =
+    // rewriter.create<mlir::arith::SubIOp>(loc, z21_s, z22);
+
+    auto output2pre = rewriter.create<mlir::arith::AddIOp>(loc, z1a0, z1b0);
+    auto output2 = rewriter.create<mlir::arith::AddIOp>(loc, output2pre, z02);
+    auto output3 = rewriter.create<mlir::arith::AddIOp>(loc, z1a1, z1b1);
 
     Value resultVec = constructResultVector(rewriter, loc, newTy,
-                                            {lowSum0, high1, high2, high3});
+                                            {z00, z01, output2, output3});
     rewriter.replaceOp(op, resultVec);
     return success();
   }
@@ -368,7 +413,7 @@ struct EmuWideInth : impl::EmuWideInthBase<EmuWideInth> {
     populateCallOpTypeConversionPattern(patterns, typeConverter);
     populateReturnOpTypeConversionPattern(patterns, typeConverter);
 
-    patterns.add<ConvertAddI>(typeConverter, context);
+    patterns.add<ConvertAddI, ConvertMulI>(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns))))
       signalPassFailure();
