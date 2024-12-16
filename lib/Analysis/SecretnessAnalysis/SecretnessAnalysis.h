@@ -110,6 +110,12 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver);
 
 bool ensureSecretness(Value value, DataFlowSolver *solver);
 
+bool ensureSecretness(ValueRange values, DataFlowSolver *solver);
+
+void getSecretOperands(Operation *op,
+                       SmallVectorImpl<OpOperand *> &secretOperands,
+                       DataFlowSolver *solver);
+
 }  // namespace heir
 }  // namespace mlir
 

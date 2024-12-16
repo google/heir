@@ -97,21 +97,28 @@ LogicalResult DimensionAnalysis::visitOperation(
   return success();
 }
 
+int getDimension(Value value, DataFlowSolver *solver) {
+  auto *lattice = solver->lookupState<DimensionLattice>(value);
+  if (!lattice) {
+    assert(false && "DimensionLattice not found");
+    return 2;
+  }
+  if (!lattice->getValue().isInitialized()) {
+    assert(false && "DimensionLattice not initialized");
+    return 2;
+  }
+  return lattice->getValue().getDimension();
+}
+
 void annotateDimension(Operation *top, DataFlowSolver *solver) {
   auto getIntegerAttr = [&](int dimension) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), dimension);
   };
 
-  auto getDimension = [&](Value value) {
-    return solver->lookupState<DimensionLattice>(value)
-        ->getValue()
-        .getDimension();
-  };
-
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
     for (auto blockArg : genericOp.getBody()->getArguments()) {
       genericOp.setArgAttr(blockArg.getArgNumber(), "dimension",
-                           getIntegerAttr(getDimension(blockArg)));
+                           getIntegerAttr(getDimension(blockArg, solver)));
     }
 
     genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
@@ -121,7 +128,8 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
       if (!ensureSecretness(op->getResult(0), solver)) {
         return;
       }
-      op->setAttr("dimension", getIntegerAttr(getDimension(op->getResult(0))));
+      op->setAttr("dimension",
+                  getIntegerAttr(getDimension(op->getResult(0), solver)));
     });
   });
 }
