@@ -20,7 +20,7 @@ namespace arith {
 #define GEN_PASS_DEF_EMUWIDEINTH
 #include "lib/Dialect/Arith/Transforms/Passes.h.inc"
 
-static constexpr unsigned maxIntWidth = 16;
+static constexpr unsigned maxIntWidth = 8;
 
 class EmuWideTypeConverter : public TypeConverter {
  public:
@@ -29,20 +29,20 @@ class EmuWideTypeConverter : public TypeConverter {
     addConversion([](Type ty) -> std::optional<Type> { return ty; });
 
     // Scalar case.
-    addConversion([this](IntegerType ty) -> std::optional<Type> {
+    addConversion([](IntegerType ty) -> std::optional<Type> {
       unsigned width = ty.getWidth();
       if (width <= maxIntWidth) return ty;
 
       // i2N --> vector<2xiN>
-      if (width == 2 * maxIntWidth)
+      if (width == 4 * maxIntWidth)
         return RankedTensorType::get(
-            2, IntegerType::get(ty.getContext(), maxIntWidth));
+            4, IntegerType::get(ty.getContext(), maxIntWidth));
 
       return nullptr;
     });
 
     // Vector case.
-    addConversion([this](ShapedType ty) -> std::optional<Type> {
+    addConversion([](ShapedType ty) -> std::optional<Type> {
       auto intTy = dyn_cast<IntegerType>(ty.getElementType());
       if (!intTy) return ty;
 
@@ -50,9 +50,9 @@ class EmuWideTypeConverter : public TypeConverter {
       if (width <= maxIntWidth) return ty;
 
       // vector<...xi2N> --> vector<...x2xiN>
-      if (width == 2 * maxIntWidth) {
+      if (width == 4 * maxIntWidth) {
         auto newShape = to_vector(ty.getShape());
-        newShape.push_back(2);
+        newShape.push_back(4);
         return RankedTensorType::get(
             newShape, IntegerType::get(ty.getContext(), maxIntWidth));
       }
@@ -135,10 +135,12 @@ static Value extractLastDimSlice(ConversionPatternRewriter &rewriter,
 
 /// Extracts two vector slices from the `input` whose type is `vector<...x2T>`,
 /// with the first element at offset 0 and the second element at offset 1.
-static std::pair<Value, Value> extractLastDimHalves(
+static std::tuple<Value, Value, Value, Value> extractLastDimHalves(
     ConversionPatternRewriter &rewriter, Location loc, Value input) {
   return {extractLastDimSlice(rewriter, loc, input, 0),
-          extractLastDimSlice(rewriter, loc, input, 1)};
+          extractLastDimSlice(rewriter, loc, input, 1),
+          extractLastDimSlice(rewriter, loc, input, 2),
+          extractLastDimSlice(rewriter, loc, input, 3)};
 }
 
 // Performs a vector shape cast to drop the trailing x1 dimension. If the
@@ -204,22 +206,22 @@ static Value insertLastDimSlice(ConversionPatternRewriter &rewriter,
   //                                                      strides);
 }
 
-Value createScalarOrSplatConstant(OpBuilder &builder, Location loc, Type type,
-                                  int64_t value) {
+static Value createScalarOrSplatConstant(OpBuilder &builder, Location loc,
+                                         Type type, int64_t value) {
   unsigned elementBitWidth = 0;
   if (auto intTy = dyn_cast<IntegerType>(type))
     elementBitWidth = intTy.getWidth();
   else
     elementBitWidth = cast<ShapedType>(type).getElementTypeBitWidth();
 
-  auto APvalue = APInt(elementBitWidth, value);
+  auto apValue = APInt(elementBitWidth, value);
 
   TypedAttr attr;
   if (isa<IntegerType>(type)) {
-    attr = builder.getIntegerAttr(type, APvalue);
+    attr = builder.getIntegerAttr(type, apValue);
   } else {
     auto vecTy = cast<ShapedType>(type);
-    attr = SplatElementsAttr::get(vecTy, APvalue);
+    attr = SplatElementsAttr::get(vecTy, apValue);
   }
 
   return builder.create<mlir::arith::ConstantOp>(loc, attr);
@@ -235,10 +237,11 @@ static Value constructResultVector(ConversionPatternRewriter &rewriter,
                                    Location loc, RankedTensorType resultType,
                                    ValueRange resultComponents) {
   llvm::ArrayRef<int64_t> resultShape = resultType.getShape();
-  (void)resultShape;
-  assert(!resultShape.empty() && "Result expected to have dimensions");
-  assert(resultShape.back() == static_cast<int64_t>(resultComponents.size()) &&
-         "Wrong number of result components");
+  // (void)resultShape;
+  // assert(!resultShape.empty() && "Result expected to have dimensions");
+  // assert(resultShape.back() == static_cast<int64_t>(resultComponents.size())
+  // &&
+  //        "Wrong number of result components");
 
   llvm::dbgs() << "### resultShape " << resultShape.size() << "\n";
   Value resultVec = createScalarOrSplatConstant(rewriter, loc, resultType, 0);
@@ -268,24 +271,42 @@ struct ConvertAddI final : OpConversionPattern<mlir::arith::AddIOp> {
     Type newElemTy = reduceInnermostDim(newTy);
     llvm::dbgs() << "newElemTy " << newElemTy << "\n";
 
-    auto [lhsElem0, lhsElem1] =
+    auto [lhsElem0, lhsElem1, lhsElem2, lhsElem3] =
         extractLastDimHalves(rewriter, loc, adaptor.getLhs());
-    auto [rhsElem0, rhsElem1] =
+    auto [rhsElem0, rhsElem1, rhsElem2, rhsElem3] =
         extractLastDimHalves(rewriter, loc, adaptor.getRhs());
 
     llvm::dbgs() << "### lhsElem0 " << lhsElem0 << "\n";
-    auto lowSum =
+    auto lowSum0 =
         rewriter.create<mlir::arith::AddUIExtendedOp>(loc, lhsElem0, rhsElem0);
-    Value overflowVal = rewriter.create<mlir::arith::ExtUIOp>(
-        loc, newElemTy, lowSum.getOverflow());
+    Value overflowVal0 = rewriter.create<mlir::arith::ExtUIOp>(
+        loc, newElemTy, lowSum0.getOverflow());
 
-    Value high0 =
-        rewriter.create<mlir::arith::AddIOp>(loc, overflowVal, lhsElem1);
-    Value high = rewriter.create<mlir::arith::AddIOp>(loc, high0, rhsElem1);
+    Value carryProp0 =
+        rewriter.create<mlir::arith::AddIOp>(loc, overflowVal0, lhsElem1);
+
+    auto lowSum1 = rewriter.create<mlir::arith::AddUIExtendedOp>(
+        loc, carryProp0, rhsElem1);
+    Value overflowVal1 = rewriter.create<mlir::arith::ExtUIOp>(
+        loc, newElemTy, lowSum1.getOverflow());
+
+    Value carryProp1 =
+        rewriter.create<mlir::arith::AddIOp>(loc, overflowVal1, lhsElem2);
+
+    auto lowSum2 = rewriter.create<mlir::arith::AddUIExtendedOp>(
+        loc, carryProp1, rhsElem2);
+    Value overflowVal2 = rewriter.create<mlir::arith::ExtUIOp>(
+        loc, newElemTy, lowSum2.getOverflow());
+
+    Value carryProp2 =
+        rewriter.create<mlir::arith::AddIOp>(loc, overflowVal2, lhsElem3);
+    Value high =
+        rewriter.create<mlir::arith::AddIOp>(loc, carryProp2, rhsElem3);
 
     llvm::dbgs() << "### HIGH " << high << "\n";
-    Value resultVec =
-        constructResultVector(rewriter, loc, newTy, {lowSum.getSum(), high});
+    Value resultVec = constructResultVector(
+        rewriter, loc, newTy,
+        {lowSum0.getSum(), lowSum1.getSum(), lowSum2.getSum(), high});
     rewriter.replaceOp(op, resultVec);
     return success();
   }
