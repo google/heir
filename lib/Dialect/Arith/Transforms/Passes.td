@@ -8,7 +8,11 @@ def EmuWideInth : Pass<"emu-wide"> {
   let summary = "";
   let description = [{
   }];
-  let dependentDialects = ["mlir::arith::ArithDialect"];
+  let dependentDialects = [
+    "mlir::arith::ArithDialect",
+    "mlir::vector::VectorDialect",
+    "mlir::tensor::TensorDialect",
+  ];
 }
 
 #endif  // LIB_DIALECT_ARITH_TRANSFORMS_PASSES_TD_
