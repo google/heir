@@ -2,13 +2,15 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -20,22 +22,20 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/ConversionUtils/ConversionUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir {
@@ -144,6 +144,18 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
   ::mlir::heir::polynomial::RingAttr ring;
 };
 
+std::optional<std::string> disallowFloatlike(const Type &type) {
+  auto secretType = dyn_cast<secret::SecretType>(type);
+  if (!secretType) return std::nullopt;
+
+  if (isa<FloatType>(getElementTypeOrSelf(secretType.getValueType()))) {
+    return "Floating point types are not supported in BGV. Maybe you meant "
+           "to use a CKKS pipeline like --mlir-to-openfhe-ckks?";
+  }
+
+  return std::nullopt;
+}
+
 struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
   using SecretToBGVBase::SecretToBGVBase;
 
@@ -178,7 +190,13 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       module->emitError(
           "expected batched secret types to be tensors with dimension "
           "matching ring parameter");
-      return signalPassFailure();
+      signalPassFailure();
+      return;
+    }
+
+    if (failed(walkAndValidateTypes(module, disallowFloatlike))) {
+      signalPassFailure();
+      return;
     }
 
     // Invariant: for every SecretType, there is a

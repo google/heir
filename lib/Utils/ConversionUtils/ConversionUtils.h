@@ -4,13 +4,13 @@
 #include <cstdint>
 #include <functional>
 #include <numeric>
+#include <optional>
+#include <string>
 
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -439,6 +439,16 @@ class SecretGenericOpModulusSwitchConversion
     }
   }
 };
+
+typedef std::function<std::optional<std::string>(const Type &)> IsValidTypeFn;
+
+/// A helper pattern that can be used to do eager type checking when lowering
+/// secret-to-scheme. E.g., in secret-to-bgv to ensure input secret.generic
+/// don't have floating point types in their secrets.
+LogicalResult validateArgumentTypes(secret::GenericOp op,
+                                    IsValidTypeFn isValidType);
+
+LogicalResult walkAndValidateTypes(Operation *op, IsValidTypeFn isValidType);
 
 // Adds conversion patterns that deal with tensor<..xsource_type>
 // when source_type will be type converted to tensor<...>, too

@@ -3,8 +3,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -402,6 +405,27 @@ bool TypeWithAttrTypeConverter::isFuncArgumentAndResultLegal(
     }
   }
   return true;
+}
+
+LogicalResult validateArgumentTypes(secret::GenericOp op,
+                                    IsValidTypeFn isValidType) {
+  for (auto operand : op.getOperands()) {
+    std::optional<std::string> result = isValidType(operand.getType());
+    if (result.has_value()) {
+      return op.emitError() << result.value();
+    }
+  }
+
+  return success();
+}
+
+LogicalResult walkAndValidateTypes(Operation *op, IsValidTypeFn isValidType) {
+  LogicalResult res = success();
+  op->walk([&](secret::GenericOp op) {
+    res = validateArgumentTypes(op, isValidType);
+    return failed(res) ? WalkResult::interrupt() : WalkResult::advance();
+  });
+  return res;
 }
 
 }  // namespace heir
