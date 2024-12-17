@@ -1,8 +1,10 @@
-#include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
+#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 
 #include <utility>
 
-#include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "lib/Utils/RewriteUtils/RewriteUtils.h"
@@ -13,12 +15,12 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
-namespace mlir::heir::bgv {
+namespace mlir::heir::ckks {
 
-#define GEN_PASS_DEF_BGVTOLWE
-#include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h.inc"
+#define GEN_PASS_DEF_CKKSTOLWE
+#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h.inc"
 
-struct BGVToLWE : public impl::BGVToLWEBase<BGVToLWE> {
+struct CKKSToLWE : public impl::CKKSToLWEBase<CKKSToLWE> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
@@ -32,4 +34,4 @@ struct BGVToLWE : public impl::BGVToLWEBase<BGVToLWE> {
   }
 };
 
-}  // namespace mlir::heir::bgv
+}  // namespace mlir::heir::ckks

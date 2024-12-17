@@ -1,0 +1,11 @@
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "RewriteUtils",
+    srcs = [],
+    hdrs = ["RewriteUtils.h"],
+    deps = ["@llvm-project//mlir:IR"],
+)

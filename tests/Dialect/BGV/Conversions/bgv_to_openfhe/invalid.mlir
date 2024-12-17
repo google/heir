@@ -1,4 +1,4 @@
-// RUN: heir-opt --bgv-to-openfhe --split-input-file --verify-diagnostics %s 2>&1
+// RUN: heir-opt --bgv-to-lwe --lwe-to-openfhe --split-input-file --verify-diagnostics %s 2>&1
 
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
@@ -21,11 +21,11 @@
 !ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 !ct1 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D4_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-func.func @test_relin_to_basis_error(%x: !ct1) {
+func.func @test_relin_to_basis_error(%x: !ct1) -> !ct {
   // expected-error@+2 {{toBasis must be [0, 1], got [0, 2]}}
   // expected-error@+1 {{failed to legalize operation 'bgv.relinearize'}}
   %relin_error = bgv.relinearize %x  { from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 2> }: !ct1 -> !ct
-  return
+  return %relin_error : !ct
 }
 
 // -----
@@ -57,8 +57,8 @@ func.func @test_relin_to_basis_error(%x: !ct1) {
 !ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !ct2 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-func.func @test_modswitch_level_error(%x: !ct2) {
+func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
   // expected-error@+1 {{output ring should match to_ring}}
   %relin_error = bgv.modulus_switch %x  {to_ring=#ring_rns_L0_1_x1024_}: !ct2 -> !ct
-  return
+  return %relin_error : !ct
 }

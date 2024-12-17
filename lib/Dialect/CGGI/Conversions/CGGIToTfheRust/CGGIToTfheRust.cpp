@@ -126,7 +126,7 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsLweOrDialect<cggi::CGGIDialect>(op)) {
+    if (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op)) {
       return failure();
     }
 
@@ -402,7 +402,8 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
                                  *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsLweOrDialect<cggi::CGGIDialect>(op) || hasServerKeyArg);
+             (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op) ||
+              hasServerKeyArg);
     });
     target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
                                  memref::StoreOp, memref::LoadOp,

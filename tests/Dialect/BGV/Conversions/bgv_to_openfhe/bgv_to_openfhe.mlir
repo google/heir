@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --bgv-to-openfhe %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --bgv-to-lwe --lwe-to-openfhe %s | FileCheck %s
 
 !Z1032955396097_i64_ = !mod_arith.int<1032955396097 : i64>
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
@@ -42,7 +42,7 @@ module {
 
   // CHECK-LABEL: @test_ops
   // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]], [[Y:%.+]]: [[T]])
-  func.func @test_ops(%x : !ct, %y : !ct) {
+  func.func @test_ops(%x : !ct, %y : !ct) -> (!ct, !ct, !ct, !ct_D3, !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
     %negate = bgv.negate %x  : !ct
     // CHECK: %[[v2:.*]] = openfhe.add [[C]], %[[x2:.*]], %[[y2:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
@@ -54,17 +54,17 @@ module {
     // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {index = 4 : i64}
     // CHECK-SAME: ([[S]], [[T]]) -> [[T]]
     %rot = bgv.rotate %x { offset = 4 } : !ct
-    return
+    return %negate, %add, %sub, %mul, %rot : !ct, !ct, !ct, !ct_D3, !ct
   }
 
   // CHECK-LABEL: @test_relin
   // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]])
-  func.func @test_relin(%x : !ct_D4) {
+  func.func @test_relin(%x : !ct_D4) -> !ct {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
     %relin = bgv.relinearize %x  {
       from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 1>
     }: !ct_D4 -> !ct
-    return
+    return %relin : !ct
   }
 
   // CHECK-LABEL: @test_modswitch

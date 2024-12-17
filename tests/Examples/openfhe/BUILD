@@ -1,6 +1,7 @@
 # See README.md for setup required to run these tests
 
 load("@heir//tests/Examples/openfhe:test.bzl", "openfhe_end_to_end_test")
+load("//tools/build_defs/testing:bzl_library.bzl", "bzl_library")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
@@ -68,7 +69,8 @@ openfhe_end_to_end_test(
     # We manually specify the passes since the test file is already expressed at the CKKS dialect level.
     heir_opt_flags = [
         "--full-loop-unroll",
-        "--ckks-to-openfhe",
+        "--ckks-to-lwe",
+        "--lwe-to-openfhe",
         "--canonicalize",
         "--cse",
         "--openfhe-configure-crypto-context",
@@ -93,4 +95,11 @@ openfhe_end_to_end_test(
     mlir_src = "halevi_shoup_matmul.mlir",
     tags = ["notap"],
     test_src = "halevi_shoup_matmul_test.cpp",
+)
+
+bzl_library(
+    name = "test_bzl",
+    srcs = ["test.bzl"],
+    parse_tests = False,
+    visibility = ["//visibility:private"],
 )

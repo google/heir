@@ -6,27 +6,24 @@ package(
 )
 
 cc_library(
-    name = "BGVToOpenfhe",
-    srcs = ["BGVToOpenfhe.cpp"],
+    name = "CKKSToLWE",
+    srcs = ["CKKSToLWE.cpp"],
     hdrs = [
-        "BGVToOpenfhe.h",
+        "CKKSToLWE.h",
     ],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Dialect/BGV/IR:Dialect",
-        "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
-        "@heir//lib/Dialect/LWE/Conversions/RlweToOpenfhe",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Patterns",
-        "@heir//lib/Dialect/Openfhe/IR:Dialect",
-        "@heir//lib/Utils/ConversionUtils",
-        "@llvm-project//mlir:FuncDialect",
+        "@heir//lib/Utils/RewriteUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
     ],
+    alwayslink = 1,
 )
 
 gentbl_cc_library(
@@ -35,17 +32,17 @@ gentbl_cc_library(
         (
             [
                 "-gen-pass-decls",
-                "-name=BGVToOpenfhe",
+                "-name=CKKSToLWE",
             ],
-            "BGVToOpenfhe.h.inc",
+            "CKKSToLWE.h.inc",
         ),
         (
             ["-gen-pass-doc"],
-            "BGVToOpenfhe.md",
+            "CKKSToLWE.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "BGVToOpenfhe.td",
+    td_file = "CKKSToLWE.td",
     deps = [
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",

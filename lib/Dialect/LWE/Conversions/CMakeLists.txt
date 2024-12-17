@@ -1,3 +1,2 @@
 add_subdirectory(LWEToOpenfhe)
 add_subdirectory(LWEToPolynomial)
-add_subdirectory(RlweToOpenfhe)

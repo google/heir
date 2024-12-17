@@ -79,7 +79,7 @@ struct AddJaxiteContextualArgs : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsLweOrDialect<cggi::CGGIDialect>(op)) {
+    if (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op)) {
       return failure();
     }
 
