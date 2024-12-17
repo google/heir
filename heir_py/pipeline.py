@@ -87,6 +87,16 @@ def run_compiler(
         options=heir_opt_options,
     )
 
+    if(debug):
+        mlir_in_filepath = Path(workspace_dir) / f"{func_name}.in.mlir"
+        print(f"Debug mode enabled. Writing Input MLIR to {mlir_in_filepath}")
+        with open(mlir_in_filepath, "w") as f:
+            f.write(mlir_textual)
+        mlir_out_filepath = Path(workspace_dir) / f"{func_name}.out.mlir"
+        print(f"Debug mode enabled. Writing Output MLIR to {mlir_out_filepath}")
+        with open(mlir_out_filepath, "w") as f:
+            f.write(heir_opt_output)
+
     heir_translate = heir_backend.HeirTranslateBackend(
         binary_path=heir_config.heir_translate_path
     )
@@ -122,6 +132,11 @@ def run_compiler(
     clang_backend = clang.ClangBackend()
     so_filepath = Path(workspace_dir) / f"{func_name}.so"
     linker_search_paths = [openfhe_config.lib_dir]
+    if(debug):
+        print(
+          f"Debug mode enabled. Compiling {cpp_filepath} with linker search paths: {linker_search_paths},  include paths: {openfhe_config.include_dirs}, link libs: {openfhe_config.link_libs}\n"
+        )
+
     clang_backend.compile_to_shared_object(
         cpp_source_filepath=cpp_filepath,
         shared_object_output_filepath=so_filepath,

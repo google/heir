@@ -1,3 +1,3 @@
-from decorator import compile
+from .decorator import compile
 
 __all__ = ["compile"]
