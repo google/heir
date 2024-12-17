@@ -24,16 +24,6 @@ LogicalResult DimensionAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
-  auto ensureSecretness = [&](Operation *op, Value value) -> bool {
-    // create dependency on SecretnessAnalysis
-    auto *lattice =
-        getOrCreateFor<SecretnessLattice>(getProgramPointAfter(op), value);
-    if (!lattice->getValue().isInitialized()) {
-      return false;
-    }
-    return lattice->getValue().getSecretness();
-  };
-
   llvm::TypeSwitch<Operation &>(*op)
       .Case<secret::GenericOp>([&](auto genericOp) {
         Block *body = genericOp.getBody();
@@ -47,50 +37,43 @@ LogicalResult DimensionAnalysis::visitOperation(
         propagate(relinearizeOp.getResult(), DimensionState(2));
       })
       .Default([&](auto &op) {
-        if (op.getNumResults() == 0) {
-          return;
-        }
-
         // condition on result secretness
-        auto secretness = ensureSecretness(&op, op.getResult(0));
-        if (!secretness) {
+        SmallVector<OpResult> secretResults;
+        getSecretResults(&op, secretResults);
+        if (secretResults.empty()) {
           return;
         }
 
         auto isMul = false;
+
         if (isa<arith::MulIOp, arith::MulFOp>(op)) {
           isMul = true;
         }
 
-        auto dimensionResult = 0;
-        auto operandSecretNum = 0;
-        for (const auto *operand : operands) {
-          auto secretness = ensureSecretness(&op, operand->getAnchor());
-          // pt/ct default
-          auto dimension = 2;
-          bool operandIsSecret = false;
-          if (secretness) {
-            if (!operand->getValue().isInitialized()) {
-              return;
-            }
-            // ct
-            operandIsSecret = true;
-            operandSecretNum += 1;
-            dimension = operand->getValue().getDimension();
-          }
+        // for mul, initialize to 0, for max, initialize to 2
+        auto dimensionResult = isMul ? 0 : 2;
 
-          if (isMul && operandIsSecret) {
+        SmallVector<OpOperand *> secretOperands;
+        getSecretOperands(&op, secretOperands);
+        for (auto *operand : secretOperands) {
+          auto &dimensionState = getLatticeElement(operand->get())->getValue();
+          if (!dimensionState.isInitialized()) {
+            return;
+          }
+          auto dimension = dimensionState.getDimension();
+          if (isMul) {
             dimensionResult += dimension;
           } else {
             dimensionResult = std::max(dimensionResult, dimension);
           }
         }
+
         // tensor product
-        if (isMul && operandSecretNum == 2) {
+        if (isMul && secretOperands.size() == 2) {
           dimensionResult -= 1;
         }
 
-        for (auto result : op.getResults()) {
+        for (auto result : secretResults) {
           propagate(result, DimensionState(dimensionResult));
         }
       });

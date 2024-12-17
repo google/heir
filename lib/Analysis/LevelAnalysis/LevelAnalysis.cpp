@@ -28,16 +28,6 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
-  auto ensureSecretness = [&](Operation *op, Value value) -> bool {
-    // create dependency on SecretnessAnalysis
-    auto *lattice =
-        getOrCreateFor<SecretnessLattice>(getProgramPointAfter(op), value);
-    if (!lattice->getValue().isInitialized()) {
-      return false;
-    }
-    return lattice->getValue().getSecretness();
-  };
-
   llvm::TypeSwitch<Operation &>(*op)
       .Case<secret::GenericOp>([&](auto genericOp) {
         Block *body = genericOp.getBody();
@@ -56,30 +46,25 @@ LogicalResult LevelAnalysis::visitOperation(
         propagate(modReduceOp.getResult(), LevelState(level + 1));
       })
       .Default([&](auto &op) {
-        if (op.getNumResults() == 0) {
-          return;
-        }
-
         // condition on result secretness
-        auto secretness = ensureSecretness(&op, op.getResult(0));
-        if (!secretness) {
+        SmallVector<OpResult> secretResults;
+        getSecretResults(&op, secretResults);
+        if (secretResults.empty()) {
           return;
         }
 
         auto levelResult = 0;
-        for (const auto *operand : operands) {
-          auto secretness = ensureSecretness(&op, operand->getAnchor());
-          if (!secretness) {
-            continue;
-          }
-          // now operand is secret
-          if (!operand->getValue().isInitialized()) {
+        SmallVector<OpOperand *> secretOperands;
+        getSecretOperands(&op, secretOperands);
+        for (auto *operand : secretOperands) {
+          auto &levelState = getLatticeElement(operand->get())->getValue();
+          if (!levelState.isInitialized()) {
             return;
           }
-          levelResult = std::max(levelResult, operand->getValue().getLevel());
+          levelResult = std::max(levelResult, levelState.getLevel());
         }
 
-        for (auto result : op.getResults()) {
+        for (auto result : secretResults) {
           propagate(result, LevelState(levelResult));
         }
       });

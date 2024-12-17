@@ -4,6 +4,7 @@
 #include <cassert>
 #include <optional>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"  // from @llvm-project
@@ -70,9 +71,11 @@ class MulResultLattice : public dataflow::Lattice<MulResultState> {
 };
 
 class MulResultAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<MulResultLattice> {
+    : public dataflow::SparseForwardDataFlowAnalysis<MulResultLattice>,
+      public SecretnessAnalysisDependent<MulResultAnalysis> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
+  friend class SecretnessAnalysisDependent<MulResultAnalysis>;
 
   void setToEntryState(MulResultLattice *lattice) override {
     propagateIfChanged(lattice, lattice->join(MulResultState()));
