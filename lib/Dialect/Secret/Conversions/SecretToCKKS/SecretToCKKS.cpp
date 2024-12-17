@@ -23,7 +23,8 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
@@ -283,34 +284,27 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     // parameter size in order to pack tensors into ciphertext SIMD slots.
     // TODO(#1174): decide this earlier, remove polyModDegree param to earlier
     // pipeline
-    bool packTensorInSlots = true;
-    WalkResult compatibleTensors = module->walk([&](Operation *op) {
-      for (auto value : op->getOperands()) {
-        if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
-          auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (tensorTy) {
-            // TODO(#913): Multidimensional tensors with a single non-unit
-            // dimension are assumed to be packed in the order of that
-            // dimensions.
-            auto nonUnitDim = getNonUnitDimension(tensorTy);
-            if (failed(nonUnitDim)) {
-              return WalkResult::interrupt();
-            }
-            if (nonUnitDim.value().second != polyModDegree) {
-              return WalkResult::interrupt();
+    bool packTensorInSlots = succeeded(walkAndValidateValues(
+        module,
+        [&](Value value) {
+          if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
+            auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
+            if (tensorTy) {
+              // TODO(#913): Multidimensional tensors with a single non-unit
+              // dimension are assumed to be packed in the order of that
+              // dimensions.
+              auto nonUnitDim = getNonUnitDimension(tensorTy);
+              if (failed(nonUnitDim) ||
+                  nonUnitDim.value().second != polyModDegree) {
+                return failure();
+              }
             }
           }
-        }
-      }
-      return WalkResult::advance();
-    });
-    if (compatibleTensors.wasInterrupted()) {
-      emitWarning(module->getLoc(),
-                  "expected secret types to be tensors with dimension matching "
-                  "ring parameter, pass will not pack tensors into ciphertext "
-                  "SIMD slots");
-      packTensorInSlots = false;
-    }
+          return success();
+        },
+        "expected secret types to be tensors with dimension matching "
+        "ring parameter, pass will not pack tensors into ciphertext "
+        "SIMD slots"));
 
     // Invariant: for every SecretType, there is a
     // corresponding MgmtAttr attached to it,

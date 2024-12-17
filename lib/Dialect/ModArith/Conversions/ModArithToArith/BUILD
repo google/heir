@@ -14,7 +14,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Utils/ConversionUtils",
+        "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
