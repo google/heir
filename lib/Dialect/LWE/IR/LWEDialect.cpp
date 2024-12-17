@@ -116,24 +116,9 @@ class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
                   os << "unspecified_bit_field_encoding";
                   return AliasResult::FinalAlias;
                 })
-            .Case<PolynomialCoefficientEncodingAttr>(
-                [&](auto polynomialCoefficientEncoding) {
-                  os << "polynomial_coefficient_encoding";
-                  return AliasResult::FinalAlias;
-                })
-            .Case<PolynomialEvaluationEncodingAttr>(
-                [&](auto polynomialEvaluationEncoding) {
-                  os << "polynomial_evaluation_encoding";
-                  return AliasResult::FinalAlias;
-                })
             .Case<InverseCanonicalEncodingAttr>(
                 [&](auto inverseCanonicalEncoding) {
                   os << "inverse_canonical_encoding";
-                  return AliasResult::FinalAlias;
-                })
-            .Case<InverseCanonicalEmbeddingEncodingAttr>(
-                [&](auto inverseCanonicalEmbeddingEncoding) {
-                  os << "inverse_canonical_embedding_encoding";
                   return AliasResult::FinalAlias;
                 })
             .Case<ModulusChainAttr>([&](auto modulusChain) {
@@ -264,68 +249,6 @@ LogicalResult UnspecifiedBitFieldEncodingAttr::verifyEncoding(
   return success();
 }
 
-LogicalResult requirePolynomialElementTypeFits(
-    Type elementType, llvm::StringRef encodingName, unsigned cleartextBitwidth,
-    unsigned cleartextStart,
-    llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
-  if (!mlir::isa<::mlir::heir::polynomial::PolynomialType>(elementType)) {
-    return emitError()
-           << "Tensors with encoding " << encodingName
-           << " must have `polynomial.polynomial` element type, but found "
-           << elementType << "\n";
-  }
-  ::mlir::heir::polynomial::PolynomialType polyType =
-      llvm::cast<::mlir::heir::polynomial::PolynomialType>(elementType);
-  // The coefficient modulus takes the place of the plaintext bitwidth for
-  // RLWE.
-  auto coeffType = dyn_cast<mod_arith::ModArithType>(
-      polyType.getRing().getCoefficientType());
-  if (!coeffType) {
-    return emitError()
-           << "The polys in this tensor have a mod_arith coefficient type"
-           << " but found " << polyType.getRing().getCoefficientType();
-  }
-  unsigned plaintextBitwidth =
-      coeffType.getModulus().getType().getIntOrFloatBitWidth();
-
-  if (plaintextBitwidth < cleartextBitwidth)
-    return emitError() << "The polys in this tensor have a coefficient "
-                       << "modulus with bitwidth " << plaintextBitwidth
-                       << ", which too small to store the cleartext, "
-                       << "which has bit width " << cleartextBitwidth << "";
-
-  if (cleartextStart < 0 || cleartextStart >= plaintextBitwidth)
-    return emitError() << "Attribute's cleartext starting bit index ("
-                       << cleartextStart << ") is outside the legal range [0, "
-                       << plaintextBitwidth - 1 << "]";
-
-  return success();
-}
-
-LogicalResult PolynomialCoefficientEncodingAttr::verifyEncoding(
-    ArrayRef<int64_t> shape, Type elementType,
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
-  return requirePolynomialElementTypeFits(
-      elementType, "poly_coefficient_encoding", getCleartextBitwidth(),
-      getCleartextStart(), emitError);
-}
-
-LogicalResult PolynomialEvaluationEncodingAttr::verifyEncoding(
-    ArrayRef<int64_t> shape, Type elementType,
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
-  return requirePolynomialElementTypeFits(
-      elementType, "poly_evaluation_encoding", getCleartextBitwidth(),
-      getCleartextStart(), emitError);
-}
-
-LogicalResult InverseCanonicalEmbeddingEncodingAttr::verifyEncoding(
-    ArrayRef<int64_t> shape, Type elementType,
-    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) const {
-  return requirePolynomialElementTypeFits(
-      elementType, "inverse_canonical_embedding_encoding",
-      getCleartextBitwidth(), getCleartextStart(), emitError);
-}
-
 LogicalResult TrivialEncryptOp::verify() {
   auto paramsAttr = this->getParamsAttr();
   auto outParamsAttr = this->getOutput().getType().getLweParams();
@@ -429,11 +352,21 @@ LogicalResult NewLWECiphertextType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::heir::lwe::ApplicationDataAttr, mlir::heir::lwe::PlaintextSpaceAttr,
     mlir::heir::lwe::CiphertextSpaceAttr ciphertextSpace,
-    mlir::heir::lwe::KeyAttr keyAttr, mlir::heir::lwe::ModulusChainAttr) {
+    mlir::heir::lwe::KeyAttr keyAttr,
+    mlir::heir::lwe::ModulusChainAttr modulusChain) {
   if (keyAttr.getSlotIndex() != 0 && (ciphertextSpace.getSize() != 2)) {
     return emitError() << "a ciphertext with nontrivial slot rotation must "
                           "have size 2, but found size "
                        << ciphertextSpace.getSize();
+  }
+  if (auto rnsType = mlir::dyn_cast<rns::RNSType>(
+          ciphertextSpace.getRing().getCoefficientType())) {
+    if (rnsType.getBasisTypes().size() - 1 != modulusChain.getCurrent()) {
+      return emitError() << "the level in the ciphertext ring "
+                            "must match the modulus chain's current, but found "
+                         << rnsType.getBasisTypes().size() - 1 << " and "
+                         << modulusChain.getCurrent();
+    }
   }
   return success();
 }
@@ -455,22 +388,6 @@ LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
   if (isa<UnspecifiedBitFieldEncodingAttr>(encoding)) {
     // same as BitFieldEncoding
     return success(type.isInteger());
-  }
-
-  if (isa<PolynomialCoefficientEncodingAttr>(encoding)) {
-    // supports lists of integers and scalars via replication
-    return success(getElementTypeOrSelf(type).isInteger());
-  }
-
-  if (isa<PolynomialEvaluationEncodingAttr>(encoding)) {
-    // also supports lists of integers and scalars via replication
-    return success(getElementTypeOrSelf(type).isInteger());
-  }
-
-  if (isa<InverseCanonicalEmbeddingEncodingAttr>(encoding)) {
-    // CKKS-style Encoding should support everything
-    // (ints via cast to float/double, scalars via replication)
-    return success();
   }
 
   // New LWE Encoding Attr
