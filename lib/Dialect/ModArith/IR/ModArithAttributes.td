@@ -3,8 +3,8 @@
 
 include "lib/Dialect/ModArith/IR/ModArithDialect.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
-include "mlir/IR/BuiltinAttributes.td"
-
+include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/IR/OpBase.td"
 
 class ModArith_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   : AttrDef<ModArith_Dialect, name, traits> {

@@ -10,6 +10,7 @@ include "lib/Dialect/LWE/IR/LWETypes.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/BuiltinAttributes.td"
 
 class CKKS_Op<string mnemonic, list<Trait> traits = []> :
         Op<CKKS_Dialect, mnemonic, traits> {
