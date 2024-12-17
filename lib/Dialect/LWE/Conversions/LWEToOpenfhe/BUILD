@@ -1,3 +1,5 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -10,7 +12,11 @@ cc_library(
         "LWEToOpenfhe.h",
     ],
     deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Patterns",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Utils/ConversionUtils",
         "@llvm-project//mlir:ArithDialect",
@@ -19,5 +25,28 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=LWEToOpenfhe",
+            ],
+            "LWEToOpenfhe.h.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "LWEToOpenfhe.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "LWEToOpenfhe.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
     ],
 )

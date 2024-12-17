@@ -3,8 +3,9 @@
 #include <cstdlib>
 #include <string>
 
-#include "lib/Dialect/BGV/Conversions/BGVToOpenfhe/BGVToOpenfhe.h"
-#include "lib/Dialect/CKKS/Conversions/CKKSToOpenfhe/CKKSToOpenfhe.h"
+#include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
+#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
+#include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
@@ -209,14 +210,16 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
     // lower to RLWE scheme
     mlirToRLWEPipeline(pm, options, scheme);
 
-    // Convert to OpenFHE
+    // Convert to (common trivial subset of) LWE
     switch (scheme) {
       case RLWEScheme::bgvScheme: {
-        pm.addPass(bgv::createBGVToOpenfhe());
+        // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
+        pm.addPass(bgv::createBGVToLWE());
         break;
       }
       case RLWEScheme::ckksScheme: {
-        pm.addPass(ckks::createCKKSToOpenfhe());
+        // TODO (#1193): Replace `--ckks-to-lwe` with `--ckks-common-to-lwe`
+        pm.addPass(ckks::createCKKSToLWE());
         break;
       }
       default:
@@ -224,7 +227,13 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
         exit(EXIT_FAILURE);
     }
 
+    // Convert to OpenFHE
+    pm.addPass(lwe::createLWEToOpenfhe());
+
+    // Simplify, in case the lowering revealed redundancy
     pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+
     // TODO (#1145): OpenFHE context configuration should NOT do its own
     // analysis but instead use information put into the IR by previous passes
     auto configureCryptoContextOptions =

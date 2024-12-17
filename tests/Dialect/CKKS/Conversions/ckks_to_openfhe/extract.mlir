@@ -1,4 +1,4 @@
-// RUN: heir-opt --ckks-to-openfhe %s | FileCheck %s
+// RUN: heir-opt --ckks-to-lwe --lwe-to-openfhe %s | FileCheck %s
 
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
@@ -23,7 +23,6 @@
 // CHECK-LABEL: @test_lower_extract
 // CHECK-SAME: %[[arg0:.*]]:
 func.func @test_lower_extract(%arg0: !ty1) -> !ty2 {
-  // CHECK: arith.constant 4 : index
   // CHECK: arith.constant dense<[0, 0, 0, 0, 1, [[unused:[0 ,]*]]]> : tensor<32xi16>
   // CHECK: openfhe.make_ckks_packed_plaintext
   // CHECK: openfhe.mul_plain

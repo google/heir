@@ -65,7 +65,7 @@ struct BGVToLattigo : public impl::BGVToLattigoBase<BGVToLattigo> {
                                      *op.getFunctionType().getInputs().begin());
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsLweOrDialect<bgv::BGVDialect>(op) ||
+             (!containsDialects<lwe::LWEDialect, bgv::BGVDialect>(op) ||
               hasCryptoContextArg);
     });
 

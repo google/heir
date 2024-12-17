@@ -6,17 +6,17 @@
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
-#include "lib/Dialect/BGV/Conversions/BGVToOpenfhe/BGVToOpenfhe.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/Transforms/Passes.h"
-#include "lib/Dialect/CKKS/Conversions/CKKSToOpenfhe/CKKSToOpenfhe.h"
+#include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
+#include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
@@ -269,13 +269,13 @@ int main(int argc, char **argv) {
 
   // Dialect conversion passes in HEIR
   mod_arith::registerModArithToArithPasses();
-  heir::arith::registerArithToModArithPasses();
+  ::mlir::heir::arith::registerArithToModArithPasses();
   mod_arith::registerConvertToMacPass();
   bgv::registerBGVToLWEPasses();
   bgv::registerBGVToLattigoPasses();
-  bgv::registerBGVToOpenfhePasses();
-  ckks::registerCKKSToOpenfhePasses();
+  ckks::registerCKKSToLWEPasses();
   registerSecretToCGGIPasses();
+  lwe::registerLWEToOpenfhePasses();
   lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::linalg::registerLinalgToTensorExtPasses();
   ::mlir::heir::polynomial::registerPolynomialToModArithPasses();
@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
   // This comement registers internal passes
   registerSecretToBGVPasses();
   registerSecretToCKKSPasses();
-  mlir::heir::tosa::registerTosaToSecretArithPasses();
+  ::mlir::heir::tosa::registerTosaToSecretArithPasses();
 
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --bgv-to-openfhe %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --bgv-to-lwe --lwe-to-openfhe %s | FileCheck %s
 
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
