@@ -1,4 +1,4 @@
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -405,27 +405,6 @@ bool TypeWithAttrTypeConverter::isFuncArgumentAndResultLegal(
     }
   }
   return true;
-}
-
-LogicalResult validateArgumentTypes(secret::GenericOp op,
-                                    IsValidTypeFn isValidType) {
-  for (auto operand : op.getOperands()) {
-    std::optional<std::string> result = isValidType(operand.getType());
-    if (result.has_value()) {
-      return op.emitError() << result.value();
-    }
-  }
-
-  return success();
-}
-
-LogicalResult walkAndValidateTypes(Operation *op, IsValidTypeFn isValidType) {
-  LogicalResult res = success();
-  op->walk([&](secret::GenericOp op) {
-    res = validateArgumentTypes(op, isValidType);
-    return failed(res) ? WalkResult::interrupt() : WalkResult::advance();
-  });
-  return res;
 }
 
 }  // namespace heir

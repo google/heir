@@ -12,7 +12,8 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Transforms/MemrefToArith:Utils",
-        "@heir//lib/Utils/TargetUtils",
+        "@heir//lib/Utils",
+        "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",

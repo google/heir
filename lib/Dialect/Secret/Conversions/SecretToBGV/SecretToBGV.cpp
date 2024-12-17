@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstdint>
 #include <optional>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -22,7 +21,8 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -144,16 +144,14 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
   ::mlir::heir::polynomial::RingAttr ring;
 };
 
-std::optional<std::string> disallowFloatlike(const Type &type) {
+LogicalResult disallowFloatlike(const Type &type) {
   auto secretType = dyn_cast<secret::SecretType>(type);
-  if (!secretType) return std::nullopt;
+  if (!secretType) return success();
 
-  if (isa<FloatType>(getElementTypeOrSelf(secretType.getValueType()))) {
-    return "Floating point types are not supported in BGV. Maybe you meant "
-           "to use a CKKS pipeline like --mlir-to-openfhe-ckks?";
-  }
+  if (isa<FloatType>(getElementTypeOrSelf(secretType.getValueType())))
+    return failure();
 
-  return std::nullopt;
+  return success();
 }
 
 struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
@@ -171,30 +169,35 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     }
     // Ensure that all secret types are uniform and matching the ring
     // parameter size.
-    WalkResult compatibleTensors = module->walk([&](Operation *op) {
-      for (auto value : op->getOperands()) {
-        if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
-          auto tensorTy = dyn_cast<RankedTensorType>(secretTy.getValueType());
-          if (tensorTy && tensorTy.getShape() !=
-                              ArrayRef<int64_t>{rlweRing.value()
-                                                    .getPolynomialModulus()
-                                                    .getPolynomial()
-                                                    .getDegree()}) {
-            return WalkResult::interrupt();
+    std::optional<Operation *> foundOp =
+        walkAndDetect(module, [&](Operation *op) {
+          for (auto value : op->getOperands()) {
+            if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
+              auto tensorTy =
+                  dyn_cast<RankedTensorType>(secretTy.getValueType());
+              if (tensorTy && tensorTy.getShape() !=
+                                  ArrayRef<int64_t>{rlweRing.value()
+                                                        .getPolynomialModulus()
+                                                        .getPolynomial()
+                                                        .getDegree()}) {
+                return true;
+              }
+            }
           }
-        }
-      }
-      return WalkResult::advance();
-    });
-    if (compatibleTensors.wasInterrupted()) {
-      module->emitError(
+          return false;
+        });
+    if (foundOp.has_value()) {
+      foundOp.value()->emitError(
           "expected batched secret types to be tensors with dimension "
           "matching ring parameter");
       signalPassFailure();
       return;
     }
 
-    if (failed(walkAndValidateTypes(module, disallowFloatlike))) {
+    if (failed(walkAndValidateTypes<secret::GenericOp>(
+            module, disallowFloatlike,
+            "Floating point types are not supported in BGV. Maybe you meant "
+            "to use a CKKS pipeline like --mlir-to-openfhe-ckks?"))) {
       signalPassFailure();
       return;
     }
