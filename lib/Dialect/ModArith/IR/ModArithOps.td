@@ -24,9 +24,6 @@ def ModArith_EncapsulateOp : ModArith_Op<"encapsulate", [Pure, ElementwiseMappab
   let description = [{
     `mod_arith.encapsulate` converts the integer to be of mod_arith type.
 
-    It is required that the bitwidth of the input integer type is the same
-    as that of the storage type of the output mod_arith type.
-
     Examples:
     ```
     mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
@@ -38,7 +35,6 @@ def ModArith_EncapsulateOp : ModArith_Op<"encapsulate", [Pure, ElementwiseMappab
     SignlessIntegerLike:$input
   );
   let results = (outs ModArithLike:$output);
-  let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
@@ -66,6 +62,25 @@ def ModArith_ExtractOp : ModArith_Op<"extract", [Pure, ElementwiseMappable]> {
   let results = (outs SignlessIntegerLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+}
+
+def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure, SameOperandsAndResultShape]> {
+  let summary = "change the modulus of a mod_arith";
+
+  let description = [{
+    "mod_switch" operation to change the modulus of a mod_arith type to a
+    bigger space.
+
+    Examples:
+    ```
+    `mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<65539 : i32>`
+    ```
+  }];
+
+  let arguments = (ins ModArith_ModArithType:$input);
+  let results = (outs ModArith_ModArithType:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
 
 def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",

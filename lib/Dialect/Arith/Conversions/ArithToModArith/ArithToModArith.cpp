@@ -1,5 +1,6 @@
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
 
+#include <cassert>
 #include <cstdint>
 #include <utility>
 
@@ -8,15 +9,17 @@
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Utils/ConversionUtils/ConversionUtils.h"
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
@@ -32,7 +35,7 @@ static mod_arith::ModArithType convertArithType(Type type) {
   auto modulus = (1L << (modulusBitSize - 1L));
   auto newType = mlir::IntegerType::get(type.getContext(), modulusBitSize + 1);
 
-  return mod_arith::ModArithType::get(newType.getContext(),
+  return mod_arith::ModArithType::get(type.getContext(),
                                       mlir::IntegerAttr::get(newType, modulus));
 }
 
@@ -41,6 +44,21 @@ static Type convertArithLikeType(ShapedType type) {
     return type.cloneWith(type.getShape(), convertArithType(arithType));
   }
   return type;
+}
+
+static Value buildLoadOps(OpBuilder &builder, Type resultTypes,
+                          ValueRange inputs, Location loc) {
+  assert(inputs.size() == 1);
+  auto loadOp = inputs[0].getDefiningOp<memref::LoadOp>();
+
+  if (!loadOp) return {};
+
+  auto *globaMemReflOp = loadOp.getMemRef().getDefiningOp();
+
+  if (!globaMemReflOp) return {};
+
+  return builder.create<mod_arith::EncapsulateOp>(
+      loc, convertArithType(loadOp.getType()), loadOp.getResult());
 }
 
 class ArithToModArithTypeConverter : public TypeConverter {
@@ -52,6 +70,7 @@ class ArithToModArithTypeConverter : public TypeConverter {
     });
     addConversion(
         [](ShapedType type) -> Type { return convertArithLikeType(type); });
+    addTargetMaterialization(buildLoadOps);
   }
 };
 
@@ -66,10 +85,32 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    if (isa<IndexType>(op.getValue().getType())) {
+      return failure();
+    }
+
     auto result = b.create<mod_arith::ConstantOp>(mod_arith::ModArithAttr::get(
         convertArithType(op.getType()),
         cast<IntegerAttr>(op.getValue()).getValue().getSExtValue()));
 
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+struct ConvertExt : public OpConversionPattern<mlir::arith::ExtSIOp> {
+  ConvertExt(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ::mlir::arith::ExtSIOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto result = b.create<mod_arith::ModSwitchOp>(
+        op.getLoc(), convertArithType(op.getType()), adaptor.getIn());
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -109,12 +150,34 @@ void ArithToModArith::runOnOperation() {
   target.addLegalDialect<mod_arith::ModArithDialect>();
   target.addIllegalDialect<mlir::arith::ArithDialect>();
 
+  target.addDynamicallyLegalOp<mlir::arith::ConstantOp>(
+      [](mlir::arith::ConstantOp op) {
+        return isa<IndexType>(op.getValue().getType());
+      });
+
+  target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation *op) {
+    return cast<memref::LoadOp>(op).getMemRef().getDefiningOp();
+  });
+
+  target.addDynamicallyLegalOp<
+      memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::SubViewOp,
+      memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp>(
+      [&](Operation *op) {
+        return typeConverter.isLegal(op->getOperandTypes()) &&
+               typeConverter.isLegal(op->getResultTypes());
+      });
+
   RewritePatternSet patterns(context);
   patterns
-      .add<ConvertConstant, ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
+      .add<ConvertConstant, ConvertExt,
+           ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
            ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
-           ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>>(typeConverter,
-                                                                context);
+           ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>,
+           ConvertAny<memref::LoadOp>, ConvertAny<memref::AllocOp>,
+           ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
+           ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
+           ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp> >(
+          typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
