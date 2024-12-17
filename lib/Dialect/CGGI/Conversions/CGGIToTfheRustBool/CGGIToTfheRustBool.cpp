@@ -70,24 +70,6 @@ FailureOr<Value> getContextualBoolServerKey(Operation *op) {
   return serverKey;
 }
 
-template <class Op>
-struct GenericOpPattern : public OpConversionPattern<Op> {
-  using OpConversionPattern<Op>::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      Op op, typename Op::Adaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    SmallVector<Type> retTypes;
-    if (failed(this->getTypeConverter()->convertTypes(op->getResultTypes(),
-                                                      retTypes)))
-      return failure();
-    rewriter.replaceOpWithNewOp<Op>(op, retTypes, adaptor.getOperands(),
-                                    op->getAttrs());
-
-    return success();
-  }
-};
-
 /// Convert a func by adding a server key argument. Converted ops in other
 /// patterns need a server key SSA value available, so this pattern needs a
 /// higher benefit.
@@ -305,16 +287,14 @@ class CGGIToTfheRustBool
 
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
-    patterns.add<
-        AddBoolServerKeyArg, ConvertBoolAndOp, ConvertBoolEncodeOp,
-        ConvertBoolOrOp, ConvertBoolTrivialEncryptOp, ConvertBoolXorOp,
-        ConvertBoolNorOp, ConvertBoolXNorOp, ConvertBoolNandOp,
-        ConvertBoolNotOp, ConvertPackedOp, GenericOpPattern<memref::AllocOp>,
-        GenericOpPattern<memref::DeallocOp>, GenericOpPattern<memref::StoreOp>,
-        GenericOpPattern<memref::LoadOp>, GenericOpPattern<memref::SubViewOp>,
-        GenericOpPattern<memref::CopyOp>,
-        GenericOpPattern<tensor::FromElementsOp>,
-        GenericOpPattern<tensor::ExtractOp> >(typeConverter, context);
+    patterns.add<AddBoolServerKeyArg, ConvertBoolAndOp, ConvertBoolEncodeOp,
+                 ConvertBoolOrOp, ConvertBoolTrivialEncryptOp, ConvertBoolXorOp,
+                 ConvertBoolNorOp, ConvertBoolXNorOp, ConvertBoolNandOp,
+                 ConvertBoolNotOp, ConvertPackedOp, ConvertAny<memref::AllocOp>,
+                 ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
+                 ConvertAny<memref::LoadOp>, ConvertAny<memref::SubViewOp>,
+                 ConvertAny<memref::CopyOp>, ConvertAny<tensor::FromElementsOp>,
+                 ConvertAny<tensor::ExtractOp> >(typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();
