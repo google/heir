@@ -9,7 +9,7 @@ cc_library(
     name = "Transforms",
     hdrs = ["Passes.h"],
     deps = [
-        ":EmuWideInth",
+        ":QuarterWideInt",
         ":pass_inc_gen",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
@@ -17,9 +17,9 @@ cc_library(
 )
 
 cc_library(
-    name = "EmuWideInth",
-    srcs = ["EmuWideInth.cpp"],
-    hdrs = ["EmuWideInth.h"],
+    name = "QuarterWideInt",
+    srcs = ["QuarterWideInt.cpp"],
+    hdrs = ["QuarterWideInt.h"],
     deps = [
         ":pass_inc_gen",
         "@llvm-project//mlir:ArithDialect",

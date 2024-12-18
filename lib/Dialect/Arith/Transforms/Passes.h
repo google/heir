@@ -1,7 +1,7 @@
 #ifndef LIB_DIALECT_ARITH_TRANSFORMS_PASSES_H_
 #define LIB_DIALECT_ARITH_TRANSFORMS_PASSES_H_
 
-#include "lib/Dialect/Arith/Transforms/EmuWideInth.h"
+#include "lib/Dialect/Arith/Transforms/QuarterWideInt.h"
 
 namespace mlir {
 namespace heir {
