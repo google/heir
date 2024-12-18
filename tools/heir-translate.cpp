@@ -3,6 +3,7 @@
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
+#include "lib/Target/PISA/PISAEmitter.h"
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
 #include "lib/Target/Verilog/VerilogEmitter.h"
@@ -32,6 +33,10 @@ int main(int argc, char **argv) {
 
   // AutoHOG input
   mlir::heir::registerFromAutoHogTranslation();
+
+  // PISA
+  mlir::heir::pisa::registerToPISAInputsTranslation();
+  mlir::heir::pisa::registerToPISATranslation();
 
   return failed(mlir::mlirTranslateMain(argc, argv, "HEIR Translation Tool"));
 }
