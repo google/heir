@@ -17,11 +17,11 @@ cc_library(
     deps = [
         ":SecretInsertMgmtPatterns",
         ":pass_inc_gen",
-        "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/MulResultAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Mgmt/Transforms",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
@@ -45,7 +45,6 @@ cc_library(
         "SecretInsertMgmtPatterns.h",
     ],
     deps = [
-        "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/MulResultAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",

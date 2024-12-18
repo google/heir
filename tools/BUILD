@@ -54,6 +54,7 @@ cc_binary(
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Mgmt/Transforms",
         "@heir//lib/Dialect/ModArith/Conversions/ModArithToArith",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/ModArith/Transforms",
