@@ -1,17 +1,19 @@
-#include "lib/Utils/TargetUtils/TargetUtils.h"
+#include "lib/Utils/TargetUtils.h"
 
+#include <cstddef>
 #include <functional>
 #include <iterator>
 #include <numeric>
 #include <string>
 
-#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/TypeRange.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {

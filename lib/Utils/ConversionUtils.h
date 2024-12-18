@@ -1,5 +1,5 @@
-#ifndef LIB_UTILS_CONVERSIONUTILS_CONVERSIONUTILS_H_
-#define LIB_UTILS_CONVERSIONUTILS_CONVERSIONUTILS_H_
+#ifndef LIB_UTILS_CONVERSIONUTILS_H_
+#define LIB_UTILS_CONVERSIONUTILS_H_
 
 #include <cstdint>
 #include <functional>
@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 
+#include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
@@ -439,16 +440,6 @@ class SecretGenericOpModulusSwitchConversion
   }
 };
 
-typedef std::function<std::optional<std::string>(const Type &)> IsValidTypeFn;
-
-/// A helper pattern that can be used to do eager type checking when lowering
-/// secret-to-scheme. E.g., in secret-to-bgv to ensure input secret.generic
-/// don't have floating point types in their secrets.
-LogicalResult validateArgumentTypes(secret::GenericOp op,
-                                    IsValidTypeFn isValidType);
-
-LogicalResult walkAndValidateTypes(Operation *op, IsValidTypeFn isValidType);
-
 // Adds conversion patterns that deal with tensor<..xsource_type>
 // when source_type will be type converted to tensor<...>, too
 void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,
@@ -486,11 +477,12 @@ FailureOr<Value> getContextualArgFromFunc(Operation *op) {
   return failure();
 }
 
+// FIXME: update this after #1196
 // Returns true if the func contains ops from the given dialects.
-template <typename... Dialects>
-bool containsDialects(func::FuncOp func) {
+template <typename Dialect>
+bool containsLweOrDialect(func::FuncOp func) {
   auto walkResult = func.walk([&](Operation *op) {
-    if (llvm::isa<Dialects...>(op->getDialect()))
+    if (llvm::isa<Dialect, lwe::LWEDialect>(op->getDialect()))
       return WalkResult::interrupt();
     return WalkResult::advance();
   });
@@ -500,4 +492,4 @@ bool containsDialects(func::FuncOp func) {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_UTILS_CONVERSIONUTILS_CONVERSIONUTILS_H_
+#endif  // LIB_UTILS_CONVERSIONUTILS_H_
