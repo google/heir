@@ -144,7 +144,9 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
     auto cleartextBitwidthOrFailure =
         llvm::TypeSwitch<Attribute, FailureOr<int>>(inputEncoding)
             .Case<lwe::BitFieldEncodingAttr,
-                  lwe::UnspecifiedBitFieldEncodingAttr>(
+                  lwe::UnspecifiedBitFieldEncodingAttr,
+                  lwe::PolynomialEvaluationEncodingAttr,
+                  lwe::PolynomialCoefficientEncodingAttr>(
                 [](auto attr) -> FailureOr<int> {
                   return attr.getCleartextBitwidth();
                 })
@@ -155,9 +157,12 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
             });
     auto cleartextStartOrFailure =
         llvm::TypeSwitch<Attribute, FailureOr<int>>(inputEncoding)
-            .Case<lwe::BitFieldEncodingAttr>([](auto attr) -> FailureOr<int> {
-              return attr.getCleartextStart();
-            })
+            .Case<lwe::BitFieldEncodingAttr,
+                  lwe::PolynomialEvaluationEncodingAttr,
+                  lwe::PolynomialCoefficientEncodingAttr>(
+                [](auto attr) -> FailureOr<int> {
+                  return attr.getCleartextStart();
+                })
             .Case<lwe::UnspecifiedBitFieldEncodingAttr>(
                 [](auto attr) -> FailureOr<int> {
                   llvm_unreachable(
@@ -468,11 +473,6 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
 
 struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
   void runOnOperation() override {
-    // TODO(#1199): Remove this emitError once the pass is fixed.
-    getOperation()->emitError(
-        "LWEToPolynomial conversion pass is broken. See #1199.");
-    return;
-
     MLIRContext *context = &getContext();
     auto *module = getOperation();
     CiphertextTypeConverter typeConverter(context);
