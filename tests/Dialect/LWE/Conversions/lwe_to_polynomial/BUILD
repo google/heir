@@ -12,6 +12,7 @@ glob_lit_tests(
         "test_rlwe_pk_encrypt.mlir",
         "ops_dimension_error.mlir",
         "decrypt_ops.mlir",
+        "types.mlir",
     ],
     test_file_exts = ["mlir"],
 )
