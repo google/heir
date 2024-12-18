@@ -95,3 +95,18 @@ openfhe_end_to_end_test(
     tags = ["notap"],
     test_src = "halevi_shoup_matmul_test.cpp",
 )
+
+openfhe_end_to_end_test(
+    name = "simple_ckks_bootstrapping_test",
+    generated_lib_header = "simple_ckks_bootstrapping_lib.h",
+    heir_opt_flags = [
+        "--openfhe-configure-crypto-context=entry-function=simple_ckks_bootstrapping insecure=true",
+    ],
+    heir_translate_flags = [
+        "--openfhe-scheme=ckks",
+        "--openfhe-include-type=source-relative",
+    ],
+    mlir_src = "simple_ckks_bootstrapping.mlir",
+    tags = ["notap"],
+    test_src = "simple_ckks_bootstrapping_test.cpp",
+)

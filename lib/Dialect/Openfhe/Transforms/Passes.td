@@ -19,8 +19,14 @@ def ConfigureCryptoContext : Pass<"openfhe-configure-crypto-context"> {
   let options = [
     Option<"entryFunction", "entry-function", "std::string",
            /*default=*/"", "Default entry function "
-           "name of entry function.">
-
+           "name of entry function.">,
+    Option<"levelBudgetEncode", "level-budget-encode", "int",
+           /*default=*/"3", "Level budget for CKKS bootstrap encode (s2c) phase">,
+    Option<"levelBudgetDecode", "level-budget-decode", "int",
+           /*default=*/"3", "Level budget for CKKS bootstrap decode (c2s) phase">,
+    Option<"insecure", "insecure", "bool",
+           /*default=*/"false", "Whether to use insecure parameter for faster evaluation"
+           "(should only be used in test) (defaults to false)">
   ];
 }
 

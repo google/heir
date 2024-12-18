@@ -67,12 +67,14 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(AddOp op);
   LogicalResult printOperation(AddPlainOp op);
   LogicalResult printOperation(AutomorphOp op);
+  LogicalResult printOperation(BootstrapOp op);
   LogicalResult printOperation(DecryptOp op);
   LogicalResult printOperation(EncryptOp op);
   LogicalResult printOperation(GenParamsOp op);
   LogicalResult printOperation(GenContextOp op);
   LogicalResult printOperation(GenMulKeyOp op);
   LogicalResult printOperation(GenRotKeyOp op);
+  LogicalResult printOperation(GenBootstrapKeyOp op);
   LogicalResult printOperation(KeySwitchOp op);
   LogicalResult printOperation(LevelReduceOp op);
   LogicalResult printOperation(MakePackedPlaintextOp op);
@@ -85,6 +87,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(NegateOp op);
   LogicalResult printOperation(RelinOp op);
   LogicalResult printOperation(RotOp op);
+  LogicalResult printOperation(SetupBootstrapOp op);
   LogicalResult printOperation(SquareOp op);
   LogicalResult printOperation(SubOp op);
 
