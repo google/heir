@@ -34,7 +34,7 @@ cc_binary(
     deps = [
         "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",
         "@heir//lib/Dialect/Arith/Transforms",
-        "@heir//lib/Dialect/Arith/Transforms:EmuWideInth",
+        "@heir//lib/Dialect/Arith/Transforms:QuarterWideInt",
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
         "@heir//lib/Dialect/BGV/Conversions/BGVToLattigo",
         "@heir//lib/Dialect/BGV/IR:Dialect",

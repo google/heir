@@ -84,9 +84,6 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/Transforms/NarrowTypeEmulationConverter.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/Transforms/WideIntEmulationConverter.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/IR/Bufferization.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Bufferization/Transforms/Passes.h"  // from @llvm-project
@@ -168,7 +165,6 @@ int main(int argc, char **argv) {
 
   // Upstream passes used by HEIR
   // Converting to LLVM
-  mlir::arith::registerArithEmulateWideInt();
   mlir::arith::registerConvertArithToLLVMInterface(registry);
   cf::registerConvertControlFlowToLLVMInterface(registry);
   func::registerAllExtensions(registry);
