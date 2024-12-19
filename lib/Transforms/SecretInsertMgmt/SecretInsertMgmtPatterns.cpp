@@ -2,7 +2,6 @@
 
 #include <algorithm>
 
-#include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
@@ -10,10 +9,8 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -169,53 +166,6 @@ template struct ModReduceBefore<arith::MulFOp>;
 // isMul = false
 template struct ModReduceBefore<arith::AddFOp>;
 template struct ModReduceBefore<arith::SubFOp>;
-
-void annotateMgmtAttr(Operation *top) {
-  auto mergeIntoMgmtAttr = [&](Attribute levelAttr, Attribute dimensionAttr) {
-    auto level = cast<IntegerAttr>(levelAttr).getInt();
-    auto dimension = cast<IntegerAttr>(dimensionAttr).getInt();
-    auto mgmtAttr = mgmt::MgmtAttr::get(top->getContext(), level, dimension);
-    return mgmtAttr;
-  };
-  top->walk<WalkOrder::PreOrder>([&](func::FuncOp funcOp) {
-    bool bodyContainsSecretGeneric = false;
-    funcOp->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-      bodyContainsSecretGeneric = true;
-      for (auto i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
-        auto levelAttr = genericOp.removeArgAttr(i, "level");
-        auto dimensionAttr = genericOp.removeArgAttr(i, "dimension");
-        auto mgmtAttr = mergeIntoMgmtAttr(levelAttr, dimensionAttr);
-        genericOp.setArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-      }
-
-      genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
-        if (op->getNumResults() == 0) {
-          return;
-        }
-        auto levelAttr = op->removeAttr("level");
-        auto dimensionAttr = op->removeAttr("dimension");
-        if (!levelAttr || !dimensionAttr) {
-          return;
-        }
-        op->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName,
-                    mergeIntoMgmtAttr(levelAttr, dimensionAttr));
-      });
-    });
-
-    // handle generic-less function body
-    // default to level 0 and dimension 2
-    // otherwise secret-to-<scheme> won't find the mgmt attr
-    if (!bodyContainsSecretGeneric) {
-      for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-        auto argument = funcOp.getArgument(i);
-        if (isa<secret::SecretType>(argument.getType())) {
-          funcOp.setArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName,
-                            mgmt::MgmtAttr::get(top->getContext(), 0, 2));
-        }
-      }
-    }
-  });
-}
 
 }  // namespace heir
 }  // namespace mlir
