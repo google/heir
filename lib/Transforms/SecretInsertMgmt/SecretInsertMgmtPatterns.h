@@ -46,8 +46,6 @@ struct ModReduceBefore : public OpRewritePattern<Op> {
   DataFlowSolver *solver;
 };
 
-void annotateMgmtAttr(Operation *top);
-
 }  // namespace heir
 }  // namespace mlir
 
