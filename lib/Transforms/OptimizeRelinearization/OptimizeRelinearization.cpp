@@ -10,9 +10,10 @@
 #include "lib/Analysis/OptimizeRelinearizationAnalysis/OptimizeRelinearizationAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
+#include "lib/Dialect/Mgmt/Transforms/Passes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Utils.h"
-#include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
@@ -26,7 +27,9 @@
 #include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -91,20 +94,11 @@ struct OptimizeRelinearization
     module->walk(
         [&](secret::GenericOp op) { processSecretGenericOp(op, &solver); });
 
-    // re-run the analysis and re-annotate mgmt attr
-    solver.load<LevelAnalysis>();
-    if (failed(solver.initializeAndRun(getOperation()))) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
-      signalPassFailure();
-      return;
-    }
-
-    // annotate level and dimension from analysis
-    annotateLevel(getOperation(), &solver);
-    annotateDimension(getOperation(), &solver);
-    // combine level and dimension into MgmtAttr
-    // also removes the level/dimension annotations
-    annotateMgmtAttr(getOperation());
+    // optimize-relinearization will invalidate mgmt attr
+    // so re-annotate it
+    OpPassManager pipeline("builtin.module");
+    pipeline.addPass(mgmt::createAnnotateMgmt());
+    (void)runPipeline(pipeline, getOperation());
   }
 };
 

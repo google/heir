@@ -2,10 +2,11 @@
 #include <iterator>
 #include <utility>
 
-#include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
+#include "lib/Dialect/Mgmt/Transforms/Passes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
@@ -147,12 +148,6 @@ struct SecretInsertMgmtCKKS
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
 
-    // only after relinearize we can get the correct dimension
-    // NOTE: for lazy relinearize, need to uninitialize the DimensionLattice...
-    // otherwise DimensionState::join may not work correctly
-    // if we are reusing a solver
-    solver.load<DimensionAnalysis>();
-
     RewritePatternSet patternsMultModReduce(&getContext());
     patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
         &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
@@ -192,23 +187,12 @@ struct SecretInsertMgmtCKKS
     // call CSE here because there may be redundant mod reduce
     // one Value may get mod reduced multiple times in
     // multiple Uses
-    OpPassManager csePipeline("builtin.module");
-    csePipeline.addPass(createCSEPass());
-    (void)runPipeline(csePipeline, getOperation());
-
-    // re-run analysis after CSE
-    if (failed(solver.initializeAndRun(getOperation()))) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
-      signalPassFailure();
-      return;
-    }
-
-    // annotate level and dimension from analysis
-    annotateLevel(getOperation(), &solver);
-    annotateDimension(getOperation(), &solver);
-    // combine level and dimension into MgmtAttr
-    // also removes the level/dimension annotations
-    annotateMgmtAttr(getOperation());
+    //
+    // also run annotate-mgmt for lowering
+    OpPassManager pipeline("builtin.module");
+    pipeline.addPass(createCSEPass());
+    pipeline.addPass(mgmt::createAnnotateMgmt());
+    (void)runPipeline(pipeline, getOperation());
   }
 };
 
