@@ -2527,7 +2527,8 @@ two tensors of size 16.</p><p>Input:</p><div class=highlight><pre tabindex=0 sty
 rather transforms the IR to use tensors with a fixed dimension. This pass may
 be used to align the sizes of tensors that represent plaintexts and
 ciphertexts in RLWE schemes that support SIMD slots and operations.</p><h4 id=options>Options</h4><pre tabindex=0><code>-size : Power of two size of the final dimension of the output tensors.
-</code></pre><h3 id=-annotate-secretness><code>-annotate-secretness</code></h3><p><em>Annotate secret SSA values in the IR</em></p><p>This pass runs the secretness analysis and annotates the IR with the results,
+</code></pre><h3 id=-annotate-mgmt><code>-annotate-mgmt</code></h3><p><em>Annotate MgmtAttr for secret SSA values in the IR</em></p><p>This pass runs the secretness/level/dimension analysis and annotates the IR with the results,
+saving it into each op&rsquo;s attribute dictionary as mgmt.mgmt : <analysis results></p><h3 id=-annotate-secretness><code>-annotate-secretness</code></h3><p><em>Annotate secret SSA values in the IR</em></p><p>This pass runs the secretness analysis and annotates the IR with the results,
 saving it into each op&rsquo;s attribute dictionary as secret : <analysis results></p><h3 id=-apply-folders><code>-apply-folders</code></h3><p><em>Apply all folding patterns from canonicalize</em></p><p>This pass applies all registered folding patterns greedily to the input IR.
 This is useful when running a full canonicalize is too slow, but applying
 folders before canonicalize is sufficient to simplify the IR for later
