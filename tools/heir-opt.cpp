@@ -4,6 +4,7 @@
 #include <string>
 
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
+#include "lib/Dialect/Arith/Transforms/Passes.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -215,6 +216,7 @@ int main(int argc, char **argv) {
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
 
   // Custom passes in HEIR
+  heir::arith::registerArithPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
