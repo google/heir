@@ -2,8 +2,8 @@
 
 // Tests invalid secret types
 
-// expected-error@below {{expected batched secret types to be tensors with dimension matching ring parameter}}
 module {
+  // expected-error@below {{expected batched secret types to be tensors with dimension matching ring parameter}}
   func.func @test_invalid_dimension(%arg0 : !secret.secret<tensor<1000xi1>>) -> (!secret.secret<tensor<1000xi1>>) {
     return %arg0 : !secret.secret<tensor<1000xi1>>
   }

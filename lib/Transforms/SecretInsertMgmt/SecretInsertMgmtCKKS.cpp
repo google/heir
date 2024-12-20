@@ -10,6 +10,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
@@ -57,37 +58,30 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 bool isTensorInSlots(Operation *top, DataFlowSolver *solver, int slotNumber) {
   // Ensure that all secret types are uniform and matching the ring
   // parameter size in order to pack tensors into ciphertext SIMD slots.
-  bool packTensorInSlots = true;
-  WalkResult compatibleTensors = top->walk([&](Operation *op) {
-    for (auto value : op->getOperands()) {
-      auto secretness =
-          solver->lookupState<SecretnessLattice>(value)->getValue();
-      if (secretness.isInitialized() && secretness.getSecretness()) {
-        auto tensorTy = dyn_cast<RankedTensorType>(value.getType());
-        if (tensorTy) {
-          // TODO(#913): Multidimensional tensors with a single non-unit
-          // dimension are assumed to be packed in the order of that
-          // dimensions.
-          auto nonUnitDim = getNonUnitDimension(tensorTy);
-          if (failed(nonUnitDim)) {
-            return WalkResult::interrupt();
-          }
-          if (nonUnitDim.value().second != slotNumber) {
-            return WalkResult::interrupt();
+  LogicalResult result = walkAndValidateValues(
+      top,
+      [&](Value value) {
+        auto secretness =
+            solver->lookupState<SecretnessLattice>(value)->getValue();
+        if (secretness.isInitialized() && secretness.getSecretness()) {
+          auto tensorTy = dyn_cast<RankedTensorType>(value.getType());
+          if (tensorTy) {
+            // TODO(#913): Multidimensional tensors with a single non-unit
+            // dimension are assumed to be packed in the order of that
+            // dimensions.
+            auto nonUnitDim = getNonUnitDimension(tensorTy);
+            if (failed(nonUnitDim) || nonUnitDim.value().second != slotNumber) {
+              return failure();
+            }
           }
         }
-      }
-    }
-    return WalkResult::advance();
-  });
-  if (compatibleTensors.wasInterrupted()) {
-    emitWarning(top->getLoc(),
-                "expected secret types to be tensors with dimension matching "
-                "ring parameter, pass will not pack tensors into ciphertext "
-                "SIMD slots");
-    packTensorInSlots = false;
-  }
-  return packTensorInSlots;
+        return success();
+      },
+      "expected secret types to be tensors with dimension matching "
+      "ring parameter, pass will not pack tensors into ciphertext "
+      "SIMD slots");
+
+  return succeeded(result);
 }
 
 void annotateTensorExtractAsNotSlotExtract(Operation *top,

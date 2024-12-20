@@ -17,7 +17,7 @@
 #include "lib/Dialect/Random/IR/RandomEnums.h"
 #include "lib/Dialect/Random/IR/RandomOps.h"
 #include "lib/Dialect/Random/IR/RandomTypes.h"
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project

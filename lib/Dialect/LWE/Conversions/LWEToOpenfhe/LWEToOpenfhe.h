@@ -3,7 +3,7 @@
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project

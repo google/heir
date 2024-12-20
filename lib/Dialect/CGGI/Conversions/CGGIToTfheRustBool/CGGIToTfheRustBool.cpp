@@ -12,7 +12,8 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolEnums.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolTypes.h"
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project

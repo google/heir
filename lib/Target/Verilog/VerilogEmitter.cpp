@@ -14,7 +14,8 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Transforms/MemrefToArith/Utils.h"
-#include "lib/Utils/TargetUtils/TargetUtils.h"
+#include "lib/Utils/TargetUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
@@ -191,14 +192,14 @@ LogicalResult translateToVerilog(Operation *op, llvm::raw_ostream &os,
                                  std::optional<llvm::StringRef> moduleName,
                                  bool allowSecretOps) {
   if (!allowSecretOps) {
-    auto result = op->walk([&](Operation *op) -> WalkResult {
-      if (isa<secret::SecretDialect>(op->getDialect())) {
-        op->emitError("allowSecretOps is false, but encountered a secret op.");
-        return WalkResult::interrupt();
-      }
-      return WalkResult::advance();
+    Operation *foundOp = walkAndDetect(op, [&](Operation *op) {
+      return isa<secret::SecretDialect>(op->getDialect());
     });
-    if (result.wasInterrupted()) return failure();
+    if (foundOp != nullptr) {
+      foundOp->emitError(
+          "allowSecretOps is false, but encountered a secret op.");
+      return failure();
+    }
   }
 
   VerilogEmitter emitter(os);
@@ -227,8 +228,8 @@ LogicalResult VerilogEmitter::translate(
           // Arithmetic ops.
           .Case<arith::ConstantOp>([&](arith::ConstantOp op) {
             if (auto iAttr = dyn_cast<IndexType>(op.getValue().getType())) {
-              // We can skip translating declarations of index constants. If the
-              // index is used in a subsequent load, e.g.
+              // We can skip translating declarations of index constants. If
+              // the index is used in a subsequent load, e.g.
               //   %1 = arith.constant 1 : index
               //   %2 = arith.load %foo[%1] : memref<3xi8>
               // then the load's constant index value can be inferred directly

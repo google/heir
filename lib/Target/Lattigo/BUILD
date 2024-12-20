@@ -16,7 +16,7 @@ cc_library(
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@heir//lib/Utils/TargetUtils",
+        "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",

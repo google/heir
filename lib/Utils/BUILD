@@ -4,6 +4,17 @@ package(
 )
 
 cc_library(
+    name = "Utils",
+    srcs = ["Utils.cpp"],
+    hdrs = ["Utils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "ConversionUtils",
     srcs = ["ConversionUtils.cpp"],
     hdrs = ["ConversionUtils.h"],
@@ -23,5 +34,16 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "TargetUtils",
+    srcs = ["TargetUtils.cpp"],
+    hdrs = ["TargetUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )

@@ -17,7 +17,8 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project

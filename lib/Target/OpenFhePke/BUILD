@@ -61,7 +61,7 @@ cc_library(
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
-        "@heir//lib/Utils/TargetUtils",
+        "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
@@ -81,7 +81,7 @@ cc_library(
     deps = [
         ":OpenFheUtils",
         "@heir//lib/Analysis/SelectVariableNames",
-        "@heir//lib/Utils/TargetUtils",
+        "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

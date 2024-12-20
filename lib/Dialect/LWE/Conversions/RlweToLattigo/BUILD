@@ -12,7 +12,8 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
-        "@heir//lib/Utils/ConversionUtils",
+        "@heir//lib/Utils",
+        "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

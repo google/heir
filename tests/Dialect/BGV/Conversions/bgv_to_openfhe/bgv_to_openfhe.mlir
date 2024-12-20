@@ -33,13 +33,6 @@
 
 // CHECK: module
 module {
-  // CHECK-LABEL: @test_fn
-  // CHECK-SAME: ([[X:%.+]]: [[T:.*]]) -> [[T]]
-  func.func @test_fn(%x : !ct) -> !ct {
-    // CHECK: return [[X]] : [[T]]
-    return %x : !ct
-  }
-
   // CHECK-LABEL: @test_ops
   // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) -> (!ct, !ct, !ct, !ct_D3, !ct) {

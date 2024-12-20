@@ -9,7 +9,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
-#include "lib/Utils/TargetUtils/TargetUtils.h"
+#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project

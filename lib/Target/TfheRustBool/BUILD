@@ -16,7 +16,7 @@ cc_library(
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
         "@heir//lib/Target/TfheRust:Utils",
-        "@heir//lib/Utils/TargetUtils",
+        "@heir//lib/Utils:TargetUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

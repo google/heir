@@ -13,7 +13,7 @@
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "lib/Utils/ConversionUtils/ConversionUtils.h"
+#include "lib/Utils/ConversionUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project

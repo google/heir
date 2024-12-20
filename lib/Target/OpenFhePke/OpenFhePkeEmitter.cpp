@@ -12,7 +12,7 @@
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
-#include "lib/Utils/TargetUtils/TargetUtils.h"
+#include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
