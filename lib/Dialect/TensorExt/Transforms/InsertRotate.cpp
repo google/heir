@@ -91,7 +91,9 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
 
     alignment::populateWithGenerated(patterns);
     canonicalization::populateWithGenerated(patterns);
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
 

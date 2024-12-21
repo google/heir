@@ -104,8 +104,9 @@ struct ExpandCopyPass : impl::ExpandCopyPassBase<ExpandCopyPass> {
     mlir::RewritePatternSet patterns(&getContext());
     patterns.add<MemrefCopyExpansionPattern>(&getContext(), disableAffineLoop);
 
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns),
-                                       config);
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns), config);
   }
 };
 

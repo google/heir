@@ -150,8 +150,9 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
 
     // Empty PatternSet = only run folders (should never fail)
     RewritePatternSet emptyPatterns(context);
-    (void)applyPatternsAndFoldGreedily(getOperation(),
-                                       std::move(emptyPatterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(emptyPatterns));
   }
 };
 

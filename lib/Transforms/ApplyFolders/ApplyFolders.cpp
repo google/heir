@@ -24,7 +24,9 @@ struct ApplyFolders : impl::ApplyFoldersBase<ApplyFolders> {
         [](tensor::ExtractSliceOp op) { return true; };
     tensor::populateFoldConstantExtractSlicePatterns(patterns, controlFn);
     // Use the greedy pattern driver to apply folders.
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
 

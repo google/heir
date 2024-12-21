@@ -68,7 +68,9 @@ struct ExpandLUT : impl::ExpandLUTBase<ExpandLUT> {
     alignment::populateWithGenerated(patterns);
     patterns.add<ExpandLutLinComb>(context);
 
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
 

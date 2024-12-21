@@ -660,7 +660,9 @@ struct DistributeGeneric
     // These patterns are shared with canonicalization
     patterns.add<FoldSecretSeparators, CollapseSecretlessGeneric,
                  RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs>(context);
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
 
     // used by secret-to-<scheme> lowering
     moveMgmtAttrAnnotationFromInnerToOuter(getOperation());
