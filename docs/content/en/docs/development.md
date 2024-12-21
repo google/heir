@@ -34,7 +34,7 @@ For the best experience, we recommend following these steps:
   Just as with bazel, you will want to move this somewhere on your PATH, e.g.:
 
   ```bash
-  mkdir ~/bin
+  mkdir -p ~/bin
   echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
   mv buildifier ~/bin/buildifier
   ```
