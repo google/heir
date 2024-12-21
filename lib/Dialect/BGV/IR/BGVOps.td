@@ -11,12 +11,23 @@ include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/OpAsmInterface.td"
 
 class BGV_Op<string mnemonic, list<Trait> traits = []> :
-        Op<BGV_Dialect, mnemonic, traits> {
+        Op<BGV_Dialect, mnemonic, traits # [OpAsmOpInterface]> {
   let cppNamespace = "::mlir::heir::bgv";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)
+  }];
+
+  let extraClassDeclaration = [{
+    //===------------------------------------------------------------------===//
+    // OpAsmOpInterface Methods
+    //===------------------------------------------------------------------===//
+
+    void getAsmResultNames(::mlir::OpAsmSetValueNameFn setNameFn) {
+      ::mlir::heir::getAsmResultNames(*this, setNameFn);
+    }
   }];
 }
 

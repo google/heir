@@ -11,11 +11,21 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class Openfhe_Op<string mnemonic, list<Trait> traits = []> :
-        Op<Openfhe_Dialect, mnemonic, traits> {
+        Op<Openfhe_Dialect, mnemonic, traits # [OpAsmOpInterface]> {
   let assemblyFormat = [{
     operands attr-dict `:` functional-type(operands, results)
   }];
   let cppNamespace = "::mlir::heir::openfhe";
+
+  let extraClassDeclaration = [{
+    //===------------------------------------------------------------------===//
+    // OpAsmOpInterface Methods
+    //===------------------------------------------------------------------===//
+
+    void getAsmResultNames(::mlir::OpAsmSetValueNameFn setNameFn) {
+      ::mlir::heir::getAsmResultNames(*this, setNameFn);
+    }
+  }];
 }
 
 class Openfhe_UnaryTypeSwitchOp<string mnemonic, list<Trait> traits = []>

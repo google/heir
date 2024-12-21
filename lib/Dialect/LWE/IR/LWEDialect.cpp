@@ -39,6 +39,15 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
+std::string lweSuggestNameForType(Type type) {
+  return llvm::TypeSwitch<Type, std::string>(type)
+      .Case<NewLWECiphertextType>([&](Type) { return "ct"; })
+      .Case<NewLWEPlaintextType>([&](Type) { return "pt"; })
+      .Case<NewLWEPublicKeyType>([&](Type) { return "pk"; })
+      .Case<NewLWESecretKeyType>([&](Type) { return "sk"; })
+      .Default([&](Type) { return ""; });  // use the default numbering.
+}
+
 class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
  public:
   using OpAsmDialectInterface::OpAsmDialectInterface;

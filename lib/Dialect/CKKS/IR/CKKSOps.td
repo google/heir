@@ -13,10 +13,20 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
 
 class CKKS_Op<string mnemonic, list<Trait> traits = []> :
-        Op<CKKS_Dialect, mnemonic, traits> {
+        Op<CKKS_Dialect, mnemonic, traits # [OpAsmOpInterface]> {
   let cppNamespace = "::mlir::heir::ckks";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)
+  }];
+
+  let extraClassDeclaration = [{
+    //===------------------------------------------------------------------===//
+    // OpAsmOpInterface Methods
+    //===------------------------------------------------------------------===//
+
+    void getAsmResultNames(::mlir::OpAsmSetValueNameFn setNameFn) {
+      ::mlir::heir::getAsmResultNames(*this, setNameFn);
+    }
   }];
 }
 

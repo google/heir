@@ -47,3 +47,15 @@ cc_library(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "OpAsmInterfaceHelper",
+    srcs = ["OpAsmInterfaceHelper.cpp"],
+    hdrs = ["OpAsmInterfaceHelper.h"],
+    deps = [
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Openfhe/IR:Dialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)

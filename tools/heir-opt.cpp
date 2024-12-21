@@ -67,6 +67,7 @@
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
+#include "lib/Utils/OpAsmInterfaceHelper.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ComplexToLLVM/ComplexToLLVM.h"  // from @llvm-project
@@ -119,7 +120,25 @@
 using namespace mlir;
 using namespace tosa;
 using namespace heir;
-using mlir::func::FuncOp;
+
+// hack here: another template specialization for FuncOp
+// expect linker to pick this one
+//
+// This is really unsafe as it depends on ::mlir::detail,
+// which is not a expected behavior. However, the current
+// OpAsmOpInterface declaration in MLIR already has a default implementation
+// so we can not provide another implementation for it (MLIR does not
+// support it)
+//
+// for detail, check #1219
+template <>
+void ::mlir::detail::OpAsmOpInterfaceInterfaceTraits::
+    Model<mlir::func::FuncOp>::getAsmBlockArgumentNames(
+        mlir::detail::OpAsmOpInterfaceInterfaceTraits::Concept const *,
+        mlir::Operation *op, mlir::Region &region,
+        ::mlir::OpAsmSetValueNameFn setNameFn) {
+  ::mlir::heir::getAsmBlockArgumentNames(op, region, setNameFn);
+}
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;

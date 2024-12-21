@@ -15,6 +15,15 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
+std::string openfheSuggestNameForType(Type type) {
+  return llvm::TypeSwitch<Type, std::string>(type)
+      .Case<CryptoContextType>([&](Type) { return "cc"; })
+      .Case<CCParamsType>([&](Type) { return "params"; })
+      .Case<PublicKeyType>([&](Type) { return "pk"; })
+      .Case<PrivateKeyType>([&](Type) { return "sk"; })
+      .Default([&](Type) { return ""; });  // use the default numbering.
+}
+
 void OpenfheDialect::initialize() {
   addTypes<
 #define GET_TYPEDEF_LIST
