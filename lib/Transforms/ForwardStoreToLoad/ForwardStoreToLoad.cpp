@@ -235,7 +235,9 @@ struct ForwardStoreToLoad : impl::ForwardStoreToLoadBase<ForwardStoreToLoad> {
     DominanceInfo dom(getOperation());
     patterns.add<AffineLoadLowering, AffineStoreLowering>(context);
     patterns.add<ForwardSingleStoreToLoad, RemoveUnusedStore>(context, dom);
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
 

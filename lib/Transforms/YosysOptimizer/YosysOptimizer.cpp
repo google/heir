@@ -385,7 +385,9 @@ LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
         mlir::RewritePatternSet patterns(op->getContext());
         patterns.add<FrontloadAffineApply, secret::MergeAdjacentGenerics>(
             op->getContext(), innerMostLoop);
-        if (failed(applyPatternsAndFoldGreedily(op, std::move(patterns)))) {
+        // TODO (#1221): Investigate whether folding (default: on) can be
+        // skipped here.
+        if (failed(applyPatternsGreedily(op, std::move(patterns)))) {
           return WalkResult::interrupt();
         }
 
@@ -589,7 +591,9 @@ void YosysOptimizer::runOnOperation() {
   }
 
   secret::populateGenericCanonicalizers(cleanupPatterns, ctx);
-  if (failed(applyPatternsAndFoldGreedily(op, std::move(cleanupPatterns)))) {
+  // TODO (#1221): Investigate whether folding (default: on) can be skipped
+  // here.
+  if (failed(applyPatternsGreedily(op, std::move(cleanupPatterns)))) {
     signalPassFailure();
     getOperation()->emitError() << "Failed to cleanup generic ops";
     return;
@@ -601,7 +605,9 @@ void YosysOptimizer::runOnOperation() {
   // generic inputs is an easy way to do that.
   mlir::RewritePatternSet patterns(ctx);
   patterns.add<secret::CaptureAmbientScope, secret::YieldStoredMemrefs>(ctx);
-  if (failed(applyPatternsAndFoldGreedily(op, std::move(patterns)))) {
+  // TODO (#1221): Investigate whether folding (default: on) can be skipped
+  // here.
+  if (failed(applyPatternsGreedily(op, std::move(patterns)))) {
     signalPassFailure();
     getOperation()->emitError()
         << "Failed to preprocess generic ops before yosys optimizer";
@@ -636,7 +642,9 @@ void YosysOptimizer::runOnOperation() {
     // Merge generics after the function bodies are extracted.
     mlir::RewritePatternSet mergePatterns(ctx);
     mergePatterns.add<secret::MergeAdjacentGenerics>(ctx);
-    if (failed(applyPatternsAndFoldGreedily(op, std::move(mergePatterns)))) {
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    if (failed(applyPatternsGreedily(op, std::move(mergePatterns)))) {
       signalPassFailure();
       getOperation()->emitError()
           << "Failed to merge generic ops before yosys optimizer";

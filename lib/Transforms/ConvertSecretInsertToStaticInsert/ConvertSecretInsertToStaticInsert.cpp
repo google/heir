@@ -170,7 +170,9 @@ struct ConvertSecretInsertToStaticInsert
 
     patterns.add<SecretInsertToStaticInsertConversion>(getOperation(), &solver,
                                                        context);
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
 
     LLVM_DEBUG({ annotateSecretness(getOperation(), &solver); });
   }

@@ -141,7 +141,9 @@ struct TosaToSecretArith
     patterns.add<ConvertTosaSigmoid>(&solver, context);
 
     // Run pattern matching and conversion
-    if (failed(applyPatternsAndFoldGreedily(module, std::move(patterns)))) {
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
       return signalPassFailure();
     }
   }

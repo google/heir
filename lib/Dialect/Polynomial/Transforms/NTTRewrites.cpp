@@ -23,7 +23,9 @@ struct PolyMulToNTT : impl::PolyMulToNTTBase<PolyMulToNTT> {
     RewritePatternSet patterns(context);
     // TODO(#1095): migrate to mod arith type
     // patterns.add<rewrites::NTTRewritePolyMul>(patterns.getContext());
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
 
