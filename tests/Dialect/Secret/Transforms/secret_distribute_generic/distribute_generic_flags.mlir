@@ -8,7 +8,7 @@ func.func @test_affine_for(
     %data: !secret.secret<memref<10xi32>>) -> !secret.secret<memref<10xi32>> {
   // CHECK:       affine.for
   // CHECK:       secret.generic
-  // CHECK-NEXT:    bb
+  // CHECK-NEXT:    ^body
   // CHECK-NEXT:    affine.load
   // CHECK-NEXT:    arith.addi
   // CHECK-NEXT:    affine.store
@@ -17,7 +17,7 @@ func.func @test_affine_for(
   // CHECK: return %[[data]]
   secret.generic
     ins(%value, %data : !secret.secret<i32>, !secret.secret<memref<10xi32>>) {
-    ^bb0(%clear_value: i32, %clear_data : memref<10xi32>):
+    ^body(%clear_value: i32, %clear_data : memref<10xi32>):
       affine.for %i = 0 to 10 {
         %2 = affine.load %clear_data[%i] : memref<10xi32>
         %3 = arith.addi %2, %clear_value : i32
@@ -36,14 +36,14 @@ func.func @test_affine_for_split_end(
     %data: !secret.secret<memref<10xi32>>) -> !secret.secret<memref<10xi32>> {
   secret.generic
     ins(%value, %data : !secret.secret<i32>, !secret.secret<memref<10xi32>>) {
-    ^bb0(%clear_value: i32, %clear_data : memref<10xi32>):
+    ^body(%clear_value: i32, %clear_data : memref<10xi32>):
       // CHECK:    arith.constant
       // CHECK:    arith.constant
       %c7 = arith.constant 7 : i32
       %c0 = arith.constant 0 : index
 
       // CHECK:       secret.generic
-      // CHECK-NEXT:    bb
+      // CHECK-NEXT:    ^body
       // CHECK-NEXT:    memref.load
       // CHECK-NEXT:    arith.addi
       // CHECK-NEXT:    memref.store
@@ -54,7 +54,7 @@ func.func @test_affine_for_split_end(
 
       // CHECK:       affine.for
       // CHECK:       secret.generic
-      // CHECK-NEXT:    bb
+      // CHECK-NEXT:    ^body
       // CHECK-NEXT:    affine.load
       // CHECK-NEXT:    arith.addi
       // CHECK-NEXT:    arith.addi
@@ -81,14 +81,14 @@ func.func @test_affine_for_split_middle(
     %data: !secret.secret<memref<10xi32>>) -> !secret.secret<memref<10xi32>> {
   secret.generic
     ins(%value, %data : !secret.secret<i32>, !secret.secret<memref<10xi32>>) {
-    ^bb0(%clear_value: i32, %clear_data : memref<10xi32>):
+    ^body(%clear_value: i32, %clear_data : memref<10xi32>):
       // CHECK:    arith.constant
       // CHECK:    arith.constant
       %c7 = arith.constant 7 : i32
       %c0 = arith.constant 0 : index
 
       // CHECK:       secret.generic
-      // CHECK-NEXT:    bb
+      // CHECK-NEXT:    ^body
       // CHECK-NEXT:    memref.load
       // CHECK-NEXT:    arith.addi
       // CHECK-NEXT:    memref.store
@@ -99,7 +99,7 @@ func.func @test_affine_for_split_middle(
 
       // CHECK:       affine.for
       // CHECK:       secret.generic
-      // CHECK-NEXT:    bb
+      // CHECK-NEXT:    ^body
       // CHECK-NEXT:    affine.load
       // CHECK-NEXT:    arith.addi
       // CHECK-NEXT:    arith.addi
@@ -113,7 +113,7 @@ func.func @test_affine_for_split_middle(
       }
 
       // CHECK:       secret.generic
-      // CHECK-NEXT:    bb
+      // CHECK-NEXT:    ^body
       // CHECK-NEXT:    memref.load
       // CHECK-NEXT:    arith.addi
       // CHECK-NEXT:    memref.store
@@ -132,7 +132,7 @@ func.func @test_affine_for_split_middle(
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi8>>
 func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !secret.secret<memref<10xi8>> {
   %0 = secret.generic ins(%arg0 : !secret.secret<memref<10xi8>>) {
-  ^bb0(%arg1: memref<10xi8>):
+  ^body(%arg1: memref<10xi8>):
     // CHECK:       secret.generic
     // CHECK-NEXT:    memref.alloc
     // CHECK-NEXT:    secret.yield
@@ -140,7 +140,7 @@ func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !
 
     // CHECK:       affine.for
     // CHECK:       secret.generic
-    // CHECK-NEXT:    bb
+    // CHECK-NEXT:    ^body
     // CHECK-NEXT:    affine.load
     // CHECK-NEXT:    affine.store
     // CHECK-NEXT:    secret.yield
@@ -157,7 +157,7 @@ func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<1x80xi8>>
 func.func @affine_for_hello_world_reproducer(%arg0: !secret.secret<memref<1x80xi8>>) -> !secret.secret<memref<1x80xi8>> {
   %0 = secret.generic ins(%arg0 : !secret.secret<memref<1x80xi8>>) {
-  ^bb0(%arg1: memref<1x80xi8>):
+  ^body(%arg1: memref<1x80xi8>):
     // CHECK:    arith.constant
     %c-128_i8 = arith.constant -128 : i8
 
@@ -169,7 +169,7 @@ func.func @affine_for_hello_world_reproducer(%arg0: !secret.secret<memref<1x80xi
     // CHECK:       affine.for
     // CHECK-NEXT:    affine.for
     // CHECK-NEXT:      secret.generic
-    // CHECK-NEXT:      bb
+    // CHECK-NEXT:      ^body
     // CHECK-NEXT:      affine.load
     // CHECK-NEXT:      arith.addi
     // CHECK-NEXT:      affine.store

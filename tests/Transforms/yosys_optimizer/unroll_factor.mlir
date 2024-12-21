@@ -42,11 +42,11 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //   CHECK-DAG: %[[false:.*]] = arith.constant false
 //
 //   CHECK: secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //     CHECK-NEXT: memref.load
 //     CHECK-NEXT: secret.yield
 //   CHECK: secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //     CHECK-NEXT: memref.load
 //     CHECK-NEXT: secret.yield
 //   CHECK-NEXT: }
@@ -55,7 +55,7 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //
 //                The main computation
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb{{.*}}(%[[arg2:.*]]: memref<8xi1>, %[[arg3:.*]]: memref<8xi1>):
+//   CHECK-NEXT:  ^body{{.*}}(%[[arg2:.*]]: memref<8xi1>, %[[arg3:.*]]: memref<8xi1>):
 //                  Note bit 7 is never loaded because it is shifted out
 //   CHECK-DAG:    %[[arg2bit0:.*]] = memref.load %[[arg2]][%[[c0]]] : memref<8xi1>
 //   CHECK-DAG:    %[[arg2bit1:.*]] = memref.load %[[arg2]][%[[c1]]] : memref<8xi1>
@@ -104,12 +104,12 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //   CHECK-NEXT:  secret.cast
 //   CHECK-NEXT:  secret.cast
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //   CHECK-NEXT:    memref.store
 //   CHECK-NEXT:    secret.yield
 //   CHECK-NEXT:  }
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //   CHECK-NEXT:    memref.store
 //   CHECK-NEXT:    secret.yield
 //   CHECK-NEXT:  }

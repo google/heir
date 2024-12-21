@@ -89,7 +89,7 @@ func.func @simple_sum_secret_bound(%arg0: tensor<32xi16> { secret.secret }, %arg
     %c0_i16 = arith.constant 0 : i16
     %c1 = arith.constant 1 : index
     // CHECK: secret.generic ins(%[[data]], %[[arg1]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>)
-    // CHECK-NEXT: ^bb0(%[[DATA:.*]]: tensor<32xi16>, %[[ARG1:.*]]: index):
+    // CHECK-NEXT: ^body(%[[DATA:.*]]: tensor<32xi16>, %[[ARG1:.*]]: index):
     // CHECK-NEXT:   %[[sum:.*]] = scf.for
     // CHECK-SAME: to %[[ARG1]]
     %1 = scf.for %arg4 = %c0 to %arg1 step %c1 iter_args(%arg5 = %c0_i16) -> (i16) {

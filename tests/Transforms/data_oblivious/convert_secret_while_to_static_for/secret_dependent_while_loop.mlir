@@ -4,13 +4,13 @@
 func.func @basic_while_loop_with_secret_condition(%input: !secret.secret<i16>) -> !secret.secret<i16> {
   // CHECK-NOT: scf.while
   // CHECK: %[[RESULT:.*]] = secret.generic ins(%[[SECRET_INPUT:.*]]: !secret.secret<i16>)
-  // CHECK-NEXT: ^bb0(%[[INPUT:.*]]: i16):
+  // CHECK-NEXT: ^body(%[[INPUT:.*]]: i16):
   // CHECK: %[[FOR:.*]] = affine.for %[[I:.*]] = 0 to 16 iter_args(%[[ARG:.*]] = %[[INPUT]]) -> (i16)
   // CHECK-NEXT: arith.cmpi
   %c100 = arith.constant 100 : i16
   %c20 = arith.constant 20 : i16
   %0 = secret.generic ins(%input : !secret.secret<i16>) {
-  ^bb0(%arg1: i16):
+  ^body(%arg1: i16):
     %1 = scf.while (%arg2 = %arg1) : (i16) -> i16 {
       %3 = arith.cmpi sgt, %arg2, %c100 : i16
       scf.condition(%3) %arg2 : i16
@@ -28,13 +28,13 @@ func.func @basic_while_loop_with_secret_condition(%input: !secret.secret<i16>) -
 func.func @while_loop_with_joint_secret_condition(%input: !secret.secret<i16>) -> !secret.secret<i16> {
   // CHECK-NOT: scf.while
   // CHECK: %[[RESULT:.*]] = secret.generic ins(%[[SECRET_INPUT:.*]]: !secret.secret<i16>)
-  // CHECK-NEXT: ^bb0(%[[INPUT:.*]]: i16):
+  // CHECK-NEXT: ^body(%[[INPUT:.*]]: i16):
   // CHECK: %[[FOR:.*]] = affine.for %[[I:.*]] = 0 to 16 iter_args(%[[ARG:.*]] = %[[INPUT]]) -> (i16)
   // CHECK: arith.andi
   %c100 = arith.constant 100 : i16
   %c20 = arith.constant 20 : i16
   %0 = secret.generic ins(%input : !secret.secret<i16>) {
-  ^bb0(%arg1: i16):
+  ^body(%arg1: i16):
     %1 = scf.while (%arg2 = %arg1) : (i16) -> i16 {
       %3 = arith.cmpi slt, %arg2, %c100 : i16
       %4 = arith.cmpi sgt, %arg2, %c20 : i16
