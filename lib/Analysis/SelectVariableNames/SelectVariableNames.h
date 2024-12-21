@@ -23,19 +23,19 @@ class SelectVariableNames {
   /// tree that this class was constructed with).
   std::string getNameForValue(Value value) const {
     assert(variableNames.contains(value));
-    return prefix + std::to_string(variableNames.lookup(value));
-  }
-
-  // Return the unique integer assigned to a given value.
-  int getIntForValue(Value value) const {
-    assert(variableNames.contains(value));
     return variableNames.lookup(value);
   }
 
- private:
-  llvm::DenseMap<Value, int> variableNames;
+  // Return the unique integer assigned to a given value.
+  // FIXME: some emitter rely on this
+  int getIntForValue(Value value) const {
+    assert(variableToInteger.contains(value));
+    return variableToInteger.lookup(value);
+  }
 
-  std::string prefix{"v"};
+ private:
+  llvm::DenseMap<Value, std::string> variableNames;
+  llvm::DenseMap<Value, int> variableToInteger;
 };
 
 }  // namespace heir
