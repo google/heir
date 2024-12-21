@@ -432,3 +432,22 @@ bazel run --noallow_analysis_cache_discard //tools:heir-opt -- \
 --insert-rotate --cse --canonicalize --collapse-insertion-chains \
 --canonicalize --cse /path/to/heir/tests/simd/box_blur_64x64.mlir
 ```
+
+### Optional: Graphviz visualization of the IR
+
+Getting a visualization of the IR during optimization/transformation might help
+you understand what is going on more easily.
+
+Still taking the `dot_product_8.mlir` as an example:
+
+```bash
+bazel run --ui_event_filters=-info,-debug,-warning,-stderr,-stdout --noshow_progress --logging=0 //tools:heir-opt -- --wrap-generic --heir-simd-vectorizer $PWD/tests/Examples/openfhe/dot_product_8.mlir --view-op-graph 2> dot_product_8.dot
+dot -Tpdf dot_product_8.dot > dot_product_8.pdf
+# open pdf in your favorite pdf viewer
+```
+
+The diagram is also shown below. It demonstrates that the HEIR SIMD vectorizer
+would vectorize the dot-product program (`tensor<8xi16>`) then use
+rotate-and-reduce technique to compute the sum.
+
+{{% figure src="/images/dot_product_8.svg" link="/images/dot_product_8.svg" %}}
