@@ -4,7 +4,7 @@
 func.func @for_loop_with_data_dependent_upper_bound(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK-NEXT: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[ARG1:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
-    // CHECK-NEXT:  ^bb0(%[[ARG2:.*]]: tensor<32xi16>, %[[ARG3:.*]]: index):
+    // CHECK-NEXT:  ^body(%[[ARG2:.*]]: tensor<32xi16>, %[[ARG3:.*]]: index):
     // CHECK-NEXT:   %[[FOR:.*]] = affine.for %[[IV:.*]] = 0 to 42 iter_args(%[[ACC:.*]] = %[[C0_I16]]) -> (i16) {
     // CHECK-NEXT:   %[[COND:.*]] = arith.cmpi slt, %[[IV]], %[[ARG3]] : index
     // CHECK-NEXT:    %[[IF:.*]] = scf.if %[[COND]] -> (i16) {
@@ -23,7 +23,7 @@ func.func @for_loop_with_data_dependent_upper_bound(%arg0: !secret.secret<tensor
     %c0_i16 = arith.constant 0 : i16
     %c1 = arith.constant 1 : index
     %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
-    ^bb0(%arg2: tensor<32xi16>, %arg3: index):
+    ^body(%arg2: tensor<32xi16>, %arg3: index):
       %1 = scf.for %arg4 = %c0 to %arg3 step %c1 iter_args(%arg5 = %c0_i16) -> (i16) {
         %extracted = tensor.extract %arg2[%arg4] : tensor<32xi16>
         %2 = arith.addi %extracted, %arg5 : i16
@@ -38,7 +38,7 @@ func.func @for_loop_with_data_dependent_upper_bound(%arg0: !secret.secret<tensor
 func.func @for_loop_with_data_dependent_lower_bound(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK-NEXT: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[ARG1:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
-    // CHECK-NEXT:  ^bb0(%[[ARG2:.*]]: tensor<32xi16>, %[[ARG3:.*]]: index):
+    // CHECK-NEXT:  ^body(%[[ARG2:.*]]: tensor<32xi16>, %[[ARG3:.*]]: index):
     // CHECK-NEXT:   %[[FOR:.*]] = affine.for %[[IV:.*]] = 0 to 32 iter_args(%[[ACC:.*]] = %[[C0_I16]]) -> (i16) {
     // CHECK-NEXT:   %[[COND:.*]] = arith.cmpi sge, %[[IV]], %[[ARG3]] : index
     // CHECK-NEXT:    %[[IF:.*]] = scf.if %[[COND]] -> (i16) {
@@ -57,7 +57,7 @@ func.func @for_loop_with_data_dependent_lower_bound(%arg0: !secret.secret<tensor
     %c0_i16 = arith.constant 0 : i16
     %c1 = arith.constant 1 : index
     %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
-    ^bb0(%arg2: tensor<32xi16>, %arg3: index):
+    ^body(%arg2: tensor<32xi16>, %arg3: index):
       %1 = scf.for %arg4 = %arg3 to %c32 step %c1 iter_args(%arg5 = %c0_i16) -> (i16) {
         %extracted = tensor.extract %arg2[%arg4] : tensor<32xi16>
         %2 = arith.addi %extracted, %arg5 : i16
@@ -72,7 +72,7 @@ func.func @for_loop_with_data_dependent_lower_bound(%arg0: !secret.secret<tensor
 func.func @for_loop_with_data_dependent_upper_and_lower_bounds(%arg0: !secret.secret<tensor<32xi16>>, %lower: !secret.secret<index>, %upper: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK-NEXT: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[LOWER:.*]], %[[UPPER:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>, !secret.secret<index>) {
-    // CHECK-NEXT:  ^bb0(%[[ARG3:.*]]: tensor<32xi16>, %[[ARG4:.*]]: index, %[[ARG5:.*]]: index):
+    // CHECK-NEXT:  ^body(%[[ARG3:.*]]: tensor<32xi16>, %[[ARG4:.*]]: index, %[[ARG5:.*]]: index):
     // CHECK-NEXT:   %[[FOR:.*]] = affine.for %[[IV:.*]] = 0 to 42 iter_args(%[[ACC:.*]] = %[[C0_I16]]) -> (i16) {
     // CHECK-NEXT:   %[[CMPIL:.*]] = arith.cmpi sge, %[[IV]], %[[ARG4]] : index
     // CHECK-NEXT:   %[[CMPIU:.*]] = arith.cmpi slt, %[[IV]], %[[ARG5]] : index
@@ -92,7 +92,7 @@ func.func @for_loop_with_data_dependent_upper_and_lower_bounds(%arg0: !secret.se
     %c0_i16 = arith.constant 0 : i16
     %c1 = arith.constant 1 : index
     %0 = secret.generic ins(%arg0, %lower, %upper : !secret.secret<tensor<32xi16>>, !secret.secret<index>,  !secret.secret<index>) {
-    ^bb0(%arg3: tensor<32xi16>, %arg4: index, %arg5: index):
+    ^body(%arg3: tensor<32xi16>, %arg4: index, %arg5: index):
       %1 = scf.for %arg6 = %arg4 to %arg5 step %c1 iter_args(%arg7 = %c0_i16) -> (i16) {
         %extracted = tensor.extract %arg3[%arg6] : tensor<32xi16>
         %2 = arith.addi %extracted, %arg7 : i16
@@ -107,7 +107,7 @@ func.func @for_loop_with_data_dependent_upper_and_lower_bounds(%arg0: !secret.se
 func.func @for_loop_with_data_dependent_upper_bound_multiple_iter_args(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[ARG1:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
-    // CHECK:  ^bb0(%[[ARG2:.*]]: tensor<32xi16>, %[[ARG3:.*]]: index):
+    // CHECK:  ^body(%[[ARG2:.*]]: tensor<32xi16>, %[[ARG3:.*]]: index):
     // CHECK:   %[[FOR:.*]]:2 = affine.for %[[I:.*]] = 0 to 42 iter_args(%[[ARG5:.*]] = %[[C0_I16]], %[[ARG6:.*]] = %[[C0_I16]]) -> (i16, i16) {
     // CHECK:      %[[CMPIU:.*]] = arith.cmpi slt, %[[I]], %[[ARG3]] : index
     // CHECK:      %[[IF:.*]]:2 = scf.if %[[CMPIU]] -> (i16, i16) {
@@ -128,7 +128,7 @@ func.func @for_loop_with_data_dependent_upper_bound_multiple_iter_args(%arg0: !s
     %c0_i16 = arith.constant 0 : i16
     %c1 = arith.constant 1 : index
     %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
-    ^bb0(%arg2: tensor<32xi16>, %arg3: index):
+    ^body(%arg2: tensor<32xi16>, %arg3: index):
       %1, %2 = scf.for %arg4 = %c0 to %arg3 step %c1 iter_args(%arg5 = %c0_i16, %arg6 = %c0_i16) -> (i16, i16) {
         %extracted = tensor.extract %arg2[%arg4] : tensor<32xi16>
         %3 = arith.addi %extracted, %arg5 : i16
@@ -145,7 +145,7 @@ func.func @for_loop_with_data_dependent_upper_bound_multiple_iter_args(%arg0: !s
 func.func @partial_sum_with_secret_threshold(%secretInput :!secret.secret<tensor<16xi16>>, %secretIndex: !secret.secret<index>, %secretThreshold: !secret.secret<i16>) -> (!secret.secret<i16>, !secret.secret<i16>) {
   // CHECK: %[[C0:.*]] = arith.constant 0 : i16
   // CHECK: %[[RESULT:.*]]:2 = secret.generic ins(%[[SECRET_INPUT:.*]], %[[SECRET_INDEX:.*]], %[[SECRET_THRESHOLD:.*]] : !secret.secret<tensor<16xi16>>, !secret.secret<index>, !secret.secret<i16>) {
-  // CHECK:  ^bb0(%[[INPUT:.*]]: tensor<16xi16>, %[[INDEX:.*]]: index, %[[THRESHOLD:.*]]: i16):
+  // CHECK:  ^body(%[[INPUT:.*]]: tensor<16xi16>, %[[INDEX:.*]]: index, %[[THRESHOLD:.*]]: i16):
   // CHECK:   %[[FOR:.*]]:2 = affine.for %[[I:.*]] = 0 to 16 iter_args(%[[ARG1:.*]] = %[[C0]], %[[ARG2:.*]] = %[[C0]]) -> (i16, i16) {
   // CHECK:     %[[CMPI:.*]] = arith.cmpi slt, %[[I]], %[[INDEX]] : index
   // CHECK:     %[[IF:.*]]:2 = scf.if %[[CMPI]] -> (i16, i16) {
@@ -172,7 +172,7 @@ func.func @partial_sum_with_secret_threshold(%secretInput :!secret.secret<tensor
   %step = arith.constant 1 : index
   %c0 = arith.constant 0 : i16
   %0, %1 = secret.generic ins(%secretInput, %secretIndex, %secretThreshold : !secret.secret<tensor<16xi16>>, !secret.secret<index>, !secret.secret<i16>) {
-  ^bb0(%input: tensor<16xi16>, %index: index, %threshold: i16):
+  ^body(%input: tensor<16xi16>, %index: index, %threshold: i16):
       %2, %3 = scf.for %i = %start to %index step %step iter_args(%arg1 = %c0, %arg2 = %c0) -> (i16, i16) {
           %cond = arith.cmpi slt, %arg1, %threshold : i16
           %extracted = tensor.extract %input[%i] : tensor<16xi16>

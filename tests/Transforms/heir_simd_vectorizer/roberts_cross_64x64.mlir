@@ -10,7 +10,7 @@ module{
   // CHECK-NEXT: %[[cMinusRow:.*]] = arith.constant 4032 : index
   // CHECK-NEXT: %[[cMinusRowMinusOne:.*]] = arith.constant 4031 : index
   // CHECK-NEXT: secret.generic ins(%[[arg0]] : !secret.secret<tensor<4096xi16>>) {
-  // CHECK-NEXT:  ^bb0(%[[arg1:.*]]: tensor<4096xi16>):
+  // CHECK-NEXT:  ^body(%[[arg1:.*]]: tensor<4096xi16>):
   // CHECK-NEXT:    %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[cMinusRowMinusOne]]
   // CHECK-NEXT:    %[[v2:.*]] = arith.subi %[[v1]], %[[arg1]]
   // CHECK-NEXT:    %[[v3:.*]] = tensor_ext.rotate %[[arg1]], %[[cMinusRow]]

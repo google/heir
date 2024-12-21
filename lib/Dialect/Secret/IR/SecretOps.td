@@ -310,16 +310,6 @@ def Secret_GenericOp : Secret_Op<"generic", [
     // OpAsmOpInterface Methods
     //===------------------------------------------------------------------===//
 
-    // void getAsmResultNames(::mlir::OpAsmSetValueNameFn setNameFn) {
-    //   if (getNumResults() == 1) {
-    //     setNameFn(getResult(0), "computed");
-    //     return;
-    //   }
-    //   for (auto result : getResults()) {
-    //     setNameFn(result, "computed" + std::to_string(result.getResultNumber()));
-    //   }
-    // }
-
     void getAsmBlockArgumentNames(::mlir::Region &region,
                                   ::mlir::OpAsmSetValueNameFn setNameFn) {
       for (auto &block : region) {
@@ -329,13 +319,12 @@ def Secret_GenericOp : Secret_Op<"generic", [
       }
     }
 
-    // void getAsmBlockNames(::mlir::OpAsmSetBlockNameFn setNameFn) {
-    //   for (auto &block : getRegion().getBlocks()) {
-    //     setNameFn(&block, "body");
-    //   }
-    // }
-
-    // static ::llvm::StringRef getDefaultDialect() { return "secret"; }
+    void getAsmBlockNames(::mlir::OpAsmSetBlockNameFn setNameFn) {
+      // single block
+      for (auto &block : getRegion().getBlocks()) {
+        setNameFn(&block, "body");
+      }
+    }
   }];
 
   let hasCanonicalizer = 1;

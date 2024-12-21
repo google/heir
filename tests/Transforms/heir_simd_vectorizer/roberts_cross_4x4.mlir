@@ -9,7 +9,7 @@ module{
   // CHECK-DAG:  %[[c15:.*]] = arith.constant 15 : index
   // CHECK-DAG:  %[[c11:.*]] = arith.constant 11 : index
   // CHECK-NEXT: secret.generic ins(%[[arg0]] : !secret.secret<tensor<16xi16>>) {
-  // CHECK-NEXT:  ^bb0(%[[arg1:.*]]: tensor<16xi16>):
+  // CHECK-NEXT:  ^body(%[[arg1:.*]]: tensor<16xi16>):
   // CHECK-NEXT:    %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[c11]]
   // CHECK-NEXT:    %[[v2:.*]] = arith.subi %[[v1]], %[[arg1]]
   // CHECK-NEXT:    %[[v3:.*]] = tensor_ext.rotate %[[arg1]], %[[c15]]

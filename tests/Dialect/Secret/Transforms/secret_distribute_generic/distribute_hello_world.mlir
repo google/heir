@@ -11,7 +11,7 @@ module attributes {tf_saved_model.semantics} {
   func.func @main(%arg0: !secret.secret<memref<1x1xi8>> {iree.identifier = "serving_default_dense_input:0", tf_saved_model.index_path = ["dense_input"]}) -> (!secret.secret<memref<1x1xi8>> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {
     // CHECK-NOT: secret.generic
     %0 = secret.generic ins(%arg0 : !secret.secret<memref<1x1xi8>>) {
-    ^bb0(%arg1: memref<1x1xi8>):
+    ^body(%arg1: memref<1x1xi8>):
       %c-128_i32 = arith.constant -128 : i32
       %c0_i32 = arith.constant 0 : i32
       %c1073741824_i64 = arith.constant 1073741824 : i64
@@ -48,7 +48,7 @@ module attributes {tf_saved_model.semantics} {
             // CHECK: affine.load
           %7 = affine.load %1[%arg3, %arg2] : memref<16x1xi8>
             // CHECK: secret.generic
-            // CHECK-NEXT: bb
+            // CHECK-NEXT: ^body
             // CHECK-NEXT: affine.store
             // CHECK-NEXT: secret.yield
           affine.store %7, %alloc[%arg2, %arg3] : memref<1x16xi8>
@@ -83,7 +83,7 @@ module attributes {tf_saved_model.semantics} {
             %8 = affine.load %alloc[%arg4, %arg3] : memref<1x16xi8>
             %9 = affine.load %alloc_1[%arg2, %arg3] : memref<1x16xi32>
             // CHECK: secret.generic
-            // CHECK-NEXT:   bb
+            // CHECK-NEXT:   ^body
             // CHECK-NEXT: arith.extsi
             // CHECK-NEXT: arith.subi
             // CHECK-NEXT: arith.extsi
@@ -96,7 +96,7 @@ module attributes {tf_saved_model.semantics} {
             %14 = arith.muli %12, %13 : i32
             %15 = arith.addi %9, %14 : i32
             // CHECK: secret.generic
-            // CHECK-NEXT:   bb
+            // CHECK-NEXT:   ^body
             // CHECK-NEXT: affine.store
             // CHECK-NEXT: secret.yield
             affine.store %15, %alloc_1[%arg2, %arg3] : memref<1x16xi32>

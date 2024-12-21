@@ -5,7 +5,7 @@
 // CHECK-DAG:   %[[COEFF_1:.*]] = arith.constant dense<1.97{{0*}}e-01> : tensor<1x16xf32>
 // CHECK-DAG:   %[[COEFF_3:.*]] = arith.constant dense<-4.{{0*}}e-03> : tensor<1x16xf32>
 // CHECK:       %[[RET:.*]] = secret.generic ins(%[[ARG]] : !secret.secret<tensor<1x16xf32>>)
-// CHECK-NEXT:  ^bb0(%[[CONVERTED_ARG:.*]]: tensor<1x16xf32>):
+// CHECK-NEXT:  ^body(%[[CONVERTED_ARG:.*]]: tensor<1x16xf32>):
 // CHECK:         %[[COEFF_MUL_DEGREE_1:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[COEFF_1]]
 // CHECK:         %[[DEGREE_2:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[CONVERTED_ARG]]
 // CHECK:         %[[DEGREE_3:.*]] = arith.mulf %[[DEGREE_2]], %[[CONVERTED_ARG]]
@@ -17,7 +17,7 @@
 module {
 func.func @test_tosa_sigmoid_to_secret_arith(%vec : !secret.secret<tensor<1x16xf32>>) -> !secret.secret<tensor<1x16xf32>> {
   %out = secret.generic ins (%vec : !secret.secret<tensor<1x16xf32>>) {
-  ^bb0(%converted_vec: tensor<1x16xf32>):
+  ^body(%converted_vec: tensor<1x16xf32>):
     %0 = tosa.sigmoid %converted_vec : (tensor<1x16xf32>) -> tensor<1x16xf32>
     secret.yield %0 : tensor<1x16xf32>
   } -> !secret.secret<tensor<1x16xf32>>

@@ -5,14 +5,14 @@
 
 func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
   %0 = secret.generic {
-  ^bb0:
+  ^body:
     %memref = memref.alloc() : memref<10xi8>
     secret.yield %memref : memref<10xi8>
   } -> !out_ty
 
   affine.for %i = 0 to 10 {
     secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
-    ^bb0(%clean_memref: memref<10xi8>, %clean_outmemref: memref<10xi8>):
+    ^body(%clean_memref: memref<10xi8>, %clean_outmemref: memref<10xi8>):
       %1 = memref.load %clean_memref[%i] : memref<10xi8>
       // This is actually such a simple computation that yosys will optimize it
       // to be purely assignments (doubling a number is shifting the bits and
@@ -47,13 +47,13 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //
 //                The loads are hoisted out of the generic
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //   CHECK-NEXT:    memref.load
 //   CHECK-SAME:    %[[index]]
 //   CHECK-NEXT:    secret.yield
 //   CHECK-NEXT:  } -> !secret.secret<i8>
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //   CHECK-NEXT:    memref.load
 //   CHECK-SAME:    %[[index_plus_one]]
 //   CHECK-NEXT:    secret.yield
@@ -64,7 +64,7 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //
 //                The main computation
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb{{.*}}(%[[arg2:.*]]: memref<8xi1>, %[[arg3:.*]]: memref<8xi1>):
+//   CHECK-NEXT:  ^body{{.*}}(%[[arg2:.*]]: memref<8xi1>, %[[arg3:.*]]: memref<8xi1>):
 //                  Note bit 7 is never loaded because it is shifted out
 //   CHECK-DAG:    %[[arg2bit0:.*]] = memref.load %[[arg2]][%[[c0]]] : memref<8xi1>
 //   CHECK-DAG:    %[[arg2bit1:.*]] = memref.load %[[arg2]][%[[c1]]] : memref<8xi1>
@@ -108,12 +108,12 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //   CHECK-NEXT:  secret.cast
 //   CHECK-NEXT:  secret.cast
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //   CHECK-NEXT:    memref.store
 //   CHECK-NEXT:    secret.yield
 //   CHECK-NEXT:  }
 //   CHECK-NEXT:  secret.generic
-//   CHECK-NEXT:  ^bb
+//   CHECK-NEXT:  ^body
 //   CHECK-NEXT:    memref.store
 //   CHECK-NEXT:    secret.yield
 //   CHECK-NEXT:  }
@@ -123,13 +123,13 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 // Computes the set of partial cumulative sums of the input array
 func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
   %0 = secret.generic {
-  ^bb0:
+  ^body:
     %memref = memref.alloc() : memref<10xi8>
     secret.yield %memref : memref<10xi8>
   } -> !out_ty
 
   secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
-  ^bb0(%input: memref<10xi8>, %alloc: memref<10xi8>):
+  ^body(%input: memref<10xi8>, %alloc: memref<10xi8>):
     %c0 = arith.constant 0 : index
     %val = memref.load %input[%c0] : memref<10xi8>
     memref.store %val, %alloc[%c0] : memref<10xi8>
@@ -138,7 +138,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 
   affine.for %i = 1 to 10 {
     secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
-    ^bb0(%input: memref<10xi8>, %accum: memref<10xi8>):
+    ^body(%input: memref<10xi8>, %accum: memref<10xi8>):
       %c1 = arith.constant 1 : index
       %i_minus_one = arith.subi %i, %c1 : index
       %next_val = memref.load %input[%i] : memref<10xi8>
@@ -166,7 +166,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //
 //   Extracting the initial cumulative sum
 //   CHECK: secret.generic ins(%[[arg0]]
-//     CHECK-NEXT: bb
+//     CHECK-NEXT: ^body
 //     CHECK-NEXT: memref.load
 //     CHECK-NEXT: secret.yield
 //
@@ -177,7 +177,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //
 //   Storing the initial cumulative sum
 //   CHECK: secret.generic
-//     CHECK-NEXT: bb
+//     CHECK-NEXT: ^body
 //     CHECK-NEXT: memref.store
 //     CHECK-NEXT: secret.yield
 //
@@ -186,12 +186,12 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //     CHECK-NEXT: affine.apply
 //     Extracted load ops from main loop body
 //     CHECK-NEXT: %[[load0:.*]] = secret.generic
-//       CHECK-NEXT: bb0
+//       CHECK-NEXT: ^body
 //       CHECK-NEXT: memref.load
 //       CHECK-NEXT: secret.yield
 //     CHECK-NEXT: }
 //     CHECK-NEXT: %[[load1:.*]] = secret.generic
-//       CHECK-NEXT: bb0
+//       CHECK-NEXT: ^body
 //       CHECK-NEXT: memref.load
 //       CHECK-NEXT: secret.yield
 //     CHECK-NEXT: }
@@ -204,7 +204,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //     Extracted load that can only be extracted because the previous
 //     arith op was extracted.
 //     CHECK-NEXT: secret.generic
-//       CHECK-NEXT: bb
+//       CHECK-NEXT: ^body
 //       CHECK-NEXT: memref.load
 //       CHECK-SAME: %[[index_minus_one]]
 //       CHECK-NEXT: secret.yield
@@ -212,7 +212,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //
 //     mark: SECOND_SUB
 //     CHECK-NEXT: secret.generic
-//       CHECK-NEXT: bb
+//       CHECK-NEXT: ^body
 //       CHECK-NEXT: memref.load
 //       CHECK-NEXT: secret.yield
 //     CHECK-NEXT: }
@@ -220,7 +220,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //     Main secret body
 //     CHECK-COUNT-4: secret.cast
 //     CHECK-NEXT: secret.generic
-//       CHECK-NEXT: bb
+//       CHECK-NEXT: ^body
 //       CHECK-COUNT-30: comb.truth_table
 //       // for the output of the generic
 //       CHECK: memref.alloc
@@ -234,11 +234,11 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //
 //     Store generic outputs in output memref
 //     CHECK: secret.generic
-//       CHECK-NEXT: bb
+//       CHECK-NEXT: ^body
 //       CHECK-NEXT: memref.store
 //       CHECK-NEXT: secret.yield
 //     CHECK: secret.generic
-//       CHECK-NEXT: bb
+//       CHECK-NEXT: ^body
 //       CHECK-NEXT: memref.store
 //       CHECK-NEXT: secret.yield
 //   }
@@ -249,16 +249,16 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //   so half the truth_table ops), and then output storing.
 //
 //   CHECK: %[[load0:.*]] = secret.generic
-//     CHECK-NEXT: bb0
+//     CHECK-NEXT: ^body
 //     CHECK-NEXT: memref.load
 //     CHECK-NEXT: secret.yield
 //   CHECK: %[[load1:.*]] = secret.generic
-//     CHECK-NEXT: bb0
+//     CHECK-NEXT: ^body
 //     CHECK-NEXT: memref.load
 //     CHECK-NEXT: secret.yield
 //   CHECK-COUNT-2: secret.cast
 //   CHECK: secret.generic
-//     CHECK-NEXT: bb
+//     CHECK-NEXT: ^body
 //     CHECK-COUNT-15: comb.truth_table
 //     // for the output of the generic
 //     CHECK: memref.alloc
@@ -267,7 +267,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //
 //   CHECK: secret.cast
 //   CHECK: secret.generic
-//     CHECK-NEXT: bb
+//     CHECK-NEXT: ^body
 //     CHECK-NEXT: memref.store
 //     CHECK-NEXT: secret.yield
 //
