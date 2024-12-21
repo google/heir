@@ -370,6 +370,13 @@ int main(int argc, char **argv) {
       mlirToOpenFheRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
 
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
+      "mlir-to-lattigo-bgv",
+      "Convert a func using standard MLIR dialects to FHE using BGV and "
+      "export "
+      "to Lattigo GO code.",
+      mlirToLattigoRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
+
+  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
       "mlir-to-ckks",
       "Convert a func using standard MLIR dialects to FHE using "
       "CKKS.",

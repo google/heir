@@ -29,25 +29,36 @@ FailureOr<Value> getContextualEvaluator(Operation *op) {
   return result.value();
 }
 
-template <typename Dialect, typename EvaluatorType>
 struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
-  AddEvaluatorArg(mlir::MLIRContext *context)
-      : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
+  AddEvaluatorArg(mlir::MLIRContext *context,
+                  const std::vector<std::pair<Type, OpPredicate>> &evaluators)
+      : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2),
+        evaluators(evaluators) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsDialects<lwe::LWEDialect, Dialect>(op)) {
-      return failure();
+    SmallVector<Type, 4> selectedEvaluators;
+
+    for (const auto &evaluator : evaluators) {
+      auto predicate = evaluator.second;
+      if (predicate(op)) {
+        selectedEvaluators.push_back(evaluator.first);
+      }
     }
 
-    auto evaluatorType = EvaluatorType::get(getContext());
+    if (selectedEvaluators.empty()) {
+      return success();
+    }
+
     FunctionType originalType = op.getFunctionType();
     llvm::SmallVector<Type, 4> newTypes;
-    newTypes.reserve(originalType.getNumInputs() + 1);
-    newTypes.push_back(evaluatorType);
+    newTypes.reserve(originalType.getNumInputs() + selectedEvaluators.size());
+    for (auto evaluatorType : selectedEvaluators) {
+      newTypes.push_back(evaluatorType);
+    }
     for (auto t : originalType.getInputs()) {
       newTypes.push_back(t);
     }
@@ -57,10 +68,61 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
       op.setType(newFuncType);
 
       Block &block = op.getBody().getBlocks().front();
-      block.insertArgument(&block.getArguments().front(), evaluatorType,
-                           op.getLoc());
+      for (auto evaluatorType : llvm::reverse(selectedEvaluators)) {
+        block.insertArgument(&block.getArguments().front(), evaluatorType,
+                             op.getLoc());
+      }
     });
+    return success();
+  }
 
+ private:
+  std::vector<std::pair<Type, OpPredicate>> evaluators;
+};
+
+template <typename KeyType>
+struct RemoveKeyArg : public OpConversionPattern<func::FuncOp> {
+  RemoveKeyArg(mlir::MLIRContext *context)
+      : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      func::FuncOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    SmallVector<int, 1> keyArgIndices;
+    Block &block = op.getBody().getBlocks().front();
+    for (auto arg : block.getArguments()) {
+      if (mlir::isa<KeyType>(arg.getType()) && arg.getUses().empty()) {
+        keyArgIndices.push_back(arg.getArgNumber());
+      }
+    }
+
+    if (keyArgIndices.empty()) {
+      return success();
+    }
+
+    FunctionType originalType = op.getFunctionType();
+    llvm::SmallVector<Type, 4> newTypes;
+    newTypes.reserve(originalType.getNumInputs());
+    for (auto arg : block.getArguments()) {
+      if (llvm::is_contained(keyArgIndices, arg.getArgNumber())) {
+        continue;
+      }
+      newTypes.push_back(arg.getType());
+    }
+    auto newFuncType =
+        FunctionType::get(getContext(), newTypes, originalType.getResults());
+    rewriter.modifyOpInPlace(op, [&] {
+      op.setType(newFuncType);
+
+      Block &block = op.getBody().getBlocks().front();
+      for (auto arg : block.getArguments()) {
+        if (llvm::is_contained(keyArgIndices, arg.getArgNumber())) {
+          block.eraseArgument(arg.getArgNumber());
+        }
+      }
+    });
     return success();
   }
 };
@@ -105,6 +167,25 @@ struct ConvertRlweBinOp : public OpConversionPattern<BinOp> {
   }
 };
 
+template <typename EvaluatorType, typename PlainOp, typename LattigoPlainOp>
+struct ConvertRlwePlainOp : public OpConversionPattern<PlainOp> {
+  using OpConversionPattern<PlainOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      PlainOp op, typename PlainOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result)) return result;
+
+    Value evaluator = result.value();
+    rewriter.replaceOpWithNewOp<LattigoPlainOp>(
+        op, this->typeConverter->convertType(op.getOutput().getType()),
+        evaluator, adaptor.getCiphertextInput(), adaptor.getPlaintextInput());
+    return success();
+  }
+};
+
 template <typename EvaluatorType, typename RlweRotateOp,
           typename LattigoRotateOp>
 struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
@@ -126,6 +207,82 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
                 op.getLoc(),
                 this->typeConverter->convertType(op.getOutput().getType()),
                 evaluator, adaptor.getInput(), adaptor.getOffset()));
+    return success();
+  }
+};
+
+template <typename EvaluatorType, typename ParamType, typename EncodeOp,
+          typename LattigoEncodeOp, typename AllocOp>
+struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
+  using OpConversionPattern<EncodeOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      EncodeOp op, typename EncodeOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result)) return result;
+    Value evaluator = result.value();
+
+    FailureOr<Value> result2 =
+        getContextualEvaluator<ParamType>(op.getOperation());
+    if (failed(result2)) return result2;
+    Value params = result2.value();
+
+    auto alloc = rewriter.create<AllocOp>(
+        op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
+        params);
+
+    rewriter.replaceOpWithNewOp<LattigoEncodeOp>(
+        op, this->typeConverter->convertType(op.getOutput().getType()),
+        evaluator, adaptor.getInput(), alloc);
+    return success();
+  }
+};
+
+template <typename EvaluatorType, typename DecodeOp, typename LattigoDecodeOp,
+          typename AllocOp>
+struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
+  using OpConversionPattern<DecodeOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      DecodeOp op, typename DecodeOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result)) return result;
+    Value evaluator = result.value();
+
+    auto outputType = op.getOutput().getType();
+    RankedTensorType outputTensorType = dyn_cast<RankedTensorType>(outputType);
+    bool isScalar = false;
+    if (!outputTensorType) {
+      isScalar = true;
+      outputTensorType = RankedTensorType::get({1}, outputType);
+    }
+
+    APInt zero(getElementTypeOrSelf(outputType).getIntOrFloatBitWidth(), 0);
+
+    auto constant = DenseElementsAttr::get(outputTensorType, zero);
+
+    auto alloc =
+        rewriter.create<AllocOp>(op.getLoc(), outputTensorType, constant);
+
+    auto decodeOp = rewriter.create<LattigoDecodeOp>(
+        op.getLoc(), outputTensorType, evaluator, adaptor.getInput(), alloc);
+
+    // TODO(#1174): the sin of lwe.reinterpret_underlying_type
+    if (isScalar) {
+      SmallVector<Value, 1> indices;
+      auto index = rewriter.create<arith::ConstantOp>(op.getLoc(),
+                                                      rewriter.getIndexAttr(0));
+      indices.push_back(index);
+      auto extract = rewriter.create<tensor::ExtractOp>(
+          op.getLoc(), decodeOp.getResult(), indices);
+      rewriter.replaceOp(op, extract.getResult());
+    } else {
+      rewriter.replaceOp(op, decodeOp.getResult());
+    }
     return success();
   }
 };

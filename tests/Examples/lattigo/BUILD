@@ -8,15 +8,17 @@ package(default_applicable_licenses = ["@heir//:license"])
 heir_lattigo_lib(
     name = "binops",
     heir_opt_flags = [
-        "--secretize",
-        "--mlir-to-secret-arithmetic",
-        "--secret-insert-mgmt-bgv",
-        "--secret-distribute-generic",
-        "--secret-to-bgv=poly-mod-degree=4",
-        "--bgv-to-lattigo",
-        "--cse",
+        "--mlir-to-lattigo-bgv=entry-function=add ciphertext-degree=4",
     ],
     mlir_src = "binops.mlir",
+)
+
+heir_lattigo_lib(
+    name = "dot_product_8",
+    heir_opt_flags = [
+        "--mlir-to-lattigo-bgv=entry-function=dot_product ciphertext-degree=8",
+    ],
+    mlir_src = "dot_product_8.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
@@ -25,6 +27,16 @@ go_test(
     name = "binops_test",
     srcs = ["binops_test.go"],
     embed = [":binops"],
+    deps = [
+        "@lattigo//core/rlwe",
+        "@lattigo//schemes/bgv",
+    ],
+)
+
+go_test(
+    name = "dot_product_8_test",
+    srcs = ["dot_product_8_test.go"],
+    embed = [":dot_product_8"],
     deps = [
         "@lattigo//core/rlwe",
         "@lattigo//schemes/bgv",

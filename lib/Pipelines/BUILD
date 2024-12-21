@@ -11,6 +11,7 @@ cc_library(
     hdrs = ["PipelineRegistration.h"],
     deps = [
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
+        "@heir//lib/Dialect/BGV/Conversions/BGVToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/ModArith/Conversions/ModArithToArith",

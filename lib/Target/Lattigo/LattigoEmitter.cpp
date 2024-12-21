@@ -52,7 +52,10 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           // Func ops
           .Case<func::FuncOp, func::ReturnOp, func::CallOp>(
               [&](auto op) { return printOperation(op); })
+          // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
+          // Tensor ops
+          .Case<tensor::ExtractOp>([&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
                 RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp,
@@ -167,6 +170,13 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   return success();
 }
 
+LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
+  // only support 1-dim tensor for now
+  os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
+  os << getName(op.getIndices()[0]) << "]\n";
+  return success();
+}
+
 LogicalResult LattigoEmitter::printOperation(RLWENewEncryptorOp op) {
   return printNewMethod(op.getResult(), {op.getParams(), op.getPublicKey()},
                         "rlwe.NewEncryptor", false);
@@ -249,14 +259,53 @@ LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
-  return printEvalInplaceMethod(op.getEncoded(), op.getEncoder(), op.getValue(),
-                                op.getPlaintext(), "Encode", false);
+  // cyclic repetition to mitigate openfhe zero-padding (#645)
+  // TODO(#1258): move cyclic repetition to earlier pipeline
+
+  // hack: access another op to get params then get MaxSlots
+  auto newPlaintextOp =
+      mlir::dyn_cast<BGVNewPlaintextOp>(op.getPlaintext().getDefiningOp());
+  if (!newPlaintextOp) {
+    return failure();
+  }
+  auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
+
+  auto packedName = getName(op.getValue()) + "_packed";
+  os << packedName << " := make([]int64, ";
+  os << maxSlotsName << ")\n";
+  os << "for i := range " << packedName << " {\n";
+  os.indent();
+  os << packedName << "[i] = int64(" << getName(op.getValue()) << "[i \% len("
+     << getName(op.getValue()) << ")])\n";
+  os.unindent();
+  os << "}\n";
+
+  os << getName(op.getEncoder()) << ".Encode(";
+  os << packedName << ", ";
+  os << getName(op.getPlaintext()) << ")\n";
+  os << getName(op.getEncoded()) << " := " << getName(op.getPlaintext())
+     << "\n";
+  return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVDecodeOp op) {
-  return printEvalInplaceMethod(op.getDecoded(), op.getEncoder(),
-                                op.getPlaintext(), op.getValue(), "Decode",
-                                false);
+  os << getName(op.getEncoder()) << ".Decode(";
+  os << getName(op.getPlaintext()) << ", ";
+  os << getName(op.getValue()) << ")\n";
+
+  // type conversion from value to decoded
+  auto convertedName = getName(op.getDecoded()) + "_converted";
+  os << convertedName << " := make(" << convertType(op.getDecoded().getType())
+     << ", len(" << getName(op.getValue()) << "))\n";
+  os << "for i := range " << getName(op.getValue()) << " {\n";
+  os.indent();
+  os << convertedName
+     << "[i] = " << convertType(getElementTypeOrSelf(op.getDecoded().getType()))
+     << "(" << getName(op.getValue()) << "[i])\n";
+  os.unindent();
+  os << "}\n";
+  os << getName(op.getDecoded()) << " := " << convertedName << "\n";
+  return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVAddOp op) {
