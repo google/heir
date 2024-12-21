@@ -713,8 +713,9 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
 
     RewritePatternSet cleanupPatterns(context);
     patterns.add<ResolveUnrealizedConversionCast>(context);
-    if (failed(
-            applyPatternsAndFoldGreedily(module, std::move(cleanupPatterns)))) {
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    if (failed(applyPatternsGreedily(module, std::move(cleanupPatterns)))) {
       return signalPassFailure();
     }
   }
