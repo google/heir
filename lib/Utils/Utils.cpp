@@ -53,5 +53,15 @@ LogicalResult walkAndValidateValues(Operation *op, IsValidValueFn isValidValue,
   return res;
 }
 
+bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
+  return llvm::any_of(op->getRegions(), [&](Region &region) {
+    return llvm::any_of(region.getBlocks(), [&](Block &block) {
+      return llvm::any_of(block.getArguments(), [&](BlockArgument arg) {
+        return predicate(arg.getType());
+      });
+    });
+  });
+}
+
 }  // namespace heir
 }  // namespace mlir
