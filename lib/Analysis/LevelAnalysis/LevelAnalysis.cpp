@@ -45,6 +45,12 @@ LogicalResult LevelAnalysis::visitOperation(
         auto level = operandLattice->getValue().getLevel();
         propagate(modReduceOp.getResult(), LevelState(level + 1));
       })
+      .Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
+        // implicitly ensure that the result is secret
+        // reset level to 0
+        // TODO(#1207): reset level to currentLevel - bootstrapDepth
+        propagate(bootstrapOp.getResult(), LevelState(0));
+      })
       .Default([&](auto &op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
