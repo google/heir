@@ -5,6 +5,7 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/Mgmt/Transforms/Passes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -129,6 +130,7 @@ struct SecretInsertMgmtCKKS
 
     // re-run analysis as MulResultAnalysis is affected by slot_extract
     solver.load<MulResultAnalysis>();
+    solver.eraseAllStates();
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
@@ -160,6 +162,19 @@ struct SecretInsertMgmtCKKS
         getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(),
                                std::move(patternsMultModReduce));
+
+    // insert BootstrapOp after mgmt::ModReduceOp
+    // This must be run before level mismatch
+    // NOTE: actually bootstrap before mod reduce is better
+    // as after modreduce to level `0` there still might be add/sub
+    // and these op done there could be minimal cost.
+    // However, this greedy strategy is temporary so not too much
+    // optimization now
+    RewritePatternSet patternsBootstrapWaterLine(&getContext());
+    patternsBootstrapWaterLine.add<BootstrapWaterLine<mgmt::ModReduceOp>>(
+        &getContext(), getOperation(), &solver, bootstrapWaterline);
+    (void)walkAndApplyPatterns(getOperation(),
+                               std::move(patternsBootstrapWaterLine));
 
     // when other binary op operands level mismatch
     // includeFirstMul not used for these ops
