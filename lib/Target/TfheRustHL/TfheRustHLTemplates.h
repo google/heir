@@ -9,9 +9,8 @@ namespace tfhe_rust {
 
 constexpr std::string_view kModulePrelude = R"rust(
 use std::collections::BTreeMap;
-use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64};
+use tfhe::{FheUint4, FheUint8, FheUint16, FheUint32, FheUint64};
 use tfhe::prelude::*;
-use tfhe::ServerKey;
 )rust";
 
 }  // namespace tfhe_rust

@@ -23,6 +23,7 @@ cc_library(
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",

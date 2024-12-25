@@ -96,7 +96,7 @@ LogicalResult TfheRustHLEmitter::translate(Operation &op) {
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
-          .Case<func::FuncOp, func::ReturnOp>(
+          .Case<func::FuncOp, func::CallOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Affine ops
           .Case<affine::AffineForOp, affine::AffineYieldOp,
@@ -107,13 +107,13 @@ LogicalResult TfheRustHLEmitter::translate(Operation &op) {
                 arith::ShLIOp, arith::TruncIOp, arith::AndIOp>(
               [&](auto op) { return printOperation(op); })
           // MemRef ops
-          .Case<memref::AllocOp, memref::LoadOp, memref::StoreOp>(
-              [&](auto op) { return printOperation(op); })
+          .Case<memref::AllocOp, memref::DeallocOp, memref::LoadOp,
+                memref::StoreOp>([&](auto op) { return printOperation(op); })
           // TfheRust ops
           .Case<AddOp, SubOp, MulOp, ScalarRightShiftOp, CastOp,
                 CreateTrivialOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::FromElementsOp>(
+          .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::InsertOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return op.emitOpError("unable to find printer for op");
@@ -252,6 +252,25 @@ LogicalResult TfheRustHLEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
+LogicalResult TfheRustHLEmitter::printOperation(func::CallOp op) {
+  os << "let " << variableNames->getNameForValue(op->getResult(0)) << " = ";
+
+  os << op.getCallee() << "(";
+  for (Value arg : op->getOperands()) {
+    if (!isa<tfhe_rust::ServerKeyType>(arg.getType())) {
+      auto argName = variableNames->getNameForValue(arg);
+      if (op.getOperands().back() == arg) {
+        os << "&" << argName;
+      } else {
+        os << "&" << argName << ", ";
+      }
+    }
+  }
+
+  os << "); \n";
+  return success();
+}
+
 void TfheRustHLEmitter::emitAssignPrefix(Value result) {
   os << "let " << variableNames->getNameForValue(result) << " = ";
 }
@@ -286,7 +305,9 @@ LogicalResult TfheRustHLEmitter::printMethod(
 
 LogicalResult TfheRustHLEmitter::printOperation(CreateTrivialOp op) {
   emitAssignPrefix(op.getResult());
-  os << "FheUint" << DefaultTfheRustHLBitWidth << "::try_encrypt_trivial("
+
+  os << "FheUint" << getTfheRustBitWidth(op.getResult().getType())
+     << "::try_encrypt_trivial("
      << variableNames->getNameForValue(op.getValue()) << ").unwrap();\n";
   return success();
 }
@@ -334,9 +355,11 @@ LogicalResult TfheRustHLEmitter::printOperation(arith::ConstantOp op) {
     return success();
   }
 
+  // TODO(#1303): Add signed integer support to HL Emitter
+  // By default, it emits an unsigned integer.
   emitAssignPrefix(op.getResult());
   if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
-    os << intAttr.getValue() << "u64;\n";
+    os << intAttr.getValue().abs() << "u64;\n";
   } else {
     return op.emitError() << "Unknown constant type " << valueAttr.getType();
   }
@@ -409,6 +432,12 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::AllocOp op) {
   }
 
   os << "> = BTreeMap::new();\n";
+  return success();
+}
+
+// Use a BTreeMap<(usize, ...), Ciphertext>.
+LogicalResult TfheRustHLEmitter::printOperation(memref::DeallocOp op) {
+  os << variableNames->getNameForValue(op.getMemref()) << ".clear();\n";
   return success();
 }
 
@@ -536,7 +565,22 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
     const auto *cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
     // Get the name of defining operation its dialect
     auto tfheOp =
-        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust_bool";
+        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust";
+    const auto *prefix = tfheOp ? "&" : "";
+    return std::string(prefix) + variableNames->getNameForValue(value) +
+           cloneStr;
+  }) << "];\n";
+  return success();
+}
+
+LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
+  emitAssignPrefix(op.getResult());
+  os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
+    // Check if block argument, if so, clone.
+    const auto *cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
+    // Get the name of defining operation its dialect
+    auto tfheOp =
+        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust";
     const auto *prefix = tfheOp ? "&" : "";
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
@@ -585,7 +629,12 @@ FailureOr<std::string> TfheRustHLEmitter::convertType(Type type) {
   // against a specific API version.
 
   if (type.hasTrait<EncryptedInteger>()) {
-    return std::string("Ciphertext");
+    auto ctxtWidth = getTfheRustBitWidth(type);
+    if (ctxtWidth == DefaultTfheRustHLBitWidth) {
+      return std::string("Ciphertext");
+    }
+    return "tfhe::FheUint<tfhe::FheUint" + std::to_string(ctxtWidth) + "Id>";
+    ;
   }
 
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)

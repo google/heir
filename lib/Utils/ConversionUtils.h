@@ -13,8 +13,10 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -32,6 +34,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+#define DEBUG_TYPE "cggi-to-tfhe-rust"
 
 namespace mlir {
 namespace heir {
@@ -506,6 +510,48 @@ bool containsLweOrDialect(func::FuncOp func) {
     return WalkResult::advance();
   });
   return walkResult.wasInterrupted();
+}
+
+inline Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
+  // Only supporting unsigned types because the LWE dialect does not have a
+  // notion of signedness.
+  switch (width) {
+    case 1:
+      // The minimum bit width of the integer tfhe_rust API is UInt2
+      // https://docs.rs/tfhe/latest/tfhe/index.html#types
+      // This may happen if there are no LUT or boolean gate operations that
+      // require a minimum bit width (e.g. shuffling bits in a program that
+      // multiplies by two).
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Upgrading ciphertext with bit width 1 to UInt2");
+      [[fallthrough]];
+    case 2:
+      return tfhe_rust::EncryptedUInt2Type::get(ctx);
+    case 3:
+      return tfhe_rust::EncryptedUInt3Type::get(ctx);
+    case 4:
+      return tfhe_rust::EncryptedUInt4Type::get(ctx);
+    case 8:
+      return tfhe_rust::EncryptedUInt8Type::get(ctx);
+    case 10:
+      return tfhe_rust::EncryptedUInt10Type::get(ctx);
+    case 12:
+      return tfhe_rust::EncryptedUInt12Type::get(ctx);
+    case 14:
+      return tfhe_rust::EncryptedUInt14Type::get(ctx);
+    case 16:
+      return tfhe_rust::EncryptedUInt16Type::get(ctx);
+    case 32:
+      return tfhe_rust::EncryptedUInt32Type::get(ctx);
+    case 64:
+      return tfhe_rust::EncryptedUInt64Type::get(ctx);
+    case 128:
+      return tfhe_rust::EncryptedUInt128Type::get(ctx);
+    case 256:
+      return tfhe_rust::EncryptedUInt256Type::get(ctx);
+    default:
+      llvm_unreachable("Unsupported bitwidth");
+  }
 }
 
 }  // namespace heir
