@@ -581,8 +581,8 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
 };
 
 template <typename SourceOp, typename TargetArithOp, typename TargetModArithOp>
-struct ConvertBinop : public OpConversionPattern<SourceOp> {
-  ConvertBinop(mlir::MLIRContext *context)
+struct ConvertPolyBinop : public OpConversionPattern<SourceOp> {
+  ConvertPolyBinop(mlir::MLIRContext *context)
       : OpConversionPattern<SourceOp>(context) {}
 
   using OpConversionPattern<SourceOp>::OpConversionPattern;
@@ -1293,8 +1293,8 @@ void PolynomialToModArith::runOnOperation() {
   RewritePatternSet patterns(context);
 
   patterns.add<ConvertFromTensor, ConvertToTensor,
-               ConvertBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
-               ConvertBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
+               ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
+               ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
                ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
       typeConverter, context);

@@ -9,7 +9,8 @@
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Utils/ConversionUtils.h"
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -98,8 +99,8 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
   }
 };
 
-struct ConvertExt : public OpConversionPattern<mlir::arith::ExtSIOp> {
-  ConvertExt(mlir::MLIRContext *context)
+struct ConvertExtSI : public OpConversionPattern<mlir::arith::ExtSIOp> {
+  ConvertExtSI(mlir::MLIRContext *context)
       : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -116,20 +117,19 @@ struct ConvertExt : public OpConversionPattern<mlir::arith::ExtSIOp> {
   }
 };
 
-template <typename SourceArithOp, typename TargetModArithOp>
-struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
-  ConvertBinOp(mlir::MLIRContext *context)
-      : OpConversionPattern<SourceArithOp>(context) {}
+struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
+  ConvertExtUI(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::arith::ExtUIOp>(context) {}
 
-  using OpConversionPattern<SourceArithOp>::OpConversionPattern;
+  using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
+      ::mlir::arith::ExtUIOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto result =
-        b.create<TargetModArithOp>(adaptor.getLhs(), adaptor.getRhs());
+    auto result = b.create<mod_arith::ModSwitchOp>(
+        op.getLoc(), convertArithType(op.getType()), adaptor.getIn());
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -161,22 +161,23 @@ void ArithToModArith::runOnOperation() {
 
   target.addDynamicallyLegalOp<
       memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::SubViewOp,
-      memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp>(
-      [&](Operation *op) {
-        return typeConverter.isLegal(op->getOperandTypes()) &&
-               typeConverter.isLegal(op->getResultTypes());
-      });
+      memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp,
+      affine::AffineStoreOp, affine::AffineLoadOp>([&](Operation *op) {
+    return typeConverter.isLegal(op->getOperandTypes()) &&
+           typeConverter.isLegal(op->getResultTypes());
+  });
 
   RewritePatternSet patterns(context);
   patterns
-      .add<ConvertConstant, ConvertExt,
+      .add<ConvertConstant, ConvertExtSI, ConvertExtUI,
            ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
            ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
            ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>,
            ConvertAny<memref::LoadOp>, ConvertAny<memref::AllocOp>,
            ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
            ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
-           ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp> >(
+           ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
+           ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineLoadOp>>(
           typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);

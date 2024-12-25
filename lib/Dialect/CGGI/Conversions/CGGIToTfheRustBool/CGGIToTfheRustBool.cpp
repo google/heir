@@ -118,7 +118,7 @@ struct AddBoolServerKeyArg : public OpConversionPattern<func::FuncOp> {
 };
 
 template <typename BinOp, typename TfheRustBoolBinOp>
-struct ConvertBinOp : public OpConversionPattern<BinOp> {
+struct ConvertCGGIBinOp : public OpConversionPattern<BinOp> {
   using OpConversionPattern<BinOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
@@ -136,12 +136,14 @@ struct ConvertBinOp : public OpConversionPattern<BinOp> {
   }
 };
 
-using ConvertBoolAndOp = ConvertBinOp<cggi::AndOp, tfhe_rust_bool::AndOp>;
-using ConvertBoolNandOp = ConvertBinOp<cggi::NandOp, tfhe_rust_bool::NandOp>;
-using ConvertBoolOrOp = ConvertBinOp<cggi::OrOp, tfhe_rust_bool::OrOp>;
-using ConvertBoolNorOp = ConvertBinOp<cggi::NorOp, tfhe_rust_bool::NorOp>;
-using ConvertBoolXorOp = ConvertBinOp<cggi::XorOp, tfhe_rust_bool::XorOp>;
-using ConvertBoolXNorOp = ConvertBinOp<cggi::XNorOp, tfhe_rust_bool::XnorOp>;
+using ConvertBoolAndOp = ConvertCGGIBinOp<cggi::AndOp, tfhe_rust_bool::AndOp>;
+using ConvertBoolNandOp =
+    ConvertCGGIBinOp<cggi::NandOp, tfhe_rust_bool::NandOp>;
+using ConvertBoolOrOp = ConvertCGGIBinOp<cggi::OrOp, tfhe_rust_bool::OrOp>;
+using ConvertBoolNorOp = ConvertCGGIBinOp<cggi::NorOp, tfhe_rust_bool::NorOp>;
+using ConvertBoolXorOp = ConvertCGGIBinOp<cggi::XorOp, tfhe_rust_bool::XorOp>;
+using ConvertBoolXNorOp =
+    ConvertCGGIBinOp<cggi::XNorOp, tfhe_rust_bool::XnorOp>;
 
 struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
   ConvertBoolNotOp(mlir::MLIRContext *context)

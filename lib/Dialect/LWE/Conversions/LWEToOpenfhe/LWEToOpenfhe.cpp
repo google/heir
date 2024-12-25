@@ -278,9 +278,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         ConvertEncodeOp, ConvertEncryptOp, ConvertDecryptOp,
 
         // Scheme-agnostic RLWE Arithmetic Ops:
-        ConvertBinOp<lwe::RAddOp, openfhe::AddOp>,
-        ConvertBinOp<lwe::RSubOp, openfhe::SubOp>,
-        ConvertBinOp<lwe::RMulOp, openfhe::MulNoRelinOp>,
+        ConvertLWEBinOp<lwe::RAddOp, openfhe::AddOp>,
+        ConvertLWEBinOp<lwe::RSubOp, openfhe::SubOp>,
+        ConvertLWEBinOp<lwe::RMulOp, openfhe::MulNoRelinOp>,
         ConvertUnaryOp<lwe::RNegateOp, openfhe::NegateOp>,
 
         ///////////////////////////////////

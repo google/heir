@@ -5,7 +5,7 @@
 #include "lib/Utils/ConversionUtils.h"
 #include "mlir/include/mlir/Transforms/DialectConversion.h" // from @llvm-project
 
-namespace mlir::heir {
+namespace mlir::heir::{{ source_dialect_namespace }} {
 
 #define GEN_PASS_DEF_{{ pass_name | upper }}
 #include "lib/Dialect/{{ source_dialect_name }}/Conversions/{{ pass_name }}/{{ pass_name }}.h.inc"
@@ -59,4 +59,4 @@ struct {{ pass_name }} : public impl::{{ pass_name }}Base<{{ pass_name }}> {
   }
 };
 
-}  // namespace mlir::heir
+}  // namespace mlir::heir::{{ source_dialect_namespace }}
