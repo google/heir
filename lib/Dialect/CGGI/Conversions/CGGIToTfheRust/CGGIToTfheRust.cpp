@@ -42,7 +42,7 @@ constexpr int kAndLut = 8;
 constexpr int kOrLut = 14;
 constexpr int kXorLut = 6;
 
-Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
+static Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
   // Only supporting unsigned types because the LWE dialect does not have a
   // notion of signedness.
   switch (width) {
@@ -101,7 +101,7 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
 
 /// Returns the Value corresponding to a server key in the FuncOp containing
 /// this op.
-FailureOr<Value> getContextualServerKey(Operation *op) {
+static FailureOr<Value> getContextualServerKey(Operation *op) {
   Value serverKey = op->getParentOfType<func::FuncOp>()
                         .getBody()
                         .getBlocks()
@@ -151,6 +151,37 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
       block.insertArgument(&block.getArguments().front(), serverKeyType,
                            op.getLoc());
     });
+
+    return success();
+  }
+};
+
+struct AddServerKeyArgCall : public OpConversionPattern<func::CallOp> {
+  AddServerKeyArgCall(mlir::MLIRContext *context)
+      : OpConversionPattern<func::CallOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      func::CallOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> sk = getContextualServerKey(op.getOperation());
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    llvm::SmallVector<Value, 4> newOperands;
+    newOperands.reserve(adaptor.getOperands().size() + 1);
+    newOperands.push_back(sk.value());
+    for (auto t : adaptor.getOperands()) {
+      newOperands.push_back(t);
+    }
+
+    // // Set the updated operand list on the operation
+    auto newCallOp = b.create<func::CallOp>(
+        op.getLoc(), adaptor.getCallee(),
+        getTypeConverter()->convertType(op.getResult(0).getType()),
+        newOperands);
+    rewriter.replaceOp(op, newCallOp);
 
     return success();
   }
@@ -232,8 +263,9 @@ struct ConvertLut2Op : public OpConversionPattern<cggi::Lut2Op> {
   }
 };
 
-LogicalResult replaceBinaryGate(Operation *op, Value lhs, Value rhs,
-                                ConversionPatternRewriter &rewriter, int lut) {
+static LogicalResult replaceBinaryGate(Operation *op, Value lhs, Value rhs,
+                                       ConversionPatternRewriter &rewriter,
+                                       int lut) {
   ImplicitLocOpBuilder b(op->getLoc(), rewriter);
   FailureOr<Value> result = getContextualServerKey(op);
   if (failed(result)) return result;
