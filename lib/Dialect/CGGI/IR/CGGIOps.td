@@ -10,6 +10,7 @@ include "lib/Dialect/LWE/IR/LWETypes.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -40,15 +41,25 @@ class CGGI_BinaryOp<string mnemonic>
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
+class CGGI_ScalarBinaryOp<string mnemonic>
+  : CGGI_Op<mnemonic, [
+    Pure,
+    Commutative
+]> {
+  let arguments = (ins LWECiphertext:$lhs, AnyTypeOf<[Builtin_Integer, LWECiphertext]>:$rhs);
+  let results = (outs LWECiphertext:$output);
+}
+
 def CGGI_AndOp : CGGI_BinaryOp<"and"> { let summary = "Logical AND of two ciphertexts."; }
 def CGGI_NandOp : CGGI_BinaryOp<"nand"> { let summary = "Logical NAND of two ciphertexts."; }
 def CGGI_NorOp  : CGGI_BinaryOp<"nor">  { let summary = "Logical NOR of two ciphertexts."; }
 def CGGI_OrOp  : CGGI_BinaryOp<"or">  { let summary = "Logical OR of two ciphertexts."; }
 def CGGI_XorOp : CGGI_BinaryOp<"xor"> { let summary = "Logical XOR of two ciphertexts."; }
 def CGGI_XNorOp : CGGI_BinaryOp<"xnor"> { let summary = "Logical XNOR of two ciphertexts."; }
-def CGGI_AddOp : CGGI_BinaryOp<"add"> { let summary = "Arithmetic addition of two ciphertexts."; }
-def CGGI_MulOp : CGGI_BinaryOp<"mul"> {
-  let summary = "Arithmetic multiplication of two ciphertexts.";
+
+def CGGI_AddOp : CGGI_ScalarBinaryOp<"add"> { let summary = "Arithmetic addition of two ciphertexts. One of the two ciphertext is allowed to be a scalar, this will result in the scalar addition to a ciphertext."; }
+def CGGI_MulOp : CGGI_ScalarBinaryOp<"mul"> {
+  let summary = "Arithmetic multiplication of two ciphertexts. One of the two ciphertext is allowed to be a scalar, this will result in the scalar multiplication to a ciphertext.";
   let description = [{
     While CGGI does not have a native multiplication operation,
     some backend targets provide a multiplication
@@ -58,6 +69,18 @@ def CGGI_MulOp : CGGI_BinaryOp<"mul"> {
     to this op the appropriate CGGI ops.
   }];
 }
+
+def CGGI_SubOp : CGGI_Op<"sub", [
+    Pure,
+    SameOperandsAndResultType,
+    ElementwiseMappable,
+    Scalarizable
+]> {
+  let arguments = (ins LWECiphertext:$lhs, LWECiphertext:$rhs);
+  let results = (outs LWECiphertext:$output);
+  let summary = "Subtraction of two ciphertexts.";
+}
+
 
 def CGGI_NotOp : CGGI_Op<"not", [
     Pure,
@@ -282,17 +305,6 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
   let hasVerifier = 1;
 }
 
-def CGGI_SubOp : CGGI_Op<"sub", [
-    Pure,
-    SameOperandsAndResultType,
-    ElementwiseMappable,
-    Scalarizable
-]> {
-  let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
-  let results = (outs LWECiphertextLike:$output);
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
-  let summary = "Subtraction of two ciphertexts.";
-}
 
 
 def CGGI_ScalarShiftRightOp : CGGI_Op<"sshr", [

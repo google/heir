@@ -350,7 +350,7 @@ struct ConvertQuartAddI final : OpConversionPattern<mlir::arith::AddIOp> {
     SmallVector<Value> outputs;
 
     for (int i = 0; i < splitLhs.size(); ++i) {
-      auto lowSum = b.create<cggi::AddOp>(splitLhs[i], splitRhs[i]);
+      auto lowSum = b.create<cggi::AddOp>(elemType, splitLhs[i], splitRhs[i]);
       auto outputLsb = b.create<cggi::CastOp>(op.getLoc(), realTy, lowSum);
       auto outputLsbHigh =
           b.create<cggi::CastOp>(op.getLoc(), elemType, outputLsb);
@@ -365,7 +365,8 @@ struct ConvertQuartAddI final : OpConversionPattern<mlir::arith::AddIOp> {
       if (i == 0) {
         outputs.push_back(outputLsbHigh);
       } else {
-        auto high = b.create<cggi::AddOp>(outputLsbHigh, carries[i - 1]);
+        auto high =
+            b.create<cggi::AddOp>(elemType, outputLsbHigh, carries[i - 1]);
         outputs.push_back(high);
       }
     }
@@ -413,35 +414,35 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
 
     // TODO: Implement the real Karatsuba algorithm for 4x4 multiplication.
     // First part of Karatsuba algorithm
-    auto z00 = b.create<cggi::MulOp>(splitLhs[0], splitRhs[0]);
-    auto z02 = b.create<cggi::MulOp>(splitLhs[1], splitRhs[1]);
-    auto z01_p1 = b.create<cggi::AddOp>(splitLhs[0], splitLhs[1]);
-    auto z01_p2 = b.create<cggi::AddOp>(splitRhs[0], splitRhs[1]);
-    auto z01_m = b.create<cggi::MulOp>(z01_p1, z01_p2);
+    auto z00 = b.create<cggi::MulOp>(elemTy, splitLhs[0], splitRhs[0]);
+    auto z02 = b.create<cggi::MulOp>(elemTy, splitLhs[1], splitRhs[1]);
+    auto z01_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[0], splitLhs[1]);
+    auto z01_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[0], splitRhs[1]);
+    auto z01_m = b.create<cggi::MulOp>(elemTy, z01_p1, z01_p2);
     auto z01_s = b.create<cggi::SubOp>(z01_m, z00);
     auto z01 = b.create<cggi::SubOp>(z01_s, z02);
 
     // Second part I of Karatsuba algorithm
-    auto z1a0 = b.create<cggi::MulOp>(splitLhs[0], splitRhs[2]);
-    auto z1a2 = b.create<cggi::MulOp>(splitLhs[1], splitRhs[3]);
-    auto z1a1_p1 = b.create<cggi::AddOp>(splitLhs[0], splitLhs[1]);
-    auto z1a1_p2 = b.create<cggi::AddOp>(splitRhs[2], splitRhs[3]);
-    auto z1a1_m = b.create<cggi::MulOp>(z1a1_p1, z1a1_p2);
+    auto z1a0 = b.create<cggi::MulOp>(elemTy, splitLhs[0], splitRhs[2]);
+    auto z1a2 = b.create<cggi::MulOp>(elemTy, splitLhs[1], splitRhs[3]);
+    auto z1a1_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[0], splitLhs[1]);
+    auto z1a1_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[2], splitRhs[3]);
+    auto z1a1_m = b.create<cggi::MulOp>(elemTy, z1a1_p1, z1a1_p2);
     auto z1a1_s = b.create<cggi::SubOp>(z1a1_m, z1a0);
     auto z1a1 = b.create<cggi::SubOp>(z1a1_s, z1a2);
 
     // Second part II of Karatsuba algorithm
-    auto z1b0 = b.create<cggi::MulOp>(splitLhs[2], splitRhs[0]);
-    auto z1b2 = b.create<cggi::MulOp>(splitLhs[3], splitRhs[1]);
-    auto z1b1_p1 = b.create<cggi::AddOp>(splitLhs[2], splitLhs[3]);
-    auto z1b1_p2 = b.create<cggi::AddOp>(splitRhs[0], splitRhs[1]);
-    auto z1b1_m = b.create<cggi::MulOp>(z1b1_p1, z1b1_p2);
-    auto z1b1_s = b.create<cggi::SubOp>(z1b1_m, z1b0);
+    auto z1b0 = b.create<cggi::MulOp>(elemTy, splitLhs[2], splitRhs[0]);
+    auto z1b2 = b.create<cggi::MulOp>(elemTy, splitLhs[3], splitRhs[1]);
+    auto z1b1_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[2], splitLhs[3]);
+    auto z1b1_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[0], splitRhs[1]);
+    auto z1b1_m = b.create<cggi::MulOp>(elemTy, z1b1_p1, z1b1_p2);
+    auto z1b1_s = b.create<cggi::SubOp>(elemTy, z1b1_m, z1b0);
     auto z1b1 = b.create<cggi::SubOp>(z1b1_s, z1b2);
 
-    auto out2Kara = b.create<cggi::AddOp>(z1a0, z1b0);
-    auto out2Carry = b.create<cggi::AddOp>(out2Kara, z02);
-    auto out3Carry = b.create<cggi::AddOp>(z1a1, z1b1);
+    auto out2Kara = b.create<cggi::AddOp>(elemTy, z1a0, z1b0);
+    auto out2Carry = b.create<cggi::AddOp>(elemTy, out2Kara, z02);
+    auto out3Carry = b.create<cggi::AddOp>(elemTy, z1a1, z1b1);
 
     // Output are now all 16b elements, wants presentation of 4x8b
     auto output0Lsb = b.create<cggi::CastOp>(realTy, z00);
@@ -462,9 +463,9 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
     auto output3Lsb = b.create<cggi::CastOp>(realTy, out3Carry);
     auto output3LsbHigh = b.create<cggi::CastOp>(elemTy, output3Lsb);
 
-    auto output1 = b.create<cggi::AddOp>(output1LsbHigh, output0Msb);
-    auto output2 = b.create<cggi::AddOp>(output2LsbHigh, output1Msb);
-    auto output3 = b.create<cggi::AddOp>(output3LsbHigh, output2Msb);
+    auto output1 = b.create<cggi::AddOp>(elemTy, output1LsbHigh, output0Msb);
+    auto output2 = b.create<cggi::AddOp>(elemTy, output2LsbHigh, output1Msb);
+    auto output3 = b.create<cggi::AddOp>(elemTy, output3LsbHigh, output2Msb);
 
     Value resultVec = constructResultTensor(
         rewriter, loc, newTy, {output0LsbHigh, output1, output2, output3});
