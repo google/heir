@@ -74,6 +74,8 @@ def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext"> {
   let nameSuggestion = "pt";
 }
 
+def LWEPlaintextLike : TypeOrContainer<LWEPlaintext, "lwe-plaintext-like">;
+
 def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
   let summary = "A type for RLWE plaintexts";
 
@@ -84,5 +86,8 @@ def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
   );
   let nameSuggestion = "pt";
 }
+
+def RLWEPlaintextLike : TypeOrContainer<RLWEPlaintext, "rlwe-plaintext-like">;
+
 
 #endif  // LIB_DIALECT_LWE_IR_LWETYPES_TD_

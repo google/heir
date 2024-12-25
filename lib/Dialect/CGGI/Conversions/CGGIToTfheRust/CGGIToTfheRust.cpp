@@ -364,6 +364,36 @@ struct ConvertTrivialEncryptOp
   }
 };
 
+struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
+  ConvertTrivialOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::CreateTrivialOp>(context, /*benefit=*/2) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::CreateTrivialOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result = getContextualServerKey(op.getOperation());
+    if (failed(result)) return result;
+
+    Value serverKey = result.value();
+
+    auto intValue = op.getValue().getValue().getSExtValue();
+    auto inputValue = mlir::IntegerAttr::get(op.getValue().getType(), intValue);
+    auto constantWidth = op.getValue().getValue().getBitWidth();
+
+    auto cteOp = rewriter.create<arith::ConstantOp>(
+        op.getLoc(), rewriter.getIntegerType(constantWidth), inputValue);
+
+    auto outputType = encrytpedUIntTypeFromWidth(getContext(), constantWidth);
+
+    auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
+        op.getLoc(), outputType, serverKey, cteOp);
+    rewriter.replaceOp(op, createTrivialOp);
+    return success();
+  }
+};
+
 struct ConvertEncodeOp : public OpConversionPattern<lwe::EncodeOp> {
   ConvertEncodeOp(mlir::MLIRContext *context)
       : OpConversionPattern<lwe::EncodeOp>(context) {}

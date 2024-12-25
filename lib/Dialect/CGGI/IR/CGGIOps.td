@@ -59,7 +59,6 @@ def CGGI_MulOp : CGGI_BinaryOp<"mul"> {
   }];
 }
 
-
 def CGGI_NotOp : CGGI_Op<"not", [
     Pure,
     Involution,
@@ -310,6 +309,33 @@ def CGGI_ShiftLeftOp : CGGI_Op<"shl", [
   let arguments = (ins LWECiphertextLike:$lhs, AnyI8:$shiftAmount);
   let results = (outs LWECiphertextLike:$output);
   let summary = "Arithmetic shift to left of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
+}
+
+// FIXME: Two options:
+// 1. Allow arith.constant and use an encryption op to bring it to the ciphertext space.
+// 2. Use a trivial op where the constant is embedded in the ciphertext.
+def CGGI_CreateTrivialOp : CGGI_Op<"create_trivial", [Pure]> {
+  let arguments = (ins Builtin_IntegerAttr:$value);
+  let results = (outs LWECiphertextLike:$output);
+}
+
+def CGGI_CastOp : CGGI_Op<"cast", [Pure, SameOperandsAndResultShape]> {
+  let summary = "change the plaintext space of a CGGI ciphertext";
+
+  let description = [{
+    "cast" operation to change the plaintext size of a CGGI ciphertext.
+    Note this operations is not a standard CGGI operation, but an mirror of the cast op implemented in TFHE-rs.
+
+    Examples:
+    ```
+    `cggi.cast %c0 : !lwe.lwe_ciphertext<encoding = #unspecified_bit_field_encoding> to !lwe.lwe_ciphertext<encoding = #unspecified_bit_field_encoding1>`
+    ```
+  }];
+
+  let arguments = (ins LWECiphertextLike:$input);
+  let results = (outs LWECiphertextLike:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
 
 #endif  // LIB_DIALECT_CGGI_IR_CGGIOPS_TD_

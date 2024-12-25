@@ -32,6 +32,7 @@ cc_binary(
     }),
     includes = ["include"],
     deps = [
+        "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",
         "@heir//lib/Dialect/Arith/Transforms",
         "@heir//lib/Dialect/Arith/Transforms:QuarterWideInt",
