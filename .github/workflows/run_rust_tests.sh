@@ -13,3 +13,11 @@ bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust/...)" \
 -c fastbuild \
 --sandbox_writable_path=$HOME/.cargo \
 "$@"
+
+bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust_hl/cpu/...)" \
+| xargs bazel test \
+--noincompatible_strict_action_env \
+--test_timeout=180 \
+-c fastbuild \
+--sandbox_writable_path=$HOME/.cargo \
+"$@"
