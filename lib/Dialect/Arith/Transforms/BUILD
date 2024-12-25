@@ -11,6 +11,8 @@ cc_library(
     deps = [
         ":QuarterWideInt",
         ":pass_inc_gen",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
     ],
 )
 
@@ -21,16 +23,13 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Utils:ConversionUtils",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FuncTransforms",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:TensorDialect",
-        "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:Transforms",
-        "@llvm-project//mlir:VectorDialect",
     ],
 )
 
