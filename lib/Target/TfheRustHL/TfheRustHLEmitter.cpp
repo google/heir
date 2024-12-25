@@ -573,6 +573,7 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
   return success();
 }
 
+// Need to produce a
 LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {

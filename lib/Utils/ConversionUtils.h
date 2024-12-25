@@ -35,6 +35,8 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
+#define DEBUG_TYPE "cggi-to-tfhe-rust"
+
 namespace mlir {
 namespace heir {
 
