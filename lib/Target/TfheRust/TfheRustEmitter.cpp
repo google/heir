@@ -492,11 +492,7 @@ std::string TfheRustEmitter::operationType(Operation *op) {
                "\")";
       })
       .Case<tfhe_rust::ScalarLeftShiftOp>([&](ScalarLeftShiftOp op) {
-        auto constantShift =
-            cast<arith::ConstantOp>(op.getShiftAmount().getDefiningOp());
-        return "LSH(" +
-               std::to_string(
-                   cast<IntegerAttr>(constantShift.getValue()).getInt()) +
+        return "LSH(" + std::to_string(op.getShiftAmount().getSExtValue()) +
                ")";
       })
       .Case<tfhe_rust::AddOp>([&](Operation *) { return "ADD"; });
@@ -518,9 +514,17 @@ LogicalResult TfheRustEmitter::printOperation(affine::AffineForOp forOp) {
 }
 
 LogicalResult TfheRustEmitter::printOperation(ScalarLeftShiftOp op) {
-  return printSksMethod(op.getResult(), op.getServerKey(),
-                        {op.getCiphertext(), op.getShiftAmount()},
-                        "scalar_left_shift", {"", "u8"});
+  emitAssignPrefix(op.getResult());
+  os << variableNames->getNameForValue(op.getServerKey())
+     << ".scalar_left_shift(";
+
+  auto valueStr = variableNames->getNameForValue(op.getCiphertext());
+  std::string prefix =
+      op.getCiphertext().getType().hasTrait<PassByReference>() ? "&" : "";
+  auto cipherString = prefix + valueStr;
+
+  os << cipherString << ", " << op.getShiftAmount() << " as u8);\n";
+  return success();
 }
 
 LogicalResult TfheRustEmitter::printOperation(CreateTrivialOp op) {

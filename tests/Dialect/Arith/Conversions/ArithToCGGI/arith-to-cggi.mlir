@@ -66,6 +66,8 @@ func.func @test_affine(%arg0: memref<1x1xi32>) -> memref<1x1xi32> {
   %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
   %25 = arith.muli %0, %c33_i8 : i32
   %26 = arith.addi %c429_i32, %25 : i32
+  %c2 = arith.constant 2 : i32
+  %27 = arith.shrui %26, %c2 : i32
   affine.store %26, %alloc[0, 0] : memref<1x1xi32>
   return %alloc : memref<1x1xi32>
 }
