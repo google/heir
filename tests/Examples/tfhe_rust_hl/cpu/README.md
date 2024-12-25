@@ -17,7 +17,7 @@ if you overrode the default option when installing Cargo.
 
 ```bash
 bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust_hl/cpu/...)" \
-  | xargs bazel test --noincompatible_strict_action_env -test_timeout=180 --sandbox_writable_path=$HOME/.cargo "$@"
+  | xargs bazel test --noincompatible_strict_action_env --test_timeout=180 --sandbox_writable_path=$HOME/.cargo "$@"
 ```
 
 The `manual` tag is added to the targets in this directory to ensure that they

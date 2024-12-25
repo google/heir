@@ -308,7 +308,12 @@ LogicalResult TfheRustHLEmitter::printOperation(CreateTrivialOp op) {
 
   os << "FheUint" << getTfheRustBitWidth(op.getResult().getType())
      << "::try_encrypt_trivial("
-     << variableNames->getNameForValue(op.getValue()) << ").unwrap();\n";
+     << variableNames->getNameForValue(op.getValue());
+
+  if (op.getValue().getType().isSigned())
+    os << " as u" << getTfheRustBitWidth(op.getResult().getType());
+
+  os << ").unwrap();\n";
   return success();
 }
 
@@ -359,7 +364,7 @@ LogicalResult TfheRustHLEmitter::printOperation(arith::ConstantOp op) {
   // By default, it emits an unsigned integer.
   emitAssignPrefix(op.getResult());
   if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
-    os << intAttr.getValue().abs() << "u64;\n";
+    os << intAttr.getValue().abs() << convertType(op.getType()) << ";\n";
   } else {
     return op.emitError() << "Unknown constant type " << valueAttr.getType();
   }
@@ -383,6 +388,17 @@ LogicalResult TfheRustHLEmitter::printBinaryOp(::mlir::Value result,
                                                std::string_view op) {
   emitAssignPrefix(result);
 
+  if (auto cteOp = dyn_cast<mlir::arith::ConstantOp>(rhs.getDefiningOp())) {
+    auto intValue =
+        cast<IntegerAttr>(cteOp.getValue()).getValue().getZExtValue();
+    os << checkOrigin(lhs) << variableNames->getNameForValue(lhs) << " " << op
+       << " " << intValue << "u" << cteOp.getType().getIntOrFloatBitWidth()
+       << ";\n";
+    return success();
+  }
+
+  // Note: arith.constant op requires signless integer types, but here we
+  // manually emit an unsigned integer type.
   os << checkOrigin(lhs) << variableNames->getNameForValue(lhs) << " " << op
      << " " << checkOrigin(rhs) << variableNames->getNameForValue(rhs) << ";\n";
   return success();
@@ -430,8 +446,8 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::AllocOp op) {
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
     return op.emitOpError() << "Failed to get memref element type";
   }
-
   os << "> = BTreeMap::new();\n";
+
   return success();
 }
 
@@ -463,12 +479,11 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::LoadOp op) {
   // We assume here that the indices are SSA values (not integer attributes).
   if (isa<BlockArgument>(op.getMemref())) {
     emitAssignPrefix(op.getResult());
-    os << "&" << variableNames->getNameForValue(op.getMemRef()) << "["
-       << flattenIndexExpression(op.getMemRefType(), op.getIndices(),
-                                 [&](Value value) {
-                                   return variableNames->getNameForValue(value);
-                                 })
-       << "];\n";
+    os << "&" << variableNames->getNameForValue(op.getMemRef());
+    for (auto value : op.getIndices()) {
+      os << "[" << variableNames->getNameForValue(value) << "]";
+    }
+    os << ";\n";
     return success();
   }
 
@@ -586,6 +601,7 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
   }) << "];\n";
+
   return success();
 }
 
@@ -662,8 +678,11 @@ FailureOr<std::string> TfheRustHLEmitter::convertType(Type type) {
         }
         auto width = getRustIntegerType(type.getWidth());
         if (failed(width)) return failure();
-        return (type.isUnsigned() ? std::string("u") : "") + "i" +
+        return (type.isSigned() ? std::string("i") : std::string("u")) +
                std::to_string(width.value());
+      })
+      .Case<IndexType>([&](IndexType type) -> FailureOr<std::string> {
+        return std::string("usize");
       })
       .Case<LookupTableType>(
           [&](auto type) { return std::string("LookupTableOwned"); })
