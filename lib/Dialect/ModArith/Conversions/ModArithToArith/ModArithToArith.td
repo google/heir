@@ -20,17 +20,4 @@ def ModArithToArith : Pass<"mod-arith-to-arith", "ModuleOp"> {
   ];
 }
 
-// Using DRR to generate the lowering patterns for specific operations
-
-defvar DefGE = ConstantEnumCase<Arith_CmpIPredicateAttr, "uge">;
-
-def ConvertSubIfGE : Pattern<
-  (ModArith_SubIfGEOp $x, $y),
-  [
-    (Arith_SubIOp:$subOp $x, $y, DefOverflow),
-    (Arith_CmpIOp:$cmpOp DefGE, $x, $y),
-    (SelectOp $cmpOp, $subOp, $x)
-  ]
->;
-
 #endif  // LIB_DIALECT_MODARITH_CONVERSIONS_MODARITHTOARITH_MODARITHTOARITH_TD_
