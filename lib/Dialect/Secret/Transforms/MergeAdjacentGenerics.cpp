@@ -23,7 +23,9 @@ struct MergeAdjacentGenericsPass
     mlir::RewritePatternSet patterns(context);
 
     patterns.add<MergeAdjacentGenerics>(context);
-    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+    // TODO (#1221): Investigate whether folding (default: on) can be skipped
+    // here.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
 
