@@ -2,6 +2,7 @@
 #define LIB_DIALECT_LWE_IR_LWEDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def LWE_Dialect : Dialect {
   let name = "lwe";
