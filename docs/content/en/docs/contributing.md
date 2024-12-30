@@ -90,6 +90,8 @@ at the [pull request review stage](#pull-request-review-flow).
     pre-commit run --all
    ```
 
+If failed, check [Pre-commit](https://heir.dev/docs/development/#pre-commit).
+
 1. Make sure tests are passing with the following:
 
    ```bash
