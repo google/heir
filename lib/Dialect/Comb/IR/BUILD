@@ -155,6 +155,10 @@ gentbl_cc_library(
             ],
             "CombEnums.cpp.inc",
         ),
+        (
+            ["-gen-enum-doc"],
+            "CombEnums.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",

@@ -60,6 +60,10 @@ gentbl_cc_library(
             ["--gen-enum-defs"],
             "RandomEnums.cpp.inc",
         ),
+        (
+            ["-gen-enum-doc"],
+            "RandomEnums.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "RandomEnums.td",

@@ -137,7 +137,7 @@ gentbl_cc_library(
             "CGGIEnums.cpp.inc",
         ),
         (
-            ["-gen-attrdef-doc"],
+            ["-gen-enum-doc"],
             "CGGIEnums.md",
         ),
     ],

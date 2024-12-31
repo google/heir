@@ -121,6 +121,10 @@ gentbl_cc_library(
             ["-gen-attrdef-doc"],
             "LWEAttributes.md",
         ),
+        (
+            ["-gen-enum-doc"],
+            "LWEEnums.md",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "LWEAttributes.td",
