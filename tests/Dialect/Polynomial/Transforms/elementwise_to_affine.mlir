@@ -39,13 +39,13 @@
 
 // THE FOLLOWING SHOULD CONVERT NOTHING (EXCEPT "ARITH" OPS FOR SOME, BUT THERE ARE NONE IN THE TESTS)
 
-// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine=convert-ops=list={} %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine{convert-ops=""} %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine=convert-dialects=list={} %s \
+// RUN: heir-opt --mlir-print-local-scope --convert-elementwise-to-affine{convert-dialects=""} %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
-// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-ops=list={} convert-dialects=list={}' %s \
+// RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine{convert-ops="" convert-dialects=""}' %s \
 // RUN: | FileCheck --enable-var-scope --check-prefix=CHECK --check-prefix=CHECK_NOTADD --check-prefix=CHECK_NOTMUL %s
 
 // RUN: heir-opt --mlir-print-local-scope '--convert-elementwise-to-affine=convert-dialects=arith' %s \
