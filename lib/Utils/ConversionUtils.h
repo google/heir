@@ -80,6 +80,25 @@ struct ConvertAny<void> : public ConversionPattern {
   }
 };
 
+template <typename SourceArithOp, typename TargetModArithOp>
+struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
+  ConvertBinOp(mlir::MLIRContext *context)
+      : OpConversionPattern<SourceArithOp>(context) {}
+
+  using OpConversionPattern<SourceArithOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto result =
+        b.create<TargetModArithOp>(adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 struct ContextAwareTypeConverter : public TypeConverter {
  public:
   // Convert types of the values in the input range, taking into account the

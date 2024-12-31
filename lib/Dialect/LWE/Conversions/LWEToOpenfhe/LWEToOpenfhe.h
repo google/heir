@@ -45,7 +45,7 @@ struct ConvertUnaryOp : public OpConversionPattern<UnaryOp> {
 };
 
 template <typename BinOp, typename OpenfheOp>
-struct ConvertBinOp : public OpConversionPattern<BinOp> {
+struct ConvertLWEBinOp : public OpConversionPattern<BinOp> {
   using OpConversionPattern<BinOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(

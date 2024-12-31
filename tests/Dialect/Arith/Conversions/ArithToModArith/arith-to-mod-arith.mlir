@@ -61,6 +61,8 @@ module attributes {tf_saved_model.semantics} {
   memref.global "private" constant @__constant_16x1xi8 : memref<16x1xi8> = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]> {alignment = 64 : i64}
   func.func @test_memref_global(%arg0: memref<1x1xi32>) -> memref<1x1xi32> {
     %c429_i32 = arith.constant 429 : i32
+    %c33_i8 = arith.constant 33 : i8
+    %c33 = arith.extui %c33_i8 : i8 to i32
     %c0 = arith.constant 0 : index
     %0 = memref.get_global @__constant_16x1xi8 : memref<16x1xi8>
     %3 = memref.get_global @__constant_16xi32_0 : memref<16xi32>
@@ -72,7 +74,27 @@ module attributes {tf_saved_model.semantics} {
     %a24 = arith.extsi %22 : i8 to i32
     %25 = arith.muli %24, %a24 : i32
     %26 = arith.addi %21, %25 : i32
-    memref.store %26, %alloc[%c0, %c0] : memref<1x1xi32>
+    %27 = arith.addi %26, %c33 : i32
+    memref.store %27, %alloc[%c0, %c0] : memref<1x1xi32>
+    return %alloc : memref<1x1xi32>
+  }
+}
+
+// CHECK-LABEL: @test_affine
+// CHECK-SAME: (%[[ARG:.*]]: memref<1x1x!Z128_i9_>) -> memref<1x1x!Z2147483648_i33_> {
+module attributes {tf_saved_model.semantics} {
+  func.func @test_affine(%arg0: memref<1x1xi8>) -> memref<1x1xi32> {
+    %c429_i32 = arith.constant 429 : i32
+    %c33_i8 = arith.constant 33 : i8
+    %c33 = arith.extui %c33_i8 : i8 to i32
+    %0 = affine.load %arg0[0, 0] : memref<1x1xi8>
+    %c0 = arith.constant 0 : index
+    %1 = arith.extsi %0 : i8 to i32
+    %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
+  // CHECK: %[[ENC:.*]] = mod_arith.mod_switch %{{.*}}: !Z128_i9_ to !Z2147483648_i33_
+    %25 = arith.muli %1, %c33 : i32
+    %26 = arith.addi %c429_i32, %25 : i32
+    affine.store %26, %alloc[0, 0] : memref<1x1xi32>
     return %alloc : memref<1x1xi32>
   }
 }
