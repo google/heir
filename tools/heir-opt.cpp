@@ -4,6 +4,7 @@
 #include <string>
 
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
+#include "lib/Dialect/Arith/Transforms/Passes.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -71,6 +72,7 @@
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ComplexToLLVM/ComplexToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/IndexToLLVM/IndexToLLVM.h"  // from @llvm-project
@@ -202,6 +204,9 @@ int main(int argc, char **argv) {
   registerPass([]() -> std::unique_ptr<Pass> {
     return createReconcileUnrealizedCastsPass();
   });
+  registerPass(
+
+      []() -> std::unique_ptr<Pass> { return createConvertToLLVMPass(); });
 
   // Bufferization and external models
   bufferization::registerBufferizationPasses();
@@ -213,8 +218,10 @@ int main(int argc, char **argv) {
   mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
   scf::registerBufferizableOpInterfaceExternalModels(registry);
   tensor::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::arith::registerConvertArithToLLVMInterface(registry);
 
   // Custom passes in HEIR
+  heir::arith::registerArithPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
