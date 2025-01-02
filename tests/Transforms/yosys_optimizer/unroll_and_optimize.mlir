@@ -66,21 +66,21 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 //   CHECK-NEXT:  secret.generic
 //   CHECK-NEXT:  ^bb{{.*}}(%[[arg2:.*]]: memref<8xi1>, %[[arg3:.*]]: memref<8xi1>):
 //                  Note bit 7 is never loaded because it is shifted out
-//   CHECK-DAG:    %[[arg2bit0:.*]] = memref.load %arg2[%[[c0]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg2bit1:.*]] = memref.load %arg2[%[[c1]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg2bit2:.*]] = memref.load %arg2[%[[c2]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg2bit3:.*]] = memref.load %arg2[%[[c3]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg2bit4:.*]] = memref.load %arg2[%[[c4]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg2bit5:.*]] = memref.load %arg2[%[[c5]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg2bit6:.*]] = memref.load %arg2[%[[c6]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg2bit0:.*]] = memref.load %[[arg2]][%[[c0]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg2bit1:.*]] = memref.load %[[arg2]][%[[c1]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg2bit2:.*]] = memref.load %[[arg2]][%[[c2]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg2bit3:.*]] = memref.load %[[arg2]][%[[c3]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg2bit4:.*]] = memref.load %[[arg2]][%[[c4]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg2bit5:.*]] = memref.load %[[arg2]][%[[c5]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg2bit6:.*]] = memref.load %[[arg2]][%[[c6]]] : memref<8xi1>
 //
-//   CHECK-DAG:    %[[arg3bit0:.*]] = memref.load %arg3[%[[c0]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg3bit1:.*]] = memref.load %arg3[%[[c1]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg3bit2:.*]] = memref.load %arg3[%[[c2]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg3bit3:.*]] = memref.load %arg3[%[[c3]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg3bit4:.*]] = memref.load %arg3[%[[c4]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg3bit5:.*]] = memref.load %arg3[%[[c5]]] : memref<8xi1>
-//   CHECK-DAG:    %[[arg3bit6:.*]] = memref.load %arg3[%[[c6]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg3bit0:.*]] = memref.load %[[arg3]][%[[c0]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg3bit1:.*]] = memref.load %[[arg3]][%[[c1]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg3bit2:.*]] = memref.load %[[arg3]][%[[c2]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg3bit3:.*]] = memref.load %[[arg3]][%[[c3]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg3bit4:.*]] = memref.load %[[arg3]][%[[c4]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg3bit5:.*]] = memref.load %[[arg3]][%[[c5]]] : memref<8xi1>
+//   CHECK-DAG:    %[[arg3bit6:.*]] = memref.load %[[arg3]][%[[c6]]] : memref<8xi1>
 //
 //   The order of use of the two allocs seem arbitrary and nondeterministic,
 //   so check the stores without the memref names

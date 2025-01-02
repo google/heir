@@ -17,7 +17,7 @@ module  {
   // CHECK-NEXT:     %[[v4:.*]] = arith.addi %[[v3]], %[[arg1]]
   // CHECK-NEXT:     %[[v5:.*]] = tensor_ext.rotate %[[v4]], %[[c63]]
   // CHECK-NEXT:     %[[v6:.*]] = arith.addi %[[v5]], %[[v2]]
-  // CHECK-NEXT:     %[[v7:.*]] = arith.addi %[[v6]], %arg1
+  // CHECK-NEXT:     %[[v7:.*]] = arith.addi %[[v6]], %[[arg1]]
   // CHECK-NEXT:     %[[v8:.*]] = tensor_ext.rotate %[[v7]], %[[c63]]
   // CHECK-NEXT:     %[[v9:.*]] = tensor_ext.rotate %[[arg1]], %[[c127]]
   // CHECK-NEXT:     %[[v10:.*]] = arith.addi %[[v8]], %[[v9]]
