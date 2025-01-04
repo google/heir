@@ -349,6 +349,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpCipherConversion<tensor::EmptyOp, tensor::EmptyOp>,
         SecretGenericOpRelinearizeConversion<ckks::RelinearizeOp>,
         SecretGenericOpModulusSwitchConversion<ckks::RescaleOp>,
+        SecretGenericOpCipherConversion<mgmt::BootstrapOp, ckks::BootstrapOp>,
         SecretGenericTensorExtractConversion,
         SecretGenericTensorInsertConversion,
         SecretGenericOpRotateConversion<ckks::RotateOp>,

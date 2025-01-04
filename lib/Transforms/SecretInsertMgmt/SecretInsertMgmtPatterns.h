@@ -3,6 +3,7 @@
 
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
+#include "mlir/include/mlir/Pass/AnalysisManager.h"        // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -44,6 +45,27 @@ struct ModReduceBefore : public OpRewritePattern<Op> {
   bool includeFirstMul;
   Operation *top;
   DataFlowSolver *solver;
+};
+
+// when reached a certain depth (water line), bootstrap
+template <typename Op>
+struct BootstrapWaterLine : public OpRewritePattern<Op> {
+  using OpRewritePattern<Op>::OpRewritePattern;
+
+  BootstrapWaterLine(MLIRContext *context, Operation *top,
+                     DataFlowSolver *solver, int waterline)
+      : OpRewritePattern<Op>(context, /*benefit=*/1),
+        top(top),
+        solver(solver),
+        waterline(waterline) {}
+
+  LogicalResult matchAndRewrite(Op op,
+                                PatternRewriter &rewriter) const override;
+
+ private:
+  Operation *top;
+  DataFlowSolver *solver;
+  int waterline;
 };
 
 }  // namespace heir
