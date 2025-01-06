@@ -71,7 +71,7 @@ module attributes {tf_saved_model.semantics} {
     %22 = memref.load %0[%c0, %c0] : memref<16x1xi8>
     %24 = memref.load %arg0[%c0, %c0] : memref<1x1xi32>
   // CHECK: %[[ENC:.*]] = mod_arith.mod_switch %{{.*}}: !Z128_i9_ to !Z2147483648_i33_
-    %a24 = arith.extsi %22 : i8 to i32
+    %a24 = arith.extui %22 : i8 to i32
     %25 = arith.muli %24, %a24 : i32
     %26 = arith.addi %21, %25 : i32
     %27 = arith.addi %26, %c33 : i32
