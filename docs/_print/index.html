@@ -2376,7 +2376,10 @@ saving it into each op&rsquo;s attribute dictionary as secret : <analysis result
 This is useful when running a full canonicalize is too slow, but applying
 folders before canonicalize is sufficient to simplify the IR for later
 passes, or even sufficient to then subsequently run a full canonicalize pass.</p><p>This is used to prepare an IR for <code>insert-rotate</code> after fully unrolling
-loops.</p><h3 id=-bgv-to-lattigo><code>-bgv-to-lattigo</code></h3><p><em>Lower <code>bgv</code> to <code>lattigo</code> dialect.</em></p><p>This pass lowers the <code>bgv</code> dialect to <code>Lattigo</code> dialect.</p><h3 id=-bgv-to-lwe><code>-bgv-to-lwe</code></h3><p><em>Lower <code>bgv</code> to <code>lwe</code> dialect.</em></p><p>This pass lowers the <code>bgv</code> dialect to <code>lwe</code> dialect.
+loops.</p><h3 id=-arith-quarter-wide-int><code>-arith-quarter-wide-int</code></h3><p><em>Convert high precision arithmetic operations to a sequence of lower precision operations</em></p><p>This pass converts high precision arithmetic operations, i.e. operations on 32 bit integer,
+into a sequence of lower precision operations, i.e 8b operations.
+Currently, the pass splits the 32b integer into four 8b integers, using the tensor dialect.
+These smaller integers are stored in an 16b integer, so that we don&rsquo;t lose the carry information.</p><p>Based on the <code>arith-emulate-wide-int</code> pass from the MLIR arith dialect.</p><p>General assumption: the first element in the tensor is also the LSB element.</p><h3 id=-bgv-to-lattigo><code>-bgv-to-lattigo</code></h3><p><em>Lower <code>bgv</code> to <code>lattigo</code> dialect.</em></p><p>This pass lowers the <code>bgv</code> dialect to <code>Lattigo</code> dialect.</p><h3 id=-bgv-to-lwe><code>-bgv-to-lwe</code></h3><p><em>Lower <code>bgv</code> to <code>lwe</code> dialect.</em></p><p>This pass lowers the <code>bgv</code> dialect to <code>lwe</code> dialect.
 Note that some scheme specific ops (e.g., modswitch) that
 have no direct analogue in the <code>lwe</code> dialect are left unchanged.
 TODO (#1193): support both &ldquo;common&rdquo; and &ldquo;full&rdquo; lwe lowering</p><h3 id=-cggi-boolean-vectorize><code>-cggi-boolean-vectorize</code></h3><p><em>Group different logic gates with the packed API</em></p><p>This pass groups independent logic gates into a single call of the packed
