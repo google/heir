@@ -177,7 +177,7 @@ gentbl_cc_library(
             "TfheRustBoolEnums.cpp.inc",
         ),
         (
-            ["-gen-attrdef-doc"],
+            ["-gen-enum-doc"],
             "TfheRustBoolEnums.md",
         ),
     ],
