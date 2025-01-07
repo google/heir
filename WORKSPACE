@@ -52,6 +52,85 @@ python_register_toolchains(
 load("@python3_10//:defs.bzl", "interpreter")
 load("@rules_python//python:pip.bzl", "pip_parse")
 
+# Download the Go rules.
+http_archive(
+    name = "io_bazel_rules_go",
+    integrity = "sha256-M6zErg9wUC20uJPJ/B3Xqb+ZjCPn/yxFF3QdQEmpdvg=",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.48.0/rules_go-v0.48.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.48.0/rules_go-v0.48.0.zip",
+    ],
+)
+
+# Download Gazelle.
+http_archive(
+    name = "bazel_gazelle",
+    integrity = "sha256-12v3pg/YsFBEQJDfooN6Tq+YKeEWVhjuNdzspcvfWNU=",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.37.0/bazel-gazelle-v0.37.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.37.0/bazel-gazelle-v0.37.0.tar.gz",
+    ],
+)
+
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
+
+# Load macros and repository rules.
+load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+
+# Declare Go direct dependencies.
+go_repository(
+    name = "lattigo",
+    importpath = "github.com/tuneinsight/lattigo/v6",
+    sum = "h1:CyO07L4b+Dwi28eXcrQVZNqbfPT99ntzsoSsTX9syzI=",
+    version = "v6.1.0",
+)
+
+# Testing library for lattigo
+go_repository(
+    name = "com_github_stretchr_testify",
+    importpath = "github.com/stretchr/testify",
+    sum = "h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=",
+    version = "v1.10.0",
+)
+
+# Bigfloat for lattigo
+go_repository(
+    name = "com_github_altree_bigfloat",
+    importpath = "github.com/ALTree/bigfloat",
+    sum = "h1:DG4UyTVIujioxwJc8Zj8Nabz1L1wTgQ/xNBSQDfdP3I=",
+    version = "v0.0.0-20220102081255-38c8b72a9924",
+)
+
+# Bigfloat for lattigo
+go_repository(
+    name = "com_github_davecgh_go_spew",
+    importpath = "github.com/davecgh/go-spew",
+    sum = "h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=",
+    version = "v1.1.1",
+)
+
+go_repository(
+    name = "in_gopkg_yaml_v3",
+    importpath = "gopkg.in/yaml.v3",
+    sum = "h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=",
+    version = "v3.0.0-20200313102051-9f266ea9e77c",
+)
+
+go_repository(
+    name = "org_golang_x_exp",
+    build_file_generation = "on",
+    importpath = "golang.org/x/exp",
+    sum = "h1:yqrTHse8TCMW1M1ZCP+VAR/l0kKxwaAIqN/il7x4voA=",
+    version = "v0.0.0-20250106191152-7588d65b2ba8",
+)
+
+# Declare indirect dependencies and register toolchains.
+go_rules_dependencies()
+
+go_register_toolchains(version = "1.23.1")
+
+gazelle_dependencies()
+
 ## ortools needs to be loaded earlier so later rules can get access to its
 ## patch files.
 git_repository(
