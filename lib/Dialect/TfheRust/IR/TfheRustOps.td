@@ -39,9 +39,22 @@ def CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
 def TfheRust_BitAndOp : TfheRust_BinaryOp<"bitand"> { let summary = "Logical AND of two tfhe ciphertexts."; }
 def TfheRust_AddOp : TfheRust_BinaryOp<"add"> { let summary = "Arithmetic add of two tfhe ciphertexts."; }
 def TfheRust_SubOp : TfheRust_BinaryOp<"sub"> { let summary = "Arithmetic sub of two tfhe ciphertexts."; }
+def TfheRust_MulOp : TfheRust_BinaryOp<"mul"> { let summary = "Arithmetic mul of two tfhe ciphertexts."; }
 
 
 def ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
+    Pure,
+    AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let arguments = (ins
+    TfheRust_ServerKey:$serverKey,
+    TfheRust_CiphertextType:$ciphertext,
+    AnyI8:$shiftAmount
+  );
+  let results = (outs TfheRust_CiphertextType:$output);
+}
+
+def ScalarRightShiftOp : TfheRust_Op<"scalar_right_shift", [
     Pure,
     AllTypesMatch<["ciphertext", "output"]>
 ]> {

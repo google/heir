@@ -25,7 +25,7 @@ class CGGI_Op<string mnemonic, list<Trait> traits = []> :
 
 // --- Operations for a gate-bootstrapping API of a CGGI library ---
 
-class CGGI_BinaryGateOp<string mnemonic>
+class CGGI_BinaryOp<string mnemonic>
   : CGGI_Op<mnemonic, [
     Pure,
     Commutative,
@@ -40,12 +40,25 @@ class CGGI_BinaryGateOp<string mnemonic>
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def CGGI_AndOp : CGGI_BinaryGateOp<"and"> { let summary = "Logical AND of two ciphertexts."; }
-def CGGI_NandOp : CGGI_BinaryGateOp<"nand"> { let summary = "Logical NAND of two ciphertexts."; }
-def CGGI_NorOp  : CGGI_BinaryGateOp<"nor">  { let summary = "Logical NOR of two ciphertexts."; }
-def CGGI_OrOp  : CGGI_BinaryGateOp<"or">  { let summary = "Logical OR of two ciphertexts."; }
-def CGGI_XorOp : CGGI_BinaryGateOp<"xor"> { let summary = "Logical XOR of two ciphertexts."; }
-def CGGI_XNorOp : CGGI_BinaryGateOp<"xnor"> { let summary = "Logical XNOR of two ciphertexts."; }
+def CGGI_AndOp : CGGI_BinaryOp<"and"> { let summary = "Logical AND of two ciphertexts."; }
+def CGGI_NandOp : CGGI_BinaryOp<"nand"> { let summary = "Logical NAND of two ciphertexts."; }
+def CGGI_NorOp  : CGGI_BinaryOp<"nor">  { let summary = "Logical NOR of two ciphertexts."; }
+def CGGI_OrOp  : CGGI_BinaryOp<"or">  { let summary = "Logical OR of two ciphertexts."; }
+def CGGI_XorOp : CGGI_BinaryOp<"xor"> { let summary = "Logical XOR of two ciphertexts."; }
+def CGGI_XNorOp : CGGI_BinaryOp<"xnor"> { let summary = "Logical XNOR of two ciphertexts."; }
+def CGGI_AddOp : CGGI_BinaryOp<"add"> { let summary = "Arithmetic addition of two ciphertexts."; }
+def CGGI_MulOp : CGGI_BinaryOp<"mul"> {
+  let summary = "Arithmetic multiplication of two ciphertexts.";
+  let description = [{
+    While CGGI does not have a native multiplication operation,
+    some backend targets provide a multiplication
+    operation that is implemented via a sequence
+    of other atomic CGGI ops. When lowering to
+    backends that do not have this, one must lower
+    to this op the appropriate CGGI ops.
+  }];
+}
+
 
 def CGGI_NotOp : CGGI_Op<"not", [
     Pure,
@@ -268,6 +281,35 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
   let results = (outs Variadic<LWECiphertext>:$outputs);
   let assemblyFormat = "operands attr-dict `:` functional-type($inputs, $outputs)" ;
   let hasVerifier = 1;
+}
+
+def CGGI_SubOp : CGGI_Op<"sub", [
+    Pure,
+    SameOperandsAndResultType,
+    ElementwiseMappable,
+    Scalarizable
+]> {
+  let arguments = (ins LWECiphertextLike:$lhs, LWECiphertextLike:$rhs);
+  let results = (outs LWECiphertextLike:$output);
+  let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
+  let summary = "Subtraction of two ciphertexts.";
+}
+
+
+def CGGI_ShiftRightOp : CGGI_Op<"shr", [
+    Pure,
+]> {
+  let arguments = (ins LWECiphertextLike:$lhs, AnyI8:$shiftAmount);
+  let results = (outs LWECiphertextLike:$output);
+  let summary = "Arithmetic shift to the right of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
+}
+
+def CGGI_ShiftLeftOp : CGGI_Op<"shl", [
+    Pure
+]> {
+  let arguments = (ins LWECiphertextLike:$lhs, AnyI8:$shiftAmount);
+  let results = (outs LWECiphertextLike:$output);
+  let summary = "Arithmetic shift to left of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
 }
 
 #endif  // LIB_DIALECT_CGGI_IR_CGGIOPS_TD_
