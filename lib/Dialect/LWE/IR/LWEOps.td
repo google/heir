@@ -10,6 +10,7 @@ include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/CommonAttrConstraints.td"
+include "mlir/IR/OpAsmInterface.td"
 
 class HasEncoding<
   string encodingHolder,
@@ -85,10 +86,20 @@ class KeyAndCiphertextMatch<
 
 // LWE Operations are always Pure by design
 class LWE_Op<string mnemonic, list<Trait> traits = []> :
-        Op<LWE_Dialect, mnemonic,  traits # [Pure]> {
+        Op<LWE_Dialect, mnemonic,  traits # [Pure, OpAsmOpInterface]> {
   let cppNamespace = "::mlir::heir::lwe";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)
+  }];
+
+  let extraClassDeclaration = [{
+    // OpAsmOpInterface Methods
+    void getAsmResultNames(::mlir::OpAsmSetValueNameFn setNameFn) {
+      for (auto result : getOperation()->getResults()) {
+        if (auto ty = dyn_cast<TypeAsmInterface>(result.getType()))
+          setNameFn(result, ty.suggestedName());
+      }
+    }
   }];
 }
 

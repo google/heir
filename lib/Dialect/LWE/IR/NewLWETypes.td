@@ -3,6 +3,7 @@
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/NewLWEAttributes.td"
+include "lib/Utils/Tablegen/AsmInterfaces.td"
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
@@ -10,9 +11,14 @@ include "mlir/IR/AttrTypeBase.td"
 
 // A base class for all types in this dialect
 class LWE_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<LWE_Dialect, name, traits> {
+    : TypeDef<LWE_Dialect, name, traits # [
+      DeclareTypeInterfaceMethods<TypeAsmInterface, ["suggestedName"]>
+    ]> {
   let mnemonic = typeMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
+
+  string nameSuggestion = ?;
+  let extraClassDeclaration = "std::string suggestedName() {return \"" # nameSuggestion # "\"; }";
 }
 
 // This file defines new LWE types following
@@ -24,6 +30,7 @@ def NewLWESecretKey : LWE_Type<"NewLWESecretKey", "new_lwe_secret_key"> {
     "KeyAttr":$key,
     "::mlir::heir::polynomial::RingAttr":$ring
   );
+  let nameSuggestion = "sk";
 }
 
 def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
@@ -32,6 +39,7 @@ def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
     "KeyAttr":$key,
     "::mlir::heir::polynomial::RingAttr":$ring
   );
+  let nameSuggestion = "pk";
 }
 
 def NewLWESecretOrPublicKey : AnyTypeOf<[NewLWESecretKey, NewLWEPublicKey]>;
@@ -42,6 +50,7 @@ def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext"> {
     "ApplicationDataAttr":$application_data,
     "PlaintextSpaceAttr":$plaintext_space
   );
+  let nameSuggestion = "pt";
 }
 
 def NewLWEPlaintextLike : TypeOrContainer<NewLWEPlaintext, "new-lwe-plaintext-like">;
@@ -68,6 +77,7 @@ def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext"> {
   );
 
   let genVerifyDecl = 1;
+  let nameSuggestion = "ct";
 }
 
 def NewLWECiphertextLike : TypeOrContainer<NewLWECiphertext, "new-lwe-ciphertext-like">;

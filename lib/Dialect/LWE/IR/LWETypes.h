@@ -3,6 +3,7 @@
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Utils/Tablegen/AsmInterfaces.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/LWE/IR/LWETypes.h.inc"
