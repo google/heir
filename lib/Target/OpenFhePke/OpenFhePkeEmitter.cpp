@@ -684,7 +684,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
 
   os << "CCParamsT " << paramsName << ";\n";
   os << paramsName << ".SetMultiplicativeDepth(" << mulDepth << ");\n";
-  os << paramsName << ".SetPlaintextModulus(" << plainMod << ");\n";
+  if (plainMod != 0) {
+    os << paramsName << ".SetPlaintextModulus(" << plainMod << ");\n";
+  }
   if (op.getInsecure()) {
     os << paramsName << ".SetSecurityLevel(lbcrypto::HEStd_NotSet);\n";
     os << paramsName << ".SetRingDim(128);\n";

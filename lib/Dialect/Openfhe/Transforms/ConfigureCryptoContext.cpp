@@ -5,6 +5,7 @@
 #include <set>
 #include <string>
 
+#include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
@@ -84,8 +85,21 @@ LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
   auto genFuncOp = builder.create<func::FuncOp>(genFuncName, genFuncType);
   builder.setInsertionPointToEnd(genFuncOp.addEntryBlock());
 
-  // TODO(#661) : Calculate the appropriate values by analyzing the function
-  int64_t plainMod = 4295294977;
+  // get plaintext modulus from function argument ciphertext type
+  // for CKKS, plainMod is 0
+  int64_t plainMod = 0;
+  for (auto arg : op.getArguments()) {
+    if (auto argType = dyn_cast<lwe::NewLWECiphertextType>(
+            getElementTypeOrSelf(arg.getType()))) {
+      if (auto modArithType = dyn_cast<mod_arith::ModArithType>(
+              argType.getPlaintextSpace().getRing().getCoefficientType())) {
+        plainMod = modArithType.getModulus().getInt();
+        // implicitly assume arguments have the same plaintext modulus
+        break;
+      }
+    }
+  }
+
   Type openfheParamsType = openfhe::CCParamsType::get(builder.getContext());
   Value ccParams = builder.create<openfhe::GenParamsOp>(
       openfheParamsType, mulDepth, plainMod, insecure);
