@@ -1,6 +1,7 @@
 # ModArith dialect
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -50,104 +51,42 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "ModArithDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "ModArithDialect.cpp.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "ModArith",
+    kind = "dialect",
     td_file = "ModArithDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-attrdef-decls",
-                "-attrdefs-dialect=mod_arith",
-            ],
-            "ModArithAttributes.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-                "-attrdefs-dialect=mod_arith",
-            ],
-            "ModArithAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "ModArithAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "ModArith",
+    kind = "attribute",
     td_file = "ModArithAttributes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "types_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-typedef-decls"],
-            "ModArithTypes.h.inc",
-        ),
-        (
-            ["-gen-typedef-defs"],
-            "ModArithTypes.cpp.inc",
-        ),
-        (
-            ["-gen-typedef-doc"],
-            "ModArithTypes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "ModArith",
+    kind = "type",
     td_file = "ModArithTypes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "ModArithOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "ModArithOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "ModArithOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "ModArith",
+    kind = "op",
     td_file = "ModArithOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
 )

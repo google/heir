@@ -1,5 +1,6 @@
 # TensorExt dialect implementation
 
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
 package(
@@ -72,76 +73,33 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "TensorExtDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "TensorExtDialect.cpp.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "TensorExt",
+    kind = "dialect",
     td_file = "TensorExtDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-attrdef-decls"],
-            "TensorExtAttributes.h.inc",
-        ),
-        (
-            ["-gen-attrdef-defs"],
-            "TensorExtAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "TensorExtAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "TensorExt",
+    kind = "attribute",
     td_file = "TensorExtAttributes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "TensorExtOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "TensorExtOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "TensorExtOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "TensorExt",
+    kind = "op",
     td_file = "TensorExtOps.td",
     deps = [
-        ":attributes_inc_gen",
-        ":dialect_inc_gen",
         ":td_files",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
 )
 

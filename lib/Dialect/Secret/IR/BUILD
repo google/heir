@@ -1,4 +1,5 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -97,74 +98,32 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-dialect-decls"],
-            "SecretDialect.h.inc",
-        ),
-        (
-            ["-gen-dialect-defs"],
-            "SecretDialect.cpp.inc",
-        ),
-        (
-            ["-gen-dialect-doc"],
-            "SecretDialect.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Secret",
+    kind = "dialect",
     td_file = "SecretDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "types_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-typedef-decls"],
-            "SecretTypes.h.inc",
-        ),
-        (
-            ["-gen-typedef-defs"],
-            "SecretTypes.cpp.inc",
-        ),
-        (
-            ["-gen-typedef-doc"],
-            "SecretTypes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Secret",
+    kind = "type",
     td_file = "SecretTypes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "SecretOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "SecretOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "SecretOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Secret",
+    kind = "op",
     td_file = "SecretOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        ":types_inc_gen",
     ],
 )

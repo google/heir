@@ -1,6 +1,7 @@
 # Jaxite, an exit dialect to Jaxite API
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -40,90 +41,33 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "JaxiteDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "JaxiteDialect.cpp.inc",
-        ),
-        (
-            [
-                "-gen-dialect-doc",
-            ],
-            "JaxiteDialect.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Jaxite",
+    kind = "dialect",
     td_file = "JaxiteDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "types_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-                "-typedefs-dialect=jaxite",
-            ],
-            "JaxiteTypes.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-                "-typedefs-dialect=jaxite",
-            ],
-            "JaxiteTypes.cpp.inc",
-        ),
-        (
-            [
-                "-gen-typedef-doc",
-                "-typedefs-dialect=jaxite",
-            ],
-            "JaxiteTypes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Jaxite",
+    kind = "type",
     td_file = "JaxiteTypes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "JaxiteOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "JaxiteOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "JaxiteOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Jaxite",
+    kind = "op",
     td_file = "JaxiteOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        ":types_inc_gen",
         "@heir//lib/Dialect/LWE/IR:td_files",
     ],
 )

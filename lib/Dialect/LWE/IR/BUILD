@@ -72,36 +72,52 @@ td_library(
 )
 
 add_heir_dialect_library(
+    name = "dialect_inc_gen",
     dialect = "LWE",
     kind = "dialect",
-)
-
-add_heir_dialect_library(
-    dialect = "LWE",
-    kind = "attribute",
-)
-
-add_heir_dialect_library(
-    dialect = "LWE",
-    kind = "enum",
-    td_file = "LWEAttributes.td",
-)
-
-add_heir_dialect_library(
-    dialect = "LWE",
-    kind = "type",
+    td_file = "LWEDialect.td",
     deps = [
-        ":attributes_inc_gen",
-        ":enums_inc_gen",
-        "@heir//lib/Dialect/Polynomial/IR:td_files",
+        ":td_files",
     ],
 )
 
 add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "LWE",
+    kind = "attribute",
+    td_file = "LWEAttributes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "enums_inc_gen",
+    dialect = "LWE",
+    kind = "enum",
+    td_file = "LWEAttributes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "types_inc_gen",
+    dialect = "LWE",
+    kind = "type",
+    td_file = "LWETypes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "ops_inc_gen",
     dialect = "LWE",
     kind = "op",
+    td_file = "LWEOps.td",
     deps = [
-        ":types_inc_gen",
+        ":td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",
     ],
 )

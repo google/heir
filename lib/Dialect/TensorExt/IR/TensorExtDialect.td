@@ -2,6 +2,7 @@
 #define LIB_DIALECT_TENSOREXT_IR_TENSOREXTDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def TensorExt_Dialect : Dialect {
   let name = "tensor_ext";

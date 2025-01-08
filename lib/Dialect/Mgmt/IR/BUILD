@@ -1,6 +1,7 @@
 # Mgmt dialect implementation
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -62,79 +63,32 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "MgmtDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "MgmtDialect.cpp.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Mgmt",
+    kind = "dialect",
     td_file = "MgmtDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-attrdef-decls",
-                "-attrdefs-dialect=mgmt",
-            ],
-            "MgmtAttributes.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-                "-attrdefs-dialect=mgmt",
-            ],
-            "MgmtAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "MgmtAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Mgmt",
+    kind = "attribute",
     td_file = "MgmtAttributes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "MgmtOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "MgmtOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "MgmtOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Mgmt",
+    kind = "op",
     td_file = "MgmtOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
