@@ -9,7 +9,7 @@
 
 
 // CHECK-LABEL: def test_return_multiple_values(
-// CHECK-NEXT:   [[input:v[0-9]+]]: types.LweCiphertext,
+// CHECK-NEXT:   [[input:ct]]: types.LweCiphertext,
 // CHECK-NEXT:   [[v1:.*]]: jaxite_bool.ServerKeySet,
 // CHECK-NEXT:   [[v2:.*]]: jaxite_bool.Parameters,
 // CHECK-NEXT: ) -> (types.LweCiphertext, types.LweCiphertext):
