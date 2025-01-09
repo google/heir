@@ -206,4 +206,23 @@ def CKKS_RescaleOp : CKKS_Op<"rescale", [Pure]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
+def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [Pure]> {
+  let summary = "Bootstrap the ciphertext to reduce noise and refresh its parameters.";
+
+  let description = [{
+    Bootstrapping is a technique used in FHE to reduce the noise in a ciphertext
+    and refresh its parameters, allowing for further computations on the ciphertext.
+  }];
+
+  let arguments = (ins
+    NewLWECiphertext:$input
+  );
+
+  let results = (outs
+    NewLWECiphertext:$output
+  );
+
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+}
+
 #endif  // LIB_DIALECT_CKKS_IR_CKKSOPS_TD_

@@ -48,6 +48,7 @@ LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
       rewriter.create<mgmt::RelinearizeOp>(mulOp.getLoc(), result);
   result.replaceAllUsesExcept(relinearized, {relinearized});
 
+  solver->eraseAllStates();
   return solver->initializeAndRun(top);
 }
 
@@ -140,9 +141,44 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   if (inserted) {
     // propagateIfChanged only push workitem to the worklist queue
     // actually execute the transfer for the new values
+    solver->eraseAllStates();
     return solver->initializeAndRun(top);
   }
   return success();
+}
+
+template <typename Op>
+LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
+    Op op, PatternRewriter &rewriter) const {
+  auto levelLattice = solver->lookupState<LevelLattice>(op->getResult(0));
+  if (!levelLattice->getValue().isInitialized()) {
+    return failure();
+  }
+
+  auto level = levelLattice->getValue().getLevel();
+
+  if (level < waterline) {
+    return success();
+  }
+  if (level > waterline) {
+    // should never met!
+    LLVM_DEBUG(llvm::dbgs()
+               << "BootstrapWaterLine: met " << op << " with level: " << level
+               << " but waterline: " << waterline << "\n");
+    return failure();
+  }
+
+  // insert mgmt::BootstrapOp after
+  rewriter.setInsertionPointAfter(op);
+  auto bootstrap = rewriter.create<mgmt::BootstrapOp>(
+      op.getLoc(), op->getResultTypes(), op->getResult(0));
+  op->getResult(0).replaceAllUsesExcept(bootstrap, {bootstrap});
+
+  // greedy rewrite! note that we may get undeterministic insertion result
+  // if we use different order of rewrites
+  // currently walkAndApplyPatterns is deterministic
+  solver->eraseAllStates();
+  return solver->initializeAndRun(top);
 }
 
 // for BGV
@@ -166,6 +202,8 @@ template struct ModReduceBefore<arith::MulFOp>;
 // isMul = false
 template struct ModReduceBefore<arith::AddFOp>;
 template struct ModReduceBefore<arith::SubFOp>;
+
+template struct BootstrapWaterLine<mgmt::ModReduceOp>;
 
 }  // namespace heir
 }  // namespace mlir

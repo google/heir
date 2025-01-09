@@ -237,6 +237,25 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
   }
 };
 
+struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
+  ConvertBootstrapOp(mlir::MLIRContext *context)
+      : OpConversionPattern<ckks::BootstrapOp>(context) {}
+
+  using OpConversionPattern<ckks::BootstrapOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ckks::BootstrapOp op, ckks::BootstrapOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+
+    Value cryptoContext = result.value();
+    rewriter.replaceOpWithNewOp<openfhe::BootstrapOp>(
+        op, op.getOutput().getType(), cryptoContext, adaptor.getInput());
+    return success();
+  }
+};
+
 struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -309,7 +328,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         // Modulus Switch (BGV only)
         lwe::ConvertModulusSwitchOp<bgv::ModulusSwitchOp>,
         // Rescale (CKKS version of Modulus Switch)
-        lwe::ConvertModulusSwitchOp<ckks::RescaleOp>
+        lwe::ConvertModulusSwitchOp<ckks::RescaleOp>,
+        // Bootstrap (CKKS only)
+        ConvertBootstrapOp
         // End of Pattern List
         >(typeConverter, context);
 

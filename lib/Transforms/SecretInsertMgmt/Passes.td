@@ -84,6 +84,17 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
     Check the description of secret-insert-mgmt-bgv. This pass
     implements similar strategy, where mgmt.modreduce stands for
     ckks.rescale here.
+
+    For bootstrap insertion policy, currently a greedy policy is used
+    where when all levels are consumed then a bootstrap is inserted.
+
+    The max level available after bootstrap is controlled by the option
+    `bootstrap-waterline`.
+
+    Number of bootstrap consumed level is not shown here, which is
+    handled by further lowering.
+    TODO(#1207): handle it here so parameter selection can depend on it.
+    TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).
   }];
 
   let dependentDialects = [
@@ -97,6 +108,8 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
            /*default=*/"false", "Modulus switching right before the first multiplication (default to false)">,
     Option<"slotNumber", "slot-number", "int",
            /*default=*/"1024", "Default number of slots use for ciphertext space.">,
+    Option<"bootstrapWaterline", "bootstrap-waterline", "int",
+           /*default=*/"10", "Waterline for insert bootstrap op">,
   ];
 }
 
