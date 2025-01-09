@@ -1583,6 +1583,45 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="ckksbootstrap-heirckksbootstrapop">&lt;code>ckks.bootstrap&lt;/code> (heir::ckks::BootstrapOp)&lt;/h3>
+&lt;p>&lt;em>Bootstrap the ciphertext to reduce noise and refresh its parameters.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `ckks.bootstrap` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Bootstrapping is a technique used in FHE to reduce the noise in a ciphertext
+and refresh its parameters, allowing for further computations on the ciphertext.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="ckksextract-heirckksextractop">&lt;code>ckks.extract&lt;/code> (heir::ckks::ExtractOp)&lt;/h3>
 &lt;p>&lt;em>Extract the i-th element of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -1597,7 +1636,7 @@ inferred to have the &lt;code>underlying_type&lt;/code> corresponding to the ele
 that tensor type.&lt;/p>
 &lt;p>Traits: &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1616,7 +1655,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1638,7 +1677,7 @@ that tensor type.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1657,7 +1696,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1679,7 +1718,7 @@ that tensor type.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1698,7 +1737,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1720,7 +1759,7 @@ that tensor type.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1735,7 +1774,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1769,48 +1808,6 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tr>&lt;td>&lt;code>from_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>to_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="ckksrescale-heirckksrescaleop">&lt;code>ckks.rescale&lt;/code> (heir::ckks::RescaleOp)&lt;/h3>
-&lt;p>&lt;em>Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rescale` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>to_ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
-&lt;/table>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1841,17 +1838,17 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="ckksrotate-heirckksrotateop">&lt;code>ckks.rotate&lt;/code> (heir::ckks::RotateOp)&lt;/h3>
-&lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;h3 id="ckksrescale-heirckksrescaleop">&lt;code>ckks.rescale&lt;/code> (heir::ckks::RescaleOp)&lt;/h3>
+&lt;p>&lt;em>Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rotate` operands attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rescale` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
@@ -1883,13 +1880,55 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="ckksrotate-heirckksrotateop">&lt;code>ckks.rotate&lt;/code> (heir::ckks::RotateOp)&lt;/h3>
+&lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rotate` operands attr-dict `:` qualified(type($input))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="ckkssub-heirckkssubop">&lt;code>ckks.sub&lt;/code> (heir::ckks::SubOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.sub` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1908,7 +1947,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1930,7 +1969,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -1949,7 +1988,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6241,15 +6280,19 @@ going through the secret-to-&lt;scheme> pass.&lt;/p>
 &lt;/table>
 &lt;h2 id="mgmt-ops">Mgmt ops&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="mgmtmodreduce-heirmgmtmodreduceop">&lt;code>mgmt.modreduce&lt;/code> (heir::mgmt::ModReduceOp)&lt;/h3>
-&lt;p>&lt;em>Modulus switch the input ciphertext down by one limb (RNS assumed)&lt;/em>&lt;/p>
+&lt;h3 id="mgmtbootstrap-heirmgmtbootstrapop">&lt;code>mgmt.bootstrap&lt;/code> (heir::mgmt::BootstrapOp)&lt;/h3>
+&lt;p>&lt;em>Bootstrap the input ciphertext to refresh its noise budget&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.modreduce` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies modulus switching/rescaling
-by one limb.&lt;/p>
-&lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
-&lt;p>When further lowered, it could be lowered to bgv.modulus_switch
-or ckks.rescale depending on the scheme.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.bootstrap` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is a scheme-agnostic operation that implies bootstrapping
+of the input ciphertext to refresh its noise budget.&lt;/p>
+&lt;p>Bootstrapping is a technique used in homomorphic encryption to
+reduce the noise in a ciphertext, allowing further operations
+to be performed on it without decryption.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.bootstrap
+or ckks.bootstrap depending on the scheme.&lt;/p>
+&lt;p>For the current backend, only ckks.bootstrap is supported.
+Further backend may include bgv.bootstrap.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6283,21 +6326,15 @@ or ckks.rescale depending on the scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="mgmtrelinearize-heirmgmtrelinearizeop">&lt;code>mgmt.relinearize&lt;/code> (heir::mgmt::RelinearizeOp)&lt;/h3>
-&lt;p>&lt;em>Relinearize the input ciphertext to be &lt;em>linear&lt;/em>&lt;/em>&lt;/p>
+&lt;h3 id="mgmtmodreduce-heirmgmtmodreduceop">&lt;code>mgmt.modreduce&lt;/code> (heir::mgmt::ModReduceOp)&lt;/h3>
+&lt;p>&lt;em>Modulus switch the input ciphertext down by one limb (RNS assumed)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.relinearize` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies relinearization
-of the input ciphertext to be &lt;em>linear&lt;/em> (i.e. returns to dimension 2).&lt;/p>
-&lt;p>This is used solely by multiplication. For rotation, currently HEIR
-assumes relinearization is done internally and does not have a separate
-scheme-specific operation for it.&lt;/p>
-&lt;p>This accepts a ciphertext with dimension &amp;gt; 2 and returns a ciphertext
-with dimension 2. Note that the semantic includes the relinearization
-of higher dimension input like input with dimension 4 or higher,
-which when materialized should require multiple relinearization keys.&lt;/p>
-&lt;p>When further lowered, it could be lowered to bgv.relinearize
-or ckks.relinearize depending on the scheme.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.modreduce` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies modulus switching/rescaling
+by one limb.&lt;/p>
+&lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.modulus_switch
+or ckks.rescale depending on the scheme.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -6317,6 +6354,54 @@ or ckks.relinearize depending on the scheme.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="mgmtrelinearize-heirmgmtrelinearizeop">&lt;code>mgmt.relinearize&lt;/code> (heir::mgmt::RelinearizeOp)&lt;/h3>
+&lt;p>&lt;em>Relinearize the input ciphertext to be &lt;em>linear&lt;/em>&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.relinearize` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies relinearization
+of the input ciphertext to be &lt;em>linear&lt;/em> (i.e. returns to dimension 2).&lt;/p>
+&lt;p>This is used solely by multiplication. For rotation, currently HEIR
+assumes relinearization is done internally and does not have a separate
+scheme-specific operation for it.&lt;/p>
+&lt;p>This accepts a ciphertext with dimension &amp;gt; 2 and returns a ciphertext
+with dimension 2. Note that the semantic includes the relinearization
+of higher dimension input like input with dimension 4 or higher,
+which when materialized should require multiple relinearization keys.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.relinearize
+or ckks.relinearize depending on the scheme.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>

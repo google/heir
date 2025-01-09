@@ -2628,9 +2628,18 @@ RNS Type.&lt;/p>
 &lt;p>Check the description of secret-insert-mgmt-bgv. This pass
 implements similar strategy, where mgmt.modreduce stands for
 ckks.rescale here.&lt;/p>
+&lt;p>For bootstrap insertion policy, currently a greedy policy is used
+where when all levels are consumed then a bootstrap is inserted.&lt;/p>
+&lt;p>The max level available after bootstrap is controlled by the option
+&lt;code>bootstrap-waterline&lt;/code>.&lt;/p>
+&lt;p>Number of bootstrap consumed level is not shown here, which is
+handled by further lowering.
+TODO(#1207): handle it here so parameter selection can depend on it.
+TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).&lt;/p>
 &lt;h4 id="options-11">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
 -slot-number : Default number of slots use for ciphertext space.
+-bootstrap-waterline : Waterline for insert bootstrap op
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Merge two adjacent generics into a single generic&lt;/em>&lt;/p>
 &lt;p>This pass merges two immedaitely sequential generics into a single
@@ -2754,43 +2763,38 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
-&lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
-high-level overview of the HEIR project, brainstorming where new research might
-be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
-&lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
-and this is the first video posted on the
-&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-16.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-09-19.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-18 (mod_arith dialect)</title><link>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</link><pubDate>Thu, 18 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/18/heir-meeting-2024-07-18-mod_arith-dialect/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1o2-I03DJtNJQDupSHn8LtOXLmxsd3WO1fjvqLbT-SIc/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1bCMuuKnBVf6HP7R2SiZgo1C1vsG6FzF2/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-18. This special discussion was focused on the
+modular arithmetic dialect.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
+&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-13.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-22</title><link>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</link><pubDate>Thu, 22 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1nOlAhul4DwZU8UQPpTF1i3OldSY9EmwaWG3EPSZIhHs/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1ktK2Y2-OnadvsIIa94HRch_oHCaQ0D6gbT3CElKmGak/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1I7aIipm54CCcDcLyRYXI_gARfT1z93cN/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-11-07.&lt;/p></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
-&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
-IRs.&lt;/p>
-&lt;p>Our initial meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
-Stay tuned for future updates while we work out a meeting schedule.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1RDONadr54-7uX5ko5dmUX3s1l7QHeHbM/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
@@ -4375,6 +4379,45 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="ckksbootstrap-heirckksbootstrapop">&lt;code>ckks.bootstrap&lt;/code> (heir::ckks::BootstrapOp)&lt;/h3>
+&lt;p>&lt;em>Bootstrap the ciphertext to reduce noise and refresh its parameters.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `ckks.bootstrap` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>Bootstrapping is a technique used in FHE to reduce the noise in a ciphertext
+and refresh its parameters, allowing for further computations on the ciphertext.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="ckksextract-heirckksextractop">&lt;code>ckks.extract&lt;/code> (heir::ckks::ExtractOp)&lt;/h3>
 &lt;p>&lt;em>Extract the i-th element of a ciphertext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -4389,7 +4432,7 @@ inferred to have the &lt;code>underlying_type&lt;/code> corresponding to the ele
 that tensor type.&lt;/p>
 &lt;p>Traits: &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4408,7 +4451,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4430,7 +4473,7 @@ that tensor type.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>, &lt;code>SameTypeOperands&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-3">Operands:&lt;/h4>
+&lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4449,7 +4492,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-3">Results:&lt;/h4>
+&lt;h4 id="results-4">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4471,7 +4514,7 @@ that tensor type.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-4">Operands:&lt;/h4>
+&lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4490,7 +4533,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-4">Results:&lt;/h4>
+&lt;h4 id="results-5">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4512,7 +4555,7 @@ that tensor type.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Involution&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-5">Operands:&lt;/h4>
+&lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4527,7 +4570,7 @@ that tensor type.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-5">Results:&lt;/h4>
+&lt;h4 id="results-6">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4561,48 +4604,6 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tr>&lt;td>&lt;code>from_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>to_basis&lt;/code>&lt;/td>&lt;td>::mlir::DenseI32ArrayAttr&lt;/td>&lt;td>i32 dense array attribute&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-6">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-6">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="ckksrescale-heirckksrescaleop">&lt;code>ckks.rescale&lt;/code> (heir::ckks::RescaleOp)&lt;/h3>
-&lt;p>&lt;em>Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rescale` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-1">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>to_ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
-&lt;/table>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4633,17 +4634,17 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="ckksrotate-heirckksrotateop">&lt;code>ckks.rotate&lt;/code> (heir::ckks::RotateOp)&lt;/h3>
-&lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;h3 id="ckksrescale-heirckksrescaleop">&lt;code>ckks.rescale&lt;/code> (heir::ckks::RescaleOp)&lt;/h3>
+&lt;p>&lt;em>Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rotate` operands attr-dict `:` qualified(type($input))
+&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rescale` operands attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>to_ring&lt;/code>&lt;/td>&lt;td>::mlir::heir::polynomial::RingAttr&lt;/td>&lt;td>an attribute specifying a polynomial ring&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
@@ -4675,13 +4676,55 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="ckksrotate-heirckksrotateop">&lt;code>ckks.rotate&lt;/code> (heir::ckks::RotateOp)&lt;/h3>
+&lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `ckks.rotate` operands attr-dict `:` qualified(type($input))
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="ckkssub-heirckkssubop">&lt;code>ckks.sub&lt;/code> (heir::ckks::SubOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.sub` operands attr-dict `:` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>SameOperandsAndResultType&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4700,7 +4743,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4722,7 +4765,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4741,7 +4784,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -9033,15 +9076,19 @@ going through the secret-to-&lt;scheme> pass.&lt;/p>
 &lt;/table>
 &lt;h2 id="mgmt-ops">Mgmt ops&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
-&lt;h3 id="mgmtmodreduce-heirmgmtmodreduceop">&lt;code>mgmt.modreduce&lt;/code> (heir::mgmt::ModReduceOp)&lt;/h3>
-&lt;p>&lt;em>Modulus switch the input ciphertext down by one limb (RNS assumed)&lt;/em>&lt;/p>
+&lt;h3 id="mgmtbootstrap-heirmgmtbootstrapop">&lt;code>mgmt.bootstrap&lt;/code> (heir::mgmt::BootstrapOp)&lt;/h3>
+&lt;p>&lt;em>Bootstrap the input ciphertext to refresh its noise budget&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.modreduce` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies modulus switching/rescaling
-by one limb.&lt;/p>
-&lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
-&lt;p>When further lowered, it could be lowered to bgv.modulus_switch
-or ckks.rescale depending on the scheme.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.bootstrap` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is a scheme-agnostic operation that implies bootstrapping
+of the input ciphertext to refresh its noise budget.&lt;/p>
+&lt;p>Bootstrapping is a technique used in homomorphic encryption to
+reduce the noise in a ciphertext, allowing further operations
+to be performed on it without decryption.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.bootstrap
+or ckks.bootstrap depending on the scheme.&lt;/p>
+&lt;p>For the current backend, only ckks.bootstrap is supported.
+Further backend may include bgv.bootstrap.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9075,21 +9122,15 @@ or ckks.rescale depending on the scheme.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="mgmtrelinearize-heirmgmtrelinearizeop">&lt;code>mgmt.relinearize&lt;/code> (heir::mgmt::RelinearizeOp)&lt;/h3>
-&lt;p>&lt;em>Relinearize the input ciphertext to be &lt;em>linear&lt;/em>&lt;/em>&lt;/p>
+&lt;h3 id="mgmtmodreduce-heirmgmtmodreduceop">&lt;code>mgmt.modreduce&lt;/code> (heir::mgmt::ModReduceOp)&lt;/h3>
+&lt;p>&lt;em>Modulus switch the input ciphertext down by one limb (RNS assumed)&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.relinearize` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies relinearization
-of the input ciphertext to be &lt;em>linear&lt;/em> (i.e. returns to dimension 2).&lt;/p>
-&lt;p>This is used solely by multiplication. For rotation, currently HEIR
-assumes relinearization is done internally and does not have a separate
-scheme-specific operation for it.&lt;/p>
-&lt;p>This accepts a ciphertext with dimension &amp;gt; 2 and returns a ciphertext
-with dimension 2. Note that the semantic includes the relinearization
-of higher dimension input like input with dimension 4 or higher,
-which when materialized should require multiple relinearization keys.&lt;/p>
-&lt;p>When further lowered, it could be lowered to bgv.relinearize
-or ckks.relinearize depending on the scheme.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.modreduce` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies modulus switching/rescaling
+by one limb.&lt;/p>
+&lt;p>Input ciphertext is assumed to be in RNS form when further lowered.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.modulus_switch
+or ckks.rescale depending on the scheme.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
@@ -9109,6 +9150,54 @@ or ckks.relinearize depending on the scheme.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;h4 id="results-1">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="mgmtrelinearize-heirmgmtrelinearizeop">&lt;code>mgmt.relinearize&lt;/code> (heir::mgmt::RelinearizeOp)&lt;/h3>
+&lt;p>&lt;em>Relinearize the input ciphertext to be &lt;em>linear&lt;/em>&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `mgmt.relinearize` operands attr-dict `:` type($output)
+&lt;/code>&lt;/pre>&lt;p>This is scheme-agonistic operation that implies relinearization
+of the input ciphertext to be &lt;em>linear&lt;/em> (i.e. returns to dimension 2).&lt;/p>
+&lt;p>This is used solely by multiplication. For rotation, currently HEIR
+assumes relinearization is done internally and does not have a separate
+scheme-specific operation for it.&lt;/p>
+&lt;p>This accepts a ciphertext with dimension &amp;gt; 2 and returns a ciphertext
+with dimension 2. Note that the semantic includes the relinearization
+of higher dimension input like input with dimension 4 or higher,
+which when materialized should require multiple relinearization keys.&lt;/p>
+&lt;p>When further lowered, it could be lowered to bgv.relinearize
+or ckks.relinearize depending on the scheme.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
