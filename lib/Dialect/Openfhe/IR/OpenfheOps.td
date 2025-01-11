@@ -58,6 +58,19 @@ class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
 }
 
 def GenParamsOp : Openfhe_Op<"gen_params"> {
+  let description = [{
+    Generates the parameters for the OpenFHE scheme.
+
+    `mulDepth` is the depth of the multiplication circuit,
+    including the bootstrapping depth.
+
+    `plainMod` is the modulus of the plaintext space. If we
+    are using CKKS, this is 0.
+
+    `insecure` is a flag that determines whether the parameters
+    are generated securely or not. This is mainly used for
+    testing purposes.
+  }];
   let arguments = (ins
     I64Attr:$mulDepth,
     I64Attr:$plainMod,

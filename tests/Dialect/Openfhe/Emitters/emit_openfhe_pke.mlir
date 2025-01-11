@@ -150,3 +150,13 @@ func.func @test_constant() -> tensor<2xf32> {
   %cst_2d = arith.constant dense<[[1.5, 2.5]]> : tensor<1x2xf64>
   return %splat : tensor<2xf32>
 }
+
+// -----
+
+// CHECK-LABEL: test_ckks_no_plaintext_modulus
+// CHECK-NOT: SetPlaintextModulus
+func.func @test_ckks_no_plaintext_modulus() -> !openfhe.crypto_context {
+  %0 = openfhe.gen_params  {insecure = false, mulDepth = 2 : i64, plainMod = 0 : i64} : () -> !openfhe.cc_params
+  %1 = openfhe.gen_context %0 {supportFHE = false} : (!openfhe.cc_params) -> !openfhe.crypto_context
+  return %1 : !openfhe.crypto_context
+}

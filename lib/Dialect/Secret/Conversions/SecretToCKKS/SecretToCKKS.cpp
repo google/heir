@@ -131,11 +131,11 @@ class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
 
     Type valueTy = type.getValueType();
 
+    // Note that slot number for CKKS is always half of the ring dimension.
+    // so ring_.getPolynomialModulus() is not useful here
+    // TODO(#1191): use packing information to get the correct slot number
     auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
-        type.getContext(),
-        mod_arith::ModArithType::get(
-            ctx, IntegerAttr::get(IntegerType::get(ctx, 64), 65537)),
-        ring_.getPolynomialModulus());
+        type.getContext(), Float64Type::get(ctx), ring_.getPolynomialModulus());
 
     SmallVector<IntegerAttr, 6> moduliChain;
     for (auto modArithType :

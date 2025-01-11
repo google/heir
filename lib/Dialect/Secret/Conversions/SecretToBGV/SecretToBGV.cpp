@@ -105,10 +105,11 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
     auto dimension = mgmtAttr.getDimension();
 
     auto *ctx = type.getContext();
+    // TODO(#661) : Calculate the appropriate values by analyzing the function
     auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
         type.getContext(),
         mod_arith::ModArithType::get(
-            ctx, IntegerAttr::get(IntegerType::get(ctx, 64), 65537)),
+            ctx, IntegerAttr::get(IntegerType::get(ctx, 64), 4295294977)),
         ring.getPolynomialModulus());
 
     SmallVector<IntegerAttr, 6> moduliChain;
