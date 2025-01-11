@@ -7338,7 +7338,15 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;h3 id="openfhegen_params-heiropenfhegenparamsop">&lt;code>openfhe.gen_params&lt;/code> (heir::openfhe::GenParamsOp)&lt;/h3>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.gen_params` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Generates the parameters for the OpenFHE scheme.&lt;/p>
+&lt;p>&lt;code>mulDepth&lt;/code> is the depth of the multiplication circuit,
+including the bootstrapping depth.&lt;/p>
+&lt;p>&lt;code>plainMod&lt;/code> is the modulus of the plaintext space. If we
+are using CKKS, this is 0.&lt;/p>
+&lt;p>&lt;code>insecure&lt;/code> is a flag that determines whether the parameters
+are generated securely or not. This is mainly used for
+testing purposes.&lt;/p>
+&lt;p>Interfaces: &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
