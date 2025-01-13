@@ -135,6 +135,35 @@ struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
   }
 };
 
+struct ConvertLoadOp : public OpConversionPattern<mlir::memref::LoadOp> {
+  ConvertLoadOp(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::memref::LoadOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ::mlir::memref::LoadOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto defineOp = op.getMemRef().getDefiningOp();
+
+    if (op.getMemRef().getDefiningOp()) {
+      if (isa<memref::GetGlobalOp>(defineOp)) {
+        // skip global memref
+        return success();
+      }
+    }
+
+    auto result = rewriter.create<memref::LoadOp>(
+        op.getLoc(), convertArithType(op.getType()), adaptor.getOperands()[0],
+        op.getIndices());
+
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 struct ArithToModArith : impl::ArithToModArithBase<ArithToModArith> {
   using ArithToModArithBase::ArithToModArithBase;
 
@@ -156,7 +185,19 @@ void ArithToModArith::runOnOperation() {
       });
 
   target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation *op) {
-    return cast<memref::LoadOp>(op).getMemRef().getDefiningOp();
+    auto users = cast<memref::LoadOp>(op).getResult().getUsers();
+    if (cast<memref::LoadOp>(op).getResult().getDefiningOp()) {
+      if (isa<memref::GetGlobalOp>(
+              cast<memref::LoadOp>(op).getResult().getDefiningOp())) {
+        auto detectable = llvm::any_of(users, [](Operation *user) {
+          return isa<mod_arith::EncapsulateOp>(user);
+        });
+        return detectable;
+      }
+    }
+
+    return (typeConverter.isLegal(op->getOperandTypes()) &&
+            typeConverter.isLegal(op->getResultTypes()));
   });
 
   target.addDynamicallyLegalOp<
@@ -172,13 +213,12 @@ void ArithToModArith::runOnOperation() {
       .add<ConvertConstant, ConvertExtSI, ConvertExtUI,
            ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
            ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
-           ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>,
-           ConvertAny<memref::LoadOp>, ConvertAny<memref::AllocOp>,
-           ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
-           ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
-           ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
-           ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineLoadOp>>(
-          typeConverter, context);
+           ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>, ConvertLoadOp,
+           ConvertAny<memref::AllocOp>, ConvertAny<memref::DeallocOp>,
+           ConvertAny<memref::StoreOp>, ConvertAny<memref::SubViewOp>,
+           ConvertAny<memref::CopyOp>, ConvertAny<tensor::FromElementsOp>,
+           ConvertAny<tensor::ExtractOp>, ConvertAny<affine::AffineStoreOp>,
+           ConvertAny<affine::AffineLoadOp>>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

@@ -5,7 +5,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 glob_lit_tests(
     name = "all_tests",
     data = [
-        "//tests/Dialect/Arith/Transforms/runner:quarter_to_llvm.c",
+        ":quarter_to_llvm",
         "@heir//tests:test_utilities",
         "@llvm-project//clang",
         "@llvm-project//llvm:llc",
