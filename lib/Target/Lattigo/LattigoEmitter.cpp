@@ -12,7 +12,9 @@
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/CommandLine.h"       // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/ManagedStatic.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -34,9 +36,10 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
-LogicalResult translateToLattigo(Operation *op, llvm::raw_ostream &os) {
+LogicalResult translateToLattigo(Operation *op, llvm::raw_ostream &os,
+                                 const std::string &packageName) {
   SelectVariableNames variableNames(op);
-  LattigoEmitter emitter(os, &variableNames);
+  LattigoEmitter emitter(os, &variableNames, packageName);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -71,6 +74,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
+  os << "package " << packageName << "\n";
   os << kModulePreludeTemplate;
 
   for (Operation &op : moduleOp) {
@@ -456,15 +460,29 @@ LogicalResult LattigoEmitter::emitType(Type type) {
 }
 
 LattigoEmitter::LattigoEmitter(raw_ostream &os,
-                               SelectVariableNames *variableNames)
-    : os(os), variableNames(variableNames) {}
+                               SelectVariableNames *variableNames,
+                               const std::string &packageName)
+    : os(os), variableNames(variableNames), packageName(packageName) {}
+
+struct TranslateOptions {
+  llvm::cl::opt<std::string> packageName{
+      "package-name",
+      llvm::cl::desc("The name to use for the package declaration in the "
+                     "generated golang file.")};
+};
+static llvm::ManagedStatic<TranslateOptions> translateOptions;
+
+void registerTranslateOptions() {
+  // Forces initialization of options.
+  *translateOptions;
+}
 
 void registerToLattigoTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-lattigo",
       "translate the lattigo dialect to GO code against the Lattigo API",
       [](Operation *op, llvm::raw_ostream &output) {
-        return translateToLattigo(op, output);
+        return translateToLattigo(op, output, translateOptions->packageName);
       },
       [](DialectRegistry &registry) {
         registry.insert<rns::RNSDialect, arith::ArithDialect, func::FuncDialect,

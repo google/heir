@@ -9,11 +9,7 @@ namespace lattigo {
 
 // clang-format off
 constexpr std::string_view kModulePreludeTemplate = R"go(
-package main
-
 import (
-    "fmt"
-
     "github.com/tuneinsight/lattigo/v6/core/rlwe"
     "github.com/tuneinsight/lattigo/v6/schemes/bgv"
 )

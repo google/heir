@@ -6,6 +6,7 @@
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/Support/ManagedStatic.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -24,13 +25,17 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
+void registerTranslateOptions();
+
 /// Translates the given operation to Lattigo
 ::mlir::LogicalResult translateToLattigo(::mlir::Operation *op,
-                                         llvm::raw_ostream &os);
+                                         llvm::raw_ostream &os,
+                                         const std::string &packageName);
 
 class LattigoEmitter {
  public:
-  LattigoEmitter(raw_ostream &os, SelectVariableNames *variableNames);
+  LattigoEmitter(raw_ostream &os, SelectVariableNames *variableNames,
+                 const std::string &packageName);
 
   LogicalResult translate(::mlir::Operation &operation);
 
@@ -41,6 +46,8 @@ class LattigoEmitter {
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
   SelectVariableNames *variableNames;
+
+  const std::string &packageName;
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);

@@ -46,6 +46,7 @@ repos:
     rev: "v1.5.4"
     hooks:
       - id: remove-tabs
+        exclude: ".*[.]go"
 
 # Github workflow actionlint
 -   repo: https://github.com/Mateusz-Grzelinski/actionlint-py
@@ -63,5 +64,11 @@ repos:
     additional_dependencies:
     - mdformat-gfm
     - mdformat-frontmatter
+
+# golang hooks
+- repo: https://github.com/dnephin/pre-commit-golang
+  rev: "v0.5.1"
+  hooks:
+    - id: go-fmt
 
 exclude: patches/.*\.patch$

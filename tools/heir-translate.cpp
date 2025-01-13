@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
 
   // Lattigo
   mlir::heir::lattigo::registerToLattigoTranslation();
+  mlir::heir::lattigo::registerTranslateOptions();
 
   // AutoHOG input
   mlir::heir::registerFromAutoHogTranslation();

@@ -177,7 +177,6 @@ cc_binary(
         "@heir//lib/Target/TfheRust:TfheRustEmitter",
         "@heir//lib/Target/TfheRustBool:TfheRustBoolEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",
-        "@heir//lib/Utils/Tablegen:AsmInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:TranslateLib",
     ],
