@@ -45,20 +45,32 @@ td_library(
 )
 
 add_heir_dialect_library(
+    name = "dialect_inc_gen",
     dialect = "Openfhe",
     kind = "dialect",
+    td_file = "OpenfheDialect.td",
+    deps = [
+        ":td_files",
+    ],
 )
 
 add_heir_dialect_library(
+    name = "types_inc_gen",
     dialect = "Openfhe",
     kind = "type",
+    td_file = "OpenfheTypes.td",
+    deps = [
+        ":td_files",
+    ],
 )
 
 add_heir_dialect_library(
+    name = "ops_inc_gen",
     dialect = "Openfhe",
     kind = "op",
+    td_file = "OpenfheOps.td",
     deps = [
-        ":types_inc_gen",
+        ":td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
     ],
 )

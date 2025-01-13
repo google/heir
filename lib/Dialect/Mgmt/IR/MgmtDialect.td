@@ -2,6 +2,7 @@
 #define LIB_DIALECT_MGMT_IR_MGMTDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def Mgmt_Dialect : Dialect {
   let name = "mgmt";

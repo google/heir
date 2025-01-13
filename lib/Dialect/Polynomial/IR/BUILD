@@ -1,3 +1,4 @@
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
 package(
@@ -43,115 +44,43 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "PolynomialDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "PolynomialDialect.cpp.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Polynomial",
+    kind = "dialect",
     td_file = "PolynomialDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-attrdef-decls",
-                "-attrdefs-dialect=polynomial",
-            ],
-            "PolynomialAttributes.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-                "-attrdefs-dialect=polynomial",
-            ],
-            "PolynomialAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "PolynomialAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Polynomial",
+    kind = "attribute",
     td_file = "PolynomialAttributes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "types_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-                "-typedefs-dialect=polynomial",
-            ],
-            "PolynomialTypes.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-                "-typedefs-dialect=polynomial",
-            ],
-            "PolynomialTypes.cpp.inc",
-        ),
-        (
-            [
-                "-gen-typedef-doc",
-                "-typedefs-dialect=polynomial",
-            ],
-            "PolynomialTypes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Polynomial",
+    kind = "type",
     td_file = "PolynomialTypes.td",
     deps = [
-        ":attributes_inc_gen",
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "PolynomialOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "PolynomialOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "PolynomialOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Polynomial",
+    kind = "op",
     td_file = "PolynomialOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        ":types_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:td_files",
     ],
 )

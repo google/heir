@@ -1,6 +1,7 @@
 # Lattigo dialect implementation
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -108,107 +109,42 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "LattigoDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "LattigoDialect.cpp.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Lattigo",
+    kind = "dialect",
     td_file = "LattigoDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-attrdef-decls",
-            ],
-            "LattigoAttributes.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-            ],
-            "LattigoAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "LattigoAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Lattigo",
+    kind = "attribute",
     td_file = "LattigoAttributes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "types_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-            ],
-            "LattigoTypes.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-            ],
-            "LattigoTypes.cpp.inc",
-        ),
-        (
-            ["-gen-typedef-doc"],
-            "LattigoTypes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Lattigo",
+    kind = "type",
     td_file = "LattigoTypes.td",
     deps = [
-        ":attributes_inc_gen",
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "LattigoOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "LattigoOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "LattigoOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "Lattigo",
+    kind = "op",
     td_file = "LattigoOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        ":types_inc_gen",
     ],
 )

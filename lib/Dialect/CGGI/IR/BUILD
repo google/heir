@@ -1,4 +1,5 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -50,100 +51,45 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-dialect-decls"],
-            "CGGIDialect.h.inc",
-        ),
-        (
-            ["-gen-dialect-defs"],
-            "CGGIDialect.cpp.inc",
-        ),
-        (
-            ["-gen-dialect-doc"],
-            "CGGIDialect.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "CGGI",
+    kind = "dialect",
     td_file = "CGGIDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
-    name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "CGGIOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "CGGIOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "CGGIOps.md",
-        ),
+add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "CGGI",
+    kind = "attribute",
+    td_file = "CGGIAttributes.td",
+    deps = [
+        ":td_files",
     ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+)
+
+add_heir_dialect_library(
+    name = "enums_inc_gen",
+    dialect = "CGGI",
+    kind = "enum",
+    td_file = "CGGIEnums.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "ops_inc_gen",
+    dialect = "CGGI",
+    kind = "op",
     td_file = "CGGIOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
         "@heir//lib/Dialect:td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",
-    ],
-)
-
-gentbl_cc_library(
-    name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-attrdef-decls"],
-            "CGGIAttributes.h.inc",
-        ),
-        (
-            ["-gen-attrdef-defs"],
-            "CGGIAttributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "CGGIAttributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "CGGIAttributes.td",
-    deps = [
-        ":dialect_inc_gen",
-        ":enums_inc_gen",
-        ":td_files",
-    ],
-)
-
-gentbl_cc_library(
-    name = "enums_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-enum-decls"],
-            "CGGIEnums.h.inc",
-        ),
-        (
-            ["--gen-enum-defs"],
-            "CGGIEnums.cpp.inc",
-        ),
-        (
-            ["-gen-enum-doc"],
-            "CGGIEnums.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "CGGIEnums.td",
-    deps = [
-        ":td_files",
     ],
 )

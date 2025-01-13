@@ -2,6 +2,7 @@
 #define LIB_DIALECT_MODARITH_IR_MODARITHDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def ModArith_Dialect : Dialect {
   let name = "mod_arith";

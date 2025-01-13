@@ -2,6 +2,7 @@
 #define LIB_DIALECT_{{ dialect_name | upper }}_IR_{{ dialect_name | upper }}DIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def {{ dialect_name }}_Dialect : Dialect {
   let name = "{{ dialect_namespace }}";

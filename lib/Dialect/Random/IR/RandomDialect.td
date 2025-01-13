@@ -2,6 +2,7 @@
 #define LIB_DIALECT_RANDOM_IR_RANDOMDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def Random_Dialect : Dialect {
   let name = "random";

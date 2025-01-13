@@ -2,6 +2,7 @@
 #define LIB_DIALECT_LATTIGO_IR_LATTIGODIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def Lattigo_Dialect : Dialect {
   let name = "lattigo";

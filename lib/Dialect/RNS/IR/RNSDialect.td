@@ -2,6 +2,7 @@
 #define LIB_DIALECT_RNS_IR_RNSDIALECT_TD_
 
 include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpBase.td"
 
 def RNS_Dialect : Dialect {
   let name = "rns";

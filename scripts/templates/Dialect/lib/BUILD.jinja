@@ -1,6 +1,7 @@
 # {{ dialect_name }} dialect implementation
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -146,23 +147,11 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "{{ dialect_name }}Dialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "{{ dialect_name }}Dialect.cpp.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "{{ dialect_name }}",
+    kind = "dialect",
     td_file = "{{ dialect_name }}Dialect.td",
     deps = [
         ":td_files",
@@ -170,93 +159,37 @@ gentbl_cc_library(
 )
 
 {% if enable_attributes %}
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-attrdef-decls",
-            ],
-            "{{ dialect_name }}Attributes.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-            ],
-            "{{ dialect_name }}Attributes.cpp.inc",
-        ),
-        (
-            ["-gen-attrdef-doc"],
-            "{{ dialect_name }}Attributes.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "{{ dialect_name }}",
+    kind = "attribute",
     td_file = "{{ dialect_name }}Attributes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 {% endif %}
 
 {% if enable_types %}
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "types_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-            ],
-            "{{ dialect_name }}Types.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-            ],
-            "{{ dialect_name }}Types.cpp.inc",
-        ),
-        (
-            ["-gen-typedef-doc"],
-            "{{ dialect_name }}Types.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "{{ dialect_name }}",
+    kind = "type",
     td_file = "{{ dialect_name }}Types.td",
     deps = [
-        {% if enable_attributes %}
-        ":attributes_inc_gen",
-        {% endif %}
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
 {% endif %}
 
 {% if enable_ops %}
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "{{ dialect_name }}Ops.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "{{ dialect_name }}Ops.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "{{ dialect_name }}Ops.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "{{ dialect_name }}",
+    kind = "op",
     td_file = "{{ dialect_name }}Ops.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        {% if enable_types %}
-        ":types_inc_gen",
-        {% endif %}
     ],
 )
 {% endif %}

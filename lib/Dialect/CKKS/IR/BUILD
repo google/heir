@@ -1,6 +1,7 @@
 # CKKS dialect
 
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@heir//lib/Dialect:dialect.bzl", "add_heir_dialect_library")
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -40,55 +41,22 @@ td_library(
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "dialect_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-            ],
-            "CKKSDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-            ],
-            "CKKSDialect.cpp.inc",
-        ),
-        (
-            [
-                "-gen-dialect-doc",
-            ],
-            "CKKSDialect.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "CKKS",
+    kind = "dialect",
     td_file = "CKKSDialect.td",
     deps = [
         ":td_files",
     ],
 )
 
-gentbl_cc_library(
+add_heir_dialect_library(
     name = "ops_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "CKKSOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "CKKSOps.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "CKKSOps.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    dialect = "CKKS",
+    kind = "op",
     td_file = "CKKSOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",

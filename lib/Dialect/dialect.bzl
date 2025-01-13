@@ -18,11 +18,12 @@ def add_heir_dialect_library(
         td_file: The .td file to use for tablegen.
         deps: The dependencies of the generated target.
     """
+    if name == None:
+        fail("name must be provided to add_heir_dialect_library.")
     if dialect == None:
         fail("dialect must be provided to add_heir_dialect_library.")
-
-    _target_name_prefix = None
-    _target_name_suffix = "_inc_gen"
+    if td_file == None:
+        fail("td_file must be provided to add_heir_dialect_library.")
 
     _tblgen_command_prefix = "-gen-"
     _tblgen_command_infix = None
@@ -33,37 +34,27 @@ def add_heir_dialect_library(
     _file_name_prefix = dialect
     _file_name_infix = None
 
-    _dep_includes_dialect = True
-
     if kind == "dialect":
-        _target_name_prefix = "dialect"
         _tblgen_command_infix = "dialect"
         _file_name_infix = "Dialect"
-        _dep_includes_dialect = False
     elif kind == "attribute":
-        _target_name_prefix = "attributes"
         _tblgen_command_infix = "attrdef"
         _file_name_infix = "Attributes"
     elif kind == "enum":
-        _target_name_prefix = "enums"
         _tblgen_command_infix = "enum"
         _file_name_infix = "Enums"
     elif kind == "type":
-        _target_name_prefix = "types"
         _tblgen_command_infix = "typedef"
         _file_name_infix = "Types"
     elif kind == "op":
-        _target_name_prefix = "ops"
         _tblgen_command_infix = "op"
         _file_name_infix = "Ops"
+    elif kind == "type_interface":
+        _tblgen_command_infix = "type-interface"
+        _tblgen_command_suffix_doc = "-docs"
+        _file_name_infix = "TypeInterfaces"
     else:
         fail("kind must be provided to add_heir_dialect_library.")
-
-    _td_file = td_file
-    if _td_file == None:
-        _td_file = _file_name_prefix + _file_name_infix + ".td"
-
-    _target_name = _target_name_prefix + _target_name_suffix
 
     _header_inc_file = _file_name_prefix + _file_name_infix + ".h.inc"
     _cpp_inc_file = _file_name_prefix + _file_name_infix + ".cpp.inc"
@@ -73,18 +64,8 @@ def add_heir_dialect_library(
     _tblgen_command_defs = [_tblgen_command_prefix + _tblgen_command_infix + _tblgen_command_suffix_defs]
     _tblgen_command_doc = [_tblgen_command_prefix + _tblgen_command_infix + _tblgen_command_suffix_doc]
 
-    _deps = [":td_files"]
-    if _dep_includes_dialect:
-        _deps.append(":dialect_inc_gen")
-    _deps = _deps + deps
-
-    # Allow override by user, part of standard bazel conventions and to help it
-    # work properly with internal tooling.
-    if name:
-        _target_name = name
-
     gentbl_cc_library(
-        name = _target_name,
+        name = name,
         tbl_outs = [
             (
                 _tblgen_command_decls,
@@ -100,6 +81,6 @@ def add_heir_dialect_library(
             ),
         ],
         tblgen = "@llvm-project//mlir:mlir-tblgen",
-        td_file = _td_file,
-        deps = _deps,
+        td_file = td_file,
+        deps = deps,
     )
