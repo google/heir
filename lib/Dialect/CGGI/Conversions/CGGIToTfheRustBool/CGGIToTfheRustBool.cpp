@@ -118,7 +118,7 @@ struct AddBoolServerKeyArg : public OpConversionPattern<func::FuncOp> {
 };
 
 template <typename BinOp, typename TfheRustBoolBinOp>
-struct ConvertCGGIBinOp : public OpConversionPattern<BinOp> {
+struct ConvertCGGITRBBinOp : public OpConversionPattern<BinOp> {
   using OpConversionPattern<BinOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
@@ -135,15 +135,6 @@ struct ConvertCGGIBinOp : public OpConversionPattern<BinOp> {
     return success();
   }
 };
-
-using ConvertBoolAndOp = ConvertCGGIBinOp<cggi::AndOp, tfhe_rust_bool::AndOp>;
-using ConvertBoolNandOp =
-    ConvertCGGIBinOp<cggi::NandOp, tfhe_rust_bool::NandOp>;
-using ConvertBoolOrOp = ConvertCGGIBinOp<cggi::OrOp, tfhe_rust_bool::OrOp>;
-using ConvertBoolNorOp = ConvertCGGIBinOp<cggi::NorOp, tfhe_rust_bool::NorOp>;
-using ConvertBoolXorOp = ConvertCGGIBinOp<cggi::XorOp, tfhe_rust_bool::XorOp>;
-using ConvertBoolXNorOp =
-    ConvertCGGIBinOp<cggi::XNorOp, tfhe_rust_bool::XnorOp>;
 
 struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
   ConvertBoolNotOp(mlir::MLIRContext *context)
@@ -291,9 +282,14 @@ class CGGIToTfheRustBool
 
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
-    patterns.add<AddBoolServerKeyArg, ConvertBoolAndOp, ConvertBoolEncodeOp,
-                 ConvertBoolOrOp, ConvertBoolTrivialEncryptOp, ConvertBoolXorOp,
-                 ConvertBoolNorOp, ConvertBoolXNorOp, ConvertBoolNandOp,
+    patterns.add<AddBoolServerKeyArg,
+                 ConvertCGGITRBBinOp<cggi::AndOp, tfhe_rust_bool::AndOp>,
+                 ConvertCGGITRBBinOp<cggi::NandOp, tfhe_rust_bool::NandOp>,
+                 ConvertCGGITRBBinOp<cggi::OrOp, tfhe_rust_bool::OrOp>,
+                 ConvertCGGITRBBinOp<cggi::NorOp, tfhe_rust_bool::NorOp>,
+                 ConvertCGGITRBBinOp<cggi::XorOp, tfhe_rust_bool::XorOp>,
+                 ConvertCGGITRBBinOp<cggi::XNorOp, tfhe_rust_bool::XnorOp>,
+                 ConvertBoolEncodeOp, ConvertBoolTrivialEncryptOp,
                  ConvertBoolNotOp, ConvertPackedOp, ConvertAny<memref::AllocOp>,
                  ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
                  ConvertAny<memref::LoadOp>, ConvertAny<memref::SubViewOp>,

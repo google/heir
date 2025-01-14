@@ -12,10 +12,11 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
@@ -254,6 +255,25 @@ LogicalResult replaceBinaryGate(Operation *op, Value lhs, Value rhs,
   return success();
 }
 
+template <typename BinOp, typename TfheRustBinOp>
+struct ConvertCGGITRBinOp : public OpConversionPattern<BinOp> {
+  using OpConversionPattern<BinOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      BinOp op, typename BinOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    FailureOr<Value> result = getContextualServerKey(op);
+    if (failed(result)) return result;
+
+    Value serverKey = result.value();
+
+    rewriter.replaceOp(op, b.create<TfheRustBinOp>(serverKey, adaptor.getLhs(),
+                                                   adaptor.getRhs()));
+    return success();
+  }
+};
+
 struct ConvertAndOp : public OpConversionPattern<cggi::AndOp> {
   ConvertAndOp(mlir::MLIRContext *context)
       : OpConversionPattern<cggi::AndOp>(context) {}
@@ -293,6 +313,50 @@ struct ConvertXorOp : public OpConversionPattern<cggi::XorOp> {
       ConversionPatternRewriter &rewriter) const override {
     return replaceBinaryGate(op.getOperation(), adaptor.getLhs(),
                              adaptor.getRhs(), rewriter, kXorLut);
+  }
+};
+
+struct ConvertShROp : public OpConversionPattern<cggi::ShiftRightOp> {
+  ConvertShROp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::ShiftRightOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::ShiftRightOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    FailureOr<Value> result = getContextualServerKey(op);
+    if (failed(result)) return result;
+    Value serverKey = result.value();
+
+    rewriter.replaceOpWithNewOp<tfhe_rust::ScalarRightShiftOp>(
+        op, serverKey, adaptor.getLhs(), adaptor.getShiftAmount());
+
+    return success();
+  }
+};
+
+struct ConvertCastOp : public OpConversionPattern<cggi::CastOp> {
+  ConvertCastOp(mlir::MLIRContext *context)
+      : OpConversionPattern<cggi::CastOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      cggi::CastOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    FailureOr<Value> result = getContextualServerKey(op);
+    if (failed(result)) return result;
+    Value serverKey = result.value();
+
+    auto outputType = getTypeConverter()->convertType(op.getResult().getType());
+
+    rewriter.replaceOpWithNewOp<tfhe_rust::CastOp>(op, outputType, serverKey,
+                                                   adaptor.getInput());
+
+    return success();
   }
 };
 
@@ -436,10 +500,13 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
              (!containsDialects<lwe::LWEDialect, cggi::CGGIDialect>(op) ||
               hasServerKeyArg);
     });
-    target.addDynamicallyLegalOp<memref::AllocOp, memref::DeallocOp,
-                                 memref::StoreOp, memref::LoadOp,
-                                 memref::SubViewOp, memref::CopyOp,
-                                 tensor::FromElementsOp, tensor::ExtractOp>(
+
+    target.addLegalOp<mlir::arith::ConstantOp>();
+
+    target.addDynamicallyLegalOp<
+        memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::LoadOp,
+        memref::SubViewOp, memref::CopyOp, affine::AffineLoadOp,
+        affine::AffineStoreOp, tensor::FromElementsOp, tensor::ExtractOp>(
         [&](Operation *op) {
           return typeConverter.isLegal(op->getOperandTypes()) &&
                  typeConverter.isLegal(op->getResultTypes());
@@ -447,14 +514,19 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
 
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
-    patterns
-        .add<AddServerKeyArg, ConvertAndOp, ConvertEncodeOp, ConvertLut2Op,
-             ConvertLut3Op, ConvertNotOp, ConvertOrOp, ConvertTrivialEncryptOp,
-             ConvertXorOp, ConvertAny<memref::AllocOp>,
-             ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
-             ConvertAny<memref::LoadOp>, ConvertAny<memref::SubViewOp>,
-             ConvertAny<memref::CopyOp>, ConvertAny<tensor::FromElementsOp>,
-             ConvertAny<tensor::ExtractOp>>(typeConverter, context);
+    patterns.add<
+        AddServerKeyArg, ConvertEncodeOp, ConvertLut2Op, ConvertLut3Op,
+        ConvertNotOp, ConvertTrivialEncryptOp, ConvertTrivialOp,
+        ConvertCGGITRBinOp<cggi::AddOp, tfhe_rust::AddOp>,
+        ConvertCGGITRBinOp<cggi::MulOp, tfhe_rust::MulOp>,
+        ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>, ConvertAndOp,
+        ConvertOrOp, ConvertXorOp, ConvertCastOp, ConvertShROp,
+        ConvertAny<memref::AllocOp>, ConvertAny<memref::DeallocOp>,
+        ConvertAny<memref::StoreOp>, ConvertAny<memref::LoadOp>,
+        ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
+        ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
+        ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineStoreOp>>(
+        typeConverter, context);
 
     if (failed(applyPartialConversion(op, target, std::move(patterns)))) {
       return signalPassFailure();

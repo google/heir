@@ -19,6 +19,7 @@ cc_library(
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

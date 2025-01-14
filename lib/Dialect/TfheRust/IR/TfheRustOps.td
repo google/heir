@@ -30,7 +30,7 @@ class TfheRust_BinaryOp<string mnemonic>
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
+def TfheRust_CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
   let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
   let results = (outs TfheRust_CiphertextType:$output);
   let hasCanonicalizer = 1;
@@ -42,7 +42,7 @@ def TfheRust_SubOp : TfheRust_BinaryOp<"sub"> { let summary = "Arithmetic sub of
 def TfheRust_MulOp : TfheRust_BinaryOp<"mul"> { let summary = "Arithmetic mul of two tfhe ciphertexts."; }
 
 
-def ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
+def TfheRust_ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
     Pure,
     AllTypesMatch<["ciphertext", "output"]>
 ]> {
@@ -54,7 +54,7 @@ def ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def ScalarRightShiftOp : TfheRust_Op<"scalar_right_shift", [
+def TfheRust_ScalarRightShiftOp : TfheRust_Op<"scalar_right_shift", [
     Pure,
     AllTypesMatch<["ciphertext", "output"]>
 ]> {
@@ -66,7 +66,7 @@ def ScalarRightShiftOp : TfheRust_Op<"scalar_right_shift", [
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table", [
+def TfheRust_ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table", [
     Pure,
     AllTypesMatch<["input", "output"]>
 ]> {
@@ -78,7 +78,7 @@ def ApplyLookupTableOp : TfheRust_Op<"apply_lookup_table", [
   let results = (outs TfheRust_CiphertextType:$output);
 }
 
-def GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table", [Pure]> {
+def TfheRust_GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table", [Pure]> {
   let arguments = (
     ins TfheRust_ServerKey:$serverKey,
     // TODO(#246): Generalize to support integer-valued lookup tables; for now
@@ -89,5 +89,16 @@ def GenerateLookupTableOp : TfheRust_Op<"generate_lookup_table", [Pure]> {
   let results = (outs TfheRust_LookupTable:$lookupTable);
   let hasCanonicalizer = 1;
 }
+
+def TfheRust_CastOp : TfheRust_Op<"cast", [
+    Pure,
+]> {
+  let arguments = (ins
+    TfheRust_ServerKey:$serverKey,
+    TfheRust_CiphertextType:$ciphertext
+  );
+  let results = (outs TfheRust_CiphertextType:$output);
+}
+
 
 #endif  // LIB_DIALECT_TFHERUST_IR_TFHERUSTOPS_TD_

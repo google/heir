@@ -311,7 +311,7 @@ def CGGI_ShiftLeftOp : CGGI_Op<"shl", [
   let summary = "Arithmetic shift to left of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.";
 }
 
-// FIXME: Two options:
+// Two options:
 // 1. Allow arith.constant and use an encryption op to bring it to the ciphertext space.
 // 2. Use a trivial op where the constant is embedded in the ciphertext.
 def CGGI_CreateTrivialOp : CGGI_Op<"create_trivial", [Pure]> {
