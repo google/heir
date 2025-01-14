@@ -3971,6 +3971,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.add` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation adds two ciphertext values in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4014,6 +4015,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.decode` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decodes a plaintext value using the specified encoder in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4057,6 +4059,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.encode` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4100,6 +4103,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.mul` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation multiplies two ciphertext values in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4143,6 +4147,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_encoder` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new encoder for encoding plaintext values in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-4">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4182,6 +4187,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 operations which does not relying on evaluation keys.&lt;/p>
 &lt;p>To support operations that require evaluation keys,
 the optional evaluation key set should be provided.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4221,6 +4227,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_parameters_from_literal` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates new BGV parameters from a given literal value in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4246,6 +4253,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.new_plaintext` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new plaintext value in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4281,6 +4289,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.relinearize` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation relinearizes a ciphertext value in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4320,6 +4329,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rescale` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation rescales a ciphertext value in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4361,6 +4371,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.&lt;/p>
 &lt;p>offset is valid in (-N/2, N/2).&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4406,6 +4417,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.rotate_rows` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation swap the rows of a ciphertext value in the Lattigo BGV dialect.&lt;/p>
 &lt;p>Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where 2 is the row.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4445,6 +4457,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.bgv.sub` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation subtracts one ciphertext value from another in the Lattigo BGV dialect.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4488,6 +4501,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.decrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation decrypts a ciphertext using RLWE&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-12">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4527,6 +4541,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.encrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encrypts a plaintext using RLWE&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-13">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4567,6 +4582,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_galois_key` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE Galois key&lt;/p>
 &lt;p>galoisElement: Enabling the automorphism X -&amp;gt; X^{galoisElement}.&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
@@ -4611,6 +4627,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_key_pair` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key pair&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-15">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4650,6 +4667,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_relinearization_key` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE relinearization key&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4689,6 +4707,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_decryptor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE decryptor&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-17">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4728,6 +4747,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_encryptor` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation creates a new RLWE encryptor&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-18">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4767,6 +4787,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_evaluation_key_set` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE evaluation key set&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-19">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -4806,6 +4827,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.new_key_generator` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key generator&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-20">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
