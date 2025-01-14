@@ -3,6 +3,7 @@
 
 #include "lib/Dialect/Lattigo/IR/LattigoAttributes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
+#include "lib/Utils/Tablegen/AsmInterfaces.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h.inc"

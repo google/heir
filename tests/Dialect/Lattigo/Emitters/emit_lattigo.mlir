@@ -34,13 +34,13 @@
 
 module {
   // CHECK-LABEL: func compute
-  // CHECK-SAME: ([[v0:v.*]] *bgv.Evaluator, [[v1:v.*]] *rlwe.Ciphertext, [[v2:v.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
-  // CHECK: [[v3:v.*]], [[err:.*]] := [[v0]].AddNew([[v1]], [[v2]])
-  // CHECK: [[v4:v.*]], [[err:.*]] := [[v0]].MulNew([[v3]], [[v2]])
-  // CHECK: [[v5:v.*]], [[err:.*]] := [[v0]].RelinearizeNew([[v4]])
+  // CHECK-SAME: ([[v0:.*]] *bgv.Evaluator, [[v1:.*]] *rlwe.Ciphertext, [[v2:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
+  // CHECK: [[v3:ct.*]], [[err:.*]] := [[v0]].AddNew([[v1]], [[v2]])
+  // CHECK: [[v4:ct.*]], [[err:.*]] := [[v0]].MulNew([[v3]], [[v2]])
+  // CHECK: [[v5:ct.*]], [[err:.*]] := [[v0]].RelinearizeNew([[v4]])
   // CHECK: [[err:.*]] := [[v0]].Rescale([[v5]], [[v5]])
-  // CHECK: [[v6:v.*]] := [[v5]]
-  // CHECK: [[v7:v.*]], [[err:.*]] := [[v0]].RotateColumnsNew([[v6]], 1)
+  // CHECK: [[v6:ct.*]] := [[v5]]
+  // CHECK: [[v7:ct.*]], [[err:.*]] := [[v0]].RotateColumnsNew([[v6]], 1)
   // CHECK: return [[v7]]
   func.func @compute(%evaluator : !evaluator, %ct1 : !ct, %ct2 : !ct) -> (!ct) {
     %added = lattigo.bgv.add %evaluator, %ct1, %ct2 : (!evaluator, !ct, !ct) -> !ct
@@ -52,33 +52,33 @@ module {
   }
 
   // CHECK-LABEL: func test_basic_emitter
-  // CHECK: [[param:v.*]], [[err:.*]] := bgv.NewParametersFromLiteral
+  // CHECK: [[param:param.*]], [[err:.*]] := bgv.NewParametersFromLiteral
   // CHECK: bgv.ParametersLiteral
   // CHECK: LogN
   // CHECK: LogQ
   // CHECK: LogP
   // CHECK: PlaintextModulus
-  // CHECK: [[encoder:v.*]] := bgv.NewEncoder([[param]])
-  // CHECK: [[kgen:v.*]] := rlwe.NewKeyGenerator([[param]])
-  // CHECK: [[sk:v.*]], [[pk:v.*]] := [[kgen]].GenKeyPairNew()
-  // CHECK: [[rk:v.*]] := [[kgen]].GenRelinearizationKeyNew([[sk]])
-  // CHECK: [[gk5:v.*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
-  // CHECK: [[evalKeySet:v.*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
-  // CHECK: [[enc:v.*]] := rlwe.NewEncryptor([[param]], [[pk]])
-  // CHECK: [[dec:v.*]] := rlwe.NewDecryptor([[param]], [[sk]])
-  // CHECK: [[eval:v.*]] := bgv.NewEvaluator([[param]], [[evalKeySet]])
+  // CHECK: [[encoder:encoder.*]] := bgv.NewEncoder([[param]])
+  // CHECK: [[kgen:kgen.*]] := rlwe.NewKeyGenerator([[param]])
+  // CHECK: [[sk:sk.*]], [[pk:.*]] := [[kgen]].GenKeyPairNew()
+  // CHECK: [[rk:rk.*]] := [[kgen]].GenRelinearizationKeyNew([[sk]])
+  // CHECK: [[gk5:gk.*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
+  // CHECK: [[evalKeySet:ekset.*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
+  // CHECK: [[enc:enc.*]] := rlwe.NewEncryptor([[param]], [[pk]])
+  // CHECK: [[dec:dec.*]] := rlwe.NewDecryptor([[param]], [[sk]])
+  // CHECK: [[eval:eval.*]] := bgv.NewEvaluator([[param]], [[evalKeySet]])
   // CHECK: [[value1:v.*]] := []int64
   // CHECK: [[value2:v.*]] := []int64
-  // CHECK: [[pt1:v.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
-  // CHECK: [[pt2:v.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
+  // CHECK: [[pt1:pt.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
+  // CHECK: [[pt2:pt.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
   // CHECK: [[encoder]].Encode([[value1]], [[pt1]])
-  // CHECK: [[pt3:v.*]] := [[pt1]]
+  // CHECK: [[pt3:pt.*]] := [[pt1]]
   // CHECK: [[encoder]].Encode([[value2]], [[pt2]])
-  // CHECK: [[pt4:v.*]] := [[pt2]]
-  // CHECK: [[ct1:v.*]], [[err:.*]] := [[enc]].EncryptNew([[pt3]])
-  // CHECK: [[ct2:v.*]], [[err:.*]] := [[enc]].EncryptNew([[pt4]])
-  // CHECK: [[res:v.*]] := compute([[eval]], [[ct1]], [[ct2]])
-  // CHECK: [[pt5:v.*]] := [[dec]].DecryptNew([[res]])
+  // CHECK: [[pt4:pt.*]] := [[pt2]]
+  // CHECK: [[ct1:ct.*]], [[err:.*]] := [[enc]].EncryptNew([[pt3]])
+  // CHECK: [[ct2:ct.*]], [[err:.*]] := [[enc]].EncryptNew([[pt4]])
+  // CHECK: [[res:ct.*]] := compute([[eval]], [[ct1]], [[ct2]])
+  // CHECK: [[pt5:pt.*]] := [[dec]].DecryptNew([[res]])
   // CHECK: [[value3:v.*]] := []int64
   // CHECK: [[encoder]].Decode([[pt5]], [[value3]])
   // CHECK: [[value4:v.*]] := [[value3]]
@@ -122,9 +122,9 @@ module {
 
 
 // CHECK-LABEL: test_constant
-// CHECK: [[v1:v.*]] := 1
-// CHECK: [[v2:v.*]] := []int64{1, 2}
-// CHECK: [[v3:v.*]] := []int64{2, 2, 2, 2}
+// CHECK: [[v1:.*]] := 1
+// CHECK: [[v2:.*]] := []int64{1, 2}
+// CHECK: [[v3:.*]] := []int64{2, 2, 2, 2}
 func.func @test_constant() -> () {
   %int = arith.constant 1 : i32
   %ints = arith.constant dense<[1, 2]> : tensor<2xi32>
