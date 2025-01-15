@@ -176,6 +176,7 @@ cc_binary(
         "@heir//lib/Target/OpenFhePke:OpenFheRegistration",
         "@heir//lib/Target/TfheRust:TfheRustEmitter",
         "@heir//lib/Target/TfheRustBool:TfheRustBoolEmitter",
+        "@heir//lib/Target/TfheRustHL:TfheRustHLEmitter",
         "@heir//lib/Target/Verilog:VerilogEmitter",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:TranslateLib",

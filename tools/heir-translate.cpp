@@ -5,6 +5,7 @@
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
+#include "lib/Target/TfheRustHL/TfheRustHLEmitter.h"
 #include "lib/Target/Verilog/VerilogEmitter.h"
 #include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/MlirTranslateMain.h"  // from @llvm-project
@@ -16,6 +17,7 @@ int main(int argc, char **argv) {
 
   // tfhe-rs output
   mlir::heir::tfhe_rust::registerToTfheRustTranslation();
+  mlir::heir::tfhe_rust::registerToTfheRustHLTranslation();
   mlir::heir::tfhe_rust_bool::registerToTfheRustBoolTranslation();
 
   // jaxite output

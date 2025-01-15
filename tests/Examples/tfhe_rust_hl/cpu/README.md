@@ -1,8 +1,9 @@
-# End to end Rust codegen tests
+# End to end Rust codegen tests - Boolean
 
 These tests exercise Rust codegen for the
 [tfhe-rs](https://github.com/zama-ai/tfhe-rs) backend library, including
-compiling the generated Rust source and running the resulting binary.
+compiling the generated Rust source and running the resulting binary. This sets
+tests are specifically of the boolean plaintexts and the accompanying library.
 
 To avoid introducing these large dependencies into the entire project, these
 tests are manual, and require the system they're running on to have
@@ -15,8 +16,8 @@ Cargo home `$HOME/.cargo` may need to be replaced by your custom `$CARGO_HOME`,
 if you overrode the default option when installing Cargo.
 
 ```bash
-bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust/...)" \
-  | xargs bazel test --noincompatible_strict_action_env --sandbox_writable_path=$HOME/.cargo "$@"
+bazel query "filter('.mlir.test$', //tests/Examples/tfhe_rust_hl/cpu/...)" \
+  | xargs bazel test --noincompatible_strict_action_env -test_timeout=180 --sandbox_writable_path=$HOME/.cargo "$@"
 ```
 
 The `manual` tag is added to the targets in this directory to ensure that they

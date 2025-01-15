@@ -13,6 +13,7 @@ namespace tfhe_rust {
 // warning and return success. This is because some functions are left
 // over during compilation.
 ::mlir::LogicalResult canEmitFuncForTfheRust(::mlir::func::FuncOp &funcOp);
+int16_t getTfheRustBitWidth(Type type);
 
 }  // namespace tfhe_rust
 }  // namespace heir
