@@ -5,7 +5,7 @@
 // CHECK-SAME:  ) {
 // CHECK-NEXT:    secret.conceal %[[ARG]]
 // CHECK-NEXT:    secret.generic
-// CHECK-NEXT:      ^bb0(%[[SARG:.*]]: i32)
+// CHECK-NEXT:      ^body(%[[SARG:.*]]: i32)
 // CHECK-NEXT:      %[[V0:.*]] = func.call [[F0:.*]](%[[SARG]]) : (i32) -> i32
 // CHECK-NEXT:      secret.yield %[[V0]]
 // CHECK:         return
@@ -14,7 +14,7 @@ module {
   func.func @test_add(%value : i32) {
     %Y = secret.conceal %value : i32 -> !secret.secret<i32>
     %Z = secret.generic ins(%Y : !secret.secret<i32>) {
-      ^bb0(%y: i32) :
+      ^body(%y: i32) :
         %c7_i32_0 = arith.constant 7 : i32
         %d = arith.addi %c7_i32_0, %y: i32
         secret.yield %d : i32
@@ -30,11 +30,11 @@ module {
 // CHECK-SAME:  ) {
 // CHECK-NEXT:    secret.conceal %[[ARG]]
 // CHECK-NEXT:    secret.generic
-// CHECK-NEXT:      ^bb0(%[[SARG:.*]]: i32)
+// CHECK-NEXT:      ^body(%[[SARG:.*]]: i32)
 // CHECK-NEXT:      %[[V0:.*]] = func.call [[F1:.*]](%[[SARG]]) : (i32) -> i32
 // CHECK-NEXT:      secret.yield %[[V0]]
 // CHECK:    secret.generic
-// CHECK-NEXT:      ^bb0(%[[SARG1:.*]]: i32)
+// CHECK-NEXT:      ^body(%[[SARG1:.*]]: i32)
 // CHECK-NEXT:      %[[V1:.*]] = func.call [[F2:.*]](%[[SARG1]]) : (i32) -> i32
 // CHECK-NEXT:      secret.yield %[[V1]]
 // CHECK:         return
@@ -43,13 +43,13 @@ module {
   func.func @test_multiple(%value : i32) {
     %Y = secret.conceal %value : i32 -> !secret.secret<i32>
     %Z = secret.generic ins(%Y : !secret.secret<i32>) {
-      ^bb0(%y: i32) :
+      ^body(%y: i32) :
         %c7_i32_0 = arith.constant 7 : i32
         %d = arith.addi %c7_i32_0, %y: i32
         secret.yield %d : i32
       } -> (!secret.secret<i32>)
     %A = secret.generic ins(%Z : !secret.secret<i32>) {
-      ^bb0(%y: i32) :
+      ^body(%y: i32) :
         %c12_i32_0 = arith.constant 12 : i32
         %d = arith.addi %c12_i32_0, %y: i32
         secret.yield %d : i32
@@ -75,7 +75,7 @@ module {
 // CHECK-SAME:  ) {
 // CHECK-NEXT:    secret.conceal %[[ARG]]
 // CHECK-NEXT:    secret.generic
-// CHECK-NEXT:      ^bb0(%[[SARG:.*]]: memref<1xi32>)
+// CHECK-NEXT:      ^body(%[[SARG:.*]]: memref<1xi32>)
 // CHECK-NEXT:      %[[V0:.*]] = func.call [[F1:.*]](%[[SARG]]) : (memref<1xi32>) -> memref<1xi32>
 // CHECK-NEXT:      secret.yield %[[V0]]
 // CHECK:         return
@@ -84,7 +84,7 @@ module {
   func.func @test_region(%value : memref<1xi32>) {
     %Y = secret.conceal %value : memref<1xi32> -> !secret.secret<memref<1xi32>>
     %Z = secret.generic ins(%Y : !secret.secret<memref<1xi32>>) {
-      ^bb0(%y: memref<1xi32>) :
+      ^body(%y: memref<1xi32>) :
         %c7_i32_0 = arith.constant 7 : i32
         affine.for %i = 0 to 1 {
           %0 = affine.load %y[%i] : memref<1xi32>
