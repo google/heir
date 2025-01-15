@@ -64,4 +64,16 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
   let hasVerifier = 1;
 }
 
+def TensorExt_SumOp : TensorExt_Op<"sum", [Pure]> {
+  let summary = "Sum along one dimension of a tensor.";
+  let description = [{
+    This op can be thought of as a special case of `linglg.reduce`,
+    but more concise.
+  }];
+  let arguments = (ins AnyTensor:$tensor, IndexAttr:$dim);
+  let results = (outs AnyTensor:$output);
+  let assemblyFormat = "$tensor `,` $dim attr-dict `:` type($tensor) `->` type($output)";
+  let hasVerifier = 1;
+}
+
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
