@@ -74,20 +74,7 @@ void registerToTfheRustHLTranslation() {
   TranslateFromMLIRRegistration reg(
       "emit-tfhe-rust-hl", "translate the tfhe-rs dialect to HL Rust code",
       [](Operation *op, llvm::raw_ostream &output) {
-        return translateToTfheRustHL(op, output, /*belfortAPI=*/false);
-      },
-      [](DialectRegistry &registry) {
-        registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
-                        affine::AffineDialect, arith::ArithDialect,
-                        tensor::TensorDialect, memref::MemRefDialect>();
-      });
-
-  TranslateFromMLIRRegistration regFPGA(
-      "emit-tfhe-rust-hl-fpga",
-      "translate the tfhe-rs-bool dialect to Rust code for Belfort FPGA "
-      "HL tfhe-rs API",
-      [](Operation *op, llvm::raw_ostream &output) {
-        return translateToTfheRustHL(op, output, /*belfortAPI=*/true);
+        return translateToTfheRustHL(op, output);
       },
       [](DialectRegistry &registry) {
         registry.insert<func::FuncDialect, tfhe_rust::TfheRustDialect,
@@ -96,10 +83,9 @@ void registerToTfheRustHLTranslation() {
       });
 }
 
-LogicalResult translateToTfheRustHL(Operation *op, llvm::raw_ostream &os,
-                                    bool belfortAPI) {
+LogicalResult translateToTfheRustHL(Operation *op, llvm::raw_ostream &os) {
   SelectVariableNames variableNames(op);
-  TfheRustHLEmitter emitter(os, &variableNames, belfortAPI);
+  TfheRustHLEmitter emitter(os, &variableNames);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -141,7 +127,7 @@ LogicalResult TfheRustHLEmitter::translate(Operation &op) {
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(ModuleOp moduleOp) {
-  os << (belfortAPI ? kFPGAModulePrelude : kModulePrelude) << "\n";
+  os << kModulePrelude << "\n";
 
   // Find default type of the module and use a Type alias
   moduleOp.getOperation()->walk([&](Operation *op) {
@@ -657,9 +643,8 @@ std::string TfheRustHLEmitter::checkOrigin(Value value) {
 }
 
 TfheRustHLEmitter::TfheRustHLEmitter(raw_ostream &os,
-                                     SelectVariableNames *variableNames,
-                                     bool belfortAPI)
-    : os(os), variableNames(variableNames), belfortAPI(belfortAPI) {}
+                                     SelectVariableNames *variableNames)
+    : os(os), variableNames(variableNames) {}
 }  // namespace tfhe_rust
 }  // namespace heir
 }  // namespace mlir

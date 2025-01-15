@@ -30,13 +30,11 @@ void registerToTfheRustHLTranslation();
 
 /// Translates the given operation to TfheRustHL.
 ::mlir::LogicalResult translateToTfheRustHL(::mlir::Operation *op,
-                                            llvm::raw_ostream &os,
-                                            bool belfortAPI);
+                                            llvm::raw_ostream &os);
 
 class TfheRustHLEmitter {
  public:
-  TfheRustHLEmitter(raw_ostream &os, SelectVariableNames *variableNames,
-                    bool belfortAPI);
+  TfheRustHLEmitter(raw_ostream &os, SelectVariableNames *variableNames);
 
   LogicalResult translate(::mlir::Operation &operation);
   bool containsVectorOperands(Operation *op);
@@ -48,9 +46,6 @@ class TfheRustHLEmitter {
   /// Pre-populated analysis selecting unique variable names for all the SSA
   /// values.
   SelectVariableNames *variableNames;
-
-  // Boolean to keep track if the Belfort API is used or not
-  bool belfortAPI;
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
