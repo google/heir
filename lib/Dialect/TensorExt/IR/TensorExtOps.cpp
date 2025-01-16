@@ -71,9 +71,16 @@ LogicalResult SumOp::verify() {
            << outputTensor.getElementType();
   }
 
+  unsigned int dim = getDim().getZExtValue();
+  if (dim >= inputTensor.getRank()) {
+    return emitOpError()
+           << "requires the summed dimension to be within the bounds of the "
+              "tensor rank, but found dim "
+           << dim << " for shape " << inputTensor.getShape();
+  }
+
   // The input and output must have the same shape when removing the index
   // given by the operand dim.
-  unsigned int dim = getDim().getZExtValue();
   SmallVector<int64_t, 4> inputShape;
   for (int i = 0; i < inputTensor.getRank(); i++) {
     if (i == dim) continue;
