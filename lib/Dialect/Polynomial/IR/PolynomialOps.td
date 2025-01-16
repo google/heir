@@ -340,4 +340,30 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
   let hasVerifier = 1;
 }
 
+def Polynomial_EvalOp : Polynomial_Op<"eval"> {
+    let summary = "Evaluate a static polynomial attribute at a given SSA value.";
+    let description = [{
+        Evaluates the result of a polynomial specified as a static attribute at a given SSA value.
+        The result represents the evaluation of the polynomial at the input value and produces
+        a corresponding constant value.
+        
+        Example:
+
+        ```mlir
+        #poly = #polynomial.int_polynomial<x**2 + 2*x + 1>
+        %x = arith.constant 5 : i32
+        %result = polynomial.eval #poly, %x : !arith.constant
+        ```
+    }];
+    
+    let arguments = (ins 
+        Polynomial_AnyTypedPolynomialAttr:$polynomial,  // Static polynomial attribute
+        AnyType:$value                         // SSA value
+    );
+
+    let results = (outs AnyType:$result);
+    let assemblyFormat = "$polynomial attr-dict `polynomial` $value type($value) `->` type($result)";
+}
+
+
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALOPS_TD_
