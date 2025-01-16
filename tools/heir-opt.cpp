@@ -4,8 +4,8 @@
 #include <string>
 
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h"
+#include "lib/Dialect/Arith/Conversions/ArithToCGGIQuart/ArithToCGGIQuart.h"
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
-#include "lib/Dialect/Arith/Transforms/Passes.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -249,7 +249,6 @@ int main(int argc, char **argv) {
   mlir::arith::registerConvertArithToLLVMInterface(registry);
 
   // Custom passes in HEIR
-  heir::arith::registerArithPasses();
   cggi::registerCGGIPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
@@ -308,6 +307,7 @@ int main(int argc, char **argv) {
   mod_arith::registerModArithToArithPasses();
   mlir::heir::arith::registerArithToModArithPasses();
   mlir::heir::arith::registerArithToCGGIPasses();
+  mlir::heir::arith::registerArithToCGGIQuartPasses();
   mod_arith::registerConvertToMacPass();
   bgv::registerBGVToLWEPasses();
   bgv::registerBGVToLattigoPasses();
