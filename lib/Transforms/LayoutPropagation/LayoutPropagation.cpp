@@ -3,9 +3,9 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/ADT/SmallSet.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"    // from @llvm-project
 
 #define DEBUG_TYPE "layout-propagation"
 
@@ -18,6 +18,7 @@ using secret::GenericOp;
 using secret::SecretType;
 using secret::YieldOp;
 using tensor_ext::ConvertLayoutOp;
+using tensor_ext::SumOp;
 
 #define GEN_PASS_DEF_LAYOUTPROPAGATION
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h.inc"
@@ -35,6 +36,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(MulIOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(YieldOp op);
+  LogicalResult visitOperation(SumOp op);
 
   // Return the default layout for a given type
   FailureOr<AffineMap> defaultLayoutForType(Type type);
@@ -64,6 +66,7 @@ struct OperandLayout {
 };
 
 LogicalResult LayoutPropagation::visitOperation(Operation *op) {
+  visitDebugInfo(op);
   mlir::IRRewriter builder(&getContext());
   // When the operands have different layout attributes, it is invalid
   // to apply the op, and we must insert layout conversion ops.
@@ -100,12 +103,13 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
     LLVM_DEBUG({
       auto diag = op->emitRemark() << "Inserting layout conversion op due to "
                                       "disagreeing operand layouts";
+      auto &note = diag.attachNote();
       for (auto operandLayout : layouts) {
         std::string mapStr;
         llvm::raw_string_ostream os(mapStr);
         operandLayout.layout.print(os);
-        diag.attachNote() << "\n- Operand: " << operandLayout.operand
-                          << "; Layout: " << os.str() << "\n";
+        note << "\n- Operand: " << operandLayout.operand
+             << "; Layout: " << os.str() << "\n";
       }
     });
 
@@ -113,19 +117,21 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
       Value operand = operandLayout.operand;
       AffineMap sourceLayout = operandLayout.layout;
       if (sourceLayout != targetLayout) {
+        builder.setInsertionPoint(op);
         ConvertLayoutOp convertOp = builder.create<ConvertLayoutOp>(
             op->getLoc(), operand, AffineMapAttr::get(sourceLayout),
             AffineMapAttr::get(targetLayout.value()));
-        op->setOperand(operandLayout.index, convertOp);
+        op->setOperand(operandLayout.index, convertOp.getResult());
       }
     }
+    op->getParentOp()->dump();
   }
 
-  visitDebugInfo(op);
   return TypeSwitch<Operation *, LogicalResult>(op)
       .Case<func::FuncOp>([&](auto op) { return visitOperation(op); })
       .Case<AddIOp, MulIOp>([&](auto op) { return visitOperation(op); })
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
+      .Case<SumOp>([&](auto op) { return visitOperation(op); })
       .Default([&](Operation *op) { return success(); });
 }
 
@@ -194,6 +200,27 @@ LogicalResult LayoutPropagation::visitOperation(arith::AddIOp op) {
 
 LogicalResult LayoutPropagation::visitOperation(arith::MulIOp op) {
   passLayoutThroughOp(op);
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(tensor_ext::SumOp op) {
+  unsigned dimToSum = op.getDim().getZExtValue();
+  Value tensor = op.getTensor();
+  Value result = op.getOutput();
+
+  AffineMap inputLayout = assignedLayouts[tensor];
+  // The result layout is equivalent to reducing the summed dimension
+  // to 1 and then dropping it.
+
+  unsigned numDims = cast<ShapedType>(tensor.getType()).getRank();
+  llvm::SmallBitVector dimsBV(numDims, false);
+  dimsBV.set(dimToSum);
+
+  AffineMap resultLayout =
+      projectDims(inputLayout, dimsBV, /*compressDims=*/true);
+
+  assignedLayouts.insert(std::make_pair(result, resultLayout));
+  debugAssignLayout(result, resultLayout);
   return success();
 }
 
