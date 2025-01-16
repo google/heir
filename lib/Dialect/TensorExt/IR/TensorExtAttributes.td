@@ -64,4 +64,15 @@ def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
   let assemblyFormat =  "`<` struct(params) `>`";
 }
 
+def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
+  let summary = "Attribute denoting the layout of a tensor in a set of ciphertexts";
+  let description = [{
+    FIXME: add description
+  }];
+
+  let parameters = (ins "AffineMap": $layout);
+  let assemblyFormat = "`<` struct(params) `>`";
+}
+
+
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTATTRIBUTES_TD_
