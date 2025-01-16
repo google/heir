@@ -36,27 +36,8 @@ namespace openfhe {
 
 // Helper function to check if the function has RelinOp
 bool hasRelinOp(func::FuncOp op) {
-  bool result = false;
-  op.walk<WalkOrder::PreOrder>([&](Operation *op) {
-    if (isa<openfhe::RelinOp>(op)) {
-      result = true;
-      return WalkResult::interrupt();
-    }
-    return WalkResult::advance();
-  });
-  return result;
-}
-
-// Helper function to find all the rotation indices in the function
-SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
-  std::set<int64_t> distinctRotIndices;
-  op.walk([&](openfhe::RotOp rotOp) {
-    distinctRotIndices.insert(rotOp.getIndex().getInt());
-    return WalkResult::advance();
-  });
-  SmallVector<int64_t> rotIndicesResult(distinctRotIndices.begin(),
-                                        distinctRotIndices.end());
-  return rotIndicesResult;
+  auto res = findAllRelinBasis(op);
+  return !res.empty();
 }
 
 // Helper function to check if the function has BootstrapOp

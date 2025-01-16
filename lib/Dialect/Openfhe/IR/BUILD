@@ -20,6 +20,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Utils/Tablegen:AsmInterfaces",
         "@llvm-project//llvm:Support",
@@ -37,6 +38,7 @@ td_library(
     ],
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect:td_files",
         "@heir//lib/Utils/Tablegen:td_files",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
