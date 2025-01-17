@@ -67,7 +67,12 @@ def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
 def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
   let summary = "Attribute denoting the layout of a tensor in a set of ciphertexts";
   let description = [{
-    FIXME: add description
+    This attribute contains an affine map that describes the layout of a tensor
+    in a set of ciphertexts. The affine map is a function that maps tensor indices
+    to ciphertext indices (possibly with a ciphertext-selecting index).
+
+    This attribute exists primarily to provide a "dialect attribute" which is
+    required to annotate the arguments of `func.func` arguments.
   }];
 
   let parameters = (ins "AffineMap": $layout);

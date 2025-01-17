@@ -79,8 +79,6 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
   SmallVector<OperandLayout> layouts;
   bool disagreeingLayouts = false;
 
-  // FIXME: file an issue to smartly choose the targetLayout, e.g., using
-  // the most common shared layout, or analyze for the cheapest conversion.
   std::optional<AffineMap> targetLayout;
 
   for (auto &operand : op->getOpOperands()) {
@@ -95,6 +93,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
                                      layout};
       layouts.push_back(operandLayout);
 
+      // Here we choose an arbitrary target layout. Another pass is expected to
+      // optimize for the choice of conversions.
       if (!targetLayout.has_value()) targetLayout = layout;
 
       if (layout != targetLayout.value()) {
