@@ -94,6 +94,7 @@ cc_binary(
         "@heir//lib/Transforms/ConvertSecretForToStaticFor",
         "@heir//lib/Transforms/ConvertSecretInsertToStaticInsert",
         "@heir//lib/Transforms/ConvertSecretWhileToStaticFor",
+        "@heir//lib/Transforms/DropUnitDims",
         "@heir//lib/Transforms/ElementwiseToAffine",
         "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/ForwardStoreToLoad",
