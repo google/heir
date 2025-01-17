@@ -105,8 +105,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     }
 
     // skip secret generic op; we decide inside generic op block
-    if (!isa<secret::GenericOp>(op) &&
-        ensureSecretness(op->getResults(), solver)) {
+    if (!isa<secret::GenericOp>(op) && isSecret(op->getResults(), solver)) {
       auto decisionVar = model.AddBinaryVariable("InsertRelin_" + name);
       decisionVariables.insert(std::make_pair(op, decisionVar));
     }
@@ -116,7 +115,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     std::string varName = "Degree_" + name;
     for (Value result : op->getResults()) {
       // skip secret generic ops
-      if (isa<secret::GenericOp>(op) || !ensureSecretness(result, solver)) {
+      if (isa<secret::GenericOp>(op) || !isSecret(result, solver)) {
         continue;
       }
 
@@ -143,7 +142,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     for (Region &region : op->getRegions()) {
       for (Block &block : region.getBlocks()) {
         for (BlockArgument arg : block.getArguments()) {
-          if (!ensureSecretness(arg, solver)) {
+          if (!isSecret(arg, solver)) {
             continue;
           }
 
@@ -225,7 +224,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
         .Case<tensor_ext::RotateOp, secret::YieldOp>([&](auto op) {
           for (Value operand : op->getOperands()) {
             // skip non secret argument
-            if (!ensureSecretness(operand, solver)) {
+            if (!isSecret(operand, solver)) {
               continue;
             }
             if (!keyBasisVars.contains(operand)) {
@@ -248,12 +247,11 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     llvm::TypeSwitch<Operation &>(*op)
         .Case<arith::MulIOp, arith::MulFOp>([&](auto op) {
           // if plain mul, skip
-          if (!ensureSecretness(op.getResult(), solver)) {
+          if (!isSecret(op.getResult(), solver)) {
             return;
           }
           // ct-ct mul
-          if (ensureSecretness(op.getLhs(), solver) &&
-              ensureSecretness(op.getRhs(), solver)) {
+          if (isSecret(op.getLhs(), solver) && isSecret(op.getRhs(), solver)) {
             auto lhsDegreeVar = keyBasisVars.at(op.getLhs());
             auto rhsDegreeVar = keyBasisVars.at(op.getRhs());
             auto resultBeforeRelinVar = beforeRelinVars.at(op.getResult());
@@ -302,7 +300,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           if (isa<secret::GenericOp>(op)) {
             return;
           }
-          if (!ensureSecretness(op.getResults(), solver)) {
+          if (!isSecret(op.getResults(), solver)) {
             return;
           }
           SmallVector<OpOperand *, 4> secretOperands;
@@ -343,7 +341,7 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     if (isa<secret::GenericOp>(op)) {
       return;
     }
-    if (!ensureSecretness(op->getResults(), solver)) {
+    if (!isSecret(op->getResults(), solver)) {
       return;
     }
 

@@ -84,7 +84,7 @@ static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
       if (op->getNumResults() == 0) {
         return;
       }
-      if (!ensureSecretness(op->getResult(0), solver)) {
+      if (!isSecret(op->getResult(0), solver)) {
         return;
       }
       // ensure result is secret
@@ -121,7 +121,7 @@ void annotateLevel(Operation *top, DataFlowSolver *solver) {
       if (op->getNumResults() == 0) {
         return;
       }
-      if (!ensureSecretness(op->getResult(0), solver)) {
+      if (!isSecret(op->getResult(0), solver)) {
         return;
       }
       auto level = getLevel(op->getResult(0));

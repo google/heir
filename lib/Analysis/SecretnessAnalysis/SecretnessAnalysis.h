@@ -133,7 +133,7 @@ class SecretnessAnalysisDependent {
    * @return true if the value is secret, false if the secretness of the value
    * is unknown or false.
    */
-  bool ensureSecretness(Operation *op, Value value) {
+  bool isSecretInternal(Operation *op, Value value) {
     // create dependency on SecretnessAnalysis
     auto *lattice =
         getChildAnalysis()->template getOrCreateFor<SecretnessLattice>(
@@ -157,7 +157,7 @@ class SecretnessAnalysisDependent {
   void getSecretResults(Operation *op,
                         SmallVectorImpl<OpResult> &secretResults) {
     for (const auto &result : op->getOpResults()) {
-      if (ensureSecretness(op, result)) {
+      if (isSecretInternal(op, result)) {
         secretResults.push_back(result);
       }
     }
@@ -176,7 +176,7 @@ class SecretnessAnalysisDependent {
   void getSecretOperands(Operation *op,
                          SmallVectorImpl<OpOperand *> &secretOperands) {
     for (auto &operand : op->getOpOperands()) {
-      if (ensureSecretness(op, operand.get())) {
+      if (isSecretInternal(op, operand.get())) {
         secretOperands.push_back(&operand);
       }
     }
@@ -188,9 +188,9 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver);
 
 // this method is used when DataFlowSolver has finished running the secretness
 // analysis
-bool ensureSecretness(Value value, DataFlowSolver *solver);
+bool isSecret(Value value, DataFlowSolver *solver);
 
-bool ensureSecretness(ValueRange values, DataFlowSolver *solver);
+bool isSecret(ValueRange values, DataFlowSolver *solver);
 
 void getSecretOperands(Operation *op,
                        SmallVectorImpl<OpOperand *> &secretOperands,

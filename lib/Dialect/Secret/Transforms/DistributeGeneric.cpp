@@ -171,7 +171,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // Ensure that the loop bound operands are also validated. If they are
       // secret types, then return a failure - we cannot distribute through a
       // loop with secret bounds.
-      auto isSecret = [&](OpFoldResult v) {
+      auto hasSecretType = [&](OpFoldResult v) {
         if (auto value = dyn_cast<Value>(v)) {
           if (auto *genericOperand =
                   genericOp.getOpOperandForBlockArgument(value)) {
@@ -183,9 +183,9 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
         return false;
       };
       if ((loop.getLoopLowerBounds().has_value() &&
-           llvm::any_of(loop.getLoopLowerBounds().value(), isSecret)) ||
+           llvm::any_of(loop.getLoopLowerBounds().value(), hasSecretType)) ||
           (loop.getLoopUpperBounds().has_value() &&
-           llvm::any_of(loop.getLoopUpperBounds().value(), isSecret))) {
+           llvm::any_of(loop.getLoopUpperBounds().value(), hasSecretType))) {
         LLVM_DEBUG(genericOp.emitRemark()
                    << "cannot distribute through a LoopLikeInterface with "
                       "secret bounds");
@@ -200,15 +200,12 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       DenseMap<Value, Value> newInitsToOperands;
       for (auto [operand, blockArg] : llvm::zip(
                clonedLoop.getInitsMutable(), clonedLoop.getRegionIterArgs())) {
-        auto yieldedIterValue = clonedLoop.getTiedLoopYieldedValue(blockArg);
+        auto *yieldedIterValue = clonedLoop.getTiedLoopYieldedValue(blockArg);
         if (isa<SecretType>(operand.get().getType())) {
           blockArg.setType(operand.get().getType());
-        } else if (solver
-                       ->lookupState<SecretnessLattice>(
-                           loop.getYieldedValues()[yieldedIterValue
-                                                       ->getOperandNumber()])
-                       ->getValue()
-                       .getSecretness() &&
+        } else if (isSecret(loop.getYieldedValues()[yieldedIterValue
+                                                        ->getOperandNumber()],
+                            solver) &&
                    !isa<SecretType>(operand.get().getType())) {
           // The initial value of an iter_arg yielded by the original loop must
           // be promoted to a secret and added to the new generic's operands if

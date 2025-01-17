@@ -108,7 +108,7 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
       if (op->getNumResults() == 0) {
         return;
       }
-      if (!ensureSecretness(op->getResult(0), solver)) {
+      if (!isSecret(op->getResult(0), solver)) {
         return;
       }
       op->setAttr("dimension",
