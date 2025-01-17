@@ -84,4 +84,6 @@ def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext"> {
   let nameSuggestion = "ct";
 }
 
+def Lattigo_RLWECiphertextOrPlaintext : AnyTypeOf<[Lattigo_RLWECiphertext, Lattigo_RLWEPlaintext]>;
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGORLWETYPES_TD_

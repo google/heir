@@ -18,10 +18,36 @@ typedef std::function<bool(Operation *)> OpPredicate;
 typedef std::function<LogicalResult(const Type &)> IsValidTypeFn;
 typedef std::function<LogicalResult(const Value &)> IsValidValueFn;
 
+typedef std::function<bool(const Type &)> TypePredicate;
+
+typedef std::function<bool(Dialect *)> DialectPredicate;
+
+template <typename... OpTys>
+OpPredicate OpEqual() {
+  return [](Operation *op) { return mlir::isa<OpTys...>(op); };
+}
+
+template <typename... TypeTys>
+TypePredicate TypeEqual() {
+  return [](const Type &type) { return mlir::isa<TypeTys...>(type); };
+}
+
+template <typename... DialectTys>
+DialectPredicate DialectEqual() {
+  return [](Dialect *dialect) { return mlir::isa<DialectTys...>(dialect); };
+}
+
 // Walks the given op, applying the predicate to traversed ops until the
 // predicate returns true, then returns the operation that matched, or
 // nullptr if there were no matches.
 Operation *walkAndDetect(Operation *op, OpPredicate predicate);
+
+// specialization for detecting a specific operation type
+template <typename... OpTys>
+bool containsAnyOperations(Operation *op) {
+  Operation *foundOp = walkAndDetect(op, OpEqual<OpTys...>());
+  return foundOp != nullptr;
+}
 
 /// Apply isValidType to the operands and results, returning an appropriate
 /// logical result.
@@ -61,9 +87,18 @@ LogicalResult walkAndValidateTypes(
 template <typename... Dialects>
 bool containsDialects(Operation *op) {
   Operation *foundOp = walkAndDetect(op, [&](Operation *op) {
-    return llvm::isa<Dialects...>(op->getDialect());
+    return DialectEqual<Dialects...>()(op->getDialect());
   });
   return foundOp != nullptr;
+}
+
+// Returns true if the op contains argument values of the given type.
+// NOTE: any_of instead of all_of
+bool containsArgumentOfType(Operation *op, TypePredicate predicate);
+
+template <typename... TypeTys>
+bool containsArgumentOfType(Operation *op) {
+  return containsArgumentOfType(op, TypeEqual<TypeTys...>());
 }
 
 }  // namespace heir

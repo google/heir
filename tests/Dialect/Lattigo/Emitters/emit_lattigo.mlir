@@ -34,14 +34,14 @@
 
 module {
   // CHECK-LABEL: func compute
-  // CHECK-SAME: ([[v0:.*]] *bgv.Evaluator, [[v1:.*]] *rlwe.Ciphertext, [[v2:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
-  // CHECK: [[v3:ct.*]], [[err:.*]] := [[v0]].AddNew([[v1]], [[v2]])
-  // CHECK: [[v4:ct.*]], [[err:.*]] := [[v0]].MulNew([[v3]], [[v2]])
-  // CHECK: [[v5:ct.*]], [[err:.*]] := [[v0]].RelinearizeNew([[v4]])
-  // CHECK: [[err:.*]] := [[v0]].Rescale([[v5]], [[v5]])
-  // CHECK: [[v6:ct.*]] := [[v5]]
-  // CHECK: [[v7:ct.*]], [[err:.*]] := [[v0]].RotateColumnsNew([[v6]], 1)
-  // CHECK: return [[v7]]
+  // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext, [[ct1:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
+  // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[evaluator]].AddNew([[ct]], [[ct1]])
+  // CHECK: [[ct3:[^, ].*]], [[err:.*]] := [[evaluator]].MulNew([[ct2]], [[ct1]])
+  // CHECK: [[ct4:[^, ].*]], [[err:.*]] := [[evaluator]].RelinearizeNew([[ct3]])
+  // CHECK: [[err:.*]] := [[evaluator]].Rescale([[ct4]], [[ct4]])
+  // CHECK: [[ct5:[^, ].*]] := [[ct4]]
+  // CHECK: [[ct6:[^, ].*]], [[err:.*]] := [[evaluator]].RotateColumnsNew([[ct5]], 1)
+  // CHECK: return [[ct6]]
   func.func @compute(%evaluator : !evaluator, %ct1 : !ct, %ct2 : !ct) -> (!ct) {
     %added = lattigo.bgv.add %evaluator, %ct1, %ct2 : (!evaluator, !ct, !ct) -> !ct
     %mul = lattigo.bgv.mul %evaluator, %added, %ct2 : (!evaluator, !ct, !ct) -> !ct
@@ -52,36 +52,39 @@ module {
   }
 
   // CHECK-LABEL: func test_basic_emitter
-  // CHECK: [[param:param.*]], [[err:.*]] := bgv.NewParametersFromLiteral
+  // CHECK: [[param:[^, ].*]], [[err:.*]] := bgv.NewParametersFromLiteral
   // CHECK: bgv.ParametersLiteral
   // CHECK: LogN
   // CHECK: LogQ
   // CHECK: LogP
   // CHECK: PlaintextModulus
-  // CHECK: [[encoder:encoder.*]] := bgv.NewEncoder([[param]])
-  // CHECK: [[kgen:kgen.*]] := rlwe.NewKeyGenerator([[param]])
-  // CHECK: [[sk:sk.*]], [[pk:.*]] := [[kgen]].GenKeyPairNew()
-  // CHECK: [[rk:rk.*]] := [[kgen]].GenRelinearizationKeyNew([[sk]])
-  // CHECK: [[gk5:gk.*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
-  // CHECK: [[evalKeySet:ekset.*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
-  // CHECK: [[enc:enc.*]] := rlwe.NewEncryptor([[param]], [[pk]])
-  // CHECK: [[dec:dec.*]] := rlwe.NewDecryptor([[param]], [[sk]])
-  // CHECK: [[eval:eval.*]] := bgv.NewEvaluator([[param]], [[evalKeySet]])
-  // CHECK: [[value1:v.*]] := []int64
-  // CHECK: [[value2:v.*]] := []int64
-  // CHECK: [[pt1:pt.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
-  // CHECK: [[pt2:pt.*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
-  // CHECK: [[encoder]].Encode([[value1]], [[pt1]])
-  // CHECK: [[pt3:pt.*]] := [[pt1]]
-  // CHECK: [[encoder]].Encode([[value2]], [[pt2]])
-  // CHECK: [[pt4:pt.*]] := [[pt2]]
-  // CHECK: [[ct1:ct.*]], [[err:.*]] := [[enc]].EncryptNew([[pt3]])
-  // CHECK: [[ct2:ct.*]], [[err:.*]] := [[enc]].EncryptNew([[pt4]])
-  // CHECK: [[res:ct.*]] := compute([[eval]], [[ct1]], [[ct2]])
-  // CHECK: [[pt5:pt.*]] := [[dec]].DecryptNew([[res]])
-  // CHECK: [[value3:v.*]] := []int64
+  // CHECK: [[encoder:[^, ].*]] := bgv.NewEncoder([[param]])
+  // CHECK: [[kgen:[^, ].*]] := rlwe.NewKeyGenerator([[param]])
+  // CHECK: [[sk:[^, ].*]], [[pk:[^, ].*]] := [[kgen]].GenKeyPairNew()
+  // CHECK: [[rk:[^, ].*]] := [[kgen]].GenRelinearizationKeyNew([[sk]])
+  // CHECK: [[gk5:[^, ].*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
+  // CHECK: [[evalKeySet:[^, ].*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
+  // CHECK: [[enc:[^, ].*]] := rlwe.NewEncryptor([[param]], [[pk]])
+  // CHECK: [[dec:[^, ].*]] := rlwe.NewDecryptor([[param]], [[sk]])
+  // CHECK: [[eval:[^, ].*]] := bgv.NewEvaluator([[param]], [[evalKeySet]])
+  // CHECK: [[value1:[^, ].*]] := []int64
+  // CHECK: [[value2:[^, ].*]] := []int64
+  // CHECK: [[pt1:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
+  // CHECK: [[pt2:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
+  // CHECK: [[value1Packed:[^, ].*]][i] = int64([[value1]][i % len([[value1]])])
+  // CHECK: [[encoder]].Encode([[value1Packed]], [[pt1]])
+  // CHECK: [[pt3:[^, ].*]] := [[pt1]]
+  // CHECK: [[value2Packed:[^, ].*]][i] = int64([[value2]][i % len([[value2]])])
+  // CHECK: [[encoder]].Encode([[value2Packed]], [[pt2]])
+  // CHECK: [[pt4:[^, ].*]] := [[pt2]]
+  // CHECK: [[ct1:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt3]])
+  // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt4]])
+  // CHECK: [[res:[^, ].*]] := compute([[eval]], [[ct1]], [[ct2]])
+  // CHECK: [[pt5:[^, ].*]] := [[dec]].DecryptNew([[res]])
+  // CHECK: [[value3:[^, ].*]] := []int64
   // CHECK: [[encoder]].Decode([[pt5]], [[value3]])
-  // CHECK: [[value4:v.*]] := [[value3]]
+  // CHECK: [[value3Converted:[^, ].*]][i] = int64([[value3]][i])
+  // CHECK: [[value4:[^, ].*]] := [[value3Converted]]
   func.func @test_basic_emitter() -> () {
     %param = lattigo.bgv.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
     %encoder = lattigo.bgv.new_encoder %param : (!params) -> !encoder

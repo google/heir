@@ -14,12 +14,12 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/BGV/IR:Dialect",
-        # "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/RlweToLattigo",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",

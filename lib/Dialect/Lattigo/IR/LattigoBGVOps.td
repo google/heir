@@ -97,7 +97,7 @@ class Lattigo_BGVBinaryOp<string mnemonic> :
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$lhs,
-    Lattigo_RLWECiphertext:$rhs
+    Lattigo_RLWECiphertextOrPlaintext:$rhs
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }

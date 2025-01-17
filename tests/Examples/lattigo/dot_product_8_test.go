@@ -1,4 +1,4 @@
-package binops
+package dotproduct8
 
 import (
 	"testing"
@@ -29,27 +29,30 @@ func TestBinops(t *testing.T) {
 	enc := rlwe.NewEncryptor(params, sk)
 	dec := rlwe.NewDecryptor(params, sk)
 	relinKeys := kgen.GenRelinearizationKeyNew(sk)
-	galKey := kgen.GenGaloisKeyNew(5, sk)
-	evalKeys := rlwe.NewMemEvaluationKeySet(relinKeys, galKey)
+	// 5^7 % (2^14) = 12589
+	galKey12589 := kgen.GenGaloisKeyNew(12589, sk)
+	// 5^4 = 625
+	galKey625 := kgen.GenGaloisKeyNew(625, sk)
+	// 5^2 = 25
+	galKey25 := kgen.GenGaloisKeyNew(25, sk)
+	// 5^1 = 5
+	galKey5 := kgen.GenGaloisKeyNew(5, sk)
+	evalKeys := rlwe.NewMemEvaluationKeySet(relinKeys, galKey5, galKey25, galKey625, galKey12589)
 	evaluator := bgv.NewEvaluator(params, evalKeys /*scaleInvariant=*/, false)
 
 	// Vector of plaintext values
-	// 0, 1, 2, 3
-	arg0 := []int16{0, 1, 2, 3}
-	// 1, 2, 3, 4
-	arg1 := []int16{1, 2, 3, 4}
+	arg0 := []int16{1, 2, 3, 4, 5, 6, 7, 8}
+	arg1 := []int16{2, 3, 4, 5, 6, 7, 8, 9}
 
-	expected := []int16{6, 15, 28, 1}
+	expected := int16(240)
 
-	ct0, ct1 := add__encrypt(evaluator, params, ecd, enc, arg0, arg1)
+	ct0, ct1 := dot_product__encrypt(evaluator, params, ecd, enc, arg0, arg1)
 
-	resultCt := add(evaluator, params, ecd, ct0, ct1)
+	resultCt := dot_product(evaluator, params, ecd, ct0, ct1)
 
-	result := add__decrypt(evaluator, params, ecd, dec, resultCt)
+	result := dot_product__decrypt(evaluator, params, ecd, dec, resultCt)
 
-	for i := range 4 {
-		if result[i] != expected[i] {
-			t.Errorf("Decryption error at index %d: %d != %d", i, result[i], expected[i])
-		}
+	if result != expected {
+		t.Errorf("Decryption error %d != %d", result, expected)
 	}
 }

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
+#include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
@@ -241,6 +242,38 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
     configureCryptoContextOptions.entryFunction = options.entryFunction;
     pm.addPass(
         openfhe::createConfigureCryptoContext(configureCryptoContextOptions));
+  };
+}
+
+RLWEPipelineBuilder mlirToLattigoRLWEPipelineBuilder(const RLWEScheme scheme) {
+  return [=](OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
+    // lower to RLWE scheme
+    MlirToRLWEPipelineOptions overrideOptions;
+    overrideOptions.entryFunction = options.entryFunction;
+    overrideOptions.ciphertextDegree = options.ciphertextDegree;
+    overrideOptions.modulusSwitchBeforeFirstMul =
+        options.modulusSwitchBeforeFirstMul;
+    // use simpler client interface for Lattigo
+    overrideOptions.usePublicKey = false;
+    overrideOptions.oneValuePerHelperFn = false;
+    mlirToRLWEPipeline(pm, overrideOptions, scheme);
+
+    // Convert to (common trivial subset of) LWE
+    switch (scheme) {
+      case RLWEScheme::bgvScheme: {
+        // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
+        pm.addPass(bgv::createBGVToLWE());
+        pm.addPass(bgv::createBGVToLattigo());
+        break;
+      }
+      default:
+        llvm::errs() << "Unsupported RLWE scheme: " << scheme;
+        exit(EXIT_FAILURE);
+    }
+
+    // Simplify, in case the lowering revealed redundancy
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
   };
 }
 

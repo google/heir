@@ -60,6 +60,8 @@ RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 
 RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(RLWEScheme scheme);
 
+RLWEPipelineBuilder mlirToLattigoRLWEPipelineBuilder(RLWEScheme scheme);
+
 void registerTosaToArithPipeline();
 
 }  // namespace mlir::heir
