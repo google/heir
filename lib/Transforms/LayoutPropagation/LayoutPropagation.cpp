@@ -131,7 +131,9 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
         // Layout of the result is the same as the target layout of the
         // conversion. Mostly this is done for consistency: all ops have an
         // attribute describing the layout of their results.
-        convertOp->setAttr("layout", AffineMapAttr::get(targetLayout.value()));
+        OpBuilder builder(&getContext());
+        assignedLayouts.insert({convertOp.getResult(), targetLayout.value()});
+        setResultLayoutAttr(convertOp);
         op->setOperand(operandLayout.index, convertOp.getResult());
       }
     }
@@ -154,7 +156,7 @@ LogicalResult LayoutPropagation::visitOperation(func::FuncOp op) {
       return failure();
     }
     debugAssignLayout(arg, layout.value());
-    assignedLayouts.insert(std::make_pair(arg, layout.value()));
+    assignedLayouts.insert({arg, layout.value()});
 
     // FuncOp requires arg attributes are defined as dialect attributes,
     // so we can't use an AffineMapAttr here.
@@ -176,7 +178,7 @@ LogicalResult LayoutPropagation::visitOperation(GenericOp op) {
     AffineMap layout = assignedLayouts[operand.get()];
     BlockArgument blockArg =
         op.getRegion().getArgument(operand.getOperandNumber());
-    assignedLayouts.insert(std::make_pair(blockArg, layout));
+    assignedLayouts.insert({blockArg, layout});
     op.setArgAttr(operand.getOperandNumber(), "layout",
                   AffineMapAttr::get(layout));
     debugAssignLayout(operand.get(), layout);
@@ -197,7 +199,7 @@ LogicalResult LayoutPropagation::visitOperation(YieldOp op) {
     }
     AffineMap layout = assignedLayouts[operand.get()];
     Value result = generic.getResult(operand.getOperandNumber());
-    assignedLayouts.insert(std::make_pair(result, layout));
+    assignedLayouts.insert({result, layout});
     debugAssignLayout(result, layout);
   }
   setResultLayoutAttr(generic);
@@ -209,7 +211,7 @@ void LayoutPropagation::passLayoutThroughOp(Operation *op) {
   for (Value result : op->getResults()) {
     if (isa<RankedTensorType>(result.getType())) {
       AffineMap layout = assignedLayouts[op->getOperand(0)];
-      assignedLayouts.insert(std::make_pair(result, layout));
+      assignedLayouts.insert({result, layout});
       debugAssignLayout(result, layout);
     }
   }
@@ -242,7 +244,7 @@ LogicalResult LayoutPropagation::visitOperation(tensor_ext::SumOp op) {
   AffineMap resultLayout =
       projectDims(inputLayout, dimsBV, /*compressDims=*/true);
 
-  assignedLayouts.insert(std::make_pair(result, resultLayout));
+  assignedLayouts.insert({result, resultLayout});
   setResultLayoutAttr(op);
   debugAssignLayout(result, resultLayout);
   return success();
