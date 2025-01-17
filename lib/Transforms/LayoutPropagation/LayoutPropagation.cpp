@@ -135,7 +135,6 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
         op->setOperand(operandLayout.index, convertOp.getResult());
       }
     }
-    op->getParentOp()->dump();
   }
 
   return TypeSwitch<Operation *, LogicalResult>(op)
