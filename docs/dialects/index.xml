@@ -3991,7 +3991,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>or&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4123,7 +4123,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>or&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4477,7 +4477,7 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>or&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
