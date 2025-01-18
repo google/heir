@@ -11,11 +11,13 @@ cc_library(
     hdrs = ["LayoutPropagation.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",

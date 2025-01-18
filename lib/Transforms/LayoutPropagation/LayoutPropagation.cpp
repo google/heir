@@ -1,23 +1,32 @@
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"    // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"  // from @llvm-project
 
 #define DEBUG_TYPE "layout-propagation"
 
 namespace mlir {
 namespace heir {
 
+using linalg::VecmatOp;
 using ::mlir::arith::AddIOp;
 using ::mlir::arith::MulIOp;
 using secret::GenericOp;
 using secret::SecretType;
 using secret::YieldOp;
+using tensor::CollapseShapeOp;
+using tensor::EmptyOp;
 using tensor_ext::ConvertLayoutOp;
 using tensor_ext::LayoutAttr;
 using tensor_ext::SumOp;
@@ -33,12 +42,15 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(Operation *op);
 
   // Op-specific transfer functions
-  LogicalResult visitOperation(func::FuncOp op);
   LogicalResult visitOperation(AddIOp op);
-  LogicalResult visitOperation(MulIOp op);
+  LogicalResult visitOperation(CollapseShapeOp op);
+  LogicalResult visitOperation(EmptyOp op);
   LogicalResult visitOperation(GenericOp op);
-  LogicalResult visitOperation(YieldOp op);
+  LogicalResult visitOperation(MulIOp op);
   LogicalResult visitOperation(SumOp op);
+  LogicalResult visitOperation(VecmatOp op);
+  LogicalResult visitOperation(YieldOp op);
+  LogicalResult visitOperation(func::FuncOp op);
 
   // Return the default layout for a given type
   FailureOr<AffineMap> defaultLayoutForType(Type type);
@@ -53,6 +65,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   void runOnOperation() override;
 
   DenseMap<Value, AffineMap> assignedLayouts;
+  DataFlowSolver *solver;
 };
 
 void visitDebugInfo(Operation *op) {
@@ -73,16 +86,24 @@ struct OperandLayout {
 
 LogicalResult LayoutPropagation::visitOperation(Operation *op) {
   visitDebugInfo(op);
+
+  if (!isSecret(op->getOperands(), solver) &&
+      !isSecret(op->getResults(), solver)) {
+    LLVM_DEBUG(llvm::dbgs() << "Skipping op " << op->getName()
+                            << " with no secret operands or results\n");
+    return success();
+  }
+
   mlir::IRRewriter builder(&getContext());
   // When the operands have different layout attributes, it is invalid
   // to apply the op, and we must insert layout conversion ops.
   SmallVector<OperandLayout> layouts;
   bool disagreeingLayouts = false;
-
   std::optional<AffineMap> targetLayout;
 
   for (auto &operand : op->getOpOperands()) {
     if (isa<RankedTensorType>(operand.get().getType())) {
+      // FIXME: ciphertext-plaintext ops should be supported here
       if (assignedLayouts.count(operand.get()) == 0) {
         // If the operand has no layout, we can't propagate layout
         // information to the result.
@@ -141,9 +162,17 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
 
   return TypeSwitch<Operation *, LogicalResult>(op)
       .Case<func::FuncOp>([&](auto op) { return visitOperation(op); })
+      // arith ops
       .Case<AddIOp, MulIOp>([&](auto op) { return visitOperation(op); })
+      // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
+      // tensor_ext ops
       .Case<SumOp>([&](auto op) { return visitOperation(op); })
+      // linalg ops
+      .Case<VecmatOp>([&](auto op) { return visitOperation(op); })
+      // tensor ops
+      .Case<CollapseShapeOp, EmptyOp>(
+          [&](auto op) { return visitOperation(op); })
       .Default([&](Operation *op) { return success(); });
 }
 
@@ -218,17 +247,91 @@ void LayoutPropagation::passLayoutThroughOp(Operation *op) {
   setResultLayoutAttr(op);
 }
 
-LogicalResult LayoutPropagation::visitOperation(arith::AddIOp op) {
+LogicalResult LayoutPropagation::visitOperation(EmptyOp op) {
+  // Empty ops can take any layout, but to start they are implemented to have
+  // row-major layouts. But if a later pass back-propagates a layout from a
+  // later op, an EmptyOp can trivially take on that changed layout.
+  Value result = op.getResult();
+  FailureOr<AffineMap> layout = defaultLayoutForType(result.getType());
+  if (failed(layout)) {
+    return failure();
+  }
+  debugAssignLayout(result, layout.value());
+  assignedLayouts.insert({result, layout.value()});
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
+  // Only support rank-reduced types for now, i.e., where the collapsed
+  // shape only removes static dimensions of size 1.
+  SliceVerificationResult res =
+      isRankReducedType(op.getSrcType(), op.getResultType());
+  if (res != SliceVerificationResult::Success)
+    return op->emitError(
+        "Only rank-reduced types are supported for CollapseShapeOp");
+
+  auto tensor = op.getSrc();
+  AffineMap inputLayout = assignedLayouts[tensor];
+  unsigned numDims = tensor.getType().getRank();
+  llvm::SmallBitVector dimsBV(numDims, false);
+
+  for (Attribute associationGroup : op.getReassociation()) {
+    auto associationArray = dyn_cast<ArrayAttr>(associationGroup).getValue();
+    // a single-entry association group is a no-op
+    if (associationArray.size() == 1) {
+      continue;
+    }
+    for (Attribute association : associationArray) {
+      int64_t reassocDim = cast<IntegerAttr>(association).getInt();
+      if (op.getSrcType().getShape()[reassocDim] == 1) dimsBV.set(reassocDim);
+    }
+  }
+
+  AffineMap resultLayout =
+      projectDims(inputLayout, dimsBV, /*compressDims=*/true);
+  assignedLayouts.insert({op.getResult(), resultLayout});
+  setResultLayoutAttr(op);
+  debugAssignLayout(op.getResult(), resultLayout);
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
+  auto vecmatOp = cast<linalg::ContractionOpInterface>(op);
+  auto vec = vecmatOp.lhs();
+  auto mat = vecmatOp.rhs();
+  // always one result
+  auto result = vecmatOp->getResult(0);
+
+  // Currently only support secret vectors and plaintext matrices.
+  if (isSecret(mat) || !isSecret(vec)) {
+    return op->emitError(
+        "Only secret vectors and plaintext matrices are "
+        "supported for linalg.vecmat");
+  }
+
+  AffineMap vecLayout = assignedLayouts[vec];
+  // The matrix has no assigned layout because it is not secret.
+
+  // The output layout is the same as the input vector layout.
+  AffineMap resultLayout = vecLayout;
+
+  assignedLayouts.insert({result, resultLayout});
+  setResultLayoutAttr(op);
+  debugAssignLayout(result, resultLayout);
+  return success();
+}
+
+LogicalResult LayoutPropagation::visitOperation(AddIOp op) {
   passLayoutThroughOp(op);
   return success();
 }
 
-LogicalResult LayoutPropagation::visitOperation(arith::MulIOp op) {
+LogicalResult LayoutPropagation::visitOperation(MulIOp op) {
   passLayoutThroughOp(op);
   return success();
 }
 
-LogicalResult LayoutPropagation::visitOperation(tensor_ext::SumOp op) {
+LogicalResult LayoutPropagation::visitOperation(SumOp op) {
   unsigned dimToSum = op.getDim().getZExtValue();
   Value tensor = op.getTensor();
   Value result = op.getOutput();
@@ -294,8 +397,16 @@ void LayoutPropagation::setResultLayoutAttr(Operation *op) {
 }
 
 void LayoutPropagation::runOnOperation() {
-  MLIRContext *context = &getContext();
-  RewritePatternSet patterns(context);
+  DataFlowSolver solver;
+  solver.load<dataflow::DeadCodeAnalysis>();
+  solver.load<dataflow::SparseConstantPropagation>();
+  solver.load<SecretnessAnalysis>();
+  if (failed(solver.initializeAndRun(getOperation()))) {
+    getOperation()->emitOpError() << "Failed to run secretness analysis.\n";
+    signalPassFailure();
+    return;
+  }
+  this->solver = &solver;
 
   LLVM_DEBUG(llvm::dbgs() << "Running layout propagation on operation: "
                           << getOperation()->getName() << "\n");
