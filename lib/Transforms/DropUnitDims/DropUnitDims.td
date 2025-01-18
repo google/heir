@@ -3,6 +3,7 @@
 
 include "mlir/Pass/PassBase.td"
 
+// FIXME: Upstream this pass (cf. https://github.com/llvm/llvm-project/pull/95710#issuecomment-2599301921)
 def DropUnitDims : Pass<"drop-unit-dims"> {
   let summary = "Drops unit dimensions from linalg ops.";
   let description = [{
