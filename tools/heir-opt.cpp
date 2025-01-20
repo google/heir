@@ -23,6 +23,7 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/Passes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
+#include "lib/Dialect/Lattigo/Transforms/Passes.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/Transforms/Passes.h"
@@ -251,6 +252,7 @@ int main(int argc, char **argv) {
 
   // Custom passes in HEIR
   cggi::registerCGGIPasses();
+  lattigo::registerLattigoPasses();
   lwe::registerLWEPasses();
   mgmt::registerMgmtPasses();
   openfhe::registerOpenfhePasses();

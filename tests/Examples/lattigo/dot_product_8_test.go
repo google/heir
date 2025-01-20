@@ -2,43 +2,10 @@ package dotproduct8
 
 import (
 	"testing"
-
-	"github.com/tuneinsight/lattigo/v6/core/rlwe"
-	"github.com/tuneinsight/lattigo/v6/schemes/bgv"
 )
 
 func TestBinops(t *testing.T) {
-	var err error
-	var params bgv.Parameters
-
-	// 128-bit secure parameters enabling depth-7 circuits.
-	// LogN:14, LogQP: 431.
-	if params, err = bgv.NewParametersFromLiteral(
-		bgv.ParametersLiteral{
-			LogN:             14,                                    // log2(ring degree)
-			LogQ:             []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
-			LogP:             []int{61},                             // log2(primes P) (auxiliary modulus)
-			PlaintextModulus: 0x10001,                               // log2(scale)
-		}); err != nil {
-		panic(err)
-	}
-
-	kgen := rlwe.NewKeyGenerator(params)
-	sk := kgen.GenSecretKeyNew()
-	ecd := bgv.NewEncoder(params)
-	enc := rlwe.NewEncryptor(params, sk)
-	dec := rlwe.NewDecryptor(params, sk)
-	relinKeys := kgen.GenRelinearizationKeyNew(sk)
-	// 5^7 % (2^14) = 12589
-	galKey12589 := kgen.GenGaloisKeyNew(12589, sk)
-	// 5^4 = 625
-	galKey625 := kgen.GenGaloisKeyNew(625, sk)
-	// 5^2 = 25
-	galKey25 := kgen.GenGaloisKeyNew(25, sk)
-	// 5^1 = 5
-	galKey5 := kgen.GenGaloisKeyNew(5, sk)
-	evalKeys := rlwe.NewMemEvaluationKeySet(relinKeys, galKey5, galKey25, galKey625, galKey12589)
-	evaluator := bgv.NewEvaluator(params, evalKeys /*scaleInvariant=*/, false)
+	evaluator, params, ecd, enc, dec := dot_product__configure()
 
 	// Vector of plaintext values
 	arg0 := []int16{1, 2, 3, 4, 5, 6, 7, 8}

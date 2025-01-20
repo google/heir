@@ -24,6 +24,29 @@ LogicalResult BGVDecodeOp::verify() {
   return success();
 }
 
+LogicalResult RLWENewEvaluationKeySetOp::verify() {
+  if (getKeys().empty()) {
+    return emitError("must have at least one key");
+  }
+
+  // 0 or 1 relin key + 0 or more galois keys
+  auto galoisKeyIndex = 0;
+  auto firstKey = getKeys()[0];
+  if (isa<RLWERelinearizationKeyType>(firstKey.getType())) {
+    galoisKeyIndex = 1;
+  }
+
+  for (auto key : getKeys().drop_front(galoisKeyIndex)) {
+    if (!isa<RLWEGaloisKeyType>(key.getType())) {
+      if (isa<RLWERelinearizationKeyType>(key.getType())) {
+        return emitError("RLWERelinearizationKey must be the first key");
+      }
+      return emitError("key must be of type RLWEGaloisKey");
+    }
+  }
+  return success();
+}
+
 }  // namespace lattigo
 }  // namespace heir
 }  // namespace mlir

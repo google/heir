@@ -54,6 +54,8 @@ cc_binary(
         "@heir//lib/Dialect/LWE/Transforms",
         "@heir//lib/Dialect/LWE/Transforms:AddClientInterface",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@heir//lib/Dialect/Lattigo/Transforms",
+        "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/Transforms",

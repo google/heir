@@ -134,3 +134,28 @@ func.func @test_constant() -> () {
   %dense = arith.constant dense<2> : tensor<4xi32>
   return
 }
+
+// -----
+
+!rk = !lattigo.rlwe.relinearization_key
+!gk = !lattigo.rlwe.galois_key<galoisElement = 5>
+!ekset = !lattigo.rlwe.evaluation_key_set
+
+// CHECK-LABEL: test_new_evaluation_key_set_no_relin_key
+// CHECK: rlwe.NewMemEvaluationKeySet(nil, [[gk:[^, ].*]])
+func.func @test_new_evaluation_key_set_no_relin_key(%gk : !gk) -> (!ekset) {
+  %ekset = lattigo.rlwe.new_evaluation_key_set %gk : (!gk) -> !ekset
+  return %ekset : !ekset
+}
+
+// -----
+
+!params = !lattigo.bgv.parameter
+!evaluator = !lattigo.bgv.evaluator
+
+// CHECK-LABEL: test_new_evaluator_no_key_set
+// CHECK: bgv.NewEvaluator([[params:[^, ].*]], nil)
+func.func @test_new_evaluator_no_key_set(%params : !params) -> (!evaluator) {
+  %evaluator = lattigo.bgv.new_evaluator %params : (!params) -> !evaluator
+  return %evaluator : !evaluator
+}

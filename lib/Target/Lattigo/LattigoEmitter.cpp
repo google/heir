@@ -213,12 +213,24 @@ LogicalResult LattigoEmitter::printOperation(RLWEGenGaloisKeyOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(RLWENewEvaluationKeySetOp op) {
-  // merge relinearization key and galois key into single value range
   SmallVector<Value, 4> keys;
-  keys.push_back(op.getRelinearizationKey());
-  for (auto key : op.getGaloisKeys()) {
+
+  // verifier ensures there must be at least one key
+  auto firstKey = op.getKeys()[0];
+  auto galoisKeyIndex = 0;
+  if (isa<RLWERelinearizationKeyType>(firstKey.getType())) {
+    keys.push_back(firstKey);
+    galoisKeyIndex = 1;
+  } else {
+    // no relinearization key, use empty Value for 'nil'
+    keys.push_back(Value());
+  }
+
+  // process galois keys
+  for (auto key : op.getKeys().drop_front(galoisKeyIndex)) {
     keys.push_back(key);
   }
+
   // EvaluationKeySet is an interface, so we need to use the concrete type
   return printNewMethod(op.getResult(), keys, "rlwe.NewMemEvaluationKeySet",
                         false);
@@ -240,15 +252,15 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEncoderOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
-  os << getName(op.getResult()) << " := " << "bgv.NewEvaluator(";
-  os << getName(op.getParams()) << ", ";
-  if (op.getEvaluationKeySet()) {
-    os << getName(op.getEvaluationKeySet());
+  SmallVector<Value, 2> operands;
+  operands.push_back(op.getParams());
+  if (auto ekset = op.getEvaluationKeySet()) {
+    operands.push_back(ekset);
   } else {
-    os << "nil";
+    // no evaluation key set, use empty Value for 'nil'
+    operands.push_back(Value());
   }
-  os << ")\n";
-  return success();
+  return printNewMethod(op.getResult(), operands, "bgv.NewEvaluator", false);
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {
