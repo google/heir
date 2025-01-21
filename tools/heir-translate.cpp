@@ -3,6 +3,7 @@
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
+// This comment includes internal emitters
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
 #include "lib/Target/TfheRustHL/TfheRustHLEmitter.h"
@@ -35,6 +36,8 @@ int main(int argc, char **argv) {
 
   // AutoHOG input
   mlir::heir::registerFromAutoHogTranslation();
+
+  // This comment inserts internal emitters
 
   return failed(mlir::mlirTranslateMain(argc, argv, "HEIR Translation Tool"));
 }
