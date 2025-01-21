@@ -3,6 +3,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -33,6 +34,28 @@ LogicalResult RotateOp::verify() {
                            << x;
     }
   }
+  return success();
+}
+
+LogicalResult ConvertLayoutOp::verify() {
+  int64_t rank = cast<RankedTensorType>(getTensor().getType()).getRank();
+  const AffineMap &fromLayout = getFromLayout().getValue();
+  const AffineMap &toLayout = getToLayout().getValue();
+
+  if (rank != fromLayout.getNumDims() || rank != toLayout.getNumDims()) {
+    std::string fromLayoutStr, toLayoutStr;
+    llvm::raw_string_ostream fromLayoutStream(fromLayoutStr),
+        toLayoutStream(toLayoutStr);
+    fromLayout.print(fromLayoutStream);
+    toLayout.print(toLayoutStream);
+
+    return emitOpError()
+           << "requires tensor rank to match the layout map's dimension count"
+              "but found rank "
+           << rank << " and maps " << fromLayoutStream.str() << " and "
+           << toLayoutStream.str();
+  }
+
   return success();
 }
 
