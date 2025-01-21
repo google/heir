@@ -13,6 +13,7 @@ cc_library(
     hdrs = ["HEIRInterfaces.h"],
     deps = [
         ":interfaces_inc_gen",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
     ],
 )

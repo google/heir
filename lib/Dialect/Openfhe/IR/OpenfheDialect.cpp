@@ -26,6 +26,17 @@ void OpenfheDialect::initialize() {
       >();
 }
 
+SmallVector<int32_t> RelinOp::getFromBasis() {
+  SmallVector<int32_t> fromBasis;
+  auto dimension = getCiphertext().getType().getCiphertextSpace().getSize();
+  for (int i = 0; i < dimension; i++) {
+    fromBasis.push_back(i);
+  }
+  return fromBasis;
+}
+
+int64_t RotOp::getRotationOffset() { return getIndex().getInt(); }
+
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

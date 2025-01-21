@@ -4,6 +4,7 @@
 include "OpenfheDialect.td"
 include "OpenfheTypes.td"
 
+include "lib/Dialect/HEIRInterfaces.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
@@ -207,14 +208,19 @@ def MulConstOp : Openfhe_Op<"mul_const",[
 
 def NegateOp : Openfhe_UnaryOp<"negate"> { let summary = "OpenFHE negate operation of a ciphertext."; }
 def SquareOp : Openfhe_UnaryOp<"square"> { let summary = "OpenFHE square operation of a ciphertext."; }
-def RelinOp : Openfhe_UnaryTypeSwitchOp<"relin"> { let summary = "OpenFHE relinearize operation of a ciphertext."; }
+def RelinOp : Openfhe_UnaryTypeSwitchOp<"relin", [
+  DeclareOpInterfaceMethods<RelinearizeOpInterface>
+]> {
+  let summary = "OpenFHE relinearize operation of a ciphertext.";
+}
 
 def ModReduceOp : Openfhe_UnaryTypeSwitchOp<"mod_reduce"> { let summary = "OpenFHE mod_reduce operation of a ciphertext. (used only for BGV/CKKS)"; }
 def LevelReduceOp : Openfhe_UnaryTypeSwitchOp<"level_reduce"> { let summary = "OpenFHE level_reduce operation of a ciphertext."; }
 
 def RotOp : Openfhe_Op<"rot",[
   Pure,
-  AllTypesMatch<["ciphertext", "output"]>
+  AllTypesMatch<["ciphertext", "output"]>,
+  DeclareOpInterfaceMethods<RotateOpInterface>
 ]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
