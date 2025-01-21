@@ -28,17 +28,15 @@ template <typename MulOp>
 LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
     MulOp mulOp, PatternRewriter &rewriter) const {
   Value result = mulOp.getResult();
-  auto secret = solver->lookupState<SecretnessLattice>(result)->getValue();
-  // if not secret, skip
-  if (!secret.isInitialized() || !secret.getSecretness()) {
+  bool secret = isSecret(result, solver);
+  if (!secret) {
     return success();
   }
 
   // if mul const, skip
   for (auto operand : mulOp.getOperands()) {
-    auto secretness =
-        solver->lookupState<SecretnessLattice>(operand)->getValue();
-    if (!secretness.isInitialized() || !secretness.getSecretness()) {
+    auto secret = isSecret(operand, solver);
+    if (!secret) {
       return success();
     }
   }
@@ -58,8 +56,8 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   // guard against secret::YieldOp
   if (op->getResults().size() > 0) {
     for (auto result : op->getResults()) {
-      auto secret = solver->lookupState<SecretnessLattice>(result)->getValue();
-      if (!secret.isInitialized() || !secret.getSecretness()) {
+      bool secret = isSecret(result, solver);
+      if (!secret) {
         return success();
       }
     }
@@ -82,12 +80,8 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   // use map in case we have same operands
   DenseMap<Value, LevelState::LevelType> operandsInsertLevel;
   for (auto operand : op.getOperands()) {
-    auto secretness =
-        solver->lookupState<SecretnessLattice>(operand)->getValue();
-    if (!secretness.isInitialized()) {
-      return failure();
-    }
-    if (!secretness.getSecretness()) {
+    bool secret = isSecret(operand, solver);
+    if (!secret) {
       continue;
     }
     auto levelLattice = solver->lookupState<LevelLattice>(operand)->getValue();

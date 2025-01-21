@@ -235,16 +235,8 @@ struct ConvertLinalgMatmul : public OpRewritePattern<mlir::linalg::MatmulOp> {
     // Determine if the left or right operand is secret to determine which
     // matrix to diagonalize, or if both are secret or both are public, then
     // return failure.
-    auto isSecret = [&](Value value) {
-      auto *operandLookup = solver->lookupState<SecretnessLattice>(value);
-      Secretness operandSecretness =
-          operandLookup ? operandLookup->getValue() : Secretness();
-      return (operandSecretness.isInitialized() &&
-              operandSecretness.getSecretness());
-    };
-
-    bool isLeftOperandSecret = isSecret(op.getInputs()[0]);
-    bool isRightOperandSecret = isSecret(op.getInputs()[1]);
+    bool isLeftOperandSecret = isSecret(op.getInputs()[0], solver);
+    bool isRightOperandSecret = isSecret(op.getInputs()[1], solver);
 
     LLVM_DEBUG({
       llvm::dbgs() << "Left operand is secret: " << isLeftOperandSecret << "\n"

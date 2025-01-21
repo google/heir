@@ -62,16 +62,7 @@ struct ConvertTosaSigmoid : public OpRewritePattern<mlir::tosa::SigmoidOp> {
 
   LogicalResult matchAndRewrite(mlir::tosa::SigmoidOp op,
                                 PatternRewriter &rewriter) const override {
-    auto isSecret = [&](Value value) {
-      auto *operandLookup = solver->lookupState<SecretnessLattice>(value);
-      Secretness operandSecretness =
-          operandLookup ? operandLookup->getValue() : Secretness();
-      return (operandSecretness.isInitialized() &&
-              operandSecretness.getSecretness());
-    };
-
-    // Do not support lowering for non-secret operands
-    bool operandIsSecret = isSecret(op.getOperand());
+    bool operandIsSecret = isSecret(op.getOperand(), solver);
     if (!operandIsSecret) {
       return failure();
     }

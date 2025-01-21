@@ -19,7 +19,7 @@ namespace heir {
 
 void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
   auto operand = lattice->getAnchor();
-  bool isSecret = isa<secret::SecretType>(operand.getType());
+  bool secretness = isa<secret::SecretType>(operand.getType());
 
   Operation *operation = nullptr;
   // Get defining operation for operand
@@ -34,7 +34,7 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
   if (auto genericOp = dyn_cast<secret::GenericOp>(*operation)) {
     if (OpOperand *genericOperand =
             genericOp.getOpOperandForBlockArgument(operand)) {
-      isSecret = isa<secret::SecretType>(genericOperand->get().getType());
+      secretness = isa<secret::SecretType>(genericOperand->get().getType());
     }
   }
 
@@ -48,7 +48,7 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
                 blockArgs.begin();
 
     // Check if it has secret type
-    isSecret = isa<secret::SecretType>(funcOp.getArgumentTypes()[index]);
+    secretness = isa<secret::SecretType>(funcOp.getArgumentTypes()[index]);
 
     // check if it is annotated as {secret.secret}
     auto attrs = funcOp.getArgAttrs();
@@ -56,8 +56,8 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
       auto arr = attrs->getValue();
       if (auto dictattr = dyn_cast<DictionaryAttr>(arr[index])) {
         for (auto attr : dictattr) {
-          isSecret =
-              isSecret ||
+          secretness =
+              secretness ||
               attr.getName() == secret::SecretDialect::kArgSecretAttrName.str();
           break;
         }
@@ -65,7 +65,7 @@ void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
     }
   }
 
-  propagateIfChanged(lattice, lattice->join(Secretness(isSecret)));
+  propagateIfChanged(lattice, lattice->join(Secretness(secretness)));
 }
 
 LogicalResult SecretnessAnalysis::visitOperation(
@@ -133,7 +133,7 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver) {
   });
 }
 
-bool ensureSecretness(Value value, DataFlowSolver *solver) {
+bool isSecret(Value value, DataFlowSolver *solver) {
   auto *lattice = solver->lookupState<SecretnessLattice>(value);
   if (!lattice) {
     return false;
@@ -144,20 +144,19 @@ bool ensureSecretness(Value value, DataFlowSolver *solver) {
   return lattice->getValue().getSecretness();
 }
 
-bool ensureSecretness(ValueRange values, DataFlowSolver *solver) {
+bool isSecret(ValueRange values, DataFlowSolver *solver) {
   if (values.empty()) {
     return false;
   }
-  return std::all_of(values.begin(), values.end(), [&](Value value) {
-    return ensureSecretness(value, solver);
-  });
+  return std::all_of(values.begin(), values.end(),
+                     [&](Value value) { return isSecret(value, solver); });
 }
 
 void getSecretOperands(Operation *op,
                        SmallVectorImpl<OpOperand *> &secretOperands,
                        DataFlowSolver *solver) {
   for (auto &operand : op->getOpOperands()) {
-    if (ensureSecretness(operand.get(), solver)) {
+    if (isSecret(operand.get(), solver)) {
       secretOperands.push_back(&operand);
     }
   }
