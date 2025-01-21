@@ -2641,7 +2641,9 @@ For example, an IR where elementwise operations have been converted to scalar op
 <code>--convert-elementwise-to-affine</code>.</p><p>The pass might insert new tensor.from_elements operations or manually create the scalar ValueRange
 via inserting tensor.extract operations if any operations remain that operate on tensors.
 The pass currently applies irrespective of tensor size, i.e., might be very slow for large tensors.</p><p>TODO (#1023): Extend this pass to support more tensor operations, e.g., <code>tensor.slice</code></p><h4 id=options-3>Options</h4><pre tabindex=0><code>-max-size : Limits `unrolling` to tensors with at most max-size elements
-</code></pre><h3 id=-expand-copy><code>-expand-copy</code></h3><p><em>Expands memref.copy ops to explicit affine loads and stores</em></p><p>This pass removes memref copy operations by expanding them to affine loads
+</code></pre><h3 id=-drop-unit-dims><code>-drop-unit-dims</code></h3><p><em>Drops unit dimensions from linalg ops.</em></p><p>This pass converts <code>linalg</code> whose operands have unit dimensions
+in their types to specialized ops that drop these unit dimensions.</p><p>For example, a <code>linalg.matmul</code> whose RHS has type <code>tensor&lt;32x1xi32></code> is
+converted to a <code>linalg.matvec</code> op on the underlying <code>tensor&lt;32xi32></code>.</p><h3 id=-expand-copy><code>-expand-copy</code></h3><p><em>Expands memref.copy ops to explicit affine loads and stores</em></p><p>This pass removes memref copy operations by expanding them to affine loads
 and stores. This pass introduces affine loops over the dimensions of the
 MemRef, so must be run prior to any affine loop unrolling in a pipeline.</p><p>Input</p><pre tabindex=0><code>module {
   func.func @memref_copy() {
