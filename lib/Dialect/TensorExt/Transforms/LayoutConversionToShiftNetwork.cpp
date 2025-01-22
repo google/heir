@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/Graph/Graph.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
@@ -15,7 +16,7 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
-#define DEBUG_NAME "layout-conversion-to-shift-network"
+#define DEBUG_TYPE "layout-conversion-to-shift-network"
 
 namespace mlir {
 namespace heir {
@@ -27,12 +28,12 @@ namespace tensor_ext {
 // A permutation of 0..n-1. This array ref should always have size n
 // and contain each integer from 0 to n-1 exactly once.
 // FIXME: replace this with a hashable type that can be used with DenseMap
-using Permutation = SmallVector<int64_t>;
+using Permutation = FrozenVector<int64_t>;
 
 // A group of indices to rotate together
 using RotationGroup = DenseSet<int64_t>;
 
-inline Permutation identity(int64_t n) {
+inline SmallVector<int64_t> identity(int64_t n) {
   SmallVector<int64_t> permutation;
   for (int64_t i = 0; i < n; i++) {
     permutation.push_back(i);
@@ -52,12 +53,11 @@ class VosVosErkinShiftNetworks {
   // The returned ArrayRef is owned by this VosVosErkinShiftNetworks object.
   // The resulting shift is cached, and the cache is used on further calls to
   // avoid recomputing the shift network.
-  ArrayRef<RotationGroup> computeShiftNetwork(Permutation permutation) {
+  ArrayRef<RotationGroup> computeShiftNetwork(const Permutation &permutation) {
     if (rotationGroups.count(permutation)) {
       return rotationGroups[permutation];
     }
 
-    Permutation identityPerm = identity(ciphertextSize);
     // Stores the amount that each ciphertext index is shifted forward.
     SmallVector<int64_t> shifts;
     for (int64_t i = 0; i < ciphertextSize; i++) {
@@ -69,6 +69,8 @@ class VosVosErkinShiftNetworks {
     // considered a "round" in which a group of indices are attempted to be
     // shifted together.
     SmallVector<SmallVector<int64_t>> rounds;
+    // The identity permutation is a base case where no shifts are applied.
+    Permutation identityPerm = FrozenVector<int64_t>(identity(ciphertextSize));
     for (int64_t rotationAmount = 1; rotationAmount <= ciphertextSize;
          rotationAmount <<= 1) {
       SmallVector<int64_t> round;
@@ -109,7 +111,7 @@ class VosVosErkinShiftNetworks {
     std::unordered_map<int64_t, int> coloring = colorer.color(conflictGraph);
 
     SmallVector<RotationGroup> resultRotationGroups;
-    rotationGroups.reserve(10);
+    rotationGroups.reserve(64);
     for (const auto &entry : coloring) {
       int64_t index = entry.first;
       int64_t color = entry.second;
@@ -119,9 +121,22 @@ class VosVosErkinShiftNetworks {
       resultRotationGroups[color].insert(index);
     }
 
+    LLVM_DEBUG({
+      llvm::dbgs() << "Splitting permutation into permutation groups:\n";
+      for (int i = 0; i < resultRotationGroups.size(); i++) {
+        llvm::dbgs() << "Group " << i << ": ";
+        for (int64_t index : resultRotationGroups[i]) {
+          llvm::dbgs() << index << " ";
+        }
+        llvm::dbgs() << "\n";
+      }
+    });
+
     rotationGroups[permutation] = resultRotationGroups;
     return rotationGroups[permutation];
   }
+
+  int64_t getCiphertextSize() const { return ciphertextSize; }
 
  private:
   int64_t ciphertextSize;
@@ -136,6 +151,86 @@ struct RewriteLayoutConversion : public OpRewritePattern<ConvertLayoutOp> {
 
   LogicalResult matchAndRewrite(ConvertLayoutOp op,
                                 PatternRewriter &rewriter) const override {
+    // Convert the input and output layouts to an explicit permutation.
+    AffineMap inputLayout = op.getFromLayout().getValue();
+    AffineMap outputLayout = op.getToLayout().getValue();
+
+    // Only support a 1-D tensor
+    if (op.getTensor().getType().getRank() != 1) {
+      return op.emitError("requires a one-dimensional tensor");
+    }
+
+    // For now assume the layout maps have one result (single ciphertext)
+    if (inputLayout.getNumResults() != 1 || outputLayout.getNumResults() != 1) {
+      return op.emitError()
+             << "Shift network lowering only supports layout affine_maps with "
+                "a single result (i.e., one ciphertext).";
+    }
+
+    // FIXME: Should I simplify these to better facilitate the equality check?
+    if (inputLayout == outputLayout) {
+      // Just forward the operand
+      rewriter.replaceOp(op, op.getOperand());
+      return success();
+    }
+
+    // The concrete permutation is the result of iterating over the index space
+    // of the tensors, and mapping fromLayout.eval(index) to
+    // toLayout.eval(index).
+    ArrayRef<int64_t> dims = op.getTensor().getType().getShape();
+    int64_t ciphertextSize = shiftNetworks.getCiphertextSize();
+    // Initial permutation starts as the identity permutation.
+    SmallVector<int64_t> permutation = identity(ciphertextSize);
+
+    // Looking for something like llvm::product_iterator, but found nothing.
+    // Iterating manually and using mod arithmetic to get the per-axis indices.
+    SmallVector<int64_t, 4> indices;
+    indices.resize(dims.size());
+    for (size_t index = 0; index < op.getTensor().getType().getNumElements();
+         ++index) {
+      // Unflatten the index into dimensional components
+      int dimIndex = dims.size() - 1;
+      for (int64_t dim : llvm::reverse(dims)) {
+        indices[dimIndex] = index % dim;
+        index /= dim;
+        --dimIndex;
+      }
+
+      SmallVector<Attribute> inputLayoutResults;
+      SmallVector<Attribute> outputLayoutResults;
+      SmallVector<Attribute> operandConstants;
+      for (int64_t i = 0; i < dims.size(); i++) {
+        operandConstants.push_back(rewriter.getI64IntegerAttr(indices[i]));
+      }
+      if (failed(
+              inputLayout.constantFold(operandConstants, inputLayoutResults)) ||
+          failed(outputLayout.constantFold(operandConstants,
+                                           outputLayoutResults))) {
+        return op.emitError(
+            "unable to statically evaluate one of the two affine maps.");
+      }
+
+      int64_t inputLayoutResultIndex =
+          cast<IntegerAttr>(inputLayoutResults[0]).getInt();
+      int64_t outputLayoutResultIndex =
+          cast<IntegerAttr>(outputLayoutResults[0]).getInt();
+      permutation[inputLayoutResultIndex] = outputLayoutResultIndex;
+    }
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "ConvertLayoutOp produces underlying permutation: ";
+      for (int i = 0; i < permutation.size(); i++) {
+        llvm::dbgs() << i << " -> " << permutation[i] << ", ";
+        if (i % 10 == 9) {
+          llvm::dbgs() << "\n";
+        }
+      }
+      llvm::dbgs() << "\n";
+    });
+
+    ArrayRef<RotationGroup> rotationGroup =
+        shiftNetworks.computeShiftNetwork(permutation);
+
     return success();
   }
 
