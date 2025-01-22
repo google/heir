@@ -153,6 +153,75 @@ TEST(LevelSortTest, MultiOutputGraphLevelSort) {
   EXPECT_THAT(levelUnwrapped[5], UnorderedElementsAre(5, 6, 7, 8, 9));
 }
 
+TEST(GraphColorTest, SimpleGraph) {
+  // Example graph:
+  //       / 2 \
+  // 0 - 1 - 3 - 4
+  //   \ - - - /
+  UndirectedGraph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addVertex(3);
+  graph.addVertex(4);
+  EXPECT_TRUE(graph.addEdge(0, 1));
+  EXPECT_TRUE(graph.addEdge(1, 2));
+  EXPECT_TRUE(graph.addEdge(1, 3));
+  EXPECT_TRUE(graph.addEdge(2, 4));
+  EXPECT_TRUE(graph.addEdge(3, 4));
+
+  GreedyGraphColoring<int> greedy;
+  std::unordered_map<int, int> colors = greedy.color(graph);
+  // assertions in visitation order
+  EXPECT_EQ(colors[1], 0);
+  EXPECT_EQ(colors[4], 0);
+  EXPECT_EQ(colors[2], 1);
+  EXPECT_EQ(colors[3], 1);
+  EXPECT_EQ(colors[0], 1);
+}
+
+TEST(GraphColorTest, CompleteGraph) {
+  UndirectedGraph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addVertex(3);
+  graph.addVertex(4);
+  EXPECT_TRUE(graph.addEdge(0, 1));
+  EXPECT_TRUE(graph.addEdge(0, 2));
+  EXPECT_TRUE(graph.addEdge(0, 3));
+  EXPECT_TRUE(graph.addEdge(0, 4));
+  EXPECT_TRUE(graph.addEdge(1, 2));
+  EXPECT_TRUE(graph.addEdge(1, 3));
+  EXPECT_TRUE(graph.addEdge(1, 4));
+  EXPECT_TRUE(graph.addEdge(2, 3));
+  EXPECT_TRUE(graph.addEdge(2, 4));
+  EXPECT_TRUE(graph.addEdge(3, 4));
+
+  GreedyGraphColoring<int> greedy;
+  std::unordered_map<int, int> colors = greedy.color(graph);
+  EXPECT_EQ(colors[0], 0);
+  EXPECT_EQ(colors[1], 1);
+  EXPECT_EQ(colors[2], 2);
+  EXPECT_EQ(colors[3], 3);
+  EXPECT_EQ(colors[4], 4);
+}
+
+TEST(DSATURColorTest, StarGraph) {
+  // Center vertex connected to 4 leaves
+  UndirectedGraph<int> graph;
+  for (int i = 0; i < 5; i++) graph.addVertex(i);
+  for (int i = 1; i < 5; i++) EXPECT_TRUE(graph.addEdge(0, i));
+
+  GreedyGraphColoring<int> greedy;
+  auto colors = greedy.color(graph);
+  EXPECT_EQ(colors[0], 0);  // Center colored first
+  for (int i = 1; i < 5; i++) {
+    EXPECT_EQ(colors[i], 1);  // All leaves same color
+    EXPECT_NE(colors[0], colors[i]);
+  }
+}
+
 }  // namespace
 }  // namespace graph
 }  // namespace heir
