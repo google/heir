@@ -3,6 +3,7 @@
 
 include "lib/Dialect/TensorExt/IR/TensorExtDialect.td"
 include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/CommonAttrConstraints.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -42,10 +43,38 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
     ```
   }];
 
-  let arguments = (ins AnyTensor:$tensor, SignlessIntegerOrIndexLike:$shift);
-  let results = (outs AnyTensor:$output);
+  let arguments = (ins AnyRankedTensor:$tensor, SignlessIntegerOrIndexLike:$shift);
+  let results = (outs AnyRankedTensor:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($tensor)) `,` type($shift)";
   let hasCanonicalizer = 1;
+  let hasVerifier = 1;
+}
+
+def PermutationLike : AnyAttrOf<[
+  // A permutation defined by a compact affine map with one dimension and one result expression.
+  // E.g., affine_map<(d0) -> ((d0 - 4) mod 64)> compactly represents a
+  // permutation defined by a single shift.
+  Builtin_AffineMapAttr,
+  // A permutation defined explicitly by mapping i -> a[i] for indices i of the array attr.
+  // E.g., An array [3, 2, 0, 1] defines the permutation
+  //
+  //      0 -> 3, 1 -> 2, 2 -> 0, 3 -> 1
+  //
+  AnyI64ElementsAttr,
+]>;
+
+def TensorExt_PermuteOp : TensorExt_Op<"permute", [Pure, AllTypesMatch<["input", "output"]>]> {
+  let summary = "Permute a tensor by a static permutation.";
+  let description = [{
+    This op represents a permutation of a tensor.
+
+    This is lowered from a `convert_layout` op, and is implemented in terms of
+    `rotate` operations.
+  }];
+
+  let arguments = (ins AnyRankedTensor:$input, PermutationLike:$permutation);
+  let results = (outs AnyRankedTensor:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input)";
   let hasVerifier = 1;
 }
 

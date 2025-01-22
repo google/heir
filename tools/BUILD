@@ -85,6 +85,7 @@ cc_binary(
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/Transforms",
         "@heir//lib/Dialect/TensorExt/Transforms:CollapseInsertionChains",
+        "@heir//lib/Dialect/TensorExt/Transforms:ImplementShiftNetwork",
         "@heir//lib/Dialect/TensorExt/Transforms:InsertRotate",
         "@heir//lib/Dialect/TensorExt/Transforms:RotateAndReduce",
         "@heir//lib/Dialect/TfheRust/IR:Dialect",

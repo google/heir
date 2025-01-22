@@ -46,6 +46,7 @@
 #include "lib/Dialect/Secret/Transforms/Passes.h"
 #include "lib/Dialect/TOSA/Conversions/TosaToSecretArith/TosaToSecretArith.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/Passes.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
