@@ -234,7 +234,6 @@ int main(int argc, char **argv) {
     return createReconcileUnrealizedCastsPass();
   });
   registerPass(
-
       []() -> std::unique_ptr<Pass> { return createConvertToLLVMPass(); });
 
   // Bufferization and external models
