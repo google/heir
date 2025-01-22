@@ -153,7 +153,7 @@ static FailureOr<int64_t> materializeAndFlatten(MemRefAccess access,
   for (auto ndx : materialized) {
     castIndices.push_back((int64_t)ndx);
   }
-  auto [strides, offset] = getStridesAndOffset(type);
+  auto [strides, offset] = type.getStridesAndOffset();
   return flattenIndex(castIndices, strides, offset);
 }
 
@@ -285,7 +285,8 @@ static LogicalResult forwardFullyUnrolledStoreToLoad(
     // In this case, the load cannot be completely removed, but instead can be
     // replaced with a load from the original memref at the appropriate index.
     const auto [endingStrides, endingOffset] =
-        getStridesAndOffset(llvm::cast<MemRefType>(loadSourceMemref.getType()));
+        llvm::cast<MemRefType>(loadSourceMemref.getType())
+            .getStridesAndOffset();
 
     ImplicitLocOpBuilder b(loadOp->getLoc(), loadOp);
     llvm::SmallVector<Value> indexValues;

@@ -73,7 +73,7 @@ std::string flattenIndexExpression(
 std::string flattenIndexExpressionSOP(
     MemRefType memRefType, ValueRange indices,
     std::function<std::string(Value)> valueToString) {
-  const auto [strides, offset] = getStridesAndOffset(memRefType);
+  const auto [strides, offset] = memRefType.getStridesAndOffset();
   std::string accum = std::to_string(offset);
   for (size_t i = 0; i < indices.size(); ++i) {
     accum = llvm::formatv("{2} + {0} * {1}", valueToString(indices[i]),

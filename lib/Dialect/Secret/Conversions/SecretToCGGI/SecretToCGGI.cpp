@@ -528,7 +528,7 @@ struct ConvertSecretCastOp : public OpConversionPattern<secret::CastOp> {
         // In other cases, use a reinterpret cast to resolve the memref shapes.
         int64_t offset;
         SmallVector<int64_t> strides;
-        if (failed(getStridesAndOffset(outRhsType, strides, offset)))
+        if (failed(outRhsType.getStridesAndOffset(strides, offset)))
           return rewriter.notifyMatchFailure(
               op, "failed to get stride and offset exprs");
         auto castOp = rewriter.create<memref::ReinterpretCastOp>(
