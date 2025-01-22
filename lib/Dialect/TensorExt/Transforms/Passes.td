@@ -173,8 +173,8 @@ def LayoutConversionToShiftNetwork : Pass<"layout-conversion-to-shift-network"> 
 
   let options = [
     Option<
-      "ciphertext_size",
-      "ciphertext_size",
+      "ciphertextSize",
+      "ciphertext-size",
       "int",
       /*default=*/"1024",
       "Power of two length of the ciphertexts the data is packed in."
