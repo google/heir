@@ -5,16 +5,14 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/ADT/FrozenVector.h"
 #include "lib/Utils/Graph/Graph.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
-#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 
 #define DEBUG_TYPE "layout-conversion-to-shift-network"
 
@@ -216,7 +214,9 @@ Value rotateGroup(TypedValue<RankedTensorType> tensor,
 LogicalResult convertLayoutOp(ConvertLayoutOp op,
                               VosVosErkinShiftNetworks &shiftNetworks,
                               int64_t ciphertextSize) {
+  LLVM_DEBUG(llvm::dbgs() << "Converting layout op: " << op << "\n");
   IRRewriter rewriter(op.getContext());
+  ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
   // Convert the input and output layouts to an explicit permutation.
   AffineMap inputLayout = op.getFromLayout().getValue();
@@ -245,9 +245,13 @@ LogicalResult convertLayoutOp(ConvertLayoutOp op,
   // of the tensors, and mapping fromLayout.eval(index) to
   // toLayout.eval(index).
   ArrayRef<int64_t> dims = op.getTensor().getType().getShape();
+
   // Initial permutation starts as the identity permutation.
+  // FIXME: start with an empty partial mapping, then extend it to a permutation
+  // in some way?
   SmallVector<int64_t> permutation = identity(ciphertextSize);
 
+  LLVM_DEBUG(llvm::dbgs() << "Constructing permutation...\n");
   // Looking for something like llvm::product_iterator, but found nothing.
   // Iterating manually and using mod arithmetic to get the per-axis indices.
   SmallVector<int64_t, 4> indices;
@@ -256,9 +260,10 @@ LogicalResult convertLayoutOp(ConvertLayoutOp op,
        ++index) {
     // Unflatten the index into dimensional components
     int dimIndex = dims.size() - 1;
+    int indexCopy = index;
     for (int64_t dim : llvm::reverse(dims)) {
-      indices[dimIndex] = index % dim;
-      index /= dim;
+      indices[dimIndex] = indexCopy % dim;
+      indexCopy /= dim;
       --dimIndex;
     }
 
