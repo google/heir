@@ -1,6 +1,7 @@
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
@@ -21,10 +22,9 @@ namespace heir {
 namespace openfhe {
 
 LogicalResult translateToOpenFhePkeHeader(Operation *op, llvm::raw_ostream &os,
-                                          OpenfheScheme scheme,
                                           OpenfheImportType importType) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeHeaderEmitter emitter(os, &variableNames, scheme, importType);
+  OpenFhePkeHeaderEmitter emitter(os, &variableNames, importType);
   return emitter.translate(*op);
 }
 
@@ -45,7 +45,16 @@ LogicalResult OpenFhePkeHeaderEmitter::translate(Operation &op) {
 }
 
 LogicalResult OpenFhePkeHeaderEmitter::printOperation(ModuleOp moduleOp) {
-  os << getModulePrelude(scheme_, importType_) << "\n";
+  OpenfheScheme scheme;
+  if (moduleOp->getAttr(kBGVSchemeAttrName)) {
+    scheme = OpenfheScheme::BGV;
+  } else if (moduleOp->getAttr(kCKKSSchemeAttrName)) {
+    scheme = OpenfheScheme::CKKS;
+  } else {
+    return emitError(moduleOp.getLoc(), "Missing scheme attribute on module");
+  }
+
+  os << getModulePrelude(scheme, importType_) << "\n";
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -96,12 +105,9 @@ LogicalResult OpenFhePkeHeaderEmitter::emitType(Type type, Location loc) {
 }
 
 OpenFhePkeHeaderEmitter::OpenFhePkeHeaderEmitter(
-    raw_ostream &os, SelectVariableNames *variableNames, OpenfheScheme scheme,
+    raw_ostream &os, SelectVariableNames *variableNames,
     OpenfheImportType importType)
-    : scheme_(scheme),
-      importType_(importType),
-      os(os),
-      variableNames(variableNames) {}
+    : importType_(importType), os(os), variableNames(variableNames) {}
 
 }  // namespace openfhe
 }  // namespace heir

@@ -21,7 +21,6 @@ namespace openfhe {
 /// Translates the given operation to OpenFhePke.
 ::mlir::LogicalResult translateToOpenFhePkeHeader(::mlir::Operation *op,
                                                   llvm::raw_ostream &os,
-                                                  OpenfheScheme scheme,
                                                   OpenfheImportType importType);
 
 /// For each function in the mlir module, emits a function header declaration
@@ -29,13 +28,11 @@ namespace openfhe {
 class OpenFhePkeHeaderEmitter {
  public:
   OpenFhePkeHeaderEmitter(raw_ostream &os, SelectVariableNames *variableNames,
-                          OpenfheScheme scheme, OpenfheImportType importType);
+                          OpenfheImportType importType);
 
   LogicalResult translate(::mlir::Operation &operation);
 
  private:
-  /// OpenFHE scheme to emit.
-  OpenfheScheme scheme_;
   OpenfheImportType importType_;
 
   /// Output stream to emit to.
