@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -29,25 +29,8 @@ cc_library(
     alwayslink = 1,
 )
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=LWEToPolynomial",
-            ],
-            "LWEToPolynomial.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "LWEToPolynomial.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "LWEToPolynomial.h.inc",
+    pass_name = "LWEToPolynomial",
     td_file = "LWEToPolynomial.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )

@@ -13,9 +13,6 @@
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 
 #include "lib/Dialect/Comb/IR/CombOps.h"
-#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {

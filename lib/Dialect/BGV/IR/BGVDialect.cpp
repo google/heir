@@ -4,15 +4,9 @@
 
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/FHEHelpers.h"
-#include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
 
 // Generated definitions
 #include "lib/Dialect/BGV/IR/BGVDialect.cpp.inc"
