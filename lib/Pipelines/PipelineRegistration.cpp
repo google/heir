@@ -64,7 +64,7 @@ void oneShotBufferize(OpPassManager &manager) {
   manager.addPass(createCanonicalizerPass());
 }
 
-void tosaPipelineBuilder(OpPassManager &manager) {
+void tosaPipelineBuilder(OpPassManager &manager, bool unroll) {
   // TOSA to linalg
   tosaToLinalg(manager);
   // Bufferize
@@ -78,7 +78,8 @@ void tosaPipelineBuilder(OpPassManager &manager) {
   manager.addPass(memref::createFoldMemRefAliasOpsPass());
   manager.addPass(createExpandCopyPass());
   manager.addPass(createExtractLoopBodyPass());
-  manager.addPass(createUnrollAndForwardPass());
+  if (unroll) manager.addPass(createUnrollAndForwardPass());
+
   // Cleanup
   manager.addPass(createMemrefGlobalReplacePass());
   arith::ArithIntRangeNarrowingOptions options;

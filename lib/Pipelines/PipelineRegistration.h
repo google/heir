@@ -11,7 +11,7 @@ void tosaToLinalg(OpPassManager &manager);
 
 void oneShotBufferize(OpPassManager &manager);
 
-void tosaPipelineBuilder(OpPassManager &manager);
+void tosaPipelineBuilder(OpPassManager &manager, bool unroll);
 
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager);
 

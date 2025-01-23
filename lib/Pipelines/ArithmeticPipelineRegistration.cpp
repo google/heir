@@ -103,41 +103,6 @@ void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm) {
   pm.addPass(createOperationBalancer());
 }
 
-void tosaToArithPipelineBuilder(OpPassManager &pm) {
-  // TOSA to linalg
-  ::mlir::heir::tosaToLinalg(pm);
-
-  // Bufferize
-  ::mlir::heir::oneShotBufferize(pm);
-
-  // Affine
-  pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
-  pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-  pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
-  pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
-  pm.addPass(createExpandCopyPass());
-  pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
-  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
-  pm.addPass(memref::createFoldMemRefAliasOpsPass());
-
-  // Affine loop optimizations
-  pm.addNestedPass<FuncOp>(
-      affine::createLoopFusionPass(0, 0, true, affine::FusionMode::Greedy));
-  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
-  pm.addPass(createForwardStoreToLoad());
-  pm.addPass(affine::createAffineParallelizePass());
-  pm.addPass(createFullLoopUnroll());
-  pm.addPass(createForwardStoreToLoad());
-  pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
-
-  // Cleanup
-  pm.addPass(createMemrefGlobalReplacePass());
-  pm.addPass(createCanonicalizerPass());
-  pm.addPass(createSCCPPass());
-  pm.addPass(createCSEPass());
-  pm.addPass(createSymbolDCEPass());
-}
-
 void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         const RLWEScheme scheme) {
@@ -283,11 +248,4 @@ RLWEPipelineBuilder mlirToLattigoRLWEPipelineBuilder(const RLWEScheme scheme) {
         lattigo::createConfigureCryptoContext(configureCryptoContextOptions));
   };
 }
-
-void registerTosaToArithPipeline() {
-  PassPipelineRegistration<>(
-      "tosa-to-arith", "Arithmetic modules to arith tfhe-rs pipeline.",
-      [](OpPassManager &pm) { tosaToArithPipelineBuilder(pm); });
-}
-
 }  // namespace mlir::heir

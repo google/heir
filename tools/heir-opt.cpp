@@ -304,8 +304,6 @@ int main(int argc, char **argv) {
   // Register internal pipeline
 #endif
 
-  registerTosaToArithPipeline();
-
   // Dialect conversion passes in HEIR
   mod_arith::registerModArithToArithPasses();
   mlir::heir::arith::registerArithToModArithPasses();
@@ -332,10 +330,13 @@ int main(int argc, char **argv) {
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   rns::registerExternalRNSTypeInterfaces(registry);
 
-  PassPipelineRegistration<>("heir-tosa-to-arith",
-                             "Run passes to lower TOSA models with stripped "
-                             "quant types to arithmetic",
-                             ::mlir::heir::tosaPipelineBuilder);
+  PassPipelineRegistration<TosaToArithTfheOptions>(
+      "heir-tosa-to-arith",
+      "Run passes to lower TOSA models with stripped "
+      "quant types to arithmetic",
+      [](OpPassManager &pm, const TosaToArithTfheOptions &options) {
+        ::mlir::heir::tosaPipelineBuilder(pm, options.unroll);
+      });
 
   PassPipelineRegistration<>(
       "heir-polynomial-to-llvm",
