@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -20,30 +20,14 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
     ],
 )
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=ArithToCGGIQuart",
-            ],
-            "ArithToCGGIQuart.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "ArithToCGGIQuart.md",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "ArithToCGGIQuart.h.inc",
+    pass_name = "ArithToCGGIQuart",
     td_file = "ArithToCGGIQuart.td",
-    deps = [
-        "@llvm-project//mlir:OpBaseTdFiles",
-        "@llvm-project//mlir:PassBaseTdFiles",
-    ],
 )

@@ -1,4 +1,4 @@
-load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -27,18 +27,9 @@ cc_library(
     ],
 )
 
-gentbl_cc_library(
-    name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=ArithToModArith",
-            ],
-            "ArithToModArith.h.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
+add_heir_transforms(
+    header_filename = "ArithToModArith.h.inc",
+    pass_name = "ArithToModArith",
     td_file = "ArithToModArith.td",
     deps = [
         "@heir//lib/Dialect/ModArith/IR:ops_inc_gen",

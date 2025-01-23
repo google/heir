@@ -22,7 +22,6 @@ cc_library(
         ":ops_inc_gen",
         "@heir//lib/Dialect:FHEHelpers",
         "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",

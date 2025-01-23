@@ -4,7 +4,6 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
