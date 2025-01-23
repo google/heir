@@ -14,6 +14,9 @@
 #ring = #polynomial.ring<coefficientType=i32, polynomialModulus=#ideal>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
+!eval_poly_ty = !polynomial.polynomial<ring=<coefficientType=i32>>
+#eval_poly = #polynomial.typed_int_polynomial<1 + x + x**2> : !eval_poly_ty
+
 module {
   func.func @test_multiply() -> !polynomial.polynomial<ring=#ring1> {
     %c0 = arith.constant 0 : index
@@ -84,5 +87,11 @@ module {
     %verb0 = polynomial.constant #polynomial.typed_int_polynomial<1 + x**2> : !polynomial.polynomial<ring=#ring1>
     %verb2 = polynomial.constant #polynomial.typed_float_polynomial<1.5 + 0.5 x**2> : !polynomial.polynomial<ring=#ring2>
     return
+  }
+
+  func.func @test_eval() -> i32 {
+    %c6 = arith.constant 6 : i32
+    %0 = polynomial.eval #eval_poly, %c6 : i32
+    return %0 : i32
   }
 }
