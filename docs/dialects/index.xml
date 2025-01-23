@@ -1307,13 +1307,18 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cggishl-heircggishiftleftop">&lt;code>cggi.shl&lt;/code> (heir::cggi::ShiftLeftOp)&lt;/h3>
+&lt;h3 id="cggisshl-heircggiscalarshiftleftop">&lt;code>cggi.sshl&lt;/code> (heir::cggi::ScalarShiftLeftOp)&lt;/h3>
 &lt;p>&lt;em>Arithmetic shift to left of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.shl` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.sshl` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-8">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>shiftAmount&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-15">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1326,10 +1331,6 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
 &lt;td>ciphertext-like&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>shiftAmount&lt;/code>&lt;/td>
-&lt;td>8-bit integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1348,13 +1349,18 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="cggishr-heircggishiftrightop">&lt;code>cggi.shr&lt;/code> (heir::cggi::ShiftRightOp)&lt;/h3>
+&lt;h3 id="cggisshr-heircggiscalarshiftrightop">&lt;code>cggi.sshr&lt;/code> (heir::cggi::ScalarShiftRightOp)&lt;/h3>
 &lt;p>&lt;em>Arithmetic shift to the right of a ciphertext by an integer. Note this operations to mirror the TFHE-rs implmementation.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `cggi.shr` operands attr-dict `:` functional-type(operands, results)
+&lt;pre tabindex="0">&lt;code>operation ::= `cggi.sshr` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-9">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>shiftAmount&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-16">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -1367,10 +1373,6 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
 &lt;td>ciphertext-like&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>shiftAmount&lt;/code>&lt;/td>
-&lt;td>8-bit integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9921,11 +9923,11 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9940,7 +9942,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10010,11 +10012,11 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10029,7 +10031,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10109,7 +10111,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10176,11 +10178,11 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10195,7 +10197,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10205,6 +10207,11 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-1">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>shiftAmount&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-7">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -10221,10 +10228,6 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
 &lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>shiftAmount&lt;/code>&lt;/td>
-&lt;td>8-bit integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10249,6 +10252,11 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>shiftAmount&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;/table>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -10265,10 +10273,6 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
 &lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>shiftAmount&lt;/code>&lt;/td>
-&lt;td>8-bit integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10309,11 +10313,11 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10328,7 +10332,7 @@ using the shortint parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: TfheRustBool</title><link>https://heir.dev/docs/dialects/tfherustbool/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/tfherustbool/</guid><description>
