@@ -195,11 +195,11 @@ func.func @smoke_test(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> tensor<8xi1
 // CHECK-LABEL: func.func @rotation_needs_linear_inputs
 // CHECK: secret.generic
 // CHECK: arith.muli
-// CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: arith.muli
 // CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: tensor_ext.rotate
 // CHECK-NEXT: arith.addi
+// CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: secret.yield
 func.func @rotation_needs_linear_inputs(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> tensor<8xi16> {
   %0 = arith.muli %arg0, %arg0: tensor<8xi16>

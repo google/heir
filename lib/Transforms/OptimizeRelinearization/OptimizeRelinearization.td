@@ -38,6 +38,13 @@ def OptimizeRelinearization : Pass <"optimize-relinearization"> {
            /*default=*/"false",
            "When true, the ILP uses op source locations in variable names, "
            "which can help debug ILP model bugs.">,
+    Option<"allowMixedDegreeOperands",
+           "allow-mixed-degree-operands",
+           "bool",
+           /*default=*/"true",
+           "When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., "
+           "adding two ciphertexts with different key bases; this is supported by "
+           "many FHE backends, like OpenFHE and Lattigo">,
   ];
 }
 
