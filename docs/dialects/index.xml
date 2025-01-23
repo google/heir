@@ -4798,12 +4798,8 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>relinearizationKey&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>galoisKeys&lt;/code>&lt;/td>
-&lt;td>variadic of&lt;/td>
+&lt;td style="text-align:center">&lt;code>keys&lt;/code>&lt;/td>
+&lt;td>variadic of any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
