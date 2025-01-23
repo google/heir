@@ -8,6 +8,7 @@
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
+#include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
@@ -274,6 +275,12 @@ RLWEPipelineBuilder mlirToLattigoRLWEPipelineBuilder(const RLWEScheme scheme) {
     // Simplify, in case the lowering revealed redundancy
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
+
+    auto configureCryptoContextOptions =
+        lattigo::ConfigureCryptoContextOptions{};
+    configureCryptoContextOptions.entryFunction = options.entryFunction;
+    pm.addPass(
+        lattigo::createConfigureCryptoContext(configureCryptoContextOptions));
   };
 }
 

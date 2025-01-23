@@ -2,36 +2,10 @@ package binops
 
 import (
 	"testing"
-
-	"github.com/tuneinsight/lattigo/v6/core/rlwe"
-	"github.com/tuneinsight/lattigo/v6/schemes/bgv"
 )
 
 func TestBinops(t *testing.T) {
-	var err error
-	var params bgv.Parameters
-
-	// 128-bit secure parameters enabling depth-7 circuits.
-	// LogN:14, LogQP: 431.
-	if params, err = bgv.NewParametersFromLiteral(
-		bgv.ParametersLiteral{
-			LogN:             14,                                    // log2(ring degree)
-			LogQ:             []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
-			LogP:             []int{61},                             // log2(primes P) (auxiliary modulus)
-			PlaintextModulus: 0x10001,                               // log2(scale)
-		}); err != nil {
-		panic(err)
-	}
-
-	kgen := rlwe.NewKeyGenerator(params)
-	sk := kgen.GenSecretKeyNew()
-	ecd := bgv.NewEncoder(params)
-	enc := rlwe.NewEncryptor(params, sk)
-	dec := rlwe.NewDecryptor(params, sk)
-	relinKeys := kgen.GenRelinearizationKeyNew(sk)
-	galKey := kgen.GenGaloisKeyNew(5, sk)
-	evalKeys := rlwe.NewMemEvaluationKeySet(relinKeys, galKey)
-	evaluator := bgv.NewEvaluator(params, evalKeys /*scaleInvariant=*/, false)
+	evaluator, params, ecd, enc, dec := add__configure()
 
 	// Vector of plaintext values
 	// 0, 1, 2, 3

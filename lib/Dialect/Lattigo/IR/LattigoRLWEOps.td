@@ -63,11 +63,15 @@ def Lattigo_RLWENewEvaluationKeySetOp : Lattigo_RLWEOp<"new_evaluation_key_set">
   let description = [{
     This operation generates a new RLWE evaluation key set
   }];
+
+  // Tablegen produces an error when validating types when using a TypeOrContainer
+  // type in a Variadic like Variadic<AnyEvaluationKey>.
+  // A workaround uses Variadic<AnyType> and a custom type verifier.
   let arguments = (ins
-    Lattigo_RLWERelinearizationKey:$relinearizationKey,
-    Variadic<Lattigo_RLWEGaloisKey>:$galoisKeys
+    Variadic<AnyType>:$keys
   );
   let results = (outs Lattigo_RLWEEvaluationKeySet:$evaluationKeySet);
+  let hasVerifier = 1;
 }
 
 def Lattigo_RLWENewEncryptorOp : Lattigo_RLWEOp<"new_encryptor"> {

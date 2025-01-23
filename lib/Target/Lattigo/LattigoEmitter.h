@@ -108,6 +108,10 @@ class LattigoEmitter {
 
   // helper on name and type
   std::string getName(::mlir::Value value) {
+    // special case for 'nil' emission
+    if (value == Value()) {
+      return "nil";
+    }
     return variableNames->getNameForValue(value);
   }
 

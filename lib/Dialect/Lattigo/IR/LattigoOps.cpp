@@ -1,5 +1,6 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 
+#include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
@@ -20,6 +21,29 @@ LogicalResult BGVDecodeOp::verify() {
   }
   if (!isa<RankedTensorType>(getDecoded().getType())) {
     return emitError("decoded must be a ranked tensor");
+  }
+  return success();
+}
+
+LogicalResult RLWENewEvaluationKeySetOp::verify() {
+  if (getKeys().empty()) {
+    return emitError("must have at least one key");
+  }
+
+  // 0 or 1 relin key + 0 or more galois keys
+  int galoisKeyIndex = 0;
+  auto firstKey = getKeys()[0];
+  if (isa<RLWERelinearizationKeyType>(firstKey.getType())) {
+    galoisKeyIndex = 1;
+  }
+
+  for (auto key : getKeys().drop_front(galoisKeyIndex)) {
+    if (!isa<RLWEGaloisKeyType>(key.getType())) {
+      if (isa<RLWERelinearizationKeyType>(key.getType())) {
+        return emitError("RLWERelinearizationKey must be the first key");
+      }
+      return emitError("key must be of type RLWEGaloisKey");
+    }
   }
   return success();
 }

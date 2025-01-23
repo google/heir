@@ -27,18 +27,10 @@ go_test(
     name = "binops_test",
     srcs = ["binops_test.go"],
     embed = [":binops"],
-    deps = [
-        "@lattigo//core/rlwe",
-        "@lattigo//schemes/bgv",
-    ],
 )
 
 go_test(
     name = "dotproduct8_test",
     srcs = ["dot_product_8_test.go"],
     embed = [":dotproduct8"],
-    deps = [
-        "@lattigo//core/rlwe",
-        "@lattigo//schemes/bgv",
-    ],
 )
