@@ -1,14 +1,11 @@
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
-
-// NOLINTNEXTLINE(misc-include-cleaner): Required to define LattigoOps
-
-#include "lib/Dialect/Lattigo/IR/LattigoAttributes.h"
-#include "lib/Dialect/Lattigo/IR/LattigoOps.h"
-#include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project  // IWYU pragma: keep
+#include "mlir/include/mlir/IR/Builders.h"  // from @llvm-project  // IWYU pragma: keep
+#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project  // IWYU pragma: keep
+#include "third_party/heir/lib/Dialect/Lattigo/IR/LattigoAttributes.h"  // IWYU pragma: keep
+#include "third_party/heir/lib/Dialect/Lattigo/IR/LattigoOps.h"  // IWYU pragma: keep
+#include "third_party/heir/lib/Dialect/Lattigo/IR/LattigoTypes.h"  // IWYU pragma: keep
 
 // Generated definitions
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.cpp.inc"
