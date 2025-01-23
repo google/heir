@@ -214,13 +214,9 @@ struct ConvertLut3Op : public OpConversionPattern<cggi::Lut3Op> {
         serverKey, adaptor.getLookupTable());
     // Construct input = c << 2 + b << 1 + a
     auto shiftedC = b.create<tfhe_rust::ScalarLeftShiftOp>(
-        serverKey, adaptor.getC(),
-        b.create<arith::ConstantOp>(b.getI8Type(), b.getI8IntegerAttr(2))
-            .getResult());
+        serverKey, adaptor.getC(), b.getIndexAttr(2));
     auto shiftedB = b.create<tfhe_rust::ScalarLeftShiftOp>(
-        serverKey, adaptor.getB(),
-        b.create<arith::ConstantOp>(b.getI8Type(), b.getI8IntegerAttr(1))
-            .getResult());
+        serverKey, adaptor.getB(), b.getIndexAttr(1));
     auto summedBC = b.create<tfhe_rust::AddOp>(serverKey, shiftedC, shiftedB);
     auto summedABC =
         b.create<tfhe_rust::AddOp>(serverKey, summedBC, adaptor.getA());
@@ -250,9 +246,7 @@ struct ConvertLut2Op : public OpConversionPattern<cggi::Lut2Op> {
         serverKey, adaptor.getLookupTable());
     // Construct input = b << 1 + a
     auto shiftedB = b.create<tfhe_rust::ScalarLeftShiftOp>(
-        serverKey, adaptor.getB(),
-        b.create<arith::ConstantOp>(b.getI8Type(), b.getI8IntegerAttr(1))
-            .getResult());
+        serverKey, adaptor.getB(), b.getIndexAttr(1));
     auto summedBA =
         b.create<tfhe_rust::AddOp>(serverKey, shiftedB, adaptor.getA());
 
@@ -276,10 +270,8 @@ static LogicalResult replaceBinaryGate(Operation *op, Value lhs, Value rhs,
   auto lutOp =
       b.create<tfhe_rust::GenerateLookupTableOp>(serverKey, lookupTable);
   // Construct input = rhs << 1 + lhs
-  auto shiftedRhs = b.create<tfhe_rust::ScalarLeftShiftOp>(
-      serverKey, rhs,
-      b.create<arith::ConstantOp>(b.getI8Type(), b.getI8IntegerAttr(1))
-          .getResult());
+  auto shiftedRhs =
+      b.create<tfhe_rust::ScalarLeftShiftOp>(serverKey, rhs, b.getIndexAttr(1));
   auto input = b.create<tfhe_rust::AddOp>(serverKey, shiftedRhs, lhs);
   rewriter.replaceOp(
       op, b.create<tfhe_rust::ApplyLookupTableOp>(serverKey, input, lutOp));
@@ -347,14 +339,14 @@ struct ConvertXorOp : public OpConversionPattern<cggi::XorOp> {
   }
 };
 
-struct ConvertShROp : public OpConversionPattern<cggi::ShiftRightOp> {
+struct ConvertShROp : public OpConversionPattern<cggi::ScalarShiftRightOp> {
   ConvertShROp(mlir::MLIRContext *context)
-      : OpConversionPattern<cggi::ShiftRightOp>(context) {}
+      : OpConversionPattern<cggi::ScalarShiftRightOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      cggi::ShiftRightOp op, OpAdaptor adaptor,
+      cggi::ScalarShiftRightOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     FailureOr<Value> result = getContextualServerKey(op);
@@ -478,9 +470,15 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
     auto constantWidth = op.getValue().getValue().getBitWidth();
 
     auto cteOp = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), rewriter.getIntegerType(constantWidth), inputValue);
+        op.getLoc(), op.getValue().getType(), inputValue);
 
     auto outputType = encrytpedUIntTypeFromWidth(getContext(), constantWidth);
+
+    if (auto rankedTensorTy =
+            dyn_cast<RankedTensorType>(op.getResult().getType())) {
+      auto shape = rankedTensorTy.getShape();
+      outputType = RankedTensorType::get(shape, outputType);
+    }
 
     auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
         op.getLoc(), outputType, serverKey, cteOp);
@@ -537,11 +535,11 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
     target.addDynamicallyLegalOp<
         memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::LoadOp,
         memref::SubViewOp, memref::CopyOp, affine::AffineLoadOp,
-        affine::AffineStoreOp, tensor::FromElementsOp, tensor::ExtractOp>(
-        [&](Operation *op) {
-          return typeConverter.isLegal(op->getOperandTypes()) &&
-                 typeConverter.isLegal(op->getResultTypes());
-        });
+        tensor::InsertOp, tensor::InsertSliceOp, affine::AffineStoreOp,
+        tensor::FromElementsOp, tensor::ExtractOp>([&](Operation *op) {
+      return typeConverter.isLegal(op->getOperandTypes()) &&
+             typeConverter.isLegal(op->getResultTypes());
+    });
 
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
@@ -555,6 +553,7 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
         ConvertAny<memref::AllocOp>, ConvertAny<memref::DeallocOp>,
         ConvertAny<memref::StoreOp>, ConvertAny<memref::LoadOp>,
         ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
+        ConvertAny<tensor::InsertOp>, ConvertAny<tensor::InsertSliceOp>,
         ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
         ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineStoreOp>>(
         typeConverter, context);

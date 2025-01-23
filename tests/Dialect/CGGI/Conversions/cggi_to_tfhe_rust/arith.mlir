@@ -14,6 +14,7 @@ func.func @test_affine(%arg0: memref<1x1x!ct_ty>) -> memref<1x1x!ct_ty> {
   %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1x!ct_ty>
   %3 = cggi.mul %2, %1 : !ct_ty
   %4 = cggi.add %3, %0 : !ct_ty
-  affine.store %4, %alloc[0, 0] : memref<1x1x!ct_ty>
+  %5 = cggi.sshr %4 {shiftAmount = 2 : index} : (!ct_ty) -> !ct_ty
+  affine.store %5, %alloc[0, 0] : memref<1x1x!ct_ty>
   return %alloc : memref<1x1x!ct_ty>
 }

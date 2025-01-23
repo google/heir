@@ -11,8 +11,7 @@
 // CHECK: 1
 func.func @fn_under_test(%sks : !sks, %a: !eui3, %b: !eui3) -> !eui3 {
   %lut = tfhe_rust.generate_lookup_table %sks {truthTable = 7 : ui8} : (!sks) -> !lut
-  %c1 = arith.constant 1 : i8
-  %0 = tfhe_rust.scalar_left_shift %sks, %a, %c1 : (!sks, !eui3, i8) -> !eui3
+  %0 = tfhe_rust.scalar_left_shift %sks, %a {shiftAmount = 1 : index} : (!sks, !eui3) -> !eui3
   %1 = tfhe_rust.add %sks, %0, %b : (!sks, !eui3, !eui3) -> !eui3
   %2 = tfhe_rust.apply_lookup_table %sks, %1, %lut : (!sks, !eui3, !lut) -> !eui3
   return %2 : !eui3
