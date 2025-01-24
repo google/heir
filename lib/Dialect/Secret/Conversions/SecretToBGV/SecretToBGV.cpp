@@ -15,6 +15,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
@@ -163,6 +164,9 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
+
+    // Helper for future lowerings that want to know what scheme was used
+    module->setAttr(kBGVSchemeAttrName, UnitAttr::get(context));
 
     auto maxLevel = 5;
     auto rlweRing =

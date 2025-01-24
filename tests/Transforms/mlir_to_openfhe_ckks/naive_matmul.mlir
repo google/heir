@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-openfhe-ckks='ciphertext-degree=16 entry-function=matmul' %s | heir-translate --emit-openfhe-pke --openfhe-scheme=ckks | FileCheck %s
+// RUN: heir-opt --mlir-to-openfhe-ckks='ciphertext-degree=16 entry-function=matmul' %s | heir-translate --emit-openfhe-pke | FileCheck %s
 
 // CHECK-LABEL: std::vector<CiphertextT> matmul(
 // CHECK-SAME:    CryptoContextT [[v0:[^,]*]],

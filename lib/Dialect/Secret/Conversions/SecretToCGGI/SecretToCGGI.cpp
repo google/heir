@@ -11,6 +11,7 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/ConversionUtils.h"
@@ -642,6 +643,9 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
+
+    // Helper for future lowerings that want to know what scheme was used
+    module->setAttr(kCGGISchemeAttrName, UnitAttr::get(context));
 
     int lutSize = findLUTSize(context, module);
 

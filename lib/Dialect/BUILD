@@ -40,6 +40,14 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "ModuleAttributes",
+    hdrs = ["ModuleAttributes.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
+)
+
 td_library(
     name = "td_files",
     srcs = ["HEIRInterfaces.td"],

@@ -56,7 +56,7 @@ openfhe_end_to_end_test(
     name = "dot_product_8f_test",
     generated_lib_header = "dot_product_8f_lib.h",
     heir_opt_flags = ["--mlir-to-openfhe-ckks=entry-function=dot_product ciphertext-degree=8"],
-    heir_translate_flags = ["--openfhe-scheme=ckks"],
+    heir_translate_flags = [],
     mlir_src = "dot_product_8f.mlir",
     tags = ["notap"],
     test_src = "dot_product_8f_test.cpp",
@@ -75,7 +75,6 @@ openfhe_end_to_end_test(
         "--openfhe-configure-crypto-context",
     ],
     heir_translate_flags = [
-        "--openfhe-scheme=ckks",
         "--openfhe-include-type=source-relative",
     ],
     mlir_src = "naive_matmul.mlir",
@@ -88,7 +87,6 @@ openfhe_end_to_end_test(
     generated_lib_header = "halevi_shoup_matmul_lib.h",
     heir_opt_flags = ["--mlir-to-openfhe-ckks=entry-function=matmul ciphertext-degree=16"],
     heir_translate_flags = [
-        "--openfhe-scheme=ckks",
         "--openfhe-include-type=source-relative",
     ],
     mlir_src = "halevi_shoup_matmul.mlir",
@@ -103,7 +101,6 @@ openfhe_end_to_end_test(
         "--openfhe-configure-crypto-context=entry-function=simple_ckks_bootstrapping insecure=true",
     ],
     heir_translate_flags = [
-        "--openfhe-scheme=ckks",
         "--openfhe-include-type=source-relative",
     ],
     mlir_src = "simple_ckks_bootstrapping.mlir",

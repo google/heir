@@ -123,6 +123,7 @@ def MakePackedPlaintextOp : Openfhe_Op<"make_packed_plaintext", [Pure]> {
     RankedTensorOf<[AnyInteger]>:$value)
   ;
   let results = (outs NewLWEPlaintext:$plaintext);
+  let hasVerifier = 1;
 }
 
 def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure]> {
@@ -131,6 +132,7 @@ def MakeCKKSPackedPlaintextOp : Openfhe_Op<"make_ckks_packed_plaintext", [Pure]>
     RankedTensorOf<[AnyFloat, AnyInteger]>:$value)
   ;
   let results = (outs NewLWEPlaintext:$plaintext);
+  let hasVerifier = 1;
 }
 
 def EncryptOp : Openfhe_Op<"encrypt", [Pure]> {

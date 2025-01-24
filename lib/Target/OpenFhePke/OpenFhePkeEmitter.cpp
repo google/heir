@@ -9,7 +9,9 @@
 #include <vector>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
@@ -66,10 +68,9 @@ FailureOr<std::string> getStringForConstant(Value value) {
 }  // namespace
 
 LogicalResult translateToOpenFhePke(Operation *op, llvm::raw_ostream &os,
-                                    const OpenfheScheme &scheme,
                                     const OpenfheImportType &importType) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeEmitter emitter(os, &variableNames, scheme, importType);
+  OpenFhePkeEmitter emitter(os, &variableNames, importType);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -111,7 +112,16 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
-  os << getModulePrelude(scheme_, importType_) << "\n";
+  OpenfheScheme scheme;
+  if (moduleOp->getAttr(kBGVSchemeAttrName)) {
+    scheme = OpenfheScheme::BGV;
+  } else if (moduleOp->getAttr(kCKKSSchemeAttrName)) {
+    scheme = OpenfheScheme::CKKS;
+  } else {
+    return emitError(moduleOp.getLoc(), "Missing scheme attribute on module");
+  }
+
+  os << getModulePrelude(scheme, importType_) << "\n";
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
@@ -552,11 +562,6 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 
 LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakeCKKSPackedPlaintextOp op) {
-  if (scheme_ != OpenfheScheme::CKKS) {
-    return emitError(op.getLoc(),
-                     "encoding CKKS plaintext not supported by chosen scheme");
-  }
-
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
   std::string inputVarFilledName = inputVarName + "_filled";
   std::string inputVarFilledLengthName = inputVarName + "_filled_n";
@@ -605,6 +610,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
   // implementation is simple enough (and dependent on currently-hard-coded
   // encoding choices) that we will eventually need to work at a lower level of
   // the API to support this operation properly.
+  bool isCKKS = llvm::isa<lwe::InverseCanonicalEncodingAttr>(op.getEncoding());
   auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType());
   if (tensorTy) {
     auto nonUnitDim = getNonUnitDimension(tensorTy);
@@ -621,7 +627,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
     std::string tmpVar =
         variableNames->getNameForValue(op.getResult()) + "_cast";
     os << "const auto& " << tmpVar << " = ";
-    if (scheme_ == OpenfheScheme::CKKS) {
+    if (isCKKS) {
       os << inputVarName << "->GetCKKSPackedValue();\n";
     } else {
       os << inputVarName << "->GetPackedValue();\n";
@@ -632,7 +638,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
     if (failed(emitType(tensorTy, op->getLoc()))) {
       return failure();
     }
-    if (scheme_ == OpenfheScheme::CKKS) {
+    if (isCKKS) {
       // need to drop the complex down to real:  first create the vector,
       os << " " << outputVarName << "(" << tmpVar << ".size());\n";
       // then use std::transform
@@ -651,7 +657,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
   auto result = emitTypedAssignPrefix(op.getResult(), op->getLoc());
   if (failed(result)) return result;
   os << variableNames->getNameForValue(op.getInput());
-  if (scheme_ == OpenfheScheme::CKKS) {
+  if (isCKKS) {
     os << "->GetCKKSPackedValue()[0].real();\n";
   } else {
     os << "->GetPackedValue()[0];\n";
@@ -762,12 +768,8 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc) {
 
 OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream &os,
                                      SelectVariableNames *variableNames,
-                                     const OpenfheScheme &scheme,
                                      const OpenfheImportType &importType)
-    : scheme_(scheme),
-      importType_(importType),
-      os(os),
-      variableNames(variableNames) {}
+    : importType_(importType), os(os), variableNames(variableNames) {}
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

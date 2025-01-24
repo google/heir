@@ -23,7 +23,7 @@
 !ct_L1_ = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<8xf64>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 !ct_L2_ = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<8xf64>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L2_, key = #key, modulus_chain = #modulus_chain_L5_C2_>
 
-module {
+module attributes {scheme.ckks} {
   func.func @simple_ckks_bootstrapping(%cc: !openfhe.crypto_context, %ct: !ct_L2_) -> !ct_L2_ {
     // in FLEXIBLEAUTOEXT mode, openfhe won't execute those mod_reduce
     // added here just for type conversion
