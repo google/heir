@@ -57,3 +57,12 @@ heir_py_test(
         "notap",
     ],
 )
+
+heir_py_test(
+    name = "loop_test",
+    srcs = ["loop_test.py"],
+    tags = [
+        # copybara: manual
+        "notap",
+    ],
+)

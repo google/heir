@@ -76,6 +76,8 @@ def run_compiler(
     heir_opt = heir_backend.HeirOptBackend(heir_config.heir_opt_path)
     # TODO(#1162): construct heir-opt pipeline options from decorator
     heir_opt_options = [
+        # Canonicalize cleans up the emitted IR
+        "--canonicalize",
         f"--secretize=function={func_name}",
         "--mlir-to-bgv=ciphertext-degree=32",
         f"--scheme-to-openfhe=entry-function={func_name}",
@@ -163,6 +165,8 @@ def run_compiler(
     sys.path.append(workspace_dir)
     importlib.invalidate_caches()
     bound_module = importlib.import_module(module_name)
+  except Exception as e:
+    print(f"error: {e}")
   finally:
     if debug:
       print(
