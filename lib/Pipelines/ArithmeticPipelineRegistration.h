@@ -43,6 +43,11 @@ struct MlirToRLWEPipelineOptions
       llvm::cl::desc("Modulus switching right before the first multiplication "
                      "(default to false)"),
       llvm::cl::init(false)};
+  PassOptions::Option<bool> debug{
+      *this, "insert-debug-handler-calls",
+      llvm::cl::desc("Insert function calls to an externally-defined debug "
+                     "function (cf. --lwe-add-debug-port)"),
+      llvm::cl::init(false)};
 };
 
 using RLWEPipelineBuilder =

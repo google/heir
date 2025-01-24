@@ -12,6 +12,7 @@ cc_library(
     ],
     deps = [
         ":AddClientInterface",
+        ":AddDebugPort",
         ":SetDefaultParameters",
         ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -23,6 +24,23 @@ cc_library(
     srcs = ["AddClientInterface.cpp"],
     hdrs = [
         "AddClientInterface.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "AddDebugPort",
+    srcs = ["AddDebugPort.cpp"],
+    hdrs = [
+        "AddDebugPort.h",
     ],
     deps = [
         ":pass_inc_gen",

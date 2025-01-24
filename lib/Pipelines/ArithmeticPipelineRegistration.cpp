@@ -8,6 +8,7 @@
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
+#include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
@@ -227,6 +228,13 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
       default:
         llvm::errs() << "Unsupported RLWE scheme: " << scheme;
         exit(EXIT_FAILURE);
+    }
+
+    // insert debug handler calls
+    if (options.debug) {
+      lwe::AddDebugPortOptions addDebugPortOptions;
+      addDebugPortOptions.entryFunction = options.entryFunction;
+      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
     }
 
     // Convert to OpenFHE
