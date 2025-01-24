@@ -108,33 +108,107 @@ LogicalResult SecretnessAnalysis::visitOperation(
   return mlir::success();
 }
 
-void annotateSecretness(Operation *top, DataFlowSolver *solver) {
+void annotateSecretness(Operation *top, DataFlowSolver *solver, bool verbose) {
+  // Attribute "Printing" Helper
+  auto getAttribute =
+      [&](const SecretnessLattice *secretnessLattice) -> NamedAttribute {
+    if (!secretnessLattice) {
+      return {secret::SecretDialect::kArgMissingAttrName,
+              UnitAttr::get(top->getContext())};
+    }
+    if (!secretnessLattice->getValue().isInitialized()) {
+      return {secret::SecretDialect::kArgUnknownAttrName,
+              UnitAttr::get(top->getContext())};
+    }
+    if (secretnessLattice->getValue().getSecretness()) {
+      return {secret::SecretDialect::kArgSecretAttrName,
+              UnitAttr::get(top->getContext())};
+    }
+    return {secret::SecretDialect::kArgPublicAttrName,
+            UnitAttr::get(top->getContext())};
+  };
+
   // Add an attribute to the operations to show determined secretness
   top->walk([&](Operation *op) {
-    for (unsigned i = 0; i < op->getNumResults(); ++i) {
-      std::string name = op->getNumResults() == 1
-                             ? "secretness"
-                             : "result_" + std::to_string(i) + "_secretness";
-      auto *secretnessLattice =
-          solver->lookupState<SecretnessLattice>(op->getOpResult(i));
-      if (!secretnessLattice) {
-        op->setAttr(name, StringAttr::get(op->getContext(), "null"));
-        return;
+    // Custom Handling for `func.func`, which uses special attributes
+    if (auto func = llvm::dyn_cast<func::FuncOp>(op)) {
+      // Arguments
+      for (unsigned i = 0; i < func.getNumArguments(); ++i) {
+        auto arg = func.getArgument(i);
+        // Do not annotate if already of type !secret.secret<..>
+        if (!verbose && llvm::isa<secret::SecretType>(arg.getType())) continue;
+        auto *secretnessLattice = solver->lookupState<SecretnessLattice>(arg);
+        if (verbose || isSecret(secretnessLattice)) {
+          auto attr = getAttribute(secretnessLattice);
+          func.setArgAttr(i, attr.getName(), attr.getValue());
+        }
       }
-      if (!secretnessLattice->getValue().isInitialized()) {
-        op->setAttr(name, StringAttr::get(op->getContext(), ("unknown")));
-        return;
+
+      // Results
+      auto *ret = func.getFunctionBody().back().getTerminator();
+      assert(ret->getNumOperands() == func.getFunctionType().getNumResults() &&
+             "Number of returned values does not match function type");
+      for (unsigned i = 0; i < func.getFunctionType().getNumResults(); ++i) {
+        auto res = ret->getOpOperand(i).get();
+        // Do not annotate if already of type !secret.secret<..>
+        if (!verbose && llvm::isa<secret::SecretType>(res.getType())) continue;
+        auto *secretnessLattice = solver->lookupState<SecretnessLattice>(res);
+        if (verbose || isSecret(secretnessLattice)) {
+          auto attr = getAttribute(secretnessLattice);
+          func.setResultAttr(i, attr.getName(), attr.getValue());
+        }
       }
-      op->setAttr(name,
-                  BoolAttr::get(op->getContext(),
-                                secretnessLattice->getValue().getSecretness()));
+    } else {
+      // Default Handling for all other operations
+      SmallVector<NamedAttribute, 1> attributes;
+      bool isTerminator = op->hasTrait<OpTrait::IsTerminator>();
+      if (isTerminator) {
+        // Terminators (e.g., func.return, affine.yield) do not have mlir
+        // op results, but do still have logical "results" (mlir operands)
+        for (auto o : op->getOperands()) {
+          // Do not annotate if already of type !secret.secret<..>
+          if (!verbose && llvm::isa<secret::SecretType>(o.getType())) continue;
+          auto *secretnessLattice = solver->lookupState<SecretnessLattice>(o);
+          if (verbose || isSecret(secretnessLattice))
+            attributes.append({getAttribute(secretnessLattice)});
+        }
+      } else {  // Non-Terminators, so consider op results
+        for (auto o : op->getResults()) {
+          // Do not annotate if already of type !secret.secret<..>
+          if (!verbose && llvm::isa<secret::SecretType>(o.getType())) continue;
+          auto *secretnessLattice = solver->lookupState<SecretnessLattice>(o);
+          if (verbose || isSecret(secretnessLattice))
+            attributes.append({getAttribute(secretnessLattice)});
+        }
+      }
+      if (attributes.size() == 1) {
+        // Do not annotate if already of type !secret.secret<..>
+        if (verbose || !llvm::isa<secret::SecretType>(
+                           isTerminator ? op->getOperand(0).getType()
+                                        : op->getResult(0).getType()))
+          op->setAttr(attributes[0].getName(), attributes[0].getValue());
+      } else if (!attributes.empty()) {
+        // Here, we emit also for !secret.secret<>) to preserve the mapping
+        SmallVector<Attribute> dicts;
+        for (auto a : attributes) {
+          auto dict = DictionaryAttr::get(top->getContext(), a);
+          dicts.push_back(dict);
+        }
+        auto arr = ArrayAttr::get(top->getContext(), dicts);
+        op->setAttr("secretness", arr);
+      }
     }
+
     return;
   });
 }
 
 bool isSecret(Value value, DataFlowSolver *solver) {
   auto *lattice = solver->lookupState<SecretnessLattice>(value);
+  return isSecret(lattice);
+}
+
+bool isSecret(const SecretnessLattice *lattice) {
   if (!lattice) {
     return false;
   }
