@@ -87,6 +87,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(SetupBootstrapOp op);
   LogicalResult printOperation(SquareOp op);
   LogicalResult printOperation(SubOp op);
+  LogicalResult printOperation(SubPlainOp op);
 
   // Helpers for above
   LogicalResult printEvalMethod(::mlir::Value result,

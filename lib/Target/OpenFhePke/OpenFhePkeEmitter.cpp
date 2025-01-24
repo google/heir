@@ -93,11 +93,11 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretUnderlyingTypeOp>(
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
-          .Case<AddOp, AddPlainOp, SubOp, MulNoRelinOp, MulOp, MulPlainOp,
-                SquareOp, NegateOp, MulConstOp, RelinOp, ModReduceOp,
-                LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp, EncryptOp,
-                DecryptOp, GenParamsOp, GenContextOp, GenMulKeyOp, GenRotKeyOp,
-                GenBootstrapKeyOp, MakePackedPlaintextOp,
+          .Case<AddOp, AddPlainOp, SubOp, SubPlainOp, MulNoRelinOp, MulOp,
+                MulPlainOp, SquareOp, NegateOp, MulConstOp, RelinOp,
+                ModReduceOp, LevelReduceOp, RotOp, AutomorphOp, KeySwitchOp,
+                EncryptOp, DecryptOp, GenParamsOp, GenContextOp, GenMulKeyOp,
+                GenRotKeyOp, GenBootstrapKeyOp, MakePackedPlaintextOp,
                 MakeCKKSPackedPlaintextOp, SetupBootstrapOp, BootstrapOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
@@ -233,6 +233,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(AddPlainOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(SubOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
                          {op.getLhs(), op.getRhs()}, "EvalSub");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(SubPlainOp op) {
+  // OpenFHE defines an overload for EvalSub to work on both plaintext and
+  // ciphertext inputs.
+  return printEvalMethod(op.getResult(), op.getCryptoContext(),
+                         {op.getCiphertext(), op.getPlaintext()}, "EvalSub");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(MulNoRelinOp op) {

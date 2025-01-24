@@ -169,6 +169,19 @@ def AddPlainOp : Openfhe_Op<"add_plain",[
   let results = (outs NewLWECiphertext:$output);
 }
 
+def SubPlainOp : Openfhe_Op<"sub_plain",[
+    Pure,
+    AllTypesMatch<["ciphertext", "output"]>
+]> {
+  let summary = "OpenFHE sub operation of a ciphertext and a plaintext.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    NewLWECiphertext:$ciphertext,
+    NewLWEPlaintext:$plaintext
+  );
+  let results = (outs NewLWECiphertext:$output);
+}
+
 def MulOp : Openfhe_BinaryOp<"mul"> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
 
 def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, AllTypesMatch<["lhs", "rhs"]>]> {

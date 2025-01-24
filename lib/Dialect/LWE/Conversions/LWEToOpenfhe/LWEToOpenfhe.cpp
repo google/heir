@@ -311,7 +311,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         ConvertCiphertextPlaintextOp<bgv::AddPlainOp, openfhe::AddPlainOp>,
         ConvertCiphertextPlaintextOp<ckks::AddPlainOp, openfhe::AddPlainOp>,
 
-        // TODO (#1200): SubPlain support for OpenFHE
+        // SubPlain
+        ConvertCiphertextPlaintextOp<bgv::SubPlainOp, openfhe::SubPlainOp>,
+        ConvertCiphertextPlaintextOp<ckks::SubPlainOp, openfhe::SubPlainOp>,
 
         // MulPlain
         ConvertCiphertextPlaintextOp<bgv::MulPlainOp, openfhe::MulPlainOp>,

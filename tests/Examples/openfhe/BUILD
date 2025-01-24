@@ -15,6 +15,14 @@ openfhe_end_to_end_test(
 )
 
 openfhe_end_to_end_test(
+    name = "ciphertext_plaintext_ops_test",
+    generated_lib_header = "ciphertext_plaintext_ops_lib.h",
+    mlir_src = "ciphertext_plaintext_ops.mlir",
+    tags = ["notap"],
+    test_src = "ciphertext_plaintext_ops_test.cpp",
+)
+
+openfhe_end_to_end_test(
     name = "simple_sum_test",
     generated_lib_header = "simple_sum_lib.h",
     heir_opt_flags = ["--mlir-to-openfhe-bgv=entry-function=simple_sum ciphertext-degree=32"],

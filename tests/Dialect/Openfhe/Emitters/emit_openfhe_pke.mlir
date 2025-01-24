@@ -133,6 +133,17 @@ module attributes {scheme.ckks} {
     %1 = lwe.rlwe_decode %0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : !scalar_pt_ty -> i16
     return %1 : i16
   }
+  // CHECK-LABEL: CiphertextT test_sub_plain(
+  // CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
+  // CHECK-SAME:    Plaintext [[ARG1:[^,]*]],
+  // CHECK-SAME:    CiphertextT [[ARG2:[^,]*]]) {
+  // CHECK-NEXT:      const auto& [[v0:.*]] = [[CC]]->EvalSub([[ARG2]], [[ARG1]]);
+  // CHECK-NEXT:      return [[v0]];
+  // CHECK-NEXT:  }
+  func.func @test_sub_plain(%cc: !openfhe.crypto_context, %pt :!tensor_pt_ty, %ct : !tensor_ct_ty) -> !tensor_ct_ty {
+    %0 = openfhe.sub_plain  %cc, %ct, %pt: (!openfhe.crypto_context, !tensor_ct_ty, !tensor_pt_ty) -> !tensor_ct_ty
+    return %0 : !tensor_ct_ty
+  }
 }
 
 // -----

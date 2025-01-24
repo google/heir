@@ -79,6 +79,12 @@ module {
     return
   }
 
+  // CHECK-LABEL: func @test_sub_plain
+  func.func @test_sub_plain(%cc : !cc, %pt : !pt, %ct: !ct) {
+    %out = openfhe.sub_plain %cc, %ct, %pt: (!cc, !ct, !pt) -> !ct
+    return
+  }
+
   // CHECK-LABEL: func @test_mul
   func.func @test_mul(%cc : !cc, %pt : !pt, %pk: !pk) {
     %c1 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
