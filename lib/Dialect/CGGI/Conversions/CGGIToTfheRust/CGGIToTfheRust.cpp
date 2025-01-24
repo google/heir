@@ -41,48 +41,6 @@ constexpr int kAndLut = 8;
 constexpr int kOrLut = 14;
 constexpr int kXorLut = 6;
 
-static Type encrytpedUIntTypeFromWidth(MLIRContext *ctx, int width) {
-  // Only supporting unsigned types because the LWE dialect does not have a
-  // notion of signedness.
-  switch (width) {
-    case 1:
-      // The minimum bit width of the integer tfhe_rust API is UInt2
-      // https://docs.rs/tfhe/latest/tfhe/index.html#types
-      // This may happen if there are no LUT or boolean gate operations that
-      // require a minimum bit width (e.g. shuffling bits in a program that
-      // multiplies by two).
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Upgrading ciphertext with bit width 1 to UInt2");
-      [[fallthrough]];
-    case 2:
-      return tfhe_rust::EncryptedUInt2Type::get(ctx);
-    case 3:
-      return tfhe_rust::EncryptedUInt3Type::get(ctx);
-    case 4:
-      return tfhe_rust::EncryptedUInt4Type::get(ctx);
-    case 8:
-      return tfhe_rust::EncryptedUInt8Type::get(ctx);
-    case 10:
-      return tfhe_rust::EncryptedUInt10Type::get(ctx);
-    case 12:
-      return tfhe_rust::EncryptedUInt12Type::get(ctx);
-    case 14:
-      return tfhe_rust::EncryptedUInt14Type::get(ctx);
-    case 16:
-      return tfhe_rust::EncryptedUInt16Type::get(ctx);
-    case 32:
-      return tfhe_rust::EncryptedUInt32Type::get(ctx);
-    case 64:
-      return tfhe_rust::EncryptedUInt64Type::get(ctx);
-    case 128:
-      return tfhe_rust::EncryptedUInt128Type::get(ctx);
-    case 256:
-      return tfhe_rust::EncryptedUInt256Type::get(ctx);
-    default:
-      llvm_unreachable("Unsupported bitwidth");
-  }
-}
-
 class CGGIToTfheRustTypeConverter : public TypeConverter {
  public:
   CGGIToTfheRustTypeConverter(MLIRContext *ctx) {
@@ -530,6 +488,12 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
               hasServerKeyArg);
     });
 
+    target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp op) {
+      bool hasServerKeyArg =
+          isa<tfhe_rust::ServerKeyType>(op.getOperand(0).getType());
+      return hasServerKeyArg;
+    });
+
     target.addLegalOp<mlir::arith::ConstantOp>();
 
     target.addDynamicallyLegalOp<
@@ -544,8 +508,8 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
     // FIXME: still need to update callers to insert the new server key arg, if
     // needed and possible.
     patterns.add<
-        AddServerKeyArg, ConvertEncodeOp, ConvertLut2Op, ConvertLut3Op,
-        ConvertNotOp, ConvertTrivialEncryptOp, ConvertTrivialOp,
+        AddServerKeyArg, AddServerKeyArgCall, ConvertEncodeOp, ConvertLut2Op,
+        ConvertLut3Op, ConvertNotOp, ConvertTrivialEncryptOp, ConvertTrivialOp,
         ConvertCGGITRBinOp<cggi::AddOp, tfhe_rust::AddOp>,
         ConvertCGGITRBinOp<cggi::MulOp, tfhe_rust::MulOp>,
         ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>, ConvertAndOp,

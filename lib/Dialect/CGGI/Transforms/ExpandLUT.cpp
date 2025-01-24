@@ -16,8 +16,6 @@
 #include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
-#define DEBUG_TYPE "expand-lut"
-
 namespace mlir {
 namespace heir {
 namespace cggi {

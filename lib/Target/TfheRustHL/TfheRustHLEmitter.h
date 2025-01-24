@@ -51,6 +51,7 @@ class TfheRustHLEmitter {
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
+  LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(affine::AffineForOp op);
   LogicalResult printOperation(affine::AffineYieldOp op);
   LogicalResult printOperation(affine::AffineStoreOp op);
@@ -63,7 +64,9 @@ class TfheRustHLEmitter {
   LogicalResult printOperation(arith::TruncIOp op);
   LogicalResult printOperation(tensor::ExtractOp op);
   LogicalResult printOperation(tensor::FromElementsOp op);
+  LogicalResult printOperation(tensor::InsertOp op);
   LogicalResult printOperation(memref::AllocOp op);
+  LogicalResult printOperation(memref::DeallocOp op);
   LogicalResult printOperation(memref::LoadOp op);
   LogicalResult printOperation(memref::StoreOp op);
   LogicalResult printOperation(AddOp op);
