@@ -8,6 +8,7 @@ cc_library(
     srcs = ["LevelAnalysis.cpp"],
     hdrs = ["LevelAnalysis.h"],
     deps = [
+        "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",

@@ -84,6 +84,14 @@ class MulResultAnalysis
   LogicalResult visitOperation(Operation *op,
                                ArrayRef<const MulResultLattice *> operands,
                                ArrayRef<MulResultLattice *> results) override;
+
+  void visitExternalCall(CallOpInterface call,
+                         ArrayRef<const MulResultLattice *> argumentLattices,
+                         ArrayRef<MulResultLattice *> resultLattices) override;
+
+  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+    propagateIfChanged(state, changed);
+  }
 };
 
 }  // namespace heir

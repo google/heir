@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <string>
 
+#include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -106,6 +107,15 @@ LogicalResult SecretnessAnalysis::visitOperation(
     propagateIfChanged(result, result->join(resultSecretness));
   }
   return mlir::success();
+}
+
+void SecretnessAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const SecretnessLattice *> argumentLattices,
+    ArrayRef<SecretnessLattice *> resultLattices) {
+  auto callback = std::bind(&SecretnessAnalysis::propagateIfChangedWrapper,
+                            this, std::placeholders::_1, std::placeholders::_2);
+  ::mlir::heir::visitExternalCall<Secretness, SecretnessLattice>(
+      call, argumentLattices, resultLattices, callback);
 }
 
 void annotateSecretness(Operation *top, DataFlowSolver *solver) {

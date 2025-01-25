@@ -9,6 +9,7 @@ cc_library(
     srcs = ["SecretnessAnalysis.cpp"],
     hdrs = ["SecretnessAnalysis.h"],
     deps = [
+        "@heir//lib/Analysis:Utils",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",

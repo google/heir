@@ -1,6 +1,6 @@
 #include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
 
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -72,6 +72,15 @@ LogicalResult MulResultAnalysis::visitOperation(
         }
       });
   return success();
+}
+
+void MulResultAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const MulResultLattice *> argumentLattices,
+    ArrayRef<MulResultLattice *> resultLattices) {
+  auto callback = std::bind(&MulResultAnalysis::propagateIfChangedWrapper, this,
+                            std::placeholders::_1, std::placeholders::_2);
+  ::mlir::heir::visitExternalCall<MulResultState, MulResultLattice>(
+      call, argumentLattices, resultLattices, callback);
 }
 
 }  // namespace heir

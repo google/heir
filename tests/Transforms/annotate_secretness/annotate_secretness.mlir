@@ -34,3 +34,13 @@ func.func @multi_result_secretness(%s: i32 {secret.secret}, %p: i32) {
     %s1, %s2 = arith.addui_extended %s, %p : i32, i1
     func.return
 }
+
+func.func private @callee(!secret.secret<i32>) -> !secret.secret<i32>
+// CHECK: @func_call
+// CHECK-SAME: ([[S:%.*]]: [[ST:.*]])
+func.func @func_call(%s: !secret.secret<i32>) {
+    // CHECK: call
+    // CHECK-SAME: {secretness = true}
+    %1 = func.call @callee(%s) : (!secret.secret<i32>) -> !secret.secret<i32>
+    func.return
+}

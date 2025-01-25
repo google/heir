@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
@@ -75,6 +76,15 @@ LogicalResult LevelAnalysis::visitOperation(
         }
       });
   return success();
+}
+
+void LevelAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const LevelLattice *> argumentLattices,
+    ArrayRef<LevelLattice *> resultLattices) {
+  auto callback = std::bind(&LevelAnalysis::propagateIfChangedWrapper, this,
+                            std::placeholders::_1, std::placeholders::_2);
+  ::mlir::heir::visitExternalCall<LevelState, LevelLattice>(
+      call, argumentLattices, resultLattices, callback);
 }
 
 static int getMaxLevel(Operation *top, DataFlowSolver *solver) {

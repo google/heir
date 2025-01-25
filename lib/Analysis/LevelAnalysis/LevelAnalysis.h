@@ -33,6 +33,7 @@ class LevelState {
     assert(isInitialized());
     return level.value();
   }
+  LevelType get() const { return getLevel(); }
 
   bool operator==(const LevelState &rhs) const { return level == rhs.level; }
 
@@ -82,6 +83,14 @@ class LevelAnalysis
   LogicalResult visitOperation(Operation *op,
                                ArrayRef<const LevelLattice *> operands,
                                ArrayRef<LevelLattice *> results) override;
+
+  void visitExternalCall(CallOpInterface call,
+                         ArrayRef<const LevelLattice *> argumentLattices,
+                         ArrayRef<LevelLattice *> resultLattices) override;
+
+  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+    propagateIfChanged(state, changed);
+  }
 };
 
 void annotateLevel(Operation *top, DataFlowSolver *solver);

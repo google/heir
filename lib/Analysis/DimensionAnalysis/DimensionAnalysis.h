@@ -26,6 +26,7 @@ class DimensionState {
     assert(isInitialized());
     return dimension.value();
   }
+  DimensionType get() const { return getDimension(); }
 
   bool operator==(const DimensionState &rhs) const {
     return dimension == rhs.dimension;
@@ -78,6 +79,14 @@ class DimensionAnalysis
   LogicalResult visitOperation(Operation *op,
                                ArrayRef<const DimensionLattice *> operands,
                                ArrayRef<DimensionLattice *> results) override;
+
+  void visitExternalCall(CallOpInterface call,
+                         ArrayRef<const DimensionLattice *> argumentLattices,
+                         ArrayRef<DimensionLattice *> resultLattices) override;
+
+  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+    propagateIfChanged(state, changed);
+  }
 };
 
 // this function will assert false when Lattice does not exist or not

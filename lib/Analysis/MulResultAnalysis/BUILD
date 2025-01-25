@@ -8,6 +8,7 @@ cc_library(
     srcs = ["MulResultAnalysis.cpp"],
     hdrs = ["MulResultAnalysis.h"],
     deps = [
+        "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
