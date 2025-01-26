@@ -5,6 +5,7 @@
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Analysis/Utils.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
@@ -104,6 +105,26 @@ int getDimension(Value value, DataFlowSolver *solver) {
     return 2;
   }
   return lattice->getValue().getDimension();
+}
+
+int getDimensionFromMgmtAttr(Value value) {
+  Attribute attr;
+  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
+    auto *parentOp = blockArg.getOwner()->getParentOp();
+    auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
+    if (genericOp) {
+      attr = genericOp.getArgAttr(blockArg.getArgNumber(),
+                                  mgmt::MgmtDialect::kArgMgmtAttrName);
+    }
+  } else {
+    auto *parentOp = value.getDefiningOp();
+    attr = parentOp->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+  }
+  if (!mlir::isa<mgmt::MgmtAttr>(attr)) {
+    assert(false && "MgmtAttr not found");
+  }
+  auto mgmtAttr = mlir::cast<mgmt::MgmtAttr>(attr);
+  return mgmtAttr.getDimension();
 }
 
 void annotateDimension(Operation *top, DataFlowSolver *solver) {

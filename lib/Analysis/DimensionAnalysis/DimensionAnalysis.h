@@ -93,6 +93,8 @@ class DimensionAnalysis
 // initialized
 DimensionState::DimensionType getDimension(Value value, DataFlowSolver *solver);
 
+DimensionState::DimensionType getDimensionFromMgmtAttr(Value value);
+
 void annotateDimension(Operation *top, DataFlowSolver *solver);
 
 }  // namespace heir
