@@ -2,6 +2,7 @@
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
+#include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/Mgmt/Transforms/Passes.h"
@@ -87,6 +88,14 @@ struct SecretInsertMgmtBGV
     pipeline.addPass(createCSEPass());
     pipeline.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(pipeline, getOperation());
+
+    SchemeParam schemeParam(4096, 65537, 3, {60, 60, 60, 60}, 2, {60, 60});
+    solver.load<NoiseAnalysis>(schemeParam);
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
   }
 };
 
