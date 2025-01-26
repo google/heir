@@ -100,8 +100,7 @@ class TextualMlirEmitter:
       case ir.Expr(op="binop"):
         name = self.get_or_create_name(assign.target)
         emitted_expr = self.emit_binop(assign.value)
-        # TODO(#1162): replace i64 with inferred type
-        return f"{name} = {emitted_expr} : i64"
+        return f"{name} = {emitted_expr} : {self.infer_type(assign.value)}" # TODO(#1162): replace i64 with inferred type
       case ir.Expr(op="call"):
         func = assign.value.func
         # if assert fails, variable was undefined
@@ -193,5 +192,51 @@ class TextualMlirEmitter:
 
   def emit_return(self, ret):
     var = self.get_name(ret.value)
-    # TODO(#1162): replace i64 with inferred or explicit return type
-    return f"func.return {var} : i64"
+
+    # Infer the return type based on the type of ret.value
+    return f"func.return {var} : {self.infer_type(ret.value)}" #TODO (#1162) replace i64 with inferred type
+  
+  def infer_type(self, expr):
+    if isinstance(expr, ir.BinaryOperation):
+        left_type = self.infer_type(expr.left)
+        right_type = self.infer_type(expr.right)
+
+        # assuming that binary operations between equal types return the same type
+        if left_type == right_type:
+            return left_type
+        else:
+            # Type promotion logic
+            return 'i64'  # Default fallback for mixed types
+
+    # Handling simple data types
+    elif isinstance(expr, int):
+        return 'i64'
+    elif isinstance(expr, float):
+        return 'f64'
+    elif isinstance(expr, complex):
+        return 'complex'  # Add support for complex numbers
+    elif isinstance(expr, str):
+        return 'string'
+    elif isinstance(expr, bool):
+        return 'bool'  # Support for boolean values
+    elif isinstance(expr, list):
+        # Assuming a list of integers as default type
+        return f"list<{self.infer_type(expr[0])}>" if expr else "list<unknown>"
+    elif isinstance(expr, tuple):
+        # Assuming a tuple of mixed types; return tuple type with inferred types
+        inferred_types = [self.infer_type(el) for el in expr]
+        return f"tuple<{', '.join(inferred_types)}>"
+    elif isinstance(expr, dict):
+        # Assuming a dictionary with <key type, value type> based on first item
+        if expr:
+            key_type = self.infer_type(next(iter(expr.keys())))
+            value_type = self.infer_type(next(iter(expr.values())))
+            return f"dict<{key_type}, {value_type}>"
+        else:
+            return "dict<unknown, unknown>"
+
+    # Handling other complex types or custom classes
+    else:
+        return 'unknown'  # Default type if not recognized
+
+
