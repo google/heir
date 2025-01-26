@@ -237,6 +237,6 @@ class TextualMlirEmitter:
 
     # Handling other complex types or custom classes
     else:
-        return 'unknown'  # Default type if not recognized
+        return 'unknown' 
 
 
