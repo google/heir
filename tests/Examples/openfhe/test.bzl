@@ -1,5 +1,6 @@
 """A macro providing an end-to-end test for OpenFHE codegen."""
 
+load("@heir//bazel/openfhe:copts.bzl", "MAYBE_OPENFHE_LINKOPTS", "MAYBE_OPENMP_COPTS")
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 
@@ -55,6 +56,8 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         hdrs = [":" + generated_lib_header],
         deps = deps + ["@openfhe//:pke"],
         tags = tags,
+        copts = MAYBE_OPENMP_COPTS,
+        linkopts = MAYBE_OPENFHE_LINKOPTS,
         **kwargs
     )
     native.cc_test(
@@ -68,5 +71,7 @@ def openfhe_end_to_end_test(name, mlir_src, test_src, generated_lib_header, heir
         ],
         tags = tags,
         data = data,
+        copts = MAYBE_OPENMP_COPTS,
+        linkopts = MAYBE_OPENFHE_LINKOPTS,
         **kwargs
     )

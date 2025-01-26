@@ -68,11 +68,11 @@ jobs:
       # requires the `PATH` to find the `cargo` binary.
       - name: "Run `bazel build`"
         run: |
-          bazel build --noincompatible_strict_action_env  -c fastbuild //...
+          bazel build --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
 
       - name: "Run `bazel test`"
         run: |
-          bazel test --noincompatible_strict_action_env -c fastbuild //...
+          bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
 
       # Tests specifically for the tfhe-rs codegen
       - name: rustup toolchain install
