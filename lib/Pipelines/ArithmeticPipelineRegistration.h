@@ -29,12 +29,6 @@ struct MlirToRLWEPipelineOptions
       llvm::cl::desc("If true, generate a client interface that uses a public "
                      "key for encryption."),
       llvm::cl::init(true)};
-  PassOptions::Option<bool> oneValuePerHelperFn{
-      *this, "one-value-per-helper-fn",
-      llvm::cl::desc(
-          "If true, split encryption helpers into separate functions "
-          "for each SSA value."),
-      llvm::cl::init(true)};
   PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
       *this, "modulus-switch-before-first-mul",
       llvm::cl::desc("Modulus switching right before the first multiplication "
