@@ -41,15 +41,6 @@ py_library(
 )
 
 heir_py_test(
-    name = "pipeline_test",
-    srcs = ["pipeline_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-heir_py_test(
     name = "e2e_test",
     srcs = ["e2e_test.py"],
     tags = [

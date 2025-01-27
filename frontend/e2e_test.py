@@ -1,4 +1,4 @@
-from heir_py import compile
+from heir import compile
 
 from absl.testing import absltest  # fmt: skip
 
