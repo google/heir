@@ -1,8 +1,6 @@
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 
 #include <cassert>
-#include <cstddef>
-#include <cstdint>
 #include <utility>
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -14,15 +12,21 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
@@ -59,6 +63,15 @@ FailureOr<Value> getContextualCryptoContext(Operation *op) {
   return result.value();
 }
 
+// NOTE: we can not use containsDialect
+// for FuncOp declaration, which does not have a body
+template <typename... Dialects>
+bool containsArgumentOfDialect(func::FuncOp funcOp) {
+  return llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
+    return DialectEqual<Dialects...>()(&argType.getDialect());
+  });
+}
+
 struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
   AddCryptoContextArg(mlir::MLIRContext *context)
       : OpConversionPattern<func::FuncOp>(context, /* benefit= */ 2) {}
@@ -68,8 +81,13 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    if (!containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
-            op)) {
+    auto containsCryptoOps =
+        containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
+            op);
+    auto containsCryptoArg =
+        containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect,
+                                  ckks::CKKSDialect>(op);
+    if (!(containsCryptoOps || containsCryptoArg)) {
       return failure();
     }
 
@@ -86,11 +104,43 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
     rewriter.modifyOpInPlace(op, [&] {
       op.setType(newFuncType);
 
-      Block &block = op.getBody().getBlocks().front();
-      block.insertArgument(&block.getArguments().front(), cryptoContextType,
-                           op.getLoc());
+      // guard against private FuncOp (i.e. declaration)
+      if (op.getVisibility() != SymbolTable::Visibility::Private) {
+        Block &block = op.getBody().getBlocks().front();
+        block.insertArgument(&block.getArguments().front(), cryptoContextType,
+                             op.getLoc());
+      }
     });
 
+    return success();
+  }
+};
+
+struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
+  ConvertFuncCallOp(mlir::MLIRContext *context)
+      : OpConversionPattern<func::CallOp>(context) {}
+
+  using OpConversionPattern<func::CallOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      func::CallOp op, typename func::CallOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+    auto cryptoContext = result.value();
+
+    auto callee = op.getCallee();
+    auto operands = adaptor.getOperands();
+    auto resultTypes = op.getResultTypes();
+
+    SmallVector<Value> newOperands;
+    newOperands.push_back(cryptoContext);
+    for (auto operand : operands) {
+      newOperands.push_back(operand);
+    }
+
+    rewriter.replaceOpWithNewOp<func::CallOp>(op, callee, resultTypes,
+                                              newOperands);
     return success();
   }
 };
@@ -275,11 +325,28 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
       bool hasCryptoContextArg = op.getFunctionType().getNumInputs() > 0 &&
                                  mlir::isa<openfhe::CryptoContextType>(
                                      *op.getFunctionType().getInputs().begin());
+      auto containsCryptoOps =
+          containsDialects<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect>(
+              op);
+      auto containsCryptoArg =
+          containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect,
+                                    ckks::CKKSDialect>(op);
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsDialects<lwe::LWEDialect, bgv::BGVDialect,
-                                ckks::CKKSDialect>(op) ||
-              hasCryptoContextArg);
+             (!(containsCryptoOps || containsCryptoArg) || hasCryptoContextArg);
+    });
+
+    // Ensures that callee function signature is consistent
+    target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp op) {
+      auto operandTypes = op.getCalleeType().getInputs();
+      auto containsCryptoArg = llvm::any_of(operandTypes, [&](Type argType) {
+        return DialectEqual<lwe::LWEDialect, bgv::BGVDialect,
+                            ckks::CKKSDialect>()(&argType.getDialect());
+      });
+      auto hasCryptoContextArg =
+          !operandTypes.empty() &&
+          mlir::isa<openfhe::CryptoContextType>(*operandTypes.begin());
+      return (!containsCryptoArg || hasCryptoContextArg);
     });
 
     patterns.add<
@@ -289,6 +356,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
 
         // Update Func Op Signature
         AddCryptoContextArg,
+
+        // Update Func CallOp Signature
+        ConvertFuncCallOp,
 
         // Handle LWE encode and en/decrypt
         // Note: `lwe.decode` is handled directly by the OpenFHE emitter

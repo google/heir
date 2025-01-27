@@ -81,7 +81,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           // Builtin ops
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
-          .Case<func::FuncOp, func::ReturnOp>(
+          .Case<func::FuncOp, func::CallOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::IndexCastOp,
@@ -131,8 +131,15 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
+StringRef OpenFhePkeEmitter::canonicalizeDebugPort(StringRef debugPortName) {
+  if (debugPortName.rfind("__heir_debug") == 0) {
+    return "__heir_debug";
+  }
+  return debugPortName;
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
-  if (funcOp.getNumResults() != 1) {
+  if (funcOp.getNumResults() > 1) {
     return emitError(funcOp.getLoc(),
                      llvm::formatv("Only functions with a single return type "
                                    "are supported, but this function has ",
@@ -140,13 +147,17 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
     return failure();
   }
 
-  Type result = funcOp.getResultTypes()[0];
-  if (failed(emitType(result, funcOp->getLoc()))) {
-    return emitError(funcOp.getLoc(),
-                     llvm::formatv("Failed to emit type {0}", result));
+  if (funcOp.getNumResults() == 1) {
+    Type result = funcOp.getResultTypes()[0];
+    if (failed(emitType(result, funcOp->getLoc()))) {
+      return emitError(funcOp.getLoc(),
+                       llvm::formatv("Failed to emit type {0}", result));
+    }
+  } else {
+    os << "void";
   }
 
-  os << " " << funcOp.getName() << "(";
+  os << " " << canonicalizeDebugPort(funcOp.getName()) << "(";
   os.indent();
 
   // Check the types without printing to enable failure outside of
@@ -160,12 +171,27 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
     }
   }
 
-  os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
-    return convertType(value.getType(), funcOp->getLoc()).value() + " " +
-           variableNames->getNameForValue(value);
-  });
+  if (funcOp.getVisibility() == SymbolTable::Visibility::Private) {
+    // function declaration
+    os << commaSeparatedTypes(funcOp.getArgumentTypes(), [&](Type type) {
+      return convertType(type, funcOp->getLoc()).value();
+    });
+  } else {
+    os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
+      return convertType(value.getType(), funcOp->getLoc()).value() + " " +
+             variableNames->getNameForValue(value);
+    });
+  }
   os.unindent();
-  os << ") {\n";
+  os << ")";
+
+  // function declaration
+  if (funcOp.getVisibility() == SymbolTable::Visibility::Private) {
+    os << ";\n";
+    return success();
+  }
+
+  os << " {\n";
   os.indent();
 
   for (Block &block : funcOp.getBlocks()) {
@@ -178,6 +204,23 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
 
   os.unindent();
   os << "}\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
+  if (op.getNumResults() > 1) {
+    return emitError(op.getLoc(), "Only one return value supported");
+  }
+
+  if (op.getNumResults() != 0) {
+    os << variableNames->getNameForValue(op.getResult(0)) << " = ";
+  }
+
+  os << canonicalizeDebugPort(op.getCallee()) << "(";
+  os << commaSeparatedValues(op.getOperands(), [&](Value value) {
+    return variableNames->getNameForValue(value);
+  });
+  os << ");\n";
   return success();
 }
 

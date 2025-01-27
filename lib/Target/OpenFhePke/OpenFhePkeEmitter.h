@@ -57,6 +57,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::tensor::InsertOp op);
   LogicalResult printOperation(::mlir::tensor::SplatOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
+  LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(::mlir::heir::lwe::RLWEDecodeOp op);
   LogicalResult printOperation(
@@ -97,6 +98,9 @@ class OpenFhePkeEmitter {
 
   // Emit an OpenFhe type
   LogicalResult emitType(::mlir::Type type, ::mlir::Location loc);
+
+  // Canonicalize Debug Port
+  ::llvm::StringRef canonicalizeDebugPort(::llvm::StringRef debugPortName);
 
   void emitAutoAssignPrefix(::mlir::Value result);
   LogicalResult emitTypedAssignPrefix(::mlir::Value result,
