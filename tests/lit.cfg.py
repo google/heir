@@ -59,7 +59,7 @@ config.environment["HEIR_YOSYS_SCRIPTS_DIR"] = (
     str(runfiles_dir.joinpath(Path(yosys_libs)))
 )
 
-# Some tests that use mlir-cpu-runner need access to additional shared libs to
+# Some tests that use mlir-runner need access to additional shared libs to
 # link against functions like print. Substitutions replace magic strings in the
 # test files with the needed paths.
 substitutions = {

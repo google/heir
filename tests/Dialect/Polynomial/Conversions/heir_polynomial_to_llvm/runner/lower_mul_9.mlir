@@ -7,7 +7,7 @@
 // DEFINE: %{check_prefix} =
 
 // DEFINE: %{compile} = heir-opt %s --heir-polynomial-to-llvm
-// DEFINE: %{run} = mlir-cpu-runner -e %{entry} -entry-point-result=void --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils"
+// DEFINE: %{run} = mlir-runner -e %{entry} -entry-point-result=void --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils"
 // DEFINE: %{check} = FileCheck %s --check-prefix=%{check_prefix}
 //-------------------------------------------------------
 

@@ -9,7 +9,7 @@
 // to be updated depending on the test or the desired print) and run with
 //
 // cd $(git rev-parse --show-toplevel)
-// ./bazel-bin/tools/heir-opt tests/polynomial/runner/debug.test --heir-polynomial-to-llvm | ./bazel-bin/external/llvm-project/mlir/mlir-cpu-runner -e TEST_NAME -entry-point-result=void --shared-libs="bazel-bin/external/llvm-project/mlir/libmlir_c_runner_utils.so,bazel-bin/external/llvm-project/mlir/libmlir_runner_utils.so"
+// ./bazel-bin/tools/heir-opt tests/polynomial/runner/debug.test --heir-polynomial-to-llvm | ./bazel-bin/external/llvm-project/mlir/mlir-runner -e TEST_NAME -entry-point-result=void --shared-libs="bazel-bin/external/llvm-project/mlir/libmlir_c_runner_utils.so,bazel-bin/external/llvm-project/mlir/libmlir_runner_utils.so"
 //
 // Then inspect the debug statements to see where things went wrong.
 

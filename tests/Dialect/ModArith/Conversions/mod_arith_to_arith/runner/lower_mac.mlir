@@ -1,5 +1,5 @@
 // RUN: heir-opt %s --mod-arith-to-arith --heir-polynomial-to-llvm \
-// RUN:   | mlir-cpu-runner -e test_lower_mac -entry-point-result=void \
+// RUN:   | mlir-runner -e test_lower_mac -entry-point-result=void \
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_MAC < %t
 

@@ -1,7 +1,7 @@
-The tests in this directory use the `mlir-cpu-runner` to run the result of
-lowering `polynomial-to-mod-arith` on some hard-coded test inputs. To reduce the
-chance of the tests being specified incorrectly and the burden of generating
-expected test outputs, the tests are automatically generated.
+The tests in this directory use the `mlir-runner` to run the result of lowering
+`polynomial-to-mod-arith` on some hard-coded test inputs. To reduce the chance
+of the tests being specified incorrectly and the burden of generating expected
+test outputs, the tests are automatically generated.
 
 `lower_mul_tests.toml` contains test specifications for `polynomial.mul`, and
 each test has the following syntax
@@ -56,8 +56,8 @@ func.func @test() {
 The script `generate_test_cases.py` reads this file in, parses the polynomials
 using the [`sympy`](https://www.sympy.org/en/index.html) Python package,
 computes the expected output, and prints a nicely formatted lit test to a file.
-These tests use the `mlir-cpu-runner` intrinsic `printMemrefIxx` to print the
-output polynomial's coefficients to `stdout` to enable easy assertions.
+These tests use the `mlir-runner` intrinsic `printMemrefIxx` to print the output
+polynomial's coefficients to `stdout` to enable easy assertions.
 
 After adding or updating `lower_mul_tests.toml`, re-generate the tests in this
 directory with:

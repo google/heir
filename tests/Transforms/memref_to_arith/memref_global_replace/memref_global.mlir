@@ -17,7 +17,7 @@
 // RUN:     convert-func-to-llvm, \
 // RUN:     convert-cf-to-llvm, \
 // RUN:     reconcile-unrealized-casts)" | \
-// RUN:   mlir-cpu-runner -e main -entry-point-result=void \
+// RUN:   mlir-runner -e main -entry-point-result=void \
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" | \
 // RUN:   FileCheck %s --check-prefix CHECK_PREPASS --allow-empty
 
@@ -34,7 +34,7 @@
 // RUN:     convert-func-to-llvm, \
 // RUN:     convert-cf-to-llvm, \
 // RUN:     reconcile-unrealized-casts)" | \
-// RUN:   mlir-cpu-runner -e main -entry-point-result=void \
+// RUN:   mlir-runner -e main -entry-point-result=void \
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_c_runner_utils%shlibext,%mlir_runner_utils" | \
 // RUN:   FileCheck %s --check-prefix CHECK_POSTPASS --allow-empty
 
