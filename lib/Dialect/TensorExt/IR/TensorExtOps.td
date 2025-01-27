@@ -42,7 +42,7 @@ def TensorExt_RotateOp : TensorExt_Op<"rotate", [Pure, AllTypesMatch<["tensor", 
     ```
   }];
 
-  let arguments = (ins AnyTensor:$tensor, SignlessIntegerLike:$shift);
+  let arguments = (ins AnyTensor:$tensor, SignlessIntegerOrIndexLike:$shift);
   let results = (outs AnyTensor:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($tensor)) `,` type($shift)";
   let hasCanonicalizer = 1;
