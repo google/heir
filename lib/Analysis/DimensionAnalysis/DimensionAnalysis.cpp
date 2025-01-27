@@ -1,16 +1,20 @@
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 
+#include <algorithm>
+#include <functional>
+
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -78,6 +82,15 @@ LogicalResult DimensionAnalysis::visitOperation(
         }
       });
   return success();
+}
+
+void DimensionAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const DimensionLattice *> argumentLattices,
+    ArrayRef<DimensionLattice *> resultLattices) {
+  auto callback = std::bind(&DimensionAnalysis::propagateIfChangedWrapper, this,
+                            std::placeholders::_1, std::placeholders::_2);
+  ::mlir::heir::visitExternalCall<DimensionState, DimensionLattice>(
+      call, argumentLattices, resultLattices, callback);
 }
 
 int getDimension(Value value, DataFlowSolver *solver) {

@@ -1,8 +1,10 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 
 #include <algorithm>
+#include <functional>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
@@ -14,7 +16,8 @@
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -75,6 +78,15 @@ LogicalResult LevelAnalysis::visitOperation(
         }
       });
   return success();
+}
+
+void LevelAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const LevelLattice *> argumentLattices,
+    ArrayRef<LevelLattice *> resultLattices) {
+  auto callback = std::bind(&LevelAnalysis::propagateIfChangedWrapper, this,
+                            std::placeholders::_1, std::placeholders::_2);
+  ::mlir::heir::visitExternalCall<LevelState, LevelLattice>(
+      call, argumentLattices, resultLattices, callback);
 }
 
 static int getMaxLevel(Operation *top, DataFlowSolver *solver) {

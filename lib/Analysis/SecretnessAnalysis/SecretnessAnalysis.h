@@ -25,6 +25,7 @@ class Secretness {
     assert(isInitialized());
     return *secretness;
   }
+  const bool &get() const { return getSecretness(); }
   void setSecretness(bool value) { secretness = value; }
 
   // Check if the Secretness state is initialized. It can be uninitialized if
@@ -104,6 +105,14 @@ class SecretnessAnalysis
   LogicalResult visitOperation(Operation *operation,
                                ArrayRef<const SecretnessLattice *> operands,
                                ArrayRef<SecretnessLattice *> results) override;
+
+  void visitExternalCall(CallOpInterface call,
+                         ArrayRef<const SecretnessLattice *> argumentLattices,
+                         ArrayRef<SecretnessLattice *> resultLattices) override;
+
+  void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
+    propagateIfChanged(state, changed);
+  }
 };
 
 /**

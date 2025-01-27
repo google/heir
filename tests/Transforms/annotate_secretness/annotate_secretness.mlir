@@ -43,3 +43,13 @@ func.func @return_secretness(%s: i32 {secret.secret}, %p: i32) -> (i32) {
     //CHECK-NEXT: return {secret.secret} [[R:%.*]] : i32
     return %0 : i32
 }
+
+func.func private @callee(!secret.secret<i32>) -> !secret.secret<i32>
+// CHECK: @func_call
+// CHECK-SAME: ([[S:%.*]]: [[ST:.*]])
+func.func @func_call(%s: !secret.secret<i32>) {
+    // CHECK: call @callee
+    // CHECK-SAME: {secret.secret}
+    %1 = func.call @callee(%s) : (!secret.secret<i32>) -> !secret.secret<i32>
+    func.return
+}

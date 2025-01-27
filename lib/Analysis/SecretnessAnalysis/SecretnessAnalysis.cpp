@@ -1,8 +1,10 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 
 #include <algorithm>
+#include <functional>
 #include <string>
 
+#include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -12,6 +14,7 @@
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
@@ -108,6 +111,15 @@ LogicalResult SecretnessAnalysis::visitOperation(
   return mlir::success();
 }
 
+void SecretnessAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const SecretnessLattice *> argumentLattices,
+    ArrayRef<SecretnessLattice *> resultLattices) {
+  auto callback = std::bind(&SecretnessAnalysis::propagateIfChangedWrapper,
+                            this, std::placeholders::_1, std::placeholders::_2);
+  ::mlir::heir::visitExternalCall<Secretness, SecretnessLattice>(
+      call, argumentLattices, resultLattices, callback);
+}
+
 void annotateSecretness(Operation *top, DataFlowSolver *solver, bool verbose) {
   // Attribute "Printing" Helper
   auto getAttribute =
@@ -132,6 +144,9 @@ void annotateSecretness(Operation *top, DataFlowSolver *solver, bool verbose) {
   top->walk([&](Operation *op) {
     // Custom Handling for `func.func`, which uses special attributes
     if (auto func = llvm::dyn_cast<func::FuncOp>(op)) {
+      if (func.isDeclaration()) {
+        return;
+      }
       // Arguments
       for (unsigned i = 0; i < func.getNumArguments(); ++i) {
         auto arg = func.getArgument(i);
