@@ -161,7 +161,8 @@ Now we run the `heir-opt` command to optimize and compile the program.
 
 ```bash
 bazel run //tools:heir-opt -- \
---mlir-to-openfhe-bgv='entry-function=dot_product ciphertext-degree=8' \
+--mlir-to-bgv='ciphertext-degree=8'\
+--scheme-to-openfhe='entry-function=dot_product'  \
 $PWD/tests/Examples/openfhe/dot_product_8.mlir > output.mlir
 ```
 

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks=bootstrap-waterline=3 --mlir-to-openfhe-ckks %s | FileCheck %s
+// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks=bootstrap-waterline=3 --mlir-to-ckks --scheme-to-openfhe %s | FileCheck %s
 
 // CHECK: func.func @bootstrap_waterline
 // CHECK:   openfhe.bootstrap

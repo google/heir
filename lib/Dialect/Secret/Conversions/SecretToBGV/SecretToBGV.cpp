@@ -206,7 +206,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     if (failed(walkAndValidateTypes<secret::GenericOp>(
             module, disallowFloatlike,
             "Floating point types are not supported in BGV. Maybe you meant "
-            "to use a CKKS pipeline like --mlir-to-openfhe-ckks?"))) {
+            "to use a CKKS pipeline like --mlir-to-ckks?"))) {
       signalPassFailure();
       return;
     }

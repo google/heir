@@ -77,10 +77,8 @@ def run_compiler(
     # TODO(#1162): construct heir-opt pipeline options from decorator
     heir_opt_options = [
         f"--secretize=function={func_name}",
-        (
-            "--mlir-to-openfhe-bgv="
-            f"entry-function={func_name} ciphertext-degree=32"
-        ),
+        "--mlir-to-bgv=ciphertext-degree=32",
+        f"--scheme-to-openfhe=entry-function={func_name}"
     ]
     heir_opt_output = heir_opt.run_binary(
         input=mlir_textual,

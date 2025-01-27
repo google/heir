@@ -128,7 +128,8 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       break;
     }
     default:
-      break;
+      llvm::errs() << "Unsupported RLWE scheme: " << scheme;
+      exit(EXIT_FAILURE);
   }
 
   // Optimize relinearization at mgmt dialect level
@@ -173,27 +174,11 @@ RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
   };
 }
 
-RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
-  return [=](OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
-    // lower to RLWE scheme
-    mlirToRLWEPipeline(pm, options, scheme);
-
-    // Convert to (common trivial subset of) LWE
-    switch (scheme) {
-      case RLWEScheme::bgvScheme: {
-        // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
-        pm.addPass(bgv::createBGVToLWE());
-        break;
-      }
-      case RLWEScheme::ckksScheme: {
-        // TODO (#1193): Replace `--ckks-to-lwe` with `--ckks-common-to-lwe`
-        pm.addPass(ckks::createCKKSToLWE());
-        break;
-      }
-      default:
-        llvm::errs() << "Unsupported RLWE scheme: " << scheme;
-        exit(EXIT_FAILURE);
-    }
+BackendPipelineBuilder toOpenFhePipelineBuilder() {
+  return [=](OpPassManager &pm, const OpenfheOptions &options) {
+    // Convert the common trivial subset of CKKS/BGV to LWE
+    pm.addPass(bgv::createBGVToLWE());
+    pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
     if (options.debug) {
@@ -202,7 +187,7 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
       pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
     }
 
-    // Convert to OpenFHE
+    // Convert LWE (and scheme-specific CKKS/BGV ops) to OpenFHE
     pm.addPass(lwe::createLWEToOpenfhe());
 
     // Simplify, in case the lowering revealed redundancy
@@ -219,18 +204,18 @@ RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(const RLWEScheme scheme) {
   };
 }
 
-RLWEPipelineBuilder mlirToLattigoRLWEPipelineBuilder(const RLWEScheme scheme) {
-  return [=](OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
+LattigoPipelineBuilder mlirToLattigoRLWEPipelineBuilder(
+    const RLWEScheme scheme) {
+  return [=](OpPassManager &pm, const LattigoOptions &options) {
     // lower to RLWE scheme
-    MlirToRLWEPipelineOptions overrideOptions;
-    overrideOptions.entryFunction = options.entryFunction;
-    overrideOptions.ciphertextDegree = options.ciphertextDegree;
-    overrideOptions.modulusSwitchBeforeFirstMul =
+    MlirToRLWEPipelineOptions rlweOptions;
+    rlweOptions.ciphertextDegree = options.ciphertextDegree;
+    rlweOptions.modulusSwitchBeforeFirstMul =
         options.modulusSwitchBeforeFirstMul;
     // use simpler client interface for Lattigo
-    overrideOptions.usePublicKey = false;
-    overrideOptions.oneValuePerHelperFn = false;
-    mlirToRLWEPipeline(pm, overrideOptions, scheme);
+    rlweOptions.usePublicKey = false;
+    rlweOptions.oneValuePerHelperFn = false;
+    mlirToRLWEPipeline(pm, rlweOptions, scheme);
 
     // Convert to (common trivial subset of) LWE
     switch (scheme) {

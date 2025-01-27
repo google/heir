@@ -366,18 +366,15 @@ int main(int argc, char **argv) {
       "BGV.",
       mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
 
-  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
-      "mlir-to-openfhe-bgv",
-      "Convert a func using standard MLIR dialects to FHE using BGV and "
-      "export "
-      "to OpenFHE C++ code.",
-      mlirToOpenFheRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
+  PassPipelineRegistration<mlir::heir::OpenfheOptions>(
+      "scheme-to-openfhe",
+      "Convert code expressed at FHE scheme level to OpenFHE C++ code.",
+      toOpenFhePipelineBuilder());
 
-  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
+  PassPipelineRegistration<mlir::heir::LattigoOptions>(
       "mlir-to-lattigo-bgv",
       "Convert a func using standard MLIR dialects to FHE using BGV and "
-      "export "
-      "to Lattigo GO code.",
+      "export to Lattigo GO code.",
       mlirToLattigoRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
 
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
@@ -385,13 +382,6 @@ int main(int argc, char **argv) {
       "Convert a func using standard MLIR dialects to FHE using "
       "CKKS.",
       mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme));
-
-  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
-      "mlir-to-openfhe-ckks",
-      "Convert a func using standard MLIR dialects to FHE using CKKS and "
-      "export "
-      "to OpenFHE C++ code.",
-      mlirToOpenFheRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme));
 
   PassPipelineRegistration<>(
       "convert-to-data-oblivious",
