@@ -6670,7 +6670,7 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6685,7 +6685,7 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6738,7 +6738,7 @@ mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537&amp;gt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6798,7 +6798,7 @@ as that of the storage type of the input mod_arith type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -6997,11 +6997,11 @@ such that $x \equiv y \mod q$.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -7016,7 +7016,7 @@ such that $x \equiv y \mod q$.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9256,7 +9256,7 @@ far not considered.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>seed&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9307,7 +9307,7 @@ or tensor of values.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>signless-integer-like&lt;/td>
+&lt;td>signless-integer&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
