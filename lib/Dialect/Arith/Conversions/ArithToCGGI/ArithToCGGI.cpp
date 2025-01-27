@@ -22,7 +22,6 @@ static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
                                      lwe::UnspecifiedBitFieldEncodingAttr::get(
                                          ctx, type.getIntOrFloatBitWidth()),
                                      lwe::LWEParamsAttr());
-  ;
 }
 
 static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext *ctx) {
@@ -186,6 +185,43 @@ struct ConvertShRUIOp : public OpConversionPattern<mlir::arith::ShRUIOp> {
   }
 };
 
+template <typename SourceArithOp, typename TargetModArithOp>
+struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
+  ConvertArithBinOp(mlir::MLIRContext *context)
+      : OpConversionPattern<SourceArithOp>(context) {}
+
+  using OpConversionPattern<SourceArithOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
+      if (isa<mlir::arith::ConstantOp>(lhsDefOp)) {
+        auto result = b.create<TargetModArithOp>(adaptor.getRhs().getType(),
+                                                 adaptor.getRhs(), op.getLhs());
+        rewriter.replaceOp(op, result);
+        return success();
+      }
+    }
+
+    if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
+      if (isa<mlir::arith::ConstantOp>(rhsDefOp)) {
+        auto result = b.create<TargetModArithOp>(adaptor.getLhs().getType(),
+                                                 adaptor.getLhs(), op.getRhs());
+        rewriter.replaceOp(op, result);
+        return success();
+      }
+    }
+
+    auto result = b.create<TargetModArithOp>(
+        adaptor.getLhs().getType(), adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -196,29 +232,82 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     ConversionTarget target(*context);
     target.addLegalDialect<cggi::CGGIDialect>();
     target.addIllegalDialect<mlir::arith::ArithDialect>();
+    target.addLegalOp<mlir::arith::ConstantOp>();
 
-    target.addDynamicallyLegalOp<mlir::arith::ConstantOp>(
-        [](mlir::arith::ConstantOp op) {
-          // Allow use of constant if it is used to denote the size of a shift
-          return (isa<IndexType>(op.getValue().getType()));
+    target.addDynamicallyLegalOp<mlir::arith::ExtSIOp>([&](Operation *op) {
+      if (auto *defOp =
+              cast<mlir::arith::ExtSIOp>(op).getOperand().getDefiningOp()) {
+        return isa<mlir::arith::ConstantOp>(defOp);
+      }
+      return false;
+    });
+
+    target.addDynamicallyLegalOp<memref::SubViewOp, memref::CopyOp,
+                                 tensor::FromElementsOp, tensor::ExtractOp,
+                                 affine::AffineStoreOp, affine::AffineLoadOp>(
+        [&](Operation *op) {
+          return typeConverter.isLegal(op->getOperandTypes()) &&
+                 typeConverter.isLegal(op->getResultTypes());
         });
 
-    target.addDynamicallyLegalOp<
-        memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::SubViewOp,
-        memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp,
-        affine::AffineStoreOp, affine::AffineLoadOp>([&](Operation *op) {
+    target.addDynamicallyLegalOp<memref::AllocOp>([&](Operation *op) {
+      // Check if all Store ops are constants, if not store op, accepts
+      // Check if there is at least one Store op that is a constants
+      return (llvm::all_of(op->getUses(),
+                           [&](OpOperand &op) {
+                             auto defOp =
+                                 dyn_cast<memref::StoreOp>(op.getOwner());
+                             if (defOp) {
+                               return isa<mlir::arith::ConstantOp>(
+                                   defOp.getValue().getDefiningOp());
+                             }
+                             return true;
+                           }) &&
+              llvm::any_of(op->getUses(),
+                           [&](OpOperand &op) {
+                             auto defOp =
+                                 dyn_cast<memref::StoreOp>(op.getOwner());
+                             if (defOp) {
+                               return isa<mlir::arith::ConstantOp>(
+                                   defOp.getValue().getDefiningOp());
+                             }
+                             return false;
+                           })) ||
+             // The other case: Memref need to be in LWE format
+             (typeConverter.isLegal(op->getOperandTypes()) &&
+              typeConverter.isLegal(op->getResultTypes()));
+    });
+
+    target.addDynamicallyLegalOp<memref::StoreOp>([&](Operation *op) {
+      if (auto *defOp = cast<memref::StoreOp>(op).getValue().getDefiningOp()) {
+        if (isa<mlir::arith::ConstantOp>(defOp)) {
+          return true;
+        }
+      }
+
       return typeConverter.isLegal(op->getOperandTypes()) &&
              typeConverter.isLegal(op->getResultTypes());
     });
 
+    // Convert LoadOp if memref comes from an argument
+    target.addDynamicallyLegalOp<memref::LoadOp>([&](Operation *op) {
+      if (typeConverter.isLegal(op->getOperandTypes()) &&
+          typeConverter.isLegal(op->getResultTypes())) {
+        return true;
+      }
+      auto loadOp = dyn_cast<memref::LoadOp>(op);
+
+      return loadOp.getMemRef().getDefiningOp() != nullptr;
+    });
+
     patterns.add<
         ConvertConstantOp, ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp,
-        ConvertShRUIOp, ConvertBinOp<mlir::arith::AddIOp, cggi::AddOp>,
-        ConvertBinOp<mlir::arith::MulIOp, cggi::MulOp>,
-        ConvertBinOp<mlir::arith::SubIOp, cggi::SubOp>,
+        ConvertShRUIOp, ConvertArithBinOp<mlir::arith::AddIOp, cggi::AddOp>,
+        ConvertArithBinOp<mlir::arith::MulIOp, cggi::MulOp>,
+        ConvertArithBinOp<mlir::arith::SubIOp, cggi::SubOp>,
         ConvertAny<memref::LoadOp>, ConvertAny<memref::AllocOp>,
-        ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
-        ConvertAny<memref::SubViewOp>, ConvertAny<memref::CopyOp>,
+        ConvertAny<memref::DeallocOp>, ConvertAny<memref::SubViewOp>,
+        ConvertAny<memref::CopyOp>, ConvertAny<memref::StoreOp>,
         ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,
         ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineLoadOp> >(
         typeConverter, context);

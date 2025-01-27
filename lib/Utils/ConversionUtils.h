@@ -16,6 +16,7 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -93,8 +94,8 @@ struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto result =
-        b.create<TargetModArithOp>(adaptor.getLhs(), adaptor.getRhs());
+    auto result = b.create<TargetModArithOp>(
+        adaptor.getLhs().getType(), adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result);
     return success();
   }
