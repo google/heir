@@ -1157,13 +1157,15 @@ secret key material to be stored by the server. Instead, they often enforce that
 rotation has key-switching built in, and multiplication relinearizes by default.</p><p>That said, many FHE implementations do allow for the relinearization operation
 to be deferred. A useful such situation is when a series of independent
 multiplications are performed, and the results are added together. Addition can
-operate in any key basis (though all inputs must have the same key basis), and
-so the relinearization op that follows each multiplication can be deferred until
-after the additions are complete, at which point there is only one
-relinearization to perform. This technique is usually called <em>lazy
-relinearization</em>. It has the benefit of avoiding expensive relinearization
-operations, as well as reducing noise growth, as relinearization adds noise to
-the ciphertext, which can further reduce the need for bootstrapping.</p><p>In much of the literature, lazy relinearization is applied manually. See for
+operate in any key basis (though depending on the backend FHE implementation&rsquo;s
+details, all inputs may require the same key basis, cf.
+<a href=#optional-operand-agreement>Optional operand agreement</a>), and so the
+relinearization op that follows each multiplication can be deferred until after
+the additions are complete, at which point there is only one relinearization to
+perform. This technique is usually called <em>lazy relinearization</em>. It has the
+benefit of avoiding expensive relinearization operations, as well as reducing
+noise growth, as relinearization adds noise to the ciphertext, which can further
+reduce the need for bootstrapping.</p><p>In much of the literature, lazy relinearization is applied manually. See for
 example
 <a href=https://eprint.iacr.org/2019/223>Blatt-Gusev-Polyakov-Rohloff-Vaikuntanathan 2019</a>
 and <a href=https://eprint.iacr.org/2020/1549>Lee-Lee-Kim-Kim-No-Kang 2020</a>. In some
@@ -1201,10 +1203,8 @@ values.</li></ul><p>Each of the key-basis variables is bounded from above by a p
 <code>MAX_KEY_BASIS_DEGREE</code> that can be used to impose hard limits on the key basis
 size, which may be required if generating code for a backend that does not
 support operations over generalized key bases.</p><h3 id=objective>Objective</h3><p>The objective is to minimize the number of relinearization operations, i.e.,
-$\min \sum_o R_o$.</p><p>TODO(#1018): update docs when objective is generalized.</p><h3 id=constraints>Constraints</h3><p>The simple constraints are as follows:</p><ul><li>Initial key basis degree: For each block argument, $\textup{KB}_v$ is fixed
-to equal the <code>dimension</code> parameter on the RLWE ciphertext type.</li><li>Operand agreement: For each operation with operand SSA values $v_1, \dots,
-v_k$, $\textup{KB}_{v_1} = \dots = \textup{KB}_{v_k}$, i.e., all key
-basis inputs must match.</li><li>Special linearized ops: <code>bgv.rotate</code> and <code>func.return</code> require linearized
+$\min \sum_o R_o$.</p><p>TODO(#1018): update docs when objective is generalized.</p><h3 id=constraints>Constraints</h3><h4 id=simple-constraints>Simple constraints</h4><p>The simple constraints are as follows:</p><ul><li>Initial key basis degree: For each block argument, $\textup{KB}_v$ is fixed
+to equal the <code>dimension</code> parameter on the RLWE ciphertext type.</li><li>Special linearized ops: <code>bgv.rotate</code> and <code>func.return</code> require linearized
 inputs, i.e., $\textup{KB}_{v_i} = 1$ for all inputs $v_i$ to these
 operations.</li><li>Before relinearization key basis: for each operation $o$ with operands $v_1,
 \dots, v_k$, constrain $\textup{KB}^{br}_{\textup{result}(o)} =
@@ -1212,7 +1212,23 @@ f(\textup{KB}_{v_1}, \dots, \textup{KB}_{v_k})$, where $f$ is a
 statically known linear function. For multiplication $f$ it addition, and for
 all other ops it is the projection onto any input, since multiplication is the
 only op that increases the degree, and all operands are constrained to have
-equal degree.</li></ul><p>The remaining constraints control the dynamics of how the key basis degree
+equal degree.</li></ul><h4 id=optional-operand-agreement>Optional operand agreement</h4><p>There are two versions of the model, one where the an operation requires the
+input key basis degrees of each operand to be equal, and one where differing key
+basis degrees are allowed.</p><p>This is an option because the model was originally implemented under the
+incorrect assumption that CPU backends like OpenFHE and Lattigo require the key
+basis degree operands to be equal for ops like ciphertext addition. When we
+discovered this was not the case, we generalized the model to support both
+cases, in case other backends do have this requirement.</p><p>When operands must have the same key basis degree, then for each operation with
+operand SSA values $v_1, \dots, v_k$, we add the constraint
+$\textup{KB}_{v_1} = \dots = \textup{KB}_{v_k}$, i.e., all key basis inputs
+must match.</p><p>When operands may have different key basis degrees, we instead add the
+constraint that each operation result key basis degree (before relinearization)
+is at least as large as the max of all operand key basis degrees. For all $i$,
+$\textup{KB}_{\textup{result}(o)}^{br} \geq \textup{KB}_{v_i}$. Note that
+we are relying on an implicit behavior of the model to ensure that, even if the
+solver chooses key basis degree variables for these op results larger than the
+max of the operand degrees, the resulting optimal solution is the same.</p><p>TODO(#1018): this will change to a more principled approach when the objective
+is generalized</p><h4 id=impact-of-relinearization-choices-on-key-basis-degree>Impact of relinearization choices on key basis degree</h4><p>The remaining constraints control the dynamics of how the key basis degree
 changes as relinearizations are inserted.</p><p>They can be thought of as implementing this (non-linear) constraint for each
 operation $o$:</p><p>\[ \textup{KB}_{\textup{result}(o)} = \begin{cases}
 \textup{KB}^{br}_{\textup{result(o)}} & \text{ if } R_o = 0 \ 1 & \text{
@@ -2890,6 +2906,7 @@ relinearization strategy. It solves an ILP for each <code>func</code> op in the 
 <a href=https://heir.dev/docs/design/relinearization_ilp/>docs at the HEIR website</a>.
 The model is an adaptation of the ILP described in
 <a href=https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis>a blog post by Jeremy Kun</a>.</p><h4 id=options-13>Options</h4><pre tabindex=0><code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
+-allow-mixed-degree-operands  : When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., adding two ciphertexts with different key bases; this is supported by many FHE backends, like OpenFHE and Lattigo
 </code></pre><h3 id=-polynomial-to-mod-arith><code>-polynomial-to-mod-arith</code></h3><p><em>Lower <code>polynomial</code> to standard MLIR dialects.</em></p><p>This pass lowers the <code>polynomial</code> dialect to standard MLIR plus mod_arith,
 including possibly ops from affine, tensor, linalg, and arith.</p><h3 id=-polynomial-to-mod-arith-1><code>-polynomial-to-mod-arith</code></h3><p><em>Lower <code>polynomial</code> to standard MLIR dialects.</em></p><p>This pass lowers the <code>polynomial</code> dialect to standard MLIR plus mod_arith,
 including possibly ops from affine, tensor, linalg, and arith.</p><h3 id=-remove-unused-memref><code>-remove-unused-memref</code></h3><p><em>Cleanup any unused memrefs</em></p><p>Scan the IR for unused memrefs and remove them.</p><p>This pass looks for locally allocated memrefs that are never used and

@@ -1141,13 +1141,15 @@ rotation has key-switching built in, and multiplication relinearizes by default.
 &lt;p>That said, many FHE implementations do allow for the relinearization operation
 to be deferred. A useful such situation is when a series of independent
 multiplications are performed, and the results are added together. Addition can
-operate in any key basis (though all inputs must have the same key basis), and
-so the relinearization op that follows each multiplication can be deferred until
-after the additions are complete, at which point there is only one
-relinearization to perform. This technique is usually called &lt;em>lazy
-relinearization&lt;/em>. It has the benefit of avoiding expensive relinearization
-operations, as well as reducing noise growth, as relinearization adds noise to
-the ciphertext, which can further reduce the need for bootstrapping.&lt;/p>
+operate in any key basis (though depending on the backend FHE implementation&amp;rsquo;s
+details, all inputs may require the same key basis, cf.
+&lt;a href="#optional-operand-agreement">Optional operand agreement&lt;/a>), and so the
+relinearization op that follows each multiplication can be deferred until after
+the additions are complete, at which point there is only one relinearization to
+perform. This technique is usually called &lt;em>lazy relinearization&lt;/em>. It has the
+benefit of avoiding expensive relinearization operations, as well as reducing
+noise growth, as relinearization adds noise to the ciphertext, which can further
+reduce the need for bootstrapping.&lt;/p>
 &lt;p>In much of the literature, lazy relinearization is applied manually. See for
 example
 &lt;a href="https://eprint.iacr.org/2019/223">Blatt-Gusev-Polyakov-Rohloff-Vaikuntanathan 2019&lt;/a>
@@ -1205,13 +1207,11 @@ support operations over generalized key bases.&lt;/p>
 $\min \sum_o R_o$.&lt;/p>
 &lt;p>TODO(#1018): update docs when objective is generalized.&lt;/p>
 &lt;h3 id="constraints">Constraints&lt;/h3>
+&lt;h4 id="simple-constraints">Simple constraints&lt;/h4>
 &lt;p>The simple constraints are as follows:&lt;/p>
 &lt;ul>
 &lt;li>Initial key basis degree: For each block argument, $\textup{KB}_v$ is fixed
 to equal the &lt;code>dimension&lt;/code> parameter on the RLWE ciphertext type.&lt;/li>
-&lt;li>Operand agreement: For each operation with operand SSA values $v_1, \dots,
-v_k$, $\textup{KB}_{v_1} = \dots = \textup{KB}_{v_k}$, i.e., all key
-basis inputs must match.&lt;/li>
 &lt;li>Special linearized ops: &lt;code>bgv.rotate&lt;/code> and &lt;code>func.return&lt;/code> require linearized
 inputs, i.e., $\textup{KB}_{v_i} = 1$ for all inputs $v_i$ to these
 operations.&lt;/li>
@@ -1223,6 +1223,29 @@ all other ops it is the projection onto any input, since multiplication is the
 only op that increases the degree, and all operands are constrained to have
 equal degree.&lt;/li>
 &lt;/ul>
+&lt;h4 id="optional-operand-agreement">Optional operand agreement&lt;/h4>
+&lt;p>There are two versions of the model, one where the an operation requires the
+input key basis degrees of each operand to be equal, and one where differing key
+basis degrees are allowed.&lt;/p>
+&lt;p>This is an option because the model was originally implemented under the
+incorrect assumption that CPU backends like OpenFHE and Lattigo require the key
+basis degree operands to be equal for ops like ciphertext addition. When we
+discovered this was not the case, we generalized the model to support both
+cases, in case other backends do have this requirement.&lt;/p>
+&lt;p>When operands must have the same key basis degree, then for each operation with
+operand SSA values $v_1, \dots, v_k$, we add the constraint
+$\textup{KB}_{v_1} = \dots = \textup{KB}_{v_k}$, i.e., all key basis inputs
+must match.&lt;/p>
+&lt;p>When operands may have different key basis degrees, we instead add the
+constraint that each operation result key basis degree (before relinearization)
+is at least as large as the max of all operand key basis degrees. For all $i$,
+$\textup{KB}_{\textup{result}(o)}^{br} \geq \textup{KB}_{v_i}$. Note that
+we are relying on an implicit behavior of the model to ensure that, even if the
+solver chooses key basis degree variables for these op results larger than the
+max of the operand degrees, the resulting optimal solution is the same.&lt;/p>
+&lt;p>TODO(#1018): this will change to a more principled approach when the objective
+is generalized&lt;/p>
+&lt;h4 id="impact-of-relinearization-choices-on-key-basis-degree">Impact of relinearization choices on key basis degree&lt;/h4>
 &lt;p>The remaining constraints control the dynamics of how the key basis degree
 changes as relinearizations are inserted.&lt;/p>
 &lt;p>They can be thought of as implementing this (non-linear) constraint for each
@@ -2623,6 +2646,7 @@ The model is an adaptation of the ILP described in
 &lt;a href="https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis">a blog post by Jeremy Kun&lt;/a>.&lt;/p>
 &lt;h4 id="options-13">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
+-allow-mixed-degree-operands : When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., adding two ciphertexts with different key bases; this is supported by many FHE backends, like OpenFHE and Lattigo
 &lt;/code>&lt;/pre>&lt;h3 id="-polynomial-to-mod-arith">&lt;code>-polynomial-to-mod-arith&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>polynomial&lt;/code> to standard MLIR dialects.&lt;/em>&lt;/p>
 &lt;p>This pass lowers the &lt;code>polynomial&lt;/code> dialect to standard MLIR plus mod_arith,
@@ -2897,27 +2921,37 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-08-22</title><link>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</link><pubDate>Thu, 22 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/22/heir-meeting-2024-08-22/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-07-25</title><link>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</link><pubDate>Thu, 25 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1iEkzpO6lCVbShMcRenO3j3DptOEP-0bLu_9V4K7c39M/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1tIrxc4V5OlAeqx_Z1rl_kuMmkd-HUAKEv90q3i-5QSU/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1wFrGF7lMiYZmqbr5WQO17HomfoFoOeaj/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-08-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1_1CbRJeNr5NqcwEMXnfkxOqy9u5wJPyq/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-06-13.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-03-07.&lt;/p>
+&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
+RWC conferences. Hope to see you all there!&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
-from the HEIR meeting on 2023-11-28.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-12-12</title><link>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</link><pubDate>Tue, 12 Dec 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/12/12/heir-meeting-2023-12-12/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1ekGrOBLoB_F3qjC43r6NzJbWpgT9RILTJyVu5Ax3PCQ/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1DaYj9euovyf8vuCi260RQYfEkItn4SEc/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-12-12.&lt;/p>
+&lt;p>This is the last meeting for 2023. Please respond to
+&lt;a href="https://app.rallly.co/invite/fHNdzrbisHVA">this poll&lt;/a> for 2024 scheduling
+preferences.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
