@@ -2459,8 +2459,12 @@ rather transforms the IR to use tensors with a fixed dimension. This pass may
 be used to align the sizes of tensors that represent plaintexts and
 ciphertexts in RLWE schemes that support SIMD slots and operations.</p><h4 id=options>Options</h4><pre tabindex=0><code>-size : Power of two size of the final dimension of the output tensors.
 </code></pre><h3 id=-annotate-mgmt><code>-annotate-mgmt</code></h3><p><em>Annotate MgmtAttr for secret SSA values in the IR</em></p><p>This pass runs the secretness/level/dimension analysis and annotates the IR with the results,
-saving it into each op&rsquo;s attribute dictionary as mgmt.mgmt : <analysis results></p><h3 id=-annotate-secretness><code>-annotate-secretness</code></h3><p><em>Annotate secret SSA values in the IR</em></p><p>This pass runs the secretness analysis and annotates the IR with the results,
-saving it into each op&rsquo;s attribute dictionary as secret : <analysis results></p><h3 id=-apply-folders><code>-apply-folders</code></h3><p><em>Apply all folding patterns from canonicalize</em></p><p>This pass applies all registered folding patterns greedily to the input IR.
+saving it into each op&rsquo;s attribute dictionary as mgmt.mgmt : <analysis results></p><h3 id=-annotate-secretness><code>-annotate-secretness</code></h3><p><em>Annotate secret SSA values in the IR</em></p><p>Debugging helper that runs the secretness analysis and annotates the IR with the results,
+extending the <code>{secret.secret}</code> annotation to all operation results that are secret.</p><p>In addition to annotating operation results, the pass also annotates arguments
+and return types in <code>func.func</code> operations, as well as any terminators (e.g. <code>return</code>)</p><p>In <code>verbose</code> mode, all results are annotated, including public ones with <code>{secret.public}</code>,
+and values for which the secretness analysis is missing are annotated with <code>{secret.missing}</code>,
+while values where the secretness analysis is inconclusive are annotated with <code>{secret.unknown}</code>.</p><h4 id=options-1>Options</h4><pre tabindex=0><code>-verbose : If true, annotate secretness state all values, including public ones, and values with missing or inconclusive analysis.
+</code></pre><h3 id=-apply-folders><code>-apply-folders</code></h3><p><em>Apply all folding patterns from canonicalize</em></p><p>This pass applies all registered folding patterns greedily to the input IR.
 This is useful when running a full canonicalize is too slow, but applying
 folders before canonicalize is sufficient to simplify the IR for later
 passes, or even sufficient to then subsequently run a full canonicalize pass.</p><p>This is used to prepare an IR for <code>insert-rotate</code> after fully unrolling
@@ -2495,7 +2499,7 @@ operations. Pass is based on the straight-line-vectorizer, but is fundamentally 
 This pass combines any type of boolean gates and is not restricted to combining the same type of gate operand.</p><p>Pass is intended for the <code>FPT</code> tfhe-rs API, where <code>packed_gates</code> function get a
 the boolean gates are passed as a string vector and a left and right vector of ciphertexts.
 Each boolean gates specified in <code>gates</code> is then applied element wise.</p><pre tabindex=0><code>let outputs_ct = fpga_key.packed_gates(&amp;gates, &amp;ref_to_ct_lefts, &amp;ref_to_ct_rights);
-</code></pre><h4 id=options-1>Options</h4><pre tabindex=0><code>-parallelism : Parallelism factor for batching. 0 is infinite parallelism
+</code></pre><h4 id=options-2>Options</h4><pre tabindex=0><code>-parallelism : Parallelism factor for batching. 0 is infinite parallelism
 </code></pre><h3 id=-cggi-expand-lut><code>-cggi-expand-lut</code></h3><p><em>Expands LUTs into LWE operations and programmable bootstraps</em></p><p>This pass expands the linear combination performed in a LUT operation into
 the component LWE scalar operations and a programmable bootstrap operation.</p><p>For example, a LUT3 operation is composed of three LWE ciphertext inputs $c,
 b, a$ (in MSB to LSB ordering) which must be combined via the linear
@@ -2531,7 +2535,7 @@ to affine loop nests that instead apply the operation to the underlying scalar v
 restrict conversion to mulf op from arith dialect.</p><p>&lsquo;&ndash;convert-elementwise-to-affine=convert-ops=arith.addf,arith.divf convert-dialects=bgv&rsquo;
 restrict conversion to addf and divf ops from arith dialect and all of the ops in bgv dialect.</p><p>&ndash;convert-elementwise-to-affine=convert-dialects=arith
 restrict conversion to arith dialect so ops only from arith dialect is processed.</p><p>&ndash;convert-elementwise-to-affine=convert-ops=arith.addf,arith.mulf
-restrict conversion only to these two ops - addf and mulf - from arith dialect.</p><h4 id=options-2>Options</h4><pre tabindex=0><code>-convert-ops      : comma-separated list of ops to run this pass on 
+restrict conversion only to these two ops - addf and mulf - from arith dialect.</p><h4 id=options-3>Options</h4><pre tabindex=0><code>-convert-ops      : comma-separated list of ops to run this pass on 
 -convert-dialects : comma-separated list of dialects to run this pass on 
 </code></pre><h3 id=-convert-if-to-select><code>-convert-if-to-select</code></h3><p><em>Convert scf.if operations on secret conditions to arith.select operations.</em></p><p>Conversion for If-operations that evaluate secret condition to alternative select operations.</p><h3 id=-convert-polynomial-mul-to-ntt><code>-convert-polynomial-mul-to-ntt</code></h3><p><em>Rewrites polynomial operations to their NTT equivalents</em></p><p>Applies a rewrite pattern to convert polynomial multiplication to the
 equivalent using the number-theoretic transforms (NTT) when possible.</p><p>Polynomial multiplication can be rewritten as polynomial.NTT
@@ -2677,7 +2681,7 @@ with all other operations (e.g., arith operations) already taking (extracted) sc
 For example, an IR where elementwise operations have been converted to scalar operations via
 <code>--convert-elementwise-to-affine</code>.</p><p>The pass might insert new tensor.from_elements operations or manually create the scalar ValueRange
 via inserting tensor.extract operations if any operations remain that operate on tensors.
-The pass currently applies irrespective of tensor size, i.e., might be very slow for large tensors.</p><p>TODO (#1023): Extend this pass to support more tensor operations, e.g., <code>tensor.slice</code></p><h4 id=options-3>Options</h4><pre tabindex=0><code>-max-size : Limits `unrolling` to tensors with at most max-size elements
+The pass currently applies irrespective of tensor size, i.e., might be very slow for large tensors.</p><p>TODO (#1023): Extend this pass to support more tensor operations, e.g., <code>tensor.slice</code></p><h4 id=options-4>Options</h4><pre tabindex=0><code>-max-size : Limits `unrolling` to tensors with at most max-size elements
 </code></pre><h3 id=-drop-unit-dims><code>-drop-unit-dims</code></h3><p><em>Drops unit dimensions from linalg ops.</em></p><p>This pass converts <code>linalg</code> whose operands have unit dimensions
 in their types to specialized ops that drop these unit dimensions.</p><p>For example, a <code>linalg.matmul</code> whose RHS has type <code>tensor&lt;32x1xi32></code> is
 converted to a <code>linalg.matvec</code> op on the underlying <code>tensor&lt;32xi32></code>.</p><h3 id=-expand-copy><code>-expand-copy</code></h3><p><em>Expands memref.copy ops to explicit affine loads and stores</em></p><p>This pass removes memref copy operations by expanding them to affine loads
@@ -2717,7 +2721,7 @@ MemRef, so must be run prior to any affine loop unrolling in a pipeline.</p><p>I
     [...]
   }
 }
-</code></pre><h4 id=options-4>Options</h4><pre tabindex=0><code>-disable-affine-loop : Use this to control to disable using affine loops
+</code></pre><h4 id=options-5>Options</h4><pre tabindex=0><code>-disable-affine-loop : Use this to control to disable using affine loops
 </code></pre><h3 id=-extract-loop-body><code>-extract-loop-body</code></h3><p><em>Extracts logic of a loop bodies into functions.</em></p><p>This pass extracts logic in the inner body of for loops into functions.</p><p>This pass requires that tensors are lowered to memref. It expects that a
 loop body contains a number of affine.load statements used as inputs to the
 extracted function, and a single affine.store used as the extracted
@@ -2763,7 +2767,7 @@ function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
     return %102 : i8
   }
 }
-</code></pre><h4 id=options-5>Options</h4><pre tabindex=0><code>-min-loop-size : Use this to control the minimum loop size to apply this pass
+</code></pre><h4 id=options-6>Options</h4><pre tabindex=0><code>-min-loop-size : Use this to control the minimum loop size to apply this pass
 -min-body-size : Use this to control the minimum loop body size to apply this pass
 </code></pre><h3 id=-forward-insert-to-extract><code>-forward-insert-to-extract</code></h3><p><em>Forward inserts to extracts within a single block</em></p><p>This pass is similar to forward-store-to-load pass where store ops
 are forwarded load ops; here instead tensor.insert ops are forwarded
@@ -2784,7 +2788,7 @@ cleans up remaining insertion and extraction ops after the main simplifications
 are applied.</p><p>Unlike HECO, this pass operates on plaintext types and tensors, along with
 the HEIR-specific <code>tensor_ext</code> dialect for its cyclic <code>rotate</code> op. It is intended
 to be run before lowering to a scheme dialect like <code>bgv</code>.</p><h3 id=-lattigo-configure-crypto-context><code>-lattigo-configure-crypto-context</code></h3><p><em>Configure the crypto context in Lattigo</em></p><p>This pass generates helper functions to configure the Lattigo objects for the given function.</p><p>For example, for an MLIR function <code>@my_func</code>, the generated helpers have the following signatures</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span> <span style=color:#000>@my_func__configure</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>(!</span>lattigo<span style=color:#000;font-weight:700>.</span>bgv<span style=color:#000;font-weight:700>.</span>evaluator<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>!</span>lattigo<span style=color:#000;font-weight:700>.</span>bgv<span style=color:#000;font-weight:700>.</span>parameter<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>!</span>lattigo<span style=color:#000;font-weight:700>.</span>bgv<span style=color:#000;font-weight:700>.</span>encoder<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>!</span>lattigo<span style=color:#000;font-weight:700>.</span>rlwe<span style=color:#000;font-weight:700>.</span>encryptor<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>!</span>lattigo<span style=color:#000;font-weight:700>.</span>rlwe<span style=color:#000;font-weight:700>.</span>decryptor<span style=color:#000;font-weight:700>)</span>
-</span></span></code></pre></div><h4 id=options-6>Options</h4><pre tabindex=0><code>-entry-function : Default entry function name of entry function.
+</span></span></code></pre></div><h4 id=options-7>Options</h4><pre tabindex=0><code>-entry-function : Default entry function name of entry function.
 </code></pre><h3 id=-linalg-canonicalizations><code>-linalg-canonicalizations</code></h3><p><em>This pass canonicalizes the linalg.transpose operation of a constant into a transposed constant.</em></p><p>This pass canonicalizes the linalg.transpose operation of a constant into a
 transposed constant.</p><h3 id=-linalg-to-tensor-ext><code>-linalg-to-tensor-ext</code></h3><p><em>Lower <code>linalg.matmul</code> to arith and tensor_ext dialects.</em></p><p>This pass lowers the <code>linalg.matmul</code> to a mixture of affine, tensor, and
 via the Halevi-Shoup and squat matrix multiplication algorithms.</p><h3 id=-linalg-to-tensor-ext-1><code>-linalg-to-tensor-ext</code></h3><p><em>Lower <code>linalg.matmul</code> to arith and tensor_ext dialects.</em></p><p>This pass lowers the <code>linalg.matmul</code> to a mixture of affine, tensor, and
@@ -2792,7 +2796,7 @@ via the Halevi-Shoup and squat matrix multiplication algorithms.</p><h3 id=-lwe-
 IR. These functions maintain the same interface as the original function,
 while the compiled function may lose some of this information by the lowerings
 to ciphertext types (e.g., a scalar ciphertext, when lowered through RLWE schemes,
-must be encoded as a tensor).</p><h4 id=options-7>Options</h4><pre tabindex=0><code>-use-public-key          : If true, generate a client interface that uses a public key for encryption.
+must be encoded as a tensor).</p><h4 id=options-8>Options</h4><pre tabindex=0><code>-use-public-key          : If true, generate a client interface that uses a public key for encryption.
 -one-value-per-helper-fn : If true, split encryption helpers into separate functions for each SSA value.
 </code></pre><h3 id=-lwe-set-default-parameters><code>-lwe-set-default-parameters</code></h3><p><em>Set default parameters for LWE ops</em></p><p>This pass adds default parameters to all <code>lwe</code> types as the <code>lwe_params</code>
 attribute, and for <code>lwe</code> ops as the <code>params</code> attribute, overriding any
@@ -2831,7 +2835,7 @@ originates from a mul operation. If so, it converts the Add operation to a
 Mac operation and removes the mul operation.</p><h3 id=-openfhe-configure-crypto-context><code>-openfhe-configure-crypto-context</code></h3><p><em>Configure the crypto context in OpenFHE</em></p><p>This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).</p><p>For example, for an MLIR function <code>@my_func</code>, the generated helpers have the following signatures</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span>  <span style=color:#000>@my_func__generate_crypto_context</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span>  <span style=color:#000>@my_func__configure_crypto_context</span><span style=color:#000;font-weight:700>(!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>private_key<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>openfhe<span style=color:#000;font-weight:700>.</span>crypto_context
-</span></span></code></pre></div><h4 id=options-8>Options</h4><pre tabindex=0><code>-entry-function      : Default entry function name of entry function.
+</span></span></code></pre></div><h4 id=options-9>Options</h4><pre tabindex=0><code>-entry-function      : Default entry function name of entry function.
 -level-budget-encode : Level budget for CKKS bootstrap encode (s2c) phase
 -level-budget-decode : Level budget for CKKS bootstrap decode (c2s) phase
 -insecure            : Whether to use insecure parameter for faster evaluation(should only be used in test) (defaults to false)
@@ -2852,7 +2856,7 @@ deferring it can reduce the need for bootstrapping.</p><p>In this pass, we use a
 relinearization strategy. It solves an ILP for each <code>func</code> op in the IR.</p><p>The assumptions of this pass include:</p><ul><li>All return values of functions must be linearized.</li><li>All ciphertext arguments to an op must have the same key basis</li><li>Rotation op inputs must have be linearized.</li></ul><p>For an ILP model specification, see the
 <a href=https://heir.dev/docs/design/relinearization_ilp/>docs at the HEIR website</a>.
 The model is an adaptation of the ILP described in
-<a href=https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis>a blog post by Jeremy Kun</a>.</p><h4 id=options-9>Options</h4><pre tabindex=0><code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
+<a href=https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis>a blog post by Jeremy Kun</a>.</p><h4 id=options-10>Options</h4><pre tabindex=0><code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
 </code></pre><h3 id=-polynomial-to-mod-arith><code>-polynomial-to-mod-arith</code></h3><p><em>Lower <code>polynomial</code> to standard MLIR dialects.</em></p><p>This pass lowers the <code>polynomial</code> dialect to standard MLIR plus mod_arith,
 including possibly ops from affine, tensor, linalg, and arith.</p><h3 id=-polynomial-to-mod-arith-1><code>-polynomial-to-mod-arith</code></h3><p><em>Lower <code>polynomial</code> to standard MLIR dialects.</em></p><p>This pass lowers the <code>polynomial</code> dialect to standard MLIR plus mod_arith,
 including possibly ops from affine, tensor, linalg, and arith.</p><h3 id=-remove-unused-memref><code>-remove-unused-memref</code></h3><p><em>Cleanup any unused memrefs</em></p><p>Scan the IR for unused memrefs and remove them.</p><p>This pass looks for locally allocated memrefs that are never used and
@@ -2894,7 +2898,7 @@ program that operates on a secret type annotates the input to a region as
 <code>secret.generic</code>, then uses this pass to simplify it.</p><p>The <code>distribute-through</code> option allows one to specify a comma-separated
 list of op names (e.g., <code>distribute-thorugh="affine.for,scf.if"</code>), which
 limits the distribution to only pass through those ops. If unset, all ops
-are distributed through when possible.</p><h4 id=options-10>Options</h4><pre tabindex=0><code>-distribute-through : comma-separated list of ops that should be distributed through
+are distributed through when possible.</p><h4 id=options-11>Options</h4><pre tabindex=0><code>-distribute-through : comma-separated list of ops that should be distributed through
 </code></pre><h3 id=-secret-extract-generic-body><code>-secret-extract-generic-body</code></h3><p><em>Extract the bodies of all generic ops into functions</em></p><p>This pass extracts the body of all generic ops into functions, and
 replaces the generic bodies with call ops. Used as a sub-operation in
 some passes, and extracted into its own pass for testing purposes.</p><p>This pass works best when <code>--secret-generic-absorb-constants</code> is run
@@ -2936,7 +2940,7 @@ RNS Type.</p><p>Example of multiplication+addition:</p><div class=highlight><pre
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>!</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>&lt;</span><span style=color:#204a87;font-weight:700>i16</span><span style=color:#000;font-weight:700>&gt;</span>
 </span></span><span style=display:flex><span>  <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000>%0</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#000;font-weight:700>!</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>&lt;</span><span style=color:#204a87;font-weight:700>i16</span><span style=color:#000;font-weight:700>&gt;</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-11>Options</h4><pre tabindex=0><code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
+</span></span></code></pre></div><h4 id=options-12>Options</h4><pre tabindex=0><code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
 </code></pre><h3 id=-secret-insert-mgmt-ckks><code>-secret-insert-mgmt-ckks</code></h3><p><em>Place CKKS ciphertext management operations</em></p><p>Check the description of secret-insert-mgmt-bgv. This pass
 implements similar strategy, where mgmt.modreduce stands for
 ckks.rescale here.</p><p>For bootstrap insertion policy, currently a greedy policy is used
@@ -2944,7 +2948,7 @@ where when all levels are consumed then a bootstrap is inserted.</p><p>The max l
 <code>bootstrap-waterline</code>.</p><p>Number of bootstrap consumed level is not shown here, which is
 handled by further lowering.
 TODO(#1207): handle it here so parameter selection can depend on it.
-TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).</p><h4 id=options-12>Options</h4><pre tabindex=0><code>-include-first-mul   : Modulus switching right before the first multiplication (default to false)
+TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).</p><h4 id=options-13>Options</h4><pre tabindex=0><code>-include-first-mul   : Modulus switching right before the first multiplication (default to false)
 -slot-number         : Default number of slots use for ciphertext space.
 -bootstrap-waterline : Waterline for insert bootstrap op
 </code></pre><h3 id=-secret-merge-adjacent-generics><code>-secret-merge-adjacent-generics</code></h3><p><em>Merge two adjacent generics into a single generic</em></p><p>This pass merges two immedaitely sequential generics into a single
@@ -2955,7 +2959,7 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-13>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-14>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 </code></pre><h3 id=-secret-to-cggi><code>-secret-to-cggi</code></h3><p><em>Lower <code>secret</code> to <code>cggi</code> dialect.</em></p><p>This pass lowers the <code>secret</code> dialect to <code>cggi</code> dialect.</p><h3 id=-secret-to-ckks><code>-secret-to-ckks</code></h3><p><em>Lower <code>secret</code> to <code>ckks</code> dialect.</em></p><p>This pass lowers an IR with <code>secret.generic</code> blocks containing arithmetic
 operations to operations on ciphertexts with the CKKS dialect.</p><p>The pass assumes that the <code>secret.generic</code> regions have been distributed
@@ -2963,13 +2967,13 @@ through arithmetic operations so that only one ciphertext operation appears
 per generic block. It also requires that <code>canonicalize</code> was run so that
 non-secret values used are removed from the <code>secret.generic</code>&rsquo;s block
 arguments.</p><p>The pass requires that all types are tensors of a uniform shape matching the
-dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-14>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
+dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p><h4 id=options-15>Options</h4><pre tabindex=0><code>-poly-mod-degree      : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 -coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 </code></pre><h3 id=-secretize><code>-secretize</code></h3><p><em>Adds secret argument attributes to entry function</em></p><p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
-This may be overridden with the option -function=func_name to apply to a single function only.</p><h4 id=options-15>Options</h4><pre tabindex=0><code>-function : function to add secret annotations to
+This may be overridden with the option -function=func_name to apply to a single function only.</p><h4 id=options-16>Options</h4><pre tabindex=0><code>-function : function to add secret annotations to
 </code></pre><h3 id=-straight-line-vectorize><code>-straight-line-vectorize</code></h3><p><em>A vectorizer for straight line programs.</em></p><p>This pass ignores control flow and only vectorizes straight-line programs
-within a given region.</p><h4 id=options-16>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
+within a given region.</p><h4 id=options-17>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 </code></pre><h3 id=-tosa-to-secret-arith><code>-tosa-to-secret-arith</code></h3><p><em>Lower <code>tosa.sigmoid</code> to secret arith dialects.</em></p><p>This pass lowers the <code>tosa.sigmoid</code> dialect to the polynomial approximation
 -0.004 * x^3 + 0.197 * x + 0.5 (composed of arith, affine, and tensor operations).</p><p>This polynomial approximation of sigmoid only works over the range [-5, 5]
 and is taken from the paper <a href=https://eprint.iacr.org/2018/462.pdf>&lsquo;Logisitic regression over encrypted data from
