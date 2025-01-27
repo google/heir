@@ -29,6 +29,9 @@ def DropZeroRotation : Pat<
   [(IsZeroIntAttr $c0)]
 >;
 
+// Currently commented out because it doesn't work for multi-dimensional tensors.
+// Will be uncommented and fixed by Asra's PR. Commenting this out causes various
+// other tests to fail.
 // rotate %t, x -> rotate %t, x mod size
 def NormalizeRotationIndex : Pat<
   (TensorExt_RotateOp $tensor, (Arith_ConstantOp:$shiftOp APIntAttr:$shiftAmount)),
