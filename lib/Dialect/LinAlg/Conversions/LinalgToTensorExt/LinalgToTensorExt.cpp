@@ -4,7 +4,12 @@
 #include <utility>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Utils.h"
+#include "llvm/include/llvm/ADT/APInt.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
@@ -12,20 +17,25 @@
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
-#define DEBUG_TYPE "linalg-to-arith"
+#define DEBUG_TYPE "linalg-to-tensor-ext"
 
 namespace mlir {
 namespace heir {
@@ -42,19 +52,21 @@ int calculateIndexHelper(bool isLeftOperandSecret, int dim0, int dim1, int i,
   if (isLeftOperandSecret) {
     return ((i + j) % dim0) * dim1 + (j % dim1);
   } else {  // right operand is secret
-    return (i % dim0) * dim0 + ((i + j) % dim1);
+    return (i % dim0) * dim1 + ((i + j) % dim1);
   }
 }
 
 template <typename T>
 Value diagonalizeMatrix(ImplicitLocOpBuilder builder,
-                        DenseElementsAttr denseAttr, bool isLeftOperandSecret) {
-  // Algorithm for diagonalizing the matrix:
+                        DenseElementsAttr denseAttr, bool isLeftOperandSecret,
+                        int maxTilingSize) {
+  // Algorithm for diagonalizing the matrix into a square matrix of size
+  // maxTilingSize x maxTilingSize.
   // There are two loops, an outer loop and an inner loop.
   // The outer loop is the for loop that goes from 0 to number of rows in the
-  // diagonalized, transposed matrix (transposedDimensions[0]).
+  // diagonalized, transposed matrix (maxTilingSize).
   // The inner loop is the for loop that goes from 0 to number of columns in
-  // the diagonalized, transposed matrix (transposedDimensions[1]).
+  // the diagonalized, transposed matrix (maxTilingSize).
   // At each iteration of the inner loop, we extract the correct diagonal
   // element from the matrix. Let's take an example:
   //
@@ -81,8 +93,8 @@ Value diagonalizeMatrix(ImplicitLocOpBuilder builder,
   // multiplication (which is done via the helper function
   // calculateIndexHelper):
   //
-  // for i = 0 to transposedDimensions[0]:
-  //   for j = 0 to transposedDimensions[1]:
+  // for i = 0 to maxTilingSize:
+  //   for j = 0 to maxTilingSize:
   //     row_index = (i + j) % dim0
   //     column_index = j % dim1
   //     index = row_index * dim1 + column_index
@@ -94,16 +106,21 @@ Value diagonalizeMatrix(ImplicitLocOpBuilder builder,
   auto type = denseAttr.getElementType();
 
   auto dims = denseAttr.getType().getShape();
+  auto denseAttrValues = denseAttr.getValues<T>();
   auto dim0 = dims[0];
   auto dim1 = dims[1];
-  SmallVector<int64_t> transposedDimensions({dim1, dim0});
+  SmallVector<int64_t> transposedDimensions({maxTilingSize, maxTilingSize});
 
   SmallVector<T> diagonalElements;
   diagonalElements.reserve(denseAttr.getNumElements());
-  for (int i = 0; i < transposedDimensions[0]; ++i) {
-    for (int j = 0; j < transposedDimensions[1]; ++j) {
+  for (int i = 0; i < maxTilingSize; ++i) {
+    for (int j = 0; j < maxTilingSize; ++j) {
       int index = calculateIndexHelper(isLeftOperandSecret, dim0, dim1, i, j);
-      auto value = denseAttr.getValues<T>()[index];
+      LLVM_DEBUG({
+        llvm::dbgs() << "i: " << i << ", j: " << j << ", index: " << index
+                     << ", dim0: " << dim0 << ", dim1: " << dim1 << "\n";
+      });
+      auto value = denseAttrValues[index];
       diagonalElements.push_back(value);
     }
   }
@@ -113,30 +130,49 @@ Value diagonalizeMatrix(ImplicitLocOpBuilder builder,
   return builder.create<arith::ConstantOp>(diagonalizedDenseElementsAttr);
 }
 
+template <typename T>
+Value duplicateBias(ImplicitLocOpBuilder builder, DenseElementsAttr biasAttr,
+                    bool isLeftOperandSecret, int maxTilingSize) {
+  auto type = biasAttr.getElementType();
+
+  int numElements = biasAttr.getNumElements();
+
+  SmallVector<int64_t> duplicatedDimensions({1, maxTilingSize});
+  if (!isLeftOperandSecret) {
+    duplicatedDimensions = {maxTilingSize, 1};
+  }
+
+  SmallVector<T> newBiasElements;
+  newBiasElements.reserve(maxTilingSize);
+  for (int i = 0; i < maxTilingSize; ++i) {
+    newBiasElements.push_back(biasAttr.getValues<T>()[i % numElements]);
+  }
+  auto duplicatedBiasType = RankedTensorType::get(duplicatedDimensions, type);
+  auto duplicatedBiasDenseElementsAttr =
+      DenseElementsAttr::get(duplicatedBiasType, newBiasElements);
+  return builder.create<arith::ConstantOp>(duplicatedBiasDenseElementsAttr);
+}
+
 template <typename AddOp, typename MulOp>
-Value multiplyDiagonalizedMatrixWithVector(ImplicitLocOpBuilder builder,
-                                           Value diagonalizedMatrix,
-                                           Value secretValues, Value bias,
-                                           bool isLeftOperandSecret) {
+Value multiplyDiagonalizedMatrixWithVector(
+    ImplicitLocOpBuilder builder, Value diagonalizedMatrix,
+    ArrayRef<int64_t> originalMatrixDimensions, Value secretValues, Value bias,
+    bool isLeftOperandSecret, int maxTilingSize) {
   // The code below emits the following code for vector-matrix
   // multiplication (matrix-vector multiplication is similar):
   // %sum = bias
   // %rotated_vector = secretValues
-  // for %i = 0 to transposedDim0 - 1:
-  //   %extractedSlice = extract_slice %newMatrix[%i, 0] [1, transposedDim1] [1,
-  //   1]
-  //   %multiplied = %rotated_vector * %extractedSlice %sum = %sum + %multiplied
+  // for %i = 0 to originalMatrixDimensions[1] - 1:
+  //   %extractedSlice = extract_slice %newMatrix[%i, 0]
+  //      [1, originalMatrixDimensions[0]] [1, 1]
+  //   %multiplied = %rotated_vector * %extractedSlice
+  //   %sum = %sum + %multiplied
   //   %rotated_vector = rotate %rotated_vector, 1
-  // %lastExtracted = extract_slice %newMatrix[transposedDim0-1, 0] [1,
-  // transposedDim1] [1, 1]
+  // %lastExtracted = extract_slice %newMatrix[maxTilingSize-1, 0] [1,
+  //      originalMatrixDimensions[0]] [1, 1]
   // %final_sum = %sum + %lastExtracted
-  // At this point, we can rotate and sum if needed. (Squat packing is left as a
-  // TODO until we resolve the shape mismatch issue.)
+  // At this point, we can rotate and sum if needed.
   // return %final_sum
-
-  auto shape = cast<RankedTensorType>(diagonalizedMatrix.getType()).getShape();
-  auto transposedDim0 = shape[0];
-  auto transposedDim1 = shape[1];
 
   // Build a constant index 1.
   auto indexOne = builder.create<arith::ConstantIndexOp>(1);
@@ -145,19 +181,17 @@ Value multiplyDiagonalizedMatrixWithVector(ImplicitLocOpBuilder builder,
   // ExtractSliceOp.
   SmallVector<OpFoldResult> sizes(2);
   if (isLeftOperandSecret) {
-    sizes = {builder.getIndexAttr(1), builder.getIndexAttr(transposedDim1)};
+    sizes = {builder.getIndexAttr(1), builder.getIndexAttr(maxTilingSize)};
   } else {
-    sizes = {builder.getIndexAttr(transposedDim0), builder.getIndexAttr(1)};
+    sizes = {builder.getIndexAttr(maxTilingSize), builder.getIndexAttr(1)};
   }
   SmallVector<OpFoldResult> strides(2, builder.getIndexAttr(1));
 
   // Setup parameters for the affine for loop.
   SmallVector<Value> iterArgs({bias, secretValues});
-  int numLoops;
-  if (isLeftOperandSecret) {
-    numLoops = transposedDim0;
-  } else {  // right operand is secret
-    numLoops = transposedDim1;
+  int numLoops = originalMatrixDimensions[0];
+  if (numLoops > originalMatrixDimensions[1]) {
+    numLoops = originalMatrixDimensions[1];
   }
 
   // Build the affine for loop.
@@ -200,11 +234,11 @@ Value multiplyDiagonalizedMatrixWithVector(ImplicitLocOpBuilder builder,
   // ExtractSliceOp.
   SmallVector<OpFoldResult> lastOffsets(2);
   if (isLeftOperandSecret) {
-    lastOffsets = {builder.getIndexAttr(transposedDim1 - 1),
+    lastOffsets = {builder.getIndexAttr(originalMatrixDimensions[0] - 1),
                    builder.getIndexAttr(0)};
   } else {
     lastOffsets = {builder.getIndexAttr(0),
-                   builder.getIndexAttr(transposedDim1 - 1)};
+                   builder.getIndexAttr(originalMatrixDimensions[0] - 1)};
   }
   auto lastExtracted = builder.create<tensor::ExtractSliceOp>(
       diagonalizedMatrix, lastOffsets, sizes, strides);
@@ -212,123 +246,248 @@ Value multiplyDiagonalizedMatrixWithVector(ImplicitLocOpBuilder builder,
   // Calculates the final scalar multiplication and sum.
   auto lastMultiplied =
       builder.create<MulOp>(forOp.getResults()[1], lastExtracted);
-  auto finalSum = builder.create<AddOp>(forOp.getResults()[0], lastMultiplied);
-  return finalSum;
+  auto finalSumWithoutRotateAndSum =
+      builder.create<AddOp>(forOp.getResults()[0], lastMultiplied);
+
+  int numRotationsAndSums;
+  if (isLeftOperandSecret) {
+    numRotationsAndSums = llvm::APInt(32, originalMatrixDimensions[0] /
+                                              originalMatrixDimensions[1])
+                              .exactLogBase2();
+  } else {
+    numRotationsAndSums = llvm::APInt(32, originalMatrixDimensions[1] /
+                                              originalMatrixDimensions[0])
+                              .exactLogBase2();
+  }
+
+  // Rotate and sum if needed
+  Value sumInProgress = finalSumWithoutRotateAndSum;
+  int rotationValue = maxTilingSize;
+  for (int i = 0; i < numRotationsAndSums; ++i) {
+    rotationValue /= 2;
+    auto rotatedTensor = builder.create<tensor_ext::RotateOp>(
+        sumInProgress,
+        builder.create<arith::ConstantOp>(builder.getIndexAttr(rotationValue)));
+    sumInProgress = builder.create<AddOp>(sumInProgress, rotatedTensor);
+  }
+
+  return sumInProgress;
 }
 
-struct ConvertLinalgMatmul : public OpRewritePattern<mlir::linalg::MatmulOp> {
+class ReplicatedTensorTypeConverter : public TypeConverter {
  private:
-  DataFlowSolver *solver;
+  int maxTilingSize;
 
  public:
-  ConvertLinalgMatmul(DataFlowSolver *solver, mlir::MLIRContext *context)
-      : OpRewritePattern<mlir::linalg::MatmulOp>(context), solver(solver) {}
+  ReplicatedTensorTypeConverter(int maxTilingSize)
+      : maxTilingSize(maxTilingSize) {
+    addConversion([](Type type) { return type; });
 
-  using OpRewritePattern::OpRewritePattern;
+    addConversion([this](RankedTensorType type) -> Type {
+      // Assuming 2-d operations only
+      if (type.getShape()[0] == 1) {
+        return RankedTensorType::get({1, this->maxTilingSize},
+                                     type.getElementType());
+      } else if (type.getShape()[1] == 1) {
+        return RankedTensorType::get({this->maxTilingSize, 1},
+                                     type.getElementType());
+      } else {
+        return RankedTensorType::get({this->maxTilingSize, this->maxTilingSize},
+                                     type.getElementType());
+      }
+    });
 
-  LogicalResult matchAndRewrite(mlir::linalg::MatmulOp op,
-                                PatternRewriter &rewriter) const override {
-    // Determine if the left or right operand is secret to determine which
-    // matrix to diagonalize, or if both are secret or both are public, then
-    // return failure.
+    // Convert secret tensors to secret tensors of the right size.
+    addConversion([this](secret::SecretType type) -> Type {
+      return secret::SecretType::get(this->convertType(type.getValueType()));
+    });
+  }
+};
+
+// Returns true if the generic contains a matmul op that can be rewritten with
+// squat packing.
+bool isSquatPackableMatmul(secret::GenericOp genericOp,
+                           DataFlowSolver *solver) {
+  if (genericOp.getBody()->getOperations().size() > 2) {
+    // Each secret.generic should contain at most one instruction -
+    // secret-distribute-generic can be used to distribute through the
+    // arithmetic ops.
+    return false;
+  }
+
+  auto &innerOp = genericOp.getBody()->getOperations().front();
+  if (!isa<mlir::linalg::MatmulOp>(innerOp)) {
+    return false;
+  }
+
+  // Determine if the left or right operand is secret to determine which
+  // matrix to diagonalize, or if both are secret or both are public, then
+  // return failure.
+  mlir::linalg::MatmulOp op = cast<mlir::linalg::MatmulOp>(innerOp);
+  bool isLeftOperandSecret = isSecret(op.getInputs()[0], solver);
+  bool isRightOperandSecret = isSecret(op.getInputs()[1], solver);
+
+  // Error out if both are secret or both are public
+  if ((isLeftOperandSecret && isRightOperandSecret) ||
+      (!isLeftOperandSecret && !isRightOperandSecret)) {
+    return false;
+  }
+  return true;
+}
+
+struct SecretGenericOpLinalgMatmulConversion
+    : public OpConversionPattern<secret::GenericOp> {
+ private:
+  DataFlowSolver *solver;
+  int maxTilingSize;
+
+ public:
+  using OpConversionPattern<secret::GenericOp>::OpConversionPattern;
+
+  SecretGenericOpLinalgMatmulConversion(const TypeConverter &converter,
+                                        DataFlowSolver *solver,
+                                        mlir::MLIRContext *context,
+                                        int maxTilingSize)
+      : OpConversionPattern<secret::GenericOp>(converter, context),
+        solver(solver),
+        maxTilingSize(maxTilingSize) {}
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp genericOp, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const final {
+    if (!isSquatPackableMatmul(genericOp, solver)) {
+      return failure();
+    }
+
+    mlir::linalg::MatmulOp op = cast<mlir::linalg::MatmulOp>(
+        genericOp.getBody()->getOperations().front());
     bool isLeftOperandSecret = isSecret(op.getInputs()[0], solver);
     bool isRightOperandSecret = isSecret(op.getInputs()[1], solver);
 
-    LLVM_DEBUG({
-      llvm::dbgs() << "Left operand is secret: " << isLeftOperandSecret << "\n"
-                   << "Right operand is secret: " << isRightOperandSecret
-                   << "\n";
-    });
-
-    // Error out if both are secret or both are public
-    if ((isLeftOperandSecret && isRightOperandSecret) ||
-        (!isLeftOperandSecret && !isRightOperandSecret)) {
-      return failure();
-    }
     auto inputs = op.getInputs();
     auto outputs = op.getOutputs();
 
     // Assign if the left operand is secret
-    Value secretValues = inputs[0];
+    int secretValuesIndex = 0;
     Value publicMatrix = inputs[1];
     if (isRightOperandSecret) {
-      std::swap(secretValues, publicMatrix);
+      publicMatrix = inputs[0];
+      secretValuesIndex = 1;
     }
     auto matrixTensorType = cast<RankedTensorType>(publicMatrix.getType());
     auto bias = outputs[0];
 
     auto dimensions = matrixTensorType.getShape();
-    int64_t dim0 = dimensions[0];  // This is the number of rows in the matrix.
-    int64_t dim1 = dimensions[1];  // This is the number of columns in the
-    // matrix.
+    int64_t dim0 = dimensions[0];  // This is the number of rows in the
+    // matrix
+    int64_t dim1 = dimensions[1];  // This is the number of columns
+                                   // in the matrix.
 
-    // If one of these dimensions is not a power of two, then we can't do the
-    // Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
+    // If one of these dimensions is not a power of two, then we can't do
+    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.    if
     if (!isPowerOfTwo(dim0) || !isPowerOfTwo(dim1)) {
       return failure();
     }
 
-    // If the matrix is not a square matrix, then we are doing squat packing.
-    // TODO: Implement squat packing.
-    if (dim0 != dim1) {
-      return failure();
-    }
-
     // Diagonalize the matrix only if the matrix is a constant.
-    auto constantValues =
+    auto matrixConstantValues =
         dyn_cast<arith::ConstantOp>(publicMatrix.getDefiningOp());
-    if (!constantValues) {
+    auto biasConstantValues = dyn_cast<arith::ConstantOp>(bias.getDefiningOp());
+    if (!matrixConstantValues || !biasConstantValues) {
       return failure();
     }
 
     DenseElementsAttr denseAttr =
-        dyn_cast<DenseElementsAttr>(constantValues.getValueAttr());
+        dyn_cast<DenseElementsAttr>(matrixConstantValues.getValueAttr());
+    DenseElementsAttr biasAttr =
+        dyn_cast<DenseElementsAttr>(biasConstantValues.getValueAttr());
 
     // If the constant values doesn't have a dense attribute, then we can't
     // diagonalize the matrix.
-    if (!denseAttr) {
+    if (!denseAttr || !biasAttr) {
       return failure();
     }
 
     auto type = denseAttr.getElementType();
+    auto originalShape = denseAttr.getType().getShape();
+
     if (!type.isIntOrFloat()) {
       return failure();
     }
 
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    Value result;
+    // Define local function pointers or lambdas that refer to the functions
+    auto diagMatrixInt = diagonalizeMatrix<APInt>;
+    auto duplicateBiasInt = duplicateBias<APInt>;
+    auto multDiagMatrixWithVectorInt =
+        multiplyDiagonalizedMatrixWithVector<arith::AddIOp, arith::MulIOp>;
 
-    // First, modify the matrix to be a diagonal matrix. We'll simply create a
-    // copy of the weight matrix diagonalized, and if the old weight matrix is
-    // not used, then dead code elimination pass will remove it.
+    auto diagMatrixFloat = diagonalizeMatrix<APFloat>;
+    auto duplicateBiasFloat = duplicateBias<APFloat>;
+    auto multDiagMatrixWithVectorFloat =
+        multiplyDiagonalizedMatrixWithVector<arith::AddFOp, arith::MulFOp>;
 
-    // After that, we create code for multiplying the matrix with rotations of
-    // the vector.
-    if (type.isInteger()) {
-      Value diagonalizedMatrix =
-          diagonalizeMatrix<APInt>(b, denseAttr, isLeftOperandSecret);
-
-      result =
-          multiplyDiagonalizedMatrixWithVector<arith::AddIOp, arith::MulIOp>(
-              b, diagonalizedMatrix, secretValues, bias, isLeftOperandSecret);
-    } else {  // floating point
-      Value diagonalizedMatrix =
-          diagonalizeMatrix<APFloat>(b, denseAttr, isLeftOperandSecret);
-
-      result =
-          multiplyDiagonalizedMatrixWithVector<arith::AddFOp, arith::MulFOp>(
-              b, diagonalizedMatrix, secretValues, bias, isLeftOperandSecret);
+    SmallVector<Value> genericOpInputs;
+    for (OpOperand &operand : op->getOpOperands()) {
+      if (auto *secretArg =
+              genericOp.getOpOperandForBlockArgument(operand.get())) {
+        genericOpInputs.push_back(
+            adaptor.getODSOperands(0)[secretArg->getOperandNumber()]);
+      } else {
+        genericOpInputs.push_back(operand.get());
+      }
     }
-    rewriter.replaceOp(op, result);
+
+    SmallVector<Type> genericOpOutputTypes;
+    auto result = getTypeConverter()->convertTypes(genericOp.getResultTypes(),
+                                                   genericOpOutputTypes);
+    if (failed(result)) return failure();
+
+    auto newGeneric = rewriter.create<secret::GenericOp>(
+        genericOp.getLoc(), genericOpInputs, genericOpOutputTypes,
+        [&](OpBuilder &builder, Location loc, ValueRange blockArguments) {
+          // The blockArguments should include the secret vector and public
+          // matrix.
+
+          Value secretValues = blockArguments[secretValuesIndex];
+          ImplicitLocOpBuilder b(loc, rewriter);
+          Value result;
+
+          // Compute diagonalized matrix and duplicated bias inside the body.
+          if (type.isInteger()) {
+            Value diagonalizedMatrix =
+                diagMatrixInt(b, denseAttr, isLeftOperandSecret, maxTilingSize);
+            Value duplicatedBias = duplicateBiasInt(
+                b, biasAttr, isLeftOperandSecret, maxTilingSize);
+            result = multDiagMatrixWithVectorInt(
+                b, diagonalizedMatrix, originalShape, secretValues,
+                duplicatedBias, isLeftOperandSecret, maxTilingSize);
+          } else {  // Floating point
+            Value diagonalizedMatrix = diagMatrixFloat(
+                b, denseAttr, isLeftOperandSecret, maxTilingSize);
+            Value duplicatedBias = duplicateBiasFloat(
+                b, biasAttr, isLeftOperandSecret, maxTilingSize);
+            result = multDiagMatrixWithVectorFloat(
+                b, diagonalizedMatrix, originalShape, secretValues,
+                duplicatedBias, isLeftOperandSecret, maxTilingSize);
+          }
+          // Yield the final result.
+          b.create<secret::YieldOp>(loc, result);
+        });
+
+    // Replace the original operation with the new genericOp
+    rewriter.replaceOp(genericOp, newGeneric);
     return success();
   }
 };
 
 struct LinalgToTensorExt
     : public impl::LinalgToTensorExtBase<LinalgToTensorExt> {
+  using LinalgToTensorExtBase::LinalgToTensorExtBase;
+
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
+    ConversionTarget target(*context);
 
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
@@ -343,14 +502,62 @@ struct LinalgToTensorExt
       return;
     }
 
+    // TODO: loop through all of the secret values, figure out the tiling size.
+    // For now, take tilingSize as a command line argument.
+
+    ReplicatedTensorTypeConverter replicatedTypeConverter(tilingSize);
     RewritePatternSet patterns(context);
 
-    patterns.add<ConvertLinalgMatmul>(&solver, context);
+    patterns.add<SecretGenericOpLinalgMatmulConversion>(
+        replicatedTypeConverter, &solver, context, tilingSize);
+    target.addDynamicallyLegalOp<secret::GenericOp>([&](secret::GenericOp op) {
+      return !isSquatPackableMatmul(op, &solver);
+    });
+
+    addStructuralConversionPatterns(replicatedTypeConverter, patterns, target);
+    // Override the default function legality checks to ensure that we only
+    // upgrade types when matmul packing is needed. In the future, an analysis
+    // pass will be used to  determine function argument packing.
+    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+      bool valueUsedInMatmul = false;
+      for (auto value : op.getFunctionBody().getArguments()) {
+        if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
+          for (auto use : value.getUsers()) {
+            if (auto genericOp = dyn_cast<secret::GenericOp>(use)) {
+              if (isSquatPackableMatmul(genericOp, &solver)) {
+                valueUsedInMatmul = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+      if (valueUsedInMatmul) {
+        return replicatedTypeConverter.isSignatureLegal(op.getFunctionType()) &&
+               replicatedTypeConverter.isLegal(&op.getBody());
+      }
+      return true;
+    });
+    target.addDynamicallyLegalOp<func::ReturnOp>([&](func::ReturnOp op) {
+      auto valueValid = validateValues(op, [&](Value value) {
+        if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
+          if (auto genericOp =
+                  dyn_cast<secret::GenericOp>(value.getDefiningOp())) {
+            if (isSquatPackableMatmul(genericOp, &solver)) {
+              return failure();
+            }
+          }
+        }
+        return success();
+      });
+      if (failed(valueValid)) {
+        return replicatedTypeConverter.isLegal(op);
+      }
+      return true;
+    });
 
     // Run pattern matching and conversion
-    // TODO (#1221): Investigate whether folding (default: on) can be skipped
-    // here.
-    if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
+    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
     }
   }
