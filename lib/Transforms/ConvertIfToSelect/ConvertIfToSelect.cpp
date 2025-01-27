@@ -129,7 +129,7 @@ struct ConvertIfToSelect : impl::ConvertIfToSelectBase<ConvertIfToSelect> {
     // here.
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));
 
-    LLVM_DEBUG({ annotateSecretness(getOperation(), &solver); });
+    LLVM_DEBUG({ annotateSecretness(getOperation(), &solver, true); });
   }
 };
 

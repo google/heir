@@ -32,7 +32,7 @@ struct AnnotateSecretness : impl::AnnotateSecretnessBase<AnnotateSecretness> {
       return;
     }
 
-    annotateSecretness(getOperation(), &solver);
+    annotateSecretness(getOperation(), &solver, verbose);
   }
 };
 

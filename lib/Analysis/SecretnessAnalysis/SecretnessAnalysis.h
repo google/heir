@@ -184,11 +184,15 @@ class SecretnessAnalysisDependent {
 };
 
 // Annotate the secretness of operation based on the secretness of its results
-void annotateSecretness(Operation *top, DataFlowSolver *solver);
+// If verbose = true, annotates the secretness of *all* values,
+// including ones with public secretness , missing, or inconclusive analysis.
+void annotateSecretness(Operation *top, DataFlowSolver *solver, bool verbose);
 
 // this method is used when DataFlowSolver has finished running the secretness
 // analysis
 bool isSecret(Value value, DataFlowSolver *solver);
+
+bool isSecret(const SecretnessLattice *lattice);
 
 bool isSecret(ValueRange values, DataFlowSolver *solver);
 

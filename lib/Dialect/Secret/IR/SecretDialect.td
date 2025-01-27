@@ -20,6 +20,12 @@ def Secret_Dialect : Dialect {
     //secret.
     constexpr const static ::llvm::StringLiteral
         kArgSecretAttrName = "secret.secret";
+    constexpr const static ::llvm::StringLiteral
+        kArgPublicAttrName = "secret.public";
+    constexpr const static ::llvm::StringLiteral
+        kArgMissingAttrName = "secret.missing";
+    constexpr const static ::llvm::StringLiteral
+        kArgUnknownAttrName = "secret.unknown";
   }];
 
   let cppNamespace = "::mlir::heir::secret";
