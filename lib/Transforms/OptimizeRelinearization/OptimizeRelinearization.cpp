@@ -1,35 +1,21 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 
-#include <iterator>
-#include <numeric>
-#include <optional>
-#include <vector>
-
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
-#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/OptimizeRelinearizationAnalysis/OptimizeRelinearizationAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
-#include "lib/Dialect/Mgmt/Transforms/Passes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Dialect/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"         // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"           // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"      // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -53,8 +39,8 @@ struct OptimizeRelinearization
       op.erase();
     });
 
-    OptimizeRelinearizationAnalysis analysis(genericOp, solver,
-                                             useLocBasedVariableNames);
+    OptimizeRelinearizationAnalysis analysis(
+        genericOp, solver, useLocBasedVariableNames, allowMixedDegreeOperands);
     if (failed(analysis.solve())) {
       genericOp->emitError("Failed to solve the optimization problem");
       return signalPassFailure();

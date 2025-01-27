@@ -50,13 +50,15 @@ rotation has key-switching built in, and multiplication relinearizes by default.
 That said, many FHE implementations do allow for the relinearization operation
 to be deferred. A useful such situation is when a series of independent
 multiplications are performed, and the results are added together. Addition can
-operate in any key basis (though all inputs must have the same key basis), and
-so the relinearization op that follows each multiplication can be deferred until
-after the additions are complete, at which point there is only one
-relinearization to perform. This technique is usually called _lazy
-relinearization_. It has the benefit of avoiding expensive relinearization
-operations, as well as reducing noise growth, as relinearization adds noise to
-the ciphertext, which can further reduce the need for bootstrapping.
+operate in any key basis (though depending on the backend FHE implementation's
+details, all inputs may require the same key basis, cf.
+[Optional operand agreement](#optional-operand-agreement)), and so the
+relinearization op that follows each multiplication can be deferred until after
+the additions are complete, at which point there is only one relinearization to
+perform. This technique is usually called _lazy relinearization_. It has the
+benefit of avoiding expensive relinearization operations, as well as reducing
+noise growth, as relinearization adds noise to the ciphertext, which can further
+reduce the need for bootstrapping.
 
 In much of the literature, lazy relinearization is applied manually. See for
 example
@@ -128,13 +130,12 @@ TODO(#1018): update docs when objective is generalized.
 
 ### Constraints
 
+#### Simple constraints
+
 The simple constraints are as follows:
 
 - Initial key basis degree: For each block argument, $\\textup{KB}\_v$ is fixed
   to equal the `dimension` parameter on the RLWE ciphertext type.
-- Operand agreement: For each operation with operand SSA values $v_1, \\dots,
-  v_k$, $\\textup{KB}\_{v_1} = \\dots = \\textup{KB}\_{v_k}$, i.e., all key
-  basis inputs must match.
 - Special linearized ops: `bgv.rotate` and `func.return` require linearized
   inputs, i.e., $\\textup{KB}\_{v_i} = 1$ for all inputs $v_i$ to these
   operations.
@@ -145,6 +146,36 @@ The simple constraints are as follows:
   all other ops it is the projection onto any input, since multiplication is the
   only op that increases the degree, and all operands are constrained to have
   equal degree.
+
+#### Optional operand agreement
+
+There are two versions of the model, one where the an operation requires the
+input key basis degrees of each operand to be equal, and one where differing key
+basis degrees are allowed.
+
+This is an option because the model was originally implemented under the
+incorrect assumption that CPU backends like OpenFHE and Lattigo require the key
+basis degree operands to be equal for ops like ciphertext addition. When we
+discovered this was not the case, we generalized the model to support both
+cases, in case other backends do have this requirement.
+
+When operands must have the same key basis degree, then for each operation with
+operand SSA values $v_1, \\dots, v_k$, we add the constraint
+$\\textup{KB}\_{v_1} = \\dots = \\textup{KB}\_{v_k}$, i.e., all key basis inputs
+must match.
+
+When operands may have different key basis degrees, we instead add the
+constraint that each operation result key basis degree (before relinearization)
+is at least as large as the max of all operand key basis degrees. For all $i$,
+$\\textup{KB}\_{\\textup{result}(o)}^{br} \\geq \\textup{KB}\_{v_i}$. Note that
+we are relying on an implicit behavior of the model to ensure that, even if the
+solver chooses key basis degree variables for these op results larger than the
+max of the operand degrees, the resulting optimal solution is the same.
+
+TODO(#1018): this will change to a more principled approach when the objective
+is generalized
+
+#### Impact of relinearization choices on key basis degree
 
 The remaining constraints control the dynamics of how the key basis degree
 changes as relinearizations are inserted.

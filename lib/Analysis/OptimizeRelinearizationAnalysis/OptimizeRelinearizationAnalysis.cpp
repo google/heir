@@ -5,23 +5,22 @@
 #include <string>
 #include <utility>
 
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/ADT/DenseMap.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"   // from @llvm-project
 
 // Avoid copybara mangling and separate third party includes with a comment.
 #include "absl/status/statusor.h"  // from @com_google_absl
@@ -157,15 +156,6 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     }
   });
 
-  // The objective is to minimize the number of relinearization ops.
-  // TODO(#1018): improve the objective function to account for differing
-  // costs of operations at varying degrees.
-  math_opt::LinearExpression obj;
-  for (auto &[op, decisionVar] : decisionVariables) {
-    obj += decisionVar;
-  }
-  model.Minimize(obj);
-
   // Constraints to initialize the key basis degree variables at the start of
   // the computation.
   for (auto &[value, var] : keyBasisVars) {
@@ -176,46 +166,52 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     }
   }
 
-  // For each operation, constrain its inputs to all have the same key basis
-  // degree.
   std::string cstName;
-  opToRunOn->walk([&](Operation *op) {
-    if (op->getNumOperands() <= 1) {
-      return;
-    }
-
-    // secret generic op arguments are not constrained
-    // instead their block arguments are constrained
-    if (isa<secret::GenericOp>(op)) {
-      return;
-    }
-
-    std::string name = uniqueName(op);
-
-    // only equality for secret operands
-    SmallVector<OpOperand *, 4> secretOperands;
-    getSecretOperands(op, secretOperands, solver);
-    if (secretOperands.size() <= 1) {
-      return;
-    }
-
-    auto anchorVar = keyBasisVars.at(secretOperands[0]->get());
-
-    // degree(operand 0) == degree(operand i)
-    for (OpOperand *opOperand : secretOperands) {
-      if (!keyBasisVars.contains(opOperand->get())) {
-        continue;
+  // For each operation, constrain its inputs to all have the same key basis
+  // degree. Most FHE backends we're aware of do not require this, and can
+  // handle mixed-degree operations like ciphertext addition. When we do require
+  // this, the output of an operation like ciphertext addition can be passed
+  // through from the input unchanged. If we don't require this, the output
+  // of the addition must be a max over the input degrees.
+  if (!allowMixedDegreeOperands) {
+    opToRunOn->walk([&](Operation *op) {
+      if (op->getNumOperands() <= 1) {
+        return;
       }
-      auto operandDegreeVar = keyBasisVars.at(opOperand->get());
-      if (anchorVar == operandDegreeVar) {
-        continue;
+
+      // secret generic op arguments are not constrained
+      // instead their block arguments are constrained
+      if (isa<secret::GenericOp>(op)) {
+        return;
       }
-      std::stringstream ss;
-      ss << "ArgKeyBasisEquality_" << opOperand->getOperandNumber() << "_"
-         << name;
-      model.AddLinearConstraint(operandDegreeVar == anchorVar, ss.str());
-    }
-  });
+
+      std::string name = uniqueName(op);
+
+      // only equality for secret operands
+      SmallVector<OpOperand *, 4> secretOperands;
+      getSecretOperands(op, secretOperands, solver);
+      if (secretOperands.size() <= 1) {
+        return;
+      }
+
+      auto anchorVar = keyBasisVars.at(secretOperands[0]->get());
+
+      // degree(operand 0) == degree(operand i)
+      for (OpOperand *opOperand : secretOperands) {
+        if (!keyBasisVars.contains(opOperand->get())) {
+          continue;
+        }
+        auto operandDegreeVar = keyBasisVars.at(opOperand->get());
+        if (anchorVar == operandDegreeVar) {
+          continue;
+        }
+        std::stringstream ss;
+        ss << "ArgKeyBasisEquality_" << opOperand->getOperandNumber() << "_"
+           << name;
+        model.AddLinearConstraint(operandDegreeVar == anchorVar, ss.str());
+      }
+    });
+  }
 
   // Some ops require a linear key basis. Yield is a special case
   // where we require returned values from funcs to be linearized.
@@ -241,6 +237,12 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           }
         });
   });
+
+  // When mixed-degree ops are enabled, the default result degree of an op is
+  // the max of the operand degree. This next block of code adds inequality
+  // constraints to ensure the result is larger than the arguments, but it will
+  // not be constrained by the model to be equal to that max value.
+  std::unordered_set<const math_opt::Variable *> extraVarsForObjective;
 
   // Add constraints that set the before_relin variables appropriately
   opToRunOn->walk([&](Operation *op) {
@@ -289,11 +291,18 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
         })
         .Default([&](Operation &op) {
           // For any other op, the key basis does not change unless we insert
-          // a relin op. Because the verifier ensures the operands and results
-          // have identical key bases, we can just pass through the first
-          // argument to the before_relin variable.
+          // a relin op. The operands may have the same basis degree, if that
+          // is required by the backend and allowMixedDegreeOperands is false,
+          // in which case we can just forward the degree of the first secret
+          // operand. Otherwise, we have to require the output to be the max
+          // of the inputs, which requires inequality constraints.
           //
           // before_relin = arg1_degree
+          //
+          // or,
+          // before_relin >= arg1_degree
+          // before_relin >= arg2_degree
+          // before_relin >= arg3_degree
 
           // secret generic op arguments are not constrained
           // instead their block arguments are constrained
@@ -305,25 +314,54 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
           }
           SmallVector<OpOperand *, 4> secretOperands;
           getSecretOperands(&op, secretOperands, solver);
-          // this works because we constraint argDegreeVar for all
-          // SecretOperands to be the same
-          auto argDegreeVar = keyBasisVars.at(secretOperands[0]->get());
 
-          for (Value result : op.getResults()) {
-            auto resultBeforeRelinVar = beforeRelinVars.at(result);
-            std::string opName = uniqueName(&op);
-            std::string ddPrefix = "DecisionDynamics_" + opName;
+          std::string opName = uniqueName(&op);
+          if (allowMixedDegreeOperands) {
+            for (OpOperand *opOperand : secretOperands) {
+              std::string ddPrefix =
+                  "DecisionDynamics_Mixed_" + opName + "_" +
+                  std::to_string(opOperand->getOperandNumber());
+              auto argDegreeVar = keyBasisVars.at(opOperand->get());
+              for (OpResult opResult : op.getOpResults()) {
+                Value result = opResult;
+                const math_opt::Variable &resultBeforeRelinVar =
+                    beforeRelinVars.at(result);
+                cstName =
+                    ddPrefix + "_" + std::to_string(opResult.getResultNumber());
+                model.AddLinearConstraint(resultBeforeRelinVar >= argDegreeVar,
+                                          cstName);
+                extraVarsForObjective.insert(&resultBeforeRelinVar);
+              }
+            }
+          } else {
+            auto argDegreeVar = keyBasisVars.at(secretOperands[0]->get());
 
-            cstName = ddPrefix + "_0";
-            // This is mildly wasteful, but the presolve will prune it out and
-            // it shouldn't affect the solve time. It simply helps us do
-            // bookkeeping for the before/after relin vars uniformly across
-            // all cases.
-            model.AddLinearConstraint(resultBeforeRelinVar == argDegreeVar,
-                                      cstName);
+            for (Value result : op.getResults()) {
+              auto resultBeforeRelinVar = beforeRelinVars.at(result);
+              std::string opName = uniqueName(&op);
+              std::string ddPrefix = "DecisionDynamics_" + opName;
+
+              cstName = ddPrefix + "_0";
+              // This is mildly wasteful, but the presolve will prune it out and
+              // it shouldn't affect the solve time. It simply helps us do
+              // bookkeeping for the before/after relin vars uniformly across
+              // all cases.
+              model.AddLinearConstraint(resultBeforeRelinVar == argDegreeVar,
+                                        cstName);
+            }
           }
         });
   });
+
+  // The objective is to minimize the number of relinearization ops.
+  // TODO(#1018): improve the objective function to account for differing costs
+  // of operations at varying degrees, as well as the cost of relinearizing
+  // based on the starting degree of the input.
+  math_opt::LinearExpression obj;
+  for (auto &[op, decisionVar] : decisionVariables) {
+    obj += decisionVar;
+  }
+  model.Minimize(obj);
 
   // Add constraints that control the effect of relinearization insertion.
   opToRunOn->walk([&](Operation *op) {

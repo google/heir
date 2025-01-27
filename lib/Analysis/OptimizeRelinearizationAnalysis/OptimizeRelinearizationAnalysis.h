@@ -1,8 +1,6 @@
 #ifndef LIB_ANALYSIS_OPTIMIZE_RELINEARIZATIONANALYSIS_H
 #define LIB_ANALYSIS_OPTIMIZE_RELINEARIZATIONANALYSIS_H
 
-#include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"                // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -13,10 +11,12 @@ namespace heir {
 class OptimizeRelinearizationAnalysis {
  public:
   OptimizeRelinearizationAnalysis(Operation *op, DataFlowSolver *solver,
-                                  bool useLocBasedVariableNames)
+                                  bool useLocBasedVariableNames,
+                                  bool allowMixedDegreeOperands)
       : opToRunOn(op),
         solver(solver),
-        useLocBasedVariableNames(useLocBasedVariableNames) {}
+        useLocBasedVariableNames(useLocBasedVariableNames),
+        allowMixedDegreeOperands(allowMixedDegreeOperands) {}
   ~OptimizeRelinearizationAnalysis() = default;
 
   LogicalResult solve();
@@ -40,7 +40,8 @@ class OptimizeRelinearizationAnalysis {
  private:
   Operation *opToRunOn;
   DataFlowSolver *solver;
-  bool useLocBasedVariableNames = false;
+  bool useLocBasedVariableNames;
+  bool allowMixedDegreeOperands;
   llvm::DenseMap<Operation *, bool> solution;
   llvm::DenseMap<Value, int> solutionKeyBasisDegreeBeforeRelin;
 };
