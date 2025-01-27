@@ -14,6 +14,7 @@ cc_library(
         ":AlignTensorSizes",
         ":CollapseInsertionChains",
         ":InsertRotate",
+        ":LayoutConversionToShiftNetwork",
         ":RotateAndReduce",
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
@@ -104,6 +105,26 @@ cc_library(
         "@llvm-project//mlir:TransformUtils",
     ],
 )
+
+cc_library(
+    name = "LayoutConversionToShiftNetwork",
+    srcs = ["LayoutConversionToShiftNetwork.cpp"],
+    hdrs = [
+        "LayoutConversionToShiftNetwork.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils/ADT:FrozenVector",
+        "@heir//lib/Utils/Graph",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
 # TensorExt pass tablegen and headers.
 
 gentbl_cc_library(
