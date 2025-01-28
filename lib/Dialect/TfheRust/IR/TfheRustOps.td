@@ -6,6 +6,7 @@ include "TfheRustTypes.td"
 
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
+include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -20,7 +21,8 @@ class TfheRust_Op<string mnemonic, list<Trait> traits = []> :
 class TfheRust_BinaryOp<string mnemonic>
   : TfheRust_Op<mnemonic, [
     Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>
+    Commutative,
+    ElementwiseMappable,
 ]> {
   let arguments = (ins
     TfheRust_ServerKey:$serverKey,
@@ -30,6 +32,19 @@ class TfheRust_BinaryOp<string mnemonic>
   let results = (outs TfheRust_CiphertextLikeType:$output);
 }
 
+class TfheRust_ScalarBinaryOp<string mnemonic>
+  : TfheRust_Op<mnemonic, [
+    Pure,
+    Commutative,
+]> {
+  let arguments = (ins
+    TfheRust_ServerKey:$serverKey,
+    TfheRust_CiphertextType:$lhs,
+    AnyTypeOf<[Builtin_Integer, TfheRust_CiphertextType]>:$rhs
+  );
+  let results = (outs TfheRust_CiphertextType:$output);
+}
+
 def TfheRust_CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
   let arguments = (ins TfheRust_ServerKey:$serverKey, AnyInteger:$value);
   let results = (outs TfheRust_CiphertextLikeType:$output);
@@ -37,9 +52,21 @@ def TfheRust_CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
 }
 
 def TfheRust_BitAndOp : TfheRust_BinaryOp<"bitand"> { let summary = "Logical AND of two tfhe ciphertexts."; }
-def TfheRust_AddOp : TfheRust_BinaryOp<"add"> { let summary = "Arithmetic add of two tfhe ciphertexts."; }
-def TfheRust_SubOp : TfheRust_BinaryOp<"sub"> { let summary = "Arithmetic sub of two tfhe ciphertexts."; }
-def TfheRust_MulOp : TfheRust_BinaryOp<"mul"> { let summary = "Arithmetic mul of two tfhe ciphertexts."; }
+def TfheRust_AddOp : TfheRust_ScalarBinaryOp<"add"> { let summary = "Arithmetic add of two tfhe ciphertexts."; }
+def TfheRust_MulOp : TfheRust_ScalarBinaryOp<"mul"> { let summary = "Arithmetic mul of two tfhe ciphertexts."; }
+
+def TfheRust_SubOp : TfheRust_Op<"sub", [
+    Pure,
+    AllTypesMatch<["lhs","rhs","output"]>
+]> {
+  let arguments = (ins
+    TfheRust_ServerKey:$serverKey,
+    TfheRust_CiphertextType:$lhs,
+    TfheRust_CiphertextType:$rhs
+  );
+  let results = (outs TfheRust_CiphertextType:$output);
+  let summary = "Arithmetic sub of two tfhe ciphertexts.";
+}
 
 
 def TfheRust_ScalarLeftShiftOp : TfheRust_Op<"scalar_left_shift", [
