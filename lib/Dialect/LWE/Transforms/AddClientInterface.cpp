@@ -177,8 +177,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
 
 /// Adds the client interface for a single func. This should only be used on the
 /// "entry" func for the IR being compiled, but there may be multiple.
-LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
-                          bool oneValuePerHelperFn) {
+LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
   auto module = op->getParentOfType<ModuleOp>();
   auto ringEncResult = getEncRingFromFuncOp(op);
   auto ringDecResult = getDecRingFromFuncOp(op);
@@ -190,65 +189,7 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey,
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
 
-  if (!oneValuePerHelperFn) {
-    std::string encFuncName("");
-    llvm::raw_string_ostream encNameOs(encFuncName);
-    encNameOs << op.getSymName() << "__encrypt";
-
-    std::string decFuncName("");
-    llvm::raw_string_ostream decNameOs(decFuncName);
-    decNameOs << op.getSymName() << "__decrypt";
-
-    SmallVector<Type> encFuncArgTypes;
-    SmallVector<Type> encFuncResultTypes;
-    auto argTypes = op.getArgumentTypes();
-
-    for (auto argTy : argTypes) {
-      if (auto argCtTy = dyn_cast<lwe::NewLWECiphertextType>(argTy)) {
-        encFuncArgTypes.push_back(
-            argCtTy.getApplicationData().getMessageType());
-        encFuncResultTypes.push_back(argCtTy);
-        continue;
-      }
-
-      // For plaintext arguments, the function is a no-op
-      encFuncArgTypes.push_back(argTy);
-      encFuncResultTypes.push_back(argTy);
-    }
-
-    if (failed(generateEncryptionFunc(op, encFuncName, encFuncArgTypes,
-                                      encFuncResultTypes, usePublicKey, ringEnc,
-                                      builder))) {
-      return failure();
-    }
-
-    // insertion point is inside encryption func, move back out
-    builder.setInsertionPointToEnd(module.getBody());
-
-    auto returnTypes = op.getResultTypes();
-    SmallVector<Type> decFuncArgTypes;
-    SmallVector<Type> decFuncResultTypes;
-    for (auto returnTy : returnTypes) {
-      if (auto returnCtTy = dyn_cast<lwe::NewLWECiphertextType>(returnTy)) {
-        decFuncArgTypes.push_back(returnCtTy);
-        decFuncResultTypes.push_back(
-            returnCtTy.getApplicationData().getMessageType());
-        continue;
-      }
-
-      // For plaintext results, the function is a no-op
-      decFuncArgTypes.push_back(returnTy);
-      decFuncResultTypes.push_back(returnTy);
-    }
-
-    if (failed(generateDecryptionFunc(op, decFuncName, decFuncArgTypes,
-                                      decFuncResultTypes, ringDec, builder))) {
-      return failure();
-    }
-    return success();
-  }
-
-  // Otherwise, we need one encryption function per argument and one decryption
+  // We need one encryption function per argument and one decryption
   // function per return value. This is mainly to avoid complicated C++ codegen
   // when encrypting multiple inputs which requires out-params.
   for (auto val : op.getArguments()) {
@@ -294,7 +235,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   void runOnOperation() override {
     auto result =
         getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-          if (failed(convertFunc(op, usePublicKey, oneValuePerHelperFn))) {
+          if (failed(convertFunc(op, usePublicKey))) {
             op->emitError("Failed to add client interface for func");
             return WalkResult::interrupt();
           }

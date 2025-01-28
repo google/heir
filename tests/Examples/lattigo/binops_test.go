@@ -15,11 +15,12 @@ func TestBinops(t *testing.T) {
 
 	expected := []int16{6, 15, 28, 1}
 
-	ct0, ct1 := add__encrypt(evaluator, params, ecd, enc, arg0, arg1)
+	ct0 := add__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct1 := add__encrypt__arg1(evaluator, params, ecd, enc, arg1)
 
 	resultCt := add(evaluator, params, ecd, ct0, ct1)
 
-	result := add__decrypt(evaluator, params, ecd, dec, resultCt)
+	result := add__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	for i := range 4 {
 		if result[i] != expected[i] {

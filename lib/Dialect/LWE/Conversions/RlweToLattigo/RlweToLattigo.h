@@ -53,25 +53,15 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
       return success();
     }
 
-    FunctionType originalType = op.getFunctionType();
-    llvm::SmallVector<Type, 4> newTypes;
-    newTypes.reserve(originalType.getNumInputs() + selectedEvaluators.size());
-    for (auto evaluatorType : selectedEvaluators) {
-      newTypes.push_back(evaluatorType);
-    }
-    for (auto t : originalType.getInputs()) {
-      newTypes.push_back(t);
-    }
-    auto newFuncType =
-        FunctionType::get(getContext(), newTypes, originalType.getResults());
-    rewriter.modifyOpInPlace(op, [&] {
-      op.setType(newFuncType);
+    // Insert all argument at the beginning
+    // NOTE: arguments with identical index will
+    // appear in the same order that they were listed.
+    SmallVector<unsigned> argIndices(selectedEvaluators.size(), 0);
+    SmallVector<DictionaryAttr> argAttrs(selectedEvaluators.size(), nullptr);
+    SmallVector<Location> argLocs(selectedEvaluators.size(), op.getLoc());
 
-      Block &block = op.getBody().getBlocks().front();
-      for (auto evaluatorType : llvm::reverse(selectedEvaluators)) {
-        block.insertArgument(&block.getArguments().front(), evaluatorType,
-                             op.getLoc());
-      }
+    rewriter.modifyOpInPlace(op, [&] {
+      op.insertArguments(argIndices, selectedEvaluators, argAttrs, argLocs);
     });
     return success();
   }
@@ -90,39 +80,20 @@ struct RemoveKeyArg : public OpConversionPattern<func::FuncOp> {
   LogicalResult matchAndRewrite(
       func::FuncOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    SmallVector<int, 1> keyArgIndices;
+    ::llvm::BitVector argsToErase(op.getNumArguments());
+
     Block &block = op.getBody().getBlocks().front();
     for (auto arg : block.getArguments()) {
       if (mlir::isa<KeyType>(arg.getType()) && arg.getUses().empty()) {
-        keyArgIndices.push_back(arg.getArgNumber());
+        argsToErase.set(arg.getArgNumber());
       }
     }
 
-    if (keyArgIndices.empty()) {
-      return success();
+    if (argsToErase.none()) {
+      return failure();
     }
 
-    FunctionType originalType = op.getFunctionType();
-    llvm::SmallVector<Type, 4> newTypes;
-    newTypes.reserve(originalType.getNumInputs());
-    for (auto arg : block.getArguments()) {
-      if (llvm::is_contained(keyArgIndices, arg.getArgNumber())) {
-        continue;
-      }
-      newTypes.push_back(arg.getType());
-    }
-    auto newFuncType =
-        FunctionType::get(getContext(), newTypes, originalType.getResults());
-    rewriter.modifyOpInPlace(op, [&] {
-      op.setType(newFuncType);
-
-      Block &block = op.getBody().getBlocks().front();
-      for (auto arg : block.getArguments()) {
-        if (llvm::is_contained(keyArgIndices, arg.getArgNumber())) {
-          block.eraseArgument(arg.getArgNumber());
-        }
-      }
-    });
+    rewriter.modifyOpInPlace(op, [&] { op.eraseArguments(argsToErase); });
     return success();
   }
 };
