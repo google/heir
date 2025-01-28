@@ -92,23 +92,14 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
     }
 
     auto cryptoContextType = openfhe::CryptoContextType::get(getContext());
-    FunctionType originalType = op.getFunctionType();
-    llvm::SmallVector<Type, 4> newTypes;
-    newTypes.reserve(originalType.getNumInputs() + 1);
-    newTypes.push_back(cryptoContextType);
-    for (auto t : originalType.getInputs()) {
-      newTypes.push_back(t);
-    }
-    auto newFuncType =
-        FunctionType::get(getContext(), newTypes, originalType.getResults());
     rewriter.modifyOpInPlace(op, [&] {
-      op.setType(newFuncType);
-
-      // guard against private FuncOp (i.e. declaration)
-      if (op.getVisibility() != SymbolTable::Visibility::Private) {
-        Block &block = op.getBody().getBlocks().front();
-        block.insertArgument(&block.getArguments().front(), cryptoContextType,
-                             op.getLoc());
+      if (op.isDeclaration()) {
+        auto newFuncType = op.getTypeWithArgsAndResults(
+            ArrayRef<unsigned int>{0}, ArrayRef<Type>{cryptoContextType}, {},
+            {});
+        op.setType(newFuncType);
+      } else {
+        op.insertArgument(0, cryptoContextType, nullptr, op.getLoc());
       }
     });
 

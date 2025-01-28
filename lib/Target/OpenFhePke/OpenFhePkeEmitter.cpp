@@ -171,7 +171,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
     }
   }
 
-  if (funcOp.getVisibility() == SymbolTable::Visibility::Private) {
+  if (funcOp.isDeclaration()) {
     // function declaration
     os << commaSeparatedTypes(funcOp.getArgumentTypes(), [&](Type type) {
       return convertType(type, funcOp->getLoc()).value();
@@ -186,7 +186,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   os << ")";
 
   // function declaration
-  if (funcOp.getVisibility() == SymbolTable::Visibility::Private) {
+  if (funcOp.isDeclaration()) {
     os << ";\n";
     return success();
   }
@@ -213,7 +213,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
   }
 
   if (op.getNumResults() != 0) {
-    os << variableNames->getNameForValue(op.getResult(0)) << " = ";
+    emitAutoAssignPrefix(op.getResult(0));
   }
 
   os << canonicalizeDebugPort(op.getCallee()) << "(";
