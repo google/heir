@@ -1,12 +1,11 @@
 """The decorator entry point for the frontend."""
 
-from abc import ABC, abstractmethod
 from typing import Optional
+from abc import ABC, abstractmethod
 
-from heir_py import heir_config as _heir_config
-from heir_py import openfhe_config
-from heir_py.pipeline import CompilationResult, run_compiler
-
+from heir.backend.openfhe import openfhe_config
+from frontend.heir.core import heir_cli_config
+from heir.core.pipeline import CompilationResult, run_compiler
 
 class CompilationResultInterface(ABC):
 
@@ -30,13 +29,8 @@ class CompilationResultInterface(ABC):
 
   @abstractmethod
   def __call__(self, *args, **kwargs):
-    """Run the compiled function end to end.
-
-    Includes crypto parameter setup, encryption of function arguments,
-    and decryption of the result.
-    """
+    """Forwards to the original function."""
     ...
-
 
 class OpenfheClientInterface(CompilationResultInterface):
 
@@ -77,7 +71,7 @@ class OpenfheClientInterface(CompilationResultInterface):
 
       return wrapper
 
-    if key == self.compilation_result.func_name:
+    if key == self.compilation_result.func_name or key == "eval":
       fn = self.compilation_result.main_func
 
       def wrapper(*args, crypto_context=None):
@@ -102,9 +96,10 @@ class OpenfheClientInterface(CompilationResultInterface):
       )
 
     args_encrypted = [
-        getattr(self, f"encrypt_{arg_name}")(arg)
-        for arg_name, arg in zip(arg_names, args)
+      getattr(self, f"encrypt_{arg_name}")(arg) if i in self.compilation_result.secret_args else arg
+      for i, (arg_name, arg) in enumerate(zip(arg_names, args))
     ]
+
     result_encrypted = getattr(self, self.compilation_result.func_name)(
         *args_encrypted
     )
@@ -112,20 +107,28 @@ class OpenfheClientInterface(CompilationResultInterface):
 
 
 def compile(
+    scheme: str = "bgv",
     backend: str = "openfhe",
-    backend_config: Optional[openfhe_config.OpenFHEConfig] = None,
-    heir_config: Optional[_heir_config.HEIRConfig] = None,
-    debug : Optional[bool] = False
+    backend_config: Optional[openfhe_config.OpenFHEConfig] = openfhe_config.DEFAULT_INSTALLED_OPENFHE_CONFIG,
+    heir_config: Optional[heir_cli_config.HEIRConfig] = heir_cli_config.DEVELOPMENT_HEIR_CONFIG,
+    debug : Optional[bool] = False,
+    heir_opt_options : Optional[list[str]] = None
 ):
   """Compile a function to its private equivalent in FHE.
 
   Args:
+      scheme: a string indicating the scheme to use. Options: 'bgv' (default),
+        'ckks'.
       backend: a string indicating the backend to use. Options: 'openfhe'
         (default).
       backend_config: a config object to control system-specific paths for the
         backend in question.
       heir_config: a config object to control paths to the tools in the HEIR
         compilation toolchain.
+      debug: a boolean indicating whether to print debug information. Defaults to false.
+      heir_opt_options: a list of strings to pass to the HEIR compiler as options. Defaults to None.
+      If set, the `scheme` parameter is ignored.
+
 
   Returns:
     The decorator to apply to the given function.
@@ -134,12 +137,20 @@ def compile(
   def decorator(func):
     compilation_result = run_compiler(
         func,
+        scheme,
+        backend,
         openfhe_config=backend_config or openfhe_config.from_os_env(),
-        heir_config=heir_config or _heir_config.from_os_env(),
-        debug = debug
+        heir_config=heir_config or heir_config.from_os_env(),
+        debug = debug,
+        heir_opt_options = heir_opt_options
     )
     if backend == "openfhe":
       return OpenfheClientInterface(compilation_result)
+    elif backend =="heracles":
+      # FIXME: Implement HeraclesClientInterface
+      pass
+    elif backend == None:
+       pass
     else:
       raise ValueError(f"Unknown backend: {backend}")
 

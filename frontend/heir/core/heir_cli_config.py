@@ -18,6 +18,7 @@ DEVELOPMENT_HEIR_CONFIG = HEIRConfig(
     heir_translate_path="bazel-bin/tools/heir-translate",
 )
 
+#TODO (#1326): Add a config that automagically downloads the nightlies
 
 def from_os_env() -> HEIRConfig:
   """Create a HEIRConfig from environment variables.
