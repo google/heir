@@ -59,49 +59,6 @@ LogicalResult ConvertLayoutOp::verify() {
   return success();
 }
 
-LogicalResult SumOp::verify() {
-  auto inputTensor = cast<RankedTensorType>(getTensor().getType());
-  auto outputTensor = cast<RankedTensorType>(getOutput().getType());
-
-  if (inputTensor.getElementType() != outputTensor.getElementType()) {
-    return emitOpError()
-           << "requires input and output tensors to have the same "
-              "element type, but found "
-           << inputTensor.getElementType() << " and "
-           << outputTensor.getElementType();
-  }
-
-  unsigned int dim = getDim().getZExtValue();
-  if (dim >= inputTensor.getRank()) {
-    return emitOpError()
-           << "requires the summed dimension to be within the bounds of the "
-              "tensor rank, but found dim "
-           << dim << " for shape " << inputTensor.getShape();
-  }
-
-  // The input and output must have the same shape when removing the index
-  // given by the operand dim.
-  SmallVector<int64_t, 4> inputShape;
-  for (int i = 0; i < inputTensor.getRank(); i++) {
-    if (i == dim) continue;
-    inputShape.push_back(inputTensor.getShape()[i]);
-  }
-
-  ArrayRef<int64_t> outputShape = outputTensor.getShape();
-
-  if (llvm::any_of(llvm::zip(inputShape, outputShape), [](auto pair) {
-        return std::get<0>(pair) != std::get<1>(pair);
-      })) {
-    return emitOpError()
-           << "requires input and output tensors to have the same shape, but "
-              "after summing along dimension "
-           << dim << " the input shape becomes " << inputTensor.getShape()
-           << " but the output shape is " << outputTensor.getShape();
-  }
-
-  return success();
-}
-
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir

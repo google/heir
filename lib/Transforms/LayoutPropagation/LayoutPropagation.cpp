@@ -19,6 +19,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::ReduceOp;
 using linalg::VecmatOp;
 using ::mlir::arith::AddIOp;
 using ::mlir::arith::MulIOp;
@@ -30,7 +31,6 @@ using tensor::EmptyOp;
 using tensor::ExpandShapeOp;
 using tensor_ext::ConvertLayoutOp;
 using tensor_ext::LayoutAttr;
-using tensor_ext::SumOp;
 
 #define GEN_PASS_DEF_LAYOUTPROPAGATION
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h.inc"
@@ -45,11 +45,11 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Op-specific transfer functions
   LogicalResult visitOperation(AddIOp op);
   LogicalResult visitOperation(CollapseShapeOp op);
-  LogicalResult visitOperation(ExpandShapeOp op);
   LogicalResult visitOperation(EmptyOp op);
+  LogicalResult visitOperation(ExpandShapeOp op);
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(MulIOp op);
-  LogicalResult visitOperation(SumOp op);
+  LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(VecmatOp op);
   LogicalResult visitOperation(YieldOp op);
   LogicalResult visitOperation(func::FuncOp op);
@@ -134,10 +134,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
       .Case<AddIOp, MulIOp>([&](auto op) { return visitOperation(op); })
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
-      // tensor_ext ops
-      .Case<SumOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<VecmatOp>([&](auto op) { return visitOperation(op); })
+      .Case<VecmatOp, ReduceOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
       .Case<CollapseShapeOp, ExpandShapeOp, EmptyOp>(
           [&](auto op) { return visitOperation(op); })
@@ -477,18 +475,28 @@ LogicalResult LayoutPropagation::visitOperation(MulIOp op) {
   return success();
 }
 
-LogicalResult LayoutPropagation::visitOperation(SumOp op) {
-  unsigned dimToSum = op.getDim().getZExtValue();
-  Value tensor = op.getTensor();
-  Value result = op.getOutput();
+LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
+  // Reduce has a nested region, but for now we only support the special
+  // cases that correspond to the "shortened print form" listed at
+  // https://mlir.llvm.org/docs/Dialects/Linalg/#linalgreduce-linalgreduceop
+  //
+  // I.e., the body of the reduce op is a single scalar operation that
+  // takes as its first input the initializer value of the reduction.
+  ArrayRef<int64_t> dimsToSum = op.getDimensions();
+
+  if (op.getInputs().size() != 1) {
+    return op->emitError("Only support reductions with a single input");
+  }
+  Value tensor = op.getInputs()[0];
+  Value result = op.getResult(0);
 
   AffineMap inputLayout = assignedLayouts.at(tensor);
-  // The result layout is equivalent to reducing the summed dimension
-  // to 1 and then dropping it.
+  // The result layout is equivalent to reducing the summed dimensions
+  // to 1 and then dropping them.
 
   unsigned numDims = cast<ShapedType>(tensor.getType()).getRank();
   llvm::SmallBitVector dimsBV(numDims, false);
-  dimsBV.set(dimToSum);
+  for (int dimToSum : dimsToSum) dimsBV.set(dimToSum);
 
   AffineMap resultLayout =
       projectDims(inputLayout, dimsBV, /*compressDims=*/true);
