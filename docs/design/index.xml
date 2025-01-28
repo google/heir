@@ -916,7 +916,7 @@ changes as relinearizations are inserted.&lt;/p>
 &lt;p>They can be thought of as implementing this (non-linear) constraint for each
 operation $o$:&lt;/p>
 &lt;p>\[ \textup{KB}_{\textup{result}(o)} = \begin{cases}
-\textup{KB}^{br}_{\textup{result(o)}} &amp;amp; \text{ if } R_o = 0 \ 1 &amp;amp; \text{
+\textup{KB}^{br}_{\textup{result(o)}} &amp;amp; \text{ if } R_o = 0 \\ 1 &amp;amp; \text{
 if } R_o = 1 \end{cases} \]&lt;/p>
 &lt;p>Note that $\textup{KB}^{br}_{\textup{result}(o)}$ is constrained by one of
 the simple constraints to be a linear expression containing key basis variables
@@ -930,7 +930,7 @@ formula&lt;/p>
 The four constraints are:&lt;/p>
 &lt;p>\[ \begin{aligned} \textup{KB}_\textup{result}(o) &amp;amp;\geq \textup{ R}_o
 \\
-\textup{KB}\_\textup{result}(o) &amp;amp;\leq 1 + C(1 – \textup{R}_o)
+\textup{KB}_\textup{result}(o) &amp;amp;\leq 1 + C(1 – \textup{R}_o)
 \\
 \textup{KB}_\textup{result}(o) &amp;amp;\geq
 \textup{KB}^{br}_{\textup{result}(o)} – C \textup{ R}_o

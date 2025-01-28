@@ -734,7 +734,7 @@ max of the operand degrees, the resulting optimal solution is the same.</p><p>TO
 is generalized</p><h4 id=impact-of-relinearization-choices-on-key-basis-degree>Impact of relinearization choices on key basis degree</h4><p>The remaining constraints control the dynamics of how the key basis degree
 changes as relinearizations are inserted.</p><p>They can be thought of as implementing this (non-linear) constraint for each
 operation $o$:</p><p>\[ \textup{KB}_{\textup{result}(o)} = \begin{cases}
-\textup{KB}^{br}_{\textup{result(o)}} & \text{ if } R_o = 0 \ 1 & \text{
+\textup{KB}^{br}_{\textup{result(o)}} & \text{ if } R_o = 0 \\ 1 & \text{
 if } R_o = 1 \end{cases} \]</p><p>Note that $\textup{KB}^{br}_{\textup{result}(o)}$ is constrained by one of
 the simple constraints to be a linear expression containing key basis variables
 for the operands of $o$. The conditional above cannot be implemented directly in
@@ -744,7 +744,7 @@ formula</p><p>\[ \textup{KB}_{\textup{result}(o)} = (1 - R_o) \cdot
 \textup{KB}^{br}_{\textup{result}(o)} + R_o \cdot 1 \]</p><p>(Note the above is not linear because in includes the product of two variables.)
 The four constraints are:</p><p>\[ \begin{aligned} \textup{KB}_\textup{result}(o) &\geq \textup{ R}_o
 \\
-\textup{KB}\_\textup{result}(o) &\leq 1 + C(1 – \textup{R}_o)
+\textup{KB}_\textup{result}(o) &\leq 1 + C(1 – \textup{R}_o)
 \\
 \textup{KB}_\textup{result}(o) &\geq
 \textup{KB}^{br}_{\textup{result}(o)} – C \textup{ R}_o
