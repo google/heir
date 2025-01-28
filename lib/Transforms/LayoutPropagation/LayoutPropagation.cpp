@@ -22,6 +22,7 @@ namespace heir {
 using linalg::ReduceOp;
 using linalg::VecmatOp;
 using ::mlir::arith::AddIOp;
+using ::mlir::arith::ConstantOp;
 using ::mlir::arith::MulIOp;
 using secret::GenericOp;
 using secret::SecretType;
@@ -45,6 +46,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Op-specific transfer functions
   LogicalResult visitOperation(AddIOp op);
   LogicalResult visitOperation(CollapseShapeOp op);
+  LogicalResult visitOperation(ConstantOp op);
   LogicalResult visitOperation(EmptyOp op);
   LogicalResult visitOperation(ExpandShapeOp op);
   LogicalResult visitOperation(GenericOp op);
@@ -60,6 +62,13 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // that requires a layout, but none has been set.
   std::pair<bool, std::optional<InFlightDiagnostic>>
   hasCompatibleArgumentLayouts(Operation *op);
+
+  // Op-specific compatibility functions
+  std::pair<bool, std::optional<InFlightDiagnostic>>
+  hasCompatibleArgumentLayouts(ReduceOp op);
+  std::pair<bool, std::optional<InFlightDiagnostic>>
+  hasCompatibleArgumentLayouts(VecmatOp op);
+
   // Insert conversion ops to rectify incompatible operand layouts
   void rectifyIncompatibleOperandLayouts(Operation *op);
 
@@ -107,14 +116,31 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
   // the check on YieldOp here and having a special case in the handling of
   // YieldOp that allows one to yield a value without any existing layout set.
   //
-  // FIXME: should I expand the secretness analysis to handle secret.yield and
-  // potentially secret.generic specially?
+  // FIXME: rethink this! Maybe add default layouts when the layout is detected
+  // to be missing? Consider type-switching on the op to set default layouts for
+  // plaintext operands.
   if (!isa<func::FuncOp, func::ReturnOp, GenericOp, YieldOp>(op) &&
       !isSecret(op->getOperands(), solver) &&
       !isSecret(op->getResults(), solver)) {
     LLVM_DEBUG(llvm::dbgs() << "Skipping op " << op->getName()
                             << " with no secret operands or results\n");
     return success();
+  }
+
+  // If an operand has no layout, it may for example be produced as a plaintext
+  // constant, such as a zero-valued tensor for the initializer of a reduction.
+  // In this case, we assign it a default layout.
+  for (auto operand : op->getOperands()) {
+    if (!assignedLayouts.contains(operand)) {
+      if (isa<RankedTensorType>(operand.getType())) {
+        FailureOr<AffineMap> layout = defaultLayoutForType(operand.getType());
+        if (failed(layout)) {
+          return failure();
+        }
+        debugAssignLayout(operand, layout.value());
+        assignedLayouts.insert({operand, layout.value()});
+      }
+    }
   }
 
   auto [compatible, diag] = hasCompatibleArgumentLayouts(op);
@@ -131,7 +157,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
       .Case<func::FuncOp, func::ReturnOp>(
           [&](auto op) { return visitOperation(op); })
       // arith ops
-      .Case<AddIOp, MulIOp>([&](auto op) { return visitOperation(op); })
+      .Case<AddIOp, ConstantOp, MulIOp>(
+          [&](auto op) { return visitOperation(op); })
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
@@ -144,6 +171,7 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
 
 std::pair<bool, std::optional<InFlightDiagnostic>>
 LayoutPropagation::hasCompatibleArgumentLayouts(Operation *op) {
+  // FIXME: type switch on special case ops
   if (isa<func::FuncOp, GenericOp, YieldOp>(op)) {
     return {true, std::nullopt};
   }
@@ -340,6 +368,20 @@ void LayoutPropagation::passLayoutThroughOp(Operation *op) {
     }
   }
   setResultLayoutAttr(op);
+}
+
+LogicalResult LayoutPropagation::visitOperation(ConstantOp op) {
+  // Constant ops can take any layout, but to start they are implemented to have
+  // row-major layouts. But if a later pass back-propagates a layout from a
+  // later op, an EmptyOp can trivially take on that changed layout.
+  Value result = op.getResult();
+  FailureOr<AffineMap> layout = defaultLayoutForType(result.getType());
+  if (failed(layout)) {
+    return failure();
+  }
+  debugAssignLayout(result, layout.value());
+  assignedLayouts.insert({result, layout.value()});
+  return success();
 }
 
 LogicalResult LayoutPropagation::visitOperation(EmptyOp op) {

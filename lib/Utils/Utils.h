@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 
+#include "mlir/include/mlir/IR/Dialect.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
@@ -17,10 +18,8 @@ namespace heir {
 using OpPredicate = std::function<bool(Operation *)>;
 using IsValidTypeFn = std::function<LogicalResult(const Type &)>;
 using IsValidValueFn = std::function<LogicalResult(const Value &)>;
-
 using TypePredicate = std::function<bool(const Type &)>;
-
-using DialectPredicate = int;
+using DialectPredicate = std::function<bool(Dialect *)>;
 
 template <typename... OpTys>
 OpPredicate OpEqual() {
