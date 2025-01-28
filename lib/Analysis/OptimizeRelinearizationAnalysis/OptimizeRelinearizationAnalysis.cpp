@@ -218,12 +218,12 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   opToRunOn->walk([&](Operation *op) {
     llvm::TypeSwitch<Operation &>(*op)
         .Case<tensor_ext::RotateOp, secret::YieldOp>([&](auto op) {
-          for (Value operand : op->getOperands()) {
+          for (OpOperand &operand : op->getOpOperands()) {
             // skip non secret argument
-            if (!isSecret(operand, solver)) {
+            if (!isSecret(operand.get(), solver)) {
               continue;
             }
-            if (!keyBasisVars.contains(operand)) {
+            if (!keyBasisVars.contains(operand.get())) {
               // This could happen if you return a block argument without doing
               // anything to it. No variables are created, but it does not
               // necessarily need to be constrained.
@@ -231,9 +231,11 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
 
               assert(false && "Operand not found in keyBasisVars");
             }
-            auto operandDegreeVar = keyBasisVars.at(operand);
-            cstName = "RequireLinearized_" + uniqueName(op);
-            model.AddLinearConstraint(operandDegreeVar == 1, cstName);
+            auto operandDegreeVar = keyBasisVars.at(operand.get());
+            std::stringstream ss;
+            ss << "RequireLinearized_" << uniqueName(op) << "_"
+               << operand.getOperandNumber();
+            model.AddLinearConstraint(operandDegreeVar == 1, ss.str());
           }
         });
   });
