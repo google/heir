@@ -359,7 +359,12 @@ LogicalResult TfheRustHLEmitter::printOperation(arith::ConstantOp op) {
   // By default, it emits an unsigned integer.
   emitAssignPrefix(op.getResult());
   if (auto intAttr = dyn_cast<IntegerAttr>(valueAttr)) {
-    os << intAttr.getValue().abs() << "u64;\n";
+    os << intAttr.getValue().abs();
+    if (isa<IndexType>(op.getType())) {
+      os << "usize;\n";
+    } else {
+      os << convertType(op.getType()) << ";\n";
+    }
   } else {
     return op.emitError() << "Unknown constant type " << valueAttr.getType();
   }
@@ -382,6 +387,15 @@ LogicalResult TfheRustHLEmitter::printBinaryOp(::mlir::Value result,
                                                ::mlir::Value rhs,
                                                std::string_view op) {
   emitAssignPrefix(result);
+
+  if (auto cteOp = dyn_cast<mlir::arith::ConstantOp>(rhs.getDefiningOp())) {
+    auto intValue =
+        cast<IntegerAttr>(cteOp.getValue()).getValue().getZExtValue();
+    os << checkOrigin(lhs) << variableNames->getNameForValue(lhs) << " " << op
+       << " " << intValue << "u" << cteOp.getType().getIntOrFloatBitWidth()
+       << ";\n";
+    return success();
+  }
 
   os << checkOrigin(lhs) << variableNames->getNameForValue(lhs) << " " << op
      << " " << checkOrigin(rhs) << variableNames->getNameForValue(rhs) << ";\n";
@@ -430,8 +444,8 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::AllocOp op) {
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
     return op.emitOpError() << "Failed to get memref element type";
   }
-
   os << "> = BTreeMap::new();\n";
+
   return success();
 }
 
@@ -463,12 +477,11 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::LoadOp op) {
   // We assume here that the indices are SSA values (not integer attributes).
   if (isa<BlockArgument>(op.getMemref())) {
     emitAssignPrefix(op.getResult());
-    os << "&" << variableNames->getNameForValue(op.getMemRef()) << "["
-       << flattenIndexExpression(op.getMemRefType(), op.getIndices(),
-                                 [&](Value value) {
-                                   return variableNames->getNameForValue(value);
-                                 })
-       << "];\n";
+    os << "&" << variableNames->getNameForValue(op.getMemRef());
+    for (auto value : op.getIndices()) {
+      os << "[" << variableNames->getNameForValue(value) << "]";
+    }
+    os << ";\n";
     return success();
   }
 
@@ -573,6 +586,7 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
   return success();
 }
 
+// Need to produce a
 LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
   emitAssignPrefix(op.getResult());
   os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
@@ -585,6 +599,7 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
     return std::string(prefix) + variableNames->getNameForValue(value) +
            cloneStr;
   }) << "];\n";
+
   return success();
 }
 
