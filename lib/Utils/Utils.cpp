@@ -3,12 +3,14 @@
 #include <optional>
 #include <string>
 
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"    // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -61,6 +63,31 @@ bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
       });
     });
   });
+}
+
+Operation *findLinalgPayloadOp(Block *body, bool initFirst) {
+  if (body->getOperations().size() != 2) return nullptr;
+  Operation &payload = body->getOperations().front();
+  assert(isa<linalg::YieldOp>(body->getOperations().back()));
+
+  if (payload.getNumOperands() == 0 ||
+      payload.getNumOperands() != body->getNumArguments())
+    return nullptr;
+  if (initFirst) {
+    // check init
+    if (payload.getOperands().back() != body->getArgument(0)) return nullptr;
+    // check rest
+    for (const auto &[operand, bbArg] :
+         llvm::zip(payload.getOperands(), body->getArguments().drop_front())) {
+      if (bbArg != operand) return nullptr;
+    }
+  } else {
+    for (const auto &[operand, bbArg] :
+         llvm::zip(payload.getOperands(), body->getArguments())) {
+      if (bbArg != operand) return nullptr;
+    }
+  }
+  return &payload;
 }
 
 }  // namespace heir
