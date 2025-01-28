@@ -1,4 +1,4 @@
-// The end to end mlir-to-openfhe-ckks pipeline will automatically rewrite a
+// The --mlir-to-ckks pipeline will automatically rewrite a
 // matrix multiplication into a Halevi-Shoup diagonalized matrix multiplication.
 // This example is preserved to show a speedup of that pass from a naive
 // implementation. We start at the CKKS dialect to avoid the automatic

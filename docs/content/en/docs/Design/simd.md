@@ -62,10 +62,10 @@ and index-based accesses into tensors (e.g., `tensor.extract` and
 entire tensors. While its implementation does not depend on any FHE-specific
 details or even the Secret dialect, this transformation is likely only useful
 when lowering a high-level program to an arithmetic-circuit-based FHE scheme
-(e.g., B/FV, BGV, or CKKS). The `-mlir-to-openfhe-bgv` pipeline demonstrates the
-intended flow: augmenting a high-level program with `secret` annotations, then
-applying the SIMD optimization (and any other high-level optimizations) before
-lowering to BGV operations and then exiting to OpenFHE.
+(e.g., B/FV, BGV, or CKKS). The `--mlir-to-bgv --scheme-to-openfhe` pipeline
+demonstrates the intended flow: augmenting a high-level program with `secret`
+annotations, then applying the SIMD optimization (and any other high-level
+optimizations) before lowering to BGV operations and then exiting to OpenFHE.
 
 > **Warning** The current SIMD vectorizer pipeline supports only one-dimensional
 > tensors. As a workaround, one could reshape all multi-dimensional tensors into

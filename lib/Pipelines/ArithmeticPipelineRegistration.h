@@ -18,9 +18,6 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager);
 
 struct MlirToRLWEPipelineOptions
     : public PassPipelineOptions<MlirToRLWEPipelineOptions> {
-  PassOptions::Option<std::string> entryFunction{
-      *this, "entry-function", llvm::cl::desc("Entry function to secretize"),
-      llvm::cl::init("main")};
   PassOptions::Option<int> ciphertextDegree{
       *this, "ciphertext-degree",
       llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
@@ -43,6 +40,12 @@ struct MlirToRLWEPipelineOptions
       llvm::cl::desc("Modulus switching right before the first multiplication "
                      "(default to false)"),
       llvm::cl::init(false)};
+};
+
+struct OpenfheOptions : public PassPipelineOptions<OpenfheOptions> {
+  PassOptions::Option<std::string> entryFunction{
+      *this, "entry-function", llvm::cl::desc("Entry function"),
+      llvm::cl::init("main")};
   PassOptions::Option<bool> debug{
       *this, "insert-debug-handler-calls",
       llvm::cl::desc("Insert function calls to an externally-defined debug "
@@ -50,8 +53,31 @@ struct MlirToRLWEPipelineOptions
       llvm::cl::init(false)};
 };
 
+struct LattigoOptions : public PassPipelineOptions<LattigoOptions> {
+  PassOptions::Option<int> ciphertextDegree{
+      *this, "ciphertext-degree",
+      llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
+                     "equivalently, the number of messages that can be packed "
+                     "into a single ciphertext."),
+      llvm::cl::init(1024)};
+  PassOptions::Option<std::string> entryFunction{
+      *this, "entry-function", llvm::cl::desc("Entry function"),
+      llvm::cl::init("main")};
+  PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
+      *this, "modulus-switch-before-first-mul",
+      llvm::cl::desc("Modulus switching right before the first multiplication "
+                     "(default to false)"),
+      llvm::cl::init(false)};
+};
+
 using RLWEPipelineBuilder =
     std::function<void(OpPassManager &, const MlirToRLWEPipelineOptions &)>;
+
+using BackendPipelineBuilder =
+    std::function<void(OpPassManager &, const OpenfheOptions &)>;
+
+using LattigoPipelineBuilder =
+    std::function<void(OpPassManager &, const LattigoOptions &)>;
 
 void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
@@ -61,9 +87,9 @@ void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm);
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 
-RLWEPipelineBuilder mlirToOpenFheRLWEPipelineBuilder(RLWEScheme scheme);
+BackendPipelineBuilder toOpenFhePipelineBuilder();
 
-RLWEPipelineBuilder mlirToLattigoRLWEPipelineBuilder(RLWEScheme scheme);
+LattigoPipelineBuilder mlirToLattigoRLWEPipelineBuilder(RLWEScheme scheme);
 
 }  // namespace mlir::heir
 

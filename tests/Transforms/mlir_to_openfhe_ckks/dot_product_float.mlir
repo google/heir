@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-openfhe-ckks='entry-function=dot_product ciphertext-degree=8' %s | FileCheck %s
+// RUN: heir-opt --mlir-to-ckks='ciphertext-degree=8' --scheme-to-openfhe='entry-function=dot_product' %s | FileCheck %s
 
 // CHECK-LABEL: @dot_product
 // CHECK-COUNT-3: openfhe.rot

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-openfhe-bgv='entry-function=simple_sum ciphertext-degree=32' %s | FileCheck %s
+// RUN: heir-opt --mlir-to-bgv='ciphertext-degree=32' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
 
 // CHECK-LABEL: @simple_sum
 // CHECK: openfhe
