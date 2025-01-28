@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 
+#include "mlir/include/mlir/IR/Dialect.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
@@ -14,13 +15,11 @@
 namespace mlir {
 namespace heir {
 
-typedef std::function<bool(Operation *)> OpPredicate;
-typedef std::function<LogicalResult(const Type &)> IsValidTypeFn;
-typedef std::function<LogicalResult(const Value &)> IsValidValueFn;
-
-typedef std::function<bool(const Type &)> TypePredicate;
-
-typedef std::function<bool(Dialect *)> DialectPredicate;
+using OpPredicate = std::function<bool(Operation *)>;
+using IsValidTypeFn = std::function<LogicalResult(const Type &)>;
+using IsValidValueFn = std::function<LogicalResult(const Value &)>;
+using TypePredicate = std::function<bool(const Type &)>;
+using DialectPredicate = std::function<bool(Dialect *)>;
 
 template <typename... OpTys>
 OpPredicate OpEqual() {
@@ -64,6 +63,21 @@ LogicalResult validateValues(Operation *op, IsValidValueFn isValidValue);
 LogicalResult walkAndValidateValues(
     Operation *op, IsValidValueFn isValidValue,
     std::optional<std::string> err = std::nullopt);
+
+/// A local copy of the private upstream findPaylodOp
+/// https://github.com/llvm/llvm-project/blob/3cfda4f11842ceaab983345333870bef7980aa85/mlir/lib/Dialect/Linalg/IR/LinalgOps.cpp#L1470
+///
+///
+/// Retrieve the operation from the body, if it is the only one (except
+/// linalg.yield) and if it gets the same amount of arguments as the body does.
+/// If initFirst flag is enabled, we check that init takes the first position
+/// in operands of payload.
+///
+/// For a linalg op like linalg.reduce, this finds the unique operation nested
+/// within the op's region that corresponds to the computation applied. This
+/// allows us to identify when a linalg.reduce op corresponds to a sum
+/// reduction.
+Operation *findLinalgPayloadOp(Block *body, bool initFirst = false);
 
 /// Walk the IR and apply a predicate to all argument and result types
 /// encountered, returning failure if any type is invalid. Invalidity is

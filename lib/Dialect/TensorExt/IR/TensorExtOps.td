@@ -58,6 +58,7 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
 
     This op is inserted by layout selection passes.
   }];
+
   let assemblyFormat = "operands attr-dict `:` type($output)";
   let arguments = (ins AnyRankedTensor:$tensor, Builtin_AffineMapAttr:$from_layout, Builtin_AffineMapAttr:$to_layout);
   let results = (outs AnyRankedTensor:$output);
