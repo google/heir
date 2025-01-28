@@ -184,7 +184,7 @@ They can be thought of as implementing this (non-linear) constraint for each
 operation $o$:
 
 \\\[ \\textup{KB}\_{\\textup{result}(o)} = \\begin{cases}
-\\textup{KB}^{br}\_{\\textup{result(o)}} & \\text{ if } R_o = 0 \\ 1 & \\text{
+\\textup{KB}^{br}\_{\\textup{result(o)}} & \\text{ if } R_o = 0 \\\\ 1 & \\text{
 if } R_o = 1 \\end{cases} \\\]
 
 Note that $\\textup{KB}^{br}\_{\\textup{result}(o)}$ is constrained by one of
@@ -202,7 +202,7 @@ The four constraints are:
 
 \\\[ \\begin{aligned} \\textup{KB}\_\\textup{result}(o) &\\geq \\textup{ R}\_o
 \\\
-\\textup{KB}\\\_\\textup{result}(o) &\\leq 1 + C(1 – \\textup{R}\_o)
+\\textup{KB}\_\\textup{result}(o) &\\leq 1 + C(1 – \\textup{R}\_o)
 \\\
 \\textup{KB}\_\\textup{result}(o) &\\geq
 \\textup{KB}^{br}\_{\\textup{result}(o)} – C \\textup{ R}\_o
