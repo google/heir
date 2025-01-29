@@ -6,7 +6,7 @@ class EndToEndTest(absltest.TestCase):
 
   def test_simple_arithmetic(self):
     @compile() # defaults to BGV and OpenFHE
-    def foo(a : Secret[I16], b : Secret[I16]):
+    def foo(a : Secret[I64], b : Secret[I64]):
       return a * a - b * b
 
     # Test plaintext functionality
