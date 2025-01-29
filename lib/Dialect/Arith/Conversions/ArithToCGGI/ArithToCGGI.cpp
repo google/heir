@@ -1,7 +1,5 @@
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h"
 
-#include <cstdint>
-
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
@@ -45,35 +43,6 @@ class ArithToCGGITypeConverter : public TypeConverter {
     addConversion([ctx](ShapedType type) -> Type {
       return convertArithLikeToCGGIType(type, ctx);
     });
-  }
-};
-
-struct ConvertConstantOp : public OpConversionPattern<mlir::arith::ConstantOp> {
-  ConvertConstantOp(mlir::MLIRContext *context)
-      : OpConversionPattern<mlir::arith::ConstantOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      mlir::arith::ConstantOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    if (isa<IndexType>(op.getValue().getType())) {
-      return failure();
-    }
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
-    auto intValue = cast<IntegerAttr>(op.getValue()).getValue().getSExtValue();
-    auto inputValue = mlir::IntegerAttr::get(op.getType(), intValue);
-
-    auto encoding = lwe::UnspecifiedBitFieldEncodingAttr::get(
-        op->getContext(), op.getValue().getType().getIntOrFloatBitWidth());
-    auto lweType = lwe::LWECiphertextType::get(op->getContext(), encoding,
-                                               lwe::LWEParamsAttr());
-
-    auto encrypt = b.create<cggi::CreateTrivialOp>(lweType, inputValue);
-
-    rewriter.replaceOp(op, encrypt);
-    return success();
   }
 };
 
@@ -301,8 +270,8 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     });
 
     patterns.add<
-        ConvertConstantOp, ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp,
-        ConvertShRUIOp, ConvertArithBinOp<mlir::arith::AddIOp, cggi::AddOp>,
+        ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp, ConvertShRUIOp,
+        ConvertArithBinOp<mlir::arith::AddIOp, cggi::AddOp>,
         ConvertArithBinOp<mlir::arith::MulIOp, cggi::MulOp>,
         ConvertArithBinOp<mlir::arith::SubIOp, cggi::SubOp>,
         ConvertAny<memref::LoadOp>, ConvertAny<memref::AllocOp>,

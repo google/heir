@@ -159,12 +159,10 @@ struct ConvertLut3Op : public OpConversionPattern<cggi::Lut3Op> {
         serverKey, adaptor.getC(), b.getIndexAttr(2));
     auto shiftedB = b.create<tfhe_rust::ScalarLeftShiftOp>(
         serverKey, adaptor.getB(), b.getIndexAttr(1));
-    auto outputType =
-        getTypeConverter()->convertType(shiftedB.getResult().getType());
-    auto summedBC =
-        b.create<tfhe_rust::AddOp>(outputType, serverKey, shiftedC, shiftedB);
-    auto summedABC = b.create<tfhe_rust::AddOp>(outputType, serverKey, summedBC,
-                                                adaptor.getA());
+    auto summedBC = b.create<tfhe_rust::AddOp>(adaptor.getB().getType(),
+                                               serverKey, shiftedC, shiftedB);
+    auto summedABC = b.create<tfhe_rust::AddOp>(
+        adaptor.getB().getType(), serverKey, summedBC, adaptor.getA());
 
     rewriter.replaceOp(
         op, b.create<tfhe_rust::ApplyLookupTableOp>(serverKey, summedABC, lut));
@@ -243,6 +241,7 @@ struct ConvertCGGITRBinOp : public OpConversionPattern<BinOp> {
     Value serverKey = result.value();
     CGGIToTfheRustTypeConverter typeConverter(op->getContext());
     auto outputType = typeConverter.convertType(op.getResult().getType());
+
     rewriter.replaceOp(
         op, b.create<TfheRustBinOp>(outputType, serverKey, adaptor.getLhs(),
                                     adaptor.getRhs()));
