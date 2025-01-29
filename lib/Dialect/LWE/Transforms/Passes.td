@@ -17,8 +17,6 @@ def AddClientInterface : Pass<"lwe-add-client-interface"> {
   let options = [
     Option<"usePublicKey", "use-public-key", "bool", /*default=*/"false",
            "If true, generate a client interface that uses a public key for encryption.">,
-    Option<"oneValuePerHelperFn", "one-value-per-helper-fn", "bool", /*default=*/"false",
-           "If true, split encryption helpers into separate functions for each SSA value.">
   ];
 }
 

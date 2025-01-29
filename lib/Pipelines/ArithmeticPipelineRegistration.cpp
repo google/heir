@@ -20,27 +20,16 @@
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
-#include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
-#include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
-#include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/Passes.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/Passes.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/Transforms/Passes.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
-#include "mlir/include/mlir/Pass/PassOptions.h"            // from @llvm-project
-#include "mlir/include/mlir/Pass/PassRegistry.h"           // from @llvm-project
-#include "mlir/include/mlir/Tools/mlir-opt/MlirOptMain.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
-
-using mlir::func::FuncOp;
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"     // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"     // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"    // from @llvm-project
 
 namespace mlir::heir {
 
@@ -161,7 +150,6 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   // Add client interface (helper functions)
   auto addClientInterfaceOptions = lwe::AddClientInterfaceOptions{};
   addClientInterfaceOptions.usePublicKey = options.usePublicKey;
-  addClientInterfaceOptions.oneValuePerHelperFn = options.oneValuePerHelperFn;
   pm.addPass(lwe::createAddClientInterface(addClientInterfaceOptions));
 
   // TODO (#1145): This should also generate keygen/param gen functions,
@@ -212,9 +200,6 @@ LattigoPipelineBuilder mlirToLattigoRLWEPipelineBuilder(
     rlweOptions.ciphertextDegree = options.ciphertextDegree;
     rlweOptions.modulusSwitchBeforeFirstMul =
         options.modulusSwitchBeforeFirstMul;
-    // use simpler client interface for Lattigo
-    rlweOptions.usePublicKey = false;
-    rlweOptions.oneValuePerHelperFn = false;
     mlirToRLWEPipeline(pm, rlweOptions, scheme);
 
     // Convert to (common trivial subset of) LWE

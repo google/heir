@@ -1,4 +1,4 @@
-// RUN: heir-opt '--lwe-add-client-interface=use-public-key=true one-value-per-helper-fn=true' %s | FileCheck %s
+// RUN: heir-opt '--lwe-add-client-interface=use-public-key=true' %s | FileCheck %s
 
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>

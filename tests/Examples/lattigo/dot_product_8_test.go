@@ -13,11 +13,12 @@ func TestBinops(t *testing.T) {
 
 	expected := int16(240)
 
-	ct0, ct1 := dot_product__encrypt(evaluator, params, ecd, enc, arg0, arg1)
+	ct0 := dot_product__encrypt__arg0(evaluator, params, ecd, enc, arg0)
+	ct1 := dot_product__encrypt__arg1(evaluator, params, ecd, enc, arg1)
 
 	resultCt := dot_product(evaluator, params, ecd, ct0, ct1)
 
-	result := dot_product__decrypt(evaluator, params, ecd, dec, resultCt)
+	result := dot_product__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
 	if result != expected {
 		t.Errorf("Decryption error %d != %d", result, expected)
