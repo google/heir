@@ -90,25 +90,9 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
     }
 
     auto serverKeyType = tfhe_rust::ServerKeyType::get(getContext());
-    FunctionType originalType = op.getFunctionType();
-    llvm::SmallVector<Type, 4> newTypes;
-    newTypes.reserve(originalType.getNumInputs() + 1);
-    newTypes.push_back(serverKeyType);
-    for (auto t : originalType.getInputs()) {
-      newTypes.push_back(t);
-    }
-    auto newFuncType =
-        FunctionType::get(getContext(), newTypes, originalType.getResults());
-    rewriter.modifyOpInPlace(op, [&] {
-      op.setType(newFuncType);
 
-      // In addition to updating the type signature, we need to update the
-      // entry block's arguments to match the type signature
-      Block &block = op.getBody().getBlocks().front();
-      block.insertArgument(&block.getArguments().front(), serverKeyType,
-                           op.getLoc());
-    });
-
+    rewriter.modifyOpInPlace(
+        op, [&] { op.insertArgument(0, serverKeyType, nullptr, op.getLoc()); });
     return success();
   }
 };
