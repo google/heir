@@ -34,6 +34,7 @@ py_library(
     ),
     data = DATA_DEPS,
     deps = [
+        "@frontend_pip_deps_colorama//:pkg",
         "@frontend_pip_deps_numba//:pkg",
         "@frontend_pip_deps_pybind11//:pkg",
         "@frontend_pip_deps_pybind11_global//:pkg",

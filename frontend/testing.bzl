@@ -29,6 +29,7 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
             ":frontend",
             "@com_google_absl_py//absl/testing:absltest",
         ],
+        imports = ["."],
         data = data,
         tags = tags,
         env = {
