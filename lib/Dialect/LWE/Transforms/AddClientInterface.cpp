@@ -235,6 +235,10 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   void runOnOperation() override {
     auto result =
         getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
+          if (op.isDeclaration()) {
+            op->emitWarning("Skipping client interface for external func");
+            return WalkResult::advance();
+          }
           if (failed(convertFunc(op, usePublicKey))) {
             op->emitError("Failed to add client interface for func");
             return WalkResult::interrupt();
