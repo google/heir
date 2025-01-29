@@ -1,20 +1,18 @@
-from heir_py import compile
+from heir import compile
+from heir.mlir import *
 
 from absl.testing import absltest  # fmt: skip
-
-
 class EndToEndTest(absltest.TestCase):
 
   def test_simple_arithmetic(self):
-    @compile(backend="openfhe")
-    def foo(a, b):
+    @compile() # defaults to BGV and OpenFHE
+    def foo(a : Secret[I16], b : Secret[I16]):
       return a * a - b * b
 
-    # Test the e2e path
+    # Test plaintext functionality
     self.assertEqual(-15, foo(7, 8))
 
-    # Also test the manual way with crypto_context and keys threaded in
-    # automatically
+    # Test FHE functionality
     foo.setup()
     enc_a = foo.encrypt_a(7)
     enc_b = foo.encrypt_b(8)
