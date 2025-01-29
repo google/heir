@@ -58,6 +58,21 @@ class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
   let results = (outs NewLWECiphertext:$output);
 }
 
+class Openfhe_BinaryInPlaceOp<string mnemonic, list<Trait> traits = []>
+  : Openfhe_Op<mnemonic, traits # [
+    AllTypesMatch<["lhs", "rhs"]>,
+    ]> {
+
+  let summary = "In-place binary operation for OpenFHE";
+
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    NewLWECiphertext:$lhs,
+    NewLWECiphertext:$rhs
+  );
+}
+
+
 def GenParamsOp : Openfhe_Op<"gen_params"> {
   let description = [{
     Generates the parameters for the OpenFHE scheme.
@@ -164,6 +179,17 @@ def SubOp : Openfhe_BinaryOp<"sub",
     InferTypeOpAdaptor]> {
   let summary = "OpenFHE sub operation of two ciphertexts.";
 }
+
+// In-Place Addition
+def AddInPlaceOp : Openfhe_BinaryInPlaceOp<"add_inplace"> {
+  let summary = "Performs in-place homomorphic addition, modifying lhs.";
+}
+
+// In-Place Subtraction
+def SubInPlaceOp : Openfhe_BinaryInPlaceOp<"sub_inplace"> {
+  let summary = "Performs in-place homomorphic subtraction, modifying lhs.";
+}
+
 
 def AddPlainOp : Openfhe_Op<"add_plain",[
     Pure,
