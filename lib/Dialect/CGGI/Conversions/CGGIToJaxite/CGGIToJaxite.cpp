@@ -85,23 +85,16 @@ struct AddJaxiteContextualArgs : public OpConversionPattern<func::FuncOp> {
 
     auto serverKeyType = jaxite::ServerKeySetType::get(getContext());
     auto paramsType = jaxite::ParamsType::get(getContext());
-    FunctionType originalType = op.getFunctionType();
-    llvm::SmallVector<Type, 4> newTypes;
-    newTypes.reserve(originalType.getNumInputs() + 2);
-    for (auto t : originalType.getInputs()) {
-      newTypes.push_back(t);
-    }
-    newTypes.push_back(serverKeyType);
-    newTypes.push_back(paramsType);
-    auto newFuncType =
-        FunctionType::get(getContext(), newTypes, originalType.getResults());
+
+    // Insert all argument at the ending
+    // NOTE: arguments with identical index will
+    // appear in the same order that they were listed.
+    SmallVector<unsigned> argIndices(2, op.getNumArguments());
+    SmallVector<DictionaryAttr> argAttrs(2, nullptr);
+    SmallVector<Location> argLocs(2, op.getLoc());
     rewriter.modifyOpInPlace(op, [&] {
-      op.setType(newFuncType);
-      // In addition to updating the type signature, we need to update the
-      // entry block's arguments to match the type signature
-      Block &block = op.getBody().getBlocks().front();
-      block.addArguments({serverKeyType, paramsType},
-                         {op.getLoc(), op->getLoc()});
+      op.insertArguments(argIndices, {serverKeyType, paramsType}, argAttrs,
+                         argLocs);
     });
     return success();
   }
