@@ -2829,8 +2829,7 @@ multiplication algorithms. It can be specified via &ndash;linalg-to-tensor-ext=t
 IR. These functions maintain the same interface as the original function,
 while the compiled function may lose some of this information by the lowerings
 to ciphertext types (e.g., a scalar ciphertext, when lowered through RLWE schemes,
-must be encoded as a tensor).</p><h4 id=options-10>Options</h4><pre tabindex=0><code>-use-public-key          : If true, generate a client interface that uses a public key for encryption.
--one-value-per-helper-fn : If true, split encryption helpers into separate functions for each SSA value.
+must be encoded as a tensor).</p><h4 id=options-10>Options</h4><pre tabindex=0><code>-use-public-key : If true, generate a client interface that uses a public key for encryption.
 </code></pre><h3 id=-lwe-add-debug-port><code>-lwe-add-debug-port</code></h3><p><em>Add debug port to (R)LWE encrypted functions</em></p><p>This pass adds debug ports to the specified function in the IR. The debug ports
 are prefixed with &ldquo;__heir_debug&rdquo; and are invoked after each homomorphic operation in the
 function. The debug ports are declarations and user should provide functions with
