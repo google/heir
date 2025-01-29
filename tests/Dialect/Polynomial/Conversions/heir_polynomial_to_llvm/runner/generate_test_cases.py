@@ -157,7 +157,7 @@ def parse_to_sympy(poly_str: str, var: sympy.Symbol, cmod: int):
 def make_coset_regex(x, cmod):
   """Return a regex that matches x or x +/- cmod."""
   if x == 0:
-      return '0'
+    return '0'
   if x < 0:
     return '{{' + f'({x}|{cmod + x})' + '}}'
   return '{{' + f'({x}|{x - cmod})' + '}}'
@@ -223,7 +223,9 @@ def main(args: argparse.Namespace) -> None:
     # positive or negative one.
     # This is because I can't seem to nail down how remsi instructions produce
     # an output.
-    expected_coeffs = [make_coset_regex(coeff, cmod) for coeff in expected_coeffs]
+    expected_coeffs = [
+        make_coset_regex(coeff, cmod) for coeff in expected_coeffs
+    ]
     coefficient_list_regex = ', '.join(expected_coeffs)
 
     if len(expected_coeffs) < coeff_list_len:

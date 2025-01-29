@@ -32,17 +32,15 @@ x = 5
 cleartext_x = type_converters.u8_to_bit_slice(x)
 ciphertext_x = [jaxite_bool.encrypt(z, cks, lwe_rng) for z in cleartext_x]
 
-result_ciphertext = add_one_lut3_lib.add_one_lut3(
-    ciphertext_x, sks, params
-)
+result_ciphertext = add_one_lut3_lib.add_one_lut3(ciphertext_x, sks, params)
+
 
 # Using Timeit
 def timed_fn():
-  result_ciphertext = add_one_lut3_lib.add_one_lut3(
-      ciphertext_x, sks, params
-  )
+  result_ciphertext = add_one_lut3_lib.add_one_lut3(ciphertext_x, sks, params)
   for c in result_ciphertext:
     c.block_until_ready()
+
 
 timer = timeit.Timer(timed_fn)
 execution_time = timer.repeat(repeat=1, number=1)
