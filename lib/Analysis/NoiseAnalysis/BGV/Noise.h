@@ -53,7 +53,7 @@ class Noise {
   }
 
   static Noise join(const Noise &lhs, const Noise &rhs) {
-    // Uninitialized variances correspond to values that are not secret,
+    // Uninitialized noises correspond to values that are not secret,
     // which may be the inputs to an encryption operation.
     if (lhs.noiseType == NoiseType::UNINITIALIZED) {
       return rhs;

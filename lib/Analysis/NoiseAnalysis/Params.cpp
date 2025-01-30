@@ -28,7 +28,7 @@ int computeDnum(int level) {
 
 SchemeParam SchemeParam::getConservativeSchemeParam(int level,
                                                     int64_t plaintextModulus) {
-  auto logModuli = 55;  // assume 55 bit moduli
+  auto logModuli = 60;  // assume all 60 bit moduli
   auto dnum = computeDnum(level);
   std::vector<int> logqi(level + 1, logModuli);
   std::vector<int> logpi(ceil(static_cast<double>(level) / dnum), logModuli);
@@ -45,6 +45,23 @@ SchemeParam SchemeParam::getConservativeSchemeParam(int level,
   assert(ringDim != 0 && "Failed to find ring dimension, level too high");
 
   return SchemeParam(ringDim, plaintextModulus, level, logqi, dnum, logpi);
+}
+
+void SchemeParam::print(llvm::raw_ostream &os) const {
+  os << "ringDim: " << ringDim << "\n";
+  os << "plaintextModulus: " << plaintextModulus << "\n";
+  os << "level: " << level << "\n";
+  os << "logqi: ";
+  for (auto qi : logqi) {
+    os << qi << " ";
+  }
+  os << "\n";
+  os << "dnum: " << dnum << "\n";
+  os << "logpi: ";
+  for (auto pi : logpi) {
+    os << pi << " ";
+  }
+  os << "\n";
 }
 
 }  // namespace heir

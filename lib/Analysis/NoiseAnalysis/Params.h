@@ -4,6 +4,8 @@
 #include <cmath>
 #include <vector>
 
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+
 namespace mlir {
 namespace heir {
 
@@ -50,6 +52,8 @@ class SchemeParam {
   int getDnum() const { return dnum; }
   const std::vector<int> &getLogpi() const { return logpi; }
   double getStd0() const { return std0; }
+
+  void print(llvm::raw_ostream &os) const;
 
   static SchemeParam getConservativeSchemeParam(int level,
                                                 int64_t plaintextModulus);

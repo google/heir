@@ -48,6 +48,7 @@ LogicalResult NoiseAnalysis<Noise>::visitOperation(
       noises.push_back(this->getLatticeElement(operand->get())->getValue());
     }
     for (auto *operand : nonSecretOperands) {
+      (void)operand;
       // at least one operand is secret
       auto localParam = getLocalParam(secretOperands[0]->get());
       noises.push_back(Noise::evalConstant(localParam));

@@ -11,6 +11,7 @@
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -23,6 +24,8 @@
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+
+#define DEBUG_TYPE "secret-insert-mgmt-bgv"
 
 namespace mlir {
 namespace heir {
@@ -92,17 +95,17 @@ struct SecretInsertMgmtBGV
 
     // The following part is experimental noise analysis
     // for BGV. Should observe the result using --debug-only=NoiseAnalysis
+    // and --debug-only=secret-insert-mgmt-bgv
 
     // assume only one main func
     // also assume max level at entry
+    // also assume first genericOp arg is secret
     int maxLevel = 0;
     getOperation()->walk([&](func::FuncOp funcOp) {
       funcOp->walk([&](secret::GenericOp genericOp) {
         for (Value arg : genericOp.getBody()->getArguments()) {
-          if (mlir::isa<secret::SecretType>(arg.getType())) {
-            maxLevel = getLevelFromMgmtAttr(arg);
-            break;
-          }
+          maxLevel = getLevelFromMgmtAttr(arg);
+          break;
         }
       });
     });
@@ -111,6 +114,9 @@ struct SecretInsertMgmtBGV
     auto plaintextModulus = 4295294977;
     auto schemeParam =
         SchemeParam::getConservativeSchemeParam(maxLevel, plaintextModulus);
+
+    LLVM_DEBUG({ schemeParam.print(llvm::dbgs()); });
+
     solver.load<NoiseAnalysis<bgv::Noise</*worst-case=*/false>>>(schemeParam);
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";

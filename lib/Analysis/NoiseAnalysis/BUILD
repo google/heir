@@ -29,4 +29,7 @@ cc_library(
     name = "Params",
     srcs = ["Params.cpp"],
     hdrs = ["Params.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
 )

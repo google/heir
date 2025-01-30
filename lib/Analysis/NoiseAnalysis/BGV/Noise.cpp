@@ -32,13 +32,13 @@ std::string Noise<W>::toBound(const LocalParam &param) const {
 }
 
 template <bool W>
-llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Noise<W> &variance) {
-  return os << variance.toString();
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Noise<W> &noise) {
+  return os << noise.toString();
 }
 
 template <bool W>
-Diagnostic &operator<<(Diagnostic &diagnostic, const Noise<W> &variance) {
-  return diagnostic << variance.toString();
+Diagnostic &operator<<(Diagnostic &diagnostic, const Noise<W> &noise) {
+  return diagnostic << noise.toString();
 }
 
 template <bool W>
@@ -104,8 +104,11 @@ Noise<W> Noise<W>::evalModReduce(const LocalParam &inputParam,
                                  const Noise<W> &input) {
   auto cv = inputParam.getDimension();
   assert(cv == 2);
-  double modulus = 1L << inputParam.getSchemeParam()
-                             ->getLogqi()[inputParam.getCurrentLevel()];
+
+  auto currentLogQi =
+      inputParam.getSchemeParam()->getLogqi()[inputParam.getCurrentLevel()];
+
+  double modulus = pow(2.0, currentLogQi);
 
   auto expansionFactor = getExpansionFactor(inputParam);
   auto boundKey = getBoundKey(inputParam);
@@ -122,6 +125,8 @@ Noise<W> Noise<W>::evalRelinearize(const LocalParam &inputParam,
   return input;
 }
 
+// assume rotation after mult...
+// should be fixed later.
 template <bool W>
 Noise<W> Noise<W>::evalRotate(const LocalParam &inputParam,
                               const Noise &input) {
