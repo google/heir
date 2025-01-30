@@ -48,7 +48,7 @@ class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
   );
 }
 
-def CKKS_AddOp : CKKS_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> {
+def CKKS_AddOp : CKKS_Op<"add", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
@@ -59,15 +59,13 @@ def CKKS_AddOp : CKKS_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> 
   let results = (outs
     NewLWECiphertext:$output
   );
-
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain"> {
   let summary = "Addition operation between ciphertext-plaintext.";
 }
 
-def CKKS_SubOp : CKKS_Op<"sub", [SameOperandsAndResultType]> {
+def CKKS_SubOp : CKKS_Op<"sub", [Pure, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
@@ -78,15 +76,13 @@ def CKKS_SubOp : CKKS_Op<"sub", [SameOperandsAndResultType]> {
   let results = (outs
     NewLWECiphertext:$output
   );
-
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain"> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
-def CKKS_MulOp : CKKS_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, SameTypeOperands, InferTypeOpAdaptor]> {
+def CKKS_MulOp : CKKS_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins

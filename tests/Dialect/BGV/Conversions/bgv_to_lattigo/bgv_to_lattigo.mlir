@@ -33,7 +33,7 @@ module {
   // CHECK-SAME: ([[C:%.+]]: [[S:.*evaluator]], [[X:%.+]]: [[T:!lattigo.rlwe.ciphertext]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.add [[C]], %[[x:.*]], %[[y:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
-    %add = bgv.add %x, %y  : !ct
+    %add = bgv.add %x, %y  : (!ct, !ct) -> !ct
     // CHECK: %[[mul:.*]] = lattigo.bgv.mul [[C]], %[[x]], %[[y]]: ([[S]], [[T]], [[T]]) -> [[T]]
     %mul = bgv.mul %x, %y  : (!ct, !ct) -> !ct1
     // CHECK: %[[relin:.*]] = lattigo.bgv.relinearize [[C]], %[[mul]] : ([[S]], [[T]]) -> [[T]]

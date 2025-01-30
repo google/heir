@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_FHEHELPERS_H_
 #define LIB_DIALECT_FHEHELPERS_H_
 
+#include <algorithm>
 #include <cstddef>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
@@ -122,6 +123,23 @@ LogicalResult verifyModulusSwitchOrRescaleOp(Op* op) {
                                 "either mod_arith or rns coefficient types";
   }
 
+  return success();
+}
+
+template <typename Adaptor>
+LogicalResult inferAddOpReturnTypes(
+    MLIRContext* ctx, Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
+  auto newDim = std::max(x.getCiphertextSpace().getSize(),
+                         y.getCiphertextSpace().getSize());
+  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    newDim),
+      x.getKey(), x.getModulusChain()));
   return success();
 }
 

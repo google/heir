@@ -163,15 +163,21 @@ def LWE_AddOp : LWE_BinOp<"add", [SameOperandsAndResultType,Commutative]> {
   let summary = "Add two LWE ciphertexts";
 }
 
-def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultType,Commutative]> {
+def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultRings, InferTypeOpAdaptor, Commutative]> {
   let summary = "Add two RLWE ciphertexts";
+  let assemblyFormat = [{
+    operands attr-dict `:`  functional-type(operands, results)
+  }];
 }
 
-def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultType]> {
+def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Subtract two RLWE ciphertexts";
+  let assemblyFormat = [{
+    operands attr-dict `:`  functional-type(operands, results)
+  }];
 }
 
-def LWE_RMulOp : LWE_BinOp<"rmul", [SameTypeOperands,InferTypeOpAdaptor, Commutative]> {
+def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplies two RLWE ciphertexts";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)

@@ -49,7 +49,7 @@ class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
   );
 }
 
-def BGV_AddOp : BGV_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> {
+def BGV_AddOp : BGV_Op<"add", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
@@ -60,15 +60,13 @@ def BGV_AddOp : BGV_Op<"add", [Pure, Commutative, SameOperandsAndResultType]> {
   let results = (outs
     NewLWECiphertext:$output
   );
-
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain"> {
   let summary = "Addition operation between ciphertext-plaintext.";
 }
 
-def BGV_SubOp : BGV_Op<"sub", [Pure, SameOperandsAndResultType]> {
+def BGV_SubOp : BGV_Op<"sub", [Pure, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
@@ -79,15 +77,13 @@ def BGV_SubOp : BGV_Op<"sub", [Pure, SameOperandsAndResultType]> {
   let results = (outs
     NewLWECiphertext:$output
   );
-
-  let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
 def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain"> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
-def BGV_MulOp : BGV_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, SameTypeOperands, InferTypeOpAdaptor]> {
+def BGV_MulOp : BGV_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
