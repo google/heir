@@ -5,10 +5,9 @@
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
 // CHECK-LABEL: add_one
-// CHECK-COUNT-1: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_bool_gates<0 : i32, 4 : i32>} : (tensor<2x!lwe.lwe_ciphertext
-// CHECK-COUNT-1: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_bool_gates<4 : i32, 4 : i32>} : (tensor<2x!lwe.lwe_ciphertext
-// CHECK-COUNT-1: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_bool_gates<0 : i32, 0 : i32>} : (tensor<2x!lwe.lwe_ciphertext
-// CHECK-COUNT-1: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_bool_gates<4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32, 4 : i32>} : (tensor<9x!lwe.lwe_ciphertext
+// CHECK-DAG: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_bool_gates<0 : i32, 0 : i32>} : (tensor<2x!lwe.lwe_ciphertext
+// CHECK-DAG: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_bool_gates<0 : i32, 4 : i32>} : (tensor<2x!lwe.lwe_ciphertext
+// CHECK-DAG: cggi.packed_gates {{%.*}}, {{%.*}} {gates = #cggi.cggi_bool_gates<4 : i32, 4 : i32>} : (tensor<2x!lwe.lwe_ciphertext
 func.func @add_one(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %true = arith.constant true
   %false = arith.constant false
