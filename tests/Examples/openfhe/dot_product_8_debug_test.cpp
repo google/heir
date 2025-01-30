@@ -9,11 +9,60 @@
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/dot_product_8_debug_lib.h"
 
+#define DECRYPT
+#define NOISE
+
 void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct) {
+#ifdef DECRYPT
   PlaintextT ptxt;
   cc->Decrypt(sk, ct, &ptxt);
   ptxt->SetLength(8);
   std::cout << ptxt << std::endl;
+#endif
+
+#ifdef NOISE
+  const std::vector<DCRTPoly>& cv = ct->GetElements();
+  DCRTPoly s = sk->GetPrivateElement();
+
+  size_t sizeQl = cv[0].GetParams()->GetParams().size();
+  size_t sizeQs = s.GetParams()->GetParams().size();
+
+  size_t diffQl = sizeQs - sizeQl;
+
+  auto scopy(s);
+  scopy.DropLastElements(diffQl);
+
+  DCRTPoly sPower(scopy);
+
+  DCRTPoly b = cv[0];
+  b.SetFormat(Format::EVALUATION);
+
+  DCRTPoly ci;
+  for (size_t i = 1; i < cv.size(); i++) {
+    ci = cv[i];
+    ci.SetFormat(Format::EVALUATION);
+
+    b += sPower * ci;
+    sPower *= scopy;
+  }
+
+  b.SetFormat(Format::COEFFICIENT);
+
+  double noise = (log2(b.Norm()));
+
+  double logQ = 0;
+  std::vector<double> logqi_v;
+  for (usint i = 0; i < sizeQl; i++) {
+    double logqi =
+        log2(cv[0].GetParams()->GetParams()[i]->GetModulus().ConvertToInt());
+    logqi_v.push_back(logqi);
+    logQ += logqi;
+  }
+
+  std::cout << "cv " << cv.size() << " Ql " << sizeQl << " logQ: " << logQ
+            << " logqi: " << logqi_v << " budget " << logQ - noise - 1
+            << " noise: " << noise << std::endl;
+#endif
 }
 
 namespace mlir {
