@@ -40,9 +40,9 @@ tool_relpaths = [
     "at_clifford_yosys",
 ]
 
-CMAKE_HEIR_PATH = os.environ.get("CMAKE_HEIR_PATH","")
+CMAKE_HEIR_PATH = os.environ.get("CMAKE_HEIR_PATH", "")
 if CMAKE_HEIR_PATH:
-    CMAKE_HEIR_PATH = ":"+CMAKE_HEIR_PATH
+  CMAKE_HEIR_PATH = ":" + CMAKE_HEIR_PATH
 config.environment["PATH"] = (
     ":".join(str(runfiles_dir.joinpath(Path(path))) for path in tool_relpaths)
     + CMAKE_HEIR_PATH
@@ -51,12 +51,12 @@ config.environment["PATH"] = (
 )
 
 abc_relpath = "edu_berkeley_abc/abc"
-config.environment["HEIR_ABC_BINARY"] = (
-    str(runfiles_dir.joinpath(Path(abc_relpath)))
+config.environment["HEIR_ABC_BINARY"] = str(
+    runfiles_dir.joinpath(Path(abc_relpath))
 )
 yosys_libs = "heir/lib/Transforms/YosysOptimizer/yosys"
-config.environment["HEIR_YOSYS_SCRIPTS_DIR"] = (
-    str(runfiles_dir.joinpath(Path(yosys_libs)))
+config.environment["HEIR_YOSYS_SCRIPTS_DIR"] = str(
+    runfiles_dir.joinpath(Path(yosys_libs))
 )
 
 # Some tests that use mlir-runner need access to additional shared libs to

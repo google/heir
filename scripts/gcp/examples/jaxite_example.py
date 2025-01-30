@@ -36,10 +36,13 @@ ct_false = jaxite_bool.encrypt(False, cks, lwe_rng)
 # included in timing metircs.
 and_gate = jaxite_bool.and_(ct_false, ct_true, sks, params)
 
+
 # Using Timeit
 def timed_fn():
   and_gate = jaxite_bool.and_(ct_false, ct_true, sks, params)
   and_gate.block_until_ready()
+
+
 timer = timeit.Timer(timed_fn)
 execution_time = timer.repeat(repeat=1, number=1)
 print("And gate execution time: ", execution_time)

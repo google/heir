@@ -1,4 +1,5 @@
 """A demonstration of adding 1 to a number in FHE."""
+
 from typing import Any
 
 from jaxite.jaxite_bool import bool_params

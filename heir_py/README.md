@@ -70,3 +70,15 @@ variables:
 `bazel test` should work out of the box. If it does not, file a bug.
 `heir_py/testing.bzl` contains the environment variable setup required to tell
 the frontend where to find OpenFHE and related backend shared libraries.
+
+## Formatting
+
+This uses [pyink](https://github.com/google/pyink) for autoformatting, which is
+a fork of the more commonly used [black](https://github.com/psf/black) formatter
+with some patches to support Google's internal style guide. The configuration in
+pyproject.toml corresponds to the options making pyink consistent with Google's
+internal style guide.
+
+The `pyink` repo has instructions for setting up `pyink` with VSCode. The
+pre-commit configuration for this repo will automatically run `pyink`, and to
+run a one-time format of the entire project, use `pre-commit run --all-files`.

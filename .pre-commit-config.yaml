@@ -71,4 +71,11 @@ repos:
   hooks:
     - id: go-fmt
 
+# python formatter
+- repo: https://github.com/google/pyink
+  rev: 24.10.1
+  hooks:
+    - id: pyink
+      language_version: python3.11
+
 exclude: patches/.*\.patch$

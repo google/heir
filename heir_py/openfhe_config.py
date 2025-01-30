@@ -91,7 +91,9 @@ def from_os_env(debug=False) -> OpenFHEConfig:
 
   for include_dir in include_dirs:
     if not os.path.exists(include_dir):
-      print(f"Warning: OpenFHE include directory \"{include_dir}\" does not exist")
+      print(
+          f'Warning: OpenFHE include directory "{include_dir}" does not exist'
+      )
 
   return OpenFHEConfig(
       include_dirs=include_dirs
