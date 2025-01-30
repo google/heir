@@ -43,13 +43,13 @@ new_git_repository(
 load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
 python_register_toolchains(
-    name = "python3_10",
+    name = "python3_11",
     # Available versions are listed at
     # https://github.com/bazelbuild/rules_python/blob/main/python/versions.bzl
-    python_version = "3.10",
+    python_version = "3.11",
 )
 
-load("@python3_10//:defs.bzl", "interpreter")
+load("@python3_11//:defs.bzl", "interpreter")
 load("@rules_python//python:pip.bzl", "pip_parse")
 
 # Download the Go rules.
@@ -231,14 +231,14 @@ load("@heir_pip_deps//:requirements.bzl", "install_deps")
 
 install_deps()
 
-# separate pip deps for heir_py
+# separate pip deps for frontend
 pip_parse(
-    name = "heir_py_pip_deps",
+    name = "frontend_pip_deps",
     python_interpreter_target = interpreter,
-    requirements_lock = "//heir_py:requirements.txt",
+    requirements_lock = "//frontend:requirements.txt",
 )
 
-load("@heir_py_pip_deps//:requirements.bzl", "install_deps")  # buildifier: disable=load
+load("@frontend_pip_deps//:requirements.bzl", "install_deps")  # buildifier: disable=load
 
 install_deps()
 

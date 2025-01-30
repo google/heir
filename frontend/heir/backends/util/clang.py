@@ -30,6 +30,46 @@ class ClangBackend:
       return clang
     return shutil.which("clang")
 
+
+  def clang_arg_helper(
+      self,
+      cpp_source_filepath: Path,
+      shared_object_output_filepath: Path,
+      compiler_flags: str = DEFAULT_COMPILER_FLAGS,
+      include_paths: list[str] = None,
+      linker_search_paths: list[str] = None,
+      link_libs: list[str] = None,
+      linker_args: list[str] = None,
+      abs_link_lib_paths: list[str] = None,
+  ) -> str:
+    include_args = to_clang_args("-I", include_paths)
+    linker_search_path_args = to_clang_args("-L", linker_search_paths)
+    link_lib_args = to_clang_args("-l", link_libs)
+    abs_link_lib_paths = abs_link_lib_paths or []
+
+    if linker_args:
+      linker_args = (
+          "-Wl," + ",".join(str(x) for x in linker_args) if linker_args else []
+      )
+    else:
+      linker_args = ""
+
+    args = (
+        [
+            self.compiler_binary_path,
+            cpp_source_filepath,
+            "-o",
+            shared_object_output_filepath,
+        ]
+        + abs_link_lib_paths
+        + compiler_flags
+        + include_args
+        + linker_search_path_args
+        + link_lib_args
+        + [linker_args]
+    )
+    return args
+
   def compile_to_shared_object(
       self,
       cpp_source_filepath: Path,

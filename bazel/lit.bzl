@@ -56,6 +56,7 @@ def lit_test(name = None, src = None, size = "small", tags = None, data = None):
         data = data,
         srcs = ["@llvm-project//llvm:lit"],
         main = "lit.py",
+        deps = [Label("@llvm-project//llvm:lit")],
         tags = tags,
     )
 

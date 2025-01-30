@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "heir_py"
+version = "0.0.1"
+authors = [
+    { name = "Jeremy Kun", email = "jkun@google.com" },
+    { name = "Alexander Viand", email = "alexander.viand@intel.com" },
+]
+description = "Python frontend for the HEIR compiler"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Topic :: Security :: Cryptography",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Compilers",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+[tool.hatch.build.targets.wheel]
+include = ["heir/**"]
+
+[project.urls]
+Homepage = "https://github.com/google/heir"
+Issues = "https://github.com/google/heir/issues"
