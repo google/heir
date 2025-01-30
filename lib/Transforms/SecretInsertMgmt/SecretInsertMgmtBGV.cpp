@@ -2,6 +2,7 @@
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
+#include "lib/Analysis/NoiseAnalysis/BGV/Noise.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
@@ -89,8 +90,28 @@ struct SecretInsertMgmtBGV
     pipeline.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(pipeline, getOperation());
 
-    SchemeParam schemeParam(4096, 65537, 3, {60, 60, 60, 60}, 2, {60, 60});
-    solver.load<NoiseAnalysis>(schemeParam);
+    // The following part is experimental noise analysis
+    // for BGV. Should observe the result using --debug-only=NoiseAnalysis
+
+    // assume only one main func
+    // also assume max level at entry
+    int maxLevel = 0;
+    getOperation()->walk([&](func::FuncOp funcOp) {
+      funcOp->walk([&](secret::GenericOp genericOp) {
+        for (Value arg : genericOp.getBody()->getArguments()) {
+          if (mlir::isa<secret::SecretType>(arg.getType())) {
+            maxLevel = getLevelFromMgmtAttr(arg);
+            break;
+          }
+        }
+      });
+    });
+
+    // copied from secret-to-bgv
+    auto plaintextModulus = 4295294977;
+    auto schemeParam =
+        SchemeParam::getConservativeSchemeParam(maxLevel, plaintextModulus);
+    solver.load<NoiseAnalysis<bgv::Noise</*worst-case=*/false>>>(schemeParam);
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();

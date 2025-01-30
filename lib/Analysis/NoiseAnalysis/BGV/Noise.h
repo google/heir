@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
-#define INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
+#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_
+#define INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_
 
 #include <algorithm>
 #include <cassert>
@@ -14,7 +14,10 @@
 
 namespace mlir {
 namespace heir {
+namespace bgv {
 
+// is worst case or not
+template <bool W = false>
 class Noise {
  public:
   enum NoiseType {
@@ -101,7 +104,8 @@ class Noise {
   std::optional<double> value;
 };
 
+}  // namespace bgv
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
+#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_

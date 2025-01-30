@@ -2,23 +2,10 @@
 #define INCLUDE_ANALYSIS_NOISEANALYSIS_PARAMS_H_
 
 #include <cmath>
-
-#include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"       // from @llvm-project
+#include <vector>
 
 namespace mlir {
 namespace heir {
-
-// struct RLWEParam {
-//   int ringDim;
-//   int maxQ;
-// };
-//
-// // uniform tenary
-// static struct RLWEParam HEStd_128_classic[] = {
-//     {1024, 27},   {2048, 54},   {4096, 109},   {8192, 218},
-//     {16384, 438}, {32768, 881}, {65536, 1747}, {131072, 3523}};
 
 class SchemeParam {
  public:
@@ -56,14 +43,6 @@ class SchemeParam {
   double std0 = 3.2;
 
  public:
-  // void print(llvm::raw_ostream &os) const;
-
-  // friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-  //                                      const SchemeParam &param) {
-  //   param.print(os);
-  //   return os;
-  // }
-
   int getRingDim() const { return ringDim; }
   int64_t getPlaintextModulus() const { return plaintextModulus; }
   int getLevel() const { return level; }
@@ -71,6 +50,9 @@ class SchemeParam {
   int getDnum() const { return dnum; }
   const std::vector<int> &getLogpi() const { return logpi; }
   double getStd0() const { return std0; }
+
+  static SchemeParam getConservativeSchemeParam(int level,
+                                                int64_t plaintextModulus);
 };
 
 class LocalParam {
@@ -90,14 +72,6 @@ class LocalParam {
 
   int getCurrentLevel() const { return currentLevel; }
   int getDimension() const { return dimension; }
-
-  // void print(llvm::raw_ostream &os) const;
-
-  // friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-  //                                      const LocalParam &param) {
-  //   param.print(os);
-  //   return os;
-  // }
 };
 
 }  // namespace heir

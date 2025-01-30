@@ -7,14 +7,13 @@ cc_library(
     name = "NoiseAnalysis",
     srcs = ["NoiseAnalysis.cpp"],
     hdrs = [
-        "Noise.h",
         "NoiseAnalysis.h",
-        "Params.h",
     ],
     deps = [
-        ":Noise",
+        ":Params",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/NoiseAnalysis/BGV:Noise",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -27,17 +26,7 @@ cc_library(
 )
 
 cc_library(
-    name = "Noise",
-    srcs = ["Noise.cpp"],
-    hdrs = [
-        "Noise.h",
-        "Params.h",
-    ],
-    deps = [
-        "@heir//lib/Dialect/Mgmt/IR:Dialect",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-    ],
+    name = "Params",
+    srcs = ["Params.cpp"],
+    hdrs = ["Params.h"],
 )

@@ -2,6 +2,7 @@
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
+#include "lib/Analysis/NoiseAnalysis/BGV/Noise.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -17,9 +18,10 @@
 namespace mlir {
 namespace heir {
 
-LogicalResult NoiseAnalysis::visitOperation(
-    Operation *op, ArrayRef<const NoiseLattice *> operands,
-    ArrayRef<NoiseLattice *> results) {
+template <typename Noise>
+LogicalResult NoiseAnalysis<Noise>::visitOperation(
+    Operation *op, ArrayRef<const NoiseLattice<Noise> *> operands,
+    ArrayRef<NoiseLattice<Noise> *> results) {
   auto getLocalParam = [&](Value value) {
     auto level = getLevelFromMgmtAttr(value);
     auto dimension = getDimensionFromMgmtAttr(value);
@@ -31,19 +33,19 @@ LogicalResult NoiseAnalysis::visitOperation(
 
     LLVM_DEBUG(llvm::dbgs() << "Propagating " << noise.toBound(localParam)
                             << " to " << value << "\n");
-    NoiseLattice *lattice = getLatticeElement(value);
+    NoiseLattice<Noise> *lattice = this->getLatticeElement(value);
     auto changeResult = lattice->join(noise);
-    propagateIfChanged(lattice, changeResult);
+    this->propagateIfChanged(lattice, changeResult);
   };
 
   auto getOperandNoises = [&](Operation *op, SmallVectorImpl<Noise> &noises) {
     SmallVector<OpOperand *> secretOperands;
     SmallVector<OpOperand *> nonSecretOperands;
-    getSecretOperands(op, secretOperands);
-    getNonSecretOperands(op, nonSecretOperands);
+    this->getSecretOperands(op, secretOperands);
+    this->getNonSecretOperands(op, nonSecretOperands);
 
     for (auto *operand : secretOperands) {
-      noises.push_back(getLatticeElement(operand->get())->getValue());
+      noises.push_back(this->getLatticeElement(operand->get())->getValue());
     }
     for (auto *operand : nonSecretOperands) {
       // at least one operand is secret
@@ -63,9 +65,9 @@ LogicalResult NoiseAnalysis::visitOperation(
             }
             return success();
           })
-          .Case<arith::MulIOp>([&](auto mulOp) {
+          .template Case<arith::MulIOp>([&](auto mulOp) {
             SmallVector<OpResult> secretResults;
-            getSecretResults(mulOp, secretResults);
+            this->getSecretResults(mulOp, secretResults);
             if (secretResults.empty()) {
               return success();
             }
@@ -80,9 +82,9 @@ LogicalResult NoiseAnalysis::visitOperation(
             propagate(mulOp.getResult(), mult);
             return success();
           })
-          .Case<arith::AddIOp, arith::SubIOp>([&](auto addOp) {
+          .template Case<arith::AddIOp, arith::SubIOp>([&](auto addOp) {
             SmallVector<OpResult> secretResults;
-            getSecretResults(addOp, secretResults);
+            this->getSecretResults(addOp, secretResults);
             if (secretResults.empty()) {
               return success();
             }
@@ -94,7 +96,7 @@ LogicalResult NoiseAnalysis::visitOperation(
             propagate(addOp.getResult(), add);
             return success();
           })
-          .Case<tensor_ext::RotateOp>([&](auto rotateOp) {
+          .template Case<tensor_ext::RotateOp>([&](auto rotateOp) {
             // implicitly assumed secret
             auto localParam = getLocalParam(rotateOp.getOperand(0));
 
@@ -103,7 +105,7 @@ LogicalResult NoiseAnalysis::visitOperation(
             propagate(rotateOp.getResult(), rotate);
             return success();
           })
-          .Case<tensor::ExtractOp>([&](auto extractOp) {
+          .template Case<tensor::ExtractOp>([&](auto extractOp) {
             auto localParam = getLocalParam(extractOp.getOperand(0));
 
             // extract = mul + rotate
@@ -113,7 +115,7 @@ LogicalResult NoiseAnalysis::visitOperation(
             propagate(extractOp.getResult(), extract);
             return success();
           })
-          .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
+          .template Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
             auto localParam = getLocalParam(modReduceOp.getInput());
 
             Noise modReduce =
@@ -121,7 +123,7 @@ LogicalResult NoiseAnalysis::visitOperation(
             propagate(modReduceOp.getResult(), modReduce);
             return success();
           })
-          .Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
+          .template Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
             auto localParam = getLocalParam(relinearizeOp.getInput());
 
             Noise relinearize =
@@ -132,6 +134,10 @@ LogicalResult NoiseAnalysis::visitOperation(
           .Default([&](auto &op) { return success(); });
   return res;
 }
+
+// instantiation
+template class NoiseAnalysis<bgv::Noise<true>>;
+template class NoiseAnalysis<bgv::Noise<false>>;
 
 }  // namespace heir
 }  // namespace mlir

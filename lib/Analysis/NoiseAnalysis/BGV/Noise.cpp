@@ -1,4 +1,4 @@
-#include "lib/Analysis/NoiseAnalysis/Noise.h"
+#include "lib/Analysis/NoiseAnalysis/BGV/Noise.h"
 
 #include <cmath>
 
@@ -6,12 +6,14 @@
 #include "llvm/include/llvm/Support/Debug.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 
-#define DEBUG_TYPE "Noise"
+#define DEBUG_TYPE "BGVNoise"
 
 namespace mlir {
 namespace heir {
+namespace bgv {
 
-std::string Noise::toString() const {
+template <bool W>
+std::string Noise<W>::toString() const {
   switch (noiseType) {
     case (NoiseType::UNINITIALIZED):
       return "Noise(uninitialized)";
@@ -20,7 +22,8 @@ std::string Noise::toString() const {
   }
 }
 
-std::string Noise::toBound(const LocalParam &param) const {
+template <bool W>
+std::string Noise<W>::toBound(const LocalParam &param) const {
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto bound = log(t * getValue()) / log(2);
   std::stringstream stream;
@@ -28,41 +31,50 @@ std::string Noise::toBound(const LocalParam &param) const {
   return stream.str();
 }
 
-llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Noise &variance) {
+template <bool W>
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Noise<W> &variance) {
   return os << variance.toString();
 }
 
-Diagnostic &operator<<(Diagnostic &diagnostic, const Noise &variance) {
+template <bool W>
+Diagnostic &operator<<(Diagnostic &diagnostic, const Noise<W> &variance) {
   return diagnostic << variance.toString();
 }
 
-double Noise::getExpansionFactor(const LocalParam &param) {
+template <bool W>
+double Noise<W>::getExpansionFactor(const LocalParam &param) {
   auto n = param.getSchemeParam()->getRingDim();
-  // openfhe average case
-  auto expansionFactor = 2.0 * sqrt(n);
-  // worst-case
-  // auto expansionFactor = n;
-  return expansionFactor;
+  if constexpr (W) {
+    // worst-case
+    return n;
+  } else {
+    // openfhe average case
+    return 2.0 * sqrt(n);
+  }
 }
 
-double Noise::getBoundErr(const LocalParam &param) {
+template <bool W>
+double Noise<W>::getBoundErr(const LocalParam &param) {
   auto std0 = param.getSchemeParam()->getStd0();
   auto assurance = 6;
   auto boundErr = std0 * assurance;
   return boundErr;
 }
 
-double Noise::getBoundKey(const LocalParam &param) {
+template <bool W>
+double Noise<W>::getBoundKey(const LocalParam &param) {
   auto boundKey = 1.0;
   return boundKey;
 }
 
-Noise Noise::evalConstant(const LocalParam &param) {
+template <bool W>
+Noise<W> Noise<W>::evalConstant(const LocalParam &param) {
   auto t = param.getSchemeParam()->getPlaintextModulus();
   return Noise::of(t);
 }
 
-Noise Noise::evalEncryptPk(const LocalParam &param) {
+template <bool W>
+Noise<W> Noise<W>::evalEncryptPk(const LocalParam &param) {
   auto boundErr = getBoundErr(param);
   auto boundKey = getBoundKey(param);
   auto expansionFactor = getExpansionFactor(param);
@@ -71,11 +83,14 @@ Noise Noise::evalEncryptPk(const LocalParam &param) {
   return Noise::of(fresh);
 }
 
-Noise Noise::evalAdd(const Noise &lhs, const Noise &rhs) {
+template <bool W>
+Noise<W> Noise<W>::evalAdd(const Noise &lhs, const Noise &rhs) {
   return Noise::of(lhs.getValue() + rhs.getValue() + 1);
 }
-Noise Noise::evalMultNoRelin(const LocalParam &resultParam, const Noise &lhs,
-                             const Noise &rhs) {
+
+template <bool W>
+Noise<W> Noise<W>::evalMultNoRelin(const LocalParam &resultParam,
+                                   const Noise<W> &lhs, const Noise<W> &rhs) {
   auto t = resultParam.getSchemeParam()->getPlaintextModulus();
   auto expansionFactor = getExpansionFactor(resultParam);
 
@@ -84,7 +99,9 @@ Noise Noise::evalMultNoRelin(const LocalParam &resultParam, const Noise &lhs,
                     rhs.getValue() + 1));
 }
 
-Noise Noise::evalModReduce(const LocalParam &inputParam, const Noise &input) {
+template <bool W>
+Noise<W> Noise<W>::evalModReduce(const LocalParam &inputParam,
+                                 const Noise<W> &input) {
   auto cv = inputParam.getDimension();
   assert(cv == 2);
   double modulus = 1L << inputParam.getSchemeParam()
@@ -98,13 +115,23 @@ Noise Noise::evalModReduce(const LocalParam &inputParam, const Noise &input) {
   return Noise::of(scaled + added);
 }
 
-Noise Noise::evalRelinearize(const LocalParam &inputParam, const Noise &input) {
+// assume relinearize does not introduce error larger than mult
+template <bool W>
+Noise<W> Noise<W>::evalRelinearize(const LocalParam &inputParam,
+                                   const Noise &input) {
   return input;
 }
 
-Noise Noise::evalRotate(const LocalParam &inputParam, const Noise &input) {
+template <bool W>
+Noise<W> Noise<W>::evalRotate(const LocalParam &inputParam,
+                              const Noise &input) {
   return Noise::evalRelinearize(inputParam, input);
 }
 
+// instantiation
+template class Noise<true>;
+template class Noise<false>;
+
+}  // namespace bgv
 }  // namespace heir
 }  // namespace mlir
