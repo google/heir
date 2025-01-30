@@ -63,6 +63,7 @@ FailureOr<Value> getContextualCryptoContext(Operation *op) {
   return result.value();
 }
 
+namespace {
 // NOTE: we can not use containsDialect
 // for FuncOp declaration, which does not have a body
 template <typename... Dialects>
@@ -294,6 +295,7 @@ struct ConvertBootstrapOp : public OpConversionPattern<ckks::BootstrapOp> {
     return success();
   }
 };
+}  // namespace
 
 struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
   void runOnOperation() override {

@@ -407,5 +407,18 @@ bool TypeWithAttrTypeConverter::isFuncArgumentAndResultLegal(
   return true;
 }
 
+FailureOr<Value> getContextualArgFromFunc(Operation *op, Type argType) {
+  for (auto block_arg : op->getParentOfType<func::FuncOp>()
+                            .getBody()
+                            .getBlocks()
+                            .front()
+                            .getArguments()) {
+    if (block_arg.getType() == argType) {
+      return block_arg;
+    }
+  }
+  return failure();
+}
+
 }  // namespace heir
 }  // namespace mlir

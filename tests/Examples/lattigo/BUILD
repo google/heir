@@ -8,7 +8,8 @@ package(default_applicable_licenses = ["@heir//:license"])
 heir_lattigo_lib(
     name = "binops",
     heir_opt_flags = [
-        "--mlir-to-lattigo-bgv=entry-function=add ciphertext-degree=4",
+        "--mlir-to-bgv=ciphertext-degree=4",
+        "--scheme-to-lattigo=entry-function=add",
     ],
     mlir_src = "binops.mlir",
 )
@@ -16,7 +17,18 @@ heir_lattigo_lib(
 heir_lattigo_lib(
     name = "dotproduct8",
     heir_opt_flags = [
-        "--mlir-to-lattigo-bgv=entry-function=dot_product ciphertext-degree=8",
+        "--mlir-to-bgv=ciphertext-degree=8",
+        "--scheme-to-lattigo=entry-function=dot_product",
+    ],
+    mlir_src = "dot_product_8.mlir",
+)
+
+heir_lattigo_lib(
+    name = "dotproduct8debug",
+    extra_srcs = ["dot_product_8_debug_handler.go"],
+    heir_opt_flags = [
+        "--mlir-to-bgv=ciphertext-degree=8",
+        "--scheme-to-lattigo=entry-function=dot_product insert-debug-handler-calls=true",
     ],
     mlir_src = "dot_product_8.mlir",
 )
@@ -33,4 +45,10 @@ go_test(
     name = "dotproduct8_test",
     srcs = ["dot_product_8_test.go"],
     embed = [":dotproduct8"],
+)
+
+go_test(
+    name = "dotproduct8debug_test",
+    srcs = ["dot_product_8_debug_test.go"],
+    embed = [":dotproduct8debug"],
 )

@@ -6,15 +6,14 @@ package(
 )
 
 cc_library(
-    name = "BGVToLattigo",
-    srcs = ["BGVToLattigo.cpp"],
+    name = "LWEToLattigo",
+    srcs = ["LWEToLattigo.cpp"],
     hdrs = [
-        "BGVToLattigo.h",
+        "LWEToLattigo.h",
     ],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/BGV/IR:Dialect",
-        "@heir//lib/Dialect/LWE/Conversions/RlweToLattigo",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Utils",
@@ -30,7 +29,7 @@ cc_library(
 )
 
 add_heir_transforms(
-    header_filename = "BGVToLattigo.h.inc",
-    pass_name = "BGVToLattigo",
-    td_file = "BGVToLattigo.td",
+    header_filename = "LWEToLattigo.h.inc",
+    pass_name = "LWEToLattigo",
+    td_file = "LWEToLattigo.td",
 )

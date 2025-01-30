@@ -4,7 +4,7 @@ load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
-def heir_lattigo_lib(name, mlir_src, heir_opt_flags = [], heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
+def heir_lattigo_lib(name, mlir_src, heir_opt_flags = [], heir_translate_flags = [], extra_srcs = [], data = [], tags = [], deps = [], **kwargs):
     """A rule for generating Lattigo code from an MLIR file.
 
     Args:
@@ -12,6 +12,7 @@ def heir_lattigo_lib(name, mlir_src, heir_opt_flags = [], heir_translate_flags =
       mlir_src: The source mlir file to run through heir-translate
       heir_opt_flags: Flags to pass to heir-opt before heir-translate
       heir_translate_flags: Flags to pass to heir-translate
+      extra_srcs: Extra sources to pass to go_library
       data: Data dependencies to be passed to go_library
       tags: Tags to pass to go_library
       deps: Deps to pass to  and go_library
@@ -41,7 +42,7 @@ def heir_lattigo_lib(name, mlir_src, heir_opt_flags = [], heir_translate_flags =
     )
     go_library(
         name = name,
-        srcs = [":" + generated_go_filename],
+        srcs = extra_srcs + [":" + generated_go_filename],
         deps = deps + [
             "@lattigo//:lattigo",
             "@lattigo//core/rlwe",

@@ -7,7 +7,6 @@
 #include "lib/Dialect/Arith/Conversions/ArithToCGGIQuart/ArithToCGGIQuart.h"
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
-#include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToJaxite/CGGIToJaxite.h"
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRust/CGGIToTfheRust.h"
@@ -18,6 +17,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
+#include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
@@ -311,9 +311,9 @@ int main(int argc, char **argv) {
   mlir::heir::arith::registerArithToCGGIQuartPasses();
   mod_arith::registerConvertToMacPass();
   bgv::registerBGVToLWEPasses();
-  bgv::registerBGVToLattigoPasses();
   ckks::registerCKKSToLWEPasses();
   registerSecretToCGGIPasses();
+  lwe::registerLWEToLattigoPasses();
   lwe::registerLWEToOpenfhePasses();
   lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::linalg::registerLinalgToTensorExtPasses();
@@ -366,22 +366,21 @@ int main(int argc, char **argv) {
       "BGV.",
       mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
 
-  PassPipelineRegistration<mlir::heir::OpenfheOptions>(
-      "scheme-to-openfhe",
-      "Convert code expressed at FHE scheme level to OpenFHE C++ code.",
-      toOpenFhePipelineBuilder());
-
-  PassPipelineRegistration<mlir::heir::LattigoOptions>(
-      "mlir-to-lattigo-bgv",
-      "Convert a func using standard MLIR dialects to FHE using BGV and "
-      "export to Lattigo GO code.",
-      mlirToLattigoRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
-
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
       "mlir-to-ckks",
       "Convert a func using standard MLIR dialects to FHE using "
       "CKKS.",
       mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::ckksScheme));
+
+  PassPipelineRegistration<mlir::heir::BackendOptions>(
+      "scheme-to-openfhe",
+      "Convert code expressed at FHE scheme level to OpenFHE C++ code.",
+      toOpenFhePipelineBuilder());
+
+  PassPipelineRegistration<mlir::heir::BackendOptions>(
+      "scheme-to-lattigo",
+      "Convert code expressed at FHE scheme level to Lattigo Go code.",
+      toLattigoPipelineBuilder());
 
   PassPipelineRegistration<>(
       "convert-to-data-oblivious",

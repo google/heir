@@ -106,6 +106,10 @@ class LattigoEmitter {
                               op, err);
   }
 
+  // Canonicalize Debug Port
+  bool isDebugPort(::llvm::StringRef debugPortName);
+  ::llvm::StringRef canonicalizeDebugPort(::llvm::StringRef debugPortName);
+
   // helper on name and type
   std::string getName(::mlir::Value value) {
     // special case for 'nil' emission
