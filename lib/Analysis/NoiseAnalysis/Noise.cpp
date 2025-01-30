@@ -87,8 +87,8 @@ Noise Noise::evalMultNoRelin(const LocalParam &resultParam, const Noise &lhs,
 Noise Noise::evalModReduce(const LocalParam &inputParam, const Noise &input) {
   auto cv = inputParam.getDimension();
   assert(cv == 2);
-  double modulus =
-      1L << inputParam.getSchemeParam()->getQi()[inputParam.getCurrentLevel()];
+  double modulus = 1L << inputParam.getSchemeParam()
+                             ->getLogqi()[inputParam.getCurrentLevel()];
 
   auto expansionFactor = getExpansionFactor(inputParam);
   auto boundKey = getBoundKey(inputParam);

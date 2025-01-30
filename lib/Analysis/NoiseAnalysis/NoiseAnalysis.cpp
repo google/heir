@@ -1,5 +1,7 @@
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 
+#include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
+#include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -18,18 +20,36 @@ namespace heir {
 LogicalResult NoiseAnalysis::visitOperation(
     Operation *op, ArrayRef<const NoiseLattice *> operands,
     ArrayRef<NoiseLattice *> results) {
-  auto getLocalParam = [&](Value value) -> std::optional<LocalParam> {
-    return LocalParam(&schemeParam, 0, 2);
+  auto getLocalParam = [&](Value value) {
+    auto level = getLevelFromMgmtAttr(value);
+    auto dimension = getDimensionFromMgmtAttr(value);
+    return LocalParam(&schemeParam, level, dimension);
   };
 
   auto propagate = [&](Value value, Noise noise) {
-    auto localParam = getLocalParam(value).value();
+    auto localParam = getLocalParam(value);
 
-    // LLVM_DEBUG(llvm::dbgs() << "Propagating " << noise.toBound(localParam)
-    //                         << " to " << value << "\n");
+    LLVM_DEBUG(llvm::dbgs() << "Propagating " << noise.toBound(localParam)
+                            << " to " << value << "\n");
     NoiseLattice *lattice = getLatticeElement(value);
     auto changeResult = lattice->join(noise);
     propagateIfChanged(lattice, changeResult);
+  };
+
+  auto getOperandNoises = [&](Operation *op, SmallVectorImpl<Noise> &noises) {
+    SmallVector<OpOperand *> secretOperands;
+    SmallVector<OpOperand *> nonSecretOperands;
+    getSecretOperands(op, secretOperands);
+    getNonSecretOperands(op, nonSecretOperands);
+
+    for (auto *operand : secretOperands) {
+      noises.push_back(getLatticeElement(operand->get())->getValue());
+    }
+    for (auto *operand : nonSecretOperands) {
+      // at least one operand is secret
+      auto localParam = getLocalParam(secretOperands[0]->get());
+      noises.push_back(Noise::evalConstant(localParam));
+    }
   };
 
   auto res =
@@ -37,66 +57,55 @@ LogicalResult NoiseAnalysis::visitOperation(
           .Case<secret::GenericOp>([&](auto genericOp) {
             Block *body = genericOp.getBody();
             for (Value &arg : body->getArguments()) {
-              auto localParamOpt = getLocalParam(arg);
-              if (!localParamOpt.has_value()) {
-                return success();
-              }
-
-              auto localParam = *localParamOpt;
-
+              auto localParam = getLocalParam(arg);
               Noise encrypted = Noise::evalEncryptPk(localParam);
               propagate(arg, encrypted);
             }
             return success();
           })
-          .Case<arith::ConstantOp>([&](auto constantOp) {
-            auto localParamOpt = getLocalParam(constantOp.getResult());
-            if (!localParamOpt.has_value()) {
-              return success();
-            }
-
-            auto localParam = *localParamOpt;
-            Noise constant = Noise::evalConstant(localParam);
-            propagate(constantOp.getResult(), constant);
-            return success();
-          })
           .Case<arith::MulIOp>([&](auto mulOp) {
-            auto localParamOpt = getLocalParam(mulOp.getResult());
-            if (!localParamOpt.has_value()) {
+            SmallVector<OpResult> secretResults;
+            getSecretResults(mulOp, secretResults);
+            if (secretResults.empty()) {
               return success();
             }
 
-            auto localParam = *localParamOpt;
-            Noise mult = Noise::evalMultNoRelin(
-                localParam, operands[0]->getValue(), operands[1]->getValue());
+            SmallVector<Noise, 2> operandNoises;
+            getOperandNoises(mulOp, operandNoises);
+
+            auto localParam = getLocalParam(mulOp.getResult());
+            // TODO: handle mixed degree op
+            Noise mult = Noise::evalMultNoRelin(localParam, operandNoises[0],
+                                                operandNoises[1]);
             propagate(mulOp.getResult(), mult);
             return success();
           })
           .Case<arith::AddIOp, arith::SubIOp>([&](auto addOp) {
-            Noise add = Noise::evalAdd(operands[0]->getValue(),
-                                       operands[1]->getValue());
+            SmallVector<OpResult> secretResults;
+            getSecretResults(addOp, secretResults);
+            if (secretResults.empty()) {
+              return success();
+            }
+
+            SmallVector<Noise, 2> operandNoises;
+            getOperandNoises(addOp, operandNoises);
+            // TODO: Handle mixed degree op
+            Noise add = Noise::evalAdd(operandNoises[0], operandNoises[1]);
             propagate(addOp.getResult(), add);
             return success();
           })
           .Case<tensor_ext::RotateOp>([&](auto rotateOp) {
-            auto localParamOpt = getLocalParam(rotateOp.getOperand(0));
-            if (!localParamOpt.has_value()) {
-              return success();
-            }
+            // implicitly assumed secret
+            auto localParam = getLocalParam(rotateOp.getOperand(0));
 
-            auto localParam = *localParamOpt;
             Noise rotate =
                 Noise::evalRotate(localParam, operands[0]->getValue());
             propagate(rotateOp.getResult(), rotate);
             return success();
           })
           .Case<tensor::ExtractOp>([&](auto extractOp) {
-            auto localParamOpt = getLocalParam(extractOp.getOperand(0));
-            if (!localParamOpt.has_value()) {
-              return success();
-            }
+            auto localParam = getLocalParam(extractOp.getOperand(0));
 
-            auto localParam = *localParamOpt;
             // extract = mul + rotate
             Noise constant = Noise::evalConstant(localParam);
             Noise extract = Noise::evalMultNoRelin(
@@ -105,24 +114,16 @@ LogicalResult NoiseAnalysis::visitOperation(
             return success();
           })
           .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
-            auto localParamOpt = getLocalParam(modReduceOp.getInput());
-            if (!localParamOpt.has_value()) {
-              return success();
-            }
+            auto localParam = getLocalParam(modReduceOp.getInput());
 
-            auto localParam = *localParamOpt;
             Noise modReduce =
                 Noise::evalModReduce(localParam, operands[0]->getValue());
             propagate(modReduceOp.getResult(), modReduce);
             return success();
           })
           .Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
-            auto localParamOpt = getLocalParam(relinearizeOp.getInput());
-            if (!localParamOpt.has_value()) {
-              return success();
-            }
+            auto localParam = getLocalParam(relinearizeOp.getInput());
 
-            auto localParam = *localParamOpt;
             Noise relinearize =
                 Noise::evalRelinearize(localParam, operands[0]->getValue());
             propagate(relinearizeOp.getResult(), relinearize);

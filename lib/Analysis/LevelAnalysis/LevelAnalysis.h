@@ -93,6 +93,8 @@ class LevelAnalysis
   }
 };
 
+LevelState::LevelType getLevelFromMgmtAttr(Value value);
+
 void annotateLevel(Operation *top, DataFlowSolver *solver);
 
 }  // namespace heir

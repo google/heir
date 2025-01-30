@@ -13,6 +13,9 @@ cc_library(
     ],
     deps = [
         ":Noise",
+        "@heir//lib/Analysis/DimensionAnalysis",
+        "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",

@@ -23,13 +23,14 @@ namespace heir {
 class SchemeParam {
  public:
   SchemeParam(int ringDim, int64_t plaintextModulus, int level,
-              const std::vector<int> &qi, int dnum, const std::vector<int> &pi)
+              const std::vector<int> &logqi, int dnum,
+              const std::vector<int> &logpi)
       : ringDim(ringDim),
         plaintextModulus(plaintextModulus),
         level(level),
-        qi(qi),
+        logqi(logqi),
         dnum(dnum),
-        pi(pi) {}
+        logpi(logpi) {}
 
  private:
   // the N in Z[X]/(X^N+1)
@@ -42,14 +43,14 @@ class SchemeParam {
   int level;
 
   // logarithm of the modulus of each level
-  // qi.size() == level + 1
-  std::vector<int> qi;
+  // logqi.size() == level + 1
+  std::vector<int> logqi;
 
   // number of digits
   int dnum;
   // logarithm of the special modulus
   // used during key switching
-  std::vector<int> pi;
+  std::vector<int> logpi;
 
   // the standard deviation of the error distribution
   double std0 = 3.2;
@@ -66,9 +67,9 @@ class SchemeParam {
   int getRingDim() const { return ringDim; }
   int64_t getPlaintextModulus() const { return plaintextModulus; }
   int getLevel() const { return level; }
-  const std::vector<int> &getQi() const { return qi; }
+  const std::vector<int> &getLogqi() const { return logqi; }
   int getDnum() const { return dnum; }
-  const std::vector<int> &getPi() const { return pi; }
+  const std::vector<int> &getLogpi() const { return logpi; }
   double getStd0() const { return std0; }
 };
 

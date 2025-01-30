@@ -2,9 +2,9 @@
 #define INCLUDE_ANALYSIS_NOISEANALYSIS_NOISEANALYSIS_H_
 
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -16,9 +16,11 @@ class NoiseLattice : public dataflow::Lattice<Noise> {
 };
 
 class NoiseAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<NoiseLattice> {
+    : public dataflow::SparseForwardDataFlowAnalysis<NoiseLattice>,
+      public SecretnessAnalysisDependent<NoiseAnalysis> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
+  friend class SecretnessAnalysisDependent<NoiseAnalysis>;
 
   NoiseAnalysis(DataFlowSolver &solver, const SchemeParam &schemeParam)
       : dataflow::SparseForwardDataFlowAnalysis<NoiseLattice>(solver),
