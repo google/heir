@@ -6,8 +6,8 @@
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project

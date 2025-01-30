@@ -32,6 +32,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",

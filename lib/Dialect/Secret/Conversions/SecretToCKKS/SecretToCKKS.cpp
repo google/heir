@@ -17,7 +17,6 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -25,6 +24,7 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project

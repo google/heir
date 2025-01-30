@@ -3,7 +3,7 @@
 #include <functional>
 #include <string>
 
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/StringExtras.h"      // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"         // from @llvm-project

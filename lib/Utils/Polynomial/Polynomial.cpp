@@ -1,6 +1,11 @@
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
+
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {

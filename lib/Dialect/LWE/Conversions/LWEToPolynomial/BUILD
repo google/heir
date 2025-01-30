@@ -18,6 +18,7 @@ cc_library(
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/Random/IR:Dialect",
         "@heir//lib/Utils:ConversionUtils",
+        "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

@@ -13,12 +13,12 @@
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project

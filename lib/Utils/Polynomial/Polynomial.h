@@ -1,5 +1,5 @@
-#ifndef LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIAL_H_
-#define LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIAL_H_
+#ifndef LIB_UTILS_POLYNOMIAL_POLYNOMIAL_H_
+#define LIB_UTILS_POLYNOMIAL_POLYNOMIAL_H_
 
 #include "llvm/include/llvm/ADT/APFloat.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
@@ -271,4 +271,4 @@ inline raw_ostream &operator<<(raw_ostream &os,
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIAL_H_
+#endif  // LIB_UTILS_POLYNOMIAL_POLYNOMIAL_H_

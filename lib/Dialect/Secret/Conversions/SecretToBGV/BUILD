@@ -23,6 +23,7 @@ cc_library(
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
+        "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",

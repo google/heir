@@ -9,9 +9,9 @@
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "lib/Dialect/Polynomial/IR/Polynomial.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project

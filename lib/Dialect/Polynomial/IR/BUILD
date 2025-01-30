@@ -17,6 +17,7 @@ cc_library(
         ":ops_inc_gen",
         ":types_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
+        "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
