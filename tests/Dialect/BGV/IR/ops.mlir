@@ -38,8 +38,8 @@
 module {
   // CHECK-LABEL: @test_multiply
   func.func @test_multiply(%arg0 : !ct, %arg1: !ct) -> !ct {
-    %add = bgv.add %arg0, %arg1 : !ct
-    %sub = bgv.sub %arg0, %arg1 : !ct
+    %add = bgv.add %arg0, %arg1 : (!ct, !ct) -> !ct
+    %sub = bgv.sub %arg0, %arg1 : (!ct, !ct) -> !ct
     %neg = bgv.negate %arg0 : !ct
 
     %0 = bgv.mul %arg0, %arg1  : (!ct, !ct) -> !ct1

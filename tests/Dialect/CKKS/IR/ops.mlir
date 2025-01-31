@@ -38,8 +38,8 @@
 module {
   // CHECK-LABEL: @test_multiply
   func.func @test_multiply(%arg0 : !ct, %arg1: !ct) -> !ct {
-    %add = ckks.add %arg0, %arg1 : !ct
-    %sub = ckks.sub %arg0, %arg1 : !ct
+    %add = ckks.add %arg0, %arg1 : (!ct, !ct) -> !ct
+    %sub = ckks.sub %arg0, %arg1 : (!ct, !ct) -> !ct
     %neg = ckks.negate %arg0 : !ct
 
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>

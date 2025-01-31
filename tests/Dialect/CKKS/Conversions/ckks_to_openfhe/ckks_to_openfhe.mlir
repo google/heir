@@ -39,9 +39,9 @@ module {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
     %negate = ckks.negate %x  : !ct
     // CHECK: %[[v2:.*]] = openfhe.add [[C]], %[[x2:.*]], %[[y2:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
-    %add = ckks.add %x, %y  : !ct
+    %add = ckks.add %x, %y  : (!ct, !ct) -> !ct
     // CHECK: %[[v3:.*]] = openfhe.sub [[C]], %[[x3:.*]], %[[y3:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
-    %sub = ckks.sub %x, %y  : !ct
+    %sub = ckks.sub %x, %y  : (!ct, !ct) -> !ct
     // CHECK: %[[v4:.*]] = openfhe.mul_no_relin [[C]], %[[x4:.*]], %[[y4:.*]]: ([[S]], [[T]], [[T]]) -> [[T2:.*]]
     %mul = ckks.mul %x, %y  : (!ct, !ct) -> !ct_D3
     // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {index = 4 : i64}

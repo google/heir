@@ -5,9 +5,11 @@ include "OpenfheDialect.td"
 include "OpenfheTypes.td"
 
 include "lib/Dialect/LWE/IR/LWETypes.td"
+include "lib/Dialect/LWE/IR/LWETraits.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class Openfhe_Op<string mnemonic, list<Trait> traits = []> :
@@ -46,8 +48,7 @@ class Openfhe_UnaryOp<string mnemonic, list<Trait> traits = []>
 
 class Openfhe_BinaryOp<string mnemonic, list<Trait> traits = []>
   :  Openfhe_Op<mnemonic, traits # [
-    Pure,
-    AllTypesMatch<["lhs", "rhs", "output"]>,
+    Pure
 ]>{
  let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
@@ -153,8 +154,16 @@ def DecryptOp : Openfhe_Op<"decrypt", [Pure]> {
   let results = (outs NewLWEPlaintext:$plaintext);
 }
 
-def AddOp : Openfhe_BinaryOp<"add"> { let summary = "OpenFHE add operation of two ciphertexts."; }
-def SubOp : Openfhe_BinaryOp<"sub"> { let summary = "OpenFHE sub operation of two ciphertexts."; }
+def AddOp : Openfhe_BinaryOp<"add",
+    [SameOperandsAndResultRings,
+    InferTypeOpAdaptor]> {
+  let summary = "OpenFHE add operation of two ciphertexts.";
+}
+def SubOp : Openfhe_BinaryOp<"sub",
+    [SameOperandsAndResultRings,
+    InferTypeOpAdaptor]> {
+  let summary = "OpenFHE sub operation of two ciphertexts.";
+}
 
 def AddPlainOp : Openfhe_Op<"add_plain",[
     Pure,
@@ -182,9 +191,9 @@ def SubPlainOp : Openfhe_Op<"sub_plain",[
   let results = (outs NewLWECiphertext:$output);
 }
 
-def MulOp : Openfhe_BinaryOp<"mul"> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
+def MulOp : Openfhe_BinaryOp<"mul", [AllTypesMatch<["lhs", "rhs", "output"]>]> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
 
-def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, AllTypesMatch<["lhs", "rhs"]>]> {
+def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, SameOperandsAndResultRings]> {
   let summary = "OpenFHE mul operation of two ciphertexts without relinearization.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,

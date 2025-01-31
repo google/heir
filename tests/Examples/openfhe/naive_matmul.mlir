@@ -28,7 +28,7 @@ module attributes {scheme.ckks} {
         %extracted_1 = tensor.extract %arg5[%c0, %arg2] : tensor<1x16x!rlwe_ct>
         %2 = lwe.rlwe_encode %extracted_0 {encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x1024_} : f32 -> !rlwe_pt
         %3 = ckks.mul_plain %extracted, %2 : (!rlwe_ct, !rlwe_pt) -> !rlwe_ct
-        %4 = ckks.add %extracted_1, %3 : !rlwe_ct
+        %4 = ckks.add %extracted_1, %3 : (!rlwe_ct, !rlwe_ct) -> !rlwe_ct
         %inserted = tensor.insert %4 into %arg5[%c0, %arg2] : tensor<1x16x!rlwe_ct>
         affine.yield %inserted : tensor<1x16x!rlwe_ct>
       }

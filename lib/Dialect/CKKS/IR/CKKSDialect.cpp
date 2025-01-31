@@ -41,6 +41,18 @@ LogicalResult RescaleOp::verify() {
   return verifyModulusSwitchOrRescaleOp(this);
 }
 
+LogicalResult AddOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, AddOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  return inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult SubOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, SubOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  return inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
 LogicalResult MulOp::inferReturnTypes(
     MLIRContext *ctx, std::optional<Location>, MulOp::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {

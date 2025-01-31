@@ -20,6 +20,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect:FHEHelpers",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Utils/Tablegen:AsmInterfaces",
         "@llvm-project//llvm:Support",

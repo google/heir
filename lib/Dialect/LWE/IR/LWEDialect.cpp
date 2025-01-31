@@ -182,6 +182,40 @@ LogicalResult RMulOp::verify() {
   return success();
 }
 
+LogicalResult RAddOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RAddOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  // NOT using FHEHelpers.h here because cyclic dependency
+  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
+  auto newDim = std::max(x.getCiphertextSpace().getSize(),
+                         y.getCiphertextSpace().getSize());
+  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    newDim),
+      x.getKey(), x.getModulusChain()));
+  return success();
+}
+
+LogicalResult RSubOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RSubOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  // NOT using FHEHelpers.h here because cyclic dependency
+  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
+  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
+  auto newDim = std::max(x.getCiphertextSpace().getSize(),
+                         y.getCiphertextSpace().getSize());
+  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
+                                    x.getCiphertextSpace().getEncryptionType(),
+                                    newDim),
+      x.getKey(), x.getModulusChain()));
+  return success();
+}
+
 LogicalResult RMulOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {

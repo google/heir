@@ -31,9 +31,9 @@ func.func @linear_polynomial(%arg0: !ct_ty, %arg1: !ct_ty, %arg2: !ct_ty, %arg3:
   // CHECK: %[[v1:.*]] = openfhe.relin %[[cc]], %[[v0]]
   %1 = ckks.relinearize %0  {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !ct_sq_ty -> !ct_ty
   // CHECK: %[[v2:.*]] = openfhe.sub %[[cc]], %[[arg3]], %[[v1]]
-  %2 = ckks.sub %arg3, %1  : !ct_ty
+  %2 = ckks.sub %arg3, %1  : (!ct_ty, !ct_ty) -> !ct_ty
   // CHECK: %[[v3:.*]] = openfhe.sub %[[cc]], %[[v2]], %[[arg1]]
-  %3 = ckks.sub %2, %arg1  : !ct_ty
+  %3 = ckks.sub %2, %arg1  : (!ct_ty, !ct_ty) -> !ct_ty
   // CHECK: return %[[v3]]
   return %3 : !ct_ty
 }

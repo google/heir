@@ -1,5 +1,6 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 
+#include "lib/Dialect/FHEHelpers.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.cpp.inc"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
@@ -41,6 +42,18 @@ LogicalResult MakeCKKSPackedPlaintextOp::verify() {
     return emitOpError("plaintext type should use inverse_canonical_encoding.");
   }
   return success();
+}
+
+LogicalResult AddOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, AddOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  return inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult SubOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, SubOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  return inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
 }  // namespace openfhe
