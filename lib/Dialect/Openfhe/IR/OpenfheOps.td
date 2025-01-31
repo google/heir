@@ -182,7 +182,7 @@ def SubOp : Openfhe_BinaryOp<"sub",
 
 // In-Place Addition
 def AddInPlaceOp : Openfhe_BinaryInPlaceOp<"add_inplace"> {
-  let summary = "Performs in-place homomorphic addition, modifying lhs.";
+  let summary = "Performs in-place homomorphic addition,  modifying lhs.";
 }
 
 // In-Place Subtraction
