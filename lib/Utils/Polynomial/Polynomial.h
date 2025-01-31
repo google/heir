@@ -1,6 +1,11 @@
 #ifndef LIB_UTILS_POLYNOMIAL_POLYNOMIAL_H_
 #define LIB_UTILS_POLYNOMIAL_POLYNOMIAL_H_
 
+#include <cassert>
+#include <cstdint>
+#include <iostream>
+#include <string>
+
 #include "llvm/include/llvm/ADT/APFloat.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
@@ -47,7 +52,7 @@ class MonomialBase {
     return (exponent.ult(other.exponent));
   }
 
-  Derived add(const Derived &other) {
+  Derived add(const Derived &other) const {
     assert(exponent == other.exponent);
     CoefficientType newCoeff = coefficient + other.coefficient;
     Derived result;
@@ -56,7 +61,16 @@ class MonomialBase {
     return result;
   }
 
+  Derived scale(const CoefficientType &scalar) const {
+    CoefficientType newCoeff = coefficient * scalar;
+    Derived result;
+    result.setCoefficient(newCoeff);
+    result.setExponent(APInt(exponent));
+    return result;
+  }
+
   virtual bool isMonic() const = 0;
+
   virtual void coefficientToString(
       llvm::SmallString<16> &coeffString) const = 0;
 
@@ -105,7 +119,7 @@ class FloatMonomial : public MonomialBase<FloatMonomial, APFloat> {
   }
 };
 
-template <class Derived, typename Monomial>
+template <class Derived, typename Monomial, typename CoefficientType>
 class PolynomialBase {
  public:
   PolynomialBase() = delete;
@@ -138,9 +152,9 @@ class PolynomialBase {
         coeffToPrint = coeffString.str();
       }
 
-      if (term.getExponent() == 0) {
+      if (term.getExponent().isZero()) {
         os << coeffToPrint;
-      } else if (term.getExponent() == 1) {
+      } else if (term.getExponent().isOne()) {
         os << coeffToPrint << "x";
       } else {
         llvm::SmallString<16> expString;
@@ -150,7 +164,7 @@ class PolynomialBase {
     }
   }
 
-  Derived add(const Derived &other) {
+  Derived add(const Derived &other) const {
     SmallVector<Monomial> newTerms;
     auto it1 = terms.begin();
     auto it2 = other.terms.begin();
@@ -172,24 +186,54 @@ class PolynomialBase {
         it1++;
         if (it1 == terms.end()) break;
       }
+      if (it1 == terms.end()) continue;
 
       while (it2->getExponent().ult(it1->getExponent())) {
         newTerms.emplace_back(*it2);
         it2++;
-        if (it2 == terms.end()) break;
+        if (it2 == other.terms.end()) break;
       }
+      if (it2 == other.terms.end()) continue;
 
-      newTerms.emplace_back(it1->add(*it2));
+      Monomial newTerm = it1->add(*it2);
+      if (!newTerm.getCoefficient().isZero()) newTerms.push_back(newTerm);
+
       it1++;
       it2++;
     }
     return Derived(newTerms);
   }
 
+  Derived monomialMul(int exponent) const {
+    SmallVector<Monomial> newTerms;
+    for (auto &term : getTerms()) {
+      Monomial newMonomial;
+      newMonomial.setCoefficient(term.getCoefficient());
+      newMonomial.setExponent(term.getExponent() + exponent);
+      newTerms.push_back(newMonomial);
+    }
+    return Derived(newTerms);
+  }
+
+  Derived scale(CoefficientType scalar) const {
+    SmallVector<Monomial> newTerms;
+    for (auto &term : getTerms()) {
+      newTerms.emplace_back(term.scale(scalar));
+    }
+    return Derived(newTerms);
+  }
+
+  virtual Derived sub(const Derived &other) const = 0;
+
   // Prints polynomial to 'os'.
   void print(raw_ostream &os) const { print(os, " + ", "**"); }
 
-  void dump() const;
+  void dump() const {
+    std::string result;
+    llvm::raw_string_ostream os(result);
+    print(os);
+    std::cout << os.str() << "\n";
+  }
 
   // Prints polynomial so that it can be used as a valid identifier
   std::string toIdentifier() const {
@@ -199,14 +243,16 @@ class PolynomialBase {
     return os.str();
   }
 
+  bool isZero() const { return getTerms().empty(); }
+
   unsigned getDegree() const {
     return terms.back().getExponent().getZExtValue();
   }
 
   ArrayRef<Monomial> getTerms() const { return terms; }
 
-  template <class D, typename T>
-  friend ::llvm::hash_code hash_value(const PolynomialBase<D, T> &arg);
+  template <class D, typename T, typename C>
+  friend ::llvm::hash_code hash_value(const PolynomialBase<D, T, C> &arg);
 
  private:
   // The monomial terms for this polynomial.
@@ -216,7 +262,7 @@ class PolynomialBase {
 /// A single-variable polynomial with integer coefficients.
 ///
 /// Eg: x^1024 + x + 1
-class IntPolynomial : public PolynomialBase<IntPolynomial, IntMonomial> {
+class IntPolynomial : public PolynomialBase<IntPolynomial, IntMonomial, APInt> {
  public:
   explicit IntPolynomial(ArrayRef<IntMonomial> terms) : PolynomialBase(terms) {}
 
@@ -228,12 +274,17 @@ class IntPolynomial : public PolynomialBase<IntPolynomial, IntMonomial> {
   /// Returns a polynomial with coefficients given by `coeffs`. The value
   /// coeffs[i] is converted to a monomial with exponent i.
   static IntPolynomial fromCoefficients(ArrayRef<int64_t> coeffs);
+
+  IntPolynomial sub(const IntPolynomial &other) const override {
+    return add(other.scale(APInt(apintBitWidth, -1)));
+  }
 };
 
 /// A single-variable polynomial with double coefficients.
 ///
 /// Eg: 1.0 x^1024 + 3.5 x + 1e-05
-class FloatPolynomial : public PolynomialBase<FloatPolynomial, FloatMonomial> {
+class FloatPolynomial
+    : public PolynomialBase<FloatPolynomial, FloatMonomial, APFloat> {
  public:
   explicit FloatPolynomial(ArrayRef<FloatMonomial> terms)
       : PolynomialBase(terms) {}
@@ -246,11 +297,15 @@ class FloatPolynomial : public PolynomialBase<FloatPolynomial, FloatMonomial> {
   /// Returns a polynomial with coefficients given by `coeffs`. The value
   /// coeffs[i] is converted to a monomial with exponent i.
   static FloatPolynomial fromCoefficients(ArrayRef<double> coeffs);
+
+  FloatPolynomial sub(const FloatPolynomial &other) const override {
+    return add(other.scale(APFloat(-1.)));
+  }
 };
 
 // Make Polynomials hashable.
-template <class D, typename T>
-inline ::llvm::hash_code hash_value(const PolynomialBase<D, T> &arg) {
+template <class D, typename T, typename C>
+inline ::llvm::hash_code hash_value(const PolynomialBase<D, T, C> &arg) {
   return ::llvm::hash_combine_range(arg.terms.begin(), arg.terms.end());
 }
 
@@ -260,9 +315,9 @@ inline ::llvm::hash_code hash_value(const MonomialBase<D, T> &arg) {
                             ::llvm::hash_value(arg.exponent));
 }
 
-template <class D, typename T>
+template <class D, typename T, typename C>
 inline raw_ostream &operator<<(raw_ostream &os,
-                               const PolynomialBase<D, T> &polynomial) {
+                               const PolynomialBase<D, T, C> &polynomial) {
   polynomial.print(os);
   return os;
 }

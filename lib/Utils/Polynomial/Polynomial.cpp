@@ -45,7 +45,7 @@ PolyT fromCoefficientsImpl(ArrayRef<CoeffT> coeffs) {
   auto size = coeffs.size();
   monomials.reserve(size);
   for (size_t i = 0; i < size; i++) {
-    monomials.emplace_back(coeffs[i], i);
+    if (coeffs[i] != 0) monomials.emplace_back(coeffs[i], i);
   }
   auto result = PolyT::fromMonomials(monomials);
   // Construction guarantees unique exponents, so the failure mode of
