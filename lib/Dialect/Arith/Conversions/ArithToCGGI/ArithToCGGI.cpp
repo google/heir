@@ -30,6 +30,52 @@ static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext *ctx) {
   return type;
 }
 
+// Function to check if an operation is allowed to remain in the Arith dialect
+static bool allowedRemainArith(Operation *op) {
+  return llvm::TypeSwitch<Operation *, bool>(op)
+      .Case<mlir::arith::ConstantOp>([](auto op) {
+        // This lambda will be called for any of the matched operation types
+        return true;
+      })
+      // Allow memref LoadOp if it comes from a FuncArg or if it comes from
+      // an allowed alloc memref
+      // Other cases: Memref comes from function -> need to convert to LWE
+      .Case<memref::LoadOp>([](memref::LoadOp memrefLoad) {
+        return memrefLoad.getMemRef().getDefiningOp() != nullptr;
+      })
+      .Case<mlir::arith::ExtUIOp, mlir::arith::ExtSIOp, mlir::arith::TruncIOp>(
+          [](auto op) {
+            // This lambda will be called for any of the matched operation types
+            if (auto *defOp = op.getIn().getDefiningOp()) {
+              return allowedRemainArith(defOp);
+            }
+            return false;
+          })
+      .Default([](Operation *) {
+        // Default case for operations that don't match any of the types
+        return false;
+      });
+}
+
+static bool hasLWEAnnotation(Operation *op) {
+  return static_cast<bool>(
+      op->getAttrOfType<mlir::StringAttr>("lwe_annotation"));
+}
+
+static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
+                               Location loc) {
+  assert(inputs.size() == 1);
+  auto inputType = inputs[0].getType();
+  if (!isa<IntegerType>(inputType))
+    llvm_unreachable(
+        "Non-integer types should never be the input to a materializeTarget.");
+
+  auto inValue = inputs.front().getDefiningOp<mlir::arith::ConstantOp>();
+  auto intAttr = cast<IntegerAttr>(inValue.getValueAttr());
+
+  return builder.create<cggi::CreateTrivialOp>(loc, type, intAttr);
+}
+
 class ArithToCGGITypeConverter : public TypeConverter {
  public:
   ArithToCGGITypeConverter(MLIRContext *ctx) {
@@ -43,6 +89,10 @@ class ArithToCGGITypeConverter : public TypeConverter {
     addConversion([ctx](ShapedType type) -> Type {
       return convertArithLikeToCGGIType(type, ctx);
     });
+
+    // Target materialization to convert integer constants to LWE ciphertexts
+    // by creating a trivial LWE ciphertext
+    addTargetMaterialization(materializeTarget);
   }
 };
 
@@ -167,7 +217,7 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
-      if (isa<mlir::arith::ConstantOp>(lhsDefOp)) {
+      if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {
         auto result = b.create<TargetModArithOp>(adaptor.getRhs().getType(),
                                                  adaptor.getRhs(), op.getLhs());
         rewriter.replaceOp(op, result);
@@ -176,7 +226,7 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
     }
 
     if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
-      if (isa<mlir::arith::ConstantOp>(rhsDefOp)) {
+      if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
         auto result = b.create<TargetModArithOp>(adaptor.getLhs().getType(),
                                                  adaptor.getLhs(), op.getRhs());
         rewriter.replaceOp(op, result);
@@ -187,6 +237,30 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
     auto result = b.create<TargetModArithOp>(
         adaptor.getLhs().getType(), adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+struct ConvertAllocOp : public OpConversionPattern<mlir::memref::AllocOp> {
+  ConvertAllocOp(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::memref::AllocOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      mlir::memref::AllocOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    for (auto *userOp : op->getUsers()) {
+      userOp->setAttr("lwe_annotation",
+                      mlir::StringAttr::get(userOp->getContext(), "LWE"));
+    }
+
+    auto lweType = getTypeConverter()->convertType(op.getType());
+    auto allocOp =
+        b.create<memref::AllocOp>(op.getLoc(), lweType, op.getOperands());
+    rewriter.replaceOp(op, allocOp);
     return success();
   }
 };
@@ -206,7 +280,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     target.addDynamicallyLegalOp<mlir::arith::ExtSIOp>([&](Operation *op) {
       if (auto *defOp =
               cast<mlir::arith::ExtSIOp>(op).getOperand().getDefiningOp()) {
-        return isa<mlir::arith::ConstantOp>(defOp);
+        return hasLWEAnnotation(defOp) || allowedRemainArith(defOp);
       }
       return false;
     });
@@ -220,42 +294,46 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
         });
 
     target.addDynamicallyLegalOp<memref::AllocOp>([&](Operation *op) {
-      // Check if all Store ops are constants, if not store op, accepts
-      // Check if there is at least one Store op that is a constants
-      return (llvm::all_of(op->getUses(),
-                           [&](OpOperand &op) {
-                             auto defOp =
-                                 dyn_cast<memref::StoreOp>(op.getOwner());
-                             if (defOp) {
-                               return isa<mlir::arith::ConstantOp>(
-                                   defOp.getValue().getDefiningOp());
-                             }
-                             return true;
-                           }) &&
-              llvm::any_of(op->getUses(),
-                           [&](OpOperand &op) {
-                             auto defOp =
-                                 dyn_cast<memref::StoreOp>(op.getOwner());
-                             if (defOp) {
-                               return isa<mlir::arith::ConstantOp>(
-                                   defOp.getValue().getDefiningOp());
-                             }
-                             return false;
-                           })) ||
+      // Check if all Store ops are constants or GetGlobals, if not store op,
+      // accepts Check if there is at least one Store op that is a constants
+      auto containsAnyStoreOp = llvm::any_of(op->getUses(), [&](OpOperand &op) {
+        if (auto defOp = dyn_cast<memref::StoreOp>(op.getOwner())) {
+          return allowedRemainArith(defOp.getValue().getDefiningOp());
+        }
+        return false;
+      });
+      auto allStoreOpsAreArith =
+          llvm::all_of(op->getUses(), [&](OpOperand &op) {
+            if (auto defOp = dyn_cast<memref::StoreOp>(op.getOwner())) {
+              return allowedRemainArith(defOp.getValue().getDefiningOp());
+            }
+            return true;
+          });
+
+      return (allStoreOpsAreArith && containsAnyStoreOp) ||
              // The other case: Memref need to be in LWE format
              (typeConverter.isLegal(op->getOperandTypes()) &&
               typeConverter.isLegal(op->getResultTypes()));
     });
 
     target.addDynamicallyLegalOp<memref::StoreOp>([&](Operation *op) {
+      if (typeConverter.isLegal(op->getOperandTypes()) &&
+          typeConverter.isLegal(op->getResultTypes())) {
+        return true;
+      }
+
+      if (auto lweAttr =
+              op->getAttrOfType<mlir::StringAttr>("lwe_annotation")) {
+        return false;
+      }
+
       if (auto *defOp = cast<memref::StoreOp>(op).getValue().getDefiningOp()) {
-        if (isa<mlir::arith::ConstantOp>(defOp)) {
+        if (isa<mlir::arith::ConstantOp>(defOp) ||
+            isa<mlir::memref::GetGlobalOp>(defOp)) {
           return true;
         }
       }
-
-      return typeConverter.isLegal(op->getOperandTypes()) &&
-             typeConverter.isLegal(op->getResultTypes());
+      return true;
     });
 
     // Convert LoadOp if memref comes from an argument
@@ -264,9 +342,32 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
           typeConverter.isLegal(op->getResultTypes())) {
         return true;
       }
-      auto loadOp = dyn_cast<memref::LoadOp>(op);
 
-      return loadOp.getMemRef().getDefiningOp() != nullptr;
+      if (dyn_cast<memref::LoadOp>(op).getMemRef().getDefiningOp() == nullptr) {
+        return false;
+      }
+
+      if (auto lweAttr =
+              op->getAttrOfType<mlir::StringAttr>("lwe_annotation")) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Convert Dealloc if memref comes from an argument
+    target.addDynamicallyLegalOp<memref::DeallocOp>([&](Operation *op) {
+      if (typeConverter.isLegal(op->getOperandTypes()) &&
+          typeConverter.isLegal(op->getResultTypes())) {
+        return true;
+      }
+
+      if (auto lweAttr =
+              op->getAttrOfType<mlir::StringAttr>("lwe_annotation")) {
+        return false;
+      }
+
+      return true;
     });
 
     patterns.add<
@@ -274,7 +375,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
         ConvertArithBinOp<mlir::arith::AddIOp, cggi::AddOp>,
         ConvertArithBinOp<mlir::arith::MulIOp, cggi::MulOp>,
         ConvertArithBinOp<mlir::arith::SubIOp, cggi::SubOp>,
-        ConvertAny<memref::LoadOp>, ConvertAny<memref::AllocOp>,
+        ConvertAny<memref::LoadOp>, ConvertAllocOp,
         ConvertAny<memref::DeallocOp>, ConvertAny<memref::SubViewOp>,
         ConvertAny<memref::CopyOp>, ConvertAny<memref::StoreOp>,
         ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>,

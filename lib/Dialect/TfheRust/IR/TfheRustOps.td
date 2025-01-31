@@ -43,6 +43,7 @@ class TfheRust_ScalarBinaryOp<string mnemonic>
     AnyTypeOf<[Builtin_Integer, TfheRust_CiphertextType]>:$rhs
   );
   let results = (outs TfheRust_CiphertextType:$output);
+  let summary = "Arithmetic sub of two tfhe ciphertexts.";
 }
 
 def TfheRust_CreateTrivialOp : TfheRust_Op<"create_trivial", [Pure]> {
@@ -61,8 +62,8 @@ def TfheRust_SubOp : TfheRust_Op<"sub", [
 ]> {
   let arguments = (ins
     TfheRust_ServerKey:$serverKey,
-    TfheRust_CiphertextType:$lhs,
-    TfheRust_CiphertextType:$rhs
+    TfheRust_CiphertextLikeType:$lhs,
+    TfheRust_CiphertextLikeType:$rhs
   );
   let results = (outs TfheRust_CiphertextType:$output);
   let summary = "Arithmetic sub of two tfhe ciphertexts.";
