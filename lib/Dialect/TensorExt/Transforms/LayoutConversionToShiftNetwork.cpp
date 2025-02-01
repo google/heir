@@ -23,9 +23,8 @@ namespace tensor_ext {
 #define GEN_PASS_DEF_LAYOUTCONVERSIONTOSHIFTNETWORK
 #include "lib/Dialect/TensorExt/Transforms/Passes.h.inc"
 
-// A permutation of 0..n-1. This array ref should always have size n
-// and contain each integer from 0 to n-1 exactly once.
-// FIXME: replace this with a hashable type that can be used with DenseMap
+// A permutation of 0..n-1. This vector should always have size n and contain
+// each integer from 0 to n-1 exactly once.
 using Permutation = FrozenVector<int64_t>;
 
 // A group of indices to rotate together
