@@ -3,12 +3,13 @@
 #include <optional>
 #include <string>
 
-#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"    // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"   // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -54,6 +55,11 @@ LogicalResult walkAndValidateValues(Operation *op, IsValidValueFn isValidValue,
 }
 
 bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
+  // special treatment for func declaration
+  if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
+    return llvm::any_of(funcOp.getArgumentTypes(),
+                        [&](Type type) { return predicate(type); });
+  }
   return llvm::any_of(op->getRegions(), [&](Region &region) {
     return llvm::any_of(region.getBlocks(), [&](Block &block) {
       return llvm::any_of(block.getArguments(), [&](BlockArgument arg) {

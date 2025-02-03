@@ -498,6 +498,10 @@ FailureOr<Value> getContextualArgFromFunc(Operation *op) {
   return failure();
 }
 
+// Returns the Value corresponding to a given type in the FuncOp containing
+// this op.
+FailureOr<Value> getContextualArgFromFunc(Operation *op, Type argType);
+
 // FIXME: update this after #1196
 // Returns true if the func contains ops from the given dialects.
 template <typename Dialect>

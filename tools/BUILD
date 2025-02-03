@@ -1,5 +1,7 @@
 # HEIR tools
 
+load("//tools/build_defs/testing:bzl_library.bzl", "bzl_library")
+
 package(
     default_applicable_licenses = ["@heir//:license"],
     default_visibility = ["//visibility:public"],
@@ -36,7 +38,6 @@ cc_binary(
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGIQuart",
         "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
-        "@heir//lib/Dialect/BGV/Conversions/BGVToLattigo",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRust",
@@ -48,6 +49,7 @@ cc_binary(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Jaxite/IR:Dialect",
+        "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -221,5 +223,31 @@ cc_binary(
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TosaDialect",
+    ],
+)
+
+bzl_library(
+    name = "heir_translate_bzl",
+    srcs = ["heir-translate.bzl"],
+    parse_tests = False,
+    visibility = ["//visibility:private"],
+)
+
+bzl_library(
+    name = "heir_opt_bzl",
+    srcs = ["heir-opt.bzl"],
+    parse_tests = False,
+    visibility = ["//visibility:private"],
+)
+
+bzl_library(
+    name = "heir_jaxite_bzl",
+    srcs = ["heir-jaxite.bzl"],
+    parse_tests = False,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":heir_opt_bzl",
+        ":heir_translate_bzl",
+        "@rules_python//python:py_library_bzl",
     ],
 )

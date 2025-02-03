@@ -5,18 +5,40 @@ load("@io_bazel_rules_go//go:def.bzl", "go_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
+# This is a Google-internal hack to avoid issues with automated tooling that
+# expects very specific go package layout with respect to build targets.
+# @unused
+glaze_ignore = [
+    "dot_product_8_debug.go",
+]
+
 heir_lattigo_lib(
     name = "binops",
+    go_library_name = "binops",
     heir_opt_flags = [
-        "--mlir-to-lattigo-bgv=entry-function=add ciphertext-degree=4",
+        "--mlir-to-bgv=ciphertext-degree=4",
+        "--scheme-to-lattigo=entry-function=add",
     ],
     mlir_src = "binops.mlir",
 )
 
 heir_lattigo_lib(
-    name = "dotproduct8",
+    name = "dot_product_8",
+    go_library_name = "dotproduct8",
     heir_opt_flags = [
-        "--mlir-to-lattigo-bgv=entry-function=dot_product ciphertext-degree=8",
+        "--mlir-to-bgv=ciphertext-degree=8",
+        "--scheme-to-lattigo=entry-function=dot_product",
+    ],
+    mlir_src = "dot_product_8.mlir",
+)
+
+heir_lattigo_lib(
+    name = "dot_product_8_debug",
+    extra_srcs = ["dot_product_8_debug.go"],
+    go_library_name = "dotproduct8debug",
+    heir_opt_flags = [
+        "--mlir-to-bgv=ciphertext-degree=8",
+        "--scheme-to-lattigo=entry-function=dot_product insert-debug-handler-calls=true",
     ],
     mlir_src = "dot_product_8.mlir",
 )
@@ -33,4 +55,10 @@ go_test(
     name = "dotproduct8_test",
     srcs = ["dot_product_8_test.go"],
     embed = [":dotproduct8"],
+)
+
+go_test(
+    name = "dotproduct8debug_test",
+    srcs = ["dot_product_8_debug_handler_test.go"],
+    embed = [":dotproduct8debug"],
 )

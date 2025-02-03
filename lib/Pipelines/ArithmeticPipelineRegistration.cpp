@@ -4,8 +4,8 @@
 #include <string>
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
-#include "lib/Dialect/BGV/Conversions/BGVToLattigo/BGVToLattigo.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
+#include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 #include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
@@ -163,7 +163,7 @@ RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
 }
 
 BackendPipelineBuilder toOpenFhePipelineBuilder() {
-  return [=](OpPassManager &pm, const OpenfheOptions &options) {
+  return [=](OpPassManager &pm, const BackendOptions &options) {
     // Convert the common trivial subset of CKKS/BGV to LWE
     pm.addPass(bgv::createBGVToLWE());
     pm.addPass(ckks::createCKKSToLWE());
@@ -192,28 +192,21 @@ BackendPipelineBuilder toOpenFhePipelineBuilder() {
   };
 }
 
-LattigoPipelineBuilder mlirToLattigoRLWEPipelineBuilder(
-    const RLWEScheme scheme) {
-  return [=](OpPassManager &pm, const LattigoOptions &options) {
-    // lower to RLWE scheme
-    MlirToRLWEPipelineOptions rlweOptions;
-    rlweOptions.ciphertextDegree = options.ciphertextDegree;
-    rlweOptions.modulusSwitchBeforeFirstMul =
-        options.modulusSwitchBeforeFirstMul;
-    mlirToRLWEPipeline(pm, rlweOptions, scheme);
-
+BackendPipelineBuilder toLattigoPipelineBuilder() {
+  return [=](OpPassManager &pm, const BackendOptions &options) {
     // Convert to (common trivial subset of) LWE
-    switch (scheme) {
-      case RLWEScheme::bgvScheme: {
-        // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
-        pm.addPass(bgv::createBGVToLWE());
-        pm.addPass(bgv::createBGVToLattigo());
-        break;
-      }
-      default:
-        llvm::errs() << "Unsupported RLWE scheme: " << scheme;
-        exit(EXIT_FAILURE);
+    // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
+    pm.addPass(bgv::createBGVToLWE());
+
+    // insert debug handler calls
+    if (options.debug) {
+      lwe::AddDebugPortOptions addDebugPortOptions;
+      addDebugPortOptions.entryFunction = options.entryFunction;
+      pm.addPass(lwe::createAddDebugPort(addDebugPortOptions));
     }
+
+    // Convert LWE (and scheme-specific BGV ops) to Lattigo
+    pm.addPass(lwe::createLWEToLattigo());
 
     // Simplify, in case the lowering revealed redundancy
     pm.addPass(createCanonicalizerPass());

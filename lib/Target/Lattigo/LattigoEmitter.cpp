@@ -90,7 +90,23 @@ LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
+bool LattigoEmitter::isDebugPort(StringRef debugPortName) {
+  return debugPortName.rfind("__heir_debug") == 0;
+}
+
+StringRef LattigoEmitter::canonicalizeDebugPort(StringRef debugPortName) {
+  if (isDebugPort(debugPortName)) {
+    return "__heir_debug";
+  }
+  return debugPortName;
+}
+
 LogicalResult LattigoEmitter::printOperation(func::FuncOp funcOp) {
+  // skip debug functions, should be defined in another file
+  if (isDebugPort(funcOp.getName())) {
+    return success();
+  }
+
   // name and arg
   os << "func " << funcOp.getName() << "(";
   os << getCommaSeparatedNamesWithTypes(funcOp.getArguments());
@@ -136,7 +152,7 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
     os << getCommaSeparatedNames(op.getResults());
     os << " := ";
   }
-  os << op.getCallee() << "(";
+  os << canonicalizeDebugPort(op.getCallee()) << "(";
   os << getCommaSeparatedNames(op.getOperands());
   os << ")\n";
   return success();

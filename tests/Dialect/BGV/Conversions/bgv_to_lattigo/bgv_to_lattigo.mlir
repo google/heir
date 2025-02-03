@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --bgv-to-lwe --bgv-to-lattigo %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --bgv-to-lwe --lwe-to-lattigo %s | FileCheck %s
 
 
 !Z1032955396097_i64_ = !mod_arith.int<1032955396097 : i64>
