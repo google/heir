@@ -70,7 +70,7 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
       affine::createLoopFusionPass(0, 0, true, affine::FusionMode::Greedy));
   pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
   pm.addPass(createForwardStoreToLoad());
-  pm.addPass(affine::createAffineParallelizePass());
+  pm.addPass(affine::createAffineParallelize());
   pm.addPass(createFullLoopUnroll());
   pm.addPass(createForwardStoreToLoad());
   pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
