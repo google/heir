@@ -5,19 +5,17 @@
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Analysis/Utils.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
-#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -140,6 +138,26 @@ void annotateLevel(Operation *top, DataFlowSolver *solver) {
       op->setAttr("level", getIntegerAttr(level));
     });
   });
+}
+
+LevelState::LevelType getLevelFromMgmtAttr(Value value) {
+  Attribute attr;
+  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
+    auto *parentOp = blockArg.getOwner()->getParentOp();
+    auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
+    if (genericOp) {
+      attr = genericOp.getArgAttr(blockArg.getArgNumber(),
+                                  mgmt::MgmtDialect::kArgMgmtAttrName);
+    }
+  } else {
+    auto *parentOp = value.getDefiningOp();
+    attr = parentOp->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
+  }
+  if (!mlir::isa<mgmt::MgmtAttr>(attr)) {
+    assert(false && "MgmtAttr not found");
+  }
+  auto mgmtAttr = mlir::cast<mgmt::MgmtAttr>(attr);
+  return mgmtAttr.getLevel();
 }
 
 }  // namespace heir

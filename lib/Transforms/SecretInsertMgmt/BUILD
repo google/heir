@@ -19,6 +19,8 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/MulResultAnalysis",
+        "@heir//lib/Analysis/NoiseAnalysis",
+        "@heir//lib/Analysis/NoiseAnalysis/BGV:Noise",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/Transforms",

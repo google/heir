@@ -190,6 +190,25 @@ class SecretnessAnalysisDependent {
       }
     }
   }
+
+  /**
+   * @brief Selects the OpOperands of an operation that are not secret
+   * (secretness = false or unknown).
+   *
+   * This method iterates through the operands of the given operation and adds
+   * those that are not secret to the provided vector.
+   *
+   * @param op The operation to analyze.
+   * @param nonSecretOperands A vector to store the non-secret operands.
+   */
+  void getNonSecretOperands(Operation *op,
+                            SmallVectorImpl<OpOperand *> &nonSecretOperands) {
+    for (auto &operand : op->getOpOperands()) {
+      if (!isSecretInternal(op, operand.get())) {
+        nonSecretOperands.push_back(&operand);
+      }
+    }
+  }
 };
 
 // Annotate the secretness of operation based on the secretness of its results
