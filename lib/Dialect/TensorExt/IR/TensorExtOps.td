@@ -58,10 +58,31 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
 
     This op is inserted by layout selection passes.
   }];
+
   let assemblyFormat = "operands attr-dict `:` type($output)";
   let arguments = (ins AnyRankedTensor:$tensor, Builtin_AffineMapAttr:$from_layout, Builtin_AffineMapAttr:$to_layout);
   let results = (outs AnyRankedTensor:$output);
   let hasVerifier = 1;
 }
+
+def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatch<["tensor", "output"]>]> {
+  let summary = "Assign a layout to a plaintext tensor.";
+  let description = [{
+    This op allows the ingestion of a plaintext tensor into the layout system.
+    For example, ops like `linalg.reduce`, require a tensor input to represent
+    initial values. These will generally be created by an `arith.constant` or
+    `tensor.empty` op, which does not have secret results. Lowerings will
+    convert this to a packed plaintext, so that the subsequent ops can be
+    lowered as ciphertext-plaintext ops.
+
+    This op is inserted by layout selection passes.
+  }];
+
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+  let arguments = (ins AnyRankedTensor:$tensor, Builtin_AffineMapAttr:$layout);
+  let results = (outs AnyRankedTensor:$output);
+  let hasVerifier = 1;
+}
+
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_

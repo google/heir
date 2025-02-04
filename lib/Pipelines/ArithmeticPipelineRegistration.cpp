@@ -20,7 +20,10 @@
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/DropUnitDims/DropUnitDims.h"
+#include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
@@ -82,8 +85,15 @@ void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm) {
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
-  // Apply linalg kernels
+  // Linalg canonicalization
+  // TODO(#1191): enable dropping unit dims to convert matmul to matvec/vecmat
+  // pm.addPass(createDropUnitDims());
   pm.addPass(createLinalgCanonicalizations());
+
+  // Layout assignment and lowering
+  // TODO(#1191): enable layout propagation after implementing the rest
+  // of the layout lowering pipeline.
+  // pm.addPass(createLayoutPropagation());
   pm.addPass(heir::linalg::createLinalgToTensorExt());
 
   // Vectorize and optimize rotations
