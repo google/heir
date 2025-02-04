@@ -1,6 +1,6 @@
 # HEIR tools
 
-load("//tools/build_defs/testing:bzl_library.bzl", "bzl_library")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -229,21 +229,18 @@ cc_binary(
 bzl_library(
     name = "heir_translate_bzl",
     srcs = ["heir-translate.bzl"],
-    parse_tests = False,
     visibility = ["//visibility:private"],
 )
 
 bzl_library(
     name = "heir_opt_bzl",
     srcs = ["heir-opt.bzl"],
-    parse_tests = False,
     visibility = ["//visibility:private"],
 )
 
 bzl_library(
     name = "heir_jaxite_bzl",
     srcs = ["heir-jaxite.bzl"],
-    parse_tests = False,
     visibility = ["//visibility:private"],
     deps = [
         ":heir_opt_bzl",
