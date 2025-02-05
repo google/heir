@@ -28,7 +28,8 @@ package_group(
 # OpenMP
 string_flag(
     name = "enable_openmp",
-    build_setting_default = "1",
+    # TODO(#1361): re-enable when it's compatible with the Python frontend
+    build_setting_default = "0",
 )
 
 config_setting(
