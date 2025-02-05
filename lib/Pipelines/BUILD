@@ -99,6 +99,7 @@ cc_library(
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCKKS",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
+        "@heir//lib/Dialect/Secret/Transforms:MergeAdjacentGenerics",
         "@heir//lib/Dialect/TOSA/Conversions/TosaToSecretArith",
         "@heir//lib/Dialect/TensorExt/Transforms:CollapseInsertionChains",
         "@heir//lib/Dialect/TensorExt/Transforms:InsertRotate",
