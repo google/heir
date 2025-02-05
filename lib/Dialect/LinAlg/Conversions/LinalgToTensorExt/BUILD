@@ -15,6 +15,8 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
