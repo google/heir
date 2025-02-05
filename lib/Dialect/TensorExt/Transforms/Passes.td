@@ -157,4 +157,29 @@ def AlignTensorSizes : Pass<"align-tensor-sizes"> {
   ];
 }
 
+def LayoutConversionToShiftNetwork : Pass<"layout-conversion-to-shift-network"> {
+  let summary = "Implement tensor_ext.convert_layout ops as shift newtorks";
+
+  let description = [{
+  This pass converts `tensor_ext.convert_layout` ops into a network of
+  `tensor_ext.rotate` ops, aiming to minimize the overall latency of the
+  conversion.
+
+  The method uses graph coloring, an approach based on Vos-Vos-Erkin 2022,
+  ["Efficient Circuits for Permuting and Mapping Packed Values Across Leveled Homomorphic Ciphertexts"](https://link.springer.com/chapter/10.1007/978-3-031-17140-6_20).
+  }];
+
+  let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
+
+  let options = [
+    Option<
+      "ciphertextSize",
+      "ciphertext-size",
+      "int",
+      /*default=*/"1024",
+      "Power of two length of the ciphertexts the data is packed in."
+    >
+  ];
+}
+
 #endif  // LIB_DIALECT_TENSOREXT_TRANSFORMS_PASSES_TD_
