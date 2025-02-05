@@ -34,6 +34,18 @@ void getChebyshevPolynomials(
 ::mlir::heir::polynomial::FloatPolynomial chebyshevToMonomial(
     const ::llvm::SmallVector<::llvm::APFloat> &coefficients);
 
+/// Interpolate Chebyshev coefficients for a given set of points. The values in
+/// chebEvalPoints are assumed to be evaluations of the target function on the
+/// first N+1 Chebyshev points of the second kind, where N is the degree of the
+/// interpolating polynomial. The produced coefficients are stored in the
+/// outparameter outputChebCoeffs.
+///
+/// A port of chebfun vals2coeffs, cf.
+/// https://github.com/chebfun/chebfun/blob/69c12cf75f93cb2f36fd4cfd5e287662cd2f1091/%40ballfun/vals2coeffs.m
+void interpolateChebyshev(
+    ::llvm::ArrayRef<::llvm::APFloat> chebEvalPoints,
+    ::llvm::SmallVector<::llvm::APFloat> &outputChebCoeffs);
+
 }  // namespace approximation
 }  // namespace heir
 }  // namespace mlir

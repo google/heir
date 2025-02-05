@@ -1,10 +1,14 @@
 
 #include <cmath>
+#include <complex>
 #include <cstdint>
+#include <iostream>
+#include <vector>
 
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APFloat.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "pocketfft_hdronly.h"               // from @pocketfft
 
 namespace mlir {
 namespace heir {
@@ -80,6 +84,82 @@ FloatPolynomial chebyshevToMonomial(const SmallVector<APFloat> &coefficients) {
   }
 
   return result;
+}
+
+void interpolateChebyshev(ArrayRef<APFloat> chebEvalPoints,
+                          SmallVector<APFloat> &outputChebCoeffs) {
+  size_t n = chebEvalPoints.size();
+  if (n == 0) {
+    return;
+  }
+  if (n == 1) {
+    outputChebCoeffs.push_back(chebEvalPoints[0]);
+    return;
+  }
+
+  // When the function being evaluated has even or odd symmetry, we can get
+  // coefficients. In particular, even symmetry implies all odd-numbered
+  // Chebyshev coefficients are zero. Odd symmetry implies even-numbered
+  // coefficients are zero.
+  bool isEven =
+      std::equal(chebEvalPoints.begin(), chebEvalPoints.begin() + n / 2,
+                 chebEvalPoints.rbegin());
+
+  bool isOdd = true;
+  for (int i = 0; i < n / 2; ++i) {
+    if (chebEvalPoints[i] != -chebEvalPoints[(n - 1) - i]) {
+      isOdd = false;
+      break;
+    }
+  }
+
+  // Construct input to ifft so as to compute a Discrete Cosine Transform
+  // The inputs are [v_{n-1}, v_{n-2}, ..., v_0, v_1, ..., v_{n-2}]
+  std::vector<std::complex<double>> ifftInput;
+  size_t fftLen = 2 * (n - 1);
+  ifftInput.reserve(fftLen);
+  for (size_t i = n - 1; i > 0; --i) {
+    ifftInput.emplace_back(chebEvalPoints[i].convertToDouble());
+  }
+  for (size_t i = 0; i < n - 1; ++i) {
+    ifftInput.emplace_back(chebEvalPoints[i].convertToDouble());
+  }
+
+  // Compute inverse FFT using minimal API call to pocketfft. This should be
+  // equivalent to numpy.fft.ifft, as it uses pocketfft underneath.
+  std::vector<std::complex<double>> ifftResult(fftLen);
+  pocketfft::shape_t shape{fftLen};
+  pocketfft::stride_t strided{sizeof(std::complex<double>)};
+  pocketfft::shape_t axes{0};
+
+  pocketfft::c2c(shape, strided, strided, axes, pocketfft::BACKWARD,
+                 ifftInput.data(), ifftResult.data(), 1. / fftLen);
+
+  outputChebCoeffs.clear();
+  outputChebCoeffs.reserve(n);
+  for (size_t i = 0; i < n; ++i) {
+    outputChebCoeffs.push_back(APFloat(ifftResult[i].real()));
+  }
+
+  // Due to the endpoint behavior of Chebyshev polynomials and the properties
+  // of the DCT, the non-endpoint coefficients of the DCT are the Chebyshev
+  // coefficients scaled by 2.
+  for (int i = 1; i < n - 1; ++i) {
+    outputChebCoeffs[i] = outputChebCoeffs[i] * APFloat(2.0);
+  }
+
+  // Even/odd corrections
+  if (isEven) {
+    for (size_t i = 1; i < n; i += 2) {
+      outputChebCoeffs[i] = APFloat(0.0);
+    }
+  }
+
+  if (isOdd) {
+    for (size_t i = 0; i < n; i += 2) {
+      outputChebCoeffs[i] = APFloat(0.0);
+    }
+  }
 }
 
 }  // namespace approximation
