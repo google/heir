@@ -69,6 +69,19 @@ void getChebyshevPolynomials(int64_t numPolynomials,
   }
 }
 
+FloatPolynomial chebyshevToMonomial(const SmallVector<APFloat> &coefficients) {
+  SmallVector<FloatPolynomial> chebPolys;
+  chebPolys.reserve(coefficients.size());
+  getChebyshevPolynomials(coefficients.size(), chebPolys);
+
+  FloatPolynomial result = FloatPolynomial::zero();
+  for (int64_t i = 0; i < coefficients.size(); ++i) {
+    result = result.add(chebPolys[i].scale(coefficients[i]));
+  }
+
+  return result;
+}
+
 }  // namespace approximation
 }  // namespace heir
 }  // namespace mlir
