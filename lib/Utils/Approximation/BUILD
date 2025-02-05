@@ -13,6 +13,7 @@ cc_library(
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Support",
+        "@pocketfft",
     ],
 )
 

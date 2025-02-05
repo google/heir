@@ -243,6 +243,12 @@ class PolynomialBase {
     return os.str();
   }
 
+  // Returns a zero polynomial
+  static Derived zero() {
+    SmallVector<Monomial> monomials;
+    return Derived(monomials);
+  }
+
   bool isZero() const { return getTerms().empty(); }
 
   unsigned getDegree() const {
@@ -262,7 +268,8 @@ class PolynomialBase {
 /// A single-variable polynomial with integer coefficients.
 ///
 /// Eg: x^1024 + x + 1
-class IntPolynomial : public PolynomialBase<IntPolynomial, IntMonomial, APInt> {
+class IntPolynomial final
+    : public PolynomialBase<IntPolynomial, IntMonomial, APInt> {
  public:
   explicit IntPolynomial(ArrayRef<IntMonomial> terms) : PolynomialBase(terms) {}
 
@@ -283,7 +290,7 @@ class IntPolynomial : public PolynomialBase<IntPolynomial, IntMonomial, APInt> {
 /// A single-variable polynomial with double coefficients.
 ///
 /// Eg: 1.0 x^1024 + 3.5 x + 1e-05
-class FloatPolynomial
+class FloatPolynomial final
     : public PolynomialBase<FloatPolynomial, FloatMonomial, APFloat> {
  public:
   explicit FloatPolynomial(ArrayRef<FloatMonomial> terms)
