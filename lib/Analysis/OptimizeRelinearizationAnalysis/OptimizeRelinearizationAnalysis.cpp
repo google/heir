@@ -112,8 +112,11 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
     // Except for block arguments, SSA values are created as results of
     // operations. Create one keyBasisDegree variable for each op result.
     std::string varName = "Degree_" + name;
-    for (Value result : op->getResults()) {
+    for (OpResult opResult : op->getOpResults()) {
       // skip secret generic ops
+      Value result = opResult;
+      varName = varName + "_" + std::to_string(opResult.getResultNumber());
+
       if (isa<secret::GenericOp>(op) || !isSecret(result, solver)) {
         continue;
       }
@@ -385,12 +388,14 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
       return;
     }
 
-    for (Value result : op->getResults()) {
+    for (OpResult opResult : op->getResults()) {
+      Value result = opResult;
       auto resultBeforeRelinVar = beforeRelinVars.at(result);
       auto resultAfterRelinVar = keyBasisVars.at(result);
       auto insertRelinOpDecision = decisionVariables.at(op);
       std::string opName = uniqueName(op);
-      std::string ddPrefix = "DecisionDynamics_" + opName;
+      std::string ddPrefix = "DecisionDynamics_" + opName + "_" +
+                             std::to_string(opResult.getResultNumber());
 
       cstName = ddPrefix + "_1";
       model.AddLinearConstraint(resultAfterRelinVar >= insertRelinOpDecision,
