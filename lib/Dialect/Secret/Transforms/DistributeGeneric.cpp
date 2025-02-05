@@ -569,14 +569,24 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       LLVM_DEBUG(opToDistribute->emitRemark()
                  << "Distributing through region holding op isolated in its "
                     "own generic\n");
-      return distributeThroughRegionHoldingOp(op, *opToDistribute, rewriter);
-    }
-
-    if (first) {
-      splitGenericAfterFirstOp(op, rewriter);
+      LogicalResult result =
+          distributeThroughRegionHoldingOp(op, *opToDistribute, rewriter);
+      if (failed(result)) {
+        return failure();
+      }
+    } else if (first) {
+      auto newGeneric = splitGenericAfterFirstOp(op, rewriter);
+      // We must re-run the secretness analysis on the new generic to populate
+      // the secretness of the operations inside the new generic. Since the
+      // generic is new, pre-existing values in the secretness analysis are
+      // unaffected and do not affect the new generic's body.
+      if (failed(solver->initializeAndRun(newGeneric.getOperation()))) {
+        return failure();
+      }
     } else {
       splitGenericBeforeOp(op, *opToDistribute, rewriter);
     }
+
     return success();
   }
 
@@ -585,7 +595,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   DataFlowSolver *solver;
 };
 
-// should be called right before all spilting
+// should be called right before all splitting
 void moveMgmtAttrAnnotationToFuncArgument(Operation *top) {
   top->walk([&](secret::GenericOp genericOp) {
     for (auto i = 0; i != genericOp->getNumOperands(); ++i) {
