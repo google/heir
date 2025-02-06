@@ -118,8 +118,8 @@ int getDimensionFromMgmtAttr(Value value) {
     auto *parentOp = blockArg.getOwner()->getParentOp();
     auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
     if (genericOp) {
-      attr = genericOp.getArgAttr(blockArg.getArgNumber(),
-                                  mgmt::MgmtDialect::kArgMgmtAttrName);
+      attr = genericOp.getOperandAttr(blockArg.getArgNumber(),
+                                      mgmt::MgmtDialect::kArgMgmtAttrName);
     }
   } else {
     auto *parentOp = value.getDefiningOp();
@@ -139,8 +139,8 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
 
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
     for (auto blockArg : genericOp.getBody()->getArguments()) {
-      genericOp.setArgAttr(blockArg.getArgNumber(), "dimension",
-                           getIntegerAttr(getDimension(blockArg, solver)));
+      genericOp.setOperandAttr(blockArg.getArgNumber(), "dimension",
+                               getIntegerAttr(getDimension(blockArg, solver)));
     }
 
     genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {

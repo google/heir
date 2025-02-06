@@ -277,19 +277,24 @@ YieldOp GenericOp::getYieldOp() {
   return *getBody()->getOps<YieldOp>().begin();
 }
 
-GenericOp cloneWithNewResultTypes(GenericOp op, TypeRange newTypes,
-                                  PatternRewriter &rewriter) {
-  return rewriter.create<GenericOp>(
-      op.getLoc(), op.getOperands(), newTypes,
+GenericOp GenericOp::cloneWithNewResultTypes(TypeRange newTypes,
+                                             PatternRewriter &rewriter,
+                                             bool preserveAttrs) {
+  auto newOp = rewriter.create<GenericOp>(
+      getLoc(), getOperands(), newTypes,
       [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
         IRMapping mp;
-        for (BlockArgument blockArg : op.getBody()->getArguments()) {
+        for (BlockArgument blockArg : getBody()->getArguments()) {
           mp.map(blockArg, blockArguments[blockArg.getArgNumber()]);
         }
-        for (auto &op : op.getBody()->getOperations()) {
+        for (auto &op : getBody()->getOperations()) {
           b.clone(op, mp);
         }
       });
+  if (preserveAttrs) {
+    newOp->setAttrs(getOperation()->getAttrs());
+  }
+  return newOp;
 }
 
 std::pair<GenericOp, ValueRange> GenericOp::addNewYieldedValues(
@@ -301,7 +306,7 @@ std::pair<GenericOp, ValueRange> GenericOp::addNewYieldedValues(
         SecretType newTy = secret::SecretType::get(t);
         return newTy;
       }));
-  GenericOp newOp = cloneWithNewResultTypes(*this, newTypes, rewriter);
+  GenericOp newOp = cloneWithNewResultTypes(newTypes, rewriter);
 
   auto newResultStartIter = newOp.getResults().drop_front(
       newOp.getNumResults() - newValuesToYield.size());
@@ -340,7 +345,7 @@ GenericOp GenericOp::removeYieldedValues(ValueRange yieldedValuesToRemove,
         return newTy;
       }));
 
-  return cloneWithNewResultTypes(*this, newResultTypes, rewriter);
+  return cloneWithNewResultTypes(newResultTypes, rewriter);
 }
 
 GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
@@ -371,7 +376,7 @@ GenericOp GenericOp::removeYieldedValues(ArrayRef<int> yieldedIndicesToRemove,
         return newTy;
       }));
 
-  return cloneWithNewResultTypes(*this, newResultTypes, rewriter);
+  return cloneWithNewResultTypes(newResultTypes, rewriter);
 }
 
 GenericOp GenericOp::extractOpBeforeGeneric(Operation *opToExtract,

@@ -40,6 +40,8 @@ func.func @truth_table_partial_secret(%arg0: !secret.secret<i1>) -> !secret.secr
   func.return %0 : !secret.secret<i1>
 }
 
+// -----
+
 // CHECK-NOT: secret
 // CHECK: @truth_table_no_secret([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*>]], [[BOOL1:%.*]]: i1, [[BOOL2:%.*]]: i1) -> [[LWET]]
 func.func @truth_table_no_secret(%arg0: !secret.secret<i1>, %bool1: i1, %bool2: i1) -> !secret.secret<i1> {

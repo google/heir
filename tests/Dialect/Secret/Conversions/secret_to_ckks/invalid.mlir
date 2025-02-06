@@ -2,18 +2,20 @@
 
 // Tests invalid secret types
 
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 // expected-warning@below {{expected secret types to be tensors with dimension matching ring parameter, pass will not pack tensors into ciphertext SIMD slots}}
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
-  func.func @test_invalid_dimension(%arg0 : !secret.secret<tensor<1000xi1>>) -> (!secret.secret<tensor<1000xi1>>) {
+  func.func @test_invalid_dimension(%arg0 : !secret.secret<tensor<1000xi1>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1000xi1>> {mgmt.mgmt = #mgmt}) {
     return %arg0 : !secret.secret<tensor<1000xi1>>
   }
 }
 
 // -----
 
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   // CHECK: test_valid_dimension
-  func.func @test_valid_dimension(%arg0 : !secret.secret<tensor<1024xi1>>) -> (!secret.secret<tensor<1024xi1>>) {
+  func.func @test_valid_dimension(%arg0 : !secret.secret<tensor<1024xi1>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1024xi1>> {mgmt.mgmt = #mgmt}) {
     return %arg0 : !secret.secret<tensor<1024xi1>>
   }
 }
@@ -23,9 +25,10 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
 // Currently we don't support lowering adds on tensors of ciphertexts - the
 // lowering must implement a loop of add operations on each element.
 
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 // expected-warning@below {{expected secret types to be tensors with dimension matching ring parameter, pass will not pack tensors into ciphertext SIMD slots}}
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
-  func.func @test_add_tensor_not_packed(%arg0 : !secret.secret<tensor<1023xf32>>) -> (!secret.secret<tensor<1023xf32>>) {
+  func.func @test_add_tensor_not_packed(%arg0 : !secret.secret<tensor<1023xf32>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1023xf32>> {mgmt.mgmt = #mgmt}) {
     // expected-error@below {{failed to legalize}}
     %0 = secret.generic ins(%arg0 :  !secret.secret<tensor<1023xf32>>) {
       ^bb0(%ARG0 : tensor<1023xf32>):
@@ -42,7 +45,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
 // Currently we don't support lowering adds on tensor.insert on into slots of a single ciphertext.
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
-  func.func @test_tensor_insert_slot(%arg0 : !secret.secret<tensor<1024xf32>> {mgmt.mgmt = #mgmt}, %arg1 : !secret.secret<f32> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1024xf32>>) {
+  func.func @test_tensor_insert_slot(%arg0 : !secret.secret<tensor<1024xf32>> {mgmt.mgmt = #mgmt}, %arg1 : !secret.secret<f32> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1024xf32>> {mgmt.mgmt = #mgmt}) {
     %c0 = arith.constant 0 : index
     // expected-error@below {{failed to legalize}}
     %0 = secret.generic ins(%arg0, %arg1 :  !secret.secret<tensor<1024xf32>>, !secret.secret<f32>) attrs = {mgmt.mgmt = #mgmt} {

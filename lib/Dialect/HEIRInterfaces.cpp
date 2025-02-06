@@ -1,10 +1,16 @@
-// Block clang-format from thinking the header is unused
-// IWYU pragma: begin_keep
 #include "lib/Dialect/HEIRInterfaces.h"
-// IWYU pragma: end_keep
+
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 #include "lib/Dialect/HEIRInterfaces.cpp.inc"
+
+void registerOperandAndResultAttrInterface(DialectRegistry &registry) {
+  registry.addExtension(+[](MLIRContext *ctx, affine::AffineDialect *dialect) {
+    affine::AffineForOp::attachInterface<OperandAndResultAttrInterface>(*ctx);
+  });
 }
+
+}  // namespace heir
 }  // namespace mlir

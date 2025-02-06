@@ -97,8 +97,8 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
         auto *parentOp = blockArg.getOwner()->getParentOp();
         auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
         if (genericOp) {
-          genericOp.setArgAttr(blockArg.getArgNumber(), "noise.bound",
-                               boundStringAttr);
+          genericOp.setOperandAttr(blockArg.getArgNumber(), "noise.bound",
+                                   boundStringAttr);
         }
       } else {
         auto *parentOp = value.getDefiningOp();

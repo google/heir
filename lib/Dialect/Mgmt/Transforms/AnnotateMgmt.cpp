@@ -7,6 +7,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -36,10 +37,10 @@ void annotateMgmtAttr(Operation *top) {
     funcOp->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
       bodyContainsSecretGeneric = true;
       for (auto i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
-        auto levelAttr = genericOp.removeArgAttr(i, "level");
-        auto dimensionAttr = genericOp.removeArgAttr(i, "dimension");
+        auto levelAttr = genericOp.removeOperandAttr(i, "level");
+        auto dimensionAttr = genericOp.removeOperandAttr(i, "dimension");
         auto mgmtAttr = mergeIntoMgmtAttr(levelAttr, dimensionAttr);
-        genericOp.setArgAttr(i, MgmtDialect::kArgMgmtAttrName, mgmtAttr);
+        genericOp.setOperandAttr(i, MgmtDialect::kArgMgmtAttrName, mgmtAttr);
       }
 
       genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
@@ -54,6 +55,18 @@ void annotateMgmtAttr(Operation *top) {
         op->setAttr(MgmtDialect::kArgMgmtAttrName,
                     mergeIntoMgmtAttr(levelAttr, dimensionAttr));
       });
+
+      // Add yielded result as attribute on secret.generic
+      secret::YieldOp yieldOp = genericOp.getYieldOp();
+      for (auto &opOperand : yieldOp->getOpOperands()) {
+        FailureOr<Attribute> attrResult = findAttributeAssociatedWith(
+            opOperand.get(), MgmtDialect::kArgMgmtAttrName);
+
+        if (failed(attrResult)) continue;
+        genericOp.setResultAttr(opOperand.getOperandNumber(),
+                                MgmtDialect::kArgMgmtAttrName,
+                                attrResult.value());
+      }
     });
 
     // handle generic-less function body
@@ -69,6 +82,8 @@ void annotateMgmtAttr(Operation *top) {
       }
     }
   });
+
+  populateOperandAttrInterface(top, MgmtDialect::kArgMgmtAttrName);
 }
 
 struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {

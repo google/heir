@@ -27,10 +27,25 @@ cc_library(
 )
 
 cc_library(
+    name = "AttributeUtils",
+    srcs = ["AttributeUtils.cpp"],
+    hdrs = ["AttributeUtils.h"],
+    deps = [
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "ConversionUtils",
     srcs = ["ConversionUtils.cpp"],
     hdrs = ["ConversionUtils.h"],
     deps = [
+        ":ContextAwareTypeConversion",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -47,6 +62,67 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "ContextAwareConversionUtils",
+    srcs = ["ContextAwareConversionUtils.cpp"],
+    hdrs = ["ContextAwareConversionUtils.h"],
+    deps = [
+        ":ContextAwareDialectConversion",
+        ":ContextAwareTypeConversion",
+        "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Dialect/TfheRust/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FuncTransforms",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFTransforms",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "ContextAwareTypeConversion",
+    srcs = ["ContextAwareTypeConversion.cpp"],
+    hdrs = ["ContextAwareTypeConversion.h"],
+    deps = [
+        ":AttributeUtils",
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "ContextAwareDialectConversion",
+    srcs = ["ContextAwareDialectConversion.cpp"],
+    hdrs = ["ContextAwareDialectConversion.h"],
+    deps = [
+        ":ContextAwareTypeConversion",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
     ],
 )
 

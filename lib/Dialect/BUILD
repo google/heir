@@ -14,6 +14,7 @@ cc_library(
     hdrs = ["HEIRInterfaces.h"],
     deps = [
         ":interfaces_inc_gen",
+        "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:IR",
     ],
 )

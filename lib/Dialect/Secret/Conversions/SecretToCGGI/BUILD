@@ -18,6 +18,8 @@ cc_library(
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Utils:ContextAwareConversionUtils",
+        "@heir//lib/Utils:ContextAwareTypeConversion",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",

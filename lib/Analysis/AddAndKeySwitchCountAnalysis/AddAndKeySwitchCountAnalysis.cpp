@@ -171,11 +171,11 @@ void annotateCount(Operation *top, DataFlowSolver *solver) {
       // only annotate each Value when debugging
       LLVM_DEBUG({
         if (addCount != 0) {
-          genericOp.setArgAttr(i, "addCount", getIntegerAttr(addCount));
+          genericOp.setOperandAttr(i, "addCount", getIntegerAttr(addCount));
         }
         if (keySwitchCount != 0) {
-          genericOp.setArgAttr(i, "keySwitchCount",
-                               getIntegerAttr(keySwitchCount));
+          genericOp.setOperandAttr(i, "keySwitchCount",
+                                   getIntegerAttr(keySwitchCount));
         }
       });
     }

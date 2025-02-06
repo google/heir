@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_TENSOREXT_TRANSFORMS_ALIGNTENSORSIZES_H_
 #define LIB_DIALECT_TENSOREXT_TRANSFORMS_ALIGNTENSORSIZES_H_
 
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
 
 namespace mlir {

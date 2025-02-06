@@ -130,7 +130,7 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
     for (auto i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
       auto blockArg = genericOp.getBody()->getArgument(i);
       auto level = getLevel(blockArg);
-      genericOp.setArgAttr(i, "level", getIntegerAttr(level));
+      genericOp.setOperandAttr(i, "level", getIntegerAttr(level));
     }
 
     genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
@@ -152,8 +152,8 @@ LevelState::LevelType getLevelFromMgmtAttr(Value value) {
     auto *parentOp = blockArg.getOwner()->getParentOp();
     auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
     if (genericOp) {
-      attr = genericOp.getArgAttr(blockArg.getArgNumber(),
-                                  mgmt::MgmtDialect::kArgMgmtAttrName);
+      attr = genericOp.getOperandAttr(blockArg.getArgNumber(),
+                                      mgmt::MgmtDialect::kArgMgmtAttrName);
     }
   } else {
     auto *parentOp = value.getDefiningOp();
