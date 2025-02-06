@@ -13,6 +13,8 @@ class TextualMlirEmitter:
     self.temp_var_id = 0
     self.numba_names_to_ssa_var_names = {}
     self.globals_map = {}
+    # loop_map contains map from [loop header] -> [loop body, next_block]
+    self.loop_map = {}
 
   def emit(self):
     func_name = self.ssa_ir.func_id.func_name
@@ -39,14 +41,55 @@ class TextualMlirEmitter:
     first = True
 
     for block_id, block in sorted(blocks.items()):
+      print("New block " + str(block_id))
       instructions = []
       for instr in block.body:
+        print("\t" + str(instr))
+
+    # FIXME: Iterate once through blocks.items() to build and detect loops
+    # Then iterate through the program, call emit_loop when we reach a loop assignment
+    # Filter out the loop headers and the loop bodys, so we just get the linear program execution
+
+    for block_id, block in sorted(blocks.items()):
+      if block_id in self.loop_map:
+        # This is a loop header, which will define our loop var
+        for instr in block.body:
+          # FIXME: hack, just search for phi
+          if type(instr) == ir.Assign and "phi" in instr.target.name:
+            self.get_or_create_name(instr.target)
+          if type(instr) == ir.Branch:
+            # truebr = loop body, falsebr = loop next
+            self.loop_map[jump.target] = (instr.truebr, instr.falsebr)
+        continue
+
+      instructions = []
+      instr_it = iter(block.body)
+      for instr in instr_it:
+        print("printing " + str(instr))
         result = self.emit_instruction(instr)
         if result:
           instructions.append(result)
+        if result.startswith("affine.for"):
+          # FIXME: Make call to build loop nest with access to blocks
+          # Detect a loop, next three instructions are determined
+          getiter = next(instr_it)
+          assert type(getiter) == ir.Assign
+          phi = next(instr_it)
+          assert type(phi) == ir.Assign
+          jump = next(instr_it)
+          assert type(jump) == ir.Jump
+          # maps loop header to loop body and loop next, FIXME: map to Loop struct
+          self.loop_map[jump.target] = (None, None)
+
+      is_loop_body_or_next = False
+      for (_, val) in self.loop_map.items():
+        if block_id == val[0] or block_id == val[1]:
+          is_loop_body_or_next = True
 
       if first:
         first = False
+        block_header = ""
+      elif is_loop_body_or_next:
         block_header = ""
       else:
         block_header = f"^bb{block_id}:\n"
@@ -65,6 +108,11 @@ class TextualMlirEmitter:
         return self.emit_branch(instr)
       case ir.Return():
         return self.emit_return(instr)
+      case ir.Jump():
+        assert instr.target in self.loop_map
+        # This is the end of a loop body, so emit an affine.yield
+        # FIXME: get loop structure from loop_map and yield the iter_arg
+        return "affine.yield\n}"
     raise NotImplementedError("Unsupported instruction: " + str(instr))
 
   def get_or_create_name(self, var):
@@ -110,6 +158,12 @@ class TextualMlirEmitter:
           # nothing to do, forward the name to the arg of bool()
           self.forward_name(from_var=assign.target, to_var=assign.value.args[0])
           return ""
+        if self.globals_map[func.name] == "range":
+          # range is called, for now just do simple range(x) where x is a const
+          # assign.value.args contains (stop) or (start, stop) or (start, stop, step)
+          assert len(assign.value.args) == 1
+          # assert that there are no 
+          return "affine.for {"
         else:
           raise NotImplementedError("Unknown global " + func.name)
       case ir.Expr(op="cast"):
@@ -125,6 +179,10 @@ class TextualMlirEmitter:
       case ir.Global():
         self.globals_map[assign.target.name] = assign.value.name
         return ""
+      case ir.Var():
+        # FIXME: keep track of loop var, and assign 
+        self.forward_name(from_var=assign.target, to_var=assign.value)
+        return ""
     raise NotImplementedError()
 
   def emit_expr(self, expr):
@@ -134,16 +192,17 @@ class TextualMlirEmitter:
       raise NotImplementedError()
     elif expr.op == "unary":
       raise NotImplementedError()
-
-    # these are all things numba has hooks for upstream, but we didn't implement
-    # in the prototype
-
     elif expr.op == "pair_first":
       raise NotImplementedError()
     elif expr.op == "pair_second":
       raise NotImplementedError()
     elif expr.op in ("getiter", "iternext"):
       raise NotImplementedError()
+
+    # these are all things numba has hooks for upstream, but we didn't implement
+    # in the prototype
+
+
     elif expr.op == "exhaust_iter":
       raise NotImplementedError()
     elif expr.op == "getattr":
