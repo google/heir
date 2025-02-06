@@ -174,7 +174,7 @@ module attributes {scheme.bgv} {
 // CHECK-NOT: SetPlaintextModulus
 module attributes {scheme.ckks} {
   func.func @test_ckks_no_plaintext_modulus() -> !openfhe.crypto_context {
-    %0 = openfhe.gen_params  {insecure = false, mulDepth = 2 : i64, plainMod = 0 : i64} : () -> !openfhe.cc_params
+    %0 = openfhe.gen_params  {insecure = false, mulDepth = 2 : i64, plainMod = 0 : i64, evalAddCount = 0 : i64, keySwitchCount = 0 : i64} : () -> !openfhe.cc_params
     %1 = openfhe.gen_context %0 {supportFHE = false} : (!openfhe.cc_params) -> !openfhe.crypto_context
     return %1 : !openfhe.crypto_context
   }

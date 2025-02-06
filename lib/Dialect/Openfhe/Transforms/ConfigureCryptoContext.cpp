@@ -6,6 +6,7 @@
 #include <string>
 
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
@@ -98,9 +99,21 @@ LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
     }
   }
 
+  // get evalAddCount/KeySwitchCount from func attribute, if present
+  int64_t evalAddCount = 0;
+  int64_t keySwitchCount = 0;
+  if (auto openfheParamsAttr = op->getAttrOfType<mgmt::OpenfheParamsAttr>(
+          mgmt::MgmtDialect::kArgOpenfheParamsAttrName)) {
+    evalAddCount = openfheParamsAttr.getEvalAddCount();
+    keySwitchCount = openfheParamsAttr.getKeySwitchCount();
+    // remove the attribute after reading
+    op->removeAttr(mgmt::MgmtDialect::kArgOpenfheParamsAttrName);
+  }
+
   Type openfheParamsType = openfhe::CCParamsType::get(builder.getContext());
   Value ccParams = builder.create<openfhe::GenParamsOp>(
-      openfheParamsType, mulDepth, plainMod, insecure);
+      openfheParamsType, mulDepth, plainMod, insecure, evalAddCount,
+      keySwitchCount);
   Value cryptoContext = builder.create<openfhe::GenContextOp>(
       openfheContextType, ccParams,
       BoolAttr::get(builder.getContext(), hasBootstrapOp));

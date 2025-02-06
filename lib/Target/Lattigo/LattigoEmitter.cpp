@@ -7,6 +7,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
@@ -564,7 +565,8 @@ void registerToLattigoTranslation() {
       },
       [](DialectRegistry &registry) {
         registry.insert<rns::RNSDialect, arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, lattigo::LattigoDialect>();
+                        tensor::TensorDialect, lattigo::LattigoDialect,
+                        mgmt::MgmtDialect>();
       });
 }
 
