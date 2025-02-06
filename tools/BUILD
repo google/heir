@@ -158,6 +158,7 @@ cc_binary(
         "@llvm-project//mlir:TosaToTensor",
         "@llvm-project//mlir:Transforms",
         "@llvm-project//mlir:UBToLLVM",
+        "@llvm-project//mlir:VectorToLLVM",
     ] + select({
         "@heir//:config_enable_yosys": [
             "@heir//lib/Pipelines:BooleanPipelineRegistration",

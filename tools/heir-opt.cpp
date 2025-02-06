@@ -85,6 +85,7 @@
 #include "mlir/include/mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/UBToLLVM/UBToLLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
@@ -206,6 +207,7 @@ int main(int argc, char **argv) {
   registerConvertMathToLLVMInterface(registry);
   registerConvertMemRefToLLVMInterface(registry);
   ub::registerConvertUBToLLVMInterface(registry);
+  vector::registerConvertVectorToLLVMInterface(registry);
 
   // Misc
   registerTransformsPasses();      // canonicalize, cse, etc.

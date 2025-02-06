@@ -6,7 +6,7 @@ module attributes {tf_saved_model.semantics} {
   func.func @main(%11: tensor<1x1xi8>) -> tensor<1x1xi32> {
     %0 = "tosa.const"() {value = dense<1> : tensor<1xi32>} : () -> tensor<1xi32>
     %1 = "tosa.const"() {value = dense<[[1]]> : tensor<1x1xi8>} : () -> tensor<1x1xi8>
-    %12 = "tosa.fully_connected"(%11, %1, %0) {quantization_info = #tosa.conv_quant<input_zp = -128, weight_zp = 0>} : (tensor<1x1xi8>, tensor<1x1xi8>, tensor<1xi32>) -> tensor<1x1xi32>
+    %12 = "tosa.fully_connected"(%11, %1, %0) {input_zp = -128 : i32, weight_zp = 0 : i32} : (tensor<1x1xi8>, tensor<1x1xi8>, tensor<1xi32>) -> tensor<1x1xi32>
     // CHECK: [[ALLOC:%.*]] = memref.alloc()
     // CHECK-SAME: memref<1x1x32x!tfhe_rust.eui3>
     // CHECK-NOT: comb

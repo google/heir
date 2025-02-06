@@ -7,7 +7,7 @@ module attributes {tf_saved_model.semantics} {
   func.func @fn_under_test(%11: tensor<1x1xi8>) -> tensor<1x1xi32> {
     %0 = "tosa.const"() {value = dense<1> : tensor<1xi32>} : () -> tensor<1xi32>
     %1 = "tosa.const"() {value = dense<[[2]]> : tensor<1x1xi8>} : () -> tensor<1x1xi8>
-    %2 = "tosa.fully_connected"(%11, %1, %0) {quantization_info = #tosa.conv_quant<input_zp = 0, weight_zp = 0>} : (tensor<1x1xi8>, tensor<1x1xi8>, tensor<1xi32>) -> tensor<1x1xi32>
+    %2 = "tosa.fully_connected"(%11, %1, %0) {input_zp = 0 : i32, weight_zp = 0 : i32} : (tensor<1x1xi8>, tensor<1x1xi8>, tensor<1xi32>) -> tensor<1x1xi32>
     return %2 : tensor<1x1xi32>
   }
 }
