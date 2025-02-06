@@ -13,8 +13,6 @@ py_binary(
     data = [
         "@at_clifford_yosys//:yosys",
     ],
-    python_version = "PY3",
-    srcs_version = "PY3",
 )
 
 glob_lit_tests(

@@ -9,8 +9,6 @@ py_binary(
     srcs = [
         "generate_test_cases.py",
     ],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         "@heir_pip_deps_sympy//:pkg",
         "@heir_pip_deps_tomli//:pkg",
