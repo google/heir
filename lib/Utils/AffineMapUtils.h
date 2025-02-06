@@ -46,6 +46,10 @@ template void printPermutation(::llvm::ArrayRef<int64_t>,
                                ::llvm::raw_ostream &);
 template void printPermutation(::llvm::ArrayRef<int64_t>, ::mlir::Diagnostic &);
 
+// Evaluate an affine map on statically known inputs and populate `results`.
+void evaluateStatic(AffineMap map, ArrayRef<int64_t> values,
+                    SmallVector<int64_t> &results);
+
 }  // namespace heir
 }  // namespace mlir
 
