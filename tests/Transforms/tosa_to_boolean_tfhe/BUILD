@@ -22,6 +22,11 @@ glob_lit_tests(
             "notap",
             "manual",
         ],
+        "hello_world_clean_small.mlir": [
+            "nofastbuild",
+            "notap",
+            "manual",
+        ],
     },
     test_file_exts = ["mlir"],
 )
