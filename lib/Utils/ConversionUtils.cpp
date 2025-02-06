@@ -1,14 +1,10 @@
 #include "lib/Utils/ConversionUtils.h"
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <optional>
-#include <string>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -26,9 +22,8 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Verifier.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -42,10 +37,10 @@ LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
                                 Operation *op, ArrayRef<Value> operands,
                                 ConversionPatternRewriter &rewriter) {
   const auto *typeWithAttrTypeConverter =
-      dynamic_cast<const TypeWithAttrTypeConverter *>(typeConverter);
+      dynamic_cast<const AttributeAwareTypeConverter *>(typeConverter);
 
   if (typeWithAttrTypeConverter) {
-    if (typeWithAttrTypeConverter->isOperationLegal(op)) {
+    if (typeWithAttrTypeConverter->isLegal(op)) {
       return failure();
     }
   } else {
@@ -57,10 +52,18 @@ LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
   SmallVector<Type> newOperandTypes;
   SmallVector<Type> newResultTypes;
   if (typeWithAttrTypeConverter) {
-    typeWithAttrTypeConverter->convertOpResultTypes(op, newResultTypes);
-    typeWithAttrTypeConverter->convertValueRangeTypes(op->getOperands(),
-                                                      newOperandTypes);
+    if (failed(typeWithAttrTypeConverter->convertValueRangeTypes(
+            op->getResults(), newResultTypes)))
+      return failure();
 
+    if (failed(typeWithAttrTypeConverter->convertValueRangeTypes(
+            op->getOperands(), newOperandTypes)))
+      return failure();
+
+    if (newOperandTypes == op->getOperandTypes() &&
+        newResultTypes == op->getResultTypes()) {
+      return failure();
+    }
   } else {
     auto result =
         typeConverter->convertTypes(op->getResultTypes(), newResultTypes);
@@ -311,127 +314,14 @@ int widthFromEncodingAttr(Attribute encoding) {
       });
 }
 
-Attribute TypeWithAttrTypeConverter::getValueAttr(Value value) const {
-  Attribute attr;
-  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-    auto *parentOp = blockArg.getOwner()->getParentOp();
-    auto funcOp = dyn_cast<FunctionOpInterface>(parentOp);
-    if (funcOp) {
-      attr = funcOp.getArgAttr(blockArg.getArgNumber(), attrName);
-    }
-  } else {
-    auto *parentOp = value.getDefiningOp();
-    attr = parentOp->getAttr(attrName);
-  }
-  return attr;
-}
-
-void TypeWithAttrTypeConverter::convertValueRangeTypes(
-    ValueRange values, SmallVectorImpl<Type> &newTypes) const {
-  newTypes.reserve(values.size());
-  for (auto value : values) {
-    Attribute attr = getValueAttr(value);
-    auto newType = convertTypeWithAttr(value.getType(), attr);
-    // this is actually unsafe...
-    // all the thing should be done through the rewriter,
-    // if we are using the rewriter
-    value.setType(newType);
-    newTypes.push_back(newType);
-  }
-}
-
-void TypeWithAttrTypeConverter::convertOpResultTypes(
-    Operation *op, SmallVectorImpl<Type> &newResultTypes) const {
-  newResultTypes.reserve(op->getResultTypes().size());
-  auto attr = op->getAttr(attrName);
-  for (auto resultType : op->getResultTypes()) {
-    auto newType = convertTypeWithAttr(resultType, attr);
-    newResultTypes.push_back(newType);
-  }
-}
-
-void TypeWithAttrTypeConverter::convertFuncArgumentAndResultTypes(
-    FunctionOpInterface funcOp, SmallVectorImpl<Type> &newArgTypes,
-    SmallVectorImpl<Type> &newResultTypes) const {
-  for (auto argument : funcOp.getArguments()) {
-    auto attr = funcOp.getArgAttr(argument.getArgNumber(), attrName);
-    auto newType = convertTypeWithAttr(argument.getType(), attr);
-    // this is actually unsafe...
-    // we should go through rewriter.convertRegionTypes,
-    // which will create unresolved_materializaton,
-    // and everything is safe.
-    argument.setType(newType);
-    newArgTypes.push_back(newType);
-  }
-  // did not convert block arg/signature though..
-  for (auto &block : funcOp.getBlocks()) {
-    for (auto result : block.getTerminator()->getOperands()) {
-      auto attr = getValueAttr(result);
-      auto newType = convertTypeWithAttr(result.getType(), attr);
-      result.setType(newType);
-      newResultTypes.push_back(newType);
-    }
-  }
-}
-
-bool TypeWithAttrTypeConverter::isValueLegal(Value value) const {
-  auto attr = getValueAttr(value);
-  return value.getType() == convertTypeWithAttr(value.getType(), attr);
-}
-
-bool TypeWithAttrTypeConverter::isOperationLegal(Operation *op) const {
-  for (auto operand : op->getOperands()) {
-    if (!isValueLegal(operand)) {
-      return false;
-    }
-  }
-  for (auto result : op->getResults()) {
-    if (!isValueLegal(result)) {
-      return false;
-    }
-  }
-  for (auto &region : op->getRegions()) {
-    for (auto &block : region) {
-      for (auto argument : block.getArguments()) {
-        if (!isValueLegal(argument)) {
-          return false;
-        }
-      }
-      for (auto result : block.getTerminator()->getOperands()) {
-        if (!isValueLegal(result)) {
-          return false;
-        }
-      }
-    }
-  }
-  return true;
-}
-
-bool TypeWithAttrTypeConverter::isFuncArgumentAndResultLegal(
-    FunctionOpInterface funcOp) {
-  for (auto argument : funcOp.getArguments()) {
-    if (!isValueLegal(argument)) {
-      return false;
-    }
-  }
-  for (auto &block : funcOp.getBlocks()) {
-    for (auto result : block.getTerminator()->getOperands()) {
-      if (!isValueLegal(result)) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
 FailureOr<Value> getContextualArgFromFunc(Operation *op, Type argType) {
-  for (auto block_arg : op->getParentOfType<func::FuncOp>()
-                            .getBody()
-                            .getBlocks()
-                            .front()
-                            .getArguments()) {
-    if (block_arg.getType() == argType) {
-      return block_arg;
+  for (auto blockArg : op->getParentOfType<func::FuncOp>()
+                           .getBody()
+                           .getBlocks()
+                           .front()
+                           .getArguments()) {
+    if (blockArg.getType() == argType) {
+      return blockArg;
     }
   }
   return failure();

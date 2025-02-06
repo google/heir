@@ -2,17 +2,19 @@
 
 // Tests invalid secret types
 
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 // expected-warning@below {{expected secret types to be tensors with dimension matching ring parameter, pass will not pack tensors into ciphertext SIMD slots}}
 module {
-  func.func @test_invalid_dimension(%arg0 : !secret.secret<tensor<1000xi1>>) -> (!secret.secret<tensor<1000xi1>>) {
+  func.func @test_invalid_dimension(%arg0 : !secret.secret<tensor<1000xi1>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1000xi1>>) {
     return %arg0 : !secret.secret<tensor<1000xi1>>
   }
 }
 
 // -----
 
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 // CHECK: test_valid_dimension
-func.func @test_valid_dimension(%arg0 : !secret.secret<tensor<1024xi1>>) -> (!secret.secret<tensor<1024xi1>>) {
+func.func @test_valid_dimension(%arg0 : !secret.secret<tensor<1024xi1>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1024xi1>>) {
   return %arg0 : !secret.secret<tensor<1024xi1>>
 }
 
@@ -21,10 +23,12 @@ func.func @test_valid_dimension(%arg0 : !secret.secret<tensor<1024xi1>>) -> (!se
 // Currently we don't support lowering adds on tensors of ciphertexts - the
 // lowering must implement a loop of add operations on each element.
 
+#mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 // expected-warning@below {{expected secret types to be tensors with dimension matching ring parameter, pass will not pack tensors into ciphertext SIMD slots}}
 module {
-  func.func @test_add_tensor_not_packed(%arg0 : !secret.secret<tensor<1023xf32>>) -> (!secret.secret<tensor<1023xf32>>) {
-    // expected-error@below {{failed to legalize}}
+  // expected-error@below {{failed to legalize}}
+  // expected-error@below {{Failed to convert function signature}}
+  func.func @test_add_tensor_not_packed(%arg0 : !secret.secret<tensor<1023xf32>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1023xf32>>) {
     %0 = secret.generic ins(%arg0 :  !secret.secret<tensor<1023xf32>>) {
       ^bb0(%ARG0 : tensor<1023xf32>):
         %1 = arith.addf %ARG0, %ARG0 : tensor<1023xf32>

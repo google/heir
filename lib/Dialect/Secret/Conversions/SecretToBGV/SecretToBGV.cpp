@@ -24,6 +24,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Parameters/BGV/Params.h"
+#include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
@@ -89,12 +90,14 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 
 }  // namespace
 
-class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
+class SecretToBGVTypeConverter
+    : public UniquelyNamedAttributeAwareTypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
                            ::mlir::heir::polynomial::RingAttr rlweRing,
                            int64_t ptm)
-      : TypeWithAttrTypeConverter(mgmt::MgmtDialect::kArgMgmtAttrName) {
+      : UniquelyNamedAttributeAwareTypeConverter(
+            mgmt::MgmtDialect::kArgMgmtAttrName) {
     ring = rlweRing;
     plaintextModulus = ptm;
 
@@ -133,10 +136,8 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
         lwe::ModulusChainAttr::get(ctx, moduliChain, level));
   }
 
-  Type convertTypeWithAttr(Type type, Attribute attr) const override {
-    auto secretTy = dyn_cast<secret::SecretType>(type);
-    // guard against null attribute
-    if (secretTy && attr) {
+  FailureOr<Type> convert(Type type, Attribute attr) const override {
+    if (auto secretTy = dyn_cast<secret::SecretType>(type)) {
       auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr);
       if (mgmtAttr) {
         return convertSecretTypeWithMgmtAttr(secretTy, mgmtAttr);
@@ -284,9 +285,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     target.addIllegalDialect<secret::SecretDialect>();
     target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
     target.addIllegalOp<secret::GenericOp>();
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isFuncArgumentAndResultLegal(op);
-    });
+    target.addDynamicallyLegalOp<func::FuncOp>(
+        [&](func::FuncOp op) { return typeConverter.isLegal(op); });
 
     patterns.add<
         ConvertFuncWithContextAwareTypeConverter,
