@@ -167,6 +167,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
         builder.setInsertionPoint(op);
         AssignLayoutOp assignLayoutOp = builder.create<AssignLayoutOp>(
             op->getLoc(), operand, AffineMapAttr::get(layout.value()));
+        assignLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                                AffineMapAttr::get(layout.value()));
         Value toReplace = assignLayoutOp.getResult();
         // This may create duplicate layout assignment ops, and we expect CSE
         // to later clean them up. Otherwise we risk replacing a use of the
@@ -254,7 +256,8 @@ LogicalResult LayoutPropagation::visitOperation(GenericOp op) {
     BlockArgument blockArg =
         op.getRegion().getArgument(operand.getOperandNumber());
     assignedLayouts.insert({blockArg, layout});
-    op.setOperandAttr(operand.getOperandNumber(), "layout",
+    op.setOperandAttr(operand.getOperandNumber(),
+                      tensor_ext::TensorExtDialect::kLayoutAttrName,
                       AffineMapAttr::get(layout));
     debugAssignLayout(blockArg, layout);
   }
@@ -636,7 +639,8 @@ void LayoutPropagation::setResultLayoutAttr(Operation *op) {
   SmallVector<AffineMap> resultLayouts = llvm::map_to_vector(
       op->getResults(),
       [&](Value result) { return assignedLayouts.at(result); });
-  op->setAttr("layout", builder.getAffineMapArrayAttr(resultLayouts));
+  op->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+              builder.getAffineMapArrayAttr(resultLayouts));
 }
 
 void LayoutPropagation::runOnOperation() {

@@ -59,16 +59,27 @@ Attribute findAttributeForResult(Value result, StringRef attrName) {
   assert(parentOp &&
          "Missing defining op, but the input value is not a BlockArgument. "
          "This is madness.");
+  int resultNumber = cast<OpResult>(result).getResultNumber();
 
   return llvm::TypeSwitch<Operation *, Attribute>(parentOp)
       .Case<OperandAndResultAttrInterface>([&](auto op) -> Attribute {
-        int resultNumber = cast<OpResult>(result).getResultNumber();
-        if (resultNumber == -1) return nullptr;
         Attribute attr = op.getResultAttr(resultNumber, attrName);
         if (attr) return attr;
         return op->getAttr(attrName);
       })
-      .Default([&](Operation *op) { return op->getAttr(attrName); });
+      .Default([&](Operation *op) {
+        Attribute attr = op->getAttr(attrName);
+        // Some ops store the relevant attribute as an array attr with a name
+        // (e.g., "tensor_ext.layout" being an array of layout attrs for a
+        // multi-result op. In this case, we assert the array entries match
+        // with operation results, and return the relevant entry.
+        if (auto arrayAttr = dyn_cast_or_null<ArrayAttr>(attr)) {
+          assert(arrayAttr.size() == op->getNumResults() &&
+                 "Array attr does not match number of results");
+          return arrayAttr[resultNumber];
+        }
+        return attr;
+      });
 }
 
 FailureOr<Attribute> findAttributeAssociatedWith(Value value,
@@ -95,6 +106,7 @@ void clearAttrs(Operation *op, StringRef attrName) {
           for (auto i = 0; i != op.getNumResults(); ++i) {
             op.removeResultAttr(i, StringAttr::get(op->getContext(), attrName));
           }
+          op->removeAttr(attrName);
         })
         .Case<OperandAndResultAttrInterface>([&](auto op) {
           for (auto i = 0; i != op->getNumOperands(); ++i) {

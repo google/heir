@@ -23,6 +23,8 @@ typedef std::function<bool(const Type &)> TypePredicate;
 
 typedef std::function<bool(Dialect *)> DialectPredicate;
 
+using IndexTupleConsumer = std::function<void(const std::vector<int64_t> &)>;
+
 template <typename... OpTys>
 OpPredicate OpEqual() {
   return [](Operation *op) { return mlir::isa<OpTys...>(op); };
@@ -101,6 +103,21 @@ template <typename... TypeTys>
 bool containsArgumentOfType(Operation *op) {
   return containsArgumentOfType(op, TypeEqual<TypeTys...>());
 }
+
+// A helper to iterate over the space of indices of a multidimensional tensor
+// whose shape is given by `shape`, passing each index tuple visited to
+// `process`.
+//
+// If fixedIndices and fixedIndexValues are nonempty, iterate over the
+// remaining indices and always populate the index tuple provided to
+// `process` with these fixed index values.
+//
+// E.g., if shape is {2, 3, 4}, fixedIndices is {1}, and fixedIndexValues is
+// {2}, then this will iterate over the first and third dimensions in the usual
+// order, but dimension 1 will always be 2.
+void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
+                    ArrayRef<int64_t> fixedIndices = {},
+                    ArrayRef<int64_t> fixedIndexValues = {});
 
 }  // namespace heir
 }  // namespace mlir
