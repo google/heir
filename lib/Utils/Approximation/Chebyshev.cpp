@@ -126,7 +126,17 @@ void interpolateChebyshev(ArrayRef<APFloat> chebEvalPoints,
   }
 
   // Compute inverse FFT using minimal API call to pocketfft. This should be
-  // equivalent to numpy.fft.ifft, as it uses pocketfft underneath.
+  // equivalent to numpy.fft.ifft, as it uses pocketfft underneath. It's worth
+  // noting here that we're computing the Discrete Cosine Transform (DCT) in
+  // terms of a complex Discrete Fourier Transform (DFT), but pocketfft appears
+  // to have a built-in `dct` function. It may be trivial to switch to
+  // pocketfft::dct, but this was originally based on a reference
+  // implementation that did not have access to a native DCT. Migrating to a
+  // DCT should only be necessary (a) once the reference implementation is
+  // fully ported and tested, and (b) if we determine that there's a
+  // performance benefit to using the native DCT. Since this routine is
+  // expected to be used in doing relatively low-degree approximations, it
+  // probably won't be a problem.
   std::vector<std::complex<double>> ifftResult(fftLen);
   pocketfft::shape_t shape{fftLen};
   pocketfft::stride_t strided{sizeof(std::complex<double>)};
