@@ -65,7 +65,7 @@ def TfheRust_CiphertextType :
     TfheRust_EncryptedInt256,
   ]>;
 
-def TfheRust_CiphertextLikeType : TypeOrContainer<TfheRust_CiphertextType, "tfhe-ciphertext-like">;
+def TfheRust_CiphertextLikeType : TypeOrValueSemanticsContainer<TfheRust_CiphertextType, "tfhe-ciphertext-like">;
 
 def TfheRust_ServerKey : TfheRust_Type<"ServerKey", "server_key", [PassByReference]> {
   let summary = "The short int server key required to perform homomorphic operations.";

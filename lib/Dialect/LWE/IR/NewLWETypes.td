@@ -53,7 +53,7 @@ def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext"> {
   let nameSuggestion = "pt";
 }
 
-def NewLWEPlaintextLike : TypeOrContainer<NewLWEPlaintext, "new-lwe-plaintext-like">;
+def NewLWEPlaintextLike : TypeOrValueSemanticsContainer<NewLWEPlaintext, "new-lwe-plaintext-like">;
 
 def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext"> {
   let summary = "A ciphertext type";
@@ -80,6 +80,6 @@ def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext"> {
   let nameSuggestion = "ct";
 }
 
-def NewLWECiphertextLike : TypeOrContainer<NewLWECiphertext, "new-lwe-ciphertext-like">;
+def NewLWECiphertextLike : TypeOrValueSemanticsContainer<NewLWECiphertext, "new-lwe-ciphertext-like">;
 
 #endif  // LIB_DIALECT_LWE_IR_NEWLWETYPES_TD_

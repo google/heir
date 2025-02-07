@@ -52,6 +52,6 @@ def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeI
   let assemblyFormat = "`<` $modulus `>`";
 }
 
-def ModArithLike: TypeOrContainer<ModArith_ModArithType, "mod_arith-like">;
+def ModArithLike: TypeOrValueSemanticsContainer<ModArith_ModArithType, "mod_arith-like">;
 
 #endif  // LIB_TYPES_MODARITH_IR_MODARITHTYPES_TD_

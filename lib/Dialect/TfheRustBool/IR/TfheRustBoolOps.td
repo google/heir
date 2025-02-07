@@ -31,7 +31,7 @@ def CreateTrivialOp : TfheRustBool_Op<"create_trivial", [Pure]> {
 }
 
 // --- Operations for a gate-bootstrapping API of a CGGI library ---
-def TfheRustBoolLike : TypeOrContainer<TfheRustBool_Encrypted, "eb-like">;
+def TfheRustBoolLike : TypeOrValueSemanticsContainer<TfheRustBool_Encrypted, "eb-like">;
 
 class TfheRustBool_BinaryGateOp<string mnemonic>
   : TfheRustBool_Op<mnemonic, [

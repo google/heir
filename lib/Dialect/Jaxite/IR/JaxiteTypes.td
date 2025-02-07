@@ -28,7 +28,7 @@ def Jaxite_PmapLut3Tuple : Jaxite_Type<"PmapLut3Tuple", "pmap_lut3_tuple"> {
   let summary = "A tuple of pmap_lut3 args.";
 }
 
-def Jaxite_PmapLut3Tuples : TypeOrContainer<Jaxite_PmapLut3Tuple, "pmap_lut3_tuples">;
+def Jaxite_PmapLut3Tuples : TypeOrValueSemanticsContainer<Jaxite_PmapLut3Tuple, "pmap_lut3_tuples">;
 
 
 #endif  // LIB_DIALECT_JAXITE_IR_JAXITETYPES_TD_
