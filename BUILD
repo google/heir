@@ -35,7 +35,7 @@ string_flag(
 config_setting(
     name = "config_enable_openmp",
     flag_values = {
-        "//:enable_openmp": "1",
+        ":enable_openmp": "1",
     },
     visibility = ["//visibility:public"],
 )
@@ -43,7 +43,7 @@ config_setting(
 config_setting(
     name = "config_disable_openmp",
     flag_values = {
-        "//:enable_openmp": "0",
+        ":enable_openmp": "0",
     },
     visibility = ["//visibility:public"],
 )
