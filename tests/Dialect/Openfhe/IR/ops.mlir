@@ -70,6 +70,20 @@ module {
     %out = openfhe.add %cc, %c1, %c2: (!cc, !ct, !ct) -> !ct
     return
   }
+  // CHECK-LABEL: func @test_inplace_add
+  func.func @test_inplace_add(%cc: !cc, %pt : !pt, %pk : !pk) {
+    %c1 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
+    %c2 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
+    openfhe.add_inplace %cc, %c1, %c2: (!cc, !ct, !ct) -> ()
+    return
+  }
+  // CHECK-LABEL: func @test_inplace_sub
+  func.func @test_inplace_sub(%cc: !cc, %pt : !pt, %pk : !pk) {
+    %c1 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
+    %c2 = openfhe.encrypt %cc, %pt, %pk : (!cc, !pt, !pk) -> !ct
+    openfhe.sub_inplace %cc, %c1, %c2: (!cc, !ct, !ct) -> ()
+    return
+  }
 
   // CHECK-LABEL: func @test_sub
   func.func @test_sub(%cc : !cc, %pt : !pt, %pk: !pk) {
