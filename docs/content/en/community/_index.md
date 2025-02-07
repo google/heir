@@ -17,7 +17,9 @@ async discussions. For informal chat, join the
 channel. {{% /blocks/feature %}}
 
 {{% blocks/feature icon="fa fa-people-group" title="Meet" %}} Join our open
-design meetings to discuss project direction (see calendar below). {{%
+design meetings to discuss project direction (see calendar below). Meeting
+recordings are posted on the
+[HEIR YouTube channel](https://www.youtube.com/@HEIRCompiler). {{%
 /blocks/feature %}}
 
 {{% /blocks/section %}}

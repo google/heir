@@ -16,6 +16,7 @@ submit a pull request
 ## MLIR tutorials
 
 - [MLIR for Beginners by Jeremy Kun](https://github.com/j2kun/mlir-tutorial/)
+- [YouTube playlist of useful MLIR talks for HEIR developers](https://www.youtube.com/playlist?list=PLv9xz1VZ_qfFqpSAEgay96kxEGS81_NYq)
 
 ## FHE math
 
