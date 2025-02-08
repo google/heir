@@ -17,6 +17,12 @@ def TensorExt_Dialect : Dialect {
     "tensor::TensorDialect",
   ];
 
+  let extraClassDeclaration = [{
+    constexpr const static ::llvm::StringLiteral
+        kLayoutAttrName = "tensor_ext.layout";
+  }];
+
+
   let useDefaultAttributePrinterParser = 1;
 }
 

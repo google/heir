@@ -14,3 +14,8 @@ func.func @test_convert_layout(%0: tensor<16x16xi32>) -> tensor<16x16xi32> {
   %1 = tensor_ext.convert_layout %0 {from_layout = #row_major, to_layout = #col_major} : tensor<16x16xi32>
   return %1 : tensor<16x16xi32>
 }
+
+func.func @test_assign_layout(%0: tensor<16x16xi32>) -> tensor<16x16xi32> {
+  %1 = tensor_ext.assign_layout %0 {layout = #row_major} : tensor<16x16xi32>
+  return %1 : tensor<16x16xi32>
+}

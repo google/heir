@@ -1,12 +1,20 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 
+#include <cstdint>
+#include <string>
+
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
 namespace mlir {
@@ -37,26 +45,42 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-LogicalResult ConvertLayoutOp::verify() {
-  int64_t rank = cast<RankedTensorType>(getTensor().getType()).getRank();
-  const AffineMap &fromLayout = getFromLayout().getValue();
-  const AffineMap &toLayout = getToLayout().getValue();
+LogicalResult verifyLayoutMatchesType(const AffineMap &layout, Type type,
+                                      Operation *op) {
+  int64_t rank = cast<ShapedType>(type).getRank();
+  if (rank != layout.getNumDims()) {
+    std::string layoutStr;
+    llvm::raw_string_ostream os(layoutStr);
+    layout.print(os);
 
-  if (rank != fromLayout.getNumDims() || rank != toLayout.getNumDims()) {
-    std::string fromLayoutStr, toLayoutStr;
-    llvm::raw_string_ostream fromLayoutStream(fromLayoutStr),
-        toLayoutStream(toLayoutStr);
-    fromLayout.print(fromLayoutStream);
-    toLayout.print(toLayoutStream);
-
-    return emitOpError()
+    return op->emitOpError()
            << "requires tensor rank to match the layout map's dimension count"
-              "but found rank "
-           << rank << " and maps " << fromLayoutStream.str() << " and "
-           << toLayoutStream.str();
+              " but found rank "
+           << rank << " and map " << os.str();
   }
 
   return success();
+}
+
+LogicalResult ConvertLayoutOp::verify() {
+  LogicalResult inputVerification = verifyLayoutMatchesType(
+      getFromLayout().getValue(), getTensor().getType(), *this);
+  if (failed(inputVerification)) {
+    return inputVerification;
+  }
+
+  LogicalResult outputVerification = verifyLayoutMatchesType(
+      getToLayout().getValue(), getResult().getType(), *this);
+  if (failed(outputVerification)) {
+    return outputVerification;
+  }
+
+  return success();
+}
+
+LogicalResult AssignLayoutOp::verify() {
+  return verifyLayoutMatchesType(getLayout().getValue(), getTensor().getType(),
+                                 *this);
 }
 
 }  // namespace tensor_ext
