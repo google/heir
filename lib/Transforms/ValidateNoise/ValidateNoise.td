@@ -34,6 +34,11 @@ def ValidateNoise : Pass<"validate-noise"> {
     Noise Bound: 29.27 Budget: 149.73 Total: 179.00 for value: <block argument> of type 'tensor<8xi16>' at index: 1
     ```
   }];
+
+  let dependentDialects = [
+    "mlir::heir::bgv::BGVDialect",
+  ];
+
   let options = [
     Option<"model", "model", "std::string",
            /*default=*/"", "Noise model to validate against.">,

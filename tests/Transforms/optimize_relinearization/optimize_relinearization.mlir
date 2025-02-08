@@ -213,3 +213,19 @@ func.func @rotation_needs_linear_inputs(%arg0: tensor<8xi16>, %arg1: tensor<8xi1
   %7 = arith.addi %1, %6 : tensor<8xi16>
   func.return %7 : tensor<8xi16>
 }
+
+// CHECK-LABEL: func.func @modreduce_needs_linear_inputs
+// CHECK: secret.generic
+// CHECK: arith.muli
+// CHECK-NEXT: arith.muli
+// CHECK-NEXT: arith.subi
+// CHECK-NEXT: mgmt.relinearize
+// CHECK-NEXT: mgmt.modreduce
+// CHECK-NEXT: secret.yield
+func.func @modreduce_needs_linear_inputs(%a: i64, %b: i64) -> (i64) {
+    %0 = arith.muli %a, %a : i64
+    %1 = arith.muli %b, %b : i64
+    %2 = arith.subi %0, %1 : i64
+    %ret = mgmt.modreduce %2 : i64
+    func.return %ret : i64
+}

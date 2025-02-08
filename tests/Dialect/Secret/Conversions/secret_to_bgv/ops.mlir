@@ -21,7 +21,7 @@ module {
     } -> !eui1
     // CHECK: return
     // CHECK-SAME: message_type = tensor<1024xi1>
-    // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: polynomialModulus = <1 + x**1024>
     // CHECK-SAME: size = 3
     return %1 : !eui1
   }

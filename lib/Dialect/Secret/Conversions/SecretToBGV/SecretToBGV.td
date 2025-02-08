@@ -32,9 +32,6 @@ def SecretToBGV : Pass<"secret-to-bgv"> {
     Option<"polyModDegree", "poly-mod-degree", "int",
            /*default=*/"1024", "Default degree of the cyclotomic polynomial "
            "modulus to use for ciphertext space.">,
-    Option<"coefficientModBits", "coefficient-mod-bits", "int",
-           /*default=*/"29", "Default number of bits of the prime "
-           "coefficient modulus to use " "for the ciphertext space.">
   ];
 }
 

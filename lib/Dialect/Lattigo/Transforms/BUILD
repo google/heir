@@ -21,6 +21,7 @@ cc_library(
     hdrs = ["ConfigureCryptoContext.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",

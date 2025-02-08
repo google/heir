@@ -28,6 +28,7 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
+#include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"     // from @llvm-project
@@ -149,6 +150,23 @@ void mlirToRLWEPipeline(OpPassManager &pm,
 
   // Optimize relinearization at mgmt dialect level
   pm.addPass(createOptimizeRelinearization());
+
+  // IR is stable now, compute scheme param
+  switch (scheme) {
+    case RLWEScheme::bgvScheme: {
+      auto validateNoiseOptions = ValidateNoiseOptions{};
+      validateNoiseOptions.model = options.noiseModel;
+      validateNoiseOptions.plaintextModulus = options.plaintextModulus;
+      pm.addPass(createValidateNoise(validateNoiseOptions));
+      break;
+    }
+    case RLWEScheme::ckksScheme: {
+      break;
+    }
+    default:
+      llvm::errs() << "Unsupported RLWE scheme: " << scheme;
+      exit(EXIT_FAILURE);
+  }
 
   // Prepare to lower to RLWE Scheme
   pm.addPass(secret::createSecretDistributeGeneric());

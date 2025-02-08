@@ -23,6 +23,19 @@ class SchemeParam {
         dnum(dnum),
         logpi(logpi) {}
 
+  SchemeParam(int ringDim, int64_t plaintextModulus, int level,
+              const std::vector<double> &logqi, const std::vector<int64_t> &qi,
+              int dnum, const std::vector<double> &logpi,
+              const std::vector<int64_t> &pi)
+      : ringDim(ringDim),
+        plaintextModulus(plaintextModulus),
+        level(level),
+        logqi(logqi),
+        qi(qi),
+        dnum(dnum),
+        logpi(logpi),
+        pi(pi) {}
+
  private:
   // the N in Z[X]/(X^N+1)
   int ringDim;
@@ -39,6 +52,8 @@ class SchemeParam {
   // logarithm of the modulus of each level
   // logqi.size() == level + 1
   std::vector<double> logqi;
+  // modulus of each level
+  std::vector<int64_t> qi;
 
   // The following part is for HYBRID key switching technique
 
@@ -49,14 +64,18 @@ class SchemeParam {
   int dnum;
   // logarithm of the special modulus
   std::vector<double> logpi;
+  // special modulus
+  std::vector<int64_t> pi;
 
  public:
   int getRingDim() const { return ringDim; }
   int64_t getPlaintextModulus() const { return plaintextModulus; }
   int getLevel() const { return level; }
   const std::vector<double> &getLogqi() const { return logqi; }
+  const std::vector<int64_t> &getQi() const { return qi; }
   int getDnum() const { return dnum; }
   const std::vector<double> &getLogpi() const { return logpi; }
+  const std::vector<int64_t> &getPi() const { return pi; }
   double getStd0() const { return std0; }
 
   void print(llvm::raw_ostream &os) const;
@@ -69,6 +88,9 @@ class SchemeParam {
 
   static SchemeParam getConservativeSchemeParam(int level,
                                                 int64_t plaintextModulus);
+
+  static SchemeParam getConcreteSchemeParam(int64_t plaintextModulus,
+                                            std::vector<double> logqi);
 };
 
 // Parameter for each BGV ciphertext SSA value.

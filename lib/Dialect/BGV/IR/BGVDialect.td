@@ -13,7 +13,14 @@ def BGV_Dialect : Dialect {
     The BGV dialect defines the types and operations of the BGV cryptosystem.
   }];
 
+  let extraClassDeclaration = [{
+    constexpr const static ::llvm::StringLiteral
+        kSchemeParamAttrName = "bgv.schemeParam";
+  }];
+
   let cppNamespace = "::mlir::heir::bgv";
+
+  let useDefaultAttributePrinterParser = 1;
 }
 
 #endif  // LIB_DIALECT_BGV_IR_BGVDIALECT_TD_

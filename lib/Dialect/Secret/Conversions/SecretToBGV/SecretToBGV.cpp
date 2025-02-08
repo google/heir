@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
@@ -21,11 +22,11 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Parameters/BGV/Params.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -35,7 +36,6 @@
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -50,12 +50,9 @@ namespace {
 
 // Returns an RLWE RNS ring given the specified number of bits needed and
 // polynomial modulus degree.
-// TODO(#536): Integrate a general library to compute appropriate prime moduli
-// given any number of bits.
-FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext *ctx,
-                                               int currentLevel,
-                                               int coefficientModBits,
-                                               int polyModDegree) {
+FailureOr<polynomial::RingAttr> getRlweRNSRing(
+    MLIRContext *ctx, const std::vector<int64_t> &primes, int polyModDegree) {
+  // monomial
   std::vector<::mlir::heir::polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
@@ -63,15 +60,16 @@ FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext *ctx,
       ::mlir::heir::polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
   ::mlir::heir::polynomial::IntPolynomial xnPlusOne = result.value();
-  // all 40 bit primes...
-  std::vector<int64_t> primes = {1095233372161, 1032955396097, 1005037682689,
-                                 998595133441,  972824936449,  959939837953};
+
+  // moduli chain
   SmallVector<Type, 4> modTypes;
-  for (int i = 0; i <= currentLevel; i++) {
+  for (long prime : primes) {
     auto type = IntegerType::get(ctx, 64);
     modTypes.push_back(
-        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, primes[i])));
+        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, prime)));
   }
+
+  // types
   auto rnsType = rns::RNSType::get(ctx, modTypes);
   return ::mlir::heir::polynomial::RingAttr::get(
       rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
@@ -92,9 +90,11 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
-                           ::mlir::heir::polynomial::RingAttr rlweRing)
+                           ::mlir::heir::polynomial::RingAttr rlweRing,
+                           int64_t ptm)
       : TypeWithAttrTypeConverter(mgmt::MgmtDialect::kArgMgmtAttrName) {
     ring = rlweRing;
+    plaintextModulus = ptm;
 
     // isLegal/isSignatureLegal will always be true
     addConversion([](Type type) { return type; });
@@ -106,14 +106,13 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
     auto dimension = mgmtAttr.getDimension();
 
     auto *ctx = type.getContext();
-    // TODO(#661) : Calculate the appropriate values by analyzing the function
     auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
         type.getContext(),
         mod_arith::ModArithType::get(
-            ctx, IntegerAttr::get(IntegerType::get(ctx, 64), 4295294977)),
+            ctx, IntegerAttr::get(IntegerType::get(ctx, 64), plaintextModulus)),
         ring.getPolynomialModulus());
 
-    SmallVector<IntegerAttr, 6> moduliChain;
+    SmallVector<IntegerAttr> moduliChain;
     for (auto modArithType :
          cast<rns::RNSType>(ring.getCoefficientType()).getBasisTypes()) {
       auto modulus = cast<mod_arith::ModArithType>(modArithType).getModulus();
@@ -146,6 +145,7 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
 
  private:
   ::mlir::heir::polynomial::RingAttr ring;
+  int64_t plaintextModulus;
 };
 
 LogicalResult disallowFloatlike(const Type &type) {
@@ -161,6 +161,24 @@ LogicalResult disallowFloatlike(const Type &type) {
 struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
   using SecretToBGVBase::SecretToBGVBase;
 
+  // assume only one main func
+  // also assume max level at entry
+  int getMaxLevel() {
+    int maxLevel = 0;
+    getOperation()->walk([&](func::FuncOp funcOp) {
+      // get mgmtattr from funcop argument
+      for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
+        auto mgmtAttr =
+            funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
+        if (mgmtAttr) {
+          maxLevel = cast<mgmt::MgmtAttr>(mgmtAttr).getLevel();
+          break;
+        }
+      }
+    });
+    return maxLevel;
+  }
+
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
@@ -168,9 +186,37 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     // Helper for future lowerings that want to know what scheme was used
     module->setAttr(kBGVSchemeAttrName, UnitAttr::get(context));
 
-    auto maxLevel = 5;
-    auto rlweRing =
-        getRlweRNSRing(context, maxLevel, coefficientModBits, polyModDegree);
+    // generate scheme parameters
+    auto maxLevel = getMaxLevel();
+    std::vector<double> logPrimes;
+    for (int i = 0; i < maxLevel + 1; i++) {
+      logPrimes.push_back(45);  // all primes of 45 bits
+    }
+
+    // TODO(#661) : Calculate the appropriate values by analyzing the function
+    int64_t plaintextModulus = 4295294977;
+
+    // fallback parameters
+    auto schemeParam =
+        bgv::SchemeParam::getConcreteSchemeParam(plaintextModulus, logPrimes);
+
+    std::vector<int64_t> primes = schemeParam.getQi();
+
+    // Use previously computed ring parameters
+    if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
+            bgv::BGVDialect::kSchemeParamAttrName)) {
+      // NOTE: 2 ** logN != polyModDegree
+      // they have different semantic
+      // auto logN = schemeParamAttr.getLogN();
+      auto Q = schemeParamAttr.getQ();
+      primes.clear();
+      for (auto prime : Q.asArrayRef()) {
+        primes.push_back(prime);
+      }
+      plaintextModulus = schemeParamAttr.getPlaintextModulus();
+    }
+
+    auto rlweRing = getRlweRNSRing(context, primes, polyModDegree);
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
@@ -217,7 +263,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     // (i.e., the FuncOp).
     // Otherwise the typeConverter won't find the proper type information
     // and fail
-    SecretToBGVTypeConverter typeConverter(context, rlweRing.value());
+    SecretToBGVTypeConverter typeConverter(context, rlweRing.value(),
+                                           plaintextModulus);
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);

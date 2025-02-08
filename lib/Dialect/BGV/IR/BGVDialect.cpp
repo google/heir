@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/FHEHelpers.h"
 #include "mlir/include/mlir/IR/Location.h"     // from @llvm-project
@@ -11,6 +12,8 @@
 // Generated definitions
 #include "lib/Dialect/BGV/IR/BGVDialect.cpp.inc"
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#define GET_ATTRDEF_CLASSES
+#include "lib/Dialect/BGV/IR/BGVAttributes.cpp.inc"
 #define GET_OP_CLASSES
 #include "lib/Dialect/BGV/IR/BGVOps.cpp.inc"
 
@@ -25,6 +28,10 @@ namespace bgv {
 // Dialect construction: there is one instance per context and it registers its
 // operations, types, and interfaces here.
 void BGVDialect::initialize() {
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "lib/Dialect/BGV/IR/BGVAttributes.cpp.inc"
+      >();
   addOperations<
 #define GET_OP_LIST
 #include "lib/Dialect/BGV/IR/BGVOps.cpp.inc"

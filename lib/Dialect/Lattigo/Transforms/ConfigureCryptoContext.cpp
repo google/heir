@@ -5,6 +5,7 @@
 #include <set>
 #include <string>
 
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoAttributes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
@@ -84,17 +85,34 @@ LogicalResult convertFunc(func::FuncOp op) {
       builder.create<func::FuncOp>(configFuncName, configFuncType);
   builder.setInsertionPointToEnd(configFuncOp.addEntryBlock());
 
-  // TODO(#465): Allow custom params
-  // 128-bit secure parameters enabling depth-7 circuits.
-  // LogN:14, LogQP: 431.
-  auto logN = 14;
-  auto paramAttr = BGVParametersLiteralAttr::get(
-      builder.getContext(), /*logN*/ logN, /*Q*/ nullptr, /*P*/ nullptr,
-      /*logQ*/
-      DenseI32ArrayAttr::get(builder.getContext(),
-                             {55, 45, 45, 45, 45, 45, 45, 45}),
-      /*logP*/ DenseI32ArrayAttr::get(builder.getContext(), {61}),
-      /*ptm*/ 0x10001);
+  int logN;
+  BGVParametersLiteralAttr paramAttr;
+
+  auto *moduleOp = op->getParentOp();
+  auto bgvSchemeParamAttr = moduleOp->getAttrOfType<bgv::SchemeParamAttr>(
+      bgv::BGVDialect::kSchemeParamAttrName);
+  if (bgvSchemeParamAttr) {
+    logN = bgvSchemeParamAttr.getLogN();
+    auto Q = bgvSchemeParamAttr.getQ();
+    auto P = bgvSchemeParamAttr.getP();
+    auto ptm = bgvSchemeParamAttr.getPlaintextModulus();
+    paramAttr =
+        BGVParametersLiteralAttr::get(builder.getContext(), logN, Q, P,
+                                      /*logQ*/ nullptr, /*logP*/ nullptr, ptm);
+    // remove attr after reading
+    moduleOp->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
+  } else {
+    // 128-bit secure parameters enabling depth-7 circuits.
+    // LogN:14, LogQP: 431.
+    logN = 14;
+    paramAttr = BGVParametersLiteralAttr::get(
+        builder.getContext(), /*logN*/ logN, /*Q*/ nullptr, /*P*/ nullptr,
+        /*logQ*/
+        DenseI32ArrayAttr::get(builder.getContext(),
+                               {55, 45, 45, 45, 45, 45, 45, 45}),
+        /*logP*/ DenseI32ArrayAttr::get(builder.getContext(), {61}),
+        /*ptm*/ 0x10001);
+  }
   auto paramType = BGVParameterType::get(builder.getContext());
 
   auto params =

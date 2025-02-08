@@ -5,6 +5,9 @@
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
@@ -120,6 +123,88 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   }
 
   template <typename NoiseAnalysis>
+  typename NoiseAnalysis::SchemeParamType generateParamByGap(
+      DataFlowSolver *solver,
+      const typename NoiseAnalysis::SchemeParamType &schemeParam) {
+    using NoiseModel = typename NoiseAnalysis::NoiseModel;
+    using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
+    using LocalParamType = typename NoiseAnalysis::LocalParamType;
+
+    // for level i, the biggest gap observed.
+    std::map<int, double> levelToGap;
+
+    auto updateLevelToGap = [&](int level, double gap) {
+      if (levelToGap.count(level) == 0) {
+        levelToGap[level] = gap;
+      } else {
+        levelToGap[level] = std::max(levelToGap.at(level), gap);
+      }
+    };
+
+    auto getLocalParam = [&](Value value) {
+      auto level = getLevelFromMgmtAttr(value);
+      auto dimension = getDimensionFromMgmtAttr(value);
+      return LocalParamType(&schemeParam, level, dimension);
+    };
+
+    auto getBound = [&](Value value) {
+      auto localParam = getLocalParam(value);
+      auto noiseLattice = solver->lookupState<NoiseLatticeType>(value);
+      return NoiseModel::toLogBound(localParam, noiseLattice->getValue());
+    };
+
+    auto firstModSize = 0;
+
+    getOperation()->walk([&](secret::GenericOp genericOp) {
+      // gaps caused by mod reduce
+      genericOp.getBody()->walk([&](mgmt::ModReduceOp op) {
+        auto operandBound = getBound(op.getOperand());
+        auto resultBound = getBound(op.getResult());
+        // the gap between the operand and result
+        updateLevelToGap(getLevelFromMgmtAttr(op.getOperand()),
+                         operandBound - resultBound);
+        return WalkResult::advance();
+      });
+
+      // find the max noise for the first level
+      genericOp.getBody()->walk([&](Operation *op) {
+        for (Value result : op->getResults()) {
+          if (getLevelFromMgmtAttr(result) == 0) {
+            auto bound = getBound(result);
+            firstModSize = std::max(firstModSize, 1 + int(ceil(bound)));
+          }
+        }
+        return WalkResult::advance();
+      });
+    });
+
+    auto maxLevel = levelToGap.size() + 1;
+    auto qiSize = std::vector<double>(maxLevel, 0);
+    qiSize[0] = firstModSize;
+
+    for (auto &[level, gap] : levelToGap) {
+      qiSize[level] = int(ceil(gap));
+    }
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "Gap logqi: ";
+      for (auto size : qiSize) {
+        llvm::dbgs() << static_cast<int>(size) << " ";
+      }
+      llvm::dbgs() << "\n";
+    });
+
+    auto concreteSchemeParam =
+        NoiseAnalysis::SchemeParamType::getConcreteSchemeParam(
+            schemeParam.getPlaintextModulus(), qiSize);
+
+    LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
+                            << concreteSchemeParam << "\n");
+
+    return concreteSchemeParam;
+  }
+
+  template <typename NoiseAnalysis>
   void run() {
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
@@ -150,6 +235,28 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       signalPassFailure();
       return;
     }
+
+    auto concreteSchemeParam =
+        generateParamByGap<NoiseAnalysis>(&solver, schemeParam);
+
+    if (failed(validate<NoiseAnalysis>(&solver, concreteSchemeParam))) {
+      getOperation()->emitOpError()
+          << "Noise validation failed for generated param.\n";
+      signalPassFailure();
+      return;
+    }
+
+    // annotate scheme param
+    getOperation()->setAttr(
+        bgv::BGVDialect::kSchemeParamAttrName,
+        bgv::SchemeParamAttr::get(
+            &getContext(), log2(concreteSchemeParam.getRingDim()),
+
+            DenseI64ArrayAttr::get(&getContext(),
+                                   ArrayRef(concreteSchemeParam.getQi())),
+            DenseI64ArrayAttr::get(&getContext(),
+                                   ArrayRef(concreteSchemeParam.getPi())),
+            concreteSchemeParam.getPlaintextModulus()));
   }
 
   void runOnOperation() override {

@@ -14,10 +14,12 @@ cc_library(
         "BGVDialect.cpp",
     ],
     hdrs = [
+        "BGVAttributes.h",
         "BGVDialect.h",
         "BGVOps.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Dialect:FHEHelpers",
@@ -31,6 +33,7 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "BGVAttributes.td",
         "BGVDialect.td",
         "BGVOps.td",
     ],
@@ -59,5 +62,15 @@ add_heir_dialect_library(
         ":td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "BGV",
+    kind = "attribute",
+    td_file = "BGVAttributes.td",
+    deps = [
+        ":td_files",
     ],
 )

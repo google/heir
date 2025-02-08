@@ -16,6 +16,7 @@ cc_library(
         "@heir//lib/Analysis/NoiseAnalysis",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByBoundCoeffModel",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
