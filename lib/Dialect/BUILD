@@ -42,9 +42,11 @@ cc_library(
 
 cc_library(
     name = "ModuleAttributes",
+    srcs = ["ModuleAttributes.cpp"],
     hdrs = ["ModuleAttributes.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
     ],
 )
 

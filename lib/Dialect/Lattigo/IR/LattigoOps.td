@@ -24,6 +24,7 @@ class Lattigo_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 include "LattigoBGVOps.td"
+include "LattigoCKKSOps.td"
 include "LattigoRLWEOps.td"
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOOPS_TD_

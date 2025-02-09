@@ -21,6 +21,7 @@ class Lattigo_Type<string name, string typeMnemonic, list<Trait> traits = []>
 }
 
 include "LattigoBGVTypes.td"
+include "LattigoCKKSTypes.td"
 include "LattigoRLWETypes.td"
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOTYPES_TD_

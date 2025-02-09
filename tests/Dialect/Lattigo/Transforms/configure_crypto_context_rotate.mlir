@@ -4,9 +4,11 @@
 !params = !lattigo.bgv.parameter
 !ct = !lattigo.rlwe.ciphertext
 
-func.func @rotate(%evaluator : !evaluator, %ct : !ct) -> !ct {
-  %res = lattigo.bgv.rotate_columns %evaluator, %ct {offset = 1} : (!evaluator, !ct) -> !ct
-  return %res : !ct
+module attributes {scheme.bgv} {
+  func.func @rotate(%evaluator : !evaluator, %ct : !ct) -> !ct {
+    %res = lattigo.bgv.rotate_columns %evaluator, %ct {offset = 1} : (!evaluator, !ct) -> !ct
+    return %res : !ct
+  }
 }
 
 // CHECK: @rotate

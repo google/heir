@@ -58,6 +58,7 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
   // Lattigo ops
+  // RLWE
   LogicalResult printOperation(RLWENewEncryptorOp op);
   LogicalResult printOperation(RLWENewDecryptorOp op);
   LogicalResult printOperation(RLWENewKeyGeneratorOp op);
@@ -67,6 +68,7 @@ class LattigoEmitter {
   LogicalResult printOperation(RLWENewEvaluationKeySetOp op);
   LogicalResult printOperation(RLWEEncryptOp op);
   LogicalResult printOperation(RLWEDecryptOp op);
+  // BGV
   LogicalResult printOperation(BGVNewParametersFromLiteralOp op);
   LogicalResult printOperation(BGVNewEncoderOp op);
   LogicalResult printOperation(BGVNewEvaluatorOp op);
@@ -80,6 +82,19 @@ class LattigoEmitter {
   LogicalResult printOperation(BGVRescaleOp op);
   LogicalResult printOperation(BGVRotateColumnsOp op);
   LogicalResult printOperation(BGVRotateRowsOp op);
+  // CKKS
+  LogicalResult printOperation(CKKSNewParametersFromLiteralOp op);
+  LogicalResult printOperation(CKKSNewEncoderOp op);
+  LogicalResult printOperation(CKKSNewEvaluatorOp op);
+  LogicalResult printOperation(CKKSNewPlaintextOp op);
+  LogicalResult printOperation(CKKSEncodeOp op);
+  LogicalResult printOperation(CKKSDecodeOp op);
+  LogicalResult printOperation(CKKSAddOp op);
+  LogicalResult printOperation(CKKSSubOp op);
+  LogicalResult printOperation(CKKSMulOp op);
+  LogicalResult printOperation(CKKSRelinearizeOp op);
+  LogicalResult printOperation(CKKSRescaleOp op);
+  LogicalResult printOperation(CKKSRotateOp op);
 
   // Helpers for above
   void printErrPanic(std::string_view errName);
