@@ -8,7 +8,8 @@
 !ct = !lattigo.rlwe.ciphertext
 !pt = !lattigo.rlwe.plaintext
 
-!encryptor = !lattigo.rlwe.encryptor
+!encryptor = !lattigo.rlwe.encryptor<publicKey = true>
+!encryptor_sk = !lattigo.rlwe.encryptor<publicKey = false>
 !decryptor = !lattigo.rlwe.decryptor
 !key_generator = !lattigo.rlwe.key_generator
 
@@ -65,6 +66,7 @@ module {
   // CHECK: [[gk5:[^, ].*]] := [[kgen]].GenGaloisKeyNew(5, [[sk]])
   // CHECK: [[evalKeySet:[^, ].*]] := rlwe.NewMemEvaluationKeySet([[rk]], [[gk5]])
   // CHECK: [[enc:[^, ].*]] := rlwe.NewEncryptor([[param]], [[pk]])
+  // CHECK: [[encSk:[^, ].*]] := rlwe.NewEncryptor([[param]], [[sk]])
   // CHECK: [[dec:[^, ].*]] := rlwe.NewDecryptor([[param]], [[sk]])
   // CHECK: [[eval:[^, ].*]] := bgv.NewEvaluator([[param]], [[evalKeySet]])
   // CHECK: [[value1:[^, ].*]] := []int64
@@ -94,6 +96,7 @@ module {
     %gk5 = lattigo.rlwe.gen_galois_key %kgen, %sk {galoisElement = 5} : (!key_generator, !sk) -> !gk5
     %eval_key_set = lattigo.rlwe.new_evaluation_key_set %rk, %gk5 : (!rk, !gk5) -> !eval_key_set
     %encryptor = lattigo.rlwe.new_encryptor %param, %pk : (!params, !pk) -> !encryptor
+    %encryptor_sk = lattigo.rlwe.new_encryptor %param, %sk : (!params, !sk) -> !encryptor_sk
     %decryptor = lattigo.rlwe.new_decryptor %param, %sk : (!params, !sk) -> !decryptor
 
     %evaluator = lattigo.bgv.new_evaluator %param, %eval_key_set : (!params, !eval_key_set) -> !evaluator

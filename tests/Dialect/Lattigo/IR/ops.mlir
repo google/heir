@@ -11,7 +11,8 @@
 !ct = !lattigo.rlwe.ciphertext
 !pt = !lattigo.rlwe.plaintext
 
-!encryptor = !lattigo.rlwe.encryptor
+!encryptor = !lattigo.rlwe.encryptor<publicKey = true>
+!encryptor_sk = !lattigo.rlwe.encryptor<publicKey = false>
 !decryptor = !lattigo.rlwe.decryptor
 !key_generator = !lattigo.rlwe.key_generator
 
@@ -87,10 +88,17 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_rlwe_new_encryptor
-  func.func @test_rlwe_new_encryptor(%params: !params, %pk: !pk) {
+  // CHECK-LABEL: func @test_rlwe_new_encryptor_pk
+  func.func @test_rlwe_new_encryptor_pk(%params: !params, %pk: !pk) {
     // CHECK: %[[v1:.*]] = lattigo.rlwe.new_encryptor
     %encryptor = lattigo.rlwe.new_encryptor %params, %pk : (!params, !pk) -> !encryptor
+    return
+  }
+
+  // CHECK-LABEL: func @test_rlwe_new_encryptor_sk
+  func.func @test_rlwe_new_encryptor_sk(%params: !params, %sk: !sk) {
+    // CHECK: %[[v1:.*]] = lattigo.rlwe.new_encryptor
+    %encryptor = lattigo.rlwe.new_encryptor %params, %sk : (!params, !sk) -> !encryptor_sk
     return
   }
 

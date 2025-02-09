@@ -31,6 +31,8 @@ def Lattigo_RLWEPublicKey : Lattigo_RLWEType<"PublicKey", "public_key"> {
   let nameSuggestion = "pk";
 }
 
+def Lattigo_RLWEPublicKeyOrSecretKey : AnyTypeOf<[Lattigo_RLWEPublicKey, Lattigo_RLWESecretKey]>;
+
 def Lattigo_RLWERelinearizationKey : Lattigo_RLWEType<"RelinearizationKey", "relinearization_key"> {
   let description = [{
     This type represents the relinearization key for the RLWE encryption scheme.
@@ -60,6 +62,8 @@ def Lattigo_RLWEEncryptor : Lattigo_RLWEType<"Encryptor", "encryptor"> {
   let description = [{
     This type represents the encryptor for the RLWE encryption scheme.
   }];
+  let parameters = (ins "bool":$publicKey);
+  let assemblyFormat = "`<` struct(params) `>`";
   let nameSuggestion = "encryptor";
 }
 

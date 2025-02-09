@@ -491,6 +491,45 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
       return (!containsCryptoArg || hasCryptoContextArg);
     });
 
+    OpPredicate containsEncryptUseSk = [&](Operation *op) -> bool {
+      if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
+        // for declaration, assume its uses are decrypt
+        if (funcOp.isDeclaration()) {
+          return false;
+        }
+        return llvm::any_of(funcOp.getArguments(), [&](BlockArgument arg) {
+          return mlir::isa<lwe::NewLWESecretKeyType>(arg.getType()) &&
+                 llvm::any_of(arg.getUses(), [&](OpOperand &use) {
+                   return mlir::isa<lwe::RLWEEncryptOp>(use.getOwner());
+                 });
+        });
+      }
+      return false;
+    };
+
+    OpPredicate containsNoEncryptUseSk = [&](Operation *op) -> bool {
+      if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
+        bool findKey =
+            llvm::any_of(funcOp.getArgumentTypes(), [&](Type argType) {
+              return mlir::isa<lwe::NewLWESecretKeyType>(argType);
+            });
+        // for declaration, only checks the existence
+        if (funcOp.isDeclaration()) {
+          return findKey;
+        }
+        // for definition, check the uses
+        bool noEncrypt =
+            llvm::all_of(funcOp.getArguments(), [&](BlockArgument arg) {
+              return !mlir::isa<lwe::NewLWESecretKeyType>(arg.getType()) ||
+                     llvm::none_of(arg.getUses(), [&](OpOperand &use) {
+                       return mlir::isa<lwe::RLWEEncryptOp>(use.getOwner());
+                     });
+            });
+        return findKey && noEncrypt;
+      }
+      return false;
+    };
+
     std::vector<std::pair<Type, OpPredicate>> evaluators;
 
     // param/encoder also needed for the main func
@@ -502,10 +541,13 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
          containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>},
         {lattigo::BGVEncoderType::get(context),
          containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>},
-        {lattigo::RLWEEncryptorType::get(context),
+        {lattigo::RLWEEncryptorType::get(context, /*publicKey*/ true),
          containsArgumentOfType<lwe::NewLWEPublicKeyType>},
-        {lattigo::RLWEDecryptorType::get(context),
-         containsArgumentOfType<lwe::NewLWESecretKeyType>},
+        // for NewLWESecretKey, if its uses are encrypt, then convert it to an
+        // encryptor, otherwise, convert it to a decryptor
+        {lattigo::RLWEEncryptorType::get(context, /*publicKey*/ false),
+         containsEncryptUseSk},
+        {lattigo::RLWEDecryptorType::get(context), containsNoEncryptUseSk},
     };
 
     patterns.add<AddEvaluatorArg>(context, evaluators);

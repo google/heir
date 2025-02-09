@@ -53,6 +53,25 @@ SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
   return rotIndicesResult;
 }
 
+// Helper function to find encryptor type used in the whole module
+// assume only one possible type on encryptor in the whole module
+RLWEEncryptorType findEncryptorType(ModuleOp module) {
+  Type ret = nullptr;
+  module->walk([&](func::FuncOp funcOp) {
+    // also work for funcOp declaration
+    for (auto argType : funcOp.getArgumentTypes()) {
+      if (mlir::isa<RLWEEncryptorType>(argType)) {
+        ret = argType;
+      }
+    }
+  });
+  if (ret) {
+    return mlir::cast<RLWEEncryptorType>(ret);
+  }
+  // default to public key encryption
+  return RLWEEncryptorType::get(module.getContext(), /*publicKey*/ true);
+}
+
 LogicalResult convertFunc(func::FuncOp op) {
   auto module = op->getParentOfType<ModuleOp>();
   std::string configFuncName("");
@@ -69,7 +88,7 @@ LogicalResult convertFunc(func::FuncOp op) {
   Type evaluatorType = BGVEvaluatorType::get(builder.getContext());
   Type paramsType = BGVParameterType::get(builder.getContext());
   Type encoderType = BGVEncoderType::get(builder.getContext());
-  Type encryptorType = RLWEEncryptorType::get(builder.getContext());
+  RLWEEncryptorType encryptorType = findEncryptorType(module);
   Type decryptorType = RLWEDecryptorType::get(builder.getContext());
   funcResultTypes.push_back(evaluatorType);
   funcResultTypes.push_back(paramsType);
@@ -109,8 +128,9 @@ LogicalResult convertFunc(func::FuncOp op) {
   auto keypair = builder.create<RLWEGenKeyPairOp>(keypairTypes, kgen);
   auto sk = keypair.getResult(0);
   auto pk = keypair.getResult(1);
+  auto encKey = encryptorType.getPublicKey() ? pk : sk;
   auto encryptor =
-      builder.create<RLWENewEncryptorOp>(encryptorType, params, pk);
+      builder.create<RLWENewEncryptorOp>(encryptorType, params, encKey);
   auto decryptor =
       builder.create<RLWENewDecryptorOp>(decryptorType, params, sk);
 

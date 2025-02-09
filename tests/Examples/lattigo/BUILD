@@ -33,6 +33,16 @@ heir_lattigo_lib(
 )
 
 heir_lattigo_lib(
+    name = "dot_product_8_sk",
+    go_library_name = "dotproduct8sk",
+    heir_opt_flags = [
+        "--mlir-to-bgv=ciphertext-degree=8 use-public-key=false",
+        "--scheme-to-lattigo=entry-function=dot_product",
+    ],
+    mlir_src = "dot_product_8.mlir",
+)
+
+heir_lattigo_lib(
     name = "dot_product_8_debug",
     extra_srcs = ["dot_product_8_debug.go"],
     go_library_name = "dotproduct8debug",
@@ -55,6 +65,12 @@ go_test(
     name = "dotproduct8_test",
     srcs = ["dot_product_8_test.go"],
     embed = [":dotproduct8"],
+)
+
+go_test(
+    name = "dotproduct8sk_test",
+    srcs = ["dot_product_8_sk_test.go"],
+    embed = [":dotproduct8sk"],
 )
 
 go_test(
