@@ -90,7 +90,9 @@ def GenParamsOp : Openfhe_Op<"gen_params"> {
   let arguments = (ins
     I64Attr:$mulDepth,
     I64Attr:$plainMod,
-    BoolAttr:$insecure
+    BoolAttr:$insecure,
+    I64Attr:$evalAddCount,
+    I64Attr:$keySwitchCount
   );
   let results = (outs Openfhe_CCParams:$params);
 }
