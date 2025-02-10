@@ -18,7 +18,7 @@ namespace approximation {
 /// This is a port of the chebfun routine at
 /// https://github.com/chebfun/chebfun/blob/db207bc9f48278ca4def15bf90591bfa44d0801d/%40chebtech2/chebpts.m#L34
 void getChebyshevPoints(int64_t numPoints,
-                        SmallVector<::llvm::APFloat> &results);
+                        ::llvm::SmallVector<::llvm::APFloat> &results);
 
 /// Generate the first `numPolynomials` Chebyshev polynomials of the second
 /// kind, storing them in the results outparameter.
@@ -26,7 +26,30 @@ void getChebyshevPoints(int64_t numPoints,
 /// The first few polynomials are 1, 2x, 4x^2 - 1, 8x^3 - 4x, ...
 void getChebyshevPolynomials(
     int64_t numPolynomials,
-    SmallVector<::mlir::heir::polynomial::FloatPolynomial> &results);
+    ::llvm::SmallVector<::mlir::heir::polynomial::FloatPolynomial> &results);
+
+/// Convert a vector of Chebyshev coefficients to the monomial basis. If the
+/// Chebyshev polynomials are T_0, T_1, ..., then entry i of the input vector
+/// is the coefficient of T_i.
+::mlir::heir::polynomial::FloatPolynomial chebyshevToMonomial(
+    const ::llvm::SmallVector<::llvm::APFloat> &coefficients);
+
+/// Interpolate Chebyshev coefficients for a given set of points. The values in
+/// chebEvalPoints are assumed to be evaluations of the target function on the
+/// first N+1 Chebyshev points of the second kind, where N is the degree of the
+/// interpolating polynomial. The produced coefficients are stored in the
+/// outparameter outputChebCoeffs.
+///
+/// A port of chebfun vals2coeffs, cf.
+/// https://github.com/chebfun/chebfun/blob/69c12cf75f93cb2f36fd4cfd5e287662cd2f1091/%40ballfun/vals2coeffs.m
+/// based on the a trigonometric interpolation via the FFT.
+///
+/// Cf. Henrici, "Fast Fourier Methods in Computational Complex Analysis"
+/// https://doi.org/10.1137/1021093
+/// https://people.math.ethz.ch/~hiptmair/Seminars/CONVQUAD/Articles/HEN79.pdf
+void interpolateChebyshev(
+    ::llvm::ArrayRef<::llvm::APFloat> chebEvalPoints,
+    ::llvm::SmallVector<::llvm::APFloat> &outputChebCoeffs);
 
 }  // namespace approximation
 }  // namespace heir

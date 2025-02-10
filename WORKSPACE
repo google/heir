@@ -421,3 +421,10 @@ git_repository(
     patches = ["@heir//bazel/openfhe:add_config_core.patch"],
     remote = "https://github.com/openfheorg/openfhe-development.git",
 )
+
+git_repository(
+    name = "pocketfft",
+    build_file = "//bazel/pocketfft:pocketfft.BUILD",
+    commit = "bb5bdb776c64819f66cb2205f78bef1581448628",
+    remote = "https://gitlab.mpcdf.mpg.de/mtr/pocketfft.git",
+)
