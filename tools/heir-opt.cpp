@@ -351,18 +351,24 @@ int main(int argc, char **argv) {
                              "Lower basic MLIR to LLVM",
                              ::mlir::heir::basicMLIRToLLVMPipelineBuilder);
 
-  PassPipelineRegistration<>(
+  PassPipelineRegistration<SimdVectorizerOptions>(
       "heir-simd-vectorizer",
       "Run scheme-agnostic passes to convert FHE programs that operate on "
       "scalar types to equivalent programs that operate on vectors and use "
       "tensor_ext.rotate",
-      mlir::heir::heirSIMDVectorizerPipelineBuilder);
+      [](OpPassManager &pm, const SimdVectorizerOptions &options) {
+        ::mlir::heir::heirSIMDVectorizerPipelineBuilder(
+            pm, options.experimentalDisableLoopUnroll);
+      });
 
-  PassPipelineRegistration<>(
+  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
       "mlir-to-secret-arithmetic",
       "Convert a func using standard MLIR dialects to secret dialect with "
       "arithmetic ops",
-      mlirToSecretArithmeticPipelineBuilder);
+      [](OpPassManager &pm,
+         const mlir::heir::MlirToRLWEPipelineOptions &options) {
+        mlirToSecretArithmeticPipelineBuilder(pm, options);
+      });
 
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
       "mlir-to-bgv",

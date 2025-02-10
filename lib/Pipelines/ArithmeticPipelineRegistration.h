@@ -14,10 +14,19 @@ namespace mlir::heir {
 // RLWE scheme selector
 enum RLWEScheme { ckksScheme, bgvScheme };
 
-void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager);
+struct SimdVectorizerOptions
+    : public PassPipelineOptions<SimdVectorizerOptions> {
+  PassOptions::Option<bool> experimentalDisableLoopUnroll{
+      *this, "experimental-disable-loop-unroll",
+      llvm::cl::desc("Experimental: disable loop unroll, may break analyses "
+                     "(default to false)"),
+      llvm::cl::init(false)};
+};
 
-struct MlirToRLWEPipelineOptions
-    : public PassPipelineOptions<MlirToRLWEPipelineOptions> {
+void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
+                                       bool disableLoopUnroll);
+
+struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
   PassOptions::Option<int> ciphertextDegree{
       *this, "ciphertext-degree",
       llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
@@ -57,7 +66,8 @@ void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         RLWEScheme scheme);
 
-void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm);
+void mlirToSecretArithmeticPipelineBuilder(
+    OpPassManager &pm, const MlirToRLWEPipelineOptions &options);
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 

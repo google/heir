@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
@@ -15,6 +16,7 @@
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
+#include "lib/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
@@ -26,6 +28,7 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
+#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"     // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"     // from @llvm-project
@@ -33,11 +36,14 @@
 
 namespace mlir::heir {
 
-void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
+void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
+                                       bool disableLoopUnroll) {
   // For now we unroll loops to enable insert-rotate, but we would like to be
   // smarter about this and do an affine loop analysis.
   // TODO(#589): avoid unrolling loops
-  manager.addPass(createFullLoopUnroll());
+  if (!disableLoopUnroll) {
+    manager.addPass(createFullLoopUnroll());
+  }
 
   // These two passes are required in this position for a relatively nuanced
   // reason. insert-rotate doesn't have general match support. In particular,
@@ -76,25 +82,38 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager) {
   manager.addPass(createCSEPass());
 }
 
-void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm) {
+void mlirToSecretArithmeticPipelineBuilder(
+    OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
+  // Apply linalg kernels
   // Linalg canonicalization
   // TODO(#1191): enable dropping unit dims to convert matmul to matvec/vecmat
   // pm.addPass(createDropUnitDims());
   pm.addPass(createLinalgCanonicalizations());
-
   // Layout assignment and lowering
   // TODO(#1191): enable layout propagation after implementing the rest
   // of the layout lowering pipeline.
   // pm.addPass(createLayoutPropagation());
-  pm.addPass(heir::linalg::createLinalgToTensorExt());
+  // Note: LinalgToTensorExt requires that linalg.matmuls are the only operation
+  // within a secret.generic. This is to ensure that any tensor type conversions
+  // (padding a rectangular matrix to a square diagonalized matrix) can be
+  // performed without any type mismatches.
+  std::vector<std::string> opsToDistribute = {"linalg.matmul"};
+  auto distributeOpts = secret::SecretDistributeGenericOptions{
+      .opsToDistribute = llvm::to_vector(opsToDistribute)};
+  pm.addPass(createSecretDistributeGeneric(distributeOpts));
+  pm.addPass(createCanonicalizerPass());
+  auto linalgToTensorExtOptions = linalg::LinalgToTensorExtOptions{};
+  linalgToTensorExtOptions.tilingSize = options.ciphertextDegree;
+  pm.addPass(heir::linalg::createLinalgToTensorExt(linalgToTensorExtOptions));
+  pm.addPass(secret::createSecretMergeAdjacentGenerics());
 
   // Vectorize and optimize rotations
-  heirSIMDVectorizerPipelineBuilder(pm);
+  heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
@@ -103,7 +122,7 @@ void mlirToSecretArithmeticPipelineBuilder(OpPassManager &pm) {
 void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         const RLWEScheme scheme) {
-  mlirToSecretArithmeticPipelineBuilder(pm);
+  mlirToSecretArithmeticPipelineBuilder(pm, options);
 
   // place mgmt.op and MgmtAttr for BGV
   // which is required for secret-to-<scheme> lowering
