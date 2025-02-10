@@ -3,6 +3,7 @@
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -161,6 +162,10 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseSkModel>>();
     } else if (model == "bgv-noise-by-bound-coeff-average-case-sk") {
       run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseSkModel>>();
+    } else if (model == "bgv-noise-by-variance-coeff-pk") {
+      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffPkModel>>();
+    } else if (model == "bgv-noise-by-variance-coeff-sk") {
+      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffSkModel>>();
     } else {
       getOperation()->emitOpError() << "Unknown noise model.\n";
       signalPassFailure();
