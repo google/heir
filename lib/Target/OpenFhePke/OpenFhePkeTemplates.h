@@ -7,8 +7,6 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-// The `// from @openfhe` is a bit of a hack to avoid default copybara
-// transforms for HEIR includes.
 constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
 #include "src/pke/include/openfhe.h"  // from @openfhe
 )cpp";
