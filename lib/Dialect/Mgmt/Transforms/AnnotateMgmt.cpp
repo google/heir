@@ -61,8 +61,8 @@ void annotateMgmtAttr(Operation *top) {
     // otherwise secret-to-<scheme> won't find the mgmt attr
     if (!bodyContainsSecretGeneric) {
       for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-        auto argument = funcOp.getArgument(i);
-        if (isa<secret::SecretType>(argument.getType())) {
+        auto argumentTy = funcOp.getFunctionType().getInput(i);
+        if (isa<secret::SecretType>(argumentTy)) {
           funcOp.setArgAttr(i, MgmtDialect::kArgMgmtAttrName,
                             MgmtAttr::get(top->getContext(), 0, 2));
         }
