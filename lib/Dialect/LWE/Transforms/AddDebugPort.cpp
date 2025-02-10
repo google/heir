@@ -73,22 +73,34 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
   // implicit assumption the first argument is private key
   auto privateKey = op.getArgument(0);
 
-  ImplicitLocOpBuilder b =
-      ImplicitLocOpBuilder::atBlockBegin(module.getLoc(), module.getBody());
+  ImplicitLocOpBuilder b = ImplicitLocOpBuilder::atBlockBegin(
+      op.getLoc(), &op.getBody().getBlocks().front());
+
+  auto insertCall = [&](Value value) {
+    Type valueType = value.getType();
+    // NOTE: this won't work for shaped input like tensor<2x!lwe.ciphertext>
+    if (auto lweCiphertextType = dyn_cast<NewLWECiphertextType>(valueType)) {
+      // update typeToInt
+      if (!typeToInt.count(valueType)) {
+        typeToInt[valueType] = typeToInt.size();
+      }
+      b.create<func::CallOp>(
+          getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
+                                       lweCiphertextType, typeToInt),
+          ArrayRef<Value>{privateKey, value});
+    }
+  };
+
+  // insert for each argument
+  for (auto arg : op.getArguments()) {
+    insertCall(arg);
+  }
+
+  // insert after each HE op
   op.walk([&](Operation *op) {
     b.setInsertionPointAfter(op);
     for (Value result : op->getResults()) {
-      Type resultType = result.getType();
-      if (auto lweCiphertextType = dyn_cast<NewLWECiphertextType>(resultType)) {
-        // update typeToInt
-        if (!typeToInt.count(resultType)) {
-          typeToInt[resultType] = typeToInt.size();
-        }
-        b.create<func::CallOp>(
-            getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
-                                         lweCiphertextType, typeToInt),
-            ArrayRef<Value>{privateKey, result});
-      }
+      insertCall(result);
     }
     return WalkResult::advance();
   });
