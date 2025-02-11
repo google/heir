@@ -20,10 +20,10 @@ namespace approximation {
 void getChebyshevPoints(int64_t numPoints,
                         ::llvm::SmallVector<::llvm::APFloat> &results);
 
-/// Generate the first `numPolynomials` Chebyshev polynomials of the second
+/// Generate the first `numPolynomials` Chebyshev polynomials of the first
 /// kind, storing them in the results outparameter.
 ///
-/// The first few polynomials are 1, 2x, 4x^2 - 1, 8x^3 - 4x, ...
+/// The first few polynomials are 1, x, 2x^2 - 1, 4x^3 - 3x, ...
 void getChebyshevPolynomials(
     int64_t numPolynomials,
     ::llvm::SmallVector<::mlir::heir::polynomial::FloatPolynomial> &results);

@@ -55,25 +55,25 @@ TEST(ChebyshevTest, TestGetChebyshevPolynomials) {
       chebPolys,
       ElementsAre(
           FloatPolynomial::fromCoefficients({1.}),
-          FloatPolynomial::fromCoefficients({0., 2.}),
-          FloatPolynomial::fromCoefficients({-1., 0., 4.}),
-          FloatPolynomial::fromCoefficients({0., -4., 0., 8.}),
-          FloatPolynomial::fromCoefficients({1., 0., -12., 0., 16.}),
-          FloatPolynomial::fromCoefficients({0., 6., 0., -32., 0., 32.}),
-          FloatPolynomial::fromCoefficients({-1., 0., 24., 0., -80., 0., 64.}),
+          FloatPolynomial::fromCoefficients({0., 1.}),
+          FloatPolynomial::fromCoefficients({-1., 0., 2.}),
+          FloatPolynomial::fromCoefficients({0., -3., 0., 4.}),
+          FloatPolynomial::fromCoefficients({1., 0., -8., 0., 8.}),
+          FloatPolynomial::fromCoefficients({0., 5., 0., -20., 0., 16.}),
+          FloatPolynomial::fromCoefficients({-1., 0., 18., 0., -48., 0., 32.}),
           FloatPolynomial::fromCoefficients(
-              {0., -8., 0., 80., 0., -192., 0., 128.}),
+              {0., -7., 0., 56., 0., -112., 0., 64.}),
           FloatPolynomial::fromCoefficients(
-              {1., 0., -40., 0., 240., 0., -448., 0., 256.})));
+              {1., 0., -32., 0., 160., 0., -256., 0., 128.})));
 }
 
 TEST(ChebyshevTest, TestChebyshevToMonomial) {
-  // 1 (1) - 1 (-1 + 4x^2) + 2 (-4x + 8x^3)
+  // 1 (1) - 1 (-1 + 2x^2) + 2 (-3x + 4x^3)
   SmallVector<APFloat> chebCoeffs = {APFloat(1.0), APFloat(0.0), APFloat(-1.0),
                                      APFloat(2.0)};
-  // 2 - 8 x - 4 x^2 + 16 x^3
+  // 2 - 6 x - 2 x^2 + 8 x^3
   FloatPolynomial expected =
-      FloatPolynomial::fromCoefficients({2.0, -8.0, -4.0, 16.0});
+      FloatPolynomial::fromCoefficients({2.0, -6.0, -2.0, 8.0});
   FloatPolynomial actual = chebyshevToMonomial(chebCoeffs);
   EXPECT_EQ(actual, expected);
 }
