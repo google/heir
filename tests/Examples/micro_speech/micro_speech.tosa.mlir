@@ -30,11 +30,15 @@ module attributes {tfl.description = "TOCO Converted.", tfl.schema_version = 3 :
     %17 = "tosa.const"() <{value = dense<[-374, 169, -48, 208, 82, 6, -1201, -694]> : tensor<8xi32>}> : () -> tensor<8xi32>
     %shift = "tosa.const"() {value = dense<31> : tensor<1xi8>} : () -> tensor<1xi8>
     %shift30 = "tosa.const"() {value = dense<30> : tensor<1xi8>} : () -> tensor<1xi8>
-    %18 = "tosa.reshape"(%arg0) <{new_shape = array<i64: 1, 49, 40, 1>}> : (tensor<1x1960xi8>) -> tensor<1x49x40x1xi8>
-    %19 = "tosa.depthwise_conv2d"(%18, %0, %17) <{acc_type = i32, dilation = array<i64: 1, 1>, pad = array<i64: 4, 5, 3, 3>, input_zp = -128 : i32, weight_zp = 0 : i32, stride = array<i64: 2, 2>}> : (tensor<1x49x40x1xi8>, tensor<10x8x1x8xi8>, tensor<8xi32>) -> tensor<1x25x20x8xi32>
+    %s_1 = "tosa.const_shape"() {value = dense<[1, 49, 40, 1]> : tensor<4xindex>} : () -> !tosa.shape<4>
+    %18 = "tosa.reshape"(%arg0, %s_1) : (tensor<1x1960xi8>, !tosa.shape<4>) -> tensor<1x49x40x1xi8>
+    %input_zp = "tosa.const"() {value = dense<-128> : tensor<1xi8>} : () -> tensor<1xi8>
+    %weight_zp = "tosa.const"() {value = dense<0> : tensor<1xi8>} : () -> tensor<1xi8>
+    %19 = "tosa.depthwise_conv2d"(%18, %0, %17, %input_zp, %weight_zp) <{acc_type = i32, dilation = array<i64: 1, 1>, pad = array<i64: 4, 5, 3, 3>, input_zp = -128 : i32, weight_zp = 0 : i32, stride = array<i64: 2, 2>}> : (tensor<1x49x40x1xi8>, tensor<10x8x1x8xi8>, tensor<8xi32>, tensor<1xi8>, tensor<1xi8>) -> tensor<1x25x20x8xi32>
     %20 = "tosa.rescale"(%19) <{double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1653229999, 1516545207, 2000799311, 1159928266, 1498403863, 1285645282, 2146175029, 1756589032>, output_zp = -128 : i32, per_channel = true, scale32 = true, shift = array<i8: 41, 43, 41, 41, 41, 41, 41, 41>}> : (tensor<1x25x20x8xi32>) -> tensor<1x25x20x8xi8>
     %21 = "tosa.clamp"(%20) <{max_fp = 0.000000e+00 : f32, max_int = 127 : i64, min_fp = 0.000000e+00 : f32, min_int = -128 : i64}> : (tensor<1x25x20x8xi8>) -> tensor<1x25x20x8xi8>
-    %22 = "tosa.reshape"(%21) <{new_shape = array<i64: 1, 4000>}> : (tensor<1x25x20x8xi8>) -> tensor<1x4000xi8>
+    %s_2 = "tosa.const_shape"() {value = dense<[1, 4000]> : tensor<2xindex>} : () -> !tosa.shape<2>
+    %22 = "tosa.reshape"(%21, %s_2) : (tensor<1x25x20x8xi8>, !tosa.shape<2>) -> tensor<1x4000xi8>
     %23 = "tosa.fully_connected"(%22, %16, %15) <{input_zp = -128 : i32, weight_zp = 0 : i32}> : (tensor<1x4000xi8>, tensor<4x4000xi8>, tensor<4xi32>) -> tensor<1x4xi32>
     %24 = "tosa.rescale"(%23) <{double_round = true, input_zp = 0 : i32, multiplier = array<i32: 1932201080>, output_zp = 14 : i32, per_channel = false, scale32 = true, shift = array<i8: 42>}> : (tensor<1x4xi32>) -> tensor<1x4xi8>
     %25 = "tosa.rescale"(%24) <{double_round = false, input_zp = 14 : i32, multiplier = array<i32: 1073741824>, output_zp = 0 : i32, per_channel = false, scale32 = true, shift = array<i8: 30>}> : (tensor<1x4xi8>) -> tensor<1x4xi32>
