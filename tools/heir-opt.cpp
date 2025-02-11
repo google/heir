@@ -72,6 +72,7 @@
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
+#include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "lib/Utils/Tablegen/AsmInterfaces.h"
 #include "mlir/include/mlir/Conversion/AffineToStandard/AffineToStandard.h"  // from @llvm-project
 #include "mlir/include/mlir/Conversion/ArithToLLVM/ArithToLLVM.h"  // from @llvm-project
@@ -278,6 +279,7 @@ int main(int argc, char **argv) {
   registerOperationBalancerPasses();
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
+  registerValidateNoisePasses();
   registerOptimizeRelinearizationPasses();
   registerLayoutPropagationPasses();
   registerLinalgCanonicalizationsPasses();

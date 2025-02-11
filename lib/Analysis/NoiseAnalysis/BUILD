@@ -4,17 +4,14 @@ package(
 )
 
 cc_library(
-    name = "LevelAnalysis",
-    srcs = ["LevelAnalysis.cpp"],
-    hdrs = ["LevelAnalysis.h"],
+    name = "NoiseAnalysis",
+    srcs = [],
+    hdrs = [
+        "NoiseAnalysis.h",
+    ],
     deps = [
-        "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/SecretnessAnalysis",
-        "@heir//lib/Dialect/Mgmt/IR:Dialect",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:CallOpInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

@@ -114,6 +114,7 @@ cc_binary(
         "@heir//lib/Transforms/StraightLineVectorizer",
         "@heir//lib/Transforms/TensorToScalars",
         "@heir//lib/Transforms/UnusedMemRef",
+        "@heir//lib/Transforms/ValidateNoise",
         "@heir//lib/Utils/Tablegen:AsmInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
