@@ -21,6 +21,7 @@ cc_library(
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@heir//lib/Utils/Polynomial",

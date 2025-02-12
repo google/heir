@@ -9,5 +9,6 @@ cc_library(
     hdrs = ["Params.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@openfhe//:core",
     ],
 )

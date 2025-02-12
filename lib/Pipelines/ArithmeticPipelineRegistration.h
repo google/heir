@@ -1,6 +1,7 @@
 #ifndef LIB_PIPELINES_ARITHMETICPIPELINEREGISTRATION_H_
 #define LIB_PIPELINES_ARITHMETICPIPELINEREGISTRATION_H_
 
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -43,6 +44,16 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::desc("Modulus switching right before the first multiplication "
                      "(default to false)"),
       llvm::cl::init(false)};
+  PassOptions::Option<int64_t> plaintextModulus{
+      *this, "plaintext-modulus",
+      llvm::cl::desc("Plaintext modulus for BGV scheme (default to 65537)"),
+      llvm::cl::init(65537)};
+  PassOptions::Option<std::string> noiseModel{
+      *this, "noise-model",
+      llvm::cl::desc("Noise model to use during parameter generation, see "
+                     "--validate-noise pass options for available models"
+                     "(default to bgv-noise-by-bound-coeff-average-case-pk)"),
+      llvm::cl::init("bgv-noise-by-bound-coeff-average-case-pk")};
 };
 
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {

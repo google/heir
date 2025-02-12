@@ -4,6 +4,8 @@
 #include <set>
 #include <string>
 
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -181,6 +183,12 @@ LogicalResult convertFunc(func::FuncOp op, int levelBudgetEncode,
 
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
+
+  // remove bgv.schemeParam attribute if present
+  if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
+          bgv::BGVDialect::kSchemeParamAttrName)) {
+    module->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
+  }
 
   // get mulDepth from function argument ciphertext type
   int64_t mulDepth = 0;

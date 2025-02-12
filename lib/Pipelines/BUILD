@@ -112,6 +112,7 @@ cc_library(
         "@heir//lib/Transforms/OptimizeRelinearization",
         "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/Secretize",
+        "@heir//lib/Transforms/ValidateNoise",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Transforms",

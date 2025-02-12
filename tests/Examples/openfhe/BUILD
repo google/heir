@@ -62,7 +62,7 @@ openfhe_end_to_end_test(
     name = "box_blur_64x64_test",
     generated_lib_header = "box_blur_64x64_lib.h",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=4096",
+        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=786433",
         "--scheme-to-openfhe=entry-function=box_blur",
     ],
     mlir_src = "box_blur_64x64.mlir",
@@ -74,7 +74,7 @@ openfhe_end_to_end_test(
     name = "roberts_cross_64x64_test",
     generated_lib_header = "roberts_cross_64x64_lib.h",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=4096",
+        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681",
         "--scheme-to-openfhe=entry-function=roberts_cross",
     ],
     mlir_src = "roberts_cross_64x64.mlir",
