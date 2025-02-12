@@ -419,8 +419,8 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
     auto z01_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[0], splitLhs[1]);
     auto z01_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[0], splitRhs[1]);
     auto z01_m = b.create<cggi::MulOp>(elemTy, z01_p1, z01_p2);
-    auto z01_s = b.create<cggi::SubOp>(z01_m, z00);
-    auto z01 = b.create<cggi::SubOp>(z01_s, z02);
+    auto z01_s = b.create<cggi::SubOp>(elemTy, z01_m, z00);
+    auto z01 = b.create<cggi::SubOp>(elemTy, z01_s, z02);
 
     // Second part I of Karatsuba algorithm
     auto z1a0 = b.create<cggi::MulOp>(elemTy, splitLhs[0], splitRhs[2]);
@@ -428,8 +428,8 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
     auto z1a1_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[0], splitLhs[1]);
     auto z1a1_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[2], splitRhs[3]);
     auto z1a1_m = b.create<cggi::MulOp>(elemTy, z1a1_p1, z1a1_p2);
-    auto z1a1_s = b.create<cggi::SubOp>(z1a1_m, z1a0);
-    auto z1a1 = b.create<cggi::SubOp>(z1a1_s, z1a2);
+    auto z1a1_s = b.create<cggi::SubOp>(elemTy, z1a1_m, z1a0);
+    auto z1a1 = b.create<cggi::SubOp>(elemTy, z1a1_s, z1a2);
 
     // Second part II of Karatsuba algorithm
     auto z1b0 = b.create<cggi::MulOp>(elemTy, splitLhs[2], splitRhs[0]);
@@ -438,7 +438,7 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
     auto z1b1_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[0], splitRhs[1]);
     auto z1b1_m = b.create<cggi::MulOp>(elemTy, z1b1_p1, z1b1_p2);
     auto z1b1_s = b.create<cggi::SubOp>(elemTy, z1b1_m, z1b0);
-    auto z1b1 = b.create<cggi::SubOp>(z1b1_s, z1b2);
+    auto z1b1 = b.create<cggi::SubOp>(elemTy, z1b1_s, z1b2);
 
     auto out2Kara = b.create<cggi::AddOp>(elemTy, z1a0, z1b0);
     auto out2Carry = b.create<cggi::AddOp>(elemTy, out2Kara, z02);

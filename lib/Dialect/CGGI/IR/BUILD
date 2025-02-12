@@ -37,13 +37,16 @@ td_library(
     srcs = [
         "BooleanGates.td",
         "CGGIAttributes.td",
+        "CGGIBinOps.td",
         "CGGIDialect.td",
         "CGGIEnums.td",
         "CGGIOps.td",
+        "CGGIPBSOps.td",
     ],
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
