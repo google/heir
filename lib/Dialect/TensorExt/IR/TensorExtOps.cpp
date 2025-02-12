@@ -3,11 +3,14 @@
 #include <cstdint>
 #include <string>
 
+#include "lib/Utils/AffineMapUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
@@ -81,6 +84,47 @@ LogicalResult ConvertLayoutOp::verify() {
 LogicalResult AssignLayoutOp::verify() {
   return verifyLayoutMatchesType(getLayout().getValue(), getTensor().getType(),
                                  *this);
+}
+
+LogicalResult PermuteOp::verify() {
+  auto tensorTy = getInput().getType();
+  // TODO(#924): Support more general vector inputs.
+  if (tensorTy.getRank() != 1) {
+    return emitOpError() << "requires a 1-D input tensor"
+                            "single non-unit dimension, but found "
+                         << tensorTy;
+  }
+
+  // Assert it's a permutation; would that be too slow for a verifier?
+  auto affineMapAttr = dyn_cast<AffineMapAttr>(getPermutation());
+  SmallVector<int64_t> permutationResult;
+  if (affineMapAttr) {
+    if (failed(makeExplicit1DMapping(affineMapAttr.getValue(),
+                                     tensorTy.getNumElements(),
+                                     permutationResult))) {
+      return emitOpError()
+             << "failed to materialize affine map attr as permutation";
+    }
+
+    if (!isPermutation(permutationResult)) {
+      return emitOpError() << "expected permutation, but got an affine_map "
+                              "attr that was not a permutation.";
+    }
+  } else {
+    auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(getPermutation());
+    if (denseElementsAttr) {
+      permutationResult = llvm::map_to_vector(
+          denseElementsAttr, [](const APInt &i) { return i.getSExtValue(); });
+      if (!isPermutation(permutationResult)) {
+        return emitOpError() << "expected permutation, but got a dense "
+                                "attr that was not a permutation.";
+      }
+    } else {
+      return emitOpError() << "unknown permutation type";
+    }
+  }
+
+  return success();
 }
 
 }  // namespace tensor_ext

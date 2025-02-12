@@ -13,6 +13,7 @@ cc_library(
     deps = [
         ":AlignTensorSizes",
         ":CollapseInsertionChains",
+        ":ImplementShiftNetwork",
         ":InsertRotate",
         ":RotateAndReduce",
         ":pass_inc_gen",
@@ -104,6 +105,27 @@ cc_library(
         "@llvm-project//mlir:TransformUtils",
     ],
 )
+
+cc_library(
+    name = "ImplementShiftNetwork",
+    srcs = ["ImplementShiftNetwork.cpp"],
+    hdrs = [
+        "ImplementShiftNetwork.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils:AffineMapUtils",
+        "@heir//lib/Utils/ADT:FrozenVector",
+        "@heir//lib/Utils/Graph",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 # TensorExt pass tablegen and headers.
 
 gentbl_cc_library(

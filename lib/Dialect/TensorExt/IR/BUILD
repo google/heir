@@ -44,6 +44,7 @@ cc_library(
         ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        "@heir//lib/Utils:AffineMapUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

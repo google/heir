@@ -4,6 +4,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/Transforms/AlignTensorSizes.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
+#include "lib/Dialect/TensorExt/Transforms/ImplementShiftNetwork.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 

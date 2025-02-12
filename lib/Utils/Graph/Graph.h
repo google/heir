@@ -188,7 +188,7 @@ class UndirectedGraph {
 
   // Returns the edges incident to the given vertex.
   std::vector<V> edgesIncidentTo(V vertex) const {
-    if (vertices.count(vertex)) {
+    if (vertices.count(vertex) && edges.count(vertex)) {
       std::vector<V> result(edges.at(vertex).begin(), edges.at(vertex).end());
       // Note: The vertices are sorted to ensure determinism in the output.
       std::sort(result.begin(), result.end());
