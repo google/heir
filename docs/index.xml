@@ -2992,7 +2992,6 @@ arguments.&lt;/p>
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
 &lt;h4 id="options-18">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
--coefficient-mod-bits : Default number of bits of the prime coefficient modulus to use for the ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>cggi&lt;/code> dialect.&lt;/em>&lt;/p>
 &lt;p>This pass lowers the &lt;code>secret&lt;/code> dialect to &lt;code>cggi&lt;/code> dialect.&lt;/p>
@@ -3127,23 +3126,88 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
-&lt;p>The fourth HEIR meeting was 2023-08-01
-(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-11</title><link>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</link><pubDate>Thu, 11 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1kP1kFKV6qrLVPv4CnIhmqO-7nMDFkCpvhzwIppJEDfU/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
-&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
-&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
-fun!&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1-f5ZJ5h28FIgk_-LisNsYa77iuWPIAjU/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-15</title><link>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</link><pubDate>Wed, 16 Aug 2023 16:15:47 +0000</pubDate><guid>https://heir.dev/blog/2023/08/16/heir-meeting-2023-08-15/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1vZsKJH4wCAZCtyh3o9nNMLRFwlWQiVdvUMvwJnA4cIc/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1DDNepYCSqgi-JlBLBzHrsL5CjjiwqcA_/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2023-08-15.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
+&lt;p>The second HEIR meeting was 2023-05-30
+(&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
+and
+&lt;a href="https://drive.google.com/file/d/1S893iJdeL08BAonLenmkUGNC34PX1qpg/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>There are some initial design discussion threads started on
+&lt;a href="https://github.com/google/heir/discussions">GitHub Discussions&lt;/a> to get the
+design rolling.&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV cryptosystem.&lt;/p>
+&lt;h2 id="bgv-attributes">BGV attributes&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="schemeparamattr">SchemeParamAttr&lt;/h3>
+&lt;p>&lt;em>BGV Scheme Parameters&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>#bgv.scheme_param&amp;lt;
+int, # logN
+DenseI64ArrayAttr, # Q
+DenseI64ArrayAttr, # P
+int64_t # plaintextModulus
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for CKKS.&lt;/p>
+&lt;p>The attribute is a struct with the following fields:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>int&lt;/code> logN: The log of the degree of the polynomial modulus.&lt;/li>
+&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> Q: The array of primes in the ciphertext modulus.&lt;/li>
+&lt;li>&lt;code>DenseI64ArrayAttr&lt;/code> P: The array of primes in the special modulus, used for key switching.&lt;/li>
+&lt;li>&lt;code>int64_t&lt;/code> plaintextModulus: The plaintext modulus.&lt;/li>
+&lt;/ul>
+&lt;h4 id="parameters">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">logN&lt;/td>
+&lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Q&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">P&lt;/td>
+&lt;td style="text-align:center">&lt;code>DenseI64ArrayAttr&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">plaintextModulus&lt;/td>
+&lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h2 id="bgv-ops">BGV ops&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="bgvadd-heirbgvaddop">&lt;code>bgv.add&lt;/code> (heir::bgv::AddOp)&lt;/h3>
