@@ -9991,6 +9991,51 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="tensor_extpermute-heirtensor_extpermuteop">&lt;code>tensor_ext.permute&lt;/code> (heir::tensor_ext::PermuteOp)&lt;/h3>
+&lt;p>&lt;em>Permute a tensor by a static permutation.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.permute` operands attr-dict `:` type($input)
+&lt;/code>&lt;/pre>&lt;p>This op represents a permutation of a tensor.&lt;/p>
+&lt;p>This is lowered from a &lt;code>convert_layout&lt;/code> op, and is implemented in terms of
+&lt;code>rotate&lt;/code> operations.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-2">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>permutation&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An Attribute containing an AffineMap object or 64-bit integer elements attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>ranked tensor of any type values&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="tensor_extrotate-heirtensor_extrotateop">&lt;code>tensor_ext.rotate&lt;/code> (heir::tensor_ext::RotateOp)&lt;/h3>
 &lt;p>&lt;em>Rotate a tensor some number of indices left.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -10013,7 +10058,7 @@ tensor is packed along the non-unit dimension.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-2">Operands:&lt;/h4>
+&lt;h4 id="operands-3">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10024,7 +10069,7 @@ tensor is packed along the non-unit dimension.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
-&lt;td>tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any type values&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>shift&lt;/code>&lt;/td>
@@ -10032,7 +10077,7 @@ tensor is packed along the non-unit dimension.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-2">Results:&lt;/h4>
+&lt;h4 id="results-3">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -10043,7 +10088,7 @@ tensor is packed along the non-unit dimension.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>tensor of any type values&lt;/td>
+&lt;td>ranked tensor of any type values&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: TfheRust</title><link>https://heir.dev/docs/dialects/tfherust/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/tfherust/</guid><description>
