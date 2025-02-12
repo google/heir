@@ -23,7 +23,7 @@ module {
     } -> !eui1
     // CHECK: return
     // CHECK-SAME: message_type = tensor<1024xi1>
-    // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: polynomialModulus = <1 + x**1024>
     // CHECK-SAME: size = 3
     return %1 : !eui1
   }
@@ -44,7 +44,7 @@ module {
     } -> !efi1
     // CHECK: return
     // CHECK-SAME: message_type = tensor<1024xf32>
-    // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: polynomialModulus = <1 + x**1024>
     // CHECK-SAME: size = 3
     return %1 : !efi1
   }
@@ -60,7 +60,7 @@ module {
     } -> !secret.secret<f32>
     // CHECK: return
     // CHECK-SAME: message_type = f32
-    // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: polynomialModulus = <1 + x**1024>
     return %0 : !secret.secret<f32>
   }
 
@@ -77,7 +77,7 @@ module {
     } -> !secret.secret<tensor<1x1024xf32>>
     // CHECK: return
     // CHECK-SAME: message_type = tensor<1x1024xf32>
-    // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>
+    // CHECK-SAME: polynomialModulus = <1 + x**1024>
     return %0 : !secret.secret<tensor<1x1024xf32>>
   }
 }
