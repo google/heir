@@ -6,6 +6,8 @@
 
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -188,6 +190,12 @@ LogicalResult convertFunc(func::FuncOp op, int levelBudgetEncode,
   if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
           bgv::BGVDialect::kSchemeParamAttrName)) {
     module->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
+  }
+
+  // remove ckks.schemeParam attribute if present
+  if (auto schemeParamAttr = module->getAttrOfType<ckks::SchemeParamAttr>(
+          ckks::CKKSDialect::kSchemeParamAttrName)) {
+    module->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
   }
 
   // get mulDepth from function argument ciphertext type

@@ -9,6 +9,5 @@ cc_library(
     hdrs = ["Params.h"],
     deps = [
         "//lib/Parameters:RLWEParams",
-        "@llvm-project//llvm:Support",
     ],
 )
