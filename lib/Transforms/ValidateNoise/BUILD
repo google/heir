@@ -15,6 +15,8 @@ cc_library(
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/NoiseAnalysis",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByBoundCoeffModel",
+        "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByVarianceCoeffModel",
+        "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseCoeffModelAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",

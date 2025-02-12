@@ -9,15 +9,21 @@ def ValidateNoise : Pass<"validate-noise"> {
     This pass validates the noise of the HE circuit against a given noise model.
 
     Currently the pass works for BGV scheme, and there are two noise models
-    available: "bgv-noise-by-bound-coeff-average-case{-pk,-sk}" and
-    "bgv-noise-by-bound-coeff-worst-case{-pk,-sk}".
+    available: "bgv-noise-by-bound-coeff-average-case{-pk,-sk}",
+    "bgv-noise-by-bound-coeff-worst-case{-pk,-sk}" and
+    "bgv-noise-by-variance-coeff{-pk,-sk}".
 
-    The two models are taken from KPZ21, and they work by bounding
+    The first two models are taken from KPZ21, and they work by bounding
     the coefficient embedding of the ciphertexts. The difference
     of the two models is expansion factor used for multiplication
     of the coefficients, the first being `2\sqrt{N}` and the second
     being `N`. The `-pk`/`-sk` suffixes assume the input ciphertexts are
     encrypted using the public/secret key.
+
+    The third model is taken from MP24. It works by tracking the variance
+    of the coefficient embedding of the ciphertexts. This gives a more accurate
+    noise estimate, but it may give underestimates in some cases. See the paper
+    for more details.
 
     This pass is experimental. The result should be observed using
     --debug-only=ValidateNoise.

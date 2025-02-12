@@ -4,16 +4,16 @@ package(
 )
 
 cc_library(
-    name = "NoiseByBoundCoeffModel",
+    name = "NoiseCoeffModelAnalysis",
     srcs = [
-        "NoiseByBoundCoeffModel.cpp",
-        "NoiseByBoundCoeffModelAnalysis.cpp",
+        "NoiseCoeffModelAnalysis.cpp",
     ],
     hdrs = [
-        "NoiseByBoundCoeffModel.h",
     ],
     deps = [
         ":Noise",
+        ":NoiseByBoundCoeffModel",
+        ":NoiseByVarianceCoeffModel",
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
@@ -28,6 +28,34 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "NoiseByBoundCoeffModel",
+    srcs = [
+        "NoiseByBoundCoeffModel.cpp",
+    ],
+    hdrs = [
+        "NoiseByBoundCoeffModel.h",
+    ],
+    deps = [
+        ":Noise",
+        "@heir//lib/Parameters/BGV:Params",
+    ],
+)
+
+cc_library(
+    name = "NoiseByVarianceCoeffModel",
+    srcs = [
+        "NoiseByVarianceCoeffModel.cpp",
+    ],
+    hdrs = [
+        "NoiseByVarianceCoeffModel.h",
+    ],
+    deps = [
+        ":Noise",
+        "@heir//lib/Parameters/BGV:Params",
     ],
 )
 
