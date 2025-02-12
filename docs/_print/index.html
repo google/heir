@@ -3210,13 +3210,17 @@ renames to make the target load load directly from the argument memref
 affine loops with affine.load/store ops.</p><p>Memrefs that result from memref.get_global ops are excluded from
 forwarding, even if they are loaded with a static index, and are instead
 handled by memref-global-replace, which should be run after this pass.</p><h3 id=-validate-noise><code>-validate-noise</code></h3><p><em>Validate the HE circuit against a given noise model</em></p><p>This pass validates the noise of the HE circuit against a given noise model.</p><p>Currently the pass works for BGV scheme, and there are two noise models
-available: &ldquo;bgv-noise-by-bound-coeff-average-case{-pk,-sk}&rdquo; and
-&ldquo;bgv-noise-by-bound-coeff-worst-case{-pk,-sk}&rdquo;.</p><p>The two models are taken from KPZ21, and they work by bounding
+available: &ldquo;bgv-noise-by-bound-coeff-average-case{-pk,-sk}&rdquo;,
+&ldquo;bgv-noise-by-bound-coeff-worst-case{-pk,-sk}&rdquo; and
+&ldquo;bgv-noise-by-variance-coeff{-pk,-sk}&rdquo;.</p><p>The first two models are taken from KPZ21, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
 of the coefficients, the first being <code>2\sqrt{N}</code> and the second
 being <code>N</code>. The <code>-pk</code>/<code>-sk</code> suffixes assume the input ciphertexts are
-encrypted using the public/secret key.</p><p>This pass is experimental. The result should be observed using
+encrypted using the public/secret key.</p><p>The third model is taken from MP24. It works by tracking the variance
+of the coefficient embedding of the ciphertexts. This gives a more accurate
+noise estimate, but it may give underestimates in some cases. See the paper
+for more details.</p><p>This pass is experimental. The result should be observed using
 &ndash;debug-only=ValidateNoise.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
 relinearize/modreduce, and it relies on <code>mgmt.mgmt</code> attribute to determine
 the ciphertext level/dimension. These ops and attributes can be added by

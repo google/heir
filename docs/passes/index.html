@@ -4,7 +4,7 @@ To align the tensors in the input IR, the pass first zero pads the input to the 
 This pass resizes input tensors with arbitrary sizes into tensors with whose final dimensions has a fixed size. All input tensors are required to be one-dimensional. The --size option specifies the size of the final dimension of the output tensors, and is required to be a power of two.
 To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/passes/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2024-10-21T23:00:12-07:00"><meta itemprop=name content="Passes"><meta itemprop=description content="-align-tensor-sizes Resize tensors into tensors with a fixed size final dimension
 This pass resizes input tensors with arbitrary sizes into tensors with whose final dimensions has a fixed size. All input tensors are required to be one-dimensional. The --size option specifies the size of the final dimension of the output tensors, and is required to be a power of two.
-To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><meta itemprop=dateModified content="2024-10-21T23:00:12-07:00"><meta itemprop=wordCount content="9005"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-align-tensor-sizes Resize tensors into tensors with a fixed size final dimension
+To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><meta itemprop=dateModified content="2024-10-21T23:00:12-07:00"><meta itemprop=wordCount content="9048"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-align-tensor-sizes Resize tensors into tensors with a fixed size final dimension
 This pass resizes input tensors with arbitrary sizes into tensors with whose final dimensions has a fixed size. All input tensors are required to be one-dimensional. The --size option specifies the size of the final dimension of the output tensors, and is required to be a power of two.
 To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><link rel=preload href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
 <script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]]}}</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
@@ -744,13 +744,17 @@ renames to make the target load load directly from the argument memref
 affine loops with affine.load/store ops.</p><p>Memrefs that result from memref.get_global ops are excluded from
 forwarding, even if they are loaded with a static index, and are instead
 handled by memref-global-replace, which should be run after this pass.</p><h3 id=-validate-noise><code>-validate-noise</code></h3><p><em>Validate the HE circuit against a given noise model</em></p><p>This pass validates the noise of the HE circuit against a given noise model.</p><p>Currently the pass works for BGV scheme, and there are two noise models
-available: &ldquo;bgv-noise-by-bound-coeff-average-case{-pk,-sk}&rdquo; and
-&ldquo;bgv-noise-by-bound-coeff-worst-case{-pk,-sk}&rdquo;.</p><p>The two models are taken from KPZ21, and they work by bounding
+available: &ldquo;bgv-noise-by-bound-coeff-average-case{-pk,-sk}&rdquo;,
+&ldquo;bgv-noise-by-bound-coeff-worst-case{-pk,-sk}&rdquo; and
+&ldquo;bgv-noise-by-variance-coeff{-pk,-sk}&rdquo;.</p><p>The first two models are taken from KPZ21, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
 of the coefficients, the first being <code>2\sqrt{N}</code> and the second
 being <code>N</code>. The <code>-pk</code>/<code>-sk</code> suffixes assume the input ciphertexts are
-encrypted using the public/secret key.</p><p>This pass is experimental. The result should be observed using
+encrypted using the public/secret key.</p><p>The third model is taken from MP24. It works by tracking the variance
+of the coefficient embedding of the ciphertexts. This gives a more accurate
+noise estimate, but it may give underestimates in some cases. See the paper
+for more details.</p><p>This pass is experimental. The result should be observed using
 &ndash;debug-only=ValidateNoise.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
 relinearize/modreduce, and it relies on <code>mgmt.mgmt</code> attribute to determine
 the ciphertext level/dimension. These ops and attributes can be added by
