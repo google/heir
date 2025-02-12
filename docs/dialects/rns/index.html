@@ -13,7 +13,7 @@ Theorem.&rdquo;</p><p>This dialect is intended to be as generic as possible in t
 interaction with standard MLIR. However, because of upstream MLIR
 constraints, we do not have the ability to override, say, <code>arith.addi</code>
 to operate on an <code>rns</code> type. So such situations require dedicated ops,
-canonicalization patterns, etc.</p><h2 id=rns-types>RNS types</h2><h3 id=rnstype>RNSType</h3><p>A residue number system representation</p><p>Syntax:</p><pre tabindex=0><code>!rns.rns&lt;
+canonicalization patterns, etc.</p><h2 id=rns-types>RNS types</h2><h3 id=rnstype>RNSType</h3><p><em>A residue number system representation</em></p><p>Syntax:</p><pre tabindex=0><code>!rns.rns&lt;
   ::llvm::ArrayRef&lt;mlir::Type&gt;   # basisTypes
 &gt;
 </code></pre><h4 id=parameters>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>basisTypes</td><td style=text-align:center><code>::llvm::ArrayRef&lt;mlir::Type></code></td><td></td></tr></tbody></table><h2 id=rns-ops>RNS ops</h2><h2 id=rns-additional-definitions>RNS additional definitions</h2><h1 id=typeinterface-definitions>TypeInterface definitions</h1><h2 id=rnsbasistypeinterface-rnsbasistypeinterface>RNSBasisTypeInterface (<code>RNSBasisTypeInterface</code>)</h2><p>This interface is required for a type to be used as a parameter

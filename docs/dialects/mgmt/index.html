@@ -20,7 +20,7 @@ The attribute is a struct with the following fields:"><link rel=preload href=/sc
 <a id=print href=https://heir.dev/docs/dialects/_print/><i class="fa-solid fa-print fa-fw"></i> Print entire section</a></div><div class=td-toc><nav id=TableOfContents><ul><li><a href=#mgmt-attributes>Mgmt attributes</a><ul><li><a href=#mgmtattr>MgmtAttr</a></li><li><a href=#openfheparamsattr>OpenfheParamsAttr</a></li></ul></li><li><a href=#mgmt-ops>Mgmt ops</a><ul><li><a href=#mgmtbootstrap-heirmgmtbootstrapop><code>mgmt.bootstrap</code> (heir::mgmt::BootstrapOp)</a></li><li><a href=#mgmtmodreduce-heirmgmtmodreduceop><code>mgmt.modreduce</code> (heir::mgmt::ModReduceOp)</a></li><li><a href=#mgmtrelinearize-heirmgmtrelinearizeop><code>mgmt.relinearize</code> (heir::mgmt::RelinearizeOp)</a></li></ul></li></ul></nav></div></aside><main class="col-12 col-md-9 col-xl-8 ps-md-5" role=main><nav aria-label=breadcrumb class=td-breadcrumbs><ol class=breadcrumb><li class=breadcrumb-item><a href=https://heir.dev/docs/>Docs</a></li><li class=breadcrumb-item><a href=https://heir.dev/docs/dialects/>Dialects</a></li><li class="breadcrumb-item active" aria-current=page>Mgmt</li></ol></nav><div class=td-content><h1>Mgmt</h1><header class=article-meta></header><h1 id=mgmt-dialect>&lsquo;mgmt&rsquo; Dialect</h1><p>The <code>mgmt</code> dialect contains scheme-agnostic ciphertext management ops
 (like relinearize and mod reduce), to enable initial high-level compiler
 passes to perform a first pass at parameter selection, while lower-level
-passes may refine them with scheme-specific information.</p><h2 id=mgmt-attributes>Mgmt attributes</h2><h3 id=mgmtattr>MgmtAttr</h3><p>Container attribute for all mgmt parameter</p><p>Syntax:</p><pre tabindex=0><code>#mgmt.mgmt&lt;
+passes may refine them with scheme-specific information.</p><h2 id=mgmt-attributes>Mgmt attributes</h2><h3 id=mgmtattr>MgmtAttr</h3><p><em>Container attribute for all mgmt parameter</em></p><p>Syntax:</p><pre tabindex=0><code>#mgmt.mgmt&lt;
   int,   # level
   int   # dimension
 &gt;
@@ -31,7 +31,7 @@ going through the secret-to-<scheme> pass.</p><p>Example:</p><pre tabindex=0><co
 %0 = secret.generic ins(%arg0, %arg1 : !secret.secret&lt;i16&gt;) attrs = {mgmt.mgmt = #mgmt} {
    ...
 } -&gt; !secret.secret&lt;i16&gt;
-</code></pre><h4 id=parameters>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>level</td><td style=text-align:center><code>int</code></td><td></td></tr><tr><td style=text-align:center>dimension</td><td style=text-align:center><code>int</code></td><td></td></tr></tbody></table><h3 id=openfheparamsattr>OpenfheParamsAttr</h3><p>Container attribute for some OpenFHE-specific parameters</p><p>Syntax:</p><pre tabindex=0><code>#mgmt.openfhe_params&lt;
+</code></pre><h4 id=parameters>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>level</td><td style=text-align:center><code>int</code></td><td></td></tr><tr><td style=text-align:center>dimension</td><td style=text-align:center><code>int</code></td><td></td></tr></tbody></table><h3 id=openfheparamsattr>OpenfheParamsAttr</h3><p><em>Container attribute for some OpenFHE-specific parameters</em></p><p>Syntax:</p><pre tabindex=0><code>#mgmt.openfhe_params&lt;
   int,   # evalAddCount
   int   # keySwitchCount
 &gt;
