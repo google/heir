@@ -329,13 +329,19 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
     if (failed(result2)) return result2;
     Value params = result2.value();
 
+    Value input = adaptor.getInput();
+    // if input is scalar, convert it to 1 dim tensor
+    if (!isa<RankedTensorType>(input.getType())) {
+      input = rewriter.create<tensor::FromElementsOp>(op.getLoc(), input);
+    }
+
     auto alloc = rewriter.create<AllocOp>(
         op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
         params);
 
     rewriter.replaceOpWithNewOp<LattigoEncodeOp>(
         op, this->typeConverter->convertType(op.getOutput().getType()),
-        evaluator, adaptor.getInput(), alloc);
+        evaluator, input, alloc);
     return success();
   }
 };

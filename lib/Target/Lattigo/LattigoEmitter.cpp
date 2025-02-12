@@ -57,7 +57,8 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp>([&](auto op) { return printOperation(op); })
+          .Case<tensor::ExtractOp, tensor::FromElementsOp>(
+              [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
                 RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp,
@@ -192,6 +193,14 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
   // only support 1-dim tensor for now
   os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
   os << getName(op.getIndices()[0]) << "]\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
+  os << getName(op.getResult()) << " := []"
+     << convertType(getElementTypeOrSelf(op.getResult().getType())) << "{";
+  os << getCommaSeparatedNames(op.getOperands());
+  os << "}\n";
   return success();
 }
 
