@@ -3923,8 +3923,28 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &lt;p>Syntax: &lt;code>!lattigo.rlwe.decryptor&lt;/code>&lt;/p>
 &lt;p>This type represents the decryptor for the RLWE encryption scheme.&lt;/p>
 &lt;h3 id="rlweencryptortype">RLWEEncryptorType&lt;/h3>
-&lt;p>Syntax: &lt;code>!lattigo.rlwe.encryptor&lt;/code>&lt;/p>
-&lt;p>This type represents the encryptor for the RLWE encryption scheme.&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>!lattigo.rlwe.encryptor&amp;lt;
+bool # publicKey
+&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>This type represents the encryptor for the RLWE encryption scheme.&lt;/p>
+&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">C++ type&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">publicKey&lt;/td>
+&lt;td style="text-align:center">&lt;code>bool&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="rlweevaluationkeysettype">RLWEEvaluationKeySetType&lt;/h3>
 &lt;p>Syntax: &lt;code>!lattigo.rlwe.evaluation_key_set&lt;/code>&lt;/p>
 &lt;p>This type represents the evaluation key set for the RLWE encryption scheme.&lt;/p>
@@ -3935,7 +3955,7 @@ it must be equal to 1 modulo 2n where n is the plaintext ring degree
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>This type represents the Galois key for the RLWE encryption scheme.&lt;/p>
 &lt;p>galoisElement: Enabling the automorphism X -&amp;gt; X^{galoisElement}.&lt;/p>
-&lt;h4 id="parameters-1">Parameters:&lt;/h4>
+&lt;h4 id="parameters-2">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -4765,8 +4785,8 @@ the optional evaluation key set should be provided.&lt;/p>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>publicKey&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
+&lt;td style="text-align:center">&lt;code>encryptionKey&lt;/code>&lt;/td>
+&lt;td>or&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
