@@ -48,6 +48,17 @@ LogicalResult RLWENewEvaluationKeySetOp::verify() {
   return success();
 }
 
+LogicalResult RLWENewEncryptorOp::verify() {
+  auto keyTypeIsPublic =
+      mlir::isa<RLWEPublicKeyType>(getEncryptionKey().getType());
+  auto encryptorIsPublic = getEncryptor().getType().getPublicKey();
+  if (keyTypeIsPublic != encryptorIsPublic) {
+    return emitError(
+        "encryption key and encryptor must have the same public/secret type");
+  }
+  return success();
+}
+
 }  // namespace lattigo
 }  // namespace heir
 }  // namespace mlir

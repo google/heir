@@ -196,7 +196,7 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(RLWENewEncryptorOp op) {
-  return printNewMethod(op.getResult(), {op.getParams(), op.getPublicKey()},
+  return printNewMethod(op.getResult(), {op.getParams(), op.getEncryptionKey()},
                         "rlwe.NewEncryptor", false);
 }
 

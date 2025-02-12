@@ -82,9 +82,10 @@ def Lattigo_RLWENewEncryptorOp : Lattigo_RLWEOp<"new_encryptor"> {
   let arguments = (ins
     // accepts only BGV for now
     Lattigo_BGVParameter:$params,
-    Lattigo_RLWEPublicKey:$publicKey
+    Lattigo_RLWEPublicKeyOrSecretKey:$encryptionKey
   );
   let results = (outs Lattigo_RLWEEncryptor:$encryptor);
+  let hasVerifier = 1;
 }
 
 def Lattigo_RLWENewDecryptorOp : Lattigo_RLWEOp<"new_decryptor"> {

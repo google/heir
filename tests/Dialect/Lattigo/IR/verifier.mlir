@@ -79,3 +79,27 @@ func.func @test_rlwe_new_evaluation_key_set_operands_other_types(%gk: !gk) {
   %ekset = lattigo.rlwe.new_evaluation_key_set %gk, %c : (!gk, i32) -> !ekset
   return
 }
+
+// -----
+
+!params = !lattigo.bgv.parameter
+!encryptor_pk = !lattigo.rlwe.encryptor<publicKey = true>
+!sk = !lattigo.rlwe.secret_key
+
+func.func @test_rlwe_new_encryptor_pk_input_sk(%params: !params, %sk: !sk) {
+  // expected-error@+1 {{encryption key and encryptor must have the same public/secret type}}
+  %encryptor = lattigo.rlwe.new_encryptor %params, %sk : (!params, !sk) -> !encryptor_pk
+  return
+}
+
+// -----
+
+!params = !lattigo.bgv.parameter
+!encryptor_sk = !lattigo.rlwe.encryptor<publicKey = false>
+!pk = !lattigo.rlwe.public_key
+
+func.func @test_rlwe_new_encryptor_pk_input_sk(%params: !params, %pk: !pk) {
+  // expected-error@+1 {{encryption key and encryptor must have the same public/secret type}}
+  %encryptor = lattigo.rlwe.new_encryptor %params, %pk : (!params, !pk) -> !encryptor_sk
+  return
+}

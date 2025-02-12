@@ -116,6 +116,11 @@ class LattigoEmitter {
     if (value == Value()) {
       return "nil";
     }
+    // when the value has no uses, we can not assign it a name
+    // otherwise GO would complain "declared and not used"
+    if (value.use_empty()) {
+      return "_";
+    }
     return variableNames->getNameForValue(value);
   }
 
