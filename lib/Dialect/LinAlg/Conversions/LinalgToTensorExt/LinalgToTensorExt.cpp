@@ -542,7 +542,7 @@ struct LinalgToTensorExt
       auto valueValid = validateValues(op, [&](Value value) {
         if (auto secretTy = dyn_cast<secret::SecretType>(value.getType())) {
           if (auto genericOp =
-                  dyn_cast<secret::GenericOp>(value.getDefiningOp())) {
+                  dyn_cast_or_null<secret::GenericOp>(value.getDefiningOp())) {
             if (isSquatPackableMatmul(genericOp, &solver)) {
               return failure();
             }
