@@ -65,9 +65,9 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
                 RLWEGenGaloisKeyOp, RLWENewEvaluationKeySetOp, RLWEEncryptOp,
                 RLWEDecryptOp, BGVNewParametersFromLiteralOp, BGVNewEncoderOp,
                 BGVNewEvaluatorOp, BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp,
-                BGVAddOp, BGVSubOp, BGVMulOp, BGVRelinearizeOp, BGVRescaleOp,
-                BGVRotateColumnsOp, BGVRotateRowsOp>(
-              [&](auto op) { return printOperation(op); })
+                BGVAddNewOp, BGVSubNewOp, BGVMulNewOp, BGVAddOp, BGVSubOp,
+                BGVMulOp, BGVRelinearizeOp, BGVRescaleOp, BGVRotateColumnsOp,
+                BGVRotateRowsOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return emitError(op.getLoc(), "unable to find printer for op");
           });
@@ -347,19 +347,34 @@ LogicalResult LattigoEmitter::printOperation(BGVDecodeOp op) {
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVAddOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVAddNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "AddNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVSubOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVSubNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "SubNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVMulOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVMulNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "MulNew", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVAddOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getLhs(), op.getRhs(), op.getLhs()}, "Add", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVSubOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getLhs(), op.getRhs(), op.getLhs()}, "Sub", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVMulOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getLhs(), op.getRhs(), op.getLhs()}, "Mul", true);
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVRelinearizeOp op) {
@@ -470,6 +485,21 @@ LogicalResult LattigoEmitter::printEvalInplaceMethod(
   // so assigning it is not costly, but for lowering pass to Lattigo, they
   // should ensure the operandInplace is only used once
   os << getName(result) << " := " << getName(operandInplace) << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printEvalInplaceMethod(
+    ::mlir::Value evaluator, ::mlir::ValueRange operands, std::string_view op,
+    bool err) {
+  std::string errName = getErrName();
+  if (err) {
+    os << errName << " := ";
+  }
+  os << getName(evaluator) << "." << op << "("
+     << getCommaSeparatedNames(operands) << ");\n";
+  if (err) {
+    printErrPanic(errName);
+  }
   return success();
 }
 

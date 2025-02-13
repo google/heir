@@ -92,6 +92,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/LWE/Transforms:AddClientInterface",
         "@heir//lib/Dialect/LWE/Transforms:AddDebugPort",
+        "@heir//lib/Dialect/Lattigo/Transforms:AllocToInplace",
         "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/Openfhe/Transforms:ConfigureCryptoContext",

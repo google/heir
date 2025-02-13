@@ -408,21 +408,21 @@ struct ConvertLWEReinterpretUnderlyingType
 
 }  // namespace
 
-using ConvertAddOp =
-    ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RAddOp, lattigo::BGVAddOp>;
-using ConvertSubOp =
-    ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp, lattigo::BGVSubOp>;
-using ConvertMulOp =
-    ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp, lattigo::BGVMulOp>;
+using ConvertAddOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RAddOp,
+                                      lattigo::BGVAddNewOp>;
+using ConvertSubOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp,
+                                      lattigo::BGVSubNewOp>;
+using ConvertMulOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp,
+                                      lattigo::BGVMulNewOp>;
 using ConvertAddPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::AddPlainOp,
-                       lattigo::BGVAddOp>;
+                       lattigo::BGVAddNewOp>;
 using ConvertSubPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::SubPlainOp,
-                       lattigo::BGVSubOp>;
+                       lattigo::BGVSubNewOp>;
 using ConvertMulPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::MulPlainOp,
-                       lattigo::BGVMulOp>;
+                       lattigo::BGVMulNewOp>;
 
 using ConvertRelinOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::RelinearizeOp,

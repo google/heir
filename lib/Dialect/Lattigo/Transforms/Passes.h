@@ -2,6 +2,7 @@
 #define LIB_DIALECT_LATTIGO_TRANSFORMS_PASSES_H_
 
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
+#include "lib/Dialect/Lattigo/Transforms/AllocToInplace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 
 namespace mlir {
