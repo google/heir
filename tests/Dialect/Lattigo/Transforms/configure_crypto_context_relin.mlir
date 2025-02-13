@@ -6,8 +6,8 @@
 
 module attributes {scheme.bgv} {
   func.func @relin(%evaluator : !evaluator, %ct : !ct) -> !ct {
-    %ct1 = lattigo.bgv.mul %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
-    %res = lattigo.bgv.relinearize %evaluator, %ct1 : (!evaluator, !ct) -> !ct
+    %ct1 = lattigo.bgv.mul_new %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
+    %res = lattigo.bgv.relinearize_new %evaluator, %ct1 : (!evaluator, !ct) -> !ct
     return %res : !ct
   }
 }

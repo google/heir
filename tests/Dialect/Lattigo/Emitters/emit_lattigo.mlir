@@ -39,16 +39,16 @@ module attributes {scheme.bgv} {
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[evaluator]].AddNew([[ct]], [[ct1]])
   // CHECK: [[ct3:[^, ].*]], [[err:.*]] := [[evaluator]].MulNew([[ct2]], [[ct1]])
   // CHECK: [[ct4:[^, ].*]], [[err:.*]] := [[evaluator]].RelinearizeNew([[ct3]])
-  // CHECK: [[err:.*]] := [[evaluator]].Rescale([[ct4]], [[ct4]])
-  // CHECK: [[ct5:[^, ].*]] := [[ct4]]
+  // CHECK: [[ct5:[^, ].*]] := [[ct4]].CopyNew()
+  // CHECK: [[err:.*]] := [[evaluator]].Rescale([[ct4]], [[ct5]])
   // CHECK: [[ct6:[^, ].*]], [[err:.*]] := [[evaluator]].RotateColumnsNew([[ct5]], 1)
   // CHECK: return [[ct6]]
   func.func @compute(%evaluator : !evaluator, %ct1 : !ct, %ct2 : !ct) -> (!ct) {
-    %added = lattigo.bgv.add %evaluator, %ct1, %ct2 : (!evaluator, !ct, !ct) -> !ct
-    %mul = lattigo.bgv.mul %evaluator, %added, %ct2 : (!evaluator, !ct, !ct) -> !ct
-    %relin = lattigo.bgv.relinearize %evaluator, %mul : (!evaluator, !ct) -> !ct
-    %rescale = lattigo.bgv.rescale %evaluator, %relin : (!evaluator, !ct) -> !ct
-    %rotate = lattigo.bgv.rotate_columns %evaluator, %rescale {offset = 1} : (!evaluator, !ct) -> !ct
+    %added = lattigo.bgv.add_new %evaluator, %ct1, %ct2 : (!evaluator, !ct, !ct) -> !ct
+    %mul = lattigo.bgv.mul_new %evaluator, %added, %ct2 : (!evaluator, !ct, !ct) -> !ct
+    %relin = lattigo.bgv.relinearize_new %evaluator, %mul : (!evaluator, !ct) -> !ct
+    %rescale = lattigo.bgv.rescale_new %evaluator, %relin : (!evaluator, !ct) -> !ct
+    %rotate = lattigo.bgv.rotate_columns_new %evaluator, %rescale {offset = 1} : (!evaluator, !ct) -> !ct
     return %rotate : !ct
   }
 
@@ -75,12 +75,10 @@ module attributes {scheme.bgv} {
   // CHECK: [[pt2:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
   // CHECK: [[value1Packed:[^, ].*]][i] = int64([[value1]][i % len([[value1]])])
   // CHECK: [[encoder]].Encode([[value1Packed]], [[pt1]])
-  // CHECK: [[pt3:[^, ].*]] := [[pt1]]
   // CHECK: [[value2Packed:[^, ].*]][i] = int64([[value2]][i % len([[value2]])])
   // CHECK: [[encoder]].Encode([[value2Packed]], [[pt2]])
-  // CHECK: [[pt4:[^, ].*]] := [[pt2]]
-  // CHECK: [[ct1:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt3]])
-  // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt4]])
+  // CHECK: [[ct1:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt1]])
+  // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt2]])
   // CHECK: [[res:[^, ].*]] := compute([[eval]], [[ct1]], [[ct2]])
   // CHECK: [[pt5:[^, ].*]] := [[dec]].DecryptNew([[res]])
   // CHECK: [[value3:[^, ].*]] := []int64

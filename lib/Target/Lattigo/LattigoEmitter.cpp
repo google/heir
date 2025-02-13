@@ -66,9 +66,11 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
               RLWENewEvaluationKeySetOp, RLWEEncryptOp, RLWEDecryptOp,
               // BGV
               BGVNewParametersFromLiteralOp, BGVNewEncoderOp, BGVNewEvaluatorOp,
-              BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddOp, BGVSubOp,
-              BGVMulOp, BGVRelinearizeOp, BGVRescaleOp, BGVRotateColumnsOp,
-              BGVRotateRowsOp,
+              BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddNewOp,
+              BGVSubNewOp, BGVMulNewOp, BGVAddOp, BGVSubOp, BGVMulOp,
+              BGVRelinearizeOp, BGVRescaleOp, BGVRotateColumnsOp,
+              BGVRotateRowsOp, BGVRelinearizeNewOp, BGVRescaleNewOp,
+              BGVRotateColumnsNewOp, BGVRotateRowsNewOp,
               // CKKS
               CKKSNewParametersFromLiteralOp, CKKSNewEncoderOp,
               CKKSNewEvaluatorOp, CKKSNewPlaintextOp, CKKSEncodeOp,
@@ -384,8 +386,6 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";
   os << getName(op.getPlaintext()) << ")\n";
-  os << getName(op.getEncoded()) << " := " << getName(op.getPlaintext())
-     << "\n";
   return success();
 }
 
@@ -409,32 +409,53 @@ LogicalResult LattigoEmitter::printOperation(BGVDecodeOp op) {
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVAddOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVAddNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "AddNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVSubOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVSubNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "SubNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVMulOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVMulNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "MulNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVRelinearizeOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVAddOp op) {
+  return printEvalInplaceMethod(op.getEvaluator(),
+                                {op.getLhs(), op.getRhs(), op.getInplace()},
+                                "Add", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVSubOp op) {
+  return printEvalInplaceMethod(op.getEvaluator(),
+                                {op.getLhs(), op.getRhs(), op.getInplace()},
+                                "Sub", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVMulOp op) {
+  return printEvalInplaceMethod(op.getEvaluator(),
+                                {op.getLhs(), op.getRhs(), op.getInplace()},
+                                "Mul", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRelinearizeNewOp op) {
   return printEvalNewMethod(op.getOutput(), op.getEvaluator(), op.getInput(),
                             "RelinearizeNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVRescaleOp op) {
-  return printEvalInplaceMethod(op.getOutput(), op.getEvaluator(),
-                                op.getInput(), op.getInput(), "Rescale", true);
+LogicalResult LattigoEmitter::printOperation(BGVRescaleNewOp op) {
+  // there is no RescaleNew method in Lattigo, manually create new ciphertext
+  os << getName(op.getOutput()) << " := " << getName(op.getInput())
+     << ".CopyNew()\n";
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsNewOp op) {
   auto errName = getErrName();
   os << getName(op.getOutput()) << ", " << errName
      << " := " << getName(op.getEvaluator()) << ".RotateColumnsNew(";
@@ -444,9 +465,34 @@ LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(BGVRotateRowsOp op) {
+LogicalResult LattigoEmitter::printOperation(BGVRotateRowsNewOp op) {
   return printEvalNewMethod(op.getOutput(), op.getEvaluator(), {op.getInput()},
                             "RotateRowsNew", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRelinearizeOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getInput(), op.getInplace()}, "Relinearize", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRescaleOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getInput(), op.getInplace()}, "Rescale", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRotateColumnsOp op) {
+  auto errName = getErrName();
+  os << errName << " := " << getName(op.getEvaluator()) << ".RotateColumns(";
+  os << getName(op.getInput()) << ", ";
+  os << op.getOffset().getInt() << ", ";
+  os << getName(op.getInplace()) << ")\n";
+  printErrPanic(errName);
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(BGVRotateRowsOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getInput(), op.getInplace()}, "RotateRows", true);
 }
 
 std::string printDenseI32ArrayAttr(DenseI32ArrayAttr attr) {
@@ -672,6 +718,21 @@ LogicalResult LattigoEmitter::printEvalInplaceMethod(
   // so assigning it is not costly, but for lowering pass to Lattigo, they
   // should ensure the operandInplace is only used once
   os << getName(result) << " := " << getName(operandInplace) << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printEvalInplaceMethod(
+    ::mlir::Value evaluator, ::mlir::ValueRange operands, std::string_view op,
+    bool err) {
+  std::string errName = getErrName();
+  if (err) {
+    os << errName << " := ";
+  }
+  os << getName(evaluator) << "." << op << "("
+     << getCommaSeparatedNames(operands) << ");\n";
+  if (err) {
+    printErrPanic(errName);
+  }
   return success();
 }
 

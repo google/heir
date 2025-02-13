@@ -415,33 +415,33 @@ struct ConvertLWEReinterpretUnderlyingType
 }  // namespace
 
 // BGV
-using ConvertBGVAddOp =
-    ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RAddOp, lattigo::BGVAddOp>;
-using ConvertBGVSubOp =
-    ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp, lattigo::BGVSubOp>;
-using ConvertBGVMulOp =
-    ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp, lattigo::BGVMulOp>;
+using ConvertBGVAddOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RAddOp,
+                                         lattigo::BGVAddNewOp>;
+using ConvertBGVSubOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp,
+                                         lattigo::BGVSubNewOp>;
+using ConvertBGVMulOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp,
+                                         lattigo::BGVMulNewOp>;
 using ConvertBGVAddPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::AddPlainOp,
-                       lattigo::BGVAddOp>;
+                       lattigo::BGVAddNewOp>;
 using ConvertBGVSubPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::SubPlainOp,
-                       lattigo::BGVSubOp>;
+                       lattigo::BGVSubNewOp>;
 using ConvertBGVMulPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::MulPlainOp,
-                       lattigo::BGVMulOp>;
+                       lattigo::BGVMulNewOp>;
 
 using ConvertBGVRelinOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::RelinearizeOp,
-                       lattigo::BGVRelinearizeOp>;
+                       lattigo::BGVRelinearizeNewOp>;
 using ConvertBGVModulusSwitchOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::ModulusSwitchOp,
-                       lattigo::BGVRescaleOp>;
+                       lattigo::BGVRescaleNewOp>;
 
 // TODO(#1186): figure out generic rotating using BGVRotateColumns/RowsOp
 using ConvertBGVRotateOp =
     ConvertRlweRotateOp<lattigo::BGVEvaluatorType, bgv::RotateOp,
-                        lattigo::BGVRotateColumnsOp>;
+                        lattigo::BGVRotateColumnsNewOp>;
 
 using ConvertBGVEncryptOp =
     ConvertRlweUnaryOp<lattigo::RLWEEncryptorType, lwe::RLWEEncryptOp,

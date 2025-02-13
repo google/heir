@@ -80,24 +80,45 @@ module {
     return
   }
 
+  // CHECK-LABEL: func @test_bgv_add_new
+  func.func @test_bgv_add_new(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.bgv.add_new
+    %output = lattigo.bgv.add_new %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_bgv_sub_new
+  func.func @test_bgv_sub_new(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.bgv.sub_new
+    %output = lattigo.bgv.sub_new %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_bgv_mul_new
+  func.func @test_bgv_mul_new(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.bgv.mul_new
+    %output = lattigo.bgv.mul_new %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
+    return
+  }
+
   // CHECK-LABEL: func @test_bgv_add
   func.func @test_bgv_add(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.add
-    %output = lattigo.bgv.add %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
+    %output = lattigo.bgv.add %evaluator, %lhs, %rhs, %lhs : (!evaluator, !ct, !ct, !ct) -> !ct
     return
   }
 
   // CHECK-LABEL: func @test_bgv_sub
   func.func @test_bgv_sub(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.sub
-    %output = lattigo.bgv.sub %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
+    %output = lattigo.bgv.sub %evaluator, %lhs, %rhs, %lhs : (!evaluator, !ct, !ct, !ct) -> !ct
     return
   }
 
   // CHECK-LABEL: func @test_bgv_mul
   func.func @test_bgv_mul(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.mul
-    %output = lattigo.bgv.mul %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
+    %output = lattigo.bgv.mul %evaluator, %lhs, %rhs, %lhs : (!evaluator, !ct, !ct, !ct) -> !ct
     return
   }
 
@@ -108,31 +129,59 @@ module {
     return
   }
 
+  // CHECK-LABEL: func @test_bgv_relinearize_new
+  func.func @test_bgv_relinearize_new(%evaluator: !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.bgv.relinearize_new
+    %output = lattigo.bgv.relinearize_new %evaluator, %ct : (!evaluator, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_bgv_rescale_new
+  func.func @test_bgv_rescale_new(%evaluator: !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.bgv.rescale_new
+    %output = lattigo.bgv.rescale_new %evaluator, %ct : (!evaluator, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_bgv_rotate_columns_new
+  func.func @test_bgv_rotate_columns_new(%evaluator: !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.bgv.rotate_columns_new
+    %output = lattigo.bgv.rotate_columns_new %evaluator, %ct {offset = 1} : (!evaluator, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_bgv_rotate_rows_new
+  func.func @test_bgv_rotate_rows_new(%evaluator: !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.bgv.rotate_rows_new
+    %output = lattigo.bgv.rotate_rows_new %evaluator, %ct : (!evaluator, !ct) -> !ct
+    return
+  }
+
   // CHECK-LABEL: func @test_bgv_relinearize
   func.func @test_bgv_relinearize(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.relinearize
-    %output = lattigo.bgv.relinearize %evaluator, %ct : (!evaluator, !ct) -> !ct
+    %output = lattigo.bgv.relinearize %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
   // CHECK-LABEL: func @test_bgv_rescale
   func.func @test_bgv_rescale(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.rescale
-    %output = lattigo.bgv.rescale %evaluator, %ct : (!evaluator, !ct) -> !ct
+    %output = lattigo.bgv.rescale %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
   // CHECK-LABEL: func @test_bgv_rotate_columns
   func.func @test_bgv_rotate_columns(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.rotate_columns
-    %output = lattigo.bgv.rotate_columns %evaluator, %ct {offset = 1} : (!evaluator, !ct) -> !ct
+    %output = lattigo.bgv.rotate_columns %evaluator, %ct, %ct {offset = 1} : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
   // CHECK-LABEL: func @test_bgv_rotate_rows
   func.func @test_bgv_rotate_rows(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.rotate_rows
-    %output = lattigo.bgv.rotate_rows %evaluator, %ct : (!evaluator, !ct) -> !ct
+    %output = lattigo.bgv.rotate_rows %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return
   }
 }

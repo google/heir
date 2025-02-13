@@ -6,7 +6,7 @@
 
 module attributes {scheme.bgv} {
   func.func @add(%evaluator : !evaluator, %ct : !ct) -> !ct {
-    %res = lattigo.bgv.add %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
+    %res = lattigo.bgv.add_new %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return %res : !ct
   }
 }
