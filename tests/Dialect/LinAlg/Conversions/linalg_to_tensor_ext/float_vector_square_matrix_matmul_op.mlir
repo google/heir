@@ -10,18 +10,18 @@
 // CHECK-SAME{LITERAL}: <[[
 // CHECK-SAME: 1.7{{0*}}e+01, 1.8{{0*}}e+01, 1.9{{0*}}e+01, 2.{{0*}}e+01
 // CHECK-SAME{LITERAL}: ]]>
-// CHECK:      %[[LAST_SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][3, 0] [1, 4] [1, 1]
+// CHECK:      %[[FIRST_SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][0, 0] [1, 4] [1, 1]
 // CHECK:      %[[OUT:.*]] = secret.generic ins(%[[ARG]] : !secret.secret<tensor<1x4xf16>>)
 // CHECK:      ^body(%[[ARG_CONVERTED:.*]]: tensor<1x4xf16>):
-// CHECK:        %[[FOR_LOOP_OUT:.*]]:2 = affine.for %[[I:.*]] = 0 to 3 iter_args(%[[RUNNING_SUM:.*]] = %[[BIAS]], %[[ROTATED_VEC:.*]] = %[[ARG_CONVERTED]])
-// CHECK:        %[[SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][%[[I]], 0] [1, 4] [1, 1]
-// CHECK:        %[[MUL:.*]] = arith.mulf %[[ROTATED_VEC]], %[[SLICE]]
-// CHECK:        %[[UPDATED_SUM:.*]] = arith.addf %[[RUNNING_SUM]], %[[MUL]]
+// CHECK:        %[[FIRST_MUL:.*]] = arith.mulf %[[ARG_CONVERTED]], %[[FIRST_SLICE]]
+// CHECK:        %[[FIRST_SUM:.*]] = arith.addf %[[FIRST_MUL]], %[[BIAS]]
+// CHECK:        %[[FOR_LOOP_OUT:.*]]:2 = affine.for %[[I:.*]] = 1 to 4 iter_args(%[[RUNNING_SUM:.*]] = %[[FIRST_SUM]], %[[ROTATED_VEC:.*]] = %[[ARG_CONVERTED]])
 // CHECK:        %[[UPDATED_ROTATED_VEC:.*]] = tensor_ext.rotate %[[ROTATED_VEC]], %[[ONE]]
+// CHECK:        %[[SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][%[[I]], 0] [1, 4] [1, 1]
+// CHECK:        %[[MUL:.*]] = arith.mulf %[[UPDATED_ROTATED_VEC]], %[[SLICE]]
+// CHECK:        %[[UPDATED_SUM:.*]] = arith.addf %[[RUNNING_SUM]], %[[MUL]]
 // CHECK:        affine.yield %[[UPDATED_SUM]], %[[UPDATED_ROTATED_VEC]]
-// CHECK:      %[[LAST_MUL:.*]] = arith.mulf %[[FOR_LOOP_OUT]]#1, %[[LAST_SLICE]]
-// CHECK:      %[[FINAL_SUM:.*]] = arith.addf %[[FOR_LOOP_OUT]]#0, %[[LAST_MUL]]
-// CHECK:      secret.yield %[[FINAL_SUM]]
+// CHECK:      secret.yield %[[FOR_LOOP_OUT]]#0
 // CHECK:      return %[[OUT]]
 module {
 func.func @test_float_vector_square_matrix_matmul(%vec : !secret.secret<tensor<1x4xf16>>) -> !secret.secret<tensor<1x4xf16>> {
