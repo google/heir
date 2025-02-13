@@ -26,16 +26,19 @@
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -269,6 +272,105 @@ class SecretGenericTensorInsertConversion
   }
 };
 
+class SecretForOpConversion : public OpConversionPattern<affine::AffineForOp> {
+ public:
+  using OpConversionPattern<affine::AffineForOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      affine::AffineForOp forOp, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const final {
+    const auto *contextAwareTypeConverter =
+        dynamic_cast<const TypeWithAttrTypeConverter *>(getTypeConverter());
+    SmallVector<Type> newInitTypes;
+    contextAwareTypeConverter->convertValueRangeTypes(forOp.getInits(),
+                                                      newInitTypes);
+
+    Location loc = forOp.getLoc();
+    auto newForOp = rewriter.create<affine::AffineForOp>(
+        loc, ValueRange(forOp.getLowerBoundOperands()),
+        forOp.getLowerBoundMap(), ValueRange(forOp.getUpperBoundOperands()),
+        forOp.getUpperBoundMap(), forOp.getStep().getZExtValue(),
+        adaptor.getInits(), [](OpBuilder &, Location, Value, ValueRange) {});
+    newForOp->setAttrs(forOp->getAttrs());
+
+    mlir::Block *newBody = newForOp.getBody();
+    mlir::Block *oldBody = forOp.getBody();
+    rewriter.setInsertionPoint(newBody, newBody->begin());
+
+    SmallVector<Value> newBlockArgs;
+    for (auto arg : newBody->getArguments()) {
+      if (auto lweTy = dyn_cast<lwe::NewLWECiphertextType>(arg.getType())) {
+        // For each block arg that is a secret type, we need to create an
+        // operation inside the for loops block that can hold the mgmt attr for
+        // type conversion. We can't rely on getValueAttr since blocks are
+        // unlinked during dialect conversion.
+        auto underlyingTy = secret::SecretType::get(
+            lweTy.getApplicationData().getMessageType());
+        auto cast = rewriter.create<mlir::UnrealizedConversionCastOp>(
+            loc, underlyingTy, arg);
+        cast->setAttrs(oldBody->getArgument(arg.getArgNumber())
+                           .getUsers()
+                           .begin()
+                           ->getAttrs());
+        newBlockArgs.push_back(cast.getResult(0));
+      } else {
+        newBlockArgs.push_back(arg);
+      }
+    }
+
+    // Move the body of the old ForOp to the new one.
+    rewriter.mergeBlocks(oldBody, newBody, newBlockArgs);
+    rewriter.replaceOp(forOp, newForOp);
+    return success();
+  }
+};
+
+class SecretGenericFuncCallConversion
+    : public SecretGenericOpConversion<func::CallOp, func::CallOp> {
+ public:
+  using SecretGenericOpConversion<func::CallOp,
+                                  func::CallOp>::SecretGenericOpConversion;
+
+  LogicalResult matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ConversionPatternRewriter &rewriter) const override {
+    // check if any args are secret from wrapping generic
+    // clone the callee (and update a unique name, for now always) the call
+    // operands add a note that we don't have to always clone to be secret
+    // update the called func's type signature
+
+    func::CallOp callOp = *op.getBody()->getOps<func::CallOp>().begin();
+    auto module = callOp->getParentOfType<ModuleOp>();
+    func::FuncOp callee = module.lookupSymbol<func::FuncOp>(callOp.getCallee());
+
+    // For now, ensure that there is only one caller to the callee.
+    auto calleeUses = callee.getSymbolUses(callee->getParentOp());
+    if (std::distance(calleeUses->begin(), calleeUses->end()) != 1) {
+      return op->emitError() << "expected exactly one caller to the callee";
+    }
+
+    SmallVector<Type> newInputTypes;
+    for (auto val : inputs) {
+      newInputTypes.push_back(val.getType());
+    }
+
+    FunctionType newFunctionType =
+        cast<FunctionType>(callee.cloneTypeWith(newInputTypes, outputTypes));
+    auto newFuncOp = rewriter.cloneWithoutRegions(callee);
+    newFuncOp->moveAfter(callee);
+    newFuncOp.setFunctionType(newFunctionType);
+    newFuncOp.setSymName(
+        llvm::formatv("{0}_secret", callee.getSymName()).str());
+
+    auto newCallOp = rewriter.create<func::CallOp>(op.getLoc(), outputTypes,
+                                                   newFuncOp.getName(), inputs);
+    rewriter.replaceOp(op, newCallOp);
+    rewriter.eraseOp(callee);
+    return success();
+  }
+};
+
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
@@ -333,14 +435,34 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       return typeConverter.isFuncArgumentAndResultLegal(op);
     });
+    // to resolve unlinked block arguments
+    target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 
     // We add an explicit allowlist of operations to mark legal. If we use
     // markUnknownOpDynamicallyLegal, then ConvertAny will be applied to any
     // remaining operations and potentially cause a crash.
-    target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp>(
+    target.addDynamicallyLegalOp<func::CallOp>(
+        [&](Operation *op) { return typeConverter.isOperationLegal(op); });
+    target.addDynamicallyLegalOp<affine::AffineYieldOp>(
         [&](Operation *op) { return typeConverter.isOperationLegal(op); });
     target.addDynamicallyLegalOp<tensor::ExtractOp, tensor::InsertOp>(
         [&](Operation *op) { return typeConverter.isOperationLegal(op); });
+    // We can't use typeConverter.isOperationLegal here because it requires the
+    // region being converted.
+    target.addDynamicallyLegalOp<affine::AffineForOp>(
+        [&](affine::AffineForOp op) {
+          for (auto operand : op->getOperands()) {
+            if (!typeConverter.isValueLegal(operand)) {
+              return false;
+            }
+          }
+          for (auto result : op->getResults()) {
+            if (!typeConverter.isValueLegal(result)) {
+              return false;
+            }
+          }
+          return true;
+        });
 
     patterns.add<
         ConvertFuncWithContextAwareTypeConverter,
@@ -363,14 +485,15 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpCipherPlainConversion<arith::AddIOp, ckks::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, ckks::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulIOp, ckks::MulPlainOp>,
-        ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>>(
-        typeConverter, context);
+        SecretForOpConversion, ConvertAny<affine::AffineYieldOp>,
+        SecretGenericFuncCallConversion>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();
     }
 
     // cleanup MgmtAttr
+    SmallVector<Operation *> opsToRemove;
     getOperation()->walk([&](Operation *op) {
       if (auto funcOp = dyn_cast<FunctionOpInterface>(op)) {
         for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
@@ -379,7 +502,16 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
       } else {
         op->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
       }
+      if (auto castOp = dyn_cast<mlir::UnrealizedConversionCastOp>(op)) {
+        if (castOp.getOperand(0).getType() == castOp.getResult(0).getType()) {
+          castOp.getResult(0).replaceAllUsesWith(castOp.getOperand(0));
+          opsToRemove.push_back(castOp);
+        }
+      }
     });
+    for (auto op : opsToRemove) {
+      op->erase();
+    }
   }
 };
 

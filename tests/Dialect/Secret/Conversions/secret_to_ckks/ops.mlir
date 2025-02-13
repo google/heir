@@ -80,4 +80,20 @@ module {
     // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>
     return %0 : !secret.secret<tensor<1x1024xf32>>
   }
+
+  // CHECK-LABEL: func.func private @callee_secret
+  // CHECK-LABEL: func @test_call
+  func.func private @callee(tensor<1x1024xf32>) -> tensor<1x1024xf32>
+  func.func @test_call(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) -> !secret.secret<tensor<1x1024xf32>> {
+    // CHECK: call @callee_secret
+    %0 = secret.generic ins(%arg0 : !secret.secret<tensor<1x1024xf32>>) attrs = {mgmt.mgmt = #mgmt} {
+    ^body(%input0: tensor<1x1024xf32>):
+      %1 = func.call @callee(%input0) : (tensor<1x1024xf32>) -> tensor<1x1024xf32>
+      secret.yield %1 : tensor<1x1024xf32>
+    } -> !secret.secret<tensor<1x1024xf32>>
+    // CHECK: return
+    // CHECK-SAME: message_type = tensor<1x1024xf32>
+    // CHECK-SAME: coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>
+    return %0 : !secret.secret<tensor<1x1024xf32>>
+  }
 }
