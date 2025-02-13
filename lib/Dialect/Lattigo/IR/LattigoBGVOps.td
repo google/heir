@@ -102,21 +102,51 @@ class Lattigo_BGVBinaryOp<string mnemonic> :
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_BGVAddOp : Lattigo_BGVBinaryOp<"add"> {
+def Lattigo_BGVAddNewOp : Lattigo_BGVBinaryOp<"add_new"> {
   let summary = "Add two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation adds two ciphertext values in the Lattigo BGV dialect.
   }];
 }
 
-def Lattigo_BGVSubOp : Lattigo_BGVBinaryOp<"sub"> {
+def Lattigo_BGVSubNewOp : Lattigo_BGVBinaryOp<"sub_new"> {
   let summary = "Subtract two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation subtracts one ciphertext value from another in the Lattigo BGV dialect.
   }];
 }
 
-def Lattigo_BGVMulOp : Lattigo_BGVBinaryOp<"mul"> {
+def Lattigo_BGVMulNewOp : Lattigo_BGVBinaryOp<"mul_new"> {
+  let summary = "Multiply two ciphertexts in the Lattigo BGV dialect";
+  let description = [{
+    This operation multiplies two ciphertext values in the Lattigo BGV dialect.
+  }];
+}
+
+class Lattigo_BGVBinaryInplaceOp<string mnemonic> :
+        Lattigo_BGVOp<mnemonic> {
+  let arguments = (ins
+    Lattigo_BGVEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$lhs,
+    Lattigo_RLWECiphertextOrPlaintext:$rhs
+  );
+}
+
+def Lattigo_BGVAddOp : Lattigo_BGVBinaryInplaceOp<"add"> {
+  let summary = "Add two ciphertexts in the Lattigo BGV dialect";
+  let description = [{
+    This operation adds two ciphertext values in the Lattigo BGV dialect.
+  }];
+}
+
+def Lattigo_BGVSubOp : Lattigo_BGVBinaryInplaceOp<"sub"> {
+  let summary = "Subtract two ciphertexts in the Lattigo BGV dialect";
+  let description = [{
+    This operation subtracts one ciphertext value from another in the Lattigo BGV dialect.
+  }];
+}
+
+def Lattigo_BGVMulOp : Lattigo_BGVBinaryInplaceOp<"mul"> {
   let summary = "Multiply two ciphertexts in the Lattigo BGV dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo BGV dialect.

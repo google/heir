@@ -73,6 +73,9 @@ class LattigoEmitter {
   LogicalResult printOperation(BGVNewPlaintextOp op);
   LogicalResult printOperation(BGVEncodeOp op);
   LogicalResult printOperation(BGVDecodeOp op);
+  LogicalResult printOperation(BGVAddNewOp op);
+  LogicalResult printOperation(BGVSubNewOp op);
+  LogicalResult printOperation(BGVMulNewOp op);
   LogicalResult printOperation(BGVAddOp op);
   LogicalResult printOperation(BGVSubOp op);
   LogicalResult printOperation(BGVMulOp op);
@@ -92,6 +95,10 @@ class LattigoEmitter {
                                        ::mlir::Value evaluator,
                                        ::mlir::Value operand,
                                        ::mlir::Value operandInplace,
+                                       std::string_view op, bool err);
+
+  LogicalResult printEvalInplaceMethod(::mlir::Value evaluator,
+                                       ::mlir::ValueRange operands,
                                        std::string_view op, bool err);
 
   LogicalResult printEvalNewMethod(::mlir::ValueRange results,
