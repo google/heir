@@ -39,12 +39,18 @@ class TfheRust_EncryptedInt<int width>
 }
 
 // Available options are https://docs.rs/tfhe/latest/tfhe/index.html#types
-foreach i = [8, 16, 32, 64, 128, 256] in {
+foreach i = [2, 4, 8, 16, 32, 64, 128, 256] in {
   def TfheRust_EncryptedInt # i : TfheRust_EncryptedInt<i>;
+}
+
+def TfheRust_EncryptedBool : TfheRust_Type<"EncryptedBool", "bool", [PassByReference, MemRefElementTypeInterface]> {
+  let summary = [{ An encrypted bool corresponding to tfhe-rs's FHEBool, not in the Boolean TFHE-rs.
+  Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp.}];
 }
 
 def TfheRust_CiphertextType :
   AnyTypeOf<[
+    TfheRust_EncryptedBool,
     TfheRust_EncryptedUInt2,
     TfheRust_EncryptedUInt3,
     TfheRust_EncryptedUInt4,
@@ -64,6 +70,7 @@ def TfheRust_CiphertextType :
     TfheRust_EncryptedInt128,
     TfheRust_EncryptedInt256,
   ]>;
+
 
 def TfheRust_CiphertextLikeType : TypeOrValueSemanticsContainer<TfheRust_CiphertextType, "tfhe-ciphertext-like">;
 

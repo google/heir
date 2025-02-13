@@ -757,7 +757,7 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
   // they will need to chance to the right values once we try to compile it
   // against a specific API version.
 
-  if (type.hasTrait<EncryptedInteger>()) {
+  if (type.hasTrait<EncryptedInteger>() || isa<EncryptedBoolType>(type)) {
     return std::string("Ciphertext");
   }
 
