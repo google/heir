@@ -61,8 +61,8 @@ void getChebyshevPolynomials(int64_t numPolynomials,
     results.push_back(FloatPolynomial::fromCoefficients({1.}));
   }
   if (numPolynomials >= 2) {
-    // 2x
-    results.push_back(FloatPolynomial::fromCoefficients({0., 2.}));
+    // x
+    results.push_back(FloatPolynomial::fromCoefficients({0., 1.}));
   }
 
   if (numPolynomials <= 2) return;
