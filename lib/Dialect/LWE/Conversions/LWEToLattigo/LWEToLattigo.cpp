@@ -6,12 +6,15 @@
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -348,7 +351,7 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
 };
 
 template <typename EvaluatorType, typename DecodeOp, typename LattigoDecodeOp,
-          typename AllocOp>
+          typename AllocOp, bool UsingFloat>
 struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
   using OpConversionPattern<DecodeOp>::OpConversionPattern;
 
@@ -368,9 +371,26 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
       outputTensorType = RankedTensorType::get({1}, outputType);
     }
 
-    APInt zero(getElementTypeOrSelf(outputType).getIntOrFloatBitWidth(), 0);
+    DenseElementsAttr constant;
 
-    auto constant = DenseElementsAttr::get(outputTensorType, zero);
+    if constexpr (UsingFloat) {
+      llvm::APFloatBase::Semantics floatEnum;
+      if (outputTensorType.getElementType().isF64()) {
+        floatEnum = llvm::APFloatBase::S_IEEEdouble;
+      } else if (outputTensorType.getElementType().isF32()) {
+        floatEnum = llvm::APFloatBase::S_IEEEsingle;
+      } else if (outputTensorType.getElementType().isF16()) {
+        floatEnum = llvm::APFloatBase::S_IEEEhalf;
+      } else {
+        return op.emitOpError()
+               << "Unsupported floating point type for decoding";
+      }
+      APFloat zero(llvm::APFloatBase::EnumToSemantics(floatEnum), "0.0");
+      constant = DenseElementsAttr::get(outputTensorType, {zero});
+    } else {
+      APInt zero(getElementTypeOrSelf(outputType).getIntOrFloatBitWidth(), 0);
+      constant = DenseElementsAttr::get(outputTensorType, zero);
+    }
 
     auto alloc =
         rewriter.create<AllocOp>(op.getLoc(), outputTensorType, constant);
@@ -409,47 +429,92 @@ struct ConvertLWEReinterpretUnderlyingType
 
 }  // namespace
 
-using ConvertAddOp =
+// BGV
+using ConvertBGVAddOp =
     ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RAddOp, lattigo::BGVAddOp>;
-using ConvertSubOp =
+using ConvertBGVSubOp =
     ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp, lattigo::BGVSubOp>;
-using ConvertMulOp =
+using ConvertBGVMulOp =
     ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp, lattigo::BGVMulOp>;
-using ConvertAddPlainOp =
+using ConvertBGVAddPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::AddPlainOp,
                        lattigo::BGVAddOp>;
-using ConvertSubPlainOp =
+using ConvertBGVSubPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::SubPlainOp,
                        lattigo::BGVSubOp>;
-using ConvertMulPlainOp =
+using ConvertBGVMulPlainOp =
     ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::MulPlainOp,
                        lattigo::BGVMulOp>;
 
-using ConvertRelinOp =
+using ConvertBGVRelinOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::RelinearizeOp,
                        lattigo::BGVRelinearizeOp>;
-using ConvertModulusSwitchOp =
+using ConvertBGVModulusSwitchOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::ModulusSwitchOp,
                        lattigo::BGVRescaleOp>;
 
 // TODO(#1186): figure out generic rotating using BGVRotateColumns/RowsOp
-using ConvertRotateOp =
+using ConvertBGVRotateOp =
     ConvertRlweRotateOp<lattigo::BGVEvaluatorType, bgv::RotateOp,
                         lattigo::BGVRotateColumnsOp>;
 
-using ConvertEncryptOp =
+using ConvertBGVEncryptOp =
     ConvertRlweUnaryOp<lattigo::RLWEEncryptorType, lwe::RLWEEncryptOp,
                        lattigo::RLWEEncryptOp>;
-using ConvertDecryptOp =
+using ConvertBGVDecryptOp =
     ConvertRlweUnaryOp<lattigo::RLWEDecryptorType, lwe::RLWEDecryptOp,
                        lattigo::RLWEDecryptOp>;
-using ConvertEncodeOp =
+using ConvertBGVEncodeOp =
     ConvertRlweEncodeOp<lattigo::BGVEncoderType, lattigo::BGVParameterType,
                         lwe::RLWEEncodeOp, lattigo::BGVEncodeOp,
                         lattigo::BGVNewPlaintextOp>;
-using ConvertDecodeOp =
+using ConvertBGVDecodeOp =
     ConvertRlweDecodeOp<lattigo::BGVEncoderType, lwe::RLWEDecodeOp,
-                        lattigo::BGVDecodeOp, arith::ConstantOp>;
+                        lattigo::BGVDecodeOp, arith::ConstantOp,
+                        /*UsingFloat*/ false>;
+
+// CKKS
+using ConvertCKKSAddOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
+                                          lwe::RAddOp, lattigo::CKKSAddOp>;
+using ConvertCKKSSubOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
+                                          lwe::RSubOp, lattigo::CKKSSubOp>;
+using ConvertCKKSMulOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
+                                          lwe::RMulOp, lattigo::CKKSMulOp>;
+using ConvertCKKSAddPlainOp =
+    ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::AddPlainOp,
+                       lattigo::CKKSAddOp>;
+using ConvertCKKSSubPlainOp =
+    ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::SubPlainOp,
+                       lattigo::CKKSSubOp>;
+using ConvertCKKSMulPlainOp =
+    ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::MulPlainOp,
+                       lattigo::CKKSMulOp>;
+
+using ConvertCKKSRelinOp =
+    ConvertRlweUnaryOp<lattigo::CKKSEvaluatorType, ckks::RelinearizeOp,
+                       lattigo::CKKSRelinearizeOp>;
+using ConvertCKKSModulusSwitchOp =
+    ConvertRlweUnaryOp<lattigo::CKKSEvaluatorType, ckks::RescaleOp,
+                       lattigo::CKKSRescaleOp>;
+
+using ConvertCKKSRotateOp =
+    ConvertRlweRotateOp<lattigo::CKKSEvaluatorType, ckks::RotateOp,
+                        lattigo::CKKSRotateOp>;
+
+using ConvertCKKSEncryptOp =
+    ConvertRlweUnaryOp<lattigo::RLWEEncryptorType, lwe::RLWEEncryptOp,
+                       lattigo::RLWEEncryptOp>;
+using ConvertCKKSDecryptOp =
+    ConvertRlweUnaryOp<lattigo::RLWEDecryptorType, lwe::RLWEDecryptOp,
+                       lattigo::RLWEDecryptOp>;
+using ConvertCKKSEncodeOp =
+    ConvertRlweEncodeOp<lattigo::CKKSEncoderType, lattigo::CKKSParameterType,
+                        lwe::RLWEEncodeOp, lattigo::CKKSEncodeOp,
+                        lattigo::CKKSNewPlaintextOp>;
+using ConvertCKKSDecodeOp =
+    ConvertRlweDecodeOp<lattigo::CKKSEncoderType, lwe::RLWEDecodeOp,
+                        lattigo::CKKSDecodeOp, arith::ConstantOp,
+                        /*UsingFloat*/ true>;
 
 #define GEN_PASS_DEF_LWETOLATTIGO
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h.inc"
@@ -462,7 +527,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
 
     ConversionTarget target(*context);
     target.addLegalDialect<lattigo::LattigoDialect>();
-    target.addIllegalDialect<bgv::BGVDialect>();
+    target.addIllegalDialect<bgv::BGVDialect, ckks::CKKSDialect>();
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
@@ -476,12 +541,13 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
           op.getFunctionType().getNumInputs() > 0 &&
           containsArgumentOfType<
               lattigo::BGVEvaluatorType, lattigo::BGVEncoderType,
+              lattigo::CKKSEvaluatorType, lattigo::CKKSEncoderType,
               lattigo::RLWEEncryptorType, lattigo::RLWEDecryptorType>(op);
 
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody()) &&
-             (!containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>(
-                  op) ||
+             (!containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect,
+                                         ckks::CKKSDialect>(op) ||
               hasCryptoContextArg);
     });
 
@@ -489,12 +555,13 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp op) {
       auto operandTypes = op.getCalleeType().getInputs();
       auto containsCryptoArg = llvm::any_of(operandTypes, [&](Type argType) {
-        return DialectEqual<lwe::LWEDialect, bgv::BGVDialect,
+        return DialectEqual<lwe::LWEDialect, bgv::BGVDialect, ckks::CKKSDialect,
                             lattigo::LattigoDialect>()(&argType.getDialect());
       });
       auto hasCryptoContextArg =
           !operandTypes.empty() &&
-          mlir::isa<lattigo::BGVEvaluatorType>(*operandTypes.begin());
+          mlir::isa<lattigo::BGVEvaluatorType, lattigo::CKKSEvaluatorType>(
+              *operandTypes.begin());
       return (!containsCryptoArg || hasCryptoContextArg);
     });
 
@@ -512,6 +579,20 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
         });
       }
       return false;
+    };
+
+    auto gateByBGVModuleAttr =
+        [&](const OpPredicate &inputPredicate) -> OpPredicate {
+      return [module, inputPredicate](Operation *op) {
+        return moduleIsBGV(module) && inputPredicate(op);
+      };
+    };
+
+    auto gateByCKKSModuleAttr =
+        [&](const OpPredicate &inputPredicate) -> OpPredicate {
+      return [module, inputPredicate](Operation *op) {
+        return moduleIsCKKS(module) && inputPredicate(op);
+      };
     };
 
     OpPredicate containsNoEncryptUseSk = [&](Operation *op) -> bool {
@@ -543,11 +624,23 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     // as there might (not) be ct-pt operations
     evaluators = {
         {lattigo::BGVEvaluatorType::get(context),
-         containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>},
+         gateByBGVModuleAttr(
+             containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>)},
         {lattigo::BGVParameterType::get(context),
-         containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>},
+         gateByBGVModuleAttr(
+             containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>)},
         {lattigo::BGVEncoderType::get(context),
-         containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>},
+         gateByBGVModuleAttr(
+             containsArgumentOfDialect<lwe::LWEDialect, bgv::BGVDialect>)},
+        {lattigo::CKKSEvaluatorType::get(context),
+         gateByCKKSModuleAttr(
+             containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>)},
+        {lattigo::CKKSParameterType::get(context),
+         gateByCKKSModuleAttr(
+             containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>)},
+        {lattigo::CKKSEncoderType::get(context),
+         gateByCKKSModuleAttr(
+             containsArgumentOfDialect<lwe::LWEDialect, ckks::CKKSDialect>)},
         {lattigo::RLWEEncryptorType::get(context, /*publicKey*/ true),
          containsArgumentOfType<lwe::NewLWEPublicKeyType>},
         // for NewLWESecretKey, if its uses are encrypt, then convert it to an
@@ -560,11 +653,25 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     patterns.add<AddEvaluatorArg>(context, evaluators);
     patterns.add<ConvertFuncCallOp>(context, evaluators);
 
-    patterns.add<ConvertAddOp, ConvertSubOp, ConvertMulOp, ConvertAddPlainOp,
-                 ConvertSubPlainOp, ConvertMulPlainOp, ConvertRelinOp,
-                 ConvertModulusSwitchOp, ConvertRotateOp, ConvertEncryptOp,
-                 ConvertDecryptOp, ConvertEncodeOp, ConvertDecodeOp,
-                 ConvertLWEReinterpretUnderlyingType>(typeConverter, context);
+    if (moduleIsBGV(module)) {
+      patterns
+          .add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
+               ConvertBGVAddPlainOp, ConvertBGVSubPlainOp, ConvertBGVMulPlainOp,
+               ConvertBGVRelinOp, ConvertBGVModulusSwitchOp, ConvertBGVRotateOp,
+               ConvertBGVEncryptOp, ConvertBGVDecryptOp, ConvertBGVEncodeOp,
+               ConvertBGVDecodeOp>(typeConverter, context);
+    }
+    if (moduleIsCKKS(module)) {
+      patterns.add<ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
+                   ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp,
+                   ConvertCKKSMulPlainOp, ConvertCKKSRelinOp,
+                   ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
+                   ConvertCKKSEncryptOp, ConvertCKKSDecryptOp,
+                   ConvertCKKSEncodeOp, ConvertCKKSDecodeOp>(typeConverter,
+                                                             context);
+    }
+    // Misc
+    patterns.add<ConvertLWEReinterpretUnderlyingType>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

@@ -1,5 +1,6 @@
 # Built in HEIR declarations
 
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 
 package(
@@ -42,9 +43,11 @@ cc_library(
 
 cc_library(
     name = "ModuleAttributes",
+    srcs = ["ModuleAttributes.cpp"],
     hdrs = ["ModuleAttributes.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
     ],
 )
 
@@ -75,4 +78,9 @@ gentbl_cc_library(
     deps = [
         ":td_files",
     ],
+)
+
+bzl_library(
+    name = "dialect_bzl",
+    srcs = ["dialect.bzl"],
 )

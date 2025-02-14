@@ -90,4 +90,9 @@ def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext"> {
 
 def Lattigo_RLWECiphertextOrPlaintext : AnyTypeOf<[Lattigo_RLWECiphertext, Lattigo_RLWEPlaintext]>;
 
+// common interface for RLWE
+def Lattigo_RLWEParameter : AnyTypeOf<[Lattigo_BGVParameter, Lattigo_CKKSParameter]>;
+def Lattigo_RLWEEncoder : AnyTypeOf<[Lattigo_BGVEncoder, Lattigo_CKKSEncoder]>;
+def Lattigo_RLWEEvaluator : AnyTypeOf<[Lattigo_BGVEvaluator, Lattigo_CKKSEvaluator]>;
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGORLWETYPES_TD_

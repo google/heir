@@ -49,6 +49,7 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
             "@lattigo//:lattigo",
             "@lattigo//core/rlwe",
             "@lattigo//schemes/bgv",
+            "@lattigo//schemes/ckks",
         ],
         tags = tags,
         data = data,

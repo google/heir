@@ -241,6 +241,7 @@ BackendPipelineBuilder toLattigoPipelineBuilder() {
     // Convert to (common trivial subset of) LWE
     // TODO (#1193): Replace `--bgv-to-lwe` with `--bgv-common-to-lwe`
     pm.addPass(bgv::createBGVToLWE());
+    pm.addPass(ckks::createCKKSToLWE());
 
     // insert debug handler calls
     if (options.debug) {

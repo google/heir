@@ -4,10 +4,12 @@
 !params = !lattigo.bgv.parameter
 !ct = !lattigo.rlwe.ciphertext
 
-func.func @relin(%evaluator : !evaluator, %ct : !ct) -> !ct {
-  %ct1 = lattigo.bgv.mul %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
-  %res = lattigo.bgv.relinearize %evaluator, %ct1 : (!evaluator, !ct) -> !ct
-  return %res : !ct
+module attributes {scheme.bgv} {
+  func.func @relin(%evaluator : !evaluator, %ct : !ct) -> !ct {
+    %ct1 = lattigo.bgv.mul %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
+    %res = lattigo.bgv.relinearize %evaluator, %ct1 : (!evaluator, !ct) -> !ct
+    return %res : !ct
+  }
 }
 
 // CHECK: @relin

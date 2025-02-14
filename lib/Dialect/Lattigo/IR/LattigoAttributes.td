@@ -17,5 +17,6 @@ class Lattigo_Attribute<string attrName, string attrMnemonic>
 }
 
 include "LattigoBGVAttributes.td"
+include "LattigoCKKSAttributes.td"
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGOATTRIBUTES_TD_

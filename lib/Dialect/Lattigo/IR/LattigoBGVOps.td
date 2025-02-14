@@ -46,30 +46,30 @@ def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode"> {
   let summary = "Encode a plaintext value in the Lattigo BGV dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.
+
+    The input value tensor should have elements of integer type.
   }];
   let arguments = (ins
     Lattigo_BGVEncoder:$encoder,
-    AnyType:$value,
+    RankedTensorOf<[AnyInteger]>:$value,
     Lattigo_RLWEPlaintext:$plaintext
   );
   let results = (outs Lattigo_RLWEPlaintext:$encoded);
-
-  let hasVerifier = 1;
 }
 
-def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode"> {
+def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode", [AllTypesMatch<["value", "decoded"]>]> {
   let summary = "Decode a plaintext value in the Lattigo BGV dialect";
   let description = [{
     This operation decodes a plaintext value using the specified encoder in the Lattigo BGV dialect.
+
+    The input value tensor should have elements of integer type.
   }];
   let arguments = (ins
     Lattigo_BGVEncoder:$encoder,
     Lattigo_RLWEPlaintext:$plaintext,
-    AnyType:$value
+    RankedTensorOf<[AnyInteger]>:$value
   );
-  let results = (outs AnyType:$decoded);
-
-  let hasVerifier = 1;
+  let results = (outs RankedTensorOf<[AnyInteger]>:$decoded);
 }
 
 def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator"> {
@@ -153,7 +153,7 @@ def Lattigo_BGVRotateColumnsOp : Lattigo_BGVOp<"rotate_columns"> {
 
     Lattigo exposes the SIMD slot of BGV as a N/2 x 2 matrix, where N/2 is the column.
 
-    offset is valid in (-N/2, N/2).
+    Offset is valid for both positive and negative number.
   }];
   let arguments = (ins
     Lattigo_BGVEvaluator:$evaluator,

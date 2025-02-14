@@ -10,6 +10,7 @@
 #include "lib/Dialect/Lattigo/IR/LattigoAttributes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
@@ -33,7 +34,7 @@ namespace lattigo {
 bool hasRelinOp(func::FuncOp op) {
   bool result = false;
   op.walk<WalkOrder::PreOrder>([&](Operation *op) {
-    if (isa<BGVRelinearizeOp>(op)) {
+    if (isa<BGVRelinearizeOp, CKKSRelinearizeOp>(op)) {
       result = true;
       return WalkResult::interrupt();
     }
@@ -47,6 +48,10 @@ bool hasRelinOp(func::FuncOp op) {
 SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
   std::set<int64_t> distinctRotIndices;
   op.walk([&](BGVRotateColumnsOp rotOp) {
+    distinctRotIndices.insert(rotOp.getOffset().getInt());
+    return WalkResult::advance();
+  });
+  op.walk([&](CKKSRotateOp rotOp) {
     distinctRotIndices.insert(rotOp.getOffset().getInt());
     return WalkResult::advance();
   });
@@ -74,7 +79,100 @@ RLWEEncryptorType findEncryptorType(ModuleOp module) {
   return RLWEEncryptorType::get(module.getContext(), /*publicKey*/ true);
 }
 
-LogicalResult convertFunc(func::FuncOp op) {
+struct LattigoBGVScheme {
+  using EvaluatorType = BGVEvaluatorType;
+  using ParameterType = BGVParameterType;
+  using EncoderType = BGVEncoderType;
+  using ParametersLiteralAttrType = BGVParametersLiteralAttr;
+  using NewParametersFromLiteralOp = BGVNewParametersFromLiteralOp;
+  using NewEncoderOp = BGVNewEncoderOp;
+  using NewEvaluatorOp = BGVNewEvaluatorOp;
+  using SchemeParamAttrType = bgv::SchemeParamAttr;
+
+  static int getLogN(Operation *moduleOp) {
+    auto schemeParamAttr = getSchemeParamAttr(moduleOp);
+    if (schemeParamAttr) {
+      return schemeParamAttr.getLogN();
+    }
+    // default logN
+    return 14;
+  }
+
+  static ParametersLiteralAttrType getParametersLiteralAttr(
+      MLIRContext *ctx, Operation *moduleOp) {
+    auto schemeParamAttr = getSchemeParamAttr(moduleOp);
+    if (schemeParamAttr) {
+      auto logN = schemeParamAttr.getLogN();
+      auto Q = schemeParamAttr.getQ();
+      auto P = schemeParamAttr.getP();
+      auto ptm = schemeParamAttr.getPlaintextModulus();
+      return ParametersLiteralAttrType::get(ctx, logN, Q, P,
+                                            /*logQ*/ nullptr, /*logP*/ nullptr,
+                                            ptm);
+    }
+    // default parameters
+    // 128-bit secure parameters enabling depth-7 circuits.
+    // LogN:14, LogQP: 431.
+    return ParametersLiteralAttrType::get(
+        ctx, /*logN*/ getLogN(moduleOp), /*Q*/ nullptr, /*P*/ nullptr,
+        /*logQ*/
+        DenseI32ArrayAttr::get(ctx, {55, 45, 45, 45, 45, 45, 45, 45}),
+        /*logP*/ DenseI32ArrayAttr::get(ctx, {61}),
+        /*ptm*/ 0x10001);
+  }
+
+  static SchemeParamAttrType getSchemeParamAttr(Operation *moduleOp) {
+    return moduleOp->getAttrOfType<bgv::SchemeParamAttr>(
+        bgv::BGVDialect::kSchemeParamAttrName);
+  }
+
+  static void cleanSchemeParamAttr(Operation *moduleOp) {
+    auto schemeParamAttr = getSchemeParamAttr(moduleOp);
+    if (schemeParamAttr) {
+      moduleOp->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
+    }
+  }
+};
+
+struct LattigoCKKSScheme {
+  using EvaluatorType = CKKSEvaluatorType;
+  using ParameterType = CKKSParameterType;
+  using EncoderType = CKKSEncoderType;
+  using ParametersLiteralAttrType = CKKSParametersLiteralAttr;
+  using NewParametersFromLiteralOp = CKKSNewParametersFromLiteralOp;
+  using NewEncoderOp = CKKSNewEncoderOp;
+  using NewEvaluatorOp = CKKSNewEvaluatorOp;
+
+  static int getLogN(Operation *moduleOp) { return 14; }
+
+  static ParametersLiteralAttrType getParametersLiteralAttr(
+      MLIRContext *ctx, Operation *moduleOp) {
+    // 128-bit secure parameters enabling depth-7 circuits.
+    // LogN:14, LogQP: 431.
+    return ParametersLiteralAttrType::get(
+        ctx, /*logN*/ getLogN(moduleOp), /*Q*/ nullptr,
+        /*P*/ nullptr,
+        /*logQ*/
+        DenseI32ArrayAttr::get(ctx, {55, 45, 45, 45, 45, 45, 45, 45}),
+        /*logP*/ DenseI32ArrayAttr::get(ctx, {61}),
+        /*logDefaultScale*/ 45);
+  }
+
+  static Attribute getSchemeParamAttr(Operation *moduleOp) { return nullptr; }
+
+  static void cleanSchemeParamAttr(Operation *moduleOp) {}
+};
+
+template <typename LattigoScheme>
+LogicalResult convertFuncForScheme(func::FuncOp op) {
+  using EvaluatorType = typename LattigoScheme::EvaluatorType;
+  using ParameterType = typename LattigoScheme::ParameterType;
+  using EncoderType = typename LattigoScheme::EncoderType;
+  using NewParametersFromLiteralOp =
+      typename LattigoScheme::NewParametersFromLiteralOp;
+  using NewEncoderOp = typename LattigoScheme::NewEncoderOp;
+  using NewEvaluatorOp = typename LattigoScheme::NewEvaluatorOp;
+
   auto module = op->getParentOfType<ModuleOp>();
   std::string configFuncName("");
   llvm::raw_string_ostream configNameOs(configFuncName);
@@ -87,9 +185,9 @@ LogicalResult convertFunc(func::FuncOp op) {
   SmallVector<Type> funcArgTypes;
   SmallVector<Type> funcResultTypes;
 
-  Type evaluatorType = BGVEvaluatorType::get(builder.getContext());
-  Type paramsType = BGVParameterType::get(builder.getContext());
-  Type encoderType = BGVEncoderType::get(builder.getContext());
+  Type evaluatorType = EvaluatorType::get(builder.getContext());
+  Type paramsType = ParameterType::get(builder.getContext());
+  Type encoderType = EncoderType::get(builder.getContext());
   RLWEEncryptorType encryptorType = findEncryptorType(module);
   Type decryptorType = RLWEDecryptorType::get(builder.getContext());
   funcResultTypes.push_back(evaluatorType);
@@ -105,40 +203,17 @@ LogicalResult convertFunc(func::FuncOp op) {
       builder.create<func::FuncOp>(configFuncName, configFuncType);
   builder.setInsertionPointToEnd(configFuncOp.addEntryBlock());
 
-  int logN;
-  BGVParametersLiteralAttr paramAttr;
-
   auto *moduleOp = op->getParentOp();
-  auto bgvSchemeParamAttr = moduleOp->getAttrOfType<bgv::SchemeParamAttr>(
-      bgv::BGVDialect::kSchemeParamAttrName);
-  if (bgvSchemeParamAttr) {
-    logN = bgvSchemeParamAttr.getLogN();
-    auto Q = bgvSchemeParamAttr.getQ();
-    auto P = bgvSchemeParamAttr.getP();
-    auto ptm = bgvSchemeParamAttr.getPlaintextModulus();
-    paramAttr =
-        BGVParametersLiteralAttr::get(builder.getContext(), logN, Q, P,
-                                      /*logQ*/ nullptr, /*logP*/ nullptr, ptm);
-    // remove attr after reading
-    moduleOp->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
-  } else {
-    // 128-bit secure parameters enabling depth-7 circuits.
-    // LogN:14, LogQP: 431.
-    logN = 14;
-    paramAttr = BGVParametersLiteralAttr::get(
-        builder.getContext(), /*logN*/ logN, /*Q*/ nullptr, /*P*/ nullptr,
-        /*logQ*/
-        DenseI32ArrayAttr::get(builder.getContext(),
-                               {55, 45, 45, 45, 45, 45, 45, 45}),
-        /*logP*/ DenseI32ArrayAttr::get(builder.getContext(), {61}),
-        /*ptm*/ 0x10001);
-  }
-  auto paramType = BGVParameterType::get(builder.getContext());
+  int logN = LattigoScheme::getLogN(moduleOp);
+  auto paramAttr =
+      LattigoScheme::getParametersLiteralAttr(builder.getContext(), moduleOp);
+  LattigoScheme::cleanSchemeParamAttr(moduleOp);
 
+  auto paramType = ParameterType::get(builder.getContext());
   auto params =
-      builder.create<BGVNewParametersFromLiteralOp>(paramType, paramAttr);
+      builder.create<NewParametersFromLiteralOp>(paramType, paramAttr);
 
-  auto encoder = builder.create<BGVNewEncoderOp>(encoderType, params);
+  auto encoder = builder.create<NewEncoderOp>(encoderType, params);
   auto kgenType = RLWEKeyGeneratorType::get(builder.getContext());
   auto kgen = builder.create<RLWENewKeyGeneratorOp>(kgenType, params);
   auto skType = RLWESecretKeyType::get(builder.getContext());
@@ -184,12 +259,23 @@ LogicalResult convertFunc(func::FuncOp op) {
 
   // evalKeySet is optional so nulltpr is acceptable
   auto evaluator =
-      builder.create<BGVNewEvaluatorOp>(evaluatorType, params, evalKeySet);
+      builder.create<NewEvaluatorOp>(evaluatorType, params, evalKeySet);
 
   SmallVector<Value> results = {evaluator, params, encoder, encryptor,
                                 decryptor};
   builder.create<func::ReturnOp>(results);
   return success();
+}
+
+LogicalResult convertFunc(func::FuncOp op) {
+  auto module = op->getParentOfType<ModuleOp>();
+  if (moduleIsBGV(module)) {
+    return convertFuncForScheme<LattigoBGVScheme>(op);
+  }
+  if (moduleIsCKKS(module)) {
+    return convertFuncForScheme<LattigoCKKSScheme>(op);
+  }
+  return op->emitError("Unknown scheme");
 }
 
 struct ConfigureCryptoContext

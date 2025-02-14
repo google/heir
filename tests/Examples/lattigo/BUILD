@@ -12,6 +12,8 @@ glaze_ignore = [
     "dot_product_8_debug.go",
 ]
 
+# BGV
+
 heir_lattigo_lib(
     name = "binops",
     go_library_name = "binops",
@@ -53,8 +55,23 @@ heir_lattigo_lib(
     mlir_src = "dot_product_8.mlir",
 )
 
+# CKKS
+
+heir_lattigo_lib(
+    name = "dot_product_8f",
+    go_library_name = "dotproduct8f",
+    heir_opt_flags = [
+        "--mlir-to-ckks=ciphertext-degree=8",
+        "--scheme-to-lattigo=entry-function=dot_product",
+    ],
+    mlir_src = "dot_product_8f.mlir",
+)
+
 # For Google-internal reasons we must separate the go_test rules from the macro
 # above.
+
+# BGV
+
 go_test(
     name = "binops_test",
     srcs = ["binops_test.go"],
@@ -77,4 +94,12 @@ go_test(
     name = "dotproduct8debug_test",
     srcs = ["dot_product_8_debug_handler_test.go"],
     embed = [":dotproduct8debug"],
+)
+
+# CKKS
+
+go_test(
+    name = "dotproduct8f_test",
+    srcs = ["dot_product_8f_test.go"],
+    embed = [":dotproduct8f"],
 )

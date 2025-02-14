@@ -33,7 +33,7 @@
     plaintextModulus = 0x3ee0001
 >
 
-module {
+module attributes {scheme.bgv} {
   // CHECK-LABEL: func compute
   // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext, [[ct1:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[evaluator]].AddNew([[ct]], [[ct1]])
@@ -131,11 +131,13 @@ module {
 // CHECK: [[v1:.*]] := 1
 // CHECK: [[v2:.*]] := []int64{1, 2}
 // CHECK: [[v3:.*]] := []int64{2, 2, 2, 2}
-func.func @test_constant() -> () {
-  %int = arith.constant 1 : i32
-  %ints = arith.constant dense<[1, 2]> : tensor<2xi32>
-  %dense = arith.constant dense<2> : tensor<4xi32>
-  return
+module attributes {scheme.bgv} {
+  func.func @test_constant() -> () {
+    %int = arith.constant 1 : i32
+    %ints = arith.constant dense<[1, 2]> : tensor<2xi32>
+    %dense = arith.constant dense<2> : tensor<4xi32>
+    return
+  }
 }
 
 // -----
@@ -146,9 +148,11 @@ func.func @test_constant() -> () {
 
 // CHECK-LABEL: test_new_evaluation_key_set_no_relin_key
 // CHECK: rlwe.NewMemEvaluationKeySet(nil, [[gk:[^, ].*]])
-func.func @test_new_evaluation_key_set_no_relin_key(%gk : !gk) -> (!ekset) {
-  %ekset = lattigo.rlwe.new_evaluation_key_set %gk : (!gk) -> !ekset
-  return %ekset : !ekset
+module attributes {scheme.bgv} {
+  func.func @test_new_evaluation_key_set_no_relin_key(%gk : !gk) -> (!ekset) {
+    %ekset = lattigo.rlwe.new_evaluation_key_set %gk : (!gk) -> !ekset
+    return %ekset : !ekset
+  }
 }
 
 // -----
@@ -158,7 +162,9 @@ func.func @test_new_evaluation_key_set_no_relin_key(%gk : !gk) -> (!ekset) {
 
 // CHECK-LABEL: test_new_evaluator_no_key_set
 // CHECK: bgv.NewEvaluator([[params:[^, ].*]], nil)
-func.func @test_new_evaluator_no_key_set(%params : !params) -> (!evaluator) {
-  %evaluator = lattigo.bgv.new_evaluator %params : (!params) -> !evaluator
-  return %evaluator : !evaluator
+module attributes {scheme.bgv} {
+  func.func @test_new_evaluator_no_key_set(%params : !params) -> (!evaluator) {
+    %evaluator = lattigo.bgv.new_evaluator %params : (!params) -> !evaluator
+    return %evaluator : !evaluator
+  }
 }

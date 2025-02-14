@@ -8,10 +8,10 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
-#include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/CommandLine.h"       // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
@@ -29,7 +29,6 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project
@@ -60,13 +59,21 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           .Case<tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
-          .Case<RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
-                RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp,
-                RLWEGenGaloisKeyOp, RLWENewEvaluationKeySetOp, RLWEEncryptOp,
-                RLWEDecryptOp, BGVNewParametersFromLiteralOp, BGVNewEncoderOp,
-                BGVNewEvaluatorOp, BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp,
-                BGVAddOp, BGVSubOp, BGVMulOp, BGVRelinearizeOp, BGVRescaleOp,
-                BGVRotateColumnsOp, BGVRotateRowsOp>(
+          .Case<
+              // RLWE
+              RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
+              RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp, RLWEGenGaloisKeyOp,
+              RLWENewEvaluationKeySetOp, RLWEEncryptOp, RLWEDecryptOp,
+              // BGV
+              BGVNewParametersFromLiteralOp, BGVNewEncoderOp, BGVNewEvaluatorOp,
+              BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddOp, BGVSubOp,
+              BGVMulOp, BGVRelinearizeOp, BGVRescaleOp, BGVRotateColumnsOp,
+              BGVRotateRowsOp,
+              // CKKS
+              CKKSNewParametersFromLiteralOp, CKKSNewEncoderOp,
+              CKKSNewEvaluatorOp, CKKSNewPlaintextOp, CKKSEncodeOp,
+              CKKSDecodeOp, CKKSAddOp, CKKSSubOp, CKKSMulOp, CKKSRelinearizeOp,
+              CKKSRescaleOp, CKKSRotateOp>(
               [&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return emitError(op.getLoc(), "unable to find printer for op");
@@ -81,7 +88,14 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
 
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   os << "package " << packageName << "\n";
-  os << kModulePreludeTemplate;
+
+  if (moduleIsBGV(moduleOp)) {
+    os << kModulePreludeBGVTemplate;
+  } else if (moduleIsCKKS(moduleOp)) {
+    os << kModulePreludeCKKSTemplate;
+  } else {
+    return moduleOp.emitError("Unknown scheme");
+  }
 
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
@@ -163,25 +177,35 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
 LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   auto valueAttr = op.getValue();
   std::string valueString;
-  auto res = llvm::TypeSwitch<Attribute, LogicalResult>(valueAttr)
-                 .Case<IntegerAttr>([&](IntegerAttr intAttr) {
-                   valueString = std::to_string(intAttr.getInt());
-                   return success();
-                 })
-                 .Case<DenseElementsAttr>([&](DenseElementsAttr denseAttr) {
-                   valueString = "[]int64{";
-                   for (auto value : denseAttr.getValues<APInt>()) {
-                     valueString += std::to_string(value.getSExtValue()) + ", ";
-                   }
-                   // remote the trailing ", "
-                   if (valueString.size() > 1) {
-                     valueString.pop_back();
-                     valueString.pop_back();
-                   }
-                   valueString += "}";
-                   return success();
-                 })
-                 .Default([&](auto) { return failure(); });
+  auto res =
+      llvm::TypeSwitch<Attribute, LogicalResult>(valueAttr)
+          .Case<IntegerAttr>([&](IntegerAttr intAttr) {
+            valueString = std::to_string(intAttr.getInt());
+            return success();
+          })
+          .Case<DenseElementsAttr>([&](DenseElementsAttr denseAttr) {
+            if (succeeded(denseAttr.tryGetValues<APInt>())) {
+              valueString = "[]int64{";
+              for (auto value : denseAttr.getValues<APInt>()) {
+                valueString += std::to_string(value.getSExtValue()) + ", ";
+              }
+            } else if (succeeded(denseAttr.tryGetValues<APFloat>())) {
+              valueString = "[]float64{";
+              for (auto value : denseAttr.getValues<APFloat>()) {
+                valueString += std::to_string(value.convertToFloat()) + ", ";
+              }
+            } else {
+              return failure();
+            }
+            // remote the trailing ", "
+            if (valueString.size() > 1) {
+              valueString.pop_back();
+              valueString.pop_back();
+            }
+            valueString += "}";
+            return success();
+          })
+          .Default([&](auto) { return failure(); });
   if (failed(res)) {
     return res;
   }
@@ -203,6 +227,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
   os << "}\n";
   return success();
 }
+
+// RLWE
 
 LogicalResult LattigoEmitter::printOperation(RLWENewEncryptorOp op) {
   return printNewMethod(op.getResult(), {op.getParams(), op.getEncryptionKey()},
@@ -271,6 +297,8 @@ LogicalResult LattigoEmitter::printOperation(RLWEDecryptOp op) {
   return printEvalNewMethod(op.getResult(), op.getDecryptor(),
                             {op.getCiphertext()}, "DecryptNew", false);
 }
+
+// BGV
 
 LogicalResult LattigoEmitter::printOperation(BGVNewEncoderOp op) {
   return printNewMethod(op.getResult(), {op.getParams()}, "bgv.NewEncoder",
@@ -429,6 +457,146 @@ LogicalResult LattigoEmitter::printOperation(BGVNewParametersFromLiteralOp op) {
   return success();
 }
 
+// CKKS
+
+LogicalResult LattigoEmitter::printOperation(CKKSNewEncoderOp op) {
+  return printNewMethod(op.getResult(), {op.getParams()}, "ckks.NewEncoder",
+                        false);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSNewEvaluatorOp op) {
+  SmallVector<Value, 2> operands;
+  operands.push_back(op.getParams());
+  if (auto ekset = op.getEvaluationKeySet()) {
+    operands.push_back(ekset);
+  } else {
+    // no evaluation key set, use empty Value for 'nil'
+    operands.push_back(Value());
+  }
+  return printNewMethod(op.getResult(), operands, "ckks.NewEvaluator", false);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSNewPlaintextOp op) {
+  os << getName(op.getResult()) << " := " << "ckks.NewPlaintext(";
+  os << getName(op.getParams()) << ", ";
+  os << getName(op.getParams()) << ".MaxLevel()";
+  os << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
+  // cyclic repetition to mitigate openfhe zero-padding (#645)
+  // TODO(#1258): move cyclic repetition to earlier pipeline
+
+  // hack: access another op to get params then get MaxSlots
+  auto newPlaintextOp =
+      mlir::dyn_cast<CKKSNewPlaintextOp>(op.getPlaintext().getDefiningOp());
+  if (!newPlaintextOp) {
+    return failure();
+  }
+  auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
+
+  auto packedName = getName(op.getValue()) + "_packed";
+  os << packedName << " := make([]float64, ";
+  os << maxSlotsName << ")\n";
+  os << "for i := range " << packedName << " {\n";
+  os.indent();
+  os << packedName << "[i] = float64(" << getName(op.getValue()) << "[i \% len("
+     << getName(op.getValue()) << ")])\n";
+  os.unindent();
+  os << "}\n";
+
+  os << getName(op.getEncoder()) << ".Encode(";
+  os << packedName << ", ";
+  os << getName(op.getPlaintext()) << ")\n";
+  os << getName(op.getEncoded()) << " := " << getName(op.getPlaintext())
+     << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSDecodeOp op) {
+  os << getName(op.getEncoder()) << ".Decode(";
+  os << getName(op.getPlaintext()) << ", ";
+  os << getName(op.getValue()) << ")\n";
+
+  // type conversion from value to decoded
+  auto convertedName = getName(op.getDecoded()) + "_converted";
+  os << convertedName << " := make(" << convertType(op.getDecoded().getType())
+     << ", len(" << getName(op.getValue()) << "))\n";
+  os << "for i := range " << getName(op.getValue()) << " {\n";
+  os.indent();
+  os << convertedName
+     << "[i] = " << convertType(getElementTypeOrSelf(op.getDecoded().getType()))
+     << "(" << getName(op.getValue()) << "[i])\n";
+  os.unindent();
+  os << "}\n";
+  os << getName(op.getDecoded()) << " := " << convertedName << "\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSAddOp op) {
+  return printEvalNewMethod(op.getResult(), op.getEvaluator(),
+                            {op.getLhs(), op.getRhs()}, "AddNew", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSSubOp op) {
+  return printEvalNewMethod(op.getResult(), op.getEvaluator(),
+                            {op.getLhs(), op.getRhs()}, "SubNew", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSMulOp op) {
+  return printEvalNewMethod(op.getResult(), op.getEvaluator(),
+                            {op.getLhs(), op.getRhs()}, "MulNew", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeOp op) {
+  return printEvalNewMethod(op.getOutput(), op.getEvaluator(), op.getInput(),
+                            "RelinearizeNew", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
+  return printEvalInplaceMethod(op.getOutput(), op.getEvaluator(),
+                                op.getInput(), op.getInput(), "Rescale", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
+  auto errName = getErrName();
+  os << getName(op.getOutput()) << ", " << errName
+     << " := " << getName(op.getEvaluator()) << ".RotateNew(";
+  os << getName(op.getInput()) << ", ";
+  os << op.getOffset().getInt() << ")\n";
+  printErrPanic(errName);
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(
+    CKKSNewParametersFromLiteralOp op) {
+  auto errName = getErrName();
+  os << getName(op.getResult()) << ", " << errName
+     << " := ckks.NewParametersFromLiteral(";
+  os << "ckks.ParametersLiteral{\n";
+  os.indent();
+  os << "LogN: " << op.getParamsLiteral().getLogN() << ",\n";
+  if (auto Q = op.getParamsLiteral().getQ()) {
+    os << "Q: " << printDenseU64ArrayAttr(Q) << ",\n";
+  }
+  if (auto P = op.getParamsLiteral().getP()) {
+    os << "P: " << printDenseU64ArrayAttr(P) << ",\n";
+  }
+  if (auto LogQ = op.getParamsLiteral().getLogQ()) {
+    os << "LogQ: " << printDenseI32ArrayAttr(LogQ) << ",\n";
+  }
+  if (auto LogP = op.getParamsLiteral().getLogP()) {
+    os << "LogP: " << printDenseI32ArrayAttr(LogP) << ",\n";
+  }
+  os << "LogDefaultScale: " << op.getParamsLiteral().getLogDefaultScale()
+     << ",\n";
+  os.unindent();
+  os << "})\n";
+  printErrPanic(errName);
+  return success();
+}
+
 void LattigoEmitter::printErrPanic(std::string_view errName) {
   os << "if " << errName << " != nil {\n";
   os.indent();
@@ -494,6 +662,7 @@ LogicalResult LattigoEmitter::printEvalNewMethod(::mlir::ValueRange results,
 
 FailureOr<std::string> LattigoEmitter::convertType(Type type) {
   return llvm::TypeSwitch<Type, FailureOr<std::string>>(type)
+      // RLWE
       .Case<RLWECiphertextType>(
           [&](auto ty) { return std::string("*rlwe.Ciphertext"); })
       .Case<RLWEPlaintextType>(
@@ -514,18 +683,39 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           [&](auto ty) { return std::string("*rlwe.Encryptor"); })
       .Case<RLWEDecryptorType>(
           [&](auto ty) { return std::string("*rlwe.Decryptor"); })
+      // BGV
       .Case<BGVEncoderType>(
           [&](auto ty) { return std::string("*bgv.Encoder"); })
       .Case<BGVEvaluatorType>(
           [&](auto ty) { return std::string("*bgv.Evaluator"); })
       .Case<BGVParameterType>(
           [&](auto ty) { return std::string("bgv.Parameters"); })
+      // CKKS
+      .Case<CKKSEncoderType>(
+          [&](auto ty) { return std::string("*ckks.Encoder"); })
+      .Case<CKKSEvaluatorType>(
+          [&](auto ty) { return std::string("*ckks.Evaluator"); })
+      .Case<CKKSParameterType>(
+          [&](auto ty) { return std::string("ckks.Parameters"); })
       .Case<IntegerType>([&](auto ty) -> FailureOr<std::string> {
         auto width = ty.getWidth();
         if (width != 8 && width != 16 && width != 32 && width != 64) {
           return failure();
         }
         return "int" + std::to_string(width);
+      })
+      .Case<FloatType>([&](auto ty) -> FailureOr<std::string> {
+        auto width = ty.getWidth();
+        if (width == 16 || width == 8) {
+          width = 32;
+          // emitWarning(loc, "Floating point width " + std::to_string(width) +
+          //             " is not supported in GO, using 32-bit float
+          //             instead.");
+        }
+        if (width != 32 && width != 64) {
+          return failure();
+        }
+        return "float" + std::to_string(width);
       })
       .Case<RankedTensorType>([&](auto ty) -> FailureOr<std::string> {
         auto eltTyResult = convertType(ty.getElementType());
