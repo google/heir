@@ -6,6 +6,7 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project

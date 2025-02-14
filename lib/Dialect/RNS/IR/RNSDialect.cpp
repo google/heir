@@ -1,5 +1,6 @@
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
 
 // NOLINTNEXTLINE(misc-include-cleaner): Required to define RNSOps
@@ -9,6 +10,9 @@
 
 // Generated definitions
 #include "lib/Dialect/RNS/IR/RNSDialect.cpp.inc"
+#include "mlir/include/mlir/IR/OpImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"         // from @llvm-project
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/RNS/IR/RNSTypes.cpp.inc"
 #define GET_OP_CLASSES

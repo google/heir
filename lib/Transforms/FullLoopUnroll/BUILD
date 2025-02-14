@@ -15,7 +15,9 @@ cc_library(
         ":pass_inc_gen",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:Transforms",
     ],
 )

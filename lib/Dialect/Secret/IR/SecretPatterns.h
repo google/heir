@@ -1,12 +1,18 @@
 #ifndef LIB_DIALECT_SECRET_IR_SECRETPATTERNS_H_
 #define LIB_DIALECT_SECRET_IR_SECRETPATTERNS_H_
 
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 
 namespace mlir {
 namespace heir {

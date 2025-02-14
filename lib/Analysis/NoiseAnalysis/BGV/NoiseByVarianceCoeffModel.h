@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <optional>
+#include <string>
 
 #include "lib/Analysis/NoiseAnalysis/BGV/Noise.h"
 #include "lib/Parameters/BGV/Params.h"

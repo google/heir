@@ -17,9 +17,11 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:Transforms",
     ],

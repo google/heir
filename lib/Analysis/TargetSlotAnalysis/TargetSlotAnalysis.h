@@ -1,10 +1,17 @@
 #ifndef LIB_ANALYSIS_TARGETSLOTANALYSIS_TARGETSLOTANALYSIS_H_
 #define LIB_ANALYSIS_TARGETSLOTANALYSIS_TARGETSLOTANALYSIS_H_
 
+#include <cassert>
+#include <cstdint>
+#include <optional>
+
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"        // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/SymbolTable.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {

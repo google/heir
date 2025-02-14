@@ -21,6 +21,7 @@
 #include "lib/Target/TfheRustHL/TfheRustHLTemplates.h"
 #include "lib/Transforms/MemrefToArith/Utils.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project

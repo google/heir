@@ -1,6 +1,7 @@
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 
 #include <cassert>
+#include <cstdint>
 
 #include "lib/Dialect/Comb/IR/CombOps.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project

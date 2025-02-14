@@ -1,5 +1,6 @@
 #include "lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool/CGGIToTfheRustBool.h"
 
+#include <cstdint>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"

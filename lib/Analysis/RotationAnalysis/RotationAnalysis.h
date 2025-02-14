@@ -1,8 +1,15 @@
 #ifndef LIB_ANALYSIS_ROTATIONANALYSIS_ROTATIONANALYSIS_H_
 #define LIB_ANALYSIS_ROTATIONANALYSIS_ROTATIONANALYSIS_H_
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <set>
+#include <vector>
 
+#include "llvm/include/llvm/Support/Casting.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project

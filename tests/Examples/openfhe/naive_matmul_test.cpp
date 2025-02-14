@@ -3,8 +3,14 @@
 #include <iostream>
 #include <vector>
 
-#include "gtest/gtest.h"                  // from @googletest
-#include "src/pke/include/key/keypair.h"  // from @openfhe
+#include "gtest/gtest.h"                               // from @googletest
+#include "src/core/include/lattice/hal/lat-backend.h"  // from @openfhe
+#include "src/pke/include/constants.h"                 // from @openfhe
+#include "src/pke/include/cryptocontext-fwd.h"         // from @openfhe
+#include "src/pke/include/gen-cryptocontext.h"         // from @openfhe
+#include "src/pke/include/key/keypair.h"               // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns-params.h"  // from @openfhe
+#include "src/pke/include/scheme/ckksrns/gen-cryptocontext-ckksrns.h"  // from @openfhe
 
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/naive_matmul_lib.h"

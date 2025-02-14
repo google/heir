@@ -1,3 +1,4 @@
+#include <unordered_map>
 #include <vector>
 
 #include "gmock/gmock.h"  // from @googletest

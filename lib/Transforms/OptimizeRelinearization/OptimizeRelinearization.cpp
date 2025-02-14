@@ -9,13 +9,14 @@
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"           // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"      // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {

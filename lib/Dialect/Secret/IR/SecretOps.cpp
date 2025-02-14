@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -12,6 +13,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project

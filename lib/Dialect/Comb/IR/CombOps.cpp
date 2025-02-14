@@ -12,10 +12,21 @@
 
 #include "lib/Dialect/Comb/IR/CombOps.h"
 
+#include <cstddef>
 #include <optional>
 
-#include "mlir/include/mlir/IR/Builders.h"   // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "lib/Dialect/Comb/IR/CombDialect.h"
+#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/OperationSupport.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Region.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 
 namespace mlir {
 namespace heir {

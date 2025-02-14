@@ -3,6 +3,7 @@
 #include <cassert>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"

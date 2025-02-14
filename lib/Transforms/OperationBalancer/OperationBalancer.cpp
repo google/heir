@@ -1,5 +1,6 @@
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 
+#include <cstddef>
 #include <set>
 #include <stack>
 #include <vector>

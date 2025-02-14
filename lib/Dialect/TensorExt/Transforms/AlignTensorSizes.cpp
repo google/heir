@@ -1,6 +1,7 @@
 #include "lib/Dialect/TensorExt/Transforms/AlignTensorSizes.h"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>

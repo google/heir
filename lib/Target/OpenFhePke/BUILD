@@ -99,9 +99,7 @@ cc_library(
         "OpenFhePkeTemplates.h",
     ],
     deps = [
-        "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

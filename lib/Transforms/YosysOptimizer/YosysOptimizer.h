@@ -3,8 +3,12 @@
 
 #include <stdbool.h>
 
+#include <memory>
+#include <string>
+
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/Pass.h"            // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"     // from @llvm-project
 
 namespace mlir {
 namespace heir {

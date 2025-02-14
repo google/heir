@@ -5,7 +5,8 @@
 #include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "mlir/include/mlir/IR/BuiltinOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 // NOLINTEND(misc-include-cleaner)
 

@@ -1,7 +1,10 @@
 #ifndef LIB_TARGET_TFHERUST_UTILS_H_
 #define LIB_TARGET_TFHERUST_UTILS_H_
 
+#include <cstdint>
+
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
 

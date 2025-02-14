@@ -14,21 +14,16 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/DimensionAnalysis",
-        "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/OptimizeRelinearizationAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
-        "@heir//lib/Dialect:Utils",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
-        "@heir//lib/Dialect/Mgmt/Transforms",
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
-        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 

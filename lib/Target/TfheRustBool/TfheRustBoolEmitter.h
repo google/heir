@@ -3,6 +3,7 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"

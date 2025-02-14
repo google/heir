@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -11,6 +12,7 @@
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Comb/IR/CombOps.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
+#include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Path.h"              // from @llvm-project
@@ -20,6 +22,7 @@
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/OwningOpRef.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -27,6 +30,8 @@
 // Block clang-format from reordering
 // clang-format off
 #include "tools/cpp/runfiles/runfiles.h" // from @bazel_tools
+#include "kernel/log.h" // from @at_clifford_yosys
+#include "kernel/rtlil.h" // from @at_clifford_yosys
 #include "kernel/yosys.h" // from @at_clifford_yosys
 // clang-format on
 

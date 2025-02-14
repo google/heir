@@ -6,6 +6,7 @@
 #include "lib/Dialect/FHEHelpers.h"
 #include "mlir/include/mlir/IR/Location.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"        // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project
 
 // Generated definitions

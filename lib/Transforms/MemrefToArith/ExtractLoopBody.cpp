@@ -1,4 +1,9 @@
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <queue>
+#include <string>
 
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
@@ -10,11 +15,15 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineValueMap.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/LoopUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {

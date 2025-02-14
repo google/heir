@@ -1,13 +1,20 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 
+#include <optional>
+
 #include "lib/Dialect/FHEHelpers.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.cpp.inc"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.cpp.inc"
 #define GET_OP_CLASSES

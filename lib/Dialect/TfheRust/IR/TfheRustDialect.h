@@ -10,6 +10,7 @@
 
 // Generated headers (block clang-format from messing up order)
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h.inc"
+#include "mlir/include/mlir/IR/Types.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {

@@ -1,6 +1,7 @@
 #ifndef LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
 #define LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
 
+#include <string>
 #include <string_view>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
@@ -13,6 +14,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project

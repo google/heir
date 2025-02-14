@@ -11,6 +11,8 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustPatterns.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
+#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.cpp.inc"

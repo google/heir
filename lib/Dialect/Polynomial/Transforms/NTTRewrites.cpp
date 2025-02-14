@@ -1,5 +1,7 @@
 #include "lib/Dialect/Polynomial/Transforms/NTTRewrites.h"
 
+#include <utility>
+
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project

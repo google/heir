@@ -1,11 +1,14 @@
 #ifndef LIB_DIALECT_SECRET_IR_SECRETOPS_H_
 #define LIB_DIALECT_SECRET_IR_SECRETOPS_H_
 
+#include <utility>
+
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
 #include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project

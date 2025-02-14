@@ -1,6 +1,7 @@
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project

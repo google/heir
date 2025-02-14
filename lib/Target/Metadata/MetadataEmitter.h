@@ -2,6 +2,7 @@
 #define LIB_TARGET_METADATA_METADATAEMITTER_H_
 
 #include "llvm/include/llvm/Support/JSON.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project

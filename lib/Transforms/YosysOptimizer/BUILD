@@ -49,6 +49,7 @@ cc_test(
     tags = ["yosys"],
     deps = [
         ":LUTImporter",
+        ":RTLILImporter",
         "@at_clifford_yosys//:kernel",
         "@at_clifford_yosys//:version",  # buildcleaner: keep
         "@bazel_tools//tools/cpp/runfiles",
@@ -92,7 +93,7 @@ cc_library(
         ":LUTImporter",
         ":RTLILImporter",
         ":pass_inc_gen",
-        "@at_clifford_yosys//:kernel",
+        "@at_clifford_yosys//:kernel",  # buildcleaner: keep
         "@at_clifford_yosys//:version",  # buildcleaner: keep
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",

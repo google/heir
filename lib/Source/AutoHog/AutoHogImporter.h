@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+#include "mlir/include/mlir/IR/MLIRContext.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/OwningOpRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"    // from @llvm-project

@@ -1,7 +1,15 @@
 #ifndef LIB_TRANSFORMS_MEMREFTOARITH_UTILS_H_
 #define LIB_TRANSFORMS_MEMREFTOARITH_UTILS_H_
 
+#include <cstdint>
+#include <optional>
+#include <vector>
+
+#include "llvm/include/llvm/ADT/ArrayRef.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Analysis/AffineAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Utils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {

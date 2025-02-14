@@ -1,6 +1,7 @@
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <iterator>

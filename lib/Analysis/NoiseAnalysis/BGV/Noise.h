@@ -1,7 +1,10 @@
 #ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_
 #define INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_
 
+#include <algorithm>
+#include <cassert>
 #include <optional>
+#include <string>
 
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"       // from @llvm-project

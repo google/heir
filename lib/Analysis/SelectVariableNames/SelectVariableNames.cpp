@@ -1,5 +1,8 @@
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 
+#include <map>
+#include <string>
+
 #include "lib/Utils/Tablegen/AsmInterfaces.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project

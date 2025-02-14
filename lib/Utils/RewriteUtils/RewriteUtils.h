@@ -1,7 +1,9 @@
 #ifndef LIB_UTILS_REWRITEUTILS_REWRITEUTILS_H_
 #define LIB_UTILS_REWRITEUTILS_REWRITEUTILS_H_
 
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 
 // Simple Pattern that replaces an operation with a new operation
 // assuming that no changes to types/operands/attributes are necessary

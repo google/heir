@@ -7,5 +7,8 @@ cc_library(
     name = "RewriteUtils",
     srcs = [],
     hdrs = ["RewriteUtils.h"],
-    deps = ["@llvm-project//mlir:IR"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
 )

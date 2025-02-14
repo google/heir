@@ -1,11 +1,17 @@
 #ifndef LIB_ANALYSIS_SECRETNESSANALYSIS_SECRETNESSANALYSIS_H_
 #define LIB_ANALYSIS_SECRETNESSANALYSIS_SECRETNESSANALYSIS_H_
 
+#include <cassert>
 #include <optional>
 
+#include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"               // from @llvm-project
+#include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {

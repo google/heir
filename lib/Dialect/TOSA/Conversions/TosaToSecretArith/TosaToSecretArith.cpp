@@ -12,6 +12,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tosa/IR/TosaOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project

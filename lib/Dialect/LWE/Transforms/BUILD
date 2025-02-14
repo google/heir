@@ -28,6 +28,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
@@ -65,6 +66,7 @@ cc_library(
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
     ],

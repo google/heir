@@ -1,14 +1,19 @@
 #include "lib/Target/TfheRust/Utils.h"
 
+#include <cstdint>
+
 #include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project

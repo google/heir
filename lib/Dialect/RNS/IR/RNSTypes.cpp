@@ -1,10 +1,13 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 
+#include <cstddef>
+
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
+#include "llvm/include/llvm/ADT/APInt.h"                // from @llvm-project
 #include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project

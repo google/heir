@@ -1,11 +1,19 @@
 #ifndef LIB_ANALYSIS_DIMENSIONANALYSIS_DIMENSIONANALYSIS_H_
 #define LIB_ANALYSIS_DIMENSIONANALYSIS_DIMENSIONANALYSIS_H_
 
+#include <algorithm>
+#include <cassert>
+#include <optional>
+
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"        // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {

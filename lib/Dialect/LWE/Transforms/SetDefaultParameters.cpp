@@ -1,7 +1,16 @@
 #include "lib/Dialect/LWE/Transforms/SetDefaultParameters.h"
 
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
+#include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"           // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
