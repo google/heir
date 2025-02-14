@@ -5,10 +5,11 @@
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
-#include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Dialect.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Dialect.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 
 #define GET_OP_CLASSES

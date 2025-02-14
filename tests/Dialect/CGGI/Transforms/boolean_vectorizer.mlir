@@ -73,5 +73,6 @@ func.func @add_one(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> tensor<8
   %fa6_s = cggi.xor %fa6_1, %fa5_c : !ct_ty
   %fa6_c = cggi.xor %fa6_2, %fa6_3 : !ct_ty
   %from_elements = tensor.from_elements %fa6_s, %fa5_s, %fa4_s, %fa3_s, %fa2_s, %fa1_s, %fa0_s, %ha_s : tensor<8x!ct_ty>
+  // CHECK: return
   return %from_elements : tensor<8x!ct_ty>
 }

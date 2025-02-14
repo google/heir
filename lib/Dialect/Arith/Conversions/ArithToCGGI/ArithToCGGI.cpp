@@ -70,6 +70,18 @@ static bool allowedRemainArith(Operation *op) {
             }
             return false;
           })
+      .Case<mlir::arith::SubIOp, mlir::arith::AddIOp, mlir::arith::MulIOp>(
+          [](auto op) {
+            // This lambda will be called for any of the matched operation types
+            if (auto lhsDefOp = op.getOperand(0).getDefiningOp()) {
+              auto lshAllowed = allowedRemainArith(lhsDefOp);
+              if (auto rhsDefOp = op.getOperand(1).getDefiningOp()) {
+                auto rhsAllowed = allowedRemainArith(rhsDefOp);
+                return lshAllowed && rhsAllowed;
+              }
+            }
+            return false;
+          })
       .Default([](Operation *) {
         // Default case for operations that don't match any of the types
         return false;
@@ -77,8 +89,34 @@ static bool allowedRemainArith(Operation *op) {
 }
 
 static bool hasLWEAnnotation(Operation *op) {
-  return static_cast<bool>(
-      op->getAttrOfType<mlir::StringAttr>("lwe_annotation"));
+  mlir::StringAttr check =
+      op->getAttrOfType<mlir::StringAttr>("lwe_annotation");
+
+  if (check) return true;
+
+  // Check recursively if a defining op has a LWE annotation
+  return llvm::TypeSwitch<Operation *, bool>(op)
+      .Case<mlir::arith::ExtUIOp, mlir::arith::ExtSIOp, mlir::arith::TruncIOp>(
+          [](auto op) {
+            if (auto *defOp = op.getIn().getDefiningOp()) {
+              return hasLWEAnnotation(defOp);
+            }
+            return op->template getAttrOfType<mlir::StringAttr>(
+                       "lwe_annotation") != nullptr;
+          })
+      .Case<mlir::arith::SubIOp, mlir::arith::AddIOp, mlir::arith::MulIOp>(
+          [](auto op) {
+            // This lambda will be called for any of the matched operation types
+            if (auto lhsDefOp = op.getOperand(0).getDefiningOp()) {
+              auto lshAllowed = hasLWEAnnotation(lhsDefOp);
+              if (auto rhsDefOp = op.getOperand(1).getDefiningOp()) {
+                auto rhsAllowed = hasLWEAnnotation(rhsDefOp);
+                return lshAllowed || rhsAllowed;
+              }
+            }
+            return false;
+          })
+      .Default([](Operation *) { return false; });
 }
 
 static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
@@ -89,10 +127,18 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
     llvm_unreachable(
         "Non-integer types should never be the input to a materializeTarget.");
 
-  auto inValue = inputs.front().getDefiningOp<mlir::arith::ConstantOp>();
-  auto intAttr = cast<IntegerAttr>(inValue.getValueAttr());
+  if (auto inValue = inputs.front().getDefiningOp<mlir::arith::ConstantOp>()) {
+    auto intAttr = cast<IntegerAttr>(inValue.getValueAttr());
 
-  return builder.create<cggi::CreateTrivialOp>(loc, type, intAttr);
+    return builder.create<cggi::CreateTrivialOp>(loc, type, intAttr);
+  }
+  // Comes from function/loop argument: Trivial encrypt through LWE
+  auto encoding = cast<lwe::LWECiphertextType>(type).getEncoding();
+  auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(), encoding);
+  return builder.create<lwe::TrivialEncryptOp>(
+      loc, type,
+      builder.create<lwe::EncodeOp>(loc, ptxtTy, inputs[0], encoding),
+      lwe::LWEParamsAttr());
 }
 
 class ArithToCGGITypeConverter : public TypeConverter {
@@ -175,18 +221,109 @@ struct ConvertExtSIOp : public OpConversionPattern<mlir::arith::ExtSIOp> {
   }
 };
 
-struct ConvertShRUIOp : public OpConversionPattern<mlir::arith::ShRUIOp> {
-  ConvertShRUIOp(mlir::MLIRContext *context)
-      : OpConversionPattern<mlir::arith::ShRUIOp>(context) {}
+struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
+  ConvertCmpOp(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::arith::CmpIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      mlir::arith::ShRUIOp op, OpAdaptor adaptor,
+      mlir::arith::CmpIOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cteShiftSizeOp = op.getRhs().getDefiningOp<mlir::arith::ConstantOp>();
+    auto lweBooleanType = lwe::LWECiphertextType::get(
+        op->getContext(),
+        lwe::UnspecifiedBitFieldEncodingAttr::get(op->getContext(), 1),
+        lwe::LWEParamsAttr());
+
+    if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
+      if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {
+        auto result = b.create<cggi::CmpOp>(lweBooleanType, op.getPredicate(),
+                                            adaptor.getRhs(), op.getLhs());
+        rewriter.replaceOp(op, result);
+        return success();
+      }
+    }
+
+    if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
+      if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
+        auto result = b.create<cggi::CmpOp>(lweBooleanType, op.getPredicate(),
+                                            adaptor.getLhs(), op.getRhs());
+        rewriter.replaceOp(op, result);
+        return success();
+      }
+    }
+
+    auto cmpOp = b.create<cggi::CmpOp>(lweBooleanType, op.getPredicate(),
+                                       adaptor.getLhs(), adaptor.getRhs());
+
+    rewriter.replaceOp(op, cmpOp);
+    return success();
+  }
+};
+
+struct ConvertSubOp : public OpConversionPattern<mlir::arith::SubIOp> {
+  ConvertSubOp(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::arith::SubIOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      mlir::arith::SubIOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
+      if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
+        auto result = b.create<cggi::SubOp>(adaptor.getLhs().getType(),
+                                            adaptor.getLhs(), op.getRhs());
+        rewriter.replaceOp(op, result);
+        return success();
+      }
+    }
+
+    auto subOp = b.create<cggi::SubOp>(adaptor.getLhs().getType(),
+                                       adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOp(op, subOp);
+    return success();
+  }
+};
+
+struct ConvertSelectOp : public OpConversionPattern<mlir::arith::SelectOp> {
+  ConvertSelectOp(mlir::MLIRContext *context)
+      : OpConversionPattern<mlir::arith::SelectOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      mlir::arith::SelectOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto cmuxOp = b.create<cggi::SelectOp>(
+        adaptor.getTrueValue().getType(), adaptor.getCondition(),
+        adaptor.getTrueValue(), adaptor.getFalseValue());
+
+    rewriter.replaceOp(op, cmuxOp);
+    return success();
+  }
+};
+
+template <typename SourceArithShOp, typename TargetCGGIShOp>
+struct ConvertShOp : public OpConversionPattern<SourceArithShOp> {
+  ConvertShOp(mlir::MLIRContext *context)
+      : OpConversionPattern<SourceArithShOp>(context) {}
+
+  using OpConversionPattern<SourceArithShOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SourceArithShOp op, typename SourceArithShOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto cteShiftSizeOp =
+        op.getRhs().template getDefiningOp<mlir::arith::ConstantOp>();
 
     if (cteShiftSizeOp) {
       auto outputType = adaptor.getLhs().getType();
@@ -198,14 +335,15 @@ struct ConvertShRUIOp : public OpConversionPattern<mlir::arith::ShRUIOp> {
       auto inputValue =
           mlir::IntegerAttr::get(rewriter.getIndexType(), (int8_t)shiftAmount);
 
-      auto shiftOp = b.create<cggi::ScalarShiftRightOp>(
-          outputType, adaptor.getLhs(), inputValue);
+      auto shiftOp =
+          b.create<TargetCGGIShOp>(outputType, adaptor.getLhs(), inputValue);
       rewriter.replaceOp(op, shiftOp);
 
       return success();
     }
 
-    cteShiftSizeOp = op.getLhs().getDefiningOp<mlir::arith::ConstantOp>();
+    cteShiftSizeOp =
+        op.getLhs().template getDefiningOp<mlir::arith::ConstantOp>();
 
     auto outputType = adaptor.getRhs().getType();
 
@@ -215,15 +353,15 @@ struct ConvertShRUIOp : public OpConversionPattern<mlir::arith::ShRUIOp> {
     auto inputValue =
         mlir::IntegerAttr::get(rewriter.getIndexType(), shiftAmount);
 
-    auto shiftOp = b.create<cggi::ScalarShiftRightOp>(
-        outputType, adaptor.getLhs(), inputValue);
+    auto shiftOp =
+        b.create<TargetCGGIShOp>(outputType, adaptor.getLhs(), inputValue);
     rewriter.replaceOp(op, shiftOp);
 
     return success();
   }
 };
 
-template <typename SourceArithOp, typename TargetModArithOp>
+template <typename SourceArithOp, typename TargetCGGIOp>
 struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
   ConvertArithBinOp(mlir::MLIRContext *context)
       : OpConversionPattern<SourceArithOp>(context) {}
@@ -237,8 +375,8 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
 
     if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
       if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {
-        auto result = b.create<TargetModArithOp>(adaptor.getRhs().getType(),
-                                                 adaptor.getRhs(), op.getLhs());
+        auto result = b.create<TargetCGGIOp>(adaptor.getRhs().getType(),
+                                             adaptor.getRhs(), op.getLhs());
         rewriter.replaceOp(op, result);
         return success();
       }
@@ -246,15 +384,15 @@ struct ConvertArithBinOp : public OpConversionPattern<SourceArithOp> {
 
     if (auto rhsDefOp = op.getRhs().getDefiningOp()) {
       if (!hasLWEAnnotation(rhsDefOp) && allowedRemainArith(rhsDefOp)) {
-        auto result = b.create<TargetModArithOp>(adaptor.getLhs().getType(),
-                                                 adaptor.getLhs(), op.getRhs());
+        auto result = b.create<TargetCGGIOp>(adaptor.getLhs().getType(),
+                                             adaptor.getLhs(), op.getRhs());
         rewriter.replaceOp(op, result);
         return success();
       }
     }
 
-    auto result = b.create<TargetModArithOp>(
-        adaptor.getLhs().getType(), adaptor.getLhs(), adaptor.getRhs());
+    auto result = b.create<TargetCGGIOp>(adaptor.getLhs().getType(),
+                                         adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -296,10 +434,29 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     target.addIllegalDialect<mlir::arith::ArithDialect>();
     target.addLegalOp<mlir::arith::ConstantOp>();
 
+    target.addDynamicallyLegalOp<mlir::arith::SubIOp, mlir::arith::AddIOp,
+                                 mlir::arith::MulIOp>([&](Operation *op) {
+      if (auto *defLhsOp = op->getOperand(0).getDefiningOp()) {
+        if (auto *defRhsOp = op->getOperand(1).getDefiningOp()) {
+          return !hasLWEAnnotation(defLhsOp) && !hasLWEAnnotation(defRhsOp) &&
+                 allowedRemainArith(defLhsOp) && allowedRemainArith(defRhsOp);
+        }
+      }
+      return false;
+    });
+
     target.addDynamicallyLegalOp<mlir::arith::ExtSIOp>([&](Operation *op) {
       if (auto *defOp =
               cast<mlir::arith::ExtSIOp>(op).getOperand().getDefiningOp()) {
-        return hasLWEAnnotation(defOp) || allowedRemainArith(defOp);
+        return !hasLWEAnnotation(defOp) && allowedRemainArith(defOp);
+      }
+      return false;
+    });
+
+    target.addDynamicallyLegalOp<mlir::arith::ExtUIOp>([&](Operation *op) {
+      if (auto *defOp =
+              cast<mlir::arith::ExtUIOp>(op).getOperand().getDefiningOp()) {
+        return !hasLWEAnnotation(defOp) && allowedRemainArith(defOp);
       }
       return false;
     });
@@ -317,14 +474,16 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
       // accepts Check if there is at least one Store op that is a constants
       auto containsAnyStoreOp = llvm::any_of(op->getUses(), [&](OpOperand &op) {
         if (auto defOp = dyn_cast<memref::StoreOp>(op.getOwner())) {
-          return allowedRemainArith(defOp.getValue().getDefiningOp());
+          return !hasLWEAnnotation(defOp.getValue().getDefiningOp()) &&
+                 allowedRemainArith(defOp.getValue().getDefiningOp());
         }
         return false;
       });
       auto allStoreOpsAreArith =
           llvm::all_of(op->getUses(), [&](OpOperand &op) {
             if (auto defOp = dyn_cast<memref::StoreOp>(op.getOwner())) {
-              return allowedRemainArith(defOp.getValue().getDefiningOp());
+              return !hasLWEAnnotation(defOp.getValue().getDefiningOp()) &&
+                     allowedRemainArith(defOp.getValue().getDefiningOp());
             }
             return true;
           });
@@ -390,10 +549,17 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
     });
 
     patterns.add<
-        ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp, ConvertShRUIOp,
+        ConvertTruncIOp, ConvertExtUIOp, ConvertExtSIOp, ConvertSelectOp,
+        ConvertCmpOp, ConvertSubOp,
+        ConvertShOp<mlir::arith::ShRSIOp, cggi::ScalarShiftRightOp>,
+        ConvertShOp<mlir::arith::ShRUIOp, cggi::ScalarShiftRightOp>,
+        ConvertShOp<mlir::arith::ShLIOp, cggi::ScalarShiftLeftOp>,
         ConvertArithBinOp<mlir::arith::AddIOp, cggi::AddOp>,
         ConvertArithBinOp<mlir::arith::MulIOp, cggi::MulOp>,
-        ConvertArithBinOp<mlir::arith::SubIOp, cggi::SubOp>,
+        ConvertArithBinOp<mlir::arith::MaxSIOp, cggi::MaxOp>,
+        ConvertArithBinOp<mlir::arith::MinSIOp, cggi::MinOp>,
+        ConvertArithBinOp<mlir::arith::MaxUIOp, cggi::MaxOp>,
+        ConvertArithBinOp<mlir::arith::MinUIOp, cggi::MinOp>,
         ConvertAny<memref::LoadOp>, ConvertAllocOp,
         ConvertAny<memref::DeallocOp>, ConvertAny<memref::SubViewOp>,
         ConvertAny<memref::CopyOp>, ConvertAny<memref::StoreOp>,
