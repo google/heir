@@ -8,7 +8,7 @@
 // CHECK-SAME{LITERAL}: <[[
 // CHECK-SAME: 1.{{0*}}e+00, 2.{{0*}}e+00, 3.{{0*}}e+00, 4.{{0*}}e+00], [2.{{0*}}e+00, 3.{{0*}}e+00, 4.{{0*}}e+00, 1.{{0*}}e+00], [3.{{0*}}e+00, 4.{{0*}}e+00, 1.{{0*}}e+00, 2.{{0*}}e+00], [4.{{0*}}e+00, 1.{{0*}}e+00, 2.{{0*}}e+00, 3.{{0*}}e+00
 // CHECK-SAME{LITERAL}: ]]>
-// CHECK-DAG:   %[[SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][3, 0] [1, 4] [1, 1]
+// CHECK-DAG:   %[[SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][0, 0] [1, 4] [1, 1]
 // CHECK:       %[[OUT:.*]] = secret.generic ins(%[[ARG]] : !secret.secret<tensor<1x4xf32>>)
 // CHECK:       ^body(%[[ARG_CONVERTED:.*]]: tensor<1x4xf32>):
 // CHECK:         %[[MUL:.*]] = arith.mulf %[[ARG_CONVERTED]], %[[SLICE]]

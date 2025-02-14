@@ -152,9 +152,9 @@ struct TypeWithAttrTypeConverter : public ContextAwareTypeConverter {
       SmallVectorImpl<Type> &newResultTypes) const override;
 
   // Custom hook to check legality
-  bool isValueLegal(Value value);
+  bool isValueLegal(Value value) const;
 
-  bool isOperationLegal(Operation *op);
+  bool isOperationLegal(Operation *op) const;
 
   bool isFuncArgumentAndResultLegal(FunctionOpInterface funcOp);
 
@@ -400,8 +400,7 @@ class SecretGenericOpRotateConversion
       op.emitError("expected constant offset for rotate");
     }
     auto offsetAttr = llvm::dyn_cast<IntegerAttr>(constantOffset.getValue());
-
-    rewriter.replaceOpWithNewOp<T>(op, inputs[0], offsetAttr);
+    rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], offsetAttr);
     return success();
   }
 };

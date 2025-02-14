@@ -1,5 +1,6 @@
 #include "lib/Utils/ConversionUtils.h"
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -40,18 +41,34 @@ using ::mlir::func::ReturnOp;
 LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
                                 Operation *op, ArrayRef<Value> operands,
                                 ConversionPatternRewriter &rewriter) {
-  if (typeConverter->isLegal(op)) {
-    return failure();
+  const auto *typeWithAttrTypeConverter =
+      dynamic_cast<const TypeWithAttrTypeConverter *>(typeConverter);
+
+  if (typeWithAttrTypeConverter) {
+    if (typeWithAttrTypeConverter->isOperationLegal(op)) {
+      return failure();
+    }
+  } else {
+    if (typeConverter->isLegal(op)) {
+      return failure();
+    }
   }
 
   SmallVector<Type> newOperandTypes;
-  if (failed(
-          typeConverter->convertTypes(op->getOperandTypes(), newOperandTypes)))
-    return failure();
-
   SmallVector<Type> newResultTypes;
-  if (failed(typeConverter->convertTypes(op->getResultTypes(), newResultTypes)))
-    return failure();
+  if (typeWithAttrTypeConverter) {
+    typeWithAttrTypeConverter->convertOpResultTypes(op, newResultTypes);
+    typeWithAttrTypeConverter->convertValueRangeTypes(op->getOperands(),
+                                                      newOperandTypes);
+
+  } else {
+    auto result =
+        typeConverter->convertTypes(op->getResultTypes(), newResultTypes);
+    if (failed(result)) return failure();
+    if (failed(typeConverter->convertTypes(op->getOperandTypes(),
+                                           newOperandTypes)))
+      return failure();
+  }
 
   SmallVector<std::unique_ptr<Region>, 1> regions;
   IRMapping mapping;
@@ -357,12 +374,12 @@ void TypeWithAttrTypeConverter::convertFuncArgumentAndResultTypes(
   }
 }
 
-bool TypeWithAttrTypeConverter::isValueLegal(Value value) {
+bool TypeWithAttrTypeConverter::isValueLegal(Value value) const {
   auto attr = getValueAttr(value);
   return value.getType() == convertTypeWithAttr(value.getType(), attr);
 }
 
-bool TypeWithAttrTypeConverter::isOperationLegal(Operation *op) {
+bool TypeWithAttrTypeConverter::isOperationLegal(Operation *op) const {
   for (auto operand : op->getOperands()) {
     if (!isValueLegal(operand)) {
       return false;
