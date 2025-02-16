@@ -35,6 +35,9 @@ struct TosaToArithTfheOptions
 };
 
 struct TosaToBooleanJaxiteOptions : public TosaToBooleanTfheOptions {
+  PassOptions::Option<bool> inputCggi{
+      *this, "input-cggi", llvm::cl::desc("Assumes input is CGGI dialect."),
+      llvm::cl::init(false)};
   PassOptions::Option<int> parallelism{
       *this, "parallelism",
       llvm::cl::desc(
