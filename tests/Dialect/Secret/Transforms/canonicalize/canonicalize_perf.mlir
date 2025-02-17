@@ -1,4 +1,4 @@
-// RUN: heir-opt --affine-loop-unroll=unroll-factor=1024 --canonicalize %s | FileCheck %s
+// RUN: heir-opt --pass-pipeline="builtin.module(func.func(affine-loop-unroll{unroll-factor=1024},canonicalize))" %s | FileCheck %s
 
 // A test to ensure that the canonicalize pass is not slow for large secret generic bodies
 // Cf. https://github.com/google/heir/issues/482
