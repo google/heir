@@ -39,8 +39,8 @@ namespace mlir::heir {
 void tosaToLinalg(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
   manager.addNestedPass<FuncOp>(createTosaToLinalg());
-  manager.addNestedPass<FuncOp>(createTosaToArith(true, false));
-  manager.addNestedPass<FuncOp>(createTosaToTensor());
+  manager.addNestedPass<FuncOp>(createTosaToArithPass({true, false}));
+  manager.addNestedPass<FuncOp>(createTosaToTensorPass());
   manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
   manager.addNestedPass<FuncOp>(createLinalgDetensorizePass());
   manager.addPass(createConvertTensorToLinalgPass());
@@ -60,7 +60,7 @@ void oneShotBufferize(OpPassManager &manager) {
   manager.addPass(bufferization::createBufferDeallocationSimplificationPass());
   manager.addPass(bufferization::createLowerDeallocationsPass());
   manager.addPass(createCSEPass());
-  manager.addPass(mlir::createBufferizationToMemRefPass());
+  manager.addPass(mlir::createConvertBufferizationToMemRefPass());
   manager.addPass(createCanonicalizerPass());
 }
 
@@ -114,7 +114,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   // But lowering to loops also re-introduces affine.apply, so re-lower that
   manager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
   manager.addPass(createLowerAffinePass());
-  manager.addPass(createBufferizationToMemRefPass());
+  manager.addPass(createConvertBufferizationToMemRefPass());
 
   // Cleanup
   manager.addPass(createCanonicalizerPass());
@@ -124,7 +124,7 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
 
   // ToLLVM
   manager.addPass(arith::createArithExpandOpsPass());
-  manager.addPass(createConvertSCFToCFPass());
+  manager.addPass(createSCFToControlFlowPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
   manager.addPass(createConvertToLLVMPass());
 
@@ -161,7 +161,7 @@ void basicMLIRToLLVMPipelineBuilder(OpPassManager &manager) {
 
   // ToLLVM
   manager.addPass(arith::createArithExpandOpsPass());
-  manager.addPass(createConvertSCFToCFPass());
+  manager.addPass(createSCFToControlFlowPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
   manager.addPass(createConvertToLLVMPass());
 

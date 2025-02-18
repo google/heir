@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
   registerPass(
       []() -> std::unique_ptr<Pass> { return createConvertFuncToLLVMPass(); });
   registerPass(
-      []() -> std::unique_ptr<Pass> { return createConvertSCFToCFPass(); });
+      []() -> std::unique_ptr<Pass> { return createSCFToControlFlowPass(); });
   registerPass([]() -> std::unique_ptr<Pass> {
     return createFinalizeMemRefToLLVMConversionPass();
   });
