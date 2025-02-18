@@ -6,14 +6,14 @@ include "mlir/Pass/PassBase.td"
 def ConfigureCryptoContext : Pass<"openfhe-configure-crypto-context"> {
   let summary = "Configure the crypto context in OpenFHE";
   let description = [{
-     This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).
+    This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).
 
-     For example, for an MLIR function `@my_func`, the generated helpers have the following signatures
-     ```mlir
+    For example, for an MLIR function `@my_func`, the generated helpers have the following signatures
+    ```mlir
     func.func  @my_func__generate_crypto_context() -> !openfhe.crypto_context
 
     func.func  @my_func__configure_crypto_context(!openfhe.crypto_context, !openfhe.private_key) -> !openfhe.crypto_context
-     ```
+    ```
   }];
   let dependentDialects = ["mlir::heir::openfhe::OpenfheDialect"];
   let options = [
@@ -28,6 +28,21 @@ def ConfigureCryptoContext : Pass<"openfhe-configure-crypto-context"> {
            /*default=*/"false", "Whether to use insecure parameter for faster evaluation"
            "(should only be used in test) (defaults to false)">
   ];
+}
+
+def CountAddAndKeySwitch : Pass<"openfhe-count-add-and-key-switch"> {
+  let summary = "Count the number of add and key-switch operations in OpenFHE";
+  let description = [{
+    This pass counts the number of add and key-switch operations in the given function.
+
+    This is used for setting the EvalAddCount and EvalKeySwitchCount in OpenFHE library.
+
+    The detailed definition of these counts could be found in the KPZ21 paper
+    [Revisiting Homomorphic Encryption Schemes for Finite Fields](https://ia.cr/2021/201)
+
+    The pass should be run at the secret arithmetic level when management operations
+    have been inserted and the IR is stable.
+  }];
 }
 
 #endif  // LIB_DIALECT_OPENFHE_TRANSFORMS_PASSES_TD_

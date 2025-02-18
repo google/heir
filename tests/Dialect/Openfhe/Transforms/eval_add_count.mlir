@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-bgv %s | FileCheck %s
+// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-bgv --openfhe-count-add-and-key-switch %s | FileCheck %s
 
 // CHECK: mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>
 func.func @dot_product(%arg0: tensor<8xi16> {secret.secret}, %arg1: tensor<8xi16> {secret.secret}) -> i16 {

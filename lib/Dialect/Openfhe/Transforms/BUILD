@@ -12,6 +12,7 @@ cc_library(
     ],
     deps = [
         ":ConfigureCryptoContext",
+        ":CountAddAndKeySwitch",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
     ],
@@ -33,6 +34,24 @@ cc_library(
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "CountAddAndKeySwitch",
+    srcs = ["CountAddAndKeySwitch.cpp"],
+    hdrs = [
+        "CountAddAndKeySwitch.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Analysis/AddAndKeySwitchCountAnalysis",
+        "@heir//lib/Analysis/SecretnessAnalysis",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",

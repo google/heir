@@ -1,6 +1,5 @@
 #include <utility>
 
-#include "lib/Analysis/AddAndKeySwitchCountAnalysis/AddAndKeySwitchCountAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
@@ -88,15 +87,6 @@ struct SecretInsertMgmtBGV
     pipeline.addPass(createCSEPass());
     pipeline.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(pipeline, getOperation());
-
-    // calculate addCount/keySwitchCount
-    solver.load<CountAnalysis>();
-    if (failed(solver.initializeAndRun(getOperation()))) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
-      signalPassFailure();
-      return;
-    }
-    annotateCount(getOperation(), &solver);
   }
 };
 

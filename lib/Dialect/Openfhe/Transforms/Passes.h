@@ -3,6 +3,7 @@
 
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 
 namespace mlir {
 namespace heir {

@@ -17,7 +17,6 @@ cc_library(
     deps = [
         ":SecretInsertMgmtPatterns",
         ":pass_inc_gen",
-        "@heir//lib/Analysis/AddAndKeySwitchCountAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/MulResultAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
