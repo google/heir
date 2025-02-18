@@ -168,3 +168,21 @@ module attributes {scheme.bgv} {
     return %evaluator : !evaluator
   }
 }
+
+// -----
+
+// CHECK-LABEL: func dot_product
+// CHECK: ["bound"] = "50"
+// CHECK: ["complex"] = "{test = 1.200000e+00 : f64}"
+// CHECK: ["random"] = "3 : i64"
+// CHECK: ["secret.secret"] = "unit"
+// CHECK: ["asm.is_block_arg"] = "1"
+// CHECK: ["asm.result_ssa_format"]
+
+module attributes {scheme.bgv} {
+  func.func private @__heir_debug_0(!lattigo.bgv.evaluator, !lattigo.bgv.parameter, !lattigo.bgv.encoder, !lattigo.rlwe.decryptor, !lattigo.rlwe.ciphertext)
+  func.func @dot_product(%evaluator: !lattigo.bgv.evaluator, %param: !lattigo.bgv.parameter, %encoder: !lattigo.bgv.encoder, %decryptor: !lattigo.rlwe.decryptor, %ct: !lattigo.rlwe.ciphertext, %ct_0: !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
+    call @__heir_debug_0(%evaluator, %param, %encoder, %decryptor, %ct) {bound = "50", random = 3, complex = {test = 1.2}, secret.secret} : (!lattigo.bgv.evaluator, !lattigo.bgv.parameter, !lattigo.bgv.encoder, !lattigo.rlwe.decryptor, !lattigo.rlwe.ciphertext) -> ()
+    return %ct : !lattigo.rlwe.ciphertext
+  }
+}

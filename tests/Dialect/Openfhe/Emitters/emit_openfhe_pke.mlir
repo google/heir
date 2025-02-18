@@ -179,3 +179,34 @@ module attributes {scheme.ckks} {
     return %1 : !openfhe.crypto_context
   }
 }
+
+// -----
+
+!Z2147565569_i64_ = !mod_arith.int<2147565569 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
+#full_crt_packing_encoding = #lwe.full_crt_packing_encoding<scaling_factor = 0>
+#key = #lwe.key<>
+#modulus_chain_L0_C0_ = #lwe.modulus_chain<elements = <2147565569 : i64>, current = 0>
+!rns_L0_ = !rns.rns<!Z2147565569_i64_>
+#ring_Z65537_i64_1_x8_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**8>>
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x8_, encoding = #full_crt_packing_encoding>
+#ring_rns_L0_1_x8_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**8>>
+!pt = !lwe.new_lwe_plaintext<application_data = <message_type = i16>, plaintext_space = #plaintext_space>
+#ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x8_, encryption_type = lsb>
+!ct_L0_ = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L0_C0_>
+
+// CHECK: __heir_debug(CryptoContextT, PrivateKeyT, CiphertextT, const std::map<std::string, std::string>&)
+// CHECK: ["bound"] = "50"
+// CHECK: ["complex"] = "{test = 1.200000e+00 : f64}"
+// CHECK: ["random"] = "3 : i64"
+// CHECK: ["secret.secret"] = "unit"
+// CHECK: ["asm.is_block_arg"] = "1"
+// CHECK: ["asm.result_ssa_format"]
+
+module attributes {scheme.bgv} {
+  func.func private @__heir_debug_0(!openfhe.crypto_context, !openfhe.private_key, !ct_L0_)
+  func.func @add(%cc: !openfhe.crypto_context, %sk: !openfhe.private_key, %ct: !ct_L0_) -> !ct_L0_ {
+    call @__heir_debug_0(%cc, %sk, %ct) {bound = "50", random = 3, complex = {test = 1.2}, secret.secret} : (!openfhe.crypto_context, !openfhe.private_key, !ct_L0_) -> ()
+    return %ct : !ct_L0_
+  }
+}

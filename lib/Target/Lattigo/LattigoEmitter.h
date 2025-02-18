@@ -147,6 +147,11 @@ class LattigoEmitter {
     return "err" + std::to_string(errCount++);
   }
 
+  std::string getDebugAttrMapName() {
+    static int debugAttrMapCount = 0;
+    return "debugAttrMap" + std::to_string(debugAttrMapCount++);
+  }
+
   std::string getCommaSeparatedNames(::mlir::ValueRange values) {
     return commaSeparatedValues(values,
                                 [&](Value value) { return getName(value); });

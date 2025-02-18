@@ -132,8 +132,12 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
   return success();
 }
 
+bool OpenFhePkeEmitter::isDebugPort(StringRef debugPortName) {
+  return debugPortName.rfind("__heir_debug") == 0;
+}
+
 StringRef OpenFhePkeEmitter::canonicalizeDebugPort(StringRef debugPortName) {
-  if (debugPortName.rfind("__heir_debug") == 0) {
+  if (isDebugPort(debugPortName)) {
     return "__heir_debug";
   }
   return debugPortName;
@@ -177,6 +181,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
     os << commaSeparatedTypes(funcOp.getArgumentTypes(), [&](Type type) {
       return convertType(type, funcOp->getLoc()).value();
     });
+    // debug attribute map for debug call
+    if (isDebugPort(funcOp.getName())) {
+      os << ", const std::map<std::string, std::string>&";
+    }
   } else {
     os << commaSeparatedValues(funcOp.getArguments(), [&](Value value) {
       return convertType(value.getType(), funcOp->getLoc()).value() + " " +
@@ -213,6 +221,36 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
     return emitError(op.getLoc(), "Only one return value supported");
   }
 
+  // build debug attribute map for debug call
+  auto debugAttrMapName = getDebugAttrMapName();
+  if (isDebugPort(op.getCallee())) {
+    os << "std::map<std::string, std::string> " << debugAttrMapName << ";\n";
+    for (auto attr : op->getAttrs()) {
+      // callee is also an attribute internally, skip it
+      if (attr.getName().getValue() == "callee") {
+        continue;
+      }
+      os << debugAttrMapName << "[\"" << attr.getName().getValue()
+         << "\"] = \"";
+      // Use AsmPrinter to print Attribute
+      if (mlir::isa<StringAttr>(attr.getValue())) {
+        os << mlir::cast<StringAttr>(attr.getValue()).getValue() << "\"\n";
+      } else {
+        os << attr.getValue() << "\";\n";
+      }
+    }
+    auto ciphertext = op->getOperand(op->getNumOperands() - 1);
+    os << debugAttrMapName << R"(["asm.is_block_arg"] = ")"
+       << isa<BlockArgument>(ciphertext) << "\";\n";
+    if (auto *definingOp = ciphertext.getDefiningOp()) {
+      os << debugAttrMapName << R"(["asm.op_name"] = ")"
+         << definingOp->getName() << "\";\n";
+    }
+    // Use AsmPrinter to print Value
+    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << ciphertext
+       << "\";\n";
+  }
+
   if (op.getNumResults() != 0) {
     emitAutoAssignPrefix(op.getResult(0));
   }
@@ -221,6 +259,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
   os << commaSeparatedValues(op.getOperands(), [&](Value value) {
     return variableNames->getNameForValue(value);
   });
+  // pass debug attribute map
+  if (isDebugPort(op.getCallee())) {
+    os << ", " << debugAttrMapName;
+  }
   os << ");\n";
   return success();
 }

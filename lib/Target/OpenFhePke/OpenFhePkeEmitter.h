@@ -101,7 +101,13 @@ class OpenFhePkeEmitter {
   LogicalResult emitType(::mlir::Type type, ::mlir::Location loc);
 
   // Canonicalize Debug Port
+  bool isDebugPort(::llvm::StringRef debugPortName);
   ::llvm::StringRef canonicalizeDebugPort(::llvm::StringRef debugPortName);
+
+  std::string getDebugAttrMapName() {
+    static int debugAttrMapCount = 0;
+    return "debugAttrMap" + std::to_string(debugAttrMapCount++);
+  }
 
   void emitAutoAssignPrefix(::mlir::Value result);
   LogicalResult emitTypedAssignPrefix(::mlir::Value result,

@@ -44,15 +44,26 @@ DCRTPoly DecryptCore(const std::vector<DCRTPoly>& cv,
   return b;
 }
 
+#define OP
 #define DECRYPT
 #define NOISE
 
-void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct) {
+void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
+                  const std::map<std::string, std::string>& debugAttrMap) {
+#ifdef OP
+  auto isBlockArgument = debugAttrMap.at("asm.is_block_arg");
+  if (isBlockArgument == "1") {
+    std::cout << "Input" << std::endl;
+  } else {
+    std::cout << debugAttrMap.at("asm.op_name") << std::endl;
+  }
+#endif
+
 #ifdef DECRYPT
   PlaintextT ptxt;
   cc->Decrypt(sk, ct, &ptxt);
   ptxt->SetLength(8);
-  std::cout << ptxt << std::endl;
+  std::cout << "  " << ptxt << std::endl;
 #endif
 
 #ifdef NOISE
@@ -73,7 +84,7 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct) {
     logQ += logqi;
   }
 
-  std::cout << "cv " << cv.size() << " Ql " << sizeQl << " logQ: " << logQ
+  std::cout << "  cv " << cv.size() << " Ql " << sizeQl << " logQ: " << logQ
             << " logqi: " << logqi_v << " budget " << logQ - noise - 1
             << " noise: " << noise << std::endl;
 #endif

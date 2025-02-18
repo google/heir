@@ -164,12 +164,46 @@ LogicalResult LattigoEmitter::printOperation(func::ReturnOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
+  // build debug attribute map for debug call
+  auto debugAttrMapName = getDebugAttrMapName();
+  if (isDebugPort(op.getCallee())) {
+    os << debugAttrMapName << " := make(map[string]string)\n";
+    for (auto attr : op->getAttrs()) {
+      // callee is also an attribute internally, skip it
+      if (attr.getName().getValue() == "callee") {
+        continue;
+      }
+      os << debugAttrMapName << "[\"" << attr.getName().getValue()
+         << "\"] = \"";
+      // Use AsmPrinter to print Attribute
+      if (mlir::isa<StringAttr>(attr.getValue())) {
+        os << mlir::cast<StringAttr>(attr.getValue()).getValue() << "\"\n";
+      } else {
+        os << attr.getValue() << "\"\n";
+      }
+    }
+    auto ciphertext = op->getOperand(op->getNumOperands() - 1);
+    os << debugAttrMapName << R"(["asm.is_block_arg"] = ")"
+       << isa<BlockArgument>(ciphertext) << "\"\n";
+    if (auto *definingOp = ciphertext.getDefiningOp()) {
+      os << debugAttrMapName << R"(["asm.op_name"] = ")"
+         << definingOp->getName() << "\"\n";
+    }
+    // Use AsmPrinter to print Value
+    os << debugAttrMapName << R"(["asm.result_ssa_format"] = ")" << ciphertext
+       << "\"\n";
+  }
+
   if (op.getNumResults() > 0) {
     os << getCommaSeparatedNames(op.getResults());
     os << " := ";
   }
   os << canonicalizeDebugPort(op.getCallee()) << "(";
   os << getCommaSeparatedNames(op.getOperands());
+  // pass debug attribute map
+  if (isDebugPort(op.getCallee())) {
+    os << ", " << debugAttrMapName;
+  }
   os << ")\n";
   return success();
 }
