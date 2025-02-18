@@ -22,6 +22,7 @@ cc_library(
         ":ops_inc_gen",
         ":types_inc_gen",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
@@ -41,6 +42,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
@@ -55,6 +57,7 @@ td_library(
         "TfheRustTypes.td",
     ],
     deps = [
+        "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
