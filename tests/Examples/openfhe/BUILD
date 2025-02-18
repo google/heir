@@ -27,7 +27,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "simple_sum_lib.h",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=32",
-        "--scheme-to-openfhe=entry-function=simple_sum",
+        "--scheme-to-openfhe",
     ],
     mlir_src = "simple_sum.mlir",
     tags = ["notap"],
@@ -39,7 +39,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8_lib.h",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=8",
-        "--scheme-to-openfhe=entry-function=dot_product",
+        "--scheme-to-openfhe",
     ],
     mlir_src = "dot_product_8.mlir",
     tags = ["notap"],
@@ -51,7 +51,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8_debug_lib.h",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=8",
-        "--scheme-to-openfhe=entry-function=dot_product insert-debug-handler-calls=true",
+        "--scheme-to-openfhe=insert-debug-handler-calls=true",
     ],
     mlir_src = "dot_product_8.mlir",
     tags = ["notap"],
@@ -63,7 +63,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "box_blur_64x64_lib.h",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=786433",
-        "--scheme-to-openfhe=entry-function=box_blur",
+        "--scheme-to-openfhe",
     ],
     mlir_src = "box_blur_64x64.mlir",
     tags = ["notap"],
@@ -75,7 +75,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "roberts_cross_64x64_lib.h",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681",
-        "--scheme-to-openfhe=entry-function=roberts_cross",
+        "--scheme-to-openfhe",
     ],
     mlir_src = "roberts_cross_64x64.mlir",
     tags = ["notap"],
@@ -89,7 +89,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8f_lib.h",
     heir_opt_flags = [
         "--mlir-to-ckks=ciphertext-degree=8",
-        "--scheme-to-openfhe=entry-function=dot_product",
+        "--scheme-to-openfhe",
     ],
     heir_translate_flags = [],
     mlir_src = "dot_product_8f.mlir",
@@ -122,7 +122,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "halevi_shoup_matmul_lib.h",
     heir_opt_flags = [
         "--mlir-to-ckks=ciphertext-degree=16",
-        "--scheme-to-openfhe=entry-function=matmul",
+        "--scheme-to-openfhe",
     ],
     heir_translate_flags = [
         "--openfhe-include-type=source-relative",
@@ -136,7 +136,7 @@ openfhe_end_to_end_test(
     name = "simple_ckks_bootstrapping_test",
     generated_lib_header = "simple_ckks_bootstrapping_lib.h",
     heir_opt_flags = [
-        "--openfhe-configure-crypto-context=entry-function=simple_ckks_bootstrapping insecure=true",
+        "--openfhe-configure-crypto-context=insecure=true",
     ],
     heir_translate_flags = [
         "--openfhe-include-type=source-relative",
