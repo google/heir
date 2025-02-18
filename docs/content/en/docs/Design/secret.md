@@ -239,7 +239,7 @@ func.func @main(%arg0: tensor<1x1xi8> {secret.secret}) -> tensor<1x16xi32> {
   secret.separator
   %4 = "tosa.const"() {value = dense<[0, 0, -5438, -5515, -1352, -1500, -4152, -84, 3396, 0, 1981, -5581, 0, -6964, 3407, -7217]> : tensor<16xi32>} : () -> tensor<16xi32>
   %5 = "tosa.const"() {value = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]> : tensor<16x1xi8>} : () -> tensor<16x1xi8>
-  %6 = "tosa.fully_connected"(%arg0, %5, %4) {input_zp = -128 : i32, weight_zp = 0 : i32} : (tensor<1x1xi8>, tensor<16x1xi8>, tensor<16xi32>) -> tensor<1x16xi32>
+  %6 = "tosa.matmul"(%arg0, %arg1) {a_zp = 1 : i32, b_zp = 2 : i32} : (tensor<1x5x3xi8>, tensor<1x3x6xi8>) -> tensor<1x5x6xi32>
   secret.separator
   return %6 : tensor<1x16xi32>
 }

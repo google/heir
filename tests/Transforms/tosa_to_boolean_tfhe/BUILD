@@ -7,12 +7,10 @@ glob_lit_tests(
     data = ["@heir//tests:test_utilities"],
     default_tags = ["yosys"],
     driver = "@heir//tests:run_lit.sh",
-    # b/397111665
-    exclude = [
-        "fully_connected.mlir",
-        "hello_world_small.mlir",
-        "hello_world_clean_xsmall.mlir",
-    ],
+    size_override = {
+        "fully_connected.mlir": "large",
+        "hello_world_small.mlir": "large",
+    },
     tags_override = {
         "hello_world.mlir": [
             "nofastbuild",
