@@ -187,22 +187,36 @@ Value multiplyDiagonalizedMatrixWithVector(
   }
   SmallVector<OpFoldResult> strides(2, builder.getIndexAttr(1));
 
+  // Setup the offsets for the last ExtractSliceOp and build the
+  // ExtractSliceOp.
+  SmallVector<OpFoldResult> firstOffsets(2, builder.getIndexAttr(0));
+  auto firstExtracted = builder.create<tensor::ExtractSliceOp>(
+      diagonalizedMatrix, firstOffsets, sizes, strides);
+
+  // Calculates the first scalar multiplication and sum.
+  auto firstMultiplied = builder.create<MulOp>(secretValues, firstExtracted);
+  auto firstSumWithoutRotateAndSum =
+      builder.create<AddOp>(bias, firstMultiplied);
+
+  // Build the affine for loop.
   // Setup parameters for the affine for loop.
-  SmallVector<Value> iterArgs({bias, secretValues});
   int numLoops = originalMatrixDimensions[0];
   if (numLoops > originalMatrixDimensions[1]) {
     numLoops = originalMatrixDimensions[1];
   }
 
-  // Build the affine for loop.
+  SmallVector<Value> iterArgs({firstSumWithoutRotateAndSum, secretValues});
   auto forOp =
-      builder.create<mlir::affine::AffineForOp>(0, numLoops - 1, 1, iterArgs);
+      builder.create<mlir::affine::AffineForOp>(1, numLoops, 1, iterArgs);
 
   // Now, we are inside for loop.
   builder.setInsertionPointToStart(forOp.getBody());
   auto index = forOp.getInductionVar();
   auto sum = forOp.getRegionIterArgs()[0];
-  auto rotatedVector = forOp.getRegionIterArgs()[1];
+
+  // Rotate first
+  auto rotatedVector = builder.create<tensor_ext::RotateOp>(
+      forOp.getRegionIterArgs()[1], indexOne);
 
   // Setup the offsets for the ExtractSliceOp and build the ExtractSliceOp.
   SmallVector<OpFoldResult> offsets(2);
@@ -223,31 +237,10 @@ Value multiplyDiagonalizedMatrixWithVector(
 
   auto multiplied = builder.create<MulOp>(rotatedVector, extracted);
   auto newSum = builder.create<AddOp>(sum, multiplied);
-  auto newRotatedVector =
-      builder.create<tensor_ext::RotateOp>(rotatedVector, indexOne);
-  builder.create<affine::AffineYieldOp>(ValueRange({newSum, newRotatedVector}));
+  builder.create<affine::AffineYieldOp>(ValueRange({newSum, rotatedVector}));
 
   // Now outside for loop.
   builder.setInsertionPointAfter(forOp);
-
-  // Setup the offsets for the last ExtractSliceOp and build the
-  // ExtractSliceOp.
-  SmallVector<OpFoldResult> lastOffsets(2);
-  if (isLeftOperandSecret) {
-    lastOffsets = {builder.getIndexAttr(originalMatrixDimensions[0] - 1),
-                   builder.getIndexAttr(0)};
-  } else {
-    lastOffsets = {builder.getIndexAttr(0),
-                   builder.getIndexAttr(originalMatrixDimensions[0] - 1)};
-  }
-  auto lastExtracted = builder.create<tensor::ExtractSliceOp>(
-      diagonalizedMatrix, lastOffsets, sizes, strides);
-
-  // Calculates the final scalar multiplication and sum.
-  auto lastMultiplied =
-      builder.create<MulOp>(forOp.getResults()[1], lastExtracted);
-  auto finalSumWithoutRotateAndSum =
-      builder.create<AddOp>(forOp.getResults()[0], lastMultiplied);
 
   int numRotationsAndSums;
   if (isLeftOperandSecret) {
@@ -261,7 +254,7 @@ Value multiplyDiagonalizedMatrixWithVector(
   }
 
   // Rotate and sum if needed
-  Value sumInProgress = finalSumWithoutRotateAndSum;
+  Value sumInProgress = forOp.getResults()[0];
   int rotationValue = maxTilingSize;
   for (int i = 0; i < numRotationsAndSums; ++i) {
     rotationValue /= 2;
