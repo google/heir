@@ -31,6 +31,7 @@ cc_library(
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Openfhe/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:Dialect",
+        "@heir//lib/Utils:TransformUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

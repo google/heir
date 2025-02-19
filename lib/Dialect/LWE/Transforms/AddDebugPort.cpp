@@ -4,6 +4,7 @@
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Utils/TransformUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -123,15 +124,12 @@ struct AddDebugPort : impl::AddDebugPortBase<AddDebugPort> {
   using AddDebugPortBase::AddDebugPortBase;
 
   void runOnOperation() override {
-    auto result =
-        getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-          if (op.getSymName() == entryFunction && failed(convertFunc(op))) {
-            op->emitError("Failed to add client interface for func");
-            return WalkResult::interrupt();
-          }
-          return WalkResult::advance();
-        });
-    if (result.wasInterrupted()) signalPassFailure();
+    auto funcOp =
+        detectEntryFunction(cast<ModuleOp>(getOperation()), entryFunction);
+    if (funcOp && failed(convertFunc(funcOp))) {
+      funcOp->emitError("Failed to configure the crypto context for func");
+      signalPassFailure();
+    }
   }
 };
 }  // namespace lwe

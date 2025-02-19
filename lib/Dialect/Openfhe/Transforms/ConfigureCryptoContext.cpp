@@ -13,6 +13,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Utils/TransformUtils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
@@ -235,18 +236,13 @@ struct ConfigureCryptoContext
   using ConfigureCryptoContextBase::ConfigureCryptoContextBase;
 
   void runOnOperation() override {
-    auto result =
-        getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-          auto funcName = op.getSymName();
-          if ((funcName == entryFunction) &&
-              failed(convertFunc(op, levelBudgetEncode, levelBudgetDecode,
-                                 insecure))) {
-            op->emitError("Failed to configure the crypto context for func");
-            return WalkResult::interrupt();
-          }
-          return WalkResult::advance();
-        });
-    if (result.wasInterrupted()) signalPassFailure();
+    auto funcOp =
+        detectEntryFunction(cast<ModuleOp>(getOperation()), entryFunction);
+    if (funcOp && failed(convertFunc(funcOp, levelBudgetEncode,
+                                     levelBudgetDecode, insecure))) {
+      funcOp->emitError("Failed to configure the crypto context for func");
+      signalPassFailure();
+    }
   }
 };
 }  // namespace openfhe

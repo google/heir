@@ -3,7 +3,7 @@
 // in the BUILD file for this directory, and the openfhe_end_to_end_test macro
 // in test.bzl
 //
-// heir-opt --mlir-to-bgv='ciphertext-degree=32' --scheme-to-openfhe='entry-function=simple_sum' %s | bazel-bin/tools/heir-translate --emit-openfhe-pke
+// heir-opt --mlir-to-bgv='ciphertext-degree=32' --scheme-to-openfhe %s | bazel-bin/tools/heir-translate --emit-openfhe-pke
 
 func.func @simple_sum(%arg0: tensor<32xi16> {secret.secret}) -> i16 {
   %c0 = arith.constant 0 : index

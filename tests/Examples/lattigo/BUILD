@@ -19,7 +19,7 @@ heir_lattigo_lib(
     go_library_name = "binops",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=4",
-        "--scheme-to-lattigo=entry-function=add",
+        "--scheme-to-lattigo",
     ],
     mlir_src = "binops.mlir",
 )
@@ -29,7 +29,7 @@ heir_lattigo_lib(
     go_library_name = "dotproduct8",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=8",
-        "--scheme-to-lattigo=entry-function=dot_product",
+        "--scheme-to-lattigo",
     ],
     mlir_src = "dot_product_8.mlir",
 )
@@ -39,7 +39,7 @@ heir_lattigo_lib(
     go_library_name = "dotproduct8sk",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=8 use-public-key=false",
-        "--scheme-to-lattigo=entry-function=dot_product",
+        "--scheme-to-lattigo",
     ],
     mlir_src = "dot_product_8.mlir",
 )
@@ -50,7 +50,7 @@ heir_lattigo_lib(
     go_library_name = "dotproduct8debug",
     heir_opt_flags = [
         "--mlir-to-bgv=ciphertext-degree=8",
-        "--scheme-to-lattigo=entry-function=dot_product insert-debug-handler-calls=true",
+        "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "dot_product_8.mlir",
 )
@@ -62,7 +62,7 @@ heir_lattigo_lib(
     go_library_name = "dotproduct8f",
     heir_opt_flags = [
         "--mlir-to-ckks=ciphertext-degree=8",
-        "--scheme-to-lattigo=entry-function=dot_product",
+        "--scheme-to-lattigo",
     ],
     mlir_src = "dot_product_8f.mlir",
 )
