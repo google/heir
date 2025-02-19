@@ -3,6 +3,7 @@ package dotproduct8debug
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/schemes/bgv"
@@ -18,7 +19,12 @@ func __heir_debug(evaluator *bgv.Evaluator, param bgv.Parameters, encoder *bgv.E
 	}
 
 	// print the decryption result
-	value := make([]int64, 8)
+	messageSizeStr := debugAttrMap["message.size"]
+	messageSize, err := strconv.Atoi(messageSizeStr)
+	if err != nil {
+		panic(err)
+	}
+	value := make([]int64, messageSize)
 	pt := decryptor.DecryptNew(ct)
 	encoder.Decode(pt, value)
 	fmt.Printf("  %v\n", value)

@@ -62,7 +62,7 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
 #ifdef DECRYPT
   PlaintextT ptxt;
   cc->Decrypt(sk, ct, &ptxt);
-  ptxt->SetLength(8);
+  ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
   std::cout << "  " << ptxt << std::endl;
 #endif
 
