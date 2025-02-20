@@ -12,9 +12,11 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils",
         "@heir//lib/Utils:ContextAwareTypeConversion",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",

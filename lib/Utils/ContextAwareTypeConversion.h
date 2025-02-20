@@ -116,10 +116,9 @@ struct ConvertFuncWithContextAwareTypeConverter
   // An overridable hook that allows subclasses to perform additional
   // modifications of the func op after its type signature has been converted.
   // For example, a subclass may use this hook to modify arg attrs.
-  LogicalResult finalizeFuncOpModification(func::FuncOp op,
-                                           ArrayRef<Type> oldArgTypes,
-                                           ArrayRef<Type> oldResultTypes,
-                                           PatternRewriter &rewriter) const {
+  virtual LogicalResult finalizeFuncOpModification(
+      func::FuncOp op, ArrayRef<Type> oldArgTypes,
+      ArrayRef<Type> oldResultTypes, PatternRewriter &rewriter) const {
     return success();
   };
 

@@ -336,17 +336,10 @@ class SecretGenericOpRotateConversion
       op.emitError("expected constant offset for rotate");
     }
     auto offsetAttr = llvm::dyn_cast<IntegerAttr>(constantOffset.getValue());
-<<<<<<< HEAD
-    rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], offsetAttr);
-||||||| parent of 031e18e8 (refactor ContextAwareTypeConversion)
-
-    rewriter.replaceOpWithNewOp<T>(op, inputs[0], offsetAttr);
-=======
-
-    auto newOp = rewriter.replaceOpWithNewOp<T>(op, inputs[0], offsetAttr);
+    auto newOp =
+        rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], offsetAttr);
     for (auto attribute : op->getAttrs())
       newOp->setAttr(attribute.getName(), attribute.getValue());
->>>>>>> 031e18e8 (refactor ContextAwareTypeConversion)
     return success();
   }
 };

@@ -47,8 +47,20 @@ def ConvertToCiphertextSemantics : Pass<"convert-to-ciphertext-semantics"> {
   FIXME: provide examples
   }];
   let dependentDialects = [
-    "mlir::tensor::TensorDialect",
     "mlir::heir::tensor_ext::TensorExtDialect",
+    "mlir::linalg::LinalgDialect",
+    "mlir::tensor::TensorDialect",
+  ];
+
+  // TODO(#4102): reevaluate flag name
+  let options = [
+    Option<
+      "ciphertextSize",
+      "ciphertext-size",
+      "int",
+      /*default=*/"1024",
+      "Power of two length of the ciphertexts the data is packed in."
+    >
   ];
 }
 
