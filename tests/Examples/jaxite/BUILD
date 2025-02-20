@@ -18,7 +18,7 @@ glob_lit_tests(
 py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
-    deps = ["@heir_pip_deps_jaxite//:pkg"],
+    deps = ["@heir_pip_deps//jaxite"],
 )
 
 jaxite_end_to_end_test(

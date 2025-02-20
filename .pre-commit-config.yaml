@@ -46,7 +46,7 @@ repos:
     rev: "v1.5.4"
     hooks:
       - id: remove-tabs
-        exclude: ".*[.]go"
+        exclude: "^(.*[.]go|go.mod|go.sum)"
 
 # Github workflow actionlint
 -   repo: https://github.com/Mateusz-Grzelinski/actionlint-py

@@ -1,8 +1,8 @@
 """Tests for add_one."""
 
 from absl.testing import absltest
-from heir.tests.Examples.jaxite import add_one_lut3_lib
-from heir.tests.Examples.jaxite import test_utils
+from tests.Examples.jaxite import add_one_lut3_lib
+from tests.Examples.jaxite import test_utils
 
 
 class AddOneLut3Test(absltest.TestCase):

@@ -1,5 +1,6 @@
 """Defines Python type annotations for MLIR types."""
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import Generic, Self, TypeVar, TypeVarTuple, get_args, get_origin
 
@@ -121,7 +122,7 @@ def to_numba_str(type) -> str:
   if issubclass(type, MLIRTypeAnnotation):
     return type.numba_str()
 
-  raise TypeError(f"Unsupported type annotation: {type}")
+  raise TypeError(f"Unsupported type annotation: {type}, {type.__origin__}")
 
 
 def parse_annotations(annotations):

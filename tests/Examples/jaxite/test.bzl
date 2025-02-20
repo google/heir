@@ -12,7 +12,7 @@ def jaxite_end_to_end_test(name, mlir_src, test_src, entry_function_flag = "", t
         main = test_src,
         deps = deps + [
             ":" + py_lib_target_name,
-            "@heir_pip_deps_jaxite//:pkg",
+            "@heir_pip_deps//jaxite",
             "@com_google_absl_py//absl/testing:absltest",
         ],
     )

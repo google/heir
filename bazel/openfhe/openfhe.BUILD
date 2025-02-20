@@ -48,7 +48,6 @@ cc_library(
 cc_library(
     name = "binfhe",
     srcs = glob([
-        "src/binfhe/lib/**/*.c",
         "src/binfhe/lib/**/*.cpp",
     ]),
     copts = OPENFHE_COPTS + MAYBE_OPENMP_COPTS,

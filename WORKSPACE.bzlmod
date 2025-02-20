@@ -1,0 +1,178 @@
+# TODO(#1446): Migrate remaining dependencies to bazelmod
+
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
+
+# LLVM is pinned to the same commit used in the Google monorepo, and then
+# imported into this workspace as a git repository. Then the build files
+# defined in the LLVM monorepo are overlaid using llvm_configure in the setup
+# script below. This defines the @llvm-project which is used for llvm build
+# dependencies.
+load("//bazel:import_llvm.bzl", "import_llvm")
+
+import_llvm("llvm-raw")
+
+load("//bazel:setup_llvm.bzl", "setup_llvm")
+
+setup_llvm("llvm-project")
+
+# LLVM doesn't have proper support for excluding the optional llvm_zstd and
+# llvm_zlib dependencies but it is supposed to make LLVM faster, so why not
+# include it.
+# See https://reviews.llvm.org/D143344#4232172
+maybe(
+    http_archive,
+    name = "llvm_zstd",
+    build_file = "@llvm-raw//utils/bazel/third_party_build:zstd.BUILD",
+    sha256 = "7c42d56fac126929a6a85dbc73ff1db2411d04f104fae9bdea51305663a83fd0",
+    strip_prefix = "zstd-1.5.2",
+    urls = [
+        "https://github.com/facebook/zstd/releases/download/v1.5.2/zstd-1.5.2.tar.gz",
+    ],
+)
+
+maybe(
+    http_archive,
+    name = "llvm_zlib",
+    build_file = "@llvm-raw//utils/bazel/third_party_build:zlib-ng.BUILD",
+    sha256 = "e36bb346c00472a1f9ff2a0a4643e590a254be6379da7cddd9daeb9a7f296731",
+    strip_prefix = "zlib-ng-2.0.7",
+    urls = [
+        "https://github.com/zlib-ng/zlib-ng/archive/refs/tags/2.0.7.zip",
+    ],
+)
+
+git_repository(
+    name = "com_google_ortools",
+    commit = "ed94162b910fa58896db99191378d3b71a5313af",
+    remote = "https://github.com/google/or-tools.git",
+    shallow_since = "1726144997 +0200",
+)
+
+# install dependencies for yosys/ABC circuit optimizers
+http_archive(
+    name = "rules_hdl",
+    # Commit 2024-02-14, after merging our patch to fix MacOS builds
+    strip_prefix = "bazel_rules_hdl-9f292fca574e6406a69eeb91daad18a4c8ac2252",
+    url = "https://github.com/hdl/bazel_rules_hdl/archive/9f292fca574e6406a69eeb91daad18a4c8ac2252.tar.gz",
+)
+
+load("@rules_hdl//dependency_support/at_clifford_yosys:at_clifford_yosys.bzl", "at_clifford_yosys")
+load("@rules_hdl//dependency_support/edu_berkeley_abc:edu_berkeley_abc.bzl", "edu_berkeley_abc")
+load("@rules_hdl//dependency_support/net_invisible_island_ncurses:net_invisible_island_ncurses.bzl", "net_invisible_island_ncurses")
+load("@rules_hdl//dependency_support/net_zlib:net_zlib.bzl", "net_zlib")
+load("@rules_hdl//dependency_support/org_gnu_gnulib:org_gnu_gnulib.bzl", "org_gnu_gnulib")
+load("@rules_hdl//dependency_support/org_gnu_readline:org_gnu_readline.bzl", "org_gnu_readline")
+load("@rules_hdl//dependency_support/org_sourceware_libffi:org_sourceware_libffi.bzl", "org_sourceware_libffi")
+load("@rules_hdl//dependency_support/tk_tcl:tk_tcl.bzl", "tk_tcl")
+
+net_invisible_island_ncurses()
+
+org_gnu_readline()
+
+edu_berkeley_abc()
+
+tk_tcl()
+
+net_zlib()
+
+org_gnu_gnulib()
+
+org_sourceware_libffi()
+
+at_clifford_yosys()
+
+## Bazel rules.
+git_repository(
+    name = "platforms",
+    commit = "380c85cc2c7b126c6e354f517dc16d89fe760c9f",
+    remote = "https://github.com/bazelbuild/platforms.git",
+)
+
+## ZLIB
+# Would be nice to use llvm-zlib instead here.
+new_git_repository(
+    name = "zlib",
+    build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
+    commit = "04f42ceca40f73e2978b50e93806c2a18c1281fc",
+    remote = "https://github.com/madler/zlib.git",
+)
+
+## Re2
+git_repository(
+    name = "com_google_re2",
+    remote = "https://github.com/google/re2.git",
+    repo_mapping = {"@abseil-cpp": "@com_google_absl"},
+    tag = "2024-04-01",
+)
+
+## Abseil-py
+new_git_repository(
+    name = "com_google_absl_py",
+    commit = "127c98870edf5f03395ce9cf886266fa5f24455e",  # v1.4.0
+    remote = "https://github.com/abseil/abseil-py",
+)
+
+## Solvers
+http_archive(
+    name = "glpk",
+    build_file = "@com_google_ortools//bazel:glpk.BUILD.bazel",
+    sha256 = "4a1013eebb50f728fc601bdd833b0b2870333c3b3e5a816eeba921d95bec6f15",
+    url = "http://ftp.gnu.org/gnu/glpk/glpk-5.0.tar.gz",
+)
+
+http_archive(
+    name = "bliss",
+    build_file = "@com_google_ortools//bazel:bliss.BUILD.bazel",
+    patches = ["@com_google_ortools//bazel:bliss-0.73.patch"],
+    sha256 = "f57bf32804140cad58b1240b804e0dbd68f7e6bf67eba8e0c0fa3a62fd7f0f84",
+    url = "https://github.com/google/or-tools/releases/download/v9.0/bliss-0.73.zip",
+    #url = "http://www.tcs.hut.fi/Software/bliss/bliss-0.73.zip",
+)
+
+new_git_repository(
+    name = "scip",
+    build_file = "@com_google_ortools//bazel:scip.BUILD.bazel",
+    commit = "7205bedd942f87faeb9a0552839710941d1ffc2c",
+    patch_args = ["-p1"],
+    patches = ["@com_google_ortools//bazel:scip-v900.patch"],
+    remote = "https://github.com/scipopt/scip.git",
+)
+
+git_repository(
+    name = "highs",
+    branch = "bazel",
+    remote = "https://github.com/ERGO-Code/HiGHS.git",
+)
+
+# OpenFHE backend and dependencies
+git_repository(
+    name = "cereal",
+    build_file = "//bazel/openfhe:cereal.BUILD",
+    commit = "ebef1e929807629befafbb2918ea1a08c7194554",
+    remote = "https://github.com/USCiLab/cereal.git",
+)
+
+git_repository(
+    name = "rapidjson",
+    build_file = "//bazel/openfhe:rapidjson.BUILD",
+    commit = "9bd618f545ab647e2c3bcbf2f1d87423d6edf800",
+    remote = "https://github.com/Tencent/rapidjson.git",
+)
+
+git_repository(
+    name = "openfhe",
+    build_file = "//bazel/openfhe:openfhe.BUILD",
+    # Currently v1.1.4, 2024-03-08
+    commit = "94fd76a1d965cfde13f2a540d78ce64146fc2700",
+    patches = ["@heir//bazel/openfhe:add_config_core.patch"],
+    remote = "https://github.com/openfheorg/openfhe-development.git",
+)
+
+git_repository(
+    name = "pocketfft",
+    build_file = "//bazel/pocketfft:pocketfft.BUILD",
+    commit = "bb5bdb776c64819f66cb2205f78bef1581448628",
+    remote = "https://gitlab.mpcdf.mpg.de/mtr/pocketfft.git",
+)

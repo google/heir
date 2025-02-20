@@ -7,6 +7,7 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+# changed from "heir" (or nothing) in bazel 8
 WORKSPACE_PATH = "_main/"
 
 # Custom `mlir-opt` replacement that links our dialect and passes
