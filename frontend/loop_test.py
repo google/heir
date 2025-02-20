@@ -1,4 +1,5 @@
-from heir_py import compile
+from heir import compile
+from heir.mlir import Secret, I64
 
 from absl.testing import absltest  # fmt: skip
 
@@ -6,8 +7,8 @@ from absl.testing import absltest  # fmt: skip
 class EndToEndTest(absltest.TestCase):
 
   def test_loop(self):
-    @compile(backend="openfhe", debug=True)
-    def loopa(a):
+    @compile()
+    def loopa(a: Secret[I64]):
       result = a
       lb = 1
       ub = 5

@@ -3,20 +3,33 @@
 import dataclasses
 import os
 import shutil
+import pathlib
+
+from pathlib import Path
 
 dataclass = dataclasses.dataclass
 
 
 @dataclass(frozen=True)
 class HEIRConfig:
-  heir_opt_path: str
-  heir_translate_path: str
+  heir_opt_path: str | Path
+  heir_translate_path: str | Path
 
+
+def find_above(dirname: str):
+  path = pathlib.Path(__file__).resolve()
+  matching = [p / dirname for p in path.parents if (p / dirname).exists()]
+  return matching[-1]
+
+
+repo_root = find_above("bazel-bin")
 
 DEVELOPMENT_HEIR_CONFIG = HEIRConfig(
-    heir_opt_path="bazel-bin/tools/heir-opt",
-    heir_translate_path="bazel-bin/tools/heir-translate",
+    heir_opt_path=repo_root / "tools/heir-opt",
+    heir_translate_path=repo_root / "tools/heir-translate",
 )
+
+# TODO (#1326): Add a config that automagically downloads the nightlies
 
 
 def from_os_env() -> HEIRConfig:

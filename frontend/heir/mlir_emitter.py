@@ -6,6 +6,50 @@ from dataclasses import dataclass
 from collections import deque
 
 from numba.core import ir
+from numba.core import types
+
+
+def mlirType(numba_type):
+  if isinstance(numba_type, types.Integer):
+    # TODO (#1162): fix handling of signedness
+    # Since `arith` only allows signless integers, we ignore signedness here.
+    return "i" + str(numba_type.bitwidth)
+  if isinstance(numba_type, types.RangeType):
+    return mlirType(numba_type.dtype)
+  if isinstance(numba_type, types.Boolean):
+    return "i1"
+  if isinstance(numba_type, types.Float):
+    return "f" + str(numba_type.bitwidth)
+  if isinstance(numba_type, types.Complex):
+    return "complex<" + str(numba_type.bitwidth) + ">"
+  if isinstance(numba_type, types.Array):
+    # TODO (#1162): implement support for statically sized tensors
+    # this probably requires extending numba with a new type
+    # See https://numba.readthedocs.io/en/stable/extending/index.html
+    return "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
+  raise NotImplementedError("Unsupported type: " + str(numba_type))
+
+
+def mlirLoc(loc: ir.Loc):
+  return (
+      f"loc(\"{loc.filename or '<unknown>'}\":{loc.line or 0}:{loc.col or 0})"
+  )
+
+
+def arithSuffix(numba_type):
+  if isinstance(numba_type, types.Integer):
+    return "i"
+  if isinstance(numba_type, types.Boolean):
+    return "i"
+  if isinstance(numba_type, types.Float):
+    return "f"
+  if isinstance(numba_type, types.Complex):
+    raise NotImplementedError(
+        "Complex numbers not supported in `arith` dialect"
+    )
+  if isinstance(numba_type, types.Array):
+    return arithSuffix(numba_type.dtype)
+  raise NotImplementedError("Unsupported type: " + str(numba_type))
 
 
 class HeaderInfo:
@@ -120,8 +164,19 @@ def is_start_of_loop(index, body, ssa_ir):
 
 class TextualMlirEmitter:
 
-  def __init__(self, ssa_ir):
+  def __init__(self, ssa_ir, secret_args: list[int], typemap, return_types):
+    """
+    Initialize the emitter with the given SSA IR and type information.
+
+    ssa_ir: output of numba's compiler.run_frontend or similar
+    secret_args: list of indices of secret arguments
+    typemap: typemap produced by numba's type_inference_stage(...)
+    return_types: return types produced by numba's type_inference_stage(...)
+    """
     self.ssa_ir = ssa_ir
+    self.secret_args = secret_args
+    self.typemap = typemap
+    self.return_types = (return_types,)
     self.temp_var_id = 0
     self.numba_names_to_ssa_var_names = {}
     self.globals_map = {}
@@ -129,20 +184,25 @@ class TextualMlirEmitter:
 
   def emit(self):
     func_name = self.ssa_ir.func_id.func_name
+    secret_flag = " {secret.secret}"
     # probably should use unique name...
     # func_name = ssa_ir.func_id.unique_name
+    args_str = ", ".join([
+        f"%{name}:"
+        f" {mlirType(self.typemap.get(name))}{secret_flag if idx in self.secret_args else str()} {mlirLoc(self.ssa_ir.loc)}"
+        for idx, name in enumerate(self.ssa_ir.arg_names)
+    ])
 
-    # TODO(#1162): use inferred or explicit types for args
-    args_str = ", ".join([f"%{name}: i64" for name in self.ssa_ir.arg_names])
-
-    # TODO(#1162): get inferred or explicit return types
-    return_types_str = "i64"
+    # TODO(#1162): support multiple return values!
+    if len(self.return_types) > 1:
+      raise NotImplementedError("Multiple return values not supported")
+    return_types_str = mlirType(self.return_types[0])
 
     body = self.emit_blocks()
 
     mlir_func = f"""func.func @{func_name}({args_str}) -> ({return_types_str}) {{
 {textwrap.indent(body, '  ')}
-}}
+}} {mlirLoc(self.ssa_ir.loc)}
 """
     return mlir_func
 
@@ -228,6 +288,11 @@ class TextualMlirEmitter:
     self.numba_names_to_ssa_var_names[from_var.name] = to_name
     return f"%{to_name}"
 
+  def get_next_name(self):
+    ssa_id = self.temp_var_id
+    self.temp_var_id += 1
+    return f"%{ssa_id}"
+
   def get_name(self, var):
     assert var.name in self.numba_names_to_ssa_var_names
     return self.get_or_create_name(var)
@@ -251,8 +316,10 @@ class TextualMlirEmitter:
       case ir.Expr(op="binop"):
         name = self.get_or_create_name(assign.target)
         emitted_expr = self.emit_binop(assign.value)
-        # TODO(#1162): replace i64 with inferred type
-        return f"{name} = {emitted_expr} : i64"
+        return (
+            f"{name} = {emitted_expr} :"
+            f" {mlirType(self.typemap.get(assign.target.name))} {mlirLoc(assign.loc)}"
+        )
       case ir.Expr(op="call"):
         func = assign.value.func
         # if assert fails, variable was undefined
@@ -270,16 +337,18 @@ class TextualMlirEmitter:
         return ""
       case ir.Const():
         name = self.get_or_create_name(assign.target)
-        # TODO(#1162): fix type (somehow the pretty printer on assign.value
-        # knows it's an int???)
-        return f"{name} = arith.constant {assign.value.value} : i64"
+        return (
+            f"{name} = arith.constant {assign.value.value} :"
+            f" {mlirType(self.typemap.get(assign.target.name))}"
+            f" {mlirLoc(assign.loc)}"
+        )
       case ir.Global():
         self.globals_map[assign.target.name] = assign.value.name
         return ""
       case ir.Var():
         self.forward_name(from_var=assign.target, to_var=assign.value)
         return ""
-    raise NotImplementedError()
+    raise NotImplementedError(f"Unsupported IR Element: {assign}")
 
   def emit_expr(self, expr):
     if expr.op == "binop":
@@ -328,16 +397,18 @@ class TextualMlirEmitter:
   def emit_binop(self, binop):
     lhs_ssa = self.get_name(binop.lhs)
     rhs_ssa = self.get_name(binop.rhs)
+    # This should be the same, otherwise MLIR will complain
+    suffix = arithSuffix(self.typemap.get(str(binop.lhs)))
 
     match binop.fn:
       case operator.lt:
-        return f"arith.cmpi slt, {lhs_ssa}, {rhs_ssa}"
+        return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}"
       case operator.add:
-        return f"arith.addi {lhs_ssa}, {rhs_ssa}"
+        return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}"
       case operator.mul:
-        return f"arith.muli {lhs_ssa}, {rhs_ssa}"
+        return f"arith.mul{suffix} {lhs_ssa}, {rhs_ssa}"
       case operator.sub:
-        return f"arith.subi {lhs_ssa}, {rhs_ssa}"
+        return f"arith.sub{suffix} {lhs_ssa}, {rhs_ssa}"
 
     raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
 
@@ -383,7 +454,8 @@ class TextualMlirEmitter:
       # Within the loop, forward the name for the init val to a new temp var
       iter_arg = self.forward_to_new_id(loop.inits[0])
       for_str = (
-          f"{resultvar} = {for_str} iter_args({iter_arg} = {init_val}) -> (i64)"
+          f"{resultvar} = {for_str} iter_args({iter_arg} = {init_val}) ->"
+          f" ({mlirType(self.typemap.get(str(target)))})"
       )
     header.append(for_str + " {")
     return "\n".join(header)
@@ -417,5 +489,7 @@ class TextualMlirEmitter:
 
   def emit_return(self, ret):
     var = self.get_name(ret.value)
-    # TODO(#1162): replace i64 with inferred or explicit return type
-    return f"func.return {var} : i64"
+    return (
+        f"func.return {var} :"
+        f" {mlirType(self.typemap.get(str(ret.value)))} {mlirLoc(ret.loc)}"
+    )

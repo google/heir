@@ -1,8 +1,8 @@
-"""Macros for py_test rules that use the heir_py frontend."""
+"""Macros for py_test rules that use the python frontend."""
 
 load("@rules_python//python:defs.bzl", "py_test")
 
-def heir_py_test(name, srcs, deps = [], data = [], tags = []):
+def frontend_test(name, srcs, deps = [], data = [], tags = []):
     """A py_test replacement with an env including all backend dependencies.
     """
     include_dirs = [
@@ -26,9 +26,10 @@ def heir_py_test(name, srcs, deps = [], data = [], tags = []):
         python_version = "PY3",
         srcs_version = "PY3",
         deps = deps + [
-            ":heir_py",
+            ":frontend",
             "@com_google_absl_py//absl/testing:absltest",
         ],
+        imports = ["."],
         data = data,
         tags = tags,
         env = {

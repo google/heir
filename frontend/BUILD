@@ -1,4 +1,4 @@
-load("@heir//heir_py:testing.bzl", "heir_py_test")
+load("@heir//frontend:testing.bzl", "frontend_test")
 load("@rules_python//python:py_library.bzl", "py_library")
 
 package(
@@ -25,31 +25,23 @@ DATA_DEPS = [
 # note we chose the style of putting all test rules below, because glob does
 # not recurse into subdirectories with BUILD files in them.
 py_library(
-    name = "heir_py",
+    name = "frontend",
     srcs = glob(
-        ["**/*.py"],
+        ["heir/**/*.py"],
         exclude = [
             "**/*_test.py",
         ],
     ),
     data = DATA_DEPS,
     deps = [
-        "@heir_py_pip_deps_numba//:pkg",
-        "@heir_py_pip_deps_pybind11//:pkg",
-        "@heir_py_pip_deps_pybind11_global//:pkg",
+        "@frontend_pip_deps_colorama//:pkg",
+        "@frontend_pip_deps_numba//:pkg",
+        "@frontend_pip_deps_pybind11//:pkg",
+        "@frontend_pip_deps_pybind11_global//:pkg",
     ],
 )
 
-heir_py_test(
-    name = "pipeline_test",
-    srcs = ["pipeline_test.py"],
-    tags = [
-        # copybara: manual
-        "notap",
-    ],
-)
-
-heir_py_test(
+frontend_test(
     name = "e2e_test",
     srcs = ["e2e_test.py"],
     tags = [
@@ -58,7 +50,7 @@ heir_py_test(
     ],
 )
 
-heir_py_test(
+frontend_test(
     name = "loop_test",
     srcs = ["loop_test.py"],
     tags = [

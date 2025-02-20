@@ -56,6 +56,8 @@ def lit_test(name = None, src = None, size = "small", tags = None, data = None):
         data = data,
         srcs = ["@llvm-project//llvm:lit"],
         main = "lit.py",
+        # needed for Python 3.11+, cf. https://github.com/llvm/llvm-project/pull/87022
+        deps = [Label("@llvm-project//llvm:lit")],
         tags = tags,
     )
 
