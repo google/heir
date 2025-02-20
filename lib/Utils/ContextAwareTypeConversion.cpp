@@ -94,17 +94,17 @@ LogicalResult AttributeAwareTypeConverter::convertFuncSignature(
 }
 
 LogicalResult ConvertFuncWithContextAwareTypeConverter::matchAndRewrite(
-    func::FuncOp op, PatternRewriter &rewriter) const {
-  auto funcOp = cast<func::FuncOp>(op);
-
-  SmallVector<Type> newFuncOperandsType;
-  SmallVector<Type> newFuncResultsType;
+    func::FuncOp funcOp, PatternRewriter &rewriter) const {
+  SmallVector<Type> oldFuncOperandTypes(funcOp.getFunctionType().getInputs());
+  SmallVector<Type> oldFuncResultTypes(funcOp.getFunctionType().getResults());
+  SmallVector<Type> newFuncOperandTypes;
+  SmallVector<Type> newFuncResultTypes;
   if (failed(contextAwareTypeConverter->convertFuncSignature(
-          op, newFuncOperandsType, newFuncResultsType)))
-    return failure();
+          funcOp, newFuncOperandTypes, newFuncResultTypes)))
+    return funcOp->emitError("Failed to convert function signature");
 
   auto newFuncType =
-      FunctionType::get(getContext(), newFuncOperandsType, newFuncResultsType);
+      FunctionType::get(getContext(), newFuncOperandTypes, newFuncResultTypes);
   rewriter.modifyOpInPlace(funcOp, [&] {
     funcOp.setType(newFuncType);
 
@@ -112,7 +112,7 @@ LogicalResult ConvertFuncWithContextAwareTypeConverter::matchAndRewrite(
 
     // Set the block argument types to match the new signature
     for (auto [arg, newType] : llvm::zip(
-             funcOp.getBody().front().getArguments(), newFuncOperandsType)) {
+             funcOp.getBody().front().getArguments(), newFuncOperandTypes)) {
       arg.setType(newType);
     }
 
@@ -126,10 +126,14 @@ LogicalResult ConvertFuncWithContextAwareTypeConverter::matchAndRewrite(
     // legalize and the conversion engine looped infinitely.
     Block &block = funcOp.getBody().front();
     for (auto [returnOperand, newType] :
-         llvm::zip(block.getTerminator()->getOperands(), newFuncResultsType)) {
+         llvm::zip(block.getTerminator()->getOperands(), newFuncResultTypes)) {
       returnOperand.setType(newType);
     }
   });
+
+  if (failed(finalizeFuncOpModification(funcOp, oldFuncOperandTypes,
+                                        oldFuncResultTypes, rewriter)))
+    return failure();
 
   return success();
 }
