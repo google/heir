@@ -15,7 +15,7 @@ def Lattigo_CKKSParameter : Lattigo_CKKSType<"Parameter", "parameter"> {
   let description = [{
     This type represents the parameters for the CKKS encryption scheme.
   }];
-  let nameSuggestion = "param";
+  let asmName = "param";
 }
 
 // CKKSEvaluator type definition
@@ -23,7 +23,7 @@ def Lattigo_CKKSEvaluator : Lattigo_CKKSType<"Evaluator", "evaluator"> {
   let description = [{
     This type represents the evaluator for the CKKS encryption scheme.
   }];
-  let nameSuggestion = "evaluator";
+  let asmName = "evaluator";
 }
 
 // CKKSEncoder type definition
@@ -31,7 +31,7 @@ def Lattigo_CKKSEncoder : Lattigo_CKKSType<"Encoder", "encoder"> {
   let description = [{
     This type represents the encoder for the CKKS encryption scheme.
   }];
-  let nameSuggestion = "encoder";
+  let asmName = "encoder";
 }
 
 

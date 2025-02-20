@@ -3,7 +3,7 @@
 
 #include "lib/Dialect/Lattigo/IR/LattigoAttributes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
-#include "lib/Utils/Tablegen/AsmInterfaces.h"
+#include "mlir/include/mlir/IR/OpImplementation.h"  // from @llvm-project
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h.inc"

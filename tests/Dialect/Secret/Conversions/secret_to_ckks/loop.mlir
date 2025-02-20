@@ -7,15 +7,15 @@ module {
 // CHECK-NEXT: %[[ct2:.*]] = ckks.mul_plain %[[ct]], %[[pt]]
 // CHECK:      %[[pt3:.*]] = lwe.rlwe_encode
 // CHECK-NEXT: %[[ct4:.*]] = ckks.add_plain %[[ct2]], %[[pt3]]
-// CHECK:      %[[v0:.*]]:2 = affine.for %[[arg0:.*]] = 1 to 1024 iter_args(%[[arg1:.*]] = %[[ct4]], %[[arg2:.*]] = %[[ct]])
-// CHECK-NEXT:   %[[ct6:.*]] = ckks.rotate %[[arg2]] {offset = 1
+// CHECK:      %[[ct5:.*]], %[[ct6:.*]] = affine.for %[[arg0:.*]] = 1 to 1024 iter_args(%[[ct8:.*]] = %[[ct4]], %[[ct9:.*]] = %[[ct]])
+// CHECK-NEXT:   %[[ct10:.*]] = ckks.rotate %[[ct9]] {offset = 1
 // CHECK-NEXT:   %[[extracted_slice:.*]] = tensor.extract_slice
-// CHECK-NEXT:   %[[pt7:.*]] = lwe.rlwe_encode %[[extracted_slice]]
-// CHECK-NEXT:   %[[ct8:.*]] = ckks.mul_plain %[[ct6]], %[[pt7]]
-// CHECK-NEXT:   %[[ct9:.*]] = ckks.add %[[arg1]], %[[ct8]]
-// CHECK-NEXT:   affine.yield %[[ct9]], %[[ct6]]
-// CHECK:      %[[ct5:.*]] = ckks.rescale %[[v0]]#0
-// CHECK-NEXT: return %[[ct5]]
+// CHECK-NEXT:   %[[pt11:.*]] = lwe.rlwe_encode %[[extracted_slice]]
+// CHECK-NEXT:   %[[ct12:.*]] = ckks.mul_plain %[[ct10]], %[[pt11]]
+// CHECK-NEXT:   %[[ct13:.*]] = ckks.add %[[ct8]], %[[ct12]]
+// CHECK-NEXT:   affine.yield %[[ct13]], %[[ct10]]
+// CHECK:      %[[ct7:.*]] = ckks.rescale %[[ct5]]
+// CHECK-NEXT: return %[[ct7]]
   func.func @hv_matmul(%arg0: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> attributes {llvm.emit_c_interface} {
     %cst = arith.constant dense_resource<__elided__> : tensor<1x1024xf32>
     %c1 = arith.constant 1 : index

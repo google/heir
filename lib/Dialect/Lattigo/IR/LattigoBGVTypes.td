@@ -15,7 +15,7 @@ def Lattigo_BGVParameter : Lattigo_BGVType<"Parameter", "parameter"> {
   let description = [{
     This type represents the parameters for the BGV encryption scheme.
   }];
-  let nameSuggestion = "param";
+  let asmName = "param";
 }
 
 // BGVEvaluator type definition
@@ -23,7 +23,7 @@ def Lattigo_BGVEvaluator : Lattigo_BGVType<"Evaluator", "evaluator"> {
   let description = [{
     This type represents the evaluator for the BGV encryption scheme.
   }];
-  let nameSuggestion = "evaluator";
+  let asmName = "evaluator";
 }
 
 // BGVEncoder type definition
@@ -31,7 +31,7 @@ def Lattigo_BGVEncoder : Lattigo_BGVType<"Encoder", "encoder"> {
   let description = [{
     This type represents the encoder for the BGV encryption scheme.
   }];
-  let nameSuggestion = "encoder";
+  let asmName = "encoder";
 }
 
 
