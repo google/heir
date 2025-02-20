@@ -113,13 +113,7 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
 
     rewriter.modifyOpInPlace(op, [&] {
       SmallVector<unsigned> argIndices(selectedEvaluators.size(), 0);
-      if (op.isDeclaration()) {
-        auto newFuncType = op.getTypeWithArgsAndResults(
-            argIndices, selectedEvaluators, {}, {});
-        op.setType(newFuncType);
-      } else {
-        op.insertArguments(argIndices, selectedEvaluators, argAttrs, argLocs);
-      }
+      op.insertArguments(argIndices, selectedEvaluators, argAttrs, argLocs);
     });
     return success();
   }
@@ -150,16 +144,7 @@ struct RemoveKeyArg : public OpConversionPattern<func::FuncOp> {
       return failure();
     }
 
-    rewriter.modifyOpInPlace(op, [&] {
-      if (op.isDeclaration()) {
-        // without for deletion
-        auto newFuncType = op.getTypeWithoutArgsAndResults(
-            argsToErase, /* resultIndices= */ BitVector(op->getNumResults()));
-        op.setType(newFuncType);
-      } else {
-        op.eraseArguments(argsToErase);
-      }
-    });
+    rewriter.modifyOpInPlace(op, [&] { op.eraseArguments(argsToErase); });
     return success();
   }
 };
