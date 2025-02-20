@@ -7,13 +7,14 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/OpAsmInterface.td"
 
 class ModArith_Type<string name, string typeMnemonic, list<Trait> traits = []>
     : TypeDef<ModArith_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
 }
 
-def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeInterface]> {
+def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeInterface, OpAsmTypeInterface]> {
   let summary = "Integer type with modular arithmetic";
   let description = [{
     `mod_arith.int<p>` represents an element of the ring of integers modulo $p$.
@@ -50,6 +51,17 @@ def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeI
     "::mlir::IntegerAttr":$modulus
   );
   let assemblyFormat = "`<` $modulus `>`";
+
+  let extraClassDeclaration = [{
+    // OpAsmTypeInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "Z";
+      os << getModulus().getValue();
+      os << "_";
+      os << getModulus().getType();
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
 def ModArithLike: TypeOrValueSemanticsContainer<ModArith_ModArithType, "mod_arith-like">;

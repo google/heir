@@ -30,55 +30,6 @@ using namespace mlir::heir::polynomial;
 #define GET_OP_CLASSES
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.cpp.inc"
 
-namespace mlir {
-namespace heir {
-namespace polynomial {
-
-struct PolynomialOpAsmDialectInterface : public OpAsmDialectInterface {
-  using OpAsmDialectInterface::OpAsmDialectInterface;
-
-  AliasResult getAlias(Attribute attr, raw_ostream &os) const override {
-    auto res = llvm::TypeSwitch<Attribute, AliasResult>(attr)
-                   .Case<RingAttr>([&](auto &ringAttr) {
-                     os << "ring_";
-
-                     auto type = ringAttr.getCoefficientType();
-                     auto *interface =
-                         dyn_cast<OpAsmDialectInterface>(&type.getDialect());
-
-                     auto res = interface->getAlias(type, os);
-                     if (res == AliasResult::NoAlias) {
-                       // always safe as MLIR will sanitize it into an
-                       // identifier
-                       os << type;
-                     }
-
-                     auto polynomialModulus = ringAttr.getPolynomialModulus();
-                     if (polynomialModulus) {
-                       os << "_";
-                       os << polynomialModulus.getPolynomial().toIdentifier();
-                     }
-                     return AliasResult::FinalAlias;
-                   })
-                   .Default([&](auto &attr) { return AliasResult::NoAlias; });
-    return res;
-  }
-
-  AliasResult getAlias(Type type, raw_ostream &os) const override {
-    auto res = TypeSwitch<Type, AliasResult>(type)
-                   .Case<PolynomialType>([&](auto &polynomialType) {
-                     os << "poly";
-                     return AliasResult::FinalAlias;
-                   })
-                   .Default([&](auto &type) { return AliasResult::NoAlias; });
-    return res;
-  }
-};
-
-}  // namespace polynomial
-}  // namespace heir
-}  // namespace mlir
-
 void PolynomialDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
@@ -92,6 +43,4 @@ void PolynomialDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.cpp.inc"
       >();
-
-  addInterfaces<mlir::heir::polynomial::PolynomialOpAsmDialectInterface>();
 }

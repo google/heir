@@ -23,23 +23,6 @@ namespace mlir {
 namespace heir {
 namespace rns {
 
-struct RNSOpAsmDialectInterface : public OpAsmDialectInterface {
-  using OpAsmDialectInterface::OpAsmDialectInterface;
-
-  AliasResult getAlias(Type type, raw_ostream &os) const override {
-    auto res = llvm::TypeSwitch<Type, AliasResult>(type)
-                   .Case<RNSType>([&](auto &rnsType) {
-                     os << "rns";
-                     auto size = rnsType.getBasisTypes().size();
-                     os << "_L";
-                     os << size - 1;  // start from 0
-                     return AliasResult::FinalAlias;
-                   })
-                   .Default([&](Type) { return AliasResult::NoAlias; });
-    return res;
-  }
-};
-
 void RNSDialect::initialize() {
   addTypes<
 #define GET_TYPEDEF_LIST
@@ -50,8 +33,6 @@ void RNSDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/RNS/IR/RNSOps.cpp.inc"
       >();
-
-  addInterface<RNSOpAsmDialectInterface>();
 }
 
 }  // namespace rns
