@@ -99,6 +99,7 @@ LogicalResult ConvertFuncWithContextAwareTypeConverter::matchAndRewrite(
   SmallVector<Type> oldFuncResultTypes(funcOp.getFunctionType().getResults());
   SmallVector<Type> newFuncOperandTypes;
   SmallVector<Type> newFuncResultTypes;
+
   if (failed(contextAwareTypeConverter->convertFuncSignature(
           funcOp, newFuncOperandTypes, newFuncResultTypes)))
     return funcOp->emitError("Failed to convert function signature");

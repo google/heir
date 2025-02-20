@@ -356,8 +356,8 @@ class SecretGenericOpRotateConversion
       op.emitError("expected constant offset for rotate");
     }
     auto offsetAttr = llvm::dyn_cast<IntegerAttr>(constantOffset.getValue());
-
-    auto newOp = rewriter.replaceOpWithNewOp<T>(op, inputs[0], offsetAttr);
+    auto newOp =
+        rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], offsetAttr);
     newOp->setDialectAttrs(attributes);
     for (auto attribute : op->getAttrs())
       newOp->setAttr(attribute.getName(), attribute.getValue());
