@@ -69,5 +69,24 @@ bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
   });
 }
 
+void iterateIndices(const std::vector<int64_t> &shape,
+                    const IndexTupleConsumer &process) {
+  if (shape.empty()) return;
+  std::vector<int64_t> index(shape.size(), 0);
+  bool done = false;
+  while (!done) {
+    process(index);
+    for (int i = shape.size() - 1; i >= 0; --i) {
+      if (++index[i] < shape[i]) {
+        break;
+      }
+      index[i] = 0;
+      if (i == 0) {
+        done = true;
+      }
+    }
+  }
+}
+
 }  // namespace heir
 }  // namespace mlir
