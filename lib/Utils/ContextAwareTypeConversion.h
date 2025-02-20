@@ -113,6 +113,16 @@ struct ConvertFuncWithContextAwareTypeConverter
   LogicalResult matchAndRewrite(func::FuncOp op,
                                 PatternRewriter &rewriter) const override;
 
+  // An overridable hook that allows subclasses to perform additional
+  // modifications of the func op after its type signature has been converted.
+  // For example, a subclass may use this hook to modify arg attrs.
+  LogicalResult finalizeFuncOpModification(func::FuncOp op,
+                                           ArrayRef<Type> oldArgTypes,
+                                           ArrayRef<Type> oldResultTypes,
+                                           PatternRewriter &rewriter) const {
+    return success();
+  };
+
  private:
   const ContextAwareTypeConverter *contextAwareTypeConverter;
 };
