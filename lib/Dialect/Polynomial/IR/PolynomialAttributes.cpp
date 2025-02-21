@@ -14,6 +14,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 
@@ -202,6 +203,52 @@ Attribute FloatPolynomialAttr::parse(AsmParser &parser, Type type) {
     return {};
   }
   return FloatPolynomialAttr::get(parser.getContext(), result.value());
+}
+
+void RingAttr::getAliasSuffix(raw_ostream &os) const {
+  SmallString<32> nameBuffer;
+  llvm::raw_svector_ostream nameStream(nameBuffer);
+
+  auto type = getCoefficientType();
+  if (auto opAsmTypeInterface = mlir::dyn_cast<OpAsmTypeInterface>(type)) {
+    opAsmTypeInterface.getAlias(nameStream);
+  }
+
+  // specialized for rns::RNSType as we do not want PolynomialDialect to
+  // depend on RNSDialect we use OpAsmTypeInterface here (which does not have
+  // the desired RNSType::getAliasSuffix)
+  std::string name(nameBuffer.str());
+  if (name.find("rns_") == 0) {
+    name.erase(0, 4);
+  }
+
+  os << "_" << name;
+}
+
+::mlir::OpAsmDialectInterface::AliasResult RingAttr::getAlias(
+    ::llvm::raw_ostream &os) const {
+  using AliasResult = ::mlir::OpAsmDialectInterface::AliasResult;
+  os << "ring_";
+
+  auto type = getCoefficientType();
+  auto opAsmTypeInterface = mlir::dyn_cast<OpAsmTypeInterface>(type);
+
+  auto res = AliasResult::NoAlias;
+  if (opAsmTypeInterface) {
+    res = opAsmTypeInterface.getAlias(os);
+  }
+  if (res == AliasResult::NoAlias) {
+    // always safe as MLIR will sanitize it into an
+    // identifier
+    os << type;
+  }
+
+  auto polynomialModulus = getPolynomialModulus();
+  if (polynomialModulus) {
+    os << "_";
+    os << polynomialModulus.getPolynomial().toIdentifier();
+  }
+  return AliasResult::FinalAlias;
 }
 
 }  // namespace polynomial

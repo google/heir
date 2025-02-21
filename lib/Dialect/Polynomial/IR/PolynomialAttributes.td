@@ -4,6 +4,7 @@
 include "lib/Dialect/Polynomial/IR/PolynomialDialect.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/OpBase.td"
+include "mlir/IR/OpAsmInterface.td"
 
 class Polynomial_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<Polynomial_Dialect, name, traits> {
@@ -119,7 +120,7 @@ def Polynomial_TypedFloatPolynomialAttr : Polynomial_Attr<
   }];
 }
 
-def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring"> {
+def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring", [OpAsmAttrInterface]> {
   let summary = "an attribute specifying a polynomial ring";
   let description = [{
     A ring describes the domain in which polynomial arithmetic occurs. The ring
@@ -169,6 +170,14 @@ def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring"> {
         polynomialModulusAttr);
     }]>,
   ];
+
+  let extraClassDeclaration = [{
+    // Helper method for other Type/Attribute containing this Attribute.
+    void getAliasSuffix(::llvm::raw_ostream& os) const;
+
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const;
+  }];
 }
 
 def Polynomial_PrimitiveRootAttr: Polynomial_Attr<"PrimitiveRoot", "primitive_root"> {

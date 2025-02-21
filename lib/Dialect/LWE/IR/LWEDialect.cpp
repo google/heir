@@ -43,111 +43,28 @@ class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
  public:
   using OpAsmDialectInterface::OpAsmDialectInterface;
 
-  void getRingAttrAliasSuffix(polynomial::RingAttr ring,
-                              raw_ostream& os) const {
-    auto rnsType = dyn_cast<rns::RNSType>(ring.getCoefficientType());
-    if (rnsType) {
-      auto level = rnsType.getBasisTypes().size() - 1;
-      os << "_L" << level;
-    }
-  }
-
-  void getRLWEParamsAttrAliasSuffix(RLWEParamsAttr rlweParams,
-                                    raw_ostream& os) const {
-    auto dimension = rlweParams.getDimension();
-    auto ring = rlweParams.getRing();
-    getRingAttrAliasSuffix(ring, os);
-    if (dimension != 2) {
-      os << "_D" << dimension;
-    }
-  }
-
-  void getCiphertextSpaceAttrAliasSuffix(CiphertextSpaceAttr ciphertextSpace,
-                                         raw_ostream& os) const {
-    auto ring = ciphertextSpace.getRing();
-    getRingAttrAliasSuffix(ring, os);
-    auto size = ciphertextSpace.getSize();
-    if (size != 2) {
-      os << "_D" << size;
-    }
-  }
-
   AliasResult getAlias(Type type, raw_ostream& os) const override {
-    auto res =
-        llvm::TypeSwitch<Type, AliasResult>(type)
-            .Case<NewLWECiphertextType>([&](auto& type) {
-              os << "ct";
-              getCiphertextSpaceAttrAliasSuffix(type.getCiphertextSpace(), os);
-              return AliasResult::FinalAlias;
-            })
-            .Case<NewLWEPlaintextType>([&](auto& type) {
-              os << "pt";
-              getRingAttrAliasSuffix(type.getPlaintextSpace().getRing(), os);
-              return AliasResult::FinalAlias;
-            })
-            .Case<NewLWESecretKeyType>([&](auto& type) {
-              os << "skey";
-              getRingAttrAliasSuffix(type.getRing(), os);
-              return AliasResult::FinalAlias;
-            })
-            .Case<NewLWEPublicKeyType>([&](auto& type) {
-              os << "pkey";
-              getRingAttrAliasSuffix(type.getRing(), os);
-              return AliasResult::FinalAlias;
-            })
-            .Default([&](Type) { return AliasResult::NoAlias; });
-    return res;
-  }
-
-  AliasResult getAlias(Attribute attr, raw_ostream& os) const override {
-    auto res =
-        llvm::TypeSwitch<Attribute, AliasResult>(attr)
-            .Case<RLWEParamsAttr>([&](auto rlweParams) {
-              os << "rlwe_params";
-              getRLWEParamsAttrAliasSuffix(rlweParams, os);
-              return AliasResult::FinalAlias;
-            })
-            .Case<BitFieldEncodingAttr>([&](auto bitFieldEncoding) {
-              os << "bit_field_encoding";
-              return AliasResult::FinalAlias;
-            })
-            .Case<UnspecifiedBitFieldEncodingAttr>(
-                [&](auto unspecifiedBitFieldEncoding) {
-                  os << "unspecified_bit_field_encoding";
-                  return AliasResult::FinalAlias;
-                })
-            .Case<InverseCanonicalEncodingAttr>(
-                [&](auto inverseCanonicalEncoding) {
-                  os << "inverse_canonical_encoding";
-                  return AliasResult::FinalAlias;
-                })
-            .Case<ModulusChainAttr>([&](auto modulusChain) {
-              os << "modulus_chain";
-              auto size = modulusChain.getElements().size();
-              os << "_L" << size - 1;
-              auto current = modulusChain.getCurrent();
-              os << "_C" << current;
-              return AliasResult::FinalAlias;
-            })
-            .Case<CiphertextSpaceAttr>([&](auto ciphertextSpace) {
-              os << "ciphertext_space";
-              getCiphertextSpaceAttrAliasSuffix(ciphertextSpace, os);
-              return AliasResult::FinalAlias;
-            })
-            .Case<PlaintextSpaceAttr>([&](auto plaintextSpace) {
-              os << "plaintext_space";
-              getRingAttrAliasSuffix(plaintextSpace.getRing(), os);
-              return AliasResult::FinalAlias;
-            })
-            .Case<KeyAttr>([&](auto key) {
-              os << "key";
-              return AliasResult::FinalAlias;
-            })
-            .Case<FullCRTPackingEncodingAttr>([&](auto fullCRTPackingEncoding) {
-              os << "full_crt_packing_encoding";
-              return AliasResult::FinalAlias;
-            })
-            .Default([&](Attribute) { return AliasResult::NoAlias; });
+    auto res = llvm::TypeSwitch<Type, AliasResult>(type)
+                   .Case<NewLWECiphertextType>([&](auto& type) {
+                     os << "ct";
+                     type.getCiphertextSpace().getAliasSuffix(os);
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<NewLWEPlaintextType>([&](auto& type) {
+                     os << "pt";
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<NewLWESecretKeyType>([&](auto& type) {
+                     os << "skey";
+                     type.getRing().getAliasSuffix(os);
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<NewLWEPublicKeyType>([&](auto& type) {
+                     os << "pkey";
+                     type.getRing().getAliasSuffix(os);
+                     return AliasResult::FinalAlias;
+                   })
+                   .Default([&](Type) { return AliasResult::NoAlias; });
     return res;
   }
 };

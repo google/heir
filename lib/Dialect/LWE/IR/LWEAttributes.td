@@ -7,6 +7,7 @@ include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/TensorEncoding.td"
+include "mlir/IR/OpAsmInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "lib/Dialect/LWE/IR/NewLWEAttributes.td"
 
@@ -14,10 +15,19 @@ class LWE_EncodingAttr<string attrName, string attrMnemonic, list<Trait> traits 
     : AttrDef<LWE_Dialect, attrName, traits # [
     // All encoding attributes are required to be compatible with a tensor
     // with an element type relevant to that encoding.
-    DeclareAttrInterfaceMethods<VerifiableTensorEncoding>
+    DeclareAttrInterfaceMethods<VerifiableTensorEncoding>,
+    OpAsmAttrInterface
 ]> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
+
+  let extraClassDeclaration = [{
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # attrMnemonic # [{";
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
 class LWE_EncodingAttrWithScalingFactor<string attrName, string attrMnemonic, list<Trait> traits = []>

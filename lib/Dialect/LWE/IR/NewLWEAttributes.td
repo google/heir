@@ -73,9 +73,17 @@ def LWE_ApplicationDataAttr : AttrDef<LWE_Dialect, "ApplicationData"> {
 }
 
 class LWE_EncodingAttrForLWE<string attrName, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<LWE_Dialect, attrName, traits> {
+    : AttrDef<LWE_Dialect, attrName, traits # [OpAsmAttrInterface]> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
+
+  let extraClassDeclaration = [{
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # attrMnemonic # [{";
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
 class LWE_EncodingAttrWithScalingParam<string attrName, string attrMnemonic, list<Trait> traits = []>
@@ -260,7 +268,7 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
   let genVerifyDecl = 1;
 }
 
-def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key"> {
+def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key", [OpAsmAttrInterface]> {
   let mnemonic = "key";
   let description = [{
     An attribute describing the key with which the message is currently
@@ -283,6 +291,14 @@ def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key"> {
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
+
+  let extraClassDeclaration = [{
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # mnemonic # [{";
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
 def LWE_EncryptionTypeEnum : I32EnumAttr<"LweEncryptionType", "An enum attribute representing an encryption method", [
@@ -293,7 +309,7 @@ def LWE_EncryptionTypeEnum : I32EnumAttr<"LweEncryptionType", "An enum attribute
     let cppNamespace = "::mlir::heir::lwe";
 }
 
-def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace"> {
+def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace", [OpAsmAttrInterface]> {
   let mnemonic = "ciphertext_space";
   let description = [{
     An attribute describing the ciphertext space and the transformation from
@@ -352,9 +368,27 @@ def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace"> {
   );
 
   let assemblyFormat = "`<` struct(params) `>`";
+
+  let extraClassDeclaration = [{
+    // Helper method for other Type/Attribute containing this Attribute.
+    void getAliasSuffix(::llvm::raw_ostream& os) const {
+      getRing().getAliasSuffix(os);
+      auto size = getSize();
+      if (size != 2) {
+        os << "_D" << size;
+      }
+    }
+
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # mnemonic # [{";
+      getAliasSuffix(os);
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
-def LWE_ModulusChainAttr : AttrDef<LWE_Dialect, "ModulusChain"> {
+def LWE_ModulusChainAttr : AttrDef<LWE_Dialect, "ModulusChain", [OpAsmAttrInterface]> {
   let mnemonic = "modulus_chain";
   let description = [{
     An attribute describing the elements of the modulus chain of an RLWE scheme.
@@ -368,6 +402,16 @@ def LWE_ModulusChainAttr : AttrDef<LWE_Dialect, "ModulusChain"> {
   let assemblyFormat = "`<` `elements` `=` `<` $elements `>``,` `current` `=` $current `>`";
 
   // let genVerifyDecl = 1; // Verify index into list
+
+  let extraClassDeclaration = [{
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # mnemonic # [{";
+      os << "_L" << getElements().size() - 1;
+      os << "_C" << getCurrent();
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
 #endif  // LIB_DIALECT_LWE_IR_NEWLWEATTRIBUTES_TD_

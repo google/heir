@@ -39,24 +39,6 @@ namespace mlir {
 namespace heir {
 namespace mod_arith {
 
-class ModArithOpAsmDialectInterface : public OpAsmDialectInterface {
- public:
-  using OpAsmDialectInterface::OpAsmDialectInterface;
-
-  AliasResult getAlias(Type type, raw_ostream &os) const override {
-    auto res = llvm::TypeSwitch<Type, AliasResult>(type)
-                   .Case<ModArithType>([&](auto &modArithType) {
-                     os << "Z";
-                     os << modArithType.getModulus().getValue();
-                     os << "_";
-                     os << modArithType.getModulus().getType();
-                     return AliasResult::FinalAlias;
-                   })
-                   .Default([&](Type) { return AliasResult::NoAlias; });
-    return res;
-  }
-};
-
 void ModArithDialect::initialize() {
   addTypes<
 #define GET_TYPEDEF_LIST
@@ -70,8 +52,6 @@ void ModArithDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/ModArith/IR/ModArithOps.cpp.inc"
       >();
-
-  addInterface<ModArithOpAsmDialectInterface>();
 }
 
 /// Ensures that the underlying integer type is wide enough for the coefficient
