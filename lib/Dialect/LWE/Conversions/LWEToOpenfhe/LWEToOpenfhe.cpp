@@ -94,14 +94,7 @@ struct AddCryptoContextArg : public OpConversionPattern<func::FuncOp> {
 
     auto cryptoContextType = openfhe::CryptoContextType::get(getContext());
     rewriter.modifyOpInPlace(op, [&] {
-      if (op.isDeclaration()) {
-        auto newFuncType = op.getTypeWithArgsAndResults(
-            ArrayRef<unsigned int>{0}, ArrayRef<Type>{cryptoContextType}, {},
-            {});
-        op.setType(newFuncType);
-      } else {
-        op.insertArgument(0, cryptoContextType, nullptr, op.getLoc());
-      }
+      op.insertArgument(0, cryptoContextType, nullptr, op.getLoc());
     });
 
     return success();
