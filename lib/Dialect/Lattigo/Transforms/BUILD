@@ -23,6 +23,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Utils:TransformUtils",
         "@llvm-project//llvm:Support",

@@ -7,6 +7,8 @@
 
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoAttributes.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
@@ -143,11 +145,29 @@ struct LattigoCKKSScheme {
   using NewParametersFromLiteralOp = CKKSNewParametersFromLiteralOp;
   using NewEncoderOp = CKKSNewEncoderOp;
   using NewEvaluatorOp = CKKSNewEvaluatorOp;
+  using SchemeParamAttrType = ckks::SchemeParamAttr;
 
-  static int getLogN(Operation *moduleOp) { return 14; }
+  static int getLogN(Operation *moduleOp) {
+    auto schemeParamAttr = getSchemeParamAttr(moduleOp);
+    if (schemeParamAttr) {
+      return schemeParamAttr.getLogN();
+    }
+    // default logN
+    return 14;
+  }
 
   static ParametersLiteralAttrType getParametersLiteralAttr(
       MLIRContext *ctx, Operation *moduleOp) {
+    auto schemeParamAttr = getSchemeParamAttr(moduleOp);
+    if (schemeParamAttr) {
+      auto logN = schemeParamAttr.getLogN();
+      auto Q = schemeParamAttr.getQ();
+      auto P = schemeParamAttr.getP();
+      auto logDefaultScale = schemeParamAttr.getLogDefaultScale();
+      return ParametersLiteralAttrType::get(ctx, logN, Q, P,
+                                            /*logQ*/ nullptr, /*logP*/ nullptr,
+                                            logDefaultScale);
+    }
     // 128-bit secure parameters enabling depth-7 circuits.
     // LogN:14, LogQP: 431.
     return ParametersLiteralAttrType::get(
@@ -159,9 +179,17 @@ struct LattigoCKKSScheme {
         /*logDefaultScale*/ 45);
   }
 
-  static Attribute getSchemeParamAttr(Operation *moduleOp) { return nullptr; }
+  static SchemeParamAttrType getSchemeParamAttr(Operation *moduleOp) {
+    return moduleOp->getAttrOfType<ckks::SchemeParamAttr>(
+        ckks::CKKSDialect::kSchemeParamAttrName);
+  }
 
-  static void cleanSchemeParamAttr(Operation *moduleOp) {}
+  static void cleanSchemeParamAttr(Operation *moduleOp) {
+    auto schemeParamAttr = getSchemeParamAttr(moduleOp);
+    if (schemeParamAttr) {
+      moduleOp->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
+    }
+  }
 };
 
 template <typename LattigoScheme>

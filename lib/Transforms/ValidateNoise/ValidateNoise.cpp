@@ -197,7 +197,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     auto concreteSchemeParam =
         NoiseAnalysis::SchemeParamType::getConcreteSchemeParam(
-            schemeParam.getPlaintextModulus(), qiSize);
+            qiSize, schemeParam.getPlaintextModulus());
 
     LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
                             << concreteSchemeParam << "\n");

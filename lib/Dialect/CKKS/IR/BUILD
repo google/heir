@@ -14,10 +14,12 @@ cc_library(
         "CKKSDialect.cpp",
     ],
     hdrs = [
+        "CKKSAttributes.h",
         "CKKSDialect.h",
         "CKKSOps.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Dialect:FHEHelpers",
@@ -59,5 +61,15 @@ add_heir_dialect_library(
         ":td_files",
         "@heir//lib/Dialect/LWE/IR:td_files",
         "@heir//lib/Dialect/Polynomial/IR:td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "CKKS",
+    kind = "attribute",
+    td_file = "CKKSAttributes.td",
+    deps = [
+        ":td_files",
     ],
 )

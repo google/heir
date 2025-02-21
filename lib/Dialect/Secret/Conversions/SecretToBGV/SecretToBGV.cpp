@@ -1,6 +1,7 @@
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -64,7 +65,7 @@ FailureOr<polynomial::RingAttr> getRlweRNSRing(
 
   // moduli chain
   SmallVector<Type, 4> modTypes;
-  for (long prime : primes) {
+  for (int64_t prime : primes) {
     auto type = IntegerType::get(ctx, 64);
     modTypes.push_back(
         mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, prime)));
@@ -187,21 +188,9 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     // Helper for future lowerings that want to know what scheme was used
     module->setAttr(kBGVSchemeAttrName, UnitAttr::get(context));
 
-    // generate scheme parameters
-    auto maxLevel = getMaxLevel();
-    std::vector<double> logPrimes;
-    for (int i = 0; i < maxLevel + 1; i++) {
-      logPrimes.push_back(45);  // all primes of 45 bits
-    }
-
-    // TODO(#661) : Calculate the appropriate values by analyzing the function
-    int64_t plaintextModulus = 4295294977;
-
-    // fallback parameters
-    auto schemeParam =
-        bgv::SchemeParam::getConcreteSchemeParam(plaintextModulus, logPrimes);
-
-    std::vector<int64_t> primes = schemeParam.getQi();
+    // used by LWE type
+    int64_t plaintextModulus;
+    std::vector<int64_t> primes;
 
     // Use previously computed ring parameters
     if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
@@ -210,11 +199,32 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       // they have different semantic
       // auto logN = schemeParamAttr.getLogN();
       auto Q = schemeParamAttr.getQ();
-      primes.clear();
       for (auto prime : Q.asArrayRef()) {
         primes.push_back(prime);
       }
       plaintextModulus = schemeParamAttr.getPlaintextModulus();
+    } else {
+      // TODO(#661) : Calculate the appropriate values by analyzing the function
+      plaintextModulus = 4295294977;
+
+      // generate fallback scheme parameters
+      auto maxLevel = getMaxLevel();
+      std::vector<double> logPrimes(maxLevel + 1, 45);  // all primes of 45 bits
+
+      auto schemeParam =
+          bgv::SchemeParam::getConcreteSchemeParam(logPrimes, plaintextModulus);
+
+      primes = schemeParam.getQi();
+
+      // annotate bgv::SchemeParamAttr to ModuleOp
+      module->setAttr(
+          bgv::BGVDialect::kSchemeParamAttrName,
+          bgv::SchemeParamAttr::get(
+              context, log2(schemeParam.getRingDim()),
+              DenseI64ArrayAttr::get(context, ArrayRef(schemeParam.getQi())),
+              DenseI64ArrayAttr::get(&getContext(),
+                                     ArrayRef(schemeParam.getPi())),
+              schemeParam.getPlaintextModulus()));
     }
 
     auto rlweRing = getRlweRNSRing(context, primes, polyModDegree);

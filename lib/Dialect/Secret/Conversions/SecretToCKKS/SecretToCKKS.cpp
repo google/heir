@@ -1,11 +1,13 @@
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <iterator>
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
@@ -23,6 +25,7 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
@@ -30,6 +33,7 @@
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -51,6 +55,8 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
+#define DEBUG_TYPE "secret-to-ckks"
+
 namespace mlir::heir {
 
 #define GEN_PASS_DEF_SECRETTOCKKS
@@ -62,10 +68,9 @@ namespace {
 // modulus degree.
 // TODO(#536): Integrate a general library to compute appropriate prime moduli
 // given any number of bits.
-FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext *ctx,
-                                               int currentLevel,
-                                               int coefficientModBits,
-                                               int polyModDegree) {
+FailureOr<polynomial::RingAttr> getRlweRNSRing(
+    MLIRContext *ctx, const std::vector<int64_t> &primes, int polyModDegree) {
+  // monomial
   std::vector<::mlir::heir::polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
@@ -73,15 +78,16 @@ FailureOr<polynomial::RingAttr> getRlweRNSRing(MLIRContext *ctx,
       ::mlir::heir::polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
   ::mlir::heir::polynomial::IntPolynomial xnPlusOne = result.value();
-  // all 40 bit primes...
-  std::vector<int64_t> primes = {1095233372161, 1032955396097, 1005037682689,
-                                 998595133441,  972824936449,  959939837953};
+
+  // moduli chain
   SmallVector<Type, 4> modTypes;
-  for (int i = 0; i <= currentLevel; i++) {
+  for (auto prime : primes) {
     auto type = IntegerType::get(ctx, 64);
     modTypes.push_back(
-        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, primes[i])));
+        mod_arith::ModArithType::get(ctx, IntegerAttr::get(type, prime)));
   }
+
+  // types
   auto rnsType = rns::RNSType::get(ctx, modTypes);
   return ::mlir::heir::polynomial::RingAttr::get(
       rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
@@ -374,6 +380,24 @@ class SecretGenericFuncCallConversion
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
+  // assume only one main func
+  // also assume max level at entry
+  int getMaxLevel() {
+    int maxLevel = 0;
+    getOperation()->walk([&](func::FuncOp funcOp) {
+      // get mgmtattr from funcop argument
+      for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
+        auto mgmtAttr =
+            funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
+        if (mgmtAttr) {
+          maxLevel = cast<mgmt::MgmtAttr>(mgmtAttr).getLevel();
+          break;
+        }
+      }
+    });
+    return maxLevel;
+  }
+
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
@@ -381,9 +405,30 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     // Helper for future lowerings that want to know what scheme was used
     module->setAttr(kCKKSSchemeAttrName, UnitAttr::get(context));
 
-    auto maxLevel = 5;
-    auto rlweRing =
-        getRlweRNSRing(context, maxLevel, coefficientModBits, polyModDegree);
+    // generate scheme parameters
+    auto maxLevel = getMaxLevel();
+    std::vector<double> logPrimes;
+    logPrimes.push_back(firstModBits);
+    for (int i = 0; i < maxLevel; i++) {
+      logPrimes.push_back(scalingModBits);
+    }
+
+    auto schemeParam =
+        ckks::SchemeParam::getConcreteSchemeParam(logPrimes, scalingModBits);
+    LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
+                            << schemeParam << "\n");
+
+    // annotate ckks::SchemeParamAttr to ModuleOp
+    module->setAttr(
+        ckks::CKKSDialect::kSchemeParamAttrName,
+        ckks::SchemeParamAttr::get(
+            context, log2(schemeParam.getRingDim()),
+            DenseI64ArrayAttr::get(context, ArrayRef(schemeParam.getQi())),
+            DenseI64ArrayAttr::get(&getContext(),
+                                   ArrayRef(schemeParam.getPi())),
+            schemeParam.getLogDefaultScale()));
+
+    auto rlweRing = getRlweRNSRing(context, schemeParam.getQi(), polyModDegree);
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
