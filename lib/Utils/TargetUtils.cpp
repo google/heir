@@ -1,6 +1,7 @@
 #include "lib/Utils/TargetUtils.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <numeric>
@@ -81,6 +82,25 @@ std::string flattenIndexExpressionSOP(
   }
 
   return accum;
+}
+
+int64_t flattenedIndex(ShapedType type, ValueRange indices,
+                       std::function<int64_t(Value)> valueToInt) {
+  int index = valueToInt(indices[0]);
+  for (size_t i = 1; i < indices.size(); i++) {
+    index = valueToInt(indices[i]) + type.getShape()[i] * index;
+  }
+  return index;
+}
+
+int64_t flattenedIndex(MemRefType memRefType, ValueRange indices,
+                       std::function<int64_t(Value)> valueToInt) {
+  const auto [strides, offset] = memRefType.getStridesAndOffset();
+  int index = offset;
+  for (size_t i = 0; i < indices.size(); ++i) {
+    index = index + strides[i] * valueToInt(indices[i]);
+  }
+  return index;
 }
 
 }  // namespace heir

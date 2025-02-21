@@ -285,20 +285,36 @@ LogicalResult JaxiteEmitter::printOperation(tensor::FromElementsOp op) {
 LogicalResult JaxiteEmitter::printOperation(memref::LoadOp op) {
   emitAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(op.getMemref());
-  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
-    SmallString<16> idx_str;
-    dyn_cast<IntegerAttr>(
-        dyn_cast<arith::ConstantOp>(value.getDefiningOp()).getValue())
-        .getValue()
-        .toStringUnsigned(idx_str);
-    return std::string(idx_str);
-  });
+  if (isa<BlockArgument>(op.getMemref())) {
+    // We assume the arguments to the function are flattened.
+    // We assume here that the indices are SSA values (not integer attributes).
+    os << "["
+       << flattenedIndex(
+              op.getMemRefType(), op.getIndices(),
+              [&](Value value) {
+                return dyn_cast<IntegerAttr>(
+                           dyn_cast<arith::ConstantOp>(value.getDefiningOp())
+                               .getValue())
+                    .getValue()
+                    .getSExtValue();
+              })
+       << "]";
+  } else {
+    os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
+      SmallString<16> idx_str;
+      dyn_cast<IntegerAttr>(
+          dyn_cast<arith::ConstantOp>(value.getDefiningOp()).getValue())
+          .getValue()
+          .toStringUnsigned(idx_str);
+      return std::string(idx_str);
+    });
+  }
   os << "\n";
   return success();
 }
 
 // memref::AllocOp initializes a variable of a specific shape. Translation in
-// Jaxite is to allocate multidimensional array of the same shape.
+// Jaxite is to allocate a flattened array.
 // Example: temp_nodes[idx] = np.full((ixj), None)
 // Note: memref::AllocOp and memref::StoreOp need to be in sync on how the
 // indices are processed
@@ -309,7 +325,7 @@ LogicalResult JaxiteEmitter::printOperation(memref::AllocOp op) {
                         op.getMemref().getType().getShape().end(),
                         std::to_string(op.getMemref().getType().getShape()[0]),
                         [&](const std::string &a, int64_t b) {
-                          return a + ", " + std::to_string(b);
+                          return a + "*" + std::to_string(b);
                         })
      << "), None)";
   os << "\n";
@@ -322,14 +338,17 @@ LogicalResult JaxiteEmitter::printOperation(memref::AllocOp op) {
 // indices are processed.
 LogicalResult JaxiteEmitter::printOperation(memref::StoreOp op) {
   os << "temp_nodes[" << variableNames->getIntForValue(op.getMemref()) << "]";
-  os << bracketEnclosedValues(op.getIndices(), [&](Value value) {
-    SmallString<16> idx_str;
-    dyn_cast<IntegerAttr>(
-        dyn_cast<arith::ConstantOp>(value.getDefiningOp()).getValue())
-        .getValue()
-        .toStringUnsigned(idx_str);
-    return std::string(idx_str);
-  });
+  os << "["
+     << flattenedIndex(
+            op.getMemRefType(), op.getIndices(),
+            [&](Value value) {
+              return dyn_cast<IntegerAttr>(
+                         dyn_cast<arith::ConstantOp>(value.getDefiningOp())
+                             .getValue())
+                  .getValue()
+                  .getSExtValue();
+            })
+     << "]";
   os << " = " << "temp_nodes["
      << variableNames->getIntForValue(op.getValueToStore()) << "]";
   os << "\n";

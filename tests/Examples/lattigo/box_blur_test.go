@@ -5,7 +5,7 @@ import (
 )
 
 func TestBinops(t *testing.T) {
-	// TODO(#1186): reenable this test
+	// TODO(#1186): re-enable this test
 	// Disabled now for logN = 12 in parameter generation
 	// which does not satisfy the requirement of logN >= 13
 	// for 4096 input size

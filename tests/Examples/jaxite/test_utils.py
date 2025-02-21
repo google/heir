@@ -31,10 +31,14 @@ def encrypt_u8(
   return ciphertext_x
 
 
-def decrypt_u8(
-    ciphertext: list[types.LweCiphertext], cks: jaxite_bool.ClientKeySet
+def decrypt_int(
+    ciphertext: list[types.LweCiphertext],
+    cks: jaxite_bool.ClientKeySet,
+    num_bits: int = 8,
 ) -> int:
-  """Decrypt 8-bit integer."""
-  return type_converters.bit_slice_to_u8(
-      [jaxite_bool.decrypt(z, cks) for z in ciphertext]
-  )
+  """Decrypt integer."""
+  bit_slice = [jaxite_bool.decrypt(z, cks) for z in ciphertext]
+  result = 0
+  for i in range(num_bits):
+    result |= (int(bit_slice[i])) << i
+  return result

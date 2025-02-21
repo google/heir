@@ -11,6 +11,7 @@ glob_lit_tests(
     name = "all_tests",
     data = ["@heir//tests:test_utilities"],
     driver = "@heir//tests:run_lit.sh",
+    exclude = ["fully_connected.jaxite.mlir"],
     test_file_exts = ["mlir"],
 )
 
@@ -25,6 +26,13 @@ jaxite_end_to_end_test(
     entry_function_flag = "entry-function=test_add_one_lut3",
     mlir_src = "add_one_lut3.mlir",
     test_src = "add_one_lut3_test.py",
+    deps = [":test_utils"],
+)
+
+jaxite_end_to_end_test(
+    name = "fully_connected",
+    mlir_src = "fully_connected.jaxite.mlir",
+    test_src = "fully_connected_test.py",
     deps = [":test_utils"],
 )
 

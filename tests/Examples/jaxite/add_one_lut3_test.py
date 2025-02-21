@@ -18,7 +18,7 @@ class AddOneLut3Test(absltest.TestCase):
         boolean_params,
     )
 
-    result = test_utils.decrypt_u8(result_ciphertext, cks)
+    result = test_utils.decrypt_int(result_ciphertext, cks, num_bits=8)
     self.assertEqual(x + 1, result)
 
 

@@ -1,6 +1,7 @@
 #ifndef LIB_UTILS_TARGETUTILS_H_
 #define LIB_UTILS_TARGETUTILS_H_
 
+#include <cstdint>
 #include <functional>
 #include <numeric>
 #include <string>
@@ -55,6 +56,12 @@ std::string flattenIndexExpression(
 std::string flattenIndexExpressionSOP(
     MemRefType memRefType, ValueRange indices,
     std::function<std::string(Value)> valueToString);
+
+int64_t flattenedIndex(ShapedType type, ValueRange indices,
+                       std::function<int64_t(Value)> valueToInt);
+
+int64_t flattenedIndex(MemRefType memRefType, ValueRange indices,
+                       std::function<int64_t(Value)> valueToInt);
 
 }  // namespace heir
 }  // namespace mlir
