@@ -413,8 +413,10 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
       logPrimes.push_back(scalingModBits);
     }
 
-    auto schemeParam =
-        ckks::SchemeParam::getConcreteSchemeParam(logPrimes, scalingModBits);
+    // pass option polyModDegree is actually the number of slots
+    // TODO(#1402): use a proper name for CKKS
+    auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
+        logPrimes, scalingModBits, polyModDegree);
     LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
                             << schemeParam << "\n");
 

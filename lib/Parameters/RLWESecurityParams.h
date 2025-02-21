@@ -12,7 +12,7 @@ struct RLWESecurityParam {
 };
 
 // compute ringDim given logPQ under 128-bit classic security
-int computeRingDim(int logPQ);
+int computeRingDim(int logPQ, int minRingDim);
 
 }  // namespace heir
 }  // namespace mlir

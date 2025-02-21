@@ -14,15 +14,20 @@ namespace heir {
 namespace bgv {
 
 SchemeParam SchemeParam::getConservativeSchemeParam(int level,
-                                                    int64_t plaintextModulus) {
-  return SchemeParam(RLWESchemeParam::getConservativeRLWESchemeParam(level),
-                     plaintextModulus);
+                                                    int64_t plaintextModulus,
+                                                    int slotNumber) {
+  // Use only half of the BGV slot number to make 1-dim vector.
+  return SchemeParam(
+      RLWESchemeParam::getConservativeRLWESchemeParam(level, 2 * slotNumber),
+      plaintextModulus);
 }
 
 SchemeParam SchemeParam::getConcreteSchemeParam(std::vector<double> logqi,
-                                                int64_t plaintextModulus) {
+                                                int64_t plaintextModulus,
+                                                int slotNumber) {
+  // Use only half of the BGV slot number to make 1-dim vector.
   return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
-                         std::move(logqi), plaintextModulus),
+                         std::move(logqi), 2 * slotNumber, plaintextModulus),
                      plaintextModulus);
 }
 

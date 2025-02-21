@@ -12,10 +12,12 @@ namespace heir {
 namespace ckks {
 
 SchemeParam SchemeParam::getConcreteSchemeParam(std::vector<double> logqi,
-                                                int logDefaultScale) {
-  return SchemeParam(
-      RLWESchemeParam::getConcreteRLWESchemeParam(std::move(logqi)),
-      logDefaultScale);
+                                                int logDefaultScale,
+                                                int slotNumber) {
+  // CKKS slot number = ringDim / 2
+  return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
+                         std::move(logqi), 2 * slotNumber),
+                     logDefaultScale);
 }
 
 void SchemeParam::print(llvm::raw_ostream &os) const {

@@ -80,12 +80,13 @@ class RLWESchemeParam {
     return os;
   }
 
-  static RLWESchemeParam getConservativeRLWESchemeParam(int level);
+  static RLWESchemeParam getConservativeRLWESchemeParam(int level,
+                                                        int minRingDim);
 
   // plaintext modulus for BGV
   // for CKKS this field is not used
   static RLWESchemeParam getConcreteRLWESchemeParam(
-      std::vector<double> logqi, int64_t plaintextModulus = 0);
+      std::vector<double> logqi, int minRingDim, int64_t plaintextModulus = 0);
 };
 
 // Parameter for each RLWE ciphertext SSA value.

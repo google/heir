@@ -224,7 +224,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     auto concreteSchemeParam =
         NoiseAnalysis::SchemeParamType::getConcreteSchemeParam(
-            qiSize, schemeParam.getPlaintextModulus());
+            qiSize, schemeParam.getPlaintextModulus(), slotNumber);
 
     LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
                             << concreteSchemeParam << "\n");
@@ -260,7 +260,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     // plaintext modulus from command line option
     auto schemeParam =
         NoiseAnalysis::SchemeParamType::getConservativeSchemeParam(
-            maxLevel, plaintextModulus);
+            maxLevel, plaintextModulus, slotNumber);
 
     LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
                             << schemeParam << "\n");
