@@ -3,9 +3,9 @@
 #include <map>
 #include <string>
 
-#include "lib/Utils/Tablegen/AsmInterfaces.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
@@ -15,9 +15,11 @@ namespace mlir {
 namespace heir {
 
 std::string SelectVariableNames::suggestNameForValue(Value value) {
-  if (auto typeAsmInterface =
-          mlir::dyn_cast<TypeAsmInterface>(value.getType())) {
-    return typeAsmInterface.suggestedName();
+  if (auto opAsmTypeInterface =
+          mlir::dyn_cast<OpAsmTypeInterface>(value.getType())) {
+    std::string asmName;
+    opAsmTypeInterface.getAsmName([&](StringRef name) { asmName = name; });
+    return asmName;
   }
   return defaultPrefix;
 }

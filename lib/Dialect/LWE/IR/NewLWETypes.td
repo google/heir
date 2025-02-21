@@ -3,22 +3,25 @@
 
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/NewLWEAttributes.td"
-include "lib/Utils/Tablegen/AsmInterfaces.td"
 
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/OpAsmInterface.td"
 
 // A base class for all types in this dialect
 class LWE_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<LWE_Dialect, name, traits # [
-      DeclareTypeInterfaceMethods<TypeAsmInterface, ["suggestedName"]>
-    ]> {
+    : TypeDef<LWE_Dialect, name, traits # [OpAsmTypeInterface]> {
   let mnemonic = typeMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
 
-  string nameSuggestion = ?;
-  let extraClassDeclaration = "std::string suggestedName() {return \"" # nameSuggestion # "\"; }";
+  string asmName = ?;
+  let extraClassDeclaration = [{
+    // OpAsmTypeInterface method
+    void getAsmName(::mlir::OpAsmSetNameFn setNameFn) const {
+      setNameFn("}] # asmName # [{");
+    }
+  }];
 }
 
 // This file defines new LWE types following
@@ -30,7 +33,7 @@ def NewLWESecretKey : LWE_Type<"NewLWESecretKey", "new_lwe_secret_key"> {
     "KeyAttr":$key,
     "::mlir::heir::polynomial::RingAttr":$ring
   );
-  let nameSuggestion = "sk";
+  let asmName = "sk";
 }
 
 def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
@@ -39,7 +42,7 @@ def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
     "KeyAttr":$key,
     "::mlir::heir::polynomial::RingAttr":$ring
   );
-  let nameSuggestion = "pk";
+  let asmName = "pk";
 }
 
 def NewLWESecretOrPublicKey : AnyTypeOf<[NewLWESecretKey, NewLWEPublicKey]>;
@@ -50,7 +53,7 @@ def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext"> {
     "ApplicationDataAttr":$application_data,
     "PlaintextSpaceAttr":$plaintext_space
   );
-  let nameSuggestion = "pt";
+  let asmName = "pt";
 }
 
 def NewLWEPlaintextLike : TypeOrValueSemanticsContainer<NewLWEPlaintext, "new-lwe-plaintext-like">;
@@ -77,7 +80,7 @@ def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext"> {
   );
 
   let genVerifyDecl = 1;
-  let nameSuggestion = "ct";
+  let asmName = "ct";
 }
 
 def NewLWECiphertextLike : TypeOrValueSemanticsContainer<NewLWECiphertext, "new-lwe-ciphertext-like">;

@@ -14,21 +14,21 @@ def Lattigo_RLWEKeyGenerator : Lattigo_RLWEType<"KeyGenerator", "key_generator">
   let description = [{
     This type represents the key generator for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "kgen";
+  let asmName = "kgen";
 }
 
 def Lattigo_RLWESecretKey : Lattigo_RLWEType<"SecretKey", "secret_key"> {
   let description = [{
     This type represents the secret key for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "sk";
+  let asmName = "sk";
 }
 
 def Lattigo_RLWEPublicKey : Lattigo_RLWEType<"PublicKey", "public_key"> {
   let description = [{
     This type represents the public key for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "pk";
+  let asmName = "pk";
 }
 
 def Lattigo_RLWEPublicKeyOrSecretKey : AnyTypeOf<[Lattigo_RLWEPublicKey, Lattigo_RLWESecretKey]>;
@@ -37,7 +37,7 @@ def Lattigo_RLWERelinearizationKey : Lattigo_RLWEType<"RelinearizationKey", "rel
   let description = [{
     This type represents the relinearization key for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "rk";
+  let asmName = "rk";
 }
 
 def Lattigo_RLWEGaloisKey : Lattigo_RLWEType<"GaloisKey", "galois_key"> {
@@ -48,14 +48,14 @@ def Lattigo_RLWEGaloisKey : Lattigo_RLWEType<"GaloisKey", "galois_key"> {
   }];
   let parameters = (ins Builtin_IntegerAttr:$galoisElement);
   let assemblyFormat = "`<` struct(params) `>`";
-  let nameSuggestion = "gk";
+  let asmName = "gk";
 }
 
 def Lattigo_RLWEEvaluationKeySet : Lattigo_RLWEType<"EvaluationKeySet", "evaluation_key_set"> {
   let description = [{
     This type represents the evaluation key set for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "ekset";
+  let asmName = "ekset";
 }
 
 def Lattigo_RLWEEncryptor : Lattigo_RLWEType<"Encryptor", "encryptor"> {
@@ -64,28 +64,28 @@ def Lattigo_RLWEEncryptor : Lattigo_RLWEType<"Encryptor", "encryptor"> {
   }];
   let parameters = (ins "bool":$publicKey);
   let assemblyFormat = "`<` struct(params) `>`";
-  let nameSuggestion = "encryptor";
+  let asmName = "encryptor";
 }
 
 def Lattigo_RLWEDecryptor : Lattigo_RLWEType<"Decryptor", "decryptor"> {
   let description = [{
     This type represents the decryptor for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "decryptor";
+  let asmName = "decryptor";
 }
 
 def Lattigo_RLWEPlaintext : Lattigo_RLWEType<"Plaintext", "plaintext"> {
   let description = [{
     This type represents the plaintext for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "pt";
+  let asmName = "pt";
 }
 
 def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext"> {
   let description = [{
     This type represents the ciphertext for the RLWE encryption scheme.
   }];
-  let nameSuggestion = "ct";
+  let asmName = "ct";
 }
 
 def Lattigo_RLWECiphertextOrPlaintext : AnyTypeOf<[Lattigo_RLWECiphertext, Lattigo_RLWEPlaintext]>;

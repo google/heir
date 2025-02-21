@@ -3,7 +3,7 @@
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
-#include "lib/Utils/Tablegen/AsmInterfaces.h"
+#include "mlir/include/mlir/IR/OpImplementation.h"  // from @llvm-project
 
 #define GET_TYPEDEF_CLASSES
 #include "lib/Dialect/LWE/IR/LWETypes.h.inc"

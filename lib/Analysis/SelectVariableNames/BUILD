@@ -9,7 +9,6 @@ cc_library(
     srcs = ["SelectVariableNames.cpp"],
     hdrs = ["SelectVariableNames.h"],
     deps = [
-        "@heir//lib/Utils/Tablegen:AsmInterfaces",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

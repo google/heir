@@ -27,7 +27,7 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
     "::mlir::Attribute":$encoding,
     OptionalParameter<"LWEParamsAttr">:$lwe_params
   );
-  let nameSuggestion = "ct";
+  let asmName = "ct";
 }
 
 def LWECiphertextLike : TypeOrValueSemanticsContainer<LWECiphertext, "ciphertext-like">;
@@ -39,7 +39,7 @@ def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
     "RLWEParamsAttr":$rlwe_params,
     "Type":$underlying_type
   );
-  let nameSuggestion = "ct";
+  let asmName = "ct";
 }
 
 def RLWECiphertextLike : TypeOrValueSemanticsContainer<RLWECiphertext, "ciphertext-like">;
@@ -47,13 +47,13 @@ def RLWECiphertextLike : TypeOrValueSemanticsContainer<RLWECiphertext, "cipherte
 def RLWESecretKey : LWE_Type<"RLWESecretKey", "rlwe_secret_key"> {
   let summary = "A secret key for RLWE";
   let parameters = (ins "RLWEParamsAttr":$rlwe_params);
-  let nameSuggestion = "sk";
+  let asmName = "sk";
 }
 
 def RLWEPublicKey : LWE_Type<"RLWEPublicKey", "rlwe_public_key"> {
   let summary = "A public key for RLWE";
   let parameters = (ins "RLWEParamsAttr":$rlwe_params);
-  let nameSuggestion = "pk";
+  let asmName = "pk";
 }
 
 def RLWESecretOrPublicKey : AnyTypeOf<[RLWESecretKey, RLWEPublicKey]>;
@@ -71,7 +71,7 @@ def LWEPlaintext : LWE_Type<"LWEPlaintext", "lwe_plaintext"> {
   let parameters = (ins
     "::mlir::Attribute":$encoding
   );
-  let nameSuggestion = "pt";
+  let asmName = "pt";
 }
 
 def LWEPlaintextLike : TypeOrValueSemanticsContainer<LWEPlaintext, "lwe-plaintext-like">;
@@ -84,7 +84,7 @@ def RLWEPlaintext : LWE_Type<"RLWEPlaintext", "rlwe_plaintext"> {
     "::mlir::heir::polynomial::RingAttr":$ring,
     "Type":$underlying_type
   );
-  let nameSuggestion = "pt";
+  let asmName = "pt";
 }
 
 def RLWEPlaintextLike : TypeOrValueSemanticsContainer<RLWEPlaintext, "rlwe-plaintext-like">;

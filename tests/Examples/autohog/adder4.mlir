@@ -13,7 +13,7 @@
 // CHECK-DAG: %[[i6:.*]] = tensor.extract %[[arg0]][%[[c6]]]
 // CHECK-DAG: %[[i7:.*]] = tensor.extract %[[arg0]][%[[c7]]]
 
-// CHECK: %[[v0_outputs:.*]]:4 = cggi.multi_lut_lincomb %[[i7]], %[[i6]], %[[i4]], %[[i3]] {coefficients = array<i32: 1, 8, 4, 2>, lookup_tables = array<i32: 13260, 52224, 59552, 23130>}
+// CHECK: %[[ct0:.*]], %[[ct1:.*]], %[[ct2:.*]], %[[ct3:.*]] = cggi.multi_lut_lincomb %[[i7]], %[[i6]], %[[i4]], %[[i3]] {coefficients = array<i32: 1, 8, 4, 2>, lookup_tables = array<i32: 13260, 52224, 59552, 23130>}
 
 // CHECK-DAG: %[[c0_1:.*]] = arith.constant 0 : index
 // CHECK-DAG: %[[c2_1:.*]] = arith.constant 2 : index
@@ -40,9 +40,9 @@
 // CHECK-DAG: %[[i2_2:.*]] = tensor.extract %[[arg0]][%[[c2_2]]]
 // CHECK-DAG: %[[i5_2:.*]] = tensor.extract %[[arg0]][%[[c5_2]]]
 
-// CHECK: %[[v2_outputs:.*]]:3 = cggi.multi_lut_lincomb %[[i1_2]], %[[i0_2]], %[[i5_2]], %[[i2_2]], %[[v1]] {coefficients = array<i32: 2, 16, 8, 4, 1>, lookup_tables = array<i32: -969316711, -37429948, 252702960>}
+// CHECK: %[[ct4:.*]], %[[ct5:.*]], %[[ct6:.*]] = cggi.multi_lut_lincomb %[[i1_2]], %[[i0_2]], %[[i5_2]], %[[i2_2]], %[[v1]] {coefficients = array<i32: 2, 16, 8, 4, 1>, lookup_tables = array<i32: -969316711, -37429948, 252702960>}
 
-// CHECK: %[[v3_outputs:.*]]:2 = cggi.multi_lut_lincomb %[[v2_outputs]]#1, %[[v0_outputs]]#2, %[[v0_outputs]]#0, %[[v0_outputs]]#1 {coefficients = array<i32: 1, 8, 4, 2>, lookup_tables = array<i32: 13260, 23130>}
+// CHECK: %[[ct7:.*]], %[[ct8:.*]] = cggi.multi_lut_lincomb %[[ct5]], %[[ct2]], %[[ct0]], %[[ct1]] {coefficients = array<i32: 1, 8, 4, 2>, lookup_tables = array<i32: 13260, 23130>}
 
-// CHECK: %[[ret:.*]] = tensor.from_elements %[[v0_outputs]]#3, %[[v2_outputs]]#2, %[[v3_outputs]]#0, %[[v3_outputs]]#1, %[[v2_outputs]]#0 : tensor<5x!lwe.lwe_ciphertext
+// CHECK: %[[ret:.*]] = tensor.from_elements %[[ct3]], %[[ct6]], %[[ct7]], %[[ct8]], %[[ct4]] : tensor<5x!lwe.lwe_ciphertext
 // CHECK: return %[[ret]]
