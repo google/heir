@@ -13,6 +13,7 @@
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
+#include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
@@ -158,6 +159,9 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       validateNoiseOptions.model = options.noiseModel;
       validateNoiseOptions.plaintextModulus = options.plaintextModulus;
       pm.addPass(createValidateNoise(validateNoiseOptions));
+
+      // count add and keyswitch for Openfhe
+      pm.addPass(openfhe::createCountAddAndKeySwitch());
       break;
     }
     case RLWEScheme::ckksScheme: {
