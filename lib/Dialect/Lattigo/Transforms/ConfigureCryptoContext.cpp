@@ -241,7 +241,11 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   // generate Galois Keys on demand
   auto rotIndices = findAllRotIndices(op);
   for (auto rotIndex : rotIndices) {
-    auto galoisElement = static_cast<int>(pow(5, rotIndex)) % (1 << (logN + 1));
+    auto galoisElement = 1;
+    while (rotIndex > 0) {
+      galoisElement = (galoisElement * 5) % (1 << (logN + 1));
+      rotIndex--;
+    }
     auto galoisElementAttr = IntegerAttr::get(
         IntegerType::get(builder.getContext(), 64), galoisElement);
     auto gkType =
