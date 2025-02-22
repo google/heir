@@ -340,35 +340,35 @@ def Polynomial_INTTOp : Polynomial_Op<"intt", [Pure]> {
   let hasVerifier = 1;
 }
 
-def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]>]> {
-    let summary = "Evaluate a static polynomial attribute at a given SSA value.";
-    let description = [{
-        Evaluates the result of a polynomial specified as a static attribute at
-        a given SSA value. The result represents the evaluation of the
-        polynomial at the input value and produces a corresponding scalar
-        value.
+def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]>, ElementwiseMappable]> {
+  let summary = "Evaluate a static polynomial attribute at a given SSA value.";
+  let description = [{
+      Evaluates the result of a polynomial specified as a static attribute at
+      a given SSA value. The result represents the evaluation of the
+      polynomial at the input value and produces a corresponding scalar
+      value.
 
-        Example:
+      Example:
 
-        ```mlir
-        !poly_ty = !polynomial.polynomial<ring=<coefficientType=i32>>
-        #poly = #polynomial.typed_int_polynomial<1 + x + x**2> : !poly_ty
-        %x = arith.constant 5 : i32
-        %result = polynomial.eval #poly, %x : i32
-        ```
+      ```mlir
+      !poly_ty = !polynomial.polynomial<ring=<coefficientType=i32>>
+      #poly = #polynomial.typed_int_polynomial<1 + x + x**2> : !poly_ty
+      %x = arith.constant 5 : i32
+      %result = polynomial.eval #poly, %x : i32
+      ```
 
-        The coefficient type of the polynomial does not necessarily need to be
-        the same as the scalar input type. For example, one may evaluate a
-        square matrix in a polynomial, because the scalar-matrix operation is
-        well-defined. It is the responsibility of the lowering to determine
-        if the input is compatible with the polynomial coefficient type.
-    }];
-    let arguments = (ins
-        Polynomial_AnyTypedPolynomialAttr: $polynomial,
-        AnyType: $value
-    );
-    let results = (outs AnyType:$output);
-    let assemblyFormat = "$polynomial `,` $value attr-dict `:` type($value)";
+      The coefficient type of the polynomial does not necessarily need to be
+      the same as the scalar input type. For example, one may evaluate a
+      square matrix in a polynomial, because the scalar-matrix operation is
+      well-defined. It is the responsibility of the lowering to determine
+      if the input is compatible with the polynomial coefficient type.
+  }];
+  let arguments = (ins
+      Polynomial_AnyTypedPolynomialAttr: $polynomial,
+      AnyType: $value
+  );
+  let results = (outs AnyType:$output);
+  let assemblyFormat = "$polynomial `,` $value attr-dict `:` type($value)";
 }
 
 
