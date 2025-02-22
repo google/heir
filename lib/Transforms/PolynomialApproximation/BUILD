@@ -11,7 +11,10 @@ cc_library(
     hdrs = ["PolynomialApproximation.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Utils/Approximation:CaratheodoryFejer",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MathDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:Transforms",
