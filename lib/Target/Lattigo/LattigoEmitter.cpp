@@ -89,7 +89,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
   os << "package " << packageName << "\n";
 
-  if (moduleIsBGV(moduleOp)) {
+  if (moduleIsBGVOrBFV(moduleOp)) {
     os << kModulePreludeBGVTemplate;
   } else if (moduleIsCKKS(moduleOp)) {
     os << kModulePreludeCKKSTemplate;
@@ -348,7 +348,13 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
     // no evaluation key set, use empty Value for 'nil'
     operands.push_back(Value());
   }
-  return printNewMethod(op.getResult(), operands, "bgv.NewEvaluator", false);
+  os << getName(op.getResult());
+  os << " := bgv.NewEvaluator(";
+  os << getCommaSeparatedNames(operands);
+  os << ", ";
+  os << (op.getScaleInvariant() ? "true" : "false");
+  os << ")\n";
+  return success();
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {

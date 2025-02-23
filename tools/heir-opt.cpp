@@ -354,6 +354,12 @@ int main(int argc, char **argv) {
       mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::bgvScheme));
 
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
+      "mlir-to-bfv",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "BFV.",
+      mlirToRLWEPipelineBuilder(mlir::heir::RLWEScheme::bfvScheme));
+
+  PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
       "mlir-to-ckks",
       "Convert a func using standard MLIR dialects to FHE using "
       "CKKS.",

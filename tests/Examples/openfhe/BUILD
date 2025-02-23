@@ -94,6 +94,20 @@ openfhe_end_to_end_test(
     test_src = "roberts_cross_test.cpp",
 )
 
+# B/FV
+
+openfhe_end_to_end_test(
+    name = "dot_product_8_bfv_test",
+    generated_lib_header = "dot_product_8_bfv_lib.h",
+    heir_opt_flags = [
+        "--mlir-to-bfv=ciphertext-degree=8",
+        "--scheme-to-openfhe",
+    ],
+    mlir_src = "dot_product_8.mlir",
+    tags = ["notap"],
+    test_src = "dot_product_8_bfv_test.cpp",
+)
+
 # CKKS
 
 openfhe_end_to_end_test(

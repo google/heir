@@ -12,7 +12,7 @@ namespace mlir {
 namespace heir {
 namespace openfhe {
 
-enum class OpenfheScheme { BGV, CKKS };
+enum class OpenfheScheme { BGV, BFV, CKKS };
 
 // OpenFHE's installation process moves headers around in the install directory,
 // as well as changing the import paths from the development repository. This

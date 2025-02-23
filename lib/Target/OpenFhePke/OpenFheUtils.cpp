@@ -29,7 +29,9 @@ std::string getModulePrelude(OpenfheScheme scheme,
                     : kInstallationRelativeOpenfheImport;
   auto prelude = std::string(
       llvm::formatv(kModulePreludeTemplate.data(),
-                    scheme == OpenfheScheme::CKKS ? "CKKS" : "BGV"));
+                    scheme == OpenfheScheme::CKKS
+                        ? "CKKS"
+                        : (scheme == OpenfheScheme::BGV ? "BGV" : "BFV")));
   return std::string(import) + prelude;
 }
 

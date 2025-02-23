@@ -85,6 +85,18 @@ heir_lattigo_lib(
     mlir_src = "roberts_cross_64x64.mlir",
 )
 
+# B/FV
+
+heir_lattigo_lib(
+    name = "dot_product_8_bfv",
+    go_library_name = "dotproduct8bfv",
+    heir_opt_flags = [
+        "--mlir-to-bfv=ciphertext-degree=8",
+        "--scheme-to-lattigo",
+    ],
+    mlir_src = "dot_product_8.mlir",
+)
+
 # CKKS
 
 heir_lattigo_lib(
@@ -137,6 +149,14 @@ go_test(
     name = "robertscross_test",
     srcs = ["roberts_cross_test.go"],
     embed = [":robertscross"],
+)
+
+# B/FV
+
+go_test(
+    name = "dotproduct8bfv_test",
+    srcs = ["dot_product_8_bfv_test.go"],
+    embed = [":dotproduct8bfv"],
 )
 
 # CKKS

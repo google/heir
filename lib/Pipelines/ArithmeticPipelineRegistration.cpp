@@ -129,7 +129,8 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   // place mgmt.op and MgmtAttr for BGV
   // which is required for secret-to-<scheme> lowering
   switch (scheme) {
-    case RLWEScheme::bgvScheme: {
+    case RLWEScheme::bgvScheme:
+    case RLWEScheme::bfvScheme: {
       auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
       secretInsertMgmtBGVOptions.includeFirstMul =
           options.modulusSwitchBeforeFirstMul;
@@ -154,14 +155,12 @@ void mlirToRLWEPipeline(OpPassManager &pm,
 
   // IR is stable now, compute scheme param
   switch (scheme) {
-    case RLWEScheme::bgvScheme: {
+    case RLWEScheme::bgvScheme:
+    case RLWEScheme::bfvScheme: {
       auto validateNoiseOptions = ValidateNoiseOptions{};
       validateNoiseOptions.model = options.noiseModel;
       validateNoiseOptions.plaintextModulus = options.plaintextModulus;
       pm.addPass(createValidateNoise(validateNoiseOptions));
-
-      // count add and keyswitch for Openfhe
-      pm.addPass(openfhe::createCountAddAndKeySwitch());
       break;
     }
     case RLWEScheme::ckksScheme: {
@@ -170,6 +169,12 @@ void mlirToRLWEPipeline(OpPassManager &pm,
     default:
       llvm::errs() << "Unsupported RLWE scheme: " << scheme;
       exit(EXIT_FAILURE);
+  }
+
+  if (scheme == RLWEScheme::bgvScheme) {
+    // count add and keyswitch for Openfhe
+    // this pass only works for BGV now
+    pm.addPass(openfhe::createCountAddAndKeySwitch());
   }
 
   // Prepare to lower to RLWE Scheme
@@ -184,9 +189,11 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       pm.addPass(createSecretToCKKS(secretToCKKSOpts));
       break;
     }
-    case RLWEScheme::bgvScheme: {
+    case RLWEScheme::bgvScheme:
+    case RLWEScheme::bfvScheme: {
       auto secretToBGVOpts = SecretToBGVOptions{};
       secretToBGVOpts.polyModDegree = options.ciphertextDegree;
+      secretToBGVOpts.isBFV = scheme == RLWEScheme::bfvScheme;
       pm.addPass(createSecretToBGV(secretToBGVOpts));
       break;
     }

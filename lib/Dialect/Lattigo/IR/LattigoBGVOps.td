@@ -82,10 +82,14 @@ def Lattigo_BGVNewEvaluatorOp : Lattigo_BGVOp<"new_evaluator"> {
 
     To support operations that require evaluation keys,
     the optional evaluation key set should be provided.
+
+    The scaleInvariant flag is used to indicate whether the evaluator is for B/FV or BGV.
+    If it is set to true, the evaluator will evaluate operations in B/FV style.
   }];
   let arguments = (ins
     Lattigo_BGVParameter:$params,
-    Optional<Lattigo_RLWEEvaluationKeySet>:$evaluationKeySet
+    Optional<Lattigo_RLWEEvaluationKeySet>:$evaluationKeySet,
+    DefaultValuedAttr<BoolAttr, "false">:$scaleInvariant
   );
   let results = (outs Lattigo_BGVEvaluator:$evaluator);
 }
