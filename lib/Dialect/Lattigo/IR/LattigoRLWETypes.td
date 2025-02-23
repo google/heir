@@ -49,6 +49,9 @@ def Lattigo_RLWEGaloisKey : Lattigo_RLWEType<"GaloisKey", "galois_key"> {
   let parameters = (ins Builtin_IntegerAttr:$galoisElement);
   let assemblyFormat = "`<` struct(params) `>`";
   let asmName = "gk";
+  let aliasSuffix = [{
+    os << "_g" << getGaloisElement().getValue().getSExtValue();
+  }];
 }
 
 def Lattigo_RLWEEvaluationKeySet : Lattigo_RLWEType<"EvaluationKeySet", "evaluation_key_set"> {
@@ -65,6 +68,13 @@ def Lattigo_RLWEEncryptor : Lattigo_RLWEType<"Encryptor", "encryptor"> {
   let parameters = (ins "bool":$publicKey);
   let assemblyFormat = "`<` struct(params) `>`";
   let asmName = "encryptor";
+  let aliasSuffix = [{
+    if (getPublicKey()) {
+      os<< "_pk";
+    } else {
+      os<< "_sk";
+    }
+  }];
 }
 
 def Lattigo_RLWEDecryptor : Lattigo_RLWEType<"Decryptor", "decryptor"> {
