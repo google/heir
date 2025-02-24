@@ -2,13 +2,12 @@
 
 #include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
-#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
@@ -34,11 +33,28 @@ struct SecretInsertMgmtBFV
     // Helper for future lowerings that want to know what scheme was used.
     moduleSetBFV(getOperation());
 
+    int64_t maxMulDepth;
+    // if the module is annotated with SchemeParamAttr, do not run analyses
+    bool hasSchemeParam = false;
+    if (auto schemeParam = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
+            bgv::BGVDialect::kSchemeParamAttrName)) {
+      hasSchemeParam = true;
+      maxMulDepth = schemeParam.getQ().size() - 1;
+    } else if (auto schemeParam =
+                   getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
+                       ckks::CKKSDialect::kSchemeParamAttrName)) {
+      hasSchemeParam = true;
+      maxMulDepth = schemeParam.getQ().size() - 1;
+    }
+
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
     solver.load<SecretnessAnalysis>();
-    solver.load<MulDepthAnalysis>();
+    if (!hasSchemeParam) {
+      // try our best to analyse mul depth
+      solver.load<MulDepthAnalysis>();
+    }
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
@@ -46,23 +62,39 @@ struct SecretInsertMgmtBFV
       return;
     }
 
-    RewritePatternSet patternsRelinearize(&getContext());
-    patternsRelinearize.add<MultRelinearize<arith::MulIOp>>(
+    if (!hasSchemeParam) {
+      maxMulDepth = getMaxMulDepth(getOperation(), solver);
+    }
+
+    // handle plaintext operands
+    RewritePatternSet patternsPlaintext(&getContext());
+    patternsPlaintext.add<UseInitOpForPlaintextOperand<arith::AddIOp>,
+                          UseInitOpForPlaintextOperand<arith::SubIOp>,
+                          UseInitOpForPlaintextOperand<arith::MulIOp>,
+                          // these lines are not used by B/FV but used by CKKS.
+                          UseInitOpForPlaintextOperand<arith::AddFOp>,
+                          UseInitOpForPlaintextOperand<arith::SubFOp>,
+                          UseInitOpForPlaintextOperand<arith::MulFOp>>(
         &getContext(), getOperation(), &solver);
-    // this line is not used by B/FV but used by CKKS.
-    patternsRelinearize.add<MultRelinearize<arith::MulFOp>>(
+    (void)walkAndApplyPatterns(getOperation(), std::move(patternsPlaintext));
+
+    RewritePatternSet patternsRelinearize(&getContext());
+    patternsRelinearize.add<MultRelinearize<arith::MulIOp>,
+                            // this line is not used by B/FV but used by CKKS.
+                            MultRelinearize<arith::MulFOp>>(
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
 
-    auto maxMulDepth = getMaxMulDepth(getOperation(), solver);
-
-    // annotate mgmt attribute with all levels set to mulDepth
     auto level = maxMulDepth;
-    OpPassManager annotateMgmtPipeline("builtin.module");
+    // call Canonicalizer here because mgmt.init ops need to be moved out of the
+    // secret.generic.
+    // annotate mgmt attribute with all levels set to mulDepth
+    OpPassManager pipeline("builtin.module");
+    pipeline.addPass(createCanonicalizerPass());
     mgmt::AnnotateMgmtOptions annotateMgmtOptions;
     annotateMgmtOptions.baseLevel = level;
-    annotateMgmtPipeline.addPass(mgmt::createAnnotateMgmt(annotateMgmtOptions));
-    (void)runPipeline(annotateMgmtPipeline, getOperation());
+    pipeline.addPass(mgmt::createAnnotateMgmt(annotateMgmtOptions));
+    (void)runPipeline(pipeline, getOperation());
   }
 };
 

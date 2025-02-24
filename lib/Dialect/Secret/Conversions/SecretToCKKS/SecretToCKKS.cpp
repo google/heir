@@ -135,6 +135,7 @@ class SecretToCKKSTypeConverter
     auto *ctx = type.getContext();
     auto level = mgmtAttr.getLevel();
     auto dimension = mgmtAttr.getDimension();
+    auto scale = mgmtAttr.getScale();
 
     Type valueTy = type.getValueType();
 
@@ -151,14 +152,13 @@ class SecretToCKKSTypeConverter
       moduliChain.push_back(modulus);
     }
 
-    // TODO(#785): Set a scaling parameter for floating point values.
-    // Scaling factor is 0 now for passing through all the type verifier.
     auto ciphertext = lwe::NewLWECiphertextType::get(
         ctx,
         lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
                                       lwe::NoOverflowAttr::get(ctx)),
         lwe::PlaintextSpaceAttr::get(
-            ctx, plaintextRing, lwe::InverseCanonicalEncodingAttr::get(ctx, 0)),
+            ctx, plaintextRing,
+            lwe::InverseCanonicalEncodingAttr::get(ctx, scale)),
         lwe::CiphertextSpaceAttr::get(ctx,
                                       getRlweRNSRingWithLevel(ring_, level),
                                       lwe::LweEncryptionType::mix, dimension),
@@ -379,11 +379,14 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpModulusSwitchConversion<ckks::RescaleOp>,
         SecretGenericOpRelinearizeConversion<ckks::RelinearizeOp>,
         SecretGenericOpRotateConversion<ckks::RotateOp>,
+        SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>,
         SecretGenericTensorExtractConversion,
         SecretGenericTensorInsertConversion,
         ConvertAnyContextAware<affine::AffineForOp>,
         ConvertAnyContextAware<affine::AffineYieldOp>,
         ConvertAnyContextAware<tensor::ExtractSliceOp>,
+        ConvertAnyContextAware<tensor::ExtractOp>,
+        ConvertAnyContextAware<tensor::InsertOp>,
         SecretGenericFuncCallConversion>(typeConverter, context);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);

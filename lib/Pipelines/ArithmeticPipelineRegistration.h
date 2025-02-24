@@ -74,6 +74,11 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       *this, "bfv-mod-bits",
       llvm::cl::desc("The number of bits for all moduli for B/FV"),
       llvm::cl::init(60)};
+  PassOptions::Option<int> ckksBootstrapWaterline{
+      *this, "ckks-bootstrap-waterline",
+      llvm::cl::desc("The number of levels to keep until bootstrapping in CKKS "
+                     "(c.f. --secret-insert-mgmt-ckks)"),
+      llvm::cl::init(10)};
   PassOptions::Option<std::string> plaintextExecutionResultFileName{
       *this, "plaintext-execution-result-file-name",
       llvm::cl::desc("File name to import execution result from (c.f. --secret-"

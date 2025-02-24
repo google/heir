@@ -10,11 +10,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_addi_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
     %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: ckks.add_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xi1>):
-        %1 = arith.addi %ARG0, %arg1 : tensor<1024xi1>
+        %1 = arith.addi %ARG0, %arg1_attr : tensor<1024xi1>
         secret.yield %1 : tensor<1024xi1>
     } -> !eui1
     return %0 : !eui1
@@ -24,11 +25,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_muli_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
     %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: ckks.mul_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xi1>):
-        %1 = arith.muli %ARG0, %arg1 : tensor<1024xi1>
+        %1 = arith.muli %ARG0, %arg1_attr : tensor<1024xi1>
         secret.yield %1 : tensor<1024xi1>
     } -> !eui1
     return %0 : !eui1
@@ -38,11 +40,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_subi_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
     %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: ckks.sub_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xi1>):
-        %1 = arith.subi %ARG0, %arg1 : tensor<1024xi1>
+        %1 = arith.subi %ARG0, %arg1_attr : tensor<1024xi1>
         secret.yield %1 : tensor<1024xi1>
     } -> !eui1
     return %0 : !eui1
@@ -52,11 +55,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xf32>
   func.func @test_addf_plain(%arg0 : !efi1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xf32>) -> (!efi1 {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xf32>
     %0 = secret.generic ins(%arg0 :  !efi1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: ckks.add_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xf32>):
-        %1 = arith.addf %ARG0, %arg1 : tensor<1024xf32>
+        %1 = arith.addf %ARG0, %arg1_attr : tensor<1024xf32>
         secret.yield %1 : tensor<1024xf32>
     } -> !efi1
     return %0 : !efi1
@@ -66,11 +70,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xf32>
   func.func @test_mulf_plain(%arg0 : !efi1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xf32>) -> (!efi1 {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xf32>
     %0 = secret.generic ins(%arg0 :  !efi1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: ckks.mul_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xf32>):
-        %1 = arith.mulf %ARG0, %arg1 : tensor<1024xf32>
+        %1 = arith.mulf %ARG0, %arg1_attr : tensor<1024xf32>
         secret.yield %1 : tensor<1024xf32>
     } -> !efi1
     return %0 : !efi1
@@ -80,11 +85,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xf32>
   func.func @test_subf_plain(%arg0 : !efi1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xf32>) -> (!efi1 {mgmt.mgmt = #mgmt}) {
+    %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xf32>
     %0 = secret.generic ins(%arg0 :  !efi1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: ckks.sub_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xf32>):
-        %1 = arith.subf %ARG0, %arg1 : tensor<1024xf32>
+        %1 = arith.subf %ARG0, %arg1_attr : tensor<1024xf32>
         secret.yield %1 : tensor<1024xf32>
     } -> !efi1
     return %0 : !efi1

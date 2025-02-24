@@ -112,7 +112,7 @@ LogicalResult CountAnalysis::visitOperation(
       .Default(
           [&](auto &op) {
             if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                           arith::ExtFOp>(op)) {
+                           arith::ExtFOp, mgmt::InitOp>(op)) {
               op.emitError()
                   << "Unsupported operation for count analysis encountered.";
             }

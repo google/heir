@@ -85,7 +85,8 @@ def CKKS_MulOp : CKKS_Op<"mul", [Commutative, SameOperandsAndResultRings, InferT
   let hasVerifier = 1;
 }
 
-def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, AllCiphertextTypesMatch, Commutative]> {
+// MulPlain op result ciphertext type could be different from the input
+def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
   let hasVerifier = 1;
 }

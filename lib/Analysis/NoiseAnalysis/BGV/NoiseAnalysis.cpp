@@ -158,12 +158,27 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             propagate(extractOp.getResult(), extract);
             return success();
           })
+          .template Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {
+            auto localParam = getLocalParam(adjustScaleOp.getInput());
+
+            // adjust scale materializes to a mulconst
+            NoiseState someFactor = NoiseModel::evalConstant(localParam);
+            NoiseState mulConst = NoiseModel::evalMul(
+                localParam, operands[0]->getValue(), someFactor);
+            propagate(adjustScaleOp.getResult(), mulConst);
+            return success();
+          })
           .template Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
             auto localParam = getLocalParam(modReduceOp.getInput());
 
             NoiseState modReduce =
                 NoiseModel::evalModReduce(localParam, operands[0]->getValue());
             propagate(modReduceOp.getResult(), modReduce);
+            return success();
+          })
+          .template Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) {
+            // preserve noise
+            propagate(levelReduceOp.getResult(), operands[0]->getValue());
             return success();
           })
           .template Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
@@ -176,7 +191,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
           })
           .Default([&](auto &op) {
             if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                           arith::ExtFOp>(op)) {
+                           arith::ExtFOp, mgmt::InitOp>(op)) {
               op.emitError()
                   << "Unsupported operation for noise analysis encountered.";
             }

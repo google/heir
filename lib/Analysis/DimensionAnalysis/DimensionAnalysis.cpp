@@ -11,6 +11,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
@@ -22,8 +23,14 @@
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
+#define DEBUG_TYPE "DimensionAnalysis"
+
 namespace mlir {
 namespace heir {
+
+//===----------------------------------------------------------------------===//
+// DimensionAnalysis (Forward)
+//===----------------------------------------------------------------------===//
 
 LogicalResult DimensionAnalysis::visitOperation(
     Operation *op, ArrayRef<const DimensionLattice *> operands,
@@ -99,6 +106,10 @@ void DimensionAnalysis::visitExternalCall(
       call, argumentLattices, resultLattices, callback);
 }
 
+//===----------------------------------------------------------------------===//
+// Utils
+//===----------------------------------------------------------------------===//
+
 int getDimension(Value value, DataFlowSolver *solver) {
   auto *lattice = solver->lookupState<DimensionLattice>(value);
   if (!lattice) {
@@ -113,22 +124,10 @@ int getDimension(Value value, DataFlowSolver *solver) {
 }
 
 int getDimensionFromMgmtAttr(Value value) {
-  Attribute attr;
-  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-    auto *parentOp = blockArg.getOwner()->getParentOp();
-    auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
-    if (genericOp) {
-      attr = genericOp.getOperandAttr(blockArg.getArgNumber(),
-                                      mgmt::MgmtDialect::kArgMgmtAttrName);
-    }
-  } else {
-    auto *parentOp = value.getDefiningOp();
-    attr = parentOp->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-  }
-  if (!mlir::isa<mgmt::MgmtAttr>(attr)) {
+  auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(value);
+  if (!mgmtAttr) {
     assert(false && "MgmtAttr not found");
   }
-  auto mgmtAttr = mlir::cast<mgmt::MgmtAttr>(attr);
   return mgmtAttr.getDimension();
 }
 
@@ -137,9 +136,15 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), dimension);
   };
 
+  top->walk<WalkOrder::PreOrder>([&](mgmt::InitOp initOp) {
+    auto dimension = 2;
+    // plaintext actually has no dimension, use 2 as a placeholder
+    initOp->setAttr(kArgDimensionAttrName, getIntegerAttr(dimension));
+  });
+
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
     for (auto blockArg : genericOp.getBody()->getArguments()) {
-      genericOp.setOperandAttr(blockArg.getArgNumber(), "dimension",
+      genericOp.setOperandAttr(blockArg.getArgNumber(), kArgDimensionAttrName,
                                getIntegerAttr(getDimension(blockArg, solver)));
     }
 
@@ -150,7 +155,7 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
       if (!isSecret(op->getResult(0), solver)) {
         return;
       }
-      op->setAttr("dimension",
+      op->setAttr(kArgDimensionAttrName,
                   getIntegerAttr(getDimension(op->getResult(0), solver)));
     });
   });

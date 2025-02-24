@@ -12,6 +12,8 @@ namespace heir {
 #define GEN_PASS_REGISTRATION
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h.inc"
 
+constexpr StringRef kArgNoiseBoundAttrName = "noise.bound";
+
 }  // namespace heir
 }  // namespace mlir
 

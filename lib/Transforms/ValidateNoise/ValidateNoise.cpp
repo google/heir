@@ -19,6 +19,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
@@ -97,17 +98,8 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     if (annotateNoiseBound) {
       auto boundStringAttr = StringAttr::get(&getContext(), boundString);
-      if (auto blockArg = mlir::dyn_cast<BlockArgument>(value)) {
-        auto *parentOp = blockArg.getOwner()->getParentOp();
-        auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
-        if (genericOp) {
-          genericOp.setOperandAttr(blockArg.getArgNumber(), "noise.bound",
-                                   boundStringAttr);
-        }
-      } else {
-        auto *parentOp = value.getDefiningOp();
-        parentOp->setAttr("noise.bound", boundStringAttr);
-      }
+      setAttributeAssociatedWith(value, kArgNoiseBoundAttrName,
+                                 boundStringAttr);
     }
 
     if (budget < 0) {

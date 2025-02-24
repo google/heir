@@ -11,6 +11,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
@@ -21,8 +22,14 @@
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
+#define DEBUG_TYPE "LevelAnalysis"
+
 namespace mlir {
 namespace heir {
+
+//===----------------------------------------------------------------------===//
+// LevelAnalysis (Forward)
+//===----------------------------------------------------------------------===//
 
 LogicalResult LevelAnalysis::visitOperation(
     Operation *op, ArrayRef<const LevelLattice *> operands,
@@ -49,6 +56,16 @@ LogicalResult LevelAnalysis::visitOperation(
         }
         auto level = operandLattice->getValue().getLevel();
         propagate(modReduceOp.getResult(), LevelState(level + 1));
+      })
+      .Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) {
+        // implicitly ensure that the operand is secret
+        const auto *operandLattice = operands[0];
+        if (!operandLattice->getValue().isInitialized()) {
+          return;
+        }
+        auto level = operandLattice->getValue().getLevel();
+        propagate(levelReduceOp.getResult(),
+                  LevelState(level + levelReduceOp.getLevelToDrop()));
       })
       .Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
         // implicitly ensure that the result is secret
@@ -91,6 +108,54 @@ void LevelAnalysis::visitExternalCall(
       call, argumentLattices, resultLattices, callback);
 }
 
+//===----------------------------------------------------------------------===//
+// LevelAnalysis (Backward)
+//===----------------------------------------------------------------------===//
+
+LogicalResult LevelAnalysisBackward::visitOperation(
+    Operation *op, ArrayRef<LevelLattice *> operands,
+    ArrayRef<const LevelLattice *> results) {
+  auto propagate = [&](Value value, const LevelState &state) {
+    auto *lattice = getLatticeElement(value);
+    ChangeResult changed = lattice->join(state);
+    if (changed == ChangeResult::Change) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Back Propagate " << state << " to " << value << "\n");
+    }
+    propagateIfChanged(lattice, changed);
+  };
+
+  llvm::TypeSwitch<Operation &>(*op).Default([&](auto &op) {
+    // condition on result secretness
+    SmallVector<OpResult> secretResults;
+    getSecretResults(&op, secretResults);
+    if (secretResults.empty()) {
+      return;
+    }
+
+    auto levelResult = 0;
+    for (auto result : secretResults) {
+      auto &levelState = getLatticeElement(result)->getValue();
+      if (!levelState.isInitialized()) {
+        return;
+      }
+      levelResult = std::max(levelResult, levelState.getLevel());
+    }
+
+    // only back-prop for non-secret operands
+    SmallVector<OpOperand *> nonSecretOperands;
+    getNonSecretOperands(&op, nonSecretOperands);
+    for (auto *operand : nonSecretOperands) {
+      propagate(operand->get(), LevelState(levelResult));
+    }
+  });
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// Utils
+//===----------------------------------------------------------------------===//
+
 static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
   auto maxLevel = 0;
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
@@ -126,11 +191,16 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
            baseLevel;
   };
 
+  top->walk<WalkOrder::PreOrder>([&](mgmt::InitOp initOp) {
+    auto level = getLevel(initOp.getResult());
+    initOp->setAttr(kArgLevelAttrName, getIntegerAttr(level));
+  });
+
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
     for (auto i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
       auto blockArg = genericOp.getBody()->getArgument(i);
       auto level = getLevel(blockArg);
-      genericOp.setOperandAttr(i, "level", getIntegerAttr(level));
+      genericOp.setOperandAttr(i, kArgLevelAttrName, getIntegerAttr(level));
     }
 
     genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
@@ -141,28 +211,16 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
         return;
       }
       auto level = getLevel(op->getResult(0));
-      op->setAttr("level", getIntegerAttr(level));
+      op->setAttr(kArgLevelAttrName, getIntegerAttr(level));
     });
   });
 }
 
 LevelState::LevelType getLevelFromMgmtAttr(Value value) {
-  Attribute attr;
-  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-    auto *parentOp = blockArg.getOwner()->getParentOp();
-    auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
-    if (genericOp) {
-      attr = genericOp.getOperandAttr(blockArg.getArgNumber(),
-                                      mgmt::MgmtDialect::kArgMgmtAttrName);
-    }
-  } else {
-    auto *parentOp = value.getDefiningOp();
-    attr = parentOp->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-  }
-  if (!mlir::isa<mgmt::MgmtAttr>(attr)) {
+  auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(value);
+  if (!mgmtAttr) {
     assert(false && "MgmtAttr not found");
   }
-  auto mgmtAttr = mlir::cast<mgmt::MgmtAttr>(attr);
   return mgmtAttr.getLevel();
 }
 

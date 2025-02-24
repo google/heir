@@ -36,8 +36,17 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
 
   let parameters = (ins
     "int": $level,
-    DefaultValuedParameter<"int", "2">:$dimension
+    DefaultValuedParameter<"int", "2">:$dimension,
+    DefaultValuedParameter<"int64_t", "0">:$scale
   );
+  let builders = [
+    AttrBuilder<(ins "int":$level, "int":$dimension), [{
+      return $_get(
+        $_ctxt,
+        level,
+        dimension, 0);
+    }]>,
+  ];
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
