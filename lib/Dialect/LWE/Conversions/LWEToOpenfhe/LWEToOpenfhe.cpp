@@ -142,11 +142,6 @@ struct ConvertEncryptOp : public OpConversionPattern<lwe::RLWEEncryptOp> {
     FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
     if (failed(result)) return result;
 
-    auto keyType = dyn_cast<lwe::NewLWEPublicKeyType>(op.getKey().getType());
-    if (!keyType)
-      return op.emitError()
-             << "OpenFHE only supports public key encryption for LWE.";
-
     Value cryptoContext = result.value();
     rewriter.replaceOp(op,
                        rewriter.create<openfhe::EncryptOp>(

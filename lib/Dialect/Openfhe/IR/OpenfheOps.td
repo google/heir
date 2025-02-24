@@ -147,7 +147,7 @@ def EncryptOp : Openfhe_Op<"encrypt", [Pure]> {
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
     NewLWEPlaintext:$plaintext,
-    Openfhe_PublicKey:$publicKey)
+    Openfhe_PublicKeyOrPrivateKey:$encryptionKey)
   ;
   let results = (outs NewLWECiphertext:$ciphertext);
 }

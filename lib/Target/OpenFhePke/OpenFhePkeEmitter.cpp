@@ -760,7 +760,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(lwe::RLWEDecodeOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(EncryptOp op) {
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
-                         {op.getPublicKey(), op.getPlaintext()}, "Encrypt");
+                         {op.getEncryptionKey(), op.getPlaintext()}, "Encrypt");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(DecryptOp op) {

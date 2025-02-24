@@ -49,6 +49,12 @@ module {
     return
   }
 
+  // CHECK-LABEL: func @test_encrypt_sk
+  func.func @test_encrypt_sk(%cc: !cc, %pt : !pt, %sk: !sk) {
+    %ct = openfhe.encrypt %cc, %pt, %sk : (!cc, !pt, !sk) -> !ct
+    return
+  }
+
   // CHECK-LABEL: func @test_encode
   func.func @test_encode(%arg0: tensor<32xi3>, %pt : !pt, %pk: !pk) {
     %0 = arith.extsi %arg0 : tensor<32xi3> to tensor<32xi64>
