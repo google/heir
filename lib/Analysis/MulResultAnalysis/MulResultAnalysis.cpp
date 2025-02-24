@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "lib/Analysis/Utils.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -44,7 +45,8 @@ LogicalResult MulResultAnalysis::visitOperation(
 
         auto isMulResult = false;
 
-        if (isa<arith::MulIOp, arith::MulFOp>(op)) {
+        if (isa<arith::MulIOp, arith::MulFOp, mgmt::AdjustScaleOp,
+                mgmt::BootstrapOp>(op)) {
           isMulResult = true;
         }
 

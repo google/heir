@@ -6,9 +6,12 @@ package(
 )
 
 cc_library(
-    name = "ValidateNoise",
-    srcs = ["ValidateNoise.cpp"],
-    hdrs = ["ValidateNoise.h"],
+    name = "PopulateScale",
+    srcs = [
+        "PopulateScaleBGV.cpp",
+        "PopulateScaleCKKS.cpp",
+    ],
+    hdrs = ["PopulateScale.h"],
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/DimensionAnalysis",
@@ -16,22 +19,24 @@ cc_library(
         "@heir//lib/Analysis/NoiseAnalysis",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByBoundCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByVarianceCoeffModel",
+        "@heir//lib/Analysis/ScaleAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
         "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Utils:AttributeUtils",
+        "@heir//lib/Utils:APIntUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
     ],
 )
 
 add_heir_transforms(
     generated_target_name = "pass_inc_gen",
-    pass_name = "ValidateNoise",
-    td_file = "ValidateNoise.td",
+    pass_name = "PopulateScale",
+    td_file = "PopulateScale.td",
 )

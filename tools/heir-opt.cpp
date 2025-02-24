@@ -71,6 +71,7 @@
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
+#include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
@@ -255,6 +256,7 @@ int main(int argc, char **argv) {
   registerForwardStoreToLoadPasses();
   registerGenerateParamPasses();
   registerOperationBalancerPasses();
+  registerPopulateScalePasses();
   registerStraightLineVectorizerPasses();
   registerUnusedMemRefPasses();
   registerValidateNoisePasses();
