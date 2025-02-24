@@ -8,11 +8,22 @@ import (
 	"github.com/tuneinsight/lattigo/v6/schemes/bgv"
 )
 
-func __heir_debug(evaluator *bgv.Evaluator, param bgv.Parameters, encoder *bgv.Encoder, decryptor *rlwe.Decryptor, ct *rlwe.Ciphertext) {
+func __heir_debug(evaluator *bgv.Evaluator, param bgv.Parameters, encoder *bgv.Encoder, decryptor *rlwe.Decryptor, ct *rlwe.Ciphertext, debugAttrMap map[string]string) {
+	// print op
+	isBlockArgument := debugAttrMap["asm.is_block_arg"]
+	if isBlockArgument == "1" {
+		fmt.Println("Input")
+	} else {
+		fmt.Println(debugAttrMap["asm.op_name"])
+	}
+
+	// print the decryption result
 	value := make([]int64, 8)
 	pt := decryptor.DecryptNew(ct)
 	encoder.Decode(pt, value)
-	fmt.Println(value)
+	fmt.Printf("  %v\n", value)
+
+	// print the noise
 
 	// get a new pt with no noise
 	// in Lattigo, Decrypt won't mod T
@@ -34,5 +45,5 @@ func __heir_debug(evaluator *bgv.Evaluator, param bgv.Parameters, encoder *bgv.E
 		total += param.LogQi()[i]
 	}
 	// t * e for BGV
-	fmt.Printf("Noise: %.2f Total: %d\n", max+param.LogT(), total)
+	fmt.Printf("  Noise: %.2f Total: %d\n", max+param.LogT(), total)
 }
