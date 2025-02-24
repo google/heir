@@ -164,12 +164,27 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             propagate(modReduceOp.getResult(), modReduce);
             return success();
           })
+          .template Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {
+            auto localParam = getLocalParam(adjustScaleOp.getInput());
+
+            // adjust scale materializes to a mulconst
+            NoiseState someFactor = NoiseModel::evalConstant(localParam);
+            NoiseState mulConst = NoiseModel::evalMul(
+                localParam, operands[0]->getValue(), someFactor);
+            propagate(adjustScaleOp.getResult(), mulConst);
+            return success();
+          })
           .template Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
             auto localParam = getLocalParam(relinearizeOp.getInput());
 
             NoiseState relinearize = NoiseModel::evalRelinearize(
                 localParam, operands[0]->getValue());
             propagate(relinearizeOp.getResult(), relinearize);
+            return success();
+          })
+          .template Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) {
+            // preserve noise
+            propagate(levelReduceOp.getResult(), operands[0]->getValue());
             return success();
           })
           .Default([&](auto &op) { return success(); });
