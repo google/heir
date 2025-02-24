@@ -121,10 +121,42 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   for (auto [operand, operandLevel] : operandsInsertLevel) {
     Value managed = operand;
     rewriter.setInsertionPoint(op);
-    for (auto i = 0; i < resultLevel - operandLevel; ++i) {
-      inserted = true;
-      managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
-    };
+    // See section 4.1 of https://ia.cr/2020/1118
+    // The logic is to level_reduce + adjust_scale + modreduce for cross level
+    // op to ensure correct level, scale and reduce noise.
+    if (isMul) {
+      // let k = resultLevel - operandLevel
+      if (resultLevel - operandLevel > 1) {
+        // drop extra k - 1 levels
+        managed = rewriter.create<mgmt::LevelReduceOp>(
+            op.getLoc(), managed, resultLevel - operandLevel - 1);
+        // adjust scale to match the level specific scaling factor
+        // cross-level mul means operandLevel < maxLevel
+        // Note that maxLevel + 1 = resultLevel
+        managed = rewriter.create<mgmt::AdjustScaleOp>(op.getLoc(), managed);
+      }
+      // deal with the last level
+      if (resultLevel - operandLevel >= 1) {
+        inserted = true;
+        // mod reduce to ensure correct level and reduce noise
+        managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
+      }
+    } else {
+      // let k = resultLevel - operandLevel
+      if (resultLevel - operandLevel > 1) {
+        // drop extra k - 1 levels
+        managed = rewriter.create<mgmt::LevelReduceOp>(
+            op.getLoc(), managed, resultLevel - operandLevel - 1);
+      }
+      // deal with the last level
+      if (resultLevel - operandLevel >= 1) {
+        inserted = true;
+        // adjust scale to match the level specific scaling factor
+        managed = rewriter.create<mgmt::AdjustScaleOp>(op.getLoc(), managed);
+        // mod reduce to ensure correct level and reduce noise
+        managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
+      }
+    }
     op->replaceUsesOfWith(operand, managed);
   }
 
