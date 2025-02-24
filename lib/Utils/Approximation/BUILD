@@ -35,7 +35,7 @@ cc_library(
     hdrs = ["CaratheodoryFejer.h"],
     deps = [
         ":Chebyshev",
-        "@eigen//:eigen3",
+        "@eigen",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
     ],
