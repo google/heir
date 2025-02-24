@@ -39,36 +39,6 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
-class LWEOpAsmDialectInterface : public OpAsmDialectInterface {
- public:
-  using OpAsmDialectInterface::OpAsmDialectInterface;
-
-  AliasResult getAlias(Type type, raw_ostream& os) const override {
-    auto res = llvm::TypeSwitch<Type, AliasResult>(type)
-                   .Case<NewLWECiphertextType>([&](auto& type) {
-                     os << "ct";
-                     type.getCiphertextSpace().getAliasSuffix(os);
-                     return AliasResult::FinalAlias;
-                   })
-                   .Case<NewLWEPlaintextType>([&](auto& type) {
-                     os << "pt";
-                     return AliasResult::FinalAlias;
-                   })
-                   .Case<NewLWESecretKeyType>([&](auto& type) {
-                     os << "skey";
-                     type.getRing().getAliasSuffix(os);
-                     return AliasResult::FinalAlias;
-                   })
-                   .Case<NewLWEPublicKeyType>([&](auto& type) {
-                     os << "pkey";
-                     type.getRing().getAliasSuffix(os);
-                     return AliasResult::FinalAlias;
-                   })
-                   .Default([&](Type) { return AliasResult::NoAlias; });
-    return res;
-  }
-};
-
 void LWEDialect::initialize() {
   addAttributes<
 #define GET_ATTRDEF_LIST
@@ -82,8 +52,6 @@ void LWEDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/LWE/IR/LWEOps.cpp.inc"
       >();
-
-  addInterface<LWEOpAsmDialectInterface>();
 }
 
 LogicalResult RMulOp::verify() {
