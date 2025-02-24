@@ -34,6 +34,7 @@
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -187,7 +188,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
       auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
-      secretInsertMgmtBGVOptions.includeFirstMul =
+      secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
       break;
@@ -198,7 +199,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
     }
     case RLWEScheme::ckksScheme: {
       auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
-      secretInsertMgmtCKKSOptions.includeFirstMul =
+      secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
       pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
@@ -210,6 +211,8 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   }
 
   // Optimize relinearization at mgmt dialect level
+  // TODO: make optimize relinearization scale aware...
+  // determine whether it is safe...
   pm.addPass(createOptimizeRelinearization());
 
   // IR is stable now, compute scheme param
@@ -230,6 +233,8 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       validateNoiseOptions.model = generateParamOptions.model;
       validateNoiseOptions.annotateNoiseBound = options.annotateNoiseBound;
       pm.addPass(createValidateNoise(validateNoiseOptions));
+
+      pm.addPass(createPopulateScaleBGV());
       break;
     }
     case RLWEScheme::bfvScheme: {
@@ -249,6 +254,10 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       validateNoiseOptions.model = generateParamOptions.model;
       validateNoiseOptions.annotateNoiseBound = options.annotateNoiseBound;
       pm.addPass(createValidateNoise(validateNoiseOptions));
+
+      // still needed, otherwise it is 0 scale
+      // TODO: fix it
+      pm.addPass(createPopulateScaleBGV());
       break;
     }
     case RLWEScheme::ckksScheme: {
@@ -258,6 +267,11 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       generateParamOptions.slotNumber = options.ciphertextDegree;
       generateParamOptions.usePublicKey = options.usePublicKey;
       pm.addPass(createGenerateParamCKKS(generateParamOptions));
+
+      PopulateScaleCKKSOptions populateScaleCKKSOptions;
+      populateScaleCKKSOptions.beforeMulIncludeFirstMul =
+          options.modulusSwitchBeforeFirstMul;
+      pm.addPass(createPopulateScaleCKKS(populateScaleCKKSOptions));
       break;
     }
     default:

@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks --optimize-relinearization %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --secret-insert-mgmt-ckks --optimize-relinearization %s | FileCheck %s
 
 // Ensure that optimize-relinearization handles operations with multiple results.
 module {
@@ -16,6 +16,7 @@ module {
       %1:2 = affine.for %arg1 = 0 to 1 iter_args(%arg2 = %cst, %arg3 = %input0) -> (tensor<1x1024xf32>, tensor<1x1024xf32>) {
         %extracted_slice = tensor.extract_slice %cst_0[%arg1, 0] [1, 1024] [1, 1] : tensor<1024x1024xf32> to tensor<1x1024xf32>
         %3 = arith.mulf %arg3, %extracted_slice : tensor<1x1024xf32>
+        // %arg2 is first analysed as non-secret, then as secret...
         %4 = arith.addf %arg2, %3 : tensor<1x1024xf32>
         %5 = tensor_ext.rotate %arg3, %c1 : tensor<1x1024xf32>, index
         affine.yield %4, %5 : tensor<1x1024xf32>, tensor<1x1024xf32>

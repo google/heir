@@ -7,6 +7,7 @@
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -253,16 +254,39 @@ class SecretGenericOpCipherPlainConversion
       return failure();
     }
     Value cleartext = cleartextValues[0];
+    auto noOp =
+        dyn_cast_or_null<mgmt::NoOp>(cleartextValues[0].getDefiningOp());
+    if (!noOp) {
+      return failure();
+    }
+    Value realCleartext = noOp.getInput();
+    auto cleartextMgmtAttr = noOp->template getAttrOfType<mgmt::MgmtAttr>(
+        mgmt::MgmtDialect::kArgMgmtAttrName);
+    if (!cleartextMgmtAttr) {
+      return failure();
+    }
     lwe::NewLWECiphertextType ciphertextTy = ciphertext.getType();
+    Attribute ciphertextEncoding =
+        ciphertextTy.getPlaintextSpace().getEncoding();
+    Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
+        ciphertextEncoding, cleartextMgmtAttr.getScale());
+
+    if (!plaintextEncoding) {
+      return failure();
+    }
+
+    // TODO: inherit level/dimension from no-op mgmt attr
     auto plaintextTy = lwe::NewLWEPlaintextType::get(
         op.getContext(), ciphertextTy.getApplicationData(),
-        ciphertextTy.getPlaintextSpace());
+        lwe::PlaintextSpaceAttr::get(op.getContext(),
+                                     ciphertextTy.getPlaintextSpace().getRing(),
+                                     plaintextEncoding));
     auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
-        op.getLoc(), plaintextTy, cleartext,
-        ciphertextTy.getPlaintextSpace().getEncoding(),
+        op.getLoc(), plaintextTy, realCleartext, plaintextEncoding,
         ciphertextTy.getPlaintextSpace().getRing());
 
-    auto newOp = rewriter.replaceOpWithNewOp<Y>(op, ciphertext, plaintext);
+    auto newOp = rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], ciphertext,
+                                                plaintext);
     return newOp.getOperation();
   }
 };
@@ -374,6 +398,27 @@ class SecretGenericOpModulusSwitchConversion
 
     auto newOp = rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0],
                                                 outputRing);
+    return newOp.getOperation();
+  }
+};
+
+template <typename T>
+class SecretGenericOpLevelReduceConversion
+    : public SecretGenericOpConversion<mgmt::LevelReduceOp, T> {
+ public:
+  using SecretGenericOpConversion<mgmt::LevelReduceOp,
+                                  T>::SecretGenericOpConversion;
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter &rewriter) const override {
+    auto innerOp =
+        cast<mgmt::LevelReduceOp>(op.getBody()->getOperations().front());
+    auto levelToDrop = innerOp.getLevelToDrop();
+
+    auto newOp =
+        rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], levelToDrop);
     return newOp.getOperation();
   }
 };
