@@ -64,4 +64,17 @@ def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
   let assemblyFormat =  "`<` struct(params) `>`";
 }
 
+def OriginalType_Attr : TensorExt_Attr<"OriginalType", "original_type"> {
+  let summary = "The original type of a secret tensor whose layout has been converted to ciphertext semantics.";
+  let description = [{
+  // FIXME: add description
+  }];
+  let parameters = (ins
+    "::mlir::Type":$originalType,
+    "::mlir::AffineMap":$layout
+  );
+  let assemblyFormat =  "`<` struct(params) `>`";
+}
+
+
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTATTRIBUTES_TD_
