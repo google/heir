@@ -50,6 +50,16 @@ LogicalResult LevelAnalysis::visitOperation(
         auto level = operandLattice->getValue().getLevel();
         propagate(modReduceOp.getResult(), LevelState(level + 1));
       })
+      .Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) {
+        // implicitly ensure that the operand is secret
+        const auto *operandLattice = operands[0];
+        if (!operandLattice->getValue().isInitialized()) {
+          return;
+        }
+        auto level = operandLattice->getValue().getLevel();
+        propagate(levelReduceOp.getResult(),
+                  LevelState(level + levelReduceOp.getLevelToDrop()));
+      })
       .Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
         // implicitly ensure that the result is secret
         // reset level to 0
