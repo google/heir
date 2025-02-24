@@ -88,7 +88,7 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
       return;
     }
 
-    annotateLevel(getOperation(), &solver);
+    annotateLevel(getOperation(), &solver, baseLevel);
     annotateDimension(getOperation(), &solver);
     // combine level and dimension into MgmtAttr
     // also removes the level/dimension annotations
