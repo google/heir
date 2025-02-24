@@ -18,7 +18,7 @@
 
 
 //  CHECK-LABEL: @successful_forwarding
-//  CHECK-SAME:  (%[[ARG0:.*]]: !openfhe.crypto_context,
+//  CHECK-SAME:  (%[[ARG0:.*]]: !cc,
 
 
 func.func @successful_forwarding(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: tensor<1x16x!ct>, %arg3: tensor<16xf64>, %arg4: tensor<16xf64>) -> tensor<1x16x!ct> {
@@ -61,7 +61,7 @@ func.func @successful_forwarding(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: ten
 
 //hits def == nullptr
 //  CHECK-LABEL: @forward_from_func_arg
-//  CHECK-SAME:  (%[[ARG0:.*]]: !openfhe.crypto_context,
+//  CHECK-SAME:  (%[[ARG0:.*]]: !cc,
 
 func.func @forward_from_func_arg(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: tensor<1x16x!ct>)-> !ct {
   // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : index
@@ -73,7 +73,7 @@ func.func @forward_from_func_arg(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: ten
 }
 
 //  CHECK-LABEL: @forwarding_with_an_insert_in_between
-//  CHECK-SAME:  (%[[ARG0:.*]]: !openfhe.crypto_context,
+//  CHECK-SAME:  (%[[ARG0:.*]]: !cc,
 
 func.func @forwarding_with_an_insert_in_between(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: tensor<1x16x!ct>, %arg3: tensor<16xf64> )-> !ct {
 
@@ -104,7 +104,7 @@ func.func @forwarding_with_an_insert_in_between(%arg0: !cc, %arg1: tensor<1x16x!
 }
 
 //  CHECK-LABEL: @forwarding_with_an_operation_in_between
-//  CHECK-SAME:  (%[[ARG0:.*]]: !openfhe.crypto_context,
+//  CHECK-SAME:  (%[[ARG0:.*]]: !cc,
 
 func.func @forwarding_with_an_operation_in_between(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: tensor<1x16x!ct>, %arg3: tensor<16xf64>, %arg4: i1 )-> !ct {
 
@@ -138,7 +138,7 @@ func.func @forwarding_with_an_operation_in_between(%arg0: !cc, %arg1: tensor<1x1
 
 
 //  CHECK-LABEL: @two_extracts_both_forwarded
-//  CHECK-SAME:  (%[[ARG0:.*]]: !openfhe.crypto_context,
+//  CHECK-SAME:  (%[[ARG0:.*]]: !cc,
 
 func.func @two_extracts_both_forwarded(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg2: tensor<1x16x!ct>, %arg3: tensor<16xf64>) -> !ct {
 
