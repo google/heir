@@ -33,6 +33,8 @@ def Openfhe_PrivateKey : Openfhe_Type<"PrivateKey", "private_key"> {
   let asmName = "sk";
 }
 
+def Openfhe_PublicKeyOrPrivateKey : AnyTypeOf<[Openfhe_PublicKey, Openfhe_PrivateKey]>;
+
 def Openfhe_EvalKey : Openfhe_Type<"EvalKey", "eval_key"> {
   let summary = "The evaluation key required to keyswitch/relinearize/rotate/automorphism operation in OpenFHE.";
   let asmName = "ek";
