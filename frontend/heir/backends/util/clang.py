@@ -4,6 +4,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+from typing import Callable, Optional
 
 Path = pathlib.Path
 
@@ -11,7 +12,7 @@ Path = pathlib.Path
 # I would specify -stdlib here, but that would prevent clang from discovering
 # the includes automatically and searching for them when compiling. Probably best
 # to let clang try to automate it, rather than manually pass in stdlib paths.
-DEFAULT_COMPILER_FLAGS = "-O3 -fPIC -shared -std=c++17".split()
+DEFAULT_COMPILER_FLAGS: list[str] = ["-O3", "-fPIC", "-shared", "-std=c++17"]
 
 
 def to_clang_args(prefix, strs):
@@ -21,7 +22,7 @@ def to_clang_args(prefix, strs):
 class ClangBackend:
   """A helper to find and run clang."""
 
-  def __init__(self, path_to_clang: str = None):
+  def __init__(self, path_to_clang: Optional[str] = None):
     self.compiler_binary_path = path_to_clang or self._find_clang()
 
   def _find_clang(self):
@@ -34,13 +35,14 @@ class ClangBackend:
       self,
       cpp_source_filepath: Path,
       shared_object_output_filepath: Path,
-      compiler_flags: str = DEFAULT_COMPILER_FLAGS,
-      include_paths: list[str] = None,
-      linker_search_paths: list[str] = None,
-      link_libs: list[str] = None,
-      linker_args: list[str] = None,
-      abs_link_lib_paths: list[str] = None,
-  ) -> Path:
+      compiler_flags: list[str] = DEFAULT_COMPILER_FLAGS,
+      include_paths: Optional[list[str]] = None,
+      linker_search_paths: Optional[list[str]] = None,
+      link_libs: Optional[list[str]] = None,
+      linker_args: Optional[list[str]] = None,
+      abs_link_lib_paths: Optional[list[str | Path]] = None,
+      arg_printer: Optional[Callable] = None,
+  ):
     """Compile C++ source to a shared object file.
 
     Args:
@@ -67,11 +69,9 @@ class ClangBackend:
     abs_link_lib_paths = abs_link_lib_paths or []
 
     if linker_args:
-      linker_args = (
-          "-Wl," + ",".join(str(x) for x in linker_args) if linker_args else []
-      )
+      linker_args = ["-Wl," + ",".join(str(x) for x in linker_args)]
     else:
-      linker_args = ""
+      linker_args = []
 
     args = (
         [
@@ -85,8 +85,11 @@ class ClangBackend:
         + include_args
         + linker_search_path_args
         + link_lib_args
-        + [linker_args]
+        + linker_args
     )
+    if arg_printer:
+      arg_printer(args)
+
     completed_process = subprocess.run(
         args,
         text=True,

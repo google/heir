@@ -78,10 +78,14 @@ def from_os_env(debug=False) -> OpenFHEConfig:
   include_dirs = os.environ.get("OPENFHE_INCLUDE_DIR", "").split(":")
   link_libs = os.environ.get("OPENFHE_LINK_LIBS", "").split(":")
 
+  # remove empty strings
+  include_dirs = [dir for dir in include_dirs if dir]
+  link_libs = [lib for lib in link_libs if lib]
+
   # Special case for bazel, RUNFILES_DIR is in OSS, TEST_SRCDIR is
   # for Google-internal testing.
   if "RUNFILES_DIR" in os.environ or "TEST_SRCDIR" in os.environ:
-    path_base = os.getenv("RUNFILES_DIR", os.getenv("TEST_SRCDIR"))
+    path_base = os.getenv("RUNFILES_DIR", os.getenv("TEST_SRCDIR", ""))
     # bazel data dep on @openfhe//:core puts libcore.so in the
     # $RUNFILES/openfhe dir
     lib_dir = os.path.join(path_base, lib_dir)

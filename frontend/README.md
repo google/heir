@@ -1,10 +1,4 @@
-# heir_py Developer's Notes
-
-This Python frontend is currently _experimental_. Current **missing** features
-include:
-
-- Being able to `pip install` the local development tree
-- Being able to `pip install` from PyPI.
+# HEIR Frontend Developer's Notes
 
 ## Overview
 
@@ -23,32 +17,40 @@ C++ standard libraries available on you system.
 You should be able to run the frontend directly from python (without using
 bazel) by (from the HEIR project root):
 
-- `pip install -r heir_py/requirements.txt`
-- `python -m heir_py.example` or `python -i -m heir_py.pipeline`
+- `python frontend/example.py` This will use `heir_opt` and `heir_translate`
+  from your bazel-bin build folder, and assumes OpenFHE is installed.
 
-This will attempt to discover everything needed on your system from the
-operating system.
+You can also install the frontend:
+
+- `pip install -e frontend` In this case, `heir_opt` and `heir_translate` should
+  be on your PATH, or the appropriate environment variables (see below) should
+  be set.
 
 You will need the following system-level dependencies to do this:
 
-- `clang` (not sure what versions are supported, has been tested on `clang-17`)
-- For C++ backends like OpenFHE, `python3.11-dev` (or similar for your python
-  version) in order to build generated `pybind11` bindings.
-- C/c++ standard libraries that come with your system's compiler toolchain, but
-  may be in a nonstandard location. Ensure they can be discovered by a call to
-  `clang` without any special flags. (`clang -v` will show you which paths it
-  considers).
+- Python 3.11 or newer
+- For C++ backends like OpenFHE:
+  - `clang` (not sure what versions are supported, has been tested on
+    `clang-17`)
+  - `python3.11-dev` (or similar for your python version) in order to build
+    generated `pybind11` bindings.
+  - C/c++ standard libraries that come with your system's compiler toolchain,
+    but may be in a nonstandard location. Ensure they can be discovered by a
+    call to `clang` without any special flags. (`clang -v` will show you which
+    paths it considers).
 
-If this doesn't work, you may need to set up the following environment
-variables:
+## Environment Variables:
 
 - `HEIR_OPT_PATH` and `HEIR_TRANSLATE_PATH`: to the location of the `heir-opt`
   and `heir-translate` binaries on your system.
+
   - Uses `shutil.which` to find the binary on your path if not set.
   - Defaults to `bazel-bin/tools/heir-{opt,translate}`.
-  - Cf. `heir_py/heir_config.py` for more details.
+  - Cf. `heir/backends/openfhe/config.py` for more details.
+
 - OpenFHE installation locations (default to where `cmake` installs them in the
   OpenFHE development repo).
+
   - `OPENFHE_LIB_DIR`: a string containing the directory containing the OpenFHE
     .so files. Usually `/usr/local/lib`
   - `OPENFHE_INCLUDE_DIR`: a colon-separated string of directories containing
@@ -68,8 +70,8 @@ variables:
 ## Running from bazel
 
 `bazel test` should work out of the box. If it does not, file a bug.
-`heir_py/testing.bzl` contains the environment variable setup required to tell
-the frontend where to find OpenFHE and related backend shared libraries.
+`testing.bzl` contains the environment variable setup required to tell the
+frontend where to find OpenFHE and related backend shared libraries.
 
 ## Formatting
 

@@ -36,20 +36,21 @@ bazel_skylib_workspace()
 # Depend on a hermetic python version
 new_git_repository(
     name = "rules_python",
-    commit = "9ffb1ecd9b4e46d2a0bca838ac80d7128a352f9f",  # v0.23.1
+    commit = "1aa0d9f63ed7b98c65a81c4e78ebef2a258ee673",  # v1.1.0
     remote = "https://github.com/bazelbuild/rules_python.git",
 )
 
-load("@rules_python//python:repositories.bzl", "python_register_toolchains")
+load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
+
+py_repositories()
 
 python_register_toolchains(
-    name = "python3_10",
+    name = "python3_11",
     # Available versions are listed at
     # https://github.com/bazelbuild/rules_python/blob/main/python/versions.bzl
-    python_version = "3.10",
+    python_version = "3.11",
 )
 
-load("@python3_10//:defs.bzl", "interpreter")
 load("@rules_python//python:pip.bzl", "pip_parse")
 
 # Download the Go rules.
@@ -223,7 +224,7 @@ http_archive(
 
 pip_parse(
     name = "heir_pip_deps",
-    python_interpreter_target = interpreter,
+    python_interpreter_target = "@python3_11_host//:python",
     requirements_lock = "//:requirements.txt",
 )
 
@@ -231,14 +232,14 @@ load("@heir_pip_deps//:requirements.bzl", "install_deps")
 
 install_deps()
 
-# separate pip deps for heir_py
+# separate pip deps for frontend
 pip_parse(
-    name = "heir_py_pip_deps",
-    python_interpreter_target = interpreter,
-    requirements_lock = "//heir_py:requirements.txt",
+    name = "frontend_pip_deps",
+    python_interpreter_target = "@python3_11_host//:python",
+    requirements_lock = "//frontend:requirements.txt",
 )
 
-load("@heir_py_pip_deps//:requirements.bzl", "install_deps")  # buildifier: disable=load
+load("@frontend_pip_deps//:requirements.bzl", "install_deps")  # buildifier: disable=load
 
 install_deps()
 
