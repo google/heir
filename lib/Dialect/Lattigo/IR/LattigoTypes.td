@@ -15,10 +15,17 @@ class Lattigo_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 
   string asmName = ?;
+  string aliasSuffix = "";
   let extraClassDeclaration = [{
     // OpAsmTypeInterface method
     void getAsmName(::mlir::OpAsmSetNameFn setNameFn) const {
       setNameFn("}] # asmName # [{");
+    }
+
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # asmName # [{";
+      }] # aliasSuffix # [{
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
     }
   }];
 }
