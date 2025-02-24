@@ -96,7 +96,8 @@ class LevelAnalysis
 
 LevelState::LevelType getLevelFromMgmtAttr(Value value);
 
-void annotateLevel(Operation *top, DataFlowSolver *solver);
+/// baseLevel is for B/FV scheme, where all the analysis result would be 0
+void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel = 0);
 
 }  // namespace heir
 }  // namespace mlir

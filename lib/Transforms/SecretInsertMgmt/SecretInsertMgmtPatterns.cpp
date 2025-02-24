@@ -143,6 +143,14 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
 }
 
 template <typename Op>
+LogicalResult RemoveOp<Op>::matchAndRewrite(Op op,
+                                            PatternRewriter &rewriter) const {
+  rewriter.replaceAllUsesWith(op->getResult(0), op->getOperand(0));
+  rewriter.eraseOp(op);
+  return success();
+}
+
+template <typename Op>
 LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
     Op op, PatternRewriter &rewriter) const {
   auto levelLattice = solver->lookupState<LevelLattice>(op->getResult(0));
@@ -188,6 +196,9 @@ template struct ModReduceBefore<secret::YieldOp>;
 // isMul = false
 template struct ModReduceBefore<arith::AddIOp>;
 template struct ModReduceBefore<arith::SubIOp>;
+
+// for B/FV
+template struct RemoveOp<mgmt::ModReduceOp>;
 
 // for CKKS
 template struct MultRelinearize<arith::MulFOp>;

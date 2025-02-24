@@ -67,13 +67,57 @@ def SecretInsertMgmtBGV : Pass<"secret-insert-mgmt-bgv", "ModuleOp"> {
 
   let dependentDialects = [
     "mlir::heir::secret::SecretDialect",
-    "mlir::heir::mgmt::MgmtDialect",
-    "mlir::func::FuncDialect"
+    "mlir::heir::mgmt::MgmtDialect"
   ];
 
   let options = [
     Option<"includeFirstMul", "include-first-mul", "bool",
            /*default=*/"false", "Modulus switching right before the first multiplication (default to false)">
+  ];
+}
+
+def SecretInsertMgmtBFV : Pass<"secret-insert-mgmt-bfv", "ModuleOp"> {
+  let summary = "Place BFV ciphertext management operations";
+
+  let description = [{
+    This pass inserts relinearization operation for multiplication, and
+    compute the multiplicative depth, or the level information.
+
+    For most cases B/FV is instantiated with no mod reduce so it is not a leveled scheme.
+    However, for instantiating B/FV parameters it is often meaningful to know the multiplicative
+    depth of the circuit.
+
+    Example of multiplication+addition:
+    ```mlir
+    func.func @func(%arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>) -> !secret.secret<i16> {
+      %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) {
+      ^bb0(%arg2: i16, %arg3: i16):
+        %1 = arith.muli %arg2, %arg3 : i16
+        %2 = arith.addi %1, %arg3 : i16
+        secret.yield %2 : i16
+      } -> !secret.secret<i16>
+      return %0 : !secret.secret<i16>
+    }
+    ```
+
+    which get transformed to:
+    ```mlir
+    func.func @func(%arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>) -> !secret.secret<i16> {
+      %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}, arg1 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}} {
+      ^body(%input0: i16, %input1: i16):
+        %1 = arith.muli %input0, %input1 {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3>} : i16
+        %2 = mgmt.relinearize %1 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16
+        %3 = arith.addi %2, %input1 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16
+        secret.yield %3 : i16
+      } -> !secret.secret<i16>
+      return %0 : !secret.secret<i16>
+    }
+    ```
+  }];
+
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::heir::mgmt::MgmtDialect"
   ];
 }
 
@@ -99,8 +143,7 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
 
   let dependentDialects = [
     "mlir::heir::secret::SecretDialect",
-    "mlir::heir::mgmt::MgmtDialect",
-    "mlir::func::FuncDialect"
+    "mlir::heir::mgmt::MgmtDialect"
   ];
 
   let options = [

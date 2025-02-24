@@ -16,6 +16,7 @@ cc_library(
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/OptimizeRelinearizationAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",
         "@heir//lib/Dialect/Secret/IR:Dialect",

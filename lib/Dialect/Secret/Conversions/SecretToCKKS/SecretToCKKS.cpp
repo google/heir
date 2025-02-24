@@ -18,7 +18,6 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
-#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -401,9 +400,6 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
-
-    // Helper for future lowerings that want to know what scheme was used
-    moduleSetCKKS(module);
 
     // generate scheme parameters
     auto maxLevel = getMaxLevel();

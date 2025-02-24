@@ -10,6 +10,10 @@ def AnnotateMgmt : Pass<"annotate-mgmt"> {
   saving it into each op's attribute dictionary as mgmt.mgmt : <analysis results>
   }];
   let dependentDialects = ["mlir::heir::mgmt::MgmtDialect"];
+  let options = [
+    Option<"baseLevel", "base-level", "int",
+           /*default=*/"0", "Level to start counting from (used by B/FV)">,
+  ];
 }
 
 #endif  // LIB_DIALECT_MGMT_TRANSFORMS_PASSES_TD_

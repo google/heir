@@ -32,8 +32,6 @@ def SecretToBGV : Pass<"secret-to-bgv"> {
     Option<"polyModDegree", "poly-mod-degree", "int",
            /*default=*/"1024", "Default degree of the cyclotomic polynomial "
            "modulus to use for ciphertext space.">,
-    Option<"isBFV", "is-bfv", "bool",
-           /*default=*/"false", "Whether to use the BFV scheme instead of BGV.">,
   ];
 }
 
