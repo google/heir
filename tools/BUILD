@@ -7,7 +7,7 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-WORKSPACE_PATH = ""
+WORKSPACE_PATH = "_main"
 
 # Custom `mlir-opt` replacement that links our dialect and passes
 cc_binary(
