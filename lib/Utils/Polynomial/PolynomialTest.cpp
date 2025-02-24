@@ -82,6 +82,31 @@ TEST(PolynomialTest, TestSubZero) {
   EXPECT_TRUE(result.isZero());
 }
 
+TEST(PolynomialTest, TestNaiveMul) {
+  IntPolynomial polynomial = IntPolynomial::fromCoefficients({1, 2, 3});
+  IntPolynomial result = polynomial.naiveMul(polynomial);
+  IntPolynomial expected = IntPolynomial::fromCoefficients({1, 4, 10, 12, 9});
+  EXPECT_EQ(expected, result);
+}
+
+TEST(PolynomialTest, TestNaiveMulFloat) {
+  FloatPolynomial polynomial = FloatPolynomial::fromCoefficients({1., 2., 3.});
+  FloatPolynomial result = polynomial.naiveMul(polynomial);
+  FloatPolynomial expected =
+      FloatPolynomial::fromCoefficients({1., 4., 10., 12., 9.});
+  EXPECT_EQ(expected, result);
+}
+
+TEST(PolynomialTest, TestComposeFloat) {
+  FloatPolynomial p1 = FloatPolynomial::fromCoefficients({-2.0, 1.0, 3.5});
+  FloatPolynomial p2 = FloatPolynomial::fromCoefficients({1.0, 2.0, 0.0, 4.9});
+  FloatPolynomial result = p1.compose(p2);
+  FloatPolynomial expected = FloatPolynomial::fromCoefficients(
+      {2.5, 16.0, 14.0, 39.200000000000003, 68.600000000000009, 0.0,
+       84.03500000000001});
+  EXPECT_EQ(expected, result);
+}
+
 }  // namespace
 }  // namespace polynomial
 }  // namespace heir

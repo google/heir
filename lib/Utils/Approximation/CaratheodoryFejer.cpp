@@ -25,7 +25,7 @@ using ::llvm::APFloat;
 using ::llvm::SmallVector;
 using ::mlir::heir::polynomial::FloatPolynomial;
 
-FloatPolynomial caratheodoryFejerApproximation(
+FloatPolynomial caratheodoryFejerApproximationUnitInterval(
     const std::function<APFloat(APFloat)> &func, int32_t degree,
     std::optional<int32_t> chebDegree) {
   // Construct the Chebyshev interpolant.
@@ -119,6 +119,32 @@ FloatPolynomial caratheodoryFejerApproximation(
   }
 
   return chebyshevToMonomial(pk);
+}
+
+FloatPolynomial caratheodoryFejerApproximation(
+    const std::function<APFloat(APFloat)> &func, int32_t degree, double lower,
+    double upper, std::optional<int32_t> chebDegree) {
+  bool needsScaling = lower != -1.0 || upper != 1.0;
+  double midPoint = (lower + upper) / 2;
+  double halfLen = (upper - lower) / 2;
+  std::function<APFloat(APFloat)> funcScaled;
+  if (needsScaling) {
+    funcScaled = [&](const APFloat &x) {
+      APFloat input = APFloat(midPoint) + APFloat(halfLen) * x;
+      return func(input);
+    };
+  } else {
+    funcScaled = func;
+  }
+  FloatPolynomial approximant = caratheodoryFejerApproximationUnitInterval(
+      funcScaled, degree, chebDegree);
+
+  if (needsScaling) {
+    FloatPolynomial y =
+        FloatPolynomial::fromCoefficients({-midPoint / halfLen, 1 / halfLen});
+    approximant = approximant.compose(y);
+  }
+  return approximant;
 }
 
 }  // namespace approximation

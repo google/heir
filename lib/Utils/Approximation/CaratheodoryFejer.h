@@ -28,8 +28,12 @@ namespace approximation {
 /// The argument chebDegree provides control over the degree of the Chebyshev
 /// interpolation used to seed the CF approximation. If unset, it
 /// is heuristically chosen as twice the desired CF approximant degree.
+///
+/// The arguments lower and upper provide the bounds of the interval of
+/// approximation. which defaults to [-1, 1].
 ::mlir::heir::polynomial::FloatPolynomial caratheodoryFejerApproximation(
     const std::function<::llvm::APFloat(::llvm::APFloat)> &func, int32_t degree,
+    double lower = -1.0, double upper = 1.0,
     std::optional<int32_t> chebDegree = std::nullopt);
 
 }  // namespace approximation

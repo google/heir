@@ -2,6 +2,7 @@
 #define LIB_UTILS_POLYNOMIAL_POLYNOMIAL_H_
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <string>
@@ -10,6 +11,7 @@
 #include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Hashing.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"      // from @llvm-project
 #include "llvm/include/llvm/ADT/Twine.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -123,6 +125,7 @@ template <class Derived, typename Monomial, typename CoefficientType>
 class PolynomialBase {
  public:
   PolynomialBase() = delete;
+  virtual ~PolynomialBase<Derived, Monomial, CoefficientType>() = default;
 
   explicit PolynomialBase(ArrayRef<Monomial> terms) : terms(terms) {}
 
@@ -160,6 +163,17 @@ class PolynomialBase {
         llvm::SmallString<16> expString;
         term.getExponent().toStringSigned(expString);
         os << coeffToPrint << "x" << exponentiation << expString;
+      }
+    }
+  }
+
+  /// Remove terms with a zero coefficient.
+  void canonicalize() {
+    for (auto it = terms.begin(); it != terms.end();) {
+      if (it->getCoefficient().isZero()) {
+        it = terms.erase(it);
+      } else {
+        ++it;
       }
     }
   }
@@ -202,6 +216,60 @@ class PolynomialBase {
       it2++;
     }
     return Derived(newTerms);
+  }
+
+  Derived naiveMul(const Derived &other) const {
+    SmallVector<Monomial> newTerms;
+    size_t maxDegree = getDegree() + other.getDegree();
+    newTerms.reserve(maxDegree + 1);
+    for (size_t i = 0; i <= maxDegree; ++i) {
+      newTerms.push_back(Monomial(0, i));
+    }
+
+    for (size_t i = 0; i < terms.size(); ++i) {
+      for (size_t j = 0; j < other.terms.size(); ++j) {
+        int combinedDegree = terms[i].getExponent().getZExtValue() +
+                             other.terms[j].getExponent().getZExtValue();
+        newTerms[combinedDegree].setCoefficient(
+            newTerms[combinedDegree].getCoefficient() +
+            terms[i].getCoefficient() * other.terms[j].getCoefficient());
+      }
+    }
+    auto result = Derived(newTerms);
+    result.canonicalize();
+    return result;
+  }
+
+  // Compose two polynomials this(other)
+  Derived compose(const Derived &other) const {
+    // This = a_0 + a_1x + ... + a_nx^n
+    // Other = b_0 + b_1x + ... + b_mx^m
+
+    // Note this could be faster by using an FFT-based algorithm: evaluate
+    // the composite polynomial at the roots of unity, then apply an iFFT.
+    // Since the only current use case for this is to rescale a polynomial
+    // to a different domain (e.g. [-1, 1] -> [a, b]), the `other` polynomial
+    // is always degree 1, so this should not be a bottleneck.
+
+    // Using Horner's method:
+    // initialize to a_n
+    assert(!terms.empty());
+    Monomial init = Monomial(terms.back());
+    APInt zero = APInt(apintBitWidth, 0);
+    init.setExponent(zero);
+    Derived result = Derived::fromMonomials(init).value();
+
+    // For each term a_i x^i in decreasing degree order, compute
+    // result = result * b(x) + a_i
+    for (Monomial term : llvm::drop_begin(llvm::reverse(terms))) {
+      Monomial nextCoeffConstant = Monomial(term);
+      nextCoeffConstant.setExponent(zero);
+      Derived nextCoeff = Derived::fromMonomials({nextCoeffConstant}).value();
+      result = result.naiveMul(other).add(nextCoeff);
+    }
+
+    result.canonicalize();
+    return result;
   }
 
   Derived monomialMul(int exponent) const {
