@@ -108,6 +108,18 @@ openfhe_end_to_end_test(
     test_src = "dot_product_8_bfv_test.cpp",
 )
 
+openfhe_end_to_end_test(
+    name = "dot_product_8_bfv_debug_test",
+    generated_lib_header = "dot_product_8_bfv_debug_lib.h",
+    heir_opt_flags = [
+        "--mlir-to-bfv=ciphertext-degree=8",
+        "--scheme-to-openfhe=insert-debug-handler-calls=true",
+    ],
+    mlir_src = "dot_product_8.mlir",
+    tags = ["notap"],
+    test_src = "dot_product_8_bfv_debug_test.cpp",
+)
+
 # CKKS
 
 openfhe_end_to_end_test(
