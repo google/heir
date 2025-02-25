@@ -5,7 +5,9 @@ common --test_output=errors
 # compilation_mode options below are `dbg` (debug symbols) `fastbuild`
 # (build as quickly as possible), and `opt` (turn on all optimizations)
 common -c dbg
-common --noenable_bzlmod
+common --enable_bzlmod
+# required for hybrid bzlmod+workspace builds
+common --enable_workspace
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
 

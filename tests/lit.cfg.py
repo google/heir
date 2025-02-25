@@ -9,24 +9,24 @@ config.suffixes = [".mlir", ".v"]
 
 # lit executes relative to the directory
 #
-#   bazel-bin/tests/<test_target_name>.runfiles/heir/
+#   bazel-bin/tests/<test_target_name>.runfiles/_main/
 #
 # which contains tools/ and tests/ directories and the binary targets built
 # within them, brought in via the `data` attribute in the BUILD file. To
 # manually inspect the filesystem in situ, add the following to this script and
 # run `bazel test //tests:<target>`
 #
-#   import subprocess
+# import subprocess
 #
-#   print(subprocess.run(["pwd",]).stdout)
-#   print(subprocess.run(["ls", "-l", os.environ["RUNFILES_DIR"]]).stdout)
-#   print(subprocess.run([ "env", ]).stdout)
+# print(subprocess.run(["pwd",]).stdout)
+# print(subprocess.run(["ls", "-l", os.environ["RUNFILES_DIR"]]).stdout)
+# print(subprocess.run([ "env", ]).stdout)
 #
 # Hence, to get lit to see tools like `heir-opt`, we need to add the tools/
 # subdirectory to the PATH environment variable.
 #
-# Bazel defines RUNFILES_DIR which includes heir/ and third party dependencies
-# as their own directory. Generally, it seems that $PWD == $RUNFILES_DIR/heir/
+# Bazel defines RUNFILES_DIR which includes _main/ and third party dependencies
+# as their own directory. Generally, it seems that $PWD == $RUNFILES_DIR/_main/
 
 runfiles_dir = Path(os.environ["RUNFILES_DIR"])
 
@@ -34,8 +34,8 @@ mlir_tools_relpath = "llvm-project/mlir"
 mlir_tools_path = runfiles_dir.joinpath(Path(mlir_tools_relpath))
 tool_relpaths = [
     mlir_tools_relpath,
-    "heir/tools",
-    "heir/tests/Emitter/verilog",
+    "_main/tools",
+    "_main/tests/Emitter/verilog",
     "llvm-project/llvm",
     "at_clifford_yosys",
 ]
@@ -54,7 +54,7 @@ abc_relpath = "edu_berkeley_abc/abc"
 config.environment["HEIR_ABC_BINARY"] = str(
     runfiles_dir.joinpath(Path(abc_relpath))
 )
-yosys_libs = "heir/lib/Transforms/YosysOptimizer/yosys"
+yosys_libs = "_main/lib/Transforms/YosysOptimizer/yosys"
 config.environment["HEIR_YOSYS_SCRIPTS_DIR"] = str(
     runfiles_dir.joinpath(Path(yosys_libs))
 )

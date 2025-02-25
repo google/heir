@@ -1,3 +1,4 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@heir//frontend:testing.bzl", "frontend_test")
 load("@rules_python//python:py_library.bzl", "py_library")
 
@@ -36,6 +37,7 @@ py_library(
     deps = [
         "@frontend_pip_deps//colorama",
         "@frontend_pip_deps//numba",
+        "@frontend_pip_deps//numpy",
         "@frontend_pip_deps//pybind11",
         "@frontend_pip_deps//pybind11_global",
     ],
@@ -57,4 +59,11 @@ frontend_test(
         # copybara: manual
         "notap",
     ],
+)
+
+bzl_library(
+    name = "testing_bzl",
+    srcs = ["testing.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_python//python:defs_bzl"],
 )

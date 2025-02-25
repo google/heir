@@ -2,7 +2,7 @@
 
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 
 def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = [], heir_translate_flags = [], extra_srcs = [], data = [], tags = [], deps = [], **kwargs):
     """A rule for generating Lattigo code from an MLIR file.
@@ -46,10 +46,10 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
         name = go_package_name,
         srcs = extra_srcs + [":" + generated_go_filename],
         deps = deps + [
-            "@com_github_tuneinsight_lattigo//:lattigo",
-            "@com_github_tuneinsight_lattigo//core/rlwe",
-            "@com_github_tuneinsight_lattigo//schemes/bgv",
-            "@com_github_tuneinsight_lattigo//schemes/ckks",
+            "@com_github_tuneinsight_lattigo_v6//:lattigo",
+            "@com_github_tuneinsight_lattigo_v6//core/rlwe",
+            "@com_github_tuneinsight_lattigo_v6//schemes/bgv",
+            "@com_github_tuneinsight_lattigo_v6//schemes/ckks",
         ],
         tags = tags,
         data = data,

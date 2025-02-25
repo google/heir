@@ -1,3 +1,4 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@heir//tests/Examples/jaxite:test.bzl", "jaxite_end_to_end_test")
 load("@rules_python//python:py_library.bzl", "py_library")
 load("//bazel:lit.bzl", "glob_lit_tests")
@@ -18,7 +19,7 @@ glob_lit_tests(
 py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
-    deps = ["@heir_pip_deps_jaxite//:pkg"],
+    deps = ["@heir_pip_deps//jaxite"],
 )
 
 jaxite_end_to_end_test(
@@ -39,3 +40,13 @@ jaxite_end_to_end_test(
 exports_files([
     "add_one_lut3.mlir",
 ])
+
+bzl_library(
+    name = "test_bzl",
+    srcs = ["test.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@heir//tools:heir_jaxite_bzl",
+        "@rules_python//python:py_test_bzl",
+    ],
+)

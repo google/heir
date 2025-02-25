@@ -1,8 +1,8 @@
 """Tests for fully_connected."""
 
 from absl.testing import absltest
-from heir.tests.Examples.jaxite import fully_connected_lib
-from heir.tests.Examples.jaxite import test_utils
+from tests.Examples.jaxite import fully_connected_lib
+from tests.Examples.jaxite import test_utils
 
 
 class FullyConnectedTest(absltest.TestCase):
@@ -23,5 +23,5 @@ class FullyConnectedTest(absltest.TestCase):
     self.assertEqual(x + 1 + 128, result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()

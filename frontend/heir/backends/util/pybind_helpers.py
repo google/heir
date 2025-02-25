@@ -64,7 +64,7 @@ def pybind11_includes() -> list[str]:
 
     dirs.append(get_include())
   except ImportError:
-    pybind11_include = os.env.get("PYBIND11_INCLUDE_PATH", "")
+    pybind11_include = os.environ.get("PYBIND11_INCLUDE_PATH", "")
     if not pybind11_include:
       raise ValueError(
           "PYBIND11_INCLUDE_PATH is not set and pybind11 is not pip installed."

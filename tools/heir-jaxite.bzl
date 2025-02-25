@@ -45,7 +45,7 @@ def fhe_jaxite_lib(name, mlir_src, entry_function_flag = "", py_lib_target_name 
     py_library(
         name = py_lib_target_name,
         srcs = [":" + generated_py_filename],
-        deps = deps + ["@heir_pip_deps_jaxite//:pkg"],
+        deps = deps + ["@heir_pip_deps//jaxite"],
         tags = tags,
         **kwargs
     )

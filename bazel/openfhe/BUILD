@@ -2,6 +2,6 @@
 # to have access to the files.
 
 package(
-    default_applicable_licenses = ["@heir//:license"],
+    default_applicable_licenses = ["//third_party/heir:license"],
     default_visibility = ["//visibility:public"],
 )

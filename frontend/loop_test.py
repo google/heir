@@ -1,5 +1,5 @@
-from heir.frontend.heir import compile
-from heir.frontend.heir.mlir import I64, Secret
+from heir import compile
+from heir.mlir import I64, Secret
 
 from absl.testing import absltest  # fmt: skip
 

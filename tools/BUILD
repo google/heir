@@ -7,6 +7,8 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+# changed from "heir" (or nothing) in bazel 8
+# https://bazel.build/remote/output-directories#layout-diagram
 WORKSPACE_PATH = "_main/"
 
 # Custom `mlir-opt` replacement that links our dialect and passes
@@ -235,19 +237,19 @@ cc_binary(
 bzl_library(
     name = "heir_translate_bzl",
     srcs = ["heir-translate.bzl"],
-    visibility = ["//visibility:private"],
+    visibility = ["//visibility:public"],
 )
 
 bzl_library(
     name = "heir_opt_bzl",
     srcs = ["heir-opt.bzl"],
-    visibility = ["//visibility:private"],
+    visibility = ["//visibility:public"],
 )
 
 bzl_library(
     name = "heir_jaxite_bzl",
     srcs = ["heir-jaxite.bzl"],
-    visibility = ["//visibility:private"],
+    visibility = ["//visibility:public"],
     deps = [
         ":heir_opt_bzl",
         ":heir_translate_bzl",

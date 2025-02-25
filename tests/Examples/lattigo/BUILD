@@ -1,7 +1,7 @@
 # See README.md for setup required to run these tests
 
 load("@heir//tests/Examples/lattigo:test.bzl", "heir_lattigo_lib")
-load("@io_bazel_rules_go//go:def.bzl", "go_test")
+load("@rules_go//go:def.bzl", "go_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
