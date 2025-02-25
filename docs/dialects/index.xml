@@ -8324,8 +8324,8 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>publicKey&lt;/code>&lt;/td>
-&lt;td>The public key required to encrypt plaintext in OpenFHE.&lt;/td>
+&lt;td style="text-align:center">&lt;code>encryptionKey&lt;/code>&lt;/td>
+&lt;td>The public key required to encrypt plaintext in OpenFHE. or The private key required to decrypt a ciphertext in OpenFHE.&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
