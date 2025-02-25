@@ -23,6 +23,8 @@ typedef std::function<bool(const Type &)> TypePredicate;
 
 typedef std::function<bool(Dialect *)> DialectPredicate;
 
+using IndexTupleConsumer = std::function<void(const std::vector<int64_t> &)>;
+
 template <typename... OpTys>
 OpPredicate OpEqual() {
   return [](Operation *op) { return mlir::isa<OpTys...>(op); };
@@ -101,6 +103,11 @@ template <typename... TypeTys>
 bool containsArgumentOfType(Operation *op) {
   return containsArgumentOfType(op, TypeEqual<TypeTys...>());
 }
+
+// A helper to iterate over the space of indices of a multidimensional
+// tensor whose shape is given by `shape`
+void iterateIndices(const std::vector<int64_t> &shape,
+                    const IndexTupleConsumer &processFunc);
 
 }  // namespace heir
 }  // namespace mlir
