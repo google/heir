@@ -616,6 +616,9 @@ void moveMgmtAttrAnnotationToFuncArgument(Operation *top) {
   // some unused func secret type arg should also be annotated with mgmt attr,
   // inferred from other used arg
   top->walk([&](func::FuncOp funcOp) {
+    if (funcOp.isDeclaration()) {
+      return;
+    }
     Attribute firstMgmtAttr;
     for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
       firstMgmtAttr = funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
