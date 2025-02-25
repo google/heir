@@ -97,6 +97,17 @@ heir_lattigo_lib(
     mlir_src = "dot_product_8.mlir",
 )
 
+heir_lattigo_lib(
+    name = "dot_product_8_bfv_debug",
+    extra_srcs = ["dot_product_8_bfv_debug.go"],
+    go_library_name = "dotproduct8bfvdebug",
+    heir_opt_flags = [
+        "--mlir-to-bfv=ciphertext-degree=8",
+        "--scheme-to-lattigo=insert-debug-handler-calls=true",
+    ],
+    mlir_src = "dot_product_8.mlir",
+)
+
 # CKKS
 
 heir_lattigo_lib(
@@ -157,6 +168,12 @@ go_test(
     name = "dotproduct8bfv_test",
     srcs = ["dot_product_8_bfv_test.go"],
     embed = [":dotproduct8bfv"],
+)
+
+go_test(
+    name = "dotproduct8bfvdebug_test",
+    srcs = ["dot_product_8_bfv_debug_handler_test.go"],
+    embed = [":dotproduct8bfvdebug"],
 )
 
 # CKKS
