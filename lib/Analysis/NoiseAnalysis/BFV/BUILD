@@ -12,7 +12,6 @@ cc_library(
     ],
     deps = [
         ":NoiseByBoundCoeffModel",
-        ":NoiseByVarianceCoeffModel",
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
@@ -38,20 +37,6 @@ cc_library(
     ],
     hdrs = [
         "NoiseByBoundCoeffModel.h",
-    ],
-    deps = [
-        "@heir//lib/Analysis/NoiseAnalysis:Noise",
-        "@heir//lib/Parameters/BGV:Params",
-    ],
-)
-
-cc_library(
-    name = "NoiseByVarianceCoeffModel",
-    srcs = [
-        "NoiseByVarianceCoeffModel.cpp",
-    ],
-    hdrs = [
-        "NoiseByVarianceCoeffModel.h",
     ],
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis:Noise",

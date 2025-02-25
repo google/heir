@@ -88,6 +88,14 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
   std::cout << "  cv " << cv.size() << " Ql " << sizeQl << " logQ: " << logQ
             << " logqi: " << logqi_v << " budget " << logQ - noise - 1
             << " noise: " << noise << std::endl;
+
+  // print the predicted bound by analysis
+  if (debugAttrMap.find("noise.bound") != debugAttrMap.end()) {
+    double noiseBound = std::stod(debugAttrMap.at("noise.bound"));
+
+    std::cout << "  noise bound: " << noiseBound
+              << "  gap: " << noiseBound - noise << std::endl;
+  }
 #endif
 }
 

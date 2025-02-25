@@ -17,3 +17,15 @@ cc_library(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "Noise",
+    srcs = ["Noise.cpp"],
+    hdrs = [
+        "Noise.h",
+    ],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)

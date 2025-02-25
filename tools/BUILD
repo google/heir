@@ -37,6 +37,7 @@ cc_binary(
     includes = ["include"],
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis",  # buildcleaner: keep
+        "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseCoeffModelAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseCoeffModelAnalysis",  # buildcleaner: keep
         "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",

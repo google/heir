@@ -85,15 +85,19 @@ struct ConvertExtract : public OpRewritePattern<ExtractOp> {
                                     ctTy.getPlaintextSpace().getEncoding(),
                                     ctTy.getPlaintextSpace().getRing())
             .getResult();
-    auto plainMul =
-        b.create<MulPlainOp>(op.getInput(), oneHotPlaintext).getResult();
+    auto plainMulOp = b.create<MulPlainOp>(op.getInput(), oneHotPlaintext);
+    // inherit dialect attrs to all three new ops
+    plainMulOp->setDialectAttrs(op->getDialectAttrs());
+    auto plainMul = plainMulOp.getResult();
     auto rotated = b.create<RotateOp>(plainMul, offsetAttr);
+    rotated->setDialectAttrs(op->getDialectAttrs());
     // It might make sense to move this op to the add-client-interface pass,
     // but it also seems like a backend implementation detail, and not part
     // of RLWE schemes generally.
     auto recast = b.create<lwe::ReinterpretApplicationDataOp>(
                        op.getOutput().getType(), rotated.getResult())
                       .getResult();
+    rotated->setDialectAttrs(op->getDialectAttrs());
     rewriter.replaceOp(op, recast);
     return success();
   }

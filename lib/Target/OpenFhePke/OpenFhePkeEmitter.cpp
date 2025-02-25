@@ -1088,6 +1088,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
   if (keySwitchCount != 0) {
     os << paramsName << ".SetKeySwitchCount(" << keySwitchCount << ");\n";
   }
+  // B/FV defaults to BV, to match HEIR parameter generation we need to
+  // set it to HYBRID. Other schemes defaults to HYBRID.
+  os << paramsName << ".SetKeySwitchTechnique(HYBRID);\n";
   return success();
 }
 

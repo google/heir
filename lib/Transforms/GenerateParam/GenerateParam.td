@@ -19,8 +19,8 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
     The first two models are taken from KPZ21, and they work by bounding
     the coefficient embedding of the ciphertexts. The difference
     of the two models is expansion factor used for multiplication
-    of the coefficients, the first being `2\sqrt{N}` and the second
-    being `N`.
+    of the coefficients, the first being $2 \sqrt{N}$ and the second
+    being $N$.
 
     The third model is taken from MP24. It works by tracking the variance
     of the coefficient embedding of the ciphertexts. This gives a more accurate
@@ -78,13 +78,29 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
 def GenerateParamBFV : Pass<"generate-param-bfv"> {
   let summary = "Generate BFV Scheme Parameter";
   let description = [{
-    The pass generates the BFV scheme parameter.
+    The pass generates the BFV scheme parameter using a given noise model.
 
-    This pass get the multiplicative depth from the IR and generates the
-    moduli chain of that long consisting of 60 bits primes.
+    There are three noise models available:
+    - `bfv-noise-by-bound-coeff-average-case{-pk,-sk}`
+    - `bfv-noise-by-bound-coeff-worst-case{-pk,-sk}`
+
+    The `-pk`/`-sk` suffixes assume the input ciphertexts are
+    encrypted using the public/secret key.
+
+    The first two models are taken from KPZ21, and they work by bounding
+    the coefficient embedding of the ciphertexts. The difference
+    of the two models is expansion factor used for multiplication
+    of the coefficients, the first being $2 \sqrt{N}$ and the second
+    being $N$.
+
+    This pass then generates the moduli chain consisting of primes
+    of bits specified by the `mod-bits` field.
+
+    Usually for B/FV `mod-bits` is set to 60. But when machine word size is
+    small, users may also want to set it to 57.
 
     This pass relies on the presence of the `mgmt` dialect ops to model
-    relinearize/modreduce, and it relies on `mgmt.mgmt` attribute to determine
+    relinearize, and it relies on `mgmt.mgmt` attribute to determine
     the ciphertext level/dimension. These ops and attributes can be added by
     a pass like `--secret-insert-mgmt-bgv` and `--annotate-mgmt`.
 
@@ -122,6 +138,11 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
   ];
 
   let options = [
+    Option<"model", "model", "std::string",
+           /*default=*/"\"bfv-noise-by-bound-coeff-average-case-pk\"", "Noise model to validate against.">,
+    Option<"modBits", "mod-bits", "int",
+           /*default=*/"60", "Default number of bits for all prime coefficient modulus"
+           "to use for the ciphertext space.">,
     Option<"slotNumber", "slot-number", "int",
            /*default=*/"0", "Minimum number of slots for parameter generation.">,
     Option<"plaintextModulus", "plaintext-modulus", "int64_t",

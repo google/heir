@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_
-#define INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_
+#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
+#define INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
 
 #include <algorithm>
 #include <cassert>
@@ -11,12 +11,11 @@
 
 namespace mlir {
 namespace heir {
-namespace bgv {
 
 // This class could be shared among all noise models that tracks the noise by a
 // single value. Noise model could have different interpretation of the value.
-// In BGV world, most noise model just use a single value, either as bound or
-// as variance.
+// In BGV/BFV world, most noise model just use a single value, either as bound
+// or as variance.
 class NoiseState {
  public:
   enum NoiseType {
@@ -84,8 +83,7 @@ class NoiseState {
   std::optional<double> value;
 };
 
-}  // namespace bgv
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISE_H_
+#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
