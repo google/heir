@@ -8,6 +8,7 @@ package(
 )
 
 # changed from "heir" (or nothing) in bazel 8
+# https://bazel.build/remote/output-directories#layout-diagram
 WORKSPACE_PATH = "_main/"
 
 # Custom `mlir-opt` replacement that links our dialect and passes
