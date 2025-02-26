@@ -74,16 +74,13 @@ if __name__ == "__main__":
     weight: 70
     ---\n""")
 
-  print("Processing Non-conversion Passes")
-  for src_path in glob.glob(f"{SRC_BASE}/**/*Passes.md", recursive=True):
-    with open(src_path, "r") as src_file:
-      with open(PASSES_FILE, "a") as dest_file:
-        dest_file.write(cleanup(src_file.read()))
-
-  print("Processing Conversion Passes")
-  for src_path in glob.glob(
+  print("Processing Passes")
+  passes_files = glob.glob(f"{SRC_BASE}/**/*Passes.md", recursive=True)
+  conversion_files = glob.glob(
       f"{SRC_BASE}/Dialect/**/Conversions/**/*.md", recursive=True
-  ):
+  )
+  for src_path in set(passes_files + conversion_files):
+    print(src_path)
     with open(src_path, "r") as src_file:
       with open(PASSES_FILE, "a") as dest_file:
         dest_file.write(cleanup(src_file.read()))
