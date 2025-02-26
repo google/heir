@@ -3,6 +3,7 @@
 
 include "TensorExtOps.td"
 include "lib/Utils/DRR/Utils.td"
+include "lib/Dialect/ModArith/IR/ModArithOps.td"
 include "mlir/Dialect/Arith/IR/ArithOps.td"
 include "mlir/Dialect/Tensor/IR/TensorOps.td"
 include "mlir/IR/PatternBase.td"
@@ -70,7 +71,7 @@ def RotatePlusExtractToIndexedExtract : Pat<
     (MakeSingleResultVariadic (Arith_AddIOp $shift, $index, DefOverflow)))
 >;
 
-foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
+foreach ArithOp = [Arith_AddIOp, Arith_SubIOp, Arith_MulIOp, ModArith_AddOp, ModArith_SubOp, ModArith_MulOp, Arith_AddFOp, Arith_SubFOp, Arith_MulFOp] in {
   // Rotating two tensors by the same amount can be converted to a single
   // post-rotation. This can result in eliminating either the rotation (because
   // it can be combined with a later rotation) or the arith op itself, if it is

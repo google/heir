@@ -1,6 +1,9 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
+// RUN: heir-opt --arith-to-mod-arith --secretize --wrap-generic --canonicalize --cse \
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s
+
 module  {
   // CHECK-LABEL: @box_blur
   // CHECK-NOT: tensor.extract

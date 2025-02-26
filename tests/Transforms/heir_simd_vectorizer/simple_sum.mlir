@@ -2,6 +2,10 @@
 // RUN:   --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
+// RUN: heir-opt --arith-to-mod-arith --secretize \
+// RUN:   --wrap-generic --canonicalize --cse \
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s
+
 // Sum all entries of a tensor into a single scalar
 // CHECK-LABEL: @simple_sum
 // CHECK: secret.generic

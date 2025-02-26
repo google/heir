@@ -31,6 +31,7 @@ cc_library(
         ":insert_rotate_inc_gen",
         ":pass_inc_gen",
         "@heir//lib/Analysis/TargetSlotAnalysis",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:canonicalize_inc_gen",
         "@llvm-project//llvm:Support",
@@ -73,6 +74,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/RotationAnalysis",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
@@ -162,6 +164,7 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "InsertRotate.td",
     deps = [
+        "@heir//lib/Dialect/ModArith/IR:td_files",
         "@heir//lib/Dialect/TensorExt/IR:ops_inc_gen",
         "@heir//lib/Dialect/TensorExt/IR:td_files",
         "@heir//lib/Utils/DRR",
