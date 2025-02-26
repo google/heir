@@ -57,7 +57,7 @@ def Polynomial_FloatPolynomialAttr : Polynomial_Attr<"FloatPolynomial", "float_p
 }
 
 def Polynomial_TypedIntPolynomialAttr : Polynomial_Attr<
-    "TypedIntPolynomial", "typed_int_polynomial", [TypedAttrInterface]> {
+    "TypedIntPolynomial", "typed_int_polynomial"> {
   let summary = "a typed int_polynomial";
   let description = [{
     Example:
@@ -84,12 +84,12 @@ def Polynomial_TypedIntPolynomialAttr : Polynomial_Attr<
     }]>
   ];
   let extraClassDeclaration = [{
-    using ValueType = ::mlir::Attribute;
+    using ValueType = ::mlir::heir::polynomial::IntPolynomialAttr;
   }];
 }
 
 def Polynomial_TypedFloatPolynomialAttr : Polynomial_Attr<
-    "TypedFloatPolynomial", "typed_float_polynomial", [TypedAttrInterface]> {
+    "TypedFloatPolynomial", "typed_float_polynomial"> {
   let summary = "a typed float_polynomial";
   let description = [{
     Example:
@@ -116,7 +116,7 @@ def Polynomial_TypedFloatPolynomialAttr : Polynomial_Attr<
     }]>
   ];
   let extraClassDeclaration = [{
-    using ValueType = ::mlir::Attribute;
+    using ValueType = ::mlir::heir::polynomial::FloatPolynomialAttr;
   }];
 }
 
