@@ -36,9 +36,11 @@ def CountAddAndKeySwitch : Pass<"openfhe-count-add-and-key-switch"> {
     This pass counts the number of add and key-switch operations in the given function.
 
     This is used for setting the EvalAddCount and EvalKeySwitchCount in OpenFHE library.
+    Cf. [Alexandru et al. 2024](https://eprint.iacr.org/2024/203) for why this
+    is important for security.
 
     The detailed definition of these counts could be found in the KPZ21 paper
-    [Revisiting Homomorphic Encryption Schemes for Finite Fields](https://ia.cr/2021/201)
+    [Revisiting Homomorphic Encryption Schemes for Finite Fields](https://ia.cr/2021/204)
 
     The pass should be run at the secret arithmetic level when management operations
     have been inserted and the IR is stable.
