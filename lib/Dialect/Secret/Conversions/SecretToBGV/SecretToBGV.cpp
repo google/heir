@@ -186,7 +186,11 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     auto *module = getOperation();
 
     // Helper for future lowerings that want to know what scheme was used
-    module->setAttr(kBGVSchemeAttrName, UnitAttr::get(context));
+    if (isBFV) {
+      moduleSetBFV(module);
+    } else {
+      moduleSetBGV(module);
+    }
 
     // used by LWE type
     int64_t plaintextModulus;

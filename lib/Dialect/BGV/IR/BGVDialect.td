@@ -10,7 +10,14 @@ def BGV_Dialect : Dialect {
   let name = "bgv";
 
   let description = [{
-    The BGV dialect defines the types and operations of the BGV cryptosystem.
+    The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.
+
+    Due to similarity with the BFV scheme, BGV dialect also represents the B/FV scheme.
+
+    The semantics of bgv dialect operations are determined by the `scheme.bgv` or `scheme.bfv`
+    annotation at the module level.
+
+    In B/FV mode, bgv.modulus_switch is an no-op.
   }];
 
   let extraClassDeclaration = [{

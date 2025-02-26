@@ -403,7 +403,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     auto *module = getOperation();
 
     // Helper for future lowerings that want to know what scheme was used
-    module->setAttr(kCKKSSchemeAttrName, UnitAttr::get(context));
+    moduleSetCKKS(module);
 
     // generate scheme parameters
     auto maxLevel = getMaxLevel();

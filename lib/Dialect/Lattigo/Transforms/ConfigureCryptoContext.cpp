@@ -82,6 +82,7 @@ RLWEEncryptorType findEncryptorType(ModuleOp module) {
   return RLWEEncryptorType::get(module.getContext(), /*publicKey*/ true);
 }
 
+template <bool IsBFV>
 struct LattigoBGVScheme {
   using EvaluatorType = BGVEvaluatorType;
   using ParameterType = BGVParameterType;
@@ -134,6 +135,12 @@ struct LattigoBGVScheme {
     if (schemeParamAttr) {
       moduleOp->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
     }
+  }
+
+  static Value getNewEvaluatorOp(ImplicitLocOpBuilder &builder, Value params,
+                                 Value evalKeySet) {
+    return builder.create<NewEvaluatorOp>(
+        EvaluatorType::get(builder.getContext()), params, evalKeySet, IsBFV);
   }
 };
 
@@ -190,6 +197,12 @@ struct LattigoCKKSScheme {
       moduleOp->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
     }
   }
+
+  static Value getNewEvaluatorOp(ImplicitLocOpBuilder &builder, Value params,
+                                 Value evalKeySet) {
+    return builder.create<NewEvaluatorOp>(
+        EvaluatorType::get(builder.getContext()), params, evalKeySet);
+  }
 };
 
 template <typename LattigoScheme>
@@ -200,7 +213,6 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   using NewParametersFromLiteralOp =
       typename LattigoScheme::NewParametersFromLiteralOp;
   using NewEncoderOp = typename LattigoScheme::NewEncoderOp;
-  using NewEvaluatorOp = typename LattigoScheme::NewEvaluatorOp;
 
   auto module = op->getParentOfType<ModuleOp>();
   std::string configFuncName("");
@@ -291,8 +303,8 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
   }
 
   // evalKeySet is optional so nulltpr is acceptable
-  auto evaluator =
-      builder.create<NewEvaluatorOp>(evaluatorType, params, evalKeySet);
+  Value evaluator =
+      LattigoScheme::getNewEvaluatorOp(builder, params, evalKeySet);
 
   SmallVector<Value> results = {evaluator, params, encoder, encryptor,
                                 decryptor};
@@ -303,7 +315,10 @@ LogicalResult convertFuncForScheme(func::FuncOp op) {
 LogicalResult convertFunc(func::FuncOp op) {
   auto module = op->getParentOfType<ModuleOp>();
   if (moduleIsBGV(module)) {
-    return convertFuncForScheme<LattigoBGVScheme>(op);
+    return convertFuncForScheme<LattigoBGVScheme</*IsBFV*/ false>>(op);
+  }
+  if (moduleIsBFV(module)) {
+    return convertFuncForScheme<LattigoBGVScheme</*IsBFV*/ true>>(op);
   }
   if (moduleIsCKKS(module)) {
     return convertFuncForScheme<LattigoCKKSScheme>(op);

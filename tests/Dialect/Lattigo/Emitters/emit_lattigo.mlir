@@ -68,7 +68,7 @@ module attributes {scheme.bgv} {
   // CHECK: [[enc:[^, ].*]] := rlwe.NewEncryptor([[param]], [[pk]])
   // CHECK: [[encSk:[^, ].*]] := rlwe.NewEncryptor([[param]], [[sk]])
   // CHECK: [[dec:[^, ].*]] := rlwe.NewDecryptor([[param]], [[sk]])
-  // CHECK: [[eval:[^, ].*]] := bgv.NewEvaluator([[param]], [[evalKeySet]])
+  // CHECK: [[eval:[^, ].*]] := bgv.NewEvaluator([[param]], [[evalKeySet]], false)
   // CHECK: [[value1:[^, ].*]] := []int64
   // CHECK: [[value2:[^, ].*]] := []int64
   // CHECK: [[pt1:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
@@ -161,7 +161,7 @@ module attributes {scheme.bgv} {
 !evaluator = !lattigo.bgv.evaluator
 
 // CHECK-LABEL: test_new_evaluator_no_key_set
-// CHECK: bgv.NewEvaluator([[params:[^, ].*]], nil)
+// CHECK: bgv.NewEvaluator([[params:[^, ].*]], nil, false)
 module attributes {scheme.bgv} {
   func.func @test_new_evaluator_no_key_set(%params : !params) -> (!evaluator) {
     %evaluator = lattigo.bgv.new_evaluator %params : (!params) -> !evaluator

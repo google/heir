@@ -31,7 +31,6 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
@@ -114,9 +113,11 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
   OpenfheScheme scheme;
-  if (moduleOp->getAttr(kBGVSchemeAttrName)) {
+  if (moduleIsBGV(moduleOp)) {
     scheme = OpenfheScheme::BGV;
-  } else if (moduleOp->getAttr(kCKKSSchemeAttrName)) {
+  } else if (moduleIsBFV(moduleOp)) {
+    scheme = OpenfheScheme::BFV;
+  } else if (moduleIsCKKS(moduleOp)) {
     scheme = OpenfheScheme::CKKS;
   } else {
     return emitError(moduleOp.getLoc(), "Missing scheme attribute on module");

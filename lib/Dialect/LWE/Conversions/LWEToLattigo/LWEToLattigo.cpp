@@ -569,7 +569,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     auto gateByBGVModuleAttr =
         [&](const OpPredicate &inputPredicate) -> OpPredicate {
       return [module, inputPredicate](Operation *op) {
-        return moduleIsBGV(module) && inputPredicate(op);
+        return moduleIsBGVOrBFV(module) && inputPredicate(op);
       };
     };
 
@@ -638,7 +638,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     patterns.add<AddEvaluatorArg>(context, evaluators);
     patterns.add<ConvertFuncCallOp>(context, evaluators);
 
-    if (moduleIsBGV(module)) {
+    if (moduleIsBGVOrBFV(module)) {
       patterns
           .add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
                ConvertBGVAddPlainOp, ConvertBGVSubPlainOp, ConvertBGVMulPlainOp,

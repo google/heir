@@ -13,7 +13,7 @@
 namespace mlir::heir {
 
 // RLWE scheme selector
-enum RLWEScheme { ckksScheme, bgvScheme };
+enum RLWEScheme { ckksScheme, bgvScheme, bfvScheme };
 
 struct SimdVectorizerOptions
     : public PassPipelineOptions<SimdVectorizerOptions> {
