@@ -32,17 +32,17 @@ module attributes {scheme.bgv} {
   // CHECK-LABEL: @test_ops
   // CHECK-SAME: ([[C:%.+]]: [[S:.*evaluator]], [[X:%.+]]: [[T:!lattigo.rlwe.ciphertext]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) {
-    // CHECK: %[[v1:.*]] = lattigo.bgv.add [[C]], %[[x:.*]], %[[y:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
+    // CHECK: %[[v1:.*]] = lattigo.bgv.add_new [[C]], %[[x:.*]], %[[y:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]
     %add = bgv.add %x, %y  : (!ct, !ct) -> !ct
-    // CHECK: %[[mul:.*]] = lattigo.bgv.mul [[C]], %[[x]], %[[y]]: ([[S]], [[T]], [[T]]) -> [[T]]
+    // CHECK: %[[mul:.*]] = lattigo.bgv.mul_new [[C]], %[[x]], %[[y]]: ([[S]], [[T]], [[T]]) -> [[T]]
     %mul = bgv.mul %x, %y  : (!ct, !ct) -> !ct1
-    // CHECK: %[[relin:.*]] = lattigo.bgv.relinearize [[C]], %[[mul]] : ([[S]], [[T]]) -> [[T]]
+    // CHECK: %[[relin:.*]] = lattigo.bgv.relinearize_new [[C]], %[[mul]] : ([[S]], [[T]]) -> [[T]]
     %relin = bgv.relinearize %mul  {
       from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>
     }: !ct1 -> !ct
-    // CHECK: %[[rescale:.*]] = lattigo.bgv.rescale [[C]], %[[relin]] : ([[S]], [[T]]) -> [[T]]
+    // CHECK: %[[rescale:.*]] = lattigo.bgv.rescale_new [[C]], %[[relin]] : ([[S]], [[T]]) -> [[T]]
     %rescale = bgv.modulus_switch %relin {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
-    // CHECK: %[[rot:.*]] = lattigo.bgv.rotate_columns [[C]], %[[rescale]] {offset = 1 : i64} : ([[S]], [[T]]) -> [[T]]
+    // CHECK: %[[rot:.*]] = lattigo.bgv.rotate_columns_new [[C]], %[[rescale]] {offset = 1 : i64} : ([[S]], [[T]]) -> [[T]]
     %rot = bgv.rotate %rescale { offset = 1 } : !ct2
     return
   }

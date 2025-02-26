@@ -8,7 +8,7 @@
 
 module attributes {scheme.bgv} {
   func.func @add(%evaluator : !evaluator, %ct : !ct) -> !ct {
-    %res = lattigo.bgv.add %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
+    %res = lattigo.bgv.add_new %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return %res : !ct
   }
 }
@@ -26,11 +26,11 @@ module attributes {scheme.bgv} {
 
 module attributes {scheme.bgv} {
   func.func @sub(%evaluator : !evaluator, %ct : !ct) -> !ct {
-    %res = lattigo.bgv.add %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
+    %res = lattigo.bgv.add_new %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return %res : !ct
   }
   func.func @add(%evaluator : !evaluator, %ct : !ct) -> !ct {
-    %res = lattigo.bgv.add %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
+    %res = lattigo.bgv.add_new %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     %sub = call @sub(%evaluator, %res) : (!evaluator, !ct) -> !ct
     return %sub : !ct
   }
@@ -51,7 +51,7 @@ module attributes {scheme.bgv} {
 module attributes {scheme.bgv} {
   func.func private @sub(%evaluator : !evaluator, %ct : !ct) -> !ct
   func.func @add(%evaluator : !evaluator, %ct : !ct) -> !ct {
-    %res = lattigo.bgv.add %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
+    %res = lattigo.bgv.add_new %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return %res : !ct
   }
 }

@@ -6,6 +6,7 @@
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
+#include "lib/Utils/Tablegen/InplaceOpInterface.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/Support/ManagedStatic.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
@@ -77,6 +78,13 @@ class LattigoEmitter {
   LogicalResult printOperation(BGVNewPlaintextOp op);
   LogicalResult printOperation(BGVEncodeOp op);
   LogicalResult printOperation(BGVDecodeOp op);
+  LogicalResult printOperation(BGVAddNewOp op);
+  LogicalResult printOperation(BGVSubNewOp op);
+  LogicalResult printOperation(BGVMulNewOp op);
+  LogicalResult printOperation(BGVRelinearizeNewOp op);
+  LogicalResult printOperation(BGVRescaleNewOp op);
+  LogicalResult printOperation(BGVRotateColumnsNewOp op);
+  LogicalResult printOperation(BGVRotateRowsNewOp op);
   LogicalResult printOperation(BGVAddOp op);
   LogicalResult printOperation(BGVSubOp op);
   LogicalResult printOperation(BGVMulOp op);
@@ -111,6 +119,10 @@ class LattigoEmitter {
                                        ::mlir::Value operandInplace,
                                        std::string_view op, bool err);
 
+  LogicalResult printEvalInplaceMethod(::mlir::Value evaluator,
+                                       ::mlir::ValueRange operands,
+                                       std::string_view op, bool err);
+
   LogicalResult printEvalNewMethod(::mlir::ValueRange results,
                                    ::mlir::Value evaluator,
                                    ::mlir::ValueRange operands,
@@ -128,6 +140,18 @@ class LattigoEmitter {
   bool isDebugPort(::llvm::StringRef debugPortName);
   ::llvm::StringRef canonicalizeDebugPort(::llvm::StringRef debugPortName);
 
+  // find the actual value used for inplace op
+  ::mlir::Value getStorageValue(::mlir::Value value) {
+    if (auto *op = value.getDefiningOp()) {
+      if (auto inplaceOpInterface = mlir::dyn_cast<InplaceOpInterface>(op)) {
+        auto inplace =
+            op->getOperand(inplaceOpInterface.getInplaceOperandIndex());
+        return getStorageValue(inplace);
+      }
+    }
+    return value;
+  }
+
   // helper on name and type
   std::string getName(::mlir::Value value) {
     // special case for 'nil' emission
@@ -139,7 +163,7 @@ class LattigoEmitter {
     if (value.use_empty()) {
       return "_";
     }
-    return variableNames->getNameForValue(value);
+    return variableNames->getNameForValue(getStorageValue(value));
   }
 
   std::string getErrName() {

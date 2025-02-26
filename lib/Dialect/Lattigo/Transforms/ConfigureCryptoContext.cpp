@@ -37,7 +37,7 @@ namespace lattigo {
 bool hasRelinOp(func::FuncOp op) {
   bool result = false;
   op.walk<WalkOrder::PreOrder>([&](Operation *op) {
-    if (isa<BGVRelinearizeOp, CKKSRelinearizeOp>(op)) {
+    if (isa<BGVRelinearizeOp, BGVRelinearizeNewOp, CKKSRelinearizeOp>(op)) {
       result = true;
       return WalkResult::interrupt();
     }
@@ -50,6 +50,10 @@ bool hasRelinOp(func::FuncOp op) {
 // TODO(#1186): handle rotate rows
 SmallVector<int64_t> findAllRotIndices(func::FuncOp op) {
   std::set<int64_t> distinctRotIndices;
+  op.walk([&](BGVRotateColumnsNewOp rotOp) {
+    distinctRotIndices.insert(rotOp.getOffset().getInt());
+    return WalkResult::advance();
+  });
   op.walk([&](BGVRotateColumnsOp rotOp) {
     distinctRotIndices.insert(rotOp.getOffset().getInt());
     return WalkResult::advance();

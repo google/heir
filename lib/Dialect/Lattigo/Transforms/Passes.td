@@ -3,6 +3,15 @@
 
 include "mlir/Pass/PassBase.td"
 
+def AllocToInplace : Pass<"lattigo-alloc-to-inplace"> {
+  let summary = "Convert AllocOps to InplaceOps in Lattigo";
+  let description = [{
+    This pass converts AllocOps to InplaceOps in Lattigo.
+
+  }];
+  let dependentDialects = ["mlir::heir::lattigo::LattigoDialect"];
+}
+
 def ConfigureCryptoContext : Pass<"lattigo-configure-crypto-context"> {
   let summary = "Configure the crypto context in Lattigo";
   let description = [{
