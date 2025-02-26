@@ -3137,8 +3137,10 @@ Mac operation and removes the mul operation.</p><h3 id=-openfhe-configure-crypto
 -level-budget-encode : Level budget for CKKS bootstrap encode (s2c) phase
 -level-budget-decode : Level budget for CKKS bootstrap decode (c2s) phase
 -insecure            : Whether to use insecure parameter for faster evaluation(should only be used in test) (defaults to false)
-</code></pre><h3 id=-openfhe-count-add-and-key-switch><code>-openfhe-count-add-and-key-switch</code></h3><p><em>Count the number of add and key-switch operations in OpenFHE</em></p><p>This pass counts the number of add and key-switch operations in the given function.</p><p>This is used for setting the EvalAddCount and EvalKeySwitchCount in OpenFHE library.</p><p>The detailed definition of these counts could be found in the KPZ21 paper
-<a href=https://ia.cr/2021/201>Revisiting Homomorphic Encryption Schemes for Finite Fields</a></p><p>The pass should be run at the secret arithmetic level when management operations
+</code></pre><h3 id=-openfhe-count-add-and-key-switch><code>-openfhe-count-add-and-key-switch</code></h3><p><em>Count the number of add and key-switch operations in OpenFHE</em></p><p>This pass counts the number of add and key-switch operations in the given function.</p><p>This is used for setting the EvalAddCount and EvalKeySwitchCount in OpenFHE library.
+Cf. <a href=https://eprint.iacr.org/2024/203>Alexandru et al. 2024</a> for why this
+is important for security.</p><p>The detailed definition of these counts could be found in the KPZ21 paper
+<a href=https://ia.cr/2021/204>Revisiting Homomorphic Encryption Schemes for Finite Fields</a></p><p>The pass should be run at the secret arithmetic level when management operations
 have been inserted and the IR is stable.</p><h3 id=-operation-balancer><code>-operation-balancer</code></h3><p><em>This pass balances addition and multiplication operations.</em></p><p>This pass examines a tree or graph of add and multiplication operations and
 balances them to minimize the depth of the tree. This exposes better parallelization
 and reducing the multiplication depth can decrease the parameters used in FHE,
