@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Utils/AffineMapUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"     // from @llvm-project

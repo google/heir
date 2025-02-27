@@ -1,6 +1,9 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
+// TODO(#1483): support constant tensor for mod_arith.constant
+// run this for --arith-to-mod-arith as well
+
 // CHECK-LABEL: @gx_kernel
 // CHECK: secret.generic
 // CHECK-COUNT-6: tensor_ext.rotate

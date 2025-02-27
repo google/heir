@@ -84,7 +84,7 @@ def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure, SameOperandsAndResul
 }
 
 def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
-    [Pure, InferTypeOpAdaptor]> {
+    [ConstantLike, Pure, InferTypeOpAdaptor]> {
   let summary = "Define a constant value via an attribute.";
   let description = [{
     Example:
@@ -96,6 +96,7 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
   let arguments = (ins ModArith_ModArithAttr:$value);
   let results = (outs ModArith_ModArithType:$output);
   let hasCustomAssemblyFormat = 1;
+  let hasFolder = 1;
 
   let builders = [
     OpBuilder<(ins "::mlir::heir::mod_arith::ModArithType":$ty, "int64_t":$value), [{
@@ -132,7 +133,11 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOp
 
 class ModArith_BinaryOp<string mnemonic, list<Trait> traits = []> :
     ModArith_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
-    Arguments<(ins ModArithLike:$lhs, ModArithLike:$rhs)>,
+    Arguments<(ins ModArithLike:$lhs, ModArithLike:$rhs,
+      // This is only for making mod arith op looks like arith op in various DRR.
+      DefaultValuedAttr<
+        BoolAttr,
+        "0">:$overflowFlags)>,
     Results<(outs ModArithLike:$output)> {
   let hasVerifier = 1;
   let assemblyFormat ="operands attr-dict `:` type($output)";
@@ -146,6 +151,8 @@ def ModArith_AddOp : ModArith_BinaryOp<"add", [Commutative]> {
     Unless otherwise specified, the operation assumes both inputs are canonical
     representatives and guarantees the output being canonical representative.
   }];
+
+  let hasFolder = 1;
 }
 
 def ModArith_SubOp : ModArith_BinaryOp<"sub"> {

@@ -1,22 +1,31 @@
 // Ported from https://github.com/MarbleHE/HECO/blob/3e13744233ab0c09030a41ef98b4e061b6fa2eac/evaluation/benchmark/heco_input/robertscross_4x4.mlir
 
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heir-simd-vectorizer %s | FileCheck %s
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-ARITH
+
+// RUN: heir-opt --arith-to-mod-arith --secretize --wrap-generic --canonicalize --cse \
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-MOD-ARITH
 
 module{
   // CHECK-LABEL: @roberts_cross
-  // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<16xi16>>) -> !secret.secret<tensor<16xi16>> {
+  // CHECK-ARITH-SAME: (%[[arg0:.*]]: !secret.secret<tensor<16xi16>>) -> !secret.secret<tensor<16xi16>> {
   // CHECK-DAG:  %[[c15:.*]] = arith.constant 15 : index
   // CHECK-DAG:  %[[c11:.*]] = arith.constant 11 : index
-  // CHECK-NEXT: secret.generic ins(%[[arg0]] : !secret.secret<tensor<16xi16>>) {
-  // CHECK-NEXT:  ^body(%[[arg1:.*]]: tensor<16xi16>):
+  // CHECK-ARITH-NEXT: secret.generic ins(%[[arg0]] : !secret.secret<tensor<16xi16>>) {
+  // CHECK-ARITH-NEXT:  ^body(%[[arg1:.*]]: tensor<16xi16>):
+  // CHECK-MOD-ARITH:   ^body(%[[arg1:.*]]: tensor
   // CHECK-NEXT:    %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[c11]]
-  // CHECK-NEXT:    %[[v2:.*]] = arith.subi %[[v1]], %[[arg1]]
+  // CHECK-ARITH-NEXT:        %[[v2:.*]] = arith.subi %[[v1]], %[[arg1]]
+  // CHECK-MOD-ARITH-NEXT:    %[[v2:.*]] = mod_arith.sub %[[v1]], %[[arg1]]
   // CHECK-NEXT:    %[[v3:.*]] = tensor_ext.rotate %[[arg1]], %[[c15]]
-  // CHECK-NEXT:    %[[v4:.*]] = arith.subi %[[v1]], %[[v3]]
-  // CHECK-DAG:     %[[v5:.*]] = arith.muli %[[v2]], %[[v2]]
-  // CHECK-DAG:     %[[v6:.*]] = arith.muli %[[v4]], %[[v4]]
-  // CHECK-NEXT:    %[[v7:.*]] = arith.addi %[[v5]], %[[v6]]
+  // CHECK-ARITH-NEXT:        %[[v4:.*]] = arith.subi %[[v1]], %[[v3]]
+  // CHECK-MOD-ARITH-NEXT:    %[[v4:.*]] = mod_arith.sub %[[v1]], %[[v3]]
+  // CHECK-ARITH-DAG:         %[[v5:.*]] = arith.muli %[[v2]], %[[v2]]
+  // CHECK-MOD-ARITH-DAG:     %[[v5:.*]] = mod_arith.mul %[[v2]], %[[v2]]
+  // CHECK-ARITH-DAG:         %[[v6:.*]] = arith.muli %[[v4]], %[[v4]]
+  // CHECK-MOD-ARITH-DAG:     %[[v6:.*]] = mod_arith.mul %[[v4]], %[[v4]]
+  // CHECK-ARITH-NEXT:        %[[v7:.*]] = arith.addi %[[v5]], %[[v6]]
+  // CHECK-MOD-ARITH-NEXT:    %[[v7:.*]] = mod_arith.add %[[v5]], %[[v6]]
   func.func @roberts_cross(%img: tensor<16xi16>) -> tensor<16xi16> {
     %c16 = arith.constant 16 : index
     %c4 = arith.constant 4 : index

@@ -1,14 +1,21 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
-// RUN:   --heir-simd-vectorizer %s | FileCheck %s
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-ARITH
+
+// RUN: heir-opt --arith-to-mod-arith --secretize --wrap-generic --canonicalize --cse \
+// RUN:   --heir-simd-vectorizer %s | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-MOD-ARITH
 
 // CHECK-LABEL: @hamming
 // CHECK: secret.generic
-// CHECK: arith.subi
-// CHECK-NEXT: arith.muli
+// CHECK-ARITH: arith.subi
+// CHECK-MOD-ARITH: mod_arith.sub
+// CHECK-ARITH-NEXT: arith.muli
+// CHECK-MOD-ARITH-NEXT: mod_arith.mul
 // CHECK-NEXT: tensor_ext.rotate
-// CHECK-NEXT: arith.addi
+// CHECK-ARITH-NEXT: arith.addi
+// CHECK-MOD-ARITH-NEXT: mod_arith.add
 // CHECK-NEXT: tensor_ext.rotate
-// CHECK-NEXT: arith.addi
+// CHECK-ARITH-NEXT: arith.addi
+// CHECK-MOD-ARITH-NEXT: mod_arith.add
 // CHECK-NEXT: tensor.extract
 // CHECK-NEXT: secret.yield
 

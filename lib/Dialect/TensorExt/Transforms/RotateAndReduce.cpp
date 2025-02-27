@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
+#include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/DenseSet.h"    // from @llvm-project
@@ -114,6 +115,14 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
                     .Case<arith::MulIOp>([&](auto arithOp) {
                       tryReplaceRotations<arith::MulIOp>(arithOp, reduction,
                                                          extraction);
+                    })
+                    .Case<mod_arith::AddOp>([&](auto arithOp) {
+                      tryReplaceRotations<mod_arith::AddOp>(arithOp, reduction,
+                                                            extraction);
+                    })
+                    .Case<mod_arith::MulOp>([&](auto arithOp) {
+                      tryReplaceRotations<mod_arith::MulOp>(arithOp, reduction,
+                                                            extraction);
                     })
                     .Case<arith::AddFOp>([&](auto arithOp) {
                       tryReplaceRotations<arith::AddFOp>(arithOp, reduction,

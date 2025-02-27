@@ -44,6 +44,7 @@ cc_library(
         ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Utils:AffineMapUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
@@ -117,6 +118,7 @@ gentbl_cc_library(
     deps = [
         ":ops_inc_gen",
         ":td_files",
+        "@heir//lib/Dialect/ModArith/IR:td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:TensorOpsTdFiles",
     ],

@@ -1,5 +1,6 @@
 #include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
 
+#include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
@@ -133,57 +134,56 @@ void RotationAnalysis::run(Operation *op) {
                 PartialReduction::rotate(reduction, indexValue, result));
           }
         })
-        .Case<arith::AddIOp, arith::MulIOp, arith::AddFOp, arith::MulFOp>(
-            [&](auto arithOp) {
-              LLVM_DEBUG({ llvm::dbgs() << "Visiting: " << arithOp << "\n"; });
-              Value lhs = arithOp.getLhs();
-              Value rhs = arithOp.getRhs();
-              Value newRoot = arithOp.getResult();
-              OperationName opName = arithOp.getOperation()->getName();
-              bool canJoin = false;
+        .Case<arith::AddIOp, arith::MulIOp, mod_arith::AddOp, mod_arith::MulOp,
+              arith::AddFOp, arith::MulFOp>([&](auto arithOp) {
+          LLVM_DEBUG({ llvm::dbgs() << "Visiting: " << arithOp << "\n"; });
+          Value lhs = arithOp.getLhs();
+          Value rhs = arithOp.getRhs();
+          Value newRoot = arithOp.getResult();
+          OperationName opName = arithOp.getOperation()->getName();
+          bool canJoin = false;
 
-              // Both lhs/rhs are in a reduction tree and can join
-              if (rootToPartialReductions.contains(lhs) &&
-                  rootToPartialReductions.contains(rhs)) {
-                // This is inefficient, but what can we do better here? I
-                // suspect a better approach may be to identify cases in which
-                // only one of these reductions needs to be kept because it's
-                // "the best" according to some metric (e.g., it monotonically
-                // increases the number of indices and all else stays the same).
-                // But for now even on the box_blur_64x64 example this is far
-                // from the bottleneck.
-                for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
-                  for (const auto &rhsReduction :
-                       rootToPartialReductions[rhs]) {
-                    if (PartialReduction::canJoin(lhsReduction, rhsReduction,
-                                                  opName)) {
-                      canJoin = true;
-                      addPartialReduction(PartialReduction::join(
-                          lhsReduction, rhsReduction, newRoot, opName));
-                    }
-                  }
+          // Both lhs/rhs are in a reduction tree and can join
+          if (rootToPartialReductions.contains(lhs) &&
+              rootToPartialReductions.contains(rhs)) {
+            // This is inefficient, but what can we do better here? I
+            // suspect a better approach may be to identify cases in which
+            // only one of these reductions needs to be kept because it's
+            // "the best" according to some metric (e.g., it monotonically
+            // increases the number of indices and all else stays the same).
+            // But for now even on the box_blur_64x64 example this is far
+            // from the bottleneck.
+            for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
+              for (const auto &rhsReduction : rootToPartialReductions[rhs]) {
+                if (PartialReduction::canJoin(lhsReduction, rhsReduction,
+                                              opName)) {
+                  canJoin = true;
+                  addPartialReduction(PartialReduction::join(
+                      lhsReduction, rhsReduction, newRoot, opName));
                 }
               }
+            }
+          }
 
-              // If can not join, try saving in one side
-              if (!canJoin && rootToPartialReductions.contains(lhs)) {
-                for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
-                  if (PartialReduction::canSave(lhsReduction, rhs, opName)) {
-                    addPartialReduction(PartialReduction::save(
-                        lhsReduction, rhs, newRoot, opName));
-                  }
-                }
+          // If can not join, try saving in one side
+          if (!canJoin && rootToPartialReductions.contains(lhs)) {
+            for (const auto &lhsReduction : rootToPartialReductions[lhs]) {
+              if (PartialReduction::canSave(lhsReduction, rhs, opName)) {
+                addPartialReduction(
+                    PartialReduction::save(lhsReduction, rhs, newRoot, opName));
               }
+            }
+          }
 
-              if (!canJoin && rootToPartialReductions.contains(rhs)) {
-                for (const auto &rhsReduction : rootToPartialReductions[rhs]) {
-                  if (PartialReduction::canSave(rhsReduction, lhs, opName)) {
-                    addPartialReduction(PartialReduction::save(
-                        rhsReduction, lhs, newRoot, opName));
-                  }
-                }
+          if (!canJoin && rootToPartialReductions.contains(rhs)) {
+            for (const auto &rhsReduction : rootToPartialReductions[rhs]) {
+              if (PartialReduction::canSave(rhsReduction, lhs, opName)) {
+                addPartialReduction(
+                    PartialReduction::save(rhsReduction, lhs, newRoot, opName));
               }
-            });
+            }
+          }
+        });
 
     return WalkResult::advance();
   });

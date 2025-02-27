@@ -9,6 +9,7 @@ cc_library(
     srcs = ["RotationAnalysis.cpp"],
     hdrs = ["RotationAnalysis.h"],
     deps = [
+        "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
