@@ -197,7 +197,12 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
         for (Value result : op->getResults()) {
           if (getLevelFromMgmtAttr(result) == 0) {
             auto bound = getBound(result);
-            firstModSize = std::max(firstModSize, 1 + int(ceil(bound)));
+            // the bound is from v_ms + v / q, where v / q is negligible
+            // so originally bound(v_ms) + 1 is enough
+            // after the parameter selection with smaller primes, we have
+            // v_ms \approx v / q so bound(2 * v_ms) approx bound(v_ms) + 0.5
+            // now we need bound(v_ms) + 1.5 or bound + 2 to ensure the noise
+            firstModSize = std::max(firstModSize, 2 + int(ceil(bound)));
           }
         }
         return WalkResult::advance();
