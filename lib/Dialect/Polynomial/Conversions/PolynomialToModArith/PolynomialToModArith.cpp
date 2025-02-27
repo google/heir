@@ -10,7 +10,6 @@
 #include <utility>
 #include <vector>
 
-#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
@@ -134,7 +133,7 @@ Value getConstantCoefficient(Type type, int64_t value,
       })
       .Case<ModArithType>([&](ModArithType modTy) {
         return builder.create<mod_arith::ConstantOp>(
-            ModArithAttr::get(modTy, value));
+            modTy, IntegerAttr::get(modTy.getModulus().getType(), value));
       })
       .Default([&](Type ty) {
         assert(false && "unsupported coefficient type");

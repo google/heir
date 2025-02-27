@@ -270,7 +270,8 @@ struct ConvertRLWEEncrypt : public OpConversionPattern<RLWEEncryptOp> {
       // TODO(#876): Migrate to using the plaintext modulus of the encoding info
       // attributes.
       auto constantT = builder.create<mod_arith::ConstantOp>(
-          modArithType, 1 << cleartextBitwidth);
+          modArithType, IntegerAttr::get(modArithType.getModulus().getType(),
+                                         1 << cleartextBitwidth));
 
       // generate random e0 polynomial from discrete gaussian distribution
       auto e0Tensor = builder.create<random::SampleOp>(
@@ -392,7 +393,9 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
             polyType.getRing().getCoefficientType())
             .Case<mod_arith::ModArithType>(
                 [&](mod_arith::ModArithType type) -> Value {
-                  return rewriter.create<mod_arith::ConstantOp>(loc, type, -1);
+                  return rewriter.create<mod_arith::ConstantOp>(
+                      loc, type,
+                      IntegerAttr::get(type.getModulus().getType(), -1));
                 })
             .Case<IntegerType>([&](IntegerType type) -> Value {
               return rewriter.create<arith::ConstantIntOp>(loc, -1, type);

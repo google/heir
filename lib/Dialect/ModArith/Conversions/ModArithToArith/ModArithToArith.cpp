@@ -121,8 +121,8 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
   LogicalResult matchAndRewrite(
       ConstantOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    auto constOp = rewriter.create<arith::ConstantOp>(op.getLoc(),
-                                                      op.getValue().getValue());
+    auto constOp =
+        rewriter.create<arith::ConstantOp>(op.getLoc(), op.getValueAttr());
     rewriter.replaceOp(op, constOp);
     return success();
   }

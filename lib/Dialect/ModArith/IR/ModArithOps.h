@@ -2,7 +2,6 @@
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_H_
 
 // NOLINTBEGIN(misc-include-cleaner): Required to define ModArithOps
-#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
