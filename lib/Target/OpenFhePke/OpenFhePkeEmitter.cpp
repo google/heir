@@ -1,13 +1,21 @@
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <functional>
+#include <ios>
 #include <iterator>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "include/cereal/archives/binary.hpp"           // from @cereal
+#include "include/cereal/archives/json.hpp"             // from @cereal
+#include "include/cereal/archives/portable_binary.hpp"  // from @cereal
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -15,18 +23,22 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Target/OpenFhePke/OpenFheUtils.h"
 #include "lib/Utils/TargetUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
-#include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/LogicalResult.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
@@ -65,12 +77,155 @@ FailureOr<std::string> getStringForConstant(Value value) {
   return failure();
 }
 
+// Returns true if the given array of sizes is contiguous.
+bool isSingleContiguousSlice(ArrayRef<int64_t> sizes,
+                             ArrayRef<int64_t> sourceShape) {
+  // Find and drop leading and trailing unit sizes.
+  ArrayRef<int64_t> range = sizes;
+  const auto *nonUnitFrontIt =
+      llvm::find_if(range, [](int64_t size) { return size != 1; });
+  size_t numUnitFrontSizes = std::distance(range.begin(), nonUnitFrontIt);
+  int64_t numDroppedFrontDims = std::min(numUnitFrontSizes + 1, range.size());
+  const auto nonUnitBackIt = llvm::find_if(
+      llvm::reverse(range), [](int64_t size) { return size != 1; });
+  size_t numUnitBackSizes =
+      std::distance(llvm::reverse(range).begin(), nonUnitBackIt);
+  int64_t numDroppedBackDims = std::min(numUnitBackSizes, range.size());
+
+  auto drop = [numDroppedFrontDims, numDroppedBackDims](auto range) {
+    return range.drop_front(numDroppedFrontDims).drop_back(numDroppedBackDims);
+  };
+
+  // Check that the remaining size matches the source shape.
+  return drop(range) == drop(sourceShape);
+}
+
+/// Print the integer element of a DenseElementsAttr.
+static void printDenseIntElement(const APInt &value, raw_ostream &os,
+                                 Type type) {
+  if (type.isInteger(1))
+    os << (value.getBoolValue() ? "true" : "false");
+  else
+    value.print(os, !type.isUnsignedInteger());
+}
+
+/// Print a floating point value in a way that the parser will be able to
+/// round-trip losslessly.
+static void printFloatValue(const APFloat &apValue, raw_ostream &os) {
+  assert(apValue.isFinite() && "expected finite value");
+  SmallString<128> strValue;
+  apValue.toString(strValue, /*FormatPrecision=*/6, /*FormatMaxPadding=*/0,
+                   /*TruncateZero=*/false);
+  // Parse back the stringized version and check that the value is equal
+  // (i.e., there is no precision loss). If it is not, use the default format of
+  // APFloat instead of the exponential notation.
+  if (!APFloat(apValue.getSemantics(), strValue).bitwiseIsEqual(apValue)) {
+    strValue.clear();
+    apValue.toString(strValue);
+    assert(strValue.str().contains('.') && "expected decimal notation");
+  }
+
+  os << strValue;
+}
+
+FailureOr<std::string> printOneDimDenseElementsAttr(DenseElementsAttr attr) {
+  auto type = attr.getType();
+  auto elementType = attr.getElementType();
+  if (!(elementType.isIntOrIndex() || llvm::isa<FloatType>(elementType))) {
+    return failure();
+  }
+
+  std::string valueStr;
+  llvm::raw_string_ostream ss(valueStr);
+  auto printEltFn = [&](unsigned index) {
+    if (elementType.isIntOrIndex()) {
+      auto valueIt = attr.value_begin<APInt>();
+      printDenseIntElement(*(valueIt + index), ss, elementType);
+    } else {
+      auto valueIt = attr.value_begin<APFloat>();
+      printFloatValue(*(valueIt + index), ss);
+    }
+  };
+  if (attr.isSplat()) {
+    printEltFn(0);
+    return ss.str();
+  }
+  ss << "{";
+  for (unsigned idx = 0, e = type.getNumElements(); idx != e; ++idx) {
+    if (idx != 0) ss << ", ";
+    printEltFn(idx);
+  }
+  ss << "}";
+  return ss.str();
+}
+
+// Adds the given DenseElementsAttr to the weights map.
+LogicalResult addWeightTo(DenseElementsAttr attr, std::string &name,
+                          Weights *weights) {
+  // Only double, float, and int_{8, 16, 32, 64}t are supported.
+  return llvm::TypeSwitch<Type, LogicalResult>(attr.getElementType())
+      .Case<Float32Type>([&](auto type) {
+        std::vector<float> floats;
+        for (auto value : attr.getValues<float>()) {
+          floats.push_back(value);
+        }
+        weights->floats[name] = floats;
+        return success();
+      })
+      .Case<Float64Type>([&](auto type) {
+        std::vector<double> doubles;
+        for (auto value : attr.getValues<double>()) {
+          doubles.push_back(value);
+        }
+        weights->doubles[name] = doubles;
+        return success();
+      })
+      .Case<IntegerType>([&](IntegerType type) {
+        std::vector<int64_t> int64_ts;
+        for (auto value : attr.getValues<APInt>()) {
+          int64_ts.push_back(value.getSExtValue());
+        }
+        switch (type.getWidth()) {
+          case 64:
+            weights->int64_ts[name] = int64_ts;
+            return success();
+          case 32:
+            weights->int32_ts[name] = {int64_ts.begin(), int64_ts.end()};
+            return success();
+          case 16:
+            weights->int16_ts[name] = {int64_ts.begin(), int64_ts.end()};
+            return success();
+          case 8:
+            weights->int8_ts[name] = {int64_ts.begin(), int64_ts.end()};
+            return success();
+          default:
+            return failure();
+        };
+      })
+      .Default([&](auto type) { return failure(); });
+}
+
+FailureOr<std::string> getWeightType(Type type) {
+  auto result = llvm::TypeSwitch<Type, std::string>(type)
+                    .Case<Float32Type>([&](auto type) { return "float"; })
+                    .Case<Float64Type>([&](auto type) { return "double"; })
+                    .Case<IntegerType>([&](auto type) {
+                      return llvm::formatv("int{0}_t", type.getWidth());
+                    })
+                    .Default([&](auto type) { return ""; });
+  if (result.empty()) {
+    return failure();
+  }
+  return result;
+}
+
 }  // namespace
 
 LogicalResult translateToOpenFhePke(Operation *op, llvm::raw_ostream &os,
-                                    const OpenfheImportType &importType) {
+                                    const OpenfheImportType &importType,
+                                    const std::string &weightsFile) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeEmitter emitter(os, &variableNames, importType);
+  OpenFhePkeEmitter emitter(os, &variableNames, importType, weightsFile);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -83,12 +238,16 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           // Func ops
           .Case<func::FuncOp, func::CallOp, func::ReturnOp>(
               [&](auto op) { return printOperation(op); })
+          // Affine ops
+          .Case<affine::AffineForOp, affine::AffineYieldOp>(
+              [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::IndexCastOp,
                 arith::ExtFOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::EmptyOp, tensor::InsertOp, tensor::ExtractOp,
-                tensor::SplatOp>([&](auto op) { return printOperation(op); })
+                tensor::ExtractSliceOp, tensor::SplatOp>(
+              [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretUnderlyingTypeOp>(
               [&](auto op) { return printOperation(op); })
@@ -124,12 +283,27 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
   }
 
   os << getModulePrelude(scheme, importType_) << "\n";
+
+  if (!weightsFile_.empty()) {
+    os << getWeightsPrelude() << "\n";
+  }
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
   }
 
+  // Emit the weights file.
+  if (!weightsFile_.empty()) {
+    std::ofstream file(weightsFile_, std::ios::out | std::ios::binary);
+    if (file.is_open()) {
+      cereal::PortableBinaryOutputArchive archive(file);
+      archive(weightsMap_);
+      file.close();
+    } else {
+      return failure();
+    }
+  }
   return success();
 }
 
@@ -204,6 +378,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
   os << " {\n";
   os.indent();
 
+  if (!weightsFile_.empty() && !funcOp.getOps<arith::ConstantOp>().empty()) {
+    os << llvm::formatv("Weights weights = GetWeightModule(\"{0}\");\n",
+                        weightsFile_);
+  }
+
   for (Block &block : funcOp.getBlocks()) {
     for (Operation &op : block.getOperations()) {
       if (failed(translate(op))) {
@@ -277,16 +456,66 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
+  if (!op.getConstantLowerBound() || !op.getConstantUpperBound()) {
+    return failure();
+  }
+
+  // Clone the loop's results to use as initial iter args. We must use non-const
+  // types so that the loop body can modify them.
+  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+    if (failed(emitTypedAssignPrefix(op.getResults()[i], op.getLoc(), false))) {
+      return failure();
+    }
+    os << variableNames->getNameForValue(op.getOperands()[i]) << "->Clone();\n";
+    // Map the region's iter args to the result names.
+    variableNames->mapValueNameToValue(op.getRegionIterArgs()[i],
+                                       op.getResults()[i]);
+    mutableValues.insert(op.getRegionIterArgs()[i]);
+    // Map the yielded value names to the result names.
+    variableNames->mapValueNameToValue(op.getYieldedValues()[i],
+                                       op.getResults()[i]);
+    mutableValues.insert(op.getYieldedValues()[i]);
+  }
+
+  os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; ++{0}) {{\n",
+                      variableNames->getNameForValue(op.getInductionVar()),
+                      op.getConstantLowerBound(), op.getConstantUpperBound());
+  os.indent();
+  for (Operation &op : *op.getBody()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for loop block";
+    }
+  }
+
+  os.unindent();
+  os << "}\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineYieldOp op) {
+  // Assume all yielded loop values have already been assigned.
+  return success();
+}
+
 void OpenFhePkeEmitter::emitAutoAssignPrefix(Value result) {
-  // Use const auto& because most OpenFHE API methods would perform a copy
-  // if using a plain `auto`.
-  os << "const auto& " << variableNames->getNameForValue(result) << " = ";
+  // If the result values are iter args of a region, then avoid using a auto
+  // assign prefix.
+  if (!mutableValues.contains(result)) {
+    os << "const auto& ";
+  }
+  //  Use const auto& because most OpenFHE API methods would
+  // perform a copy if using a plain `auto`.
+  os << variableNames->getNameForValue(result) << " = ";
 }
 
 LogicalResult OpenFhePkeEmitter::emitTypedAssignPrefix(Value result,
-                                                       Location loc) {
-  if (failed(emitType(result.getType(), loc))) {
-    return failure();
+                                                       Location loc,
+                                                       bool constant) {
+  if (!mutableValues.contains(result)) {
+    if (failed(emitType(result.getType(), loc, constant))) {
+      return failure();
+    }
   }
   os << " " << variableNames->getNameForValue(result) << " = ";
   return success();
@@ -448,47 +677,44 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
     }
     os << floatStr.value() << ";\n";
   } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
-    auto nonUnitDims = llvm::to_vector(
-        llvm::make_filter_range(denseElementsAttr.getType().getShape(),
-                                [](int dim) { return dim != 1; }));
-    bool printMultiDimAsOneDim = nonUnitDims.size() == 1;
-    if (denseElementsAttr.getType().getRank() == 1 || printMultiDimAsOneDim) {
-      // Print a 1-D constant.
-      // TODO(#913): This is a simplifying assumption on the layout of the
-      // multi-dimensional when there is only one non-unit dimension.
-      if (printMultiDimAsOneDim) {
-        os << "std::vector<";
-        if (failed(emitType(denseElementsAttr.getType().getElementType(),
-                            op.getLoc()))) {
-          return failure();
-        }
-        os << ">";
-      } else if (failed(emitType(op.getResult().getType(), op->getLoc()))) {
-        return failure();
-      }
-      os << " " << variableNames->getNameForValue(op.getResult());
-
-      std::string value_str;
-      llvm::raw_string_ostream ss(value_str);
-      denseElementsAttr.print(ss);
-
-      if (denseElementsAttr.isSplat()) {
-        // SplatElementsAttr are printed as dense<2> : tensor<1xi32>.
-        // Output as `std::vector<int32_t> constant(2, 1);`
-        int start = value_str.find('<') + 1;
-        int end = value_str.find('>') - start;
-        os << "(" << denseElementsAttr.getNumElements() << ", "
-           << value_str.substr(start, end) << ");\n";
-      } else {
-        // DenseElementsAttr are printed as dense<[1, 2]> : tensor<2xi32>.
-        // Output as `std::vector<int32_t> constant = {1, 2};`
-        int start = value_str.find_last_of('[') + 1;
-        int end = value_str.find_first_of(']') - start;
-        os << " = {" << value_str.substr(start, end) << "};\n";
-      }
-      return success();
+    // TODO(#913): This is a simplifying assumption on the layout of the
+    // multi-dimensional when there is only one non-unit dimension.
+    // Prints all dense elements attribute as a flattened vector.
+    ShapedType flattenedType =
+        RankedTensorType::get({denseElementsAttr.getNumElements()},
+                              denseElementsAttr.getType().getElementType());
+    auto flattenedElementsAttr = denseElementsAttr.reshape(flattenedType);
+    if (failed(emitType(flattenedElementsAttr.getType(), op.getLoc()))) {
+      return failure();
     }
-    return failure();
+
+    auto name = variableNames->getNameForValue(op.getResult());
+    os << " " << name;
+    auto result = printOneDimDenseElementsAttr(flattenedElementsAttr);
+    if (failed(result)) {
+      return failure();
+    }
+    if (denseElementsAttr.isSplat()) {
+      os << "(" << flattenedElementsAttr.getNumElements() << ", "
+         << result.value() << ");\n";
+    } else if (!weightsFile_.empty()) {
+      if (failed(addWeightTo(flattenedElementsAttr, name, &weightsMap_))) {
+        return emitError(
+            op.getLoc(),
+            llvm::formatv("Failed to add weight for type {0}", flattenedType));
+      }
+      auto weightType = getWeightType(flattenedType.getElementType());
+      if (failed(weightType)) {
+        return emitError(op.getLoc(),
+                         llvm::formatv("Failed to get weight type for type {0}",
+                                       flattenedType));
+      }
+      os << llvm::formatv(" = weights.{0}s[\"{1}\"];\n", weightType.value(),
+                          name);
+    } else {
+      os << " = " << result.value() << ";\n";
+    }
+    return success();
   } else {
     return op.emitError() << "Unsupported constant type "
                           << valueAttr.getType();
@@ -580,6 +806,46 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
       });
   os << "]";
   os << ";\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
+  // const auto& v1 = in[0, 1];
+  // Must be single contiguous slice with constant sizes and strides.
+  if (llvm::any_of(op.getStaticSizes(),
+                   [](int64_t size) { return ShapedType::isDynamic(size); })) {
+    return failure();
+  }
+  if (!llvm::all_of(op.getStaticStrides(),
+                    [](int64_t size) { return size == 1; })) {
+    return failure();
+  }
+  if (!isSingleContiguousSlice(op.getStaticSizes(),
+                               op.getSourceType().getShape())) {
+    return failure();
+  }
+  // Only handle the case of extracting a single row from a 2-D tensor.
+  // Offsets are expected to be [%val, 0]
+  if (op.getMixedOffsets().size() != 2 || op.getStaticOffsets()[1] != 0) {
+    return failure();
+  }
+
+  std::string inputVarName = variableNames->getNameForValue(op.getSource());
+  std::string resultVarName = variableNames->getNameForValue(op.getResult());
+  auto elementType =
+      convertType(op.getSourceType().getElementType(), op->getLoc());
+  if (failed(elementType)) {
+    return failure();
+  }
+
+  auto flattenStart = llvm::formatv(
+      "{0} * {1}", variableNames->getNameForValue(op.getDynamicOffset(0)),
+      op.getSourceType().getShape()[0]);
+  auto flattenEnd = llvm::formatv("{0} + {1}", flattenStart,
+                                  op.getResultType().getNumElements());
+  os << "std::vector<" << elementType.value() << "> " << resultVarName
+     << "(std::begin(" << inputVarName << ") + " << flattenStart
+     << ", std::end(" << inputVarName << ") + " << flattenEnd << ");\n";
   return success();
 }
 
@@ -859,8 +1125,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(SetupBootstrapOp op) {
   return success();
 }
 
-LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc) {
-  auto result = convertType(type, loc);
+LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc,
+                                          bool constant) {
+  auto result = convertType(type, loc, constant);
   if (failed(result)) {
     return failure();
   }
@@ -870,8 +1137,12 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc) {
 
 OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream &os,
                                      SelectVariableNames *variableNames,
-                                     const OpenfheImportType &importType)
-    : importType_(importType), os(os), variableNames(variableNames) {}
+                                     const OpenfheImportType &importType,
+                                     const std::string &weightsFile)
+    : importType_(importType),
+      os(os),
+      variableNames(variableNames),
+      weightsFile_(weightsFile) {}
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

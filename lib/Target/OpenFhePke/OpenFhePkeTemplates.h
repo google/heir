@@ -18,12 +18,49 @@ constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
 constexpr std::string_view kModulePreludeTemplate = R"cpp(
 using namespace lbcrypto;
 using CiphertextT = ConstCiphertext<DCRTPoly>;
+using NonConstCiphertextT = Ciphertext<DCRTPoly>;
 using CCParamsT = CCParams<CryptoContext{0}RNS>;
 using CryptoContextT = CryptoContext<DCRTPoly>;
 using EvalKeyT = EvalKey<DCRTPoly>;
 using PlaintextT = Plaintext;
 using PrivateKeyT = PrivateKey<DCRTPoly>;
 using PublicKeyT = PublicKey<DCRTPoly>;
+)cpp";
+// clang-format on
+
+// clang-format off
+constexpr std::string_view kWeightsPreludeTemplate = R"cpp(
+#include <fstream>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "include/cereal/archives/portable_binary.hpp" // from @cereal
+#include "include/cereal/cereal.hpp" // from @cereal
+
+struct Weights {
+  std::map<std::string, std::vector<float>> floats;
+  std::map<std::string, std::vector<double>> doubles;
+  std::map<std::string, std::vector<int64_t>> int64_ts;
+  std::map<std::string, std::vector<int32_t>> int32_ts;
+  std::map<std::string, std::vector<int16_t>> int16_ts;
+  std::map<std::string, std::vector<int8_t>> int8_ts;
+
+  template <class Archive>
+  void serialize(Archive &archive) {
+    archive(CEREAL_NVP(floats), CEREAL_NVP(doubles), CEREAL_NVP(int64_ts),
+            CEREAL_NVP(int32_ts), CEREAL_NVP(int16_ts), CEREAL_NVP(int8_ts));
+  }
+};
+
+Weights GetWeightModule(const std::string& filename) {
+  Weights obj;
+  std::ifstream file(filename, std::ios::in | std::ios::binary);
+  cereal::PortableBinaryInputArchive archive(file);
+  archive(obj);
+  file.close();
+  return obj;
+}
 )cpp";
 // clang-format on
 
