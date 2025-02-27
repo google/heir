@@ -69,7 +69,7 @@ heir_lattigo_lib(
     name = "box_blur",
     go_library_name = "boxblur",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=4295294977",
+        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=786433",
         "--scheme-to-lattigo",
     ],
     mlir_src = "box_blur_64x64.mlir",
@@ -144,7 +144,6 @@ go_test(
     embed = [":dotproduct8debug"],
 )
 
-# happens to have logN = 13
 go_test(
     name = "robertscross_test",
     srcs = ["roberts_cross_test.go"],

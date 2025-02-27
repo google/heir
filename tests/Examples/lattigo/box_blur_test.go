@@ -5,11 +5,6 @@ import (
 )
 
 func TestBinops(t *testing.T) {
-	// TODO(#1186): re-enable this test
-	// Disabled now for logN = 12 in parameter generation
-	// which does not satisfy the requirement of logN >= 13
-	// for 4096 input size
-	t.Skip("Disabled because the parameters generated are too small.")
 	evaluator, params, ecd, enc, dec := box_blur__configure()
 
 	input := make([]int16, 4096)

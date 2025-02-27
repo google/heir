@@ -26,7 +26,8 @@ class SchemeParam : public RLWESchemeParam {
   void print(llvm::raw_ostream &os) const override;
 
   static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
-                                            int logDefaultScale);
+                                            int logDefaultScale,
+                                            int slotNumber);
 };
 
 }  // namespace ckks

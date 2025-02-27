@@ -13,8 +13,11 @@ struct RLWESecurityParam rlweSecurityParam128BitClassic[] = {
     {1024, 26},   {2048, 53},   {4096, 106},   {8192, 214},
     {16384, 430}, {32768, 868}, {65536, 1747}, {131072, 3523}};
 
-int computeRingDim(int logPQ) {
+int computeRingDim(int logPQ, int minRingDim) {
   for (auto &param : rlweSecurityParam128BitClassic) {
+    if (param.ringDim < minRingDim) {
+      continue;
+    }
     if (param.logMaxQ >= logPQ) {
       return param.ringDim;
     }

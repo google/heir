@@ -215,8 +215,11 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       auto maxLevel = getMaxLevel();
       std::vector<double> logPrimes(maxLevel + 1, 45);  // all primes of 45 bits
 
-      auto schemeParam =
-          bgv::SchemeParam::getConcreteSchemeParam(logPrimes, plaintextModulus);
+      // pass option polyModDegree is actually the number of slots
+      // assuming slots = ringDim / 2 for 1-dim vector behavior
+      // TODO(#1402): use a proper name for BGV
+      auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(
+          logPrimes, plaintextModulus, polyModDegree);
 
       primes = schemeParam.getQi();
 

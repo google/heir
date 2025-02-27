@@ -161,6 +161,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       auto validateNoiseOptions = ValidateNoiseOptions{};
       validateNoiseOptions.model = options.noiseModel;
       validateNoiseOptions.plaintextModulus = options.plaintextModulus;
+      validateNoiseOptions.slotNumber = options.ciphertextDegree;
       pm.addPass(createValidateNoise(validateNoiseOptions));
       break;
     }

@@ -28,7 +28,8 @@ int computeDnum(int level) {
   return 1;
 }
 
-RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(int level) {
+RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(
+    int level, int slotNumber) {
   auto logModuli = 60;  // assume all 60 bit moduli
   auto dnum = computeDnum(level);
   std::vector<double> logqi(level + 1, logModuli);
@@ -37,7 +38,7 @@ RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(int level) {
 
   auto totalQP = logModuli * (logqi.size() + logpi.size());
 
-  auto ringDim = computeRingDim(totalQP);
+  auto ringDim = computeRingDim(totalQP, slotNumber);
 
   return RLWESchemeParam(ringDim, level, logqi, dnum, logpi);
 }
@@ -78,7 +79,7 @@ int64_t findPrime(int qi, int ringDim,
 }
 
 RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
-    std::vector<double> logqi, int64_t plaintextModulus) {
+    std::vector<double> logqi, int slotNumber, int64_t plaintextModulus) {
   auto level = logqi.size() - 1;
   auto dnum = computeDnum(level);
 
@@ -98,7 +99,7 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
                  std::accumulate(logpi.begin(), logpi.end(), 0.0);
 
   // ringDim will change if newLogPQ is too large
-  auto ringDim = computeRingDim(logPQ);
+  auto ringDim = computeRingDim(logPQ, slotNumber);
   std::vector<int64_t> qiImpl;
   std::vector<int64_t> piImpl;
   bool redo = false;
@@ -127,7 +128,7 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
       newLogPQ += log2(prime);
     }
     // if generated primes are too large, increase ringDim
-    auto newRingDim = computeRingDim(newLogPQ);
+    auto newRingDim = computeRingDim(newLogPQ, slotNumber);
     if (newRingDim != ringDim) {
       ringDim = newRingDim;
       redo = true;

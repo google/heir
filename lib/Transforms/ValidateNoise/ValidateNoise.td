@@ -50,6 +50,8 @@ def ValidateNoise : Pass<"validate-noise"> {
            /*default=*/"", "Noise model to validate against.">,
     Option<"plaintextModulus", "plaintext-modulus", "int64_t",
            /*default=*/"65537", "Plaintext modulus.">,
+    Option<"slotNumber", "slot-number", "int",
+           /*default=*/"0", "Minimum number of slots for parameter generation.">,
   ];
 }
 
