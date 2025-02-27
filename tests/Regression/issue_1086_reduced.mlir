@@ -28,7 +28,7 @@ func.func @sum(%arg0: !secret.secret<memref<2xi3>>) -> !secret.secret<i3> {
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
   %c0_i3 = arith.constant 0 : i3
-  %0 = secret.conceal %c0_i3 : i3 -> <i3>
+  %0 = secret.conceal %c0_i3 : i3 -> !secret.secret<i3>
   %1 = affine.for %arg1 = 0 to 2 iter_args(%arg2 = %0) -> (!secret.secret<i3>) {
     %2 = secret.cast %arg0 : !secret.secret<memref<2xi3>> to !secret.secret<memref<6xi1>>
     %3 = secret.generic ins(%2 : !secret.secret<memref<6xi1>>) {
