@@ -40,6 +40,13 @@ repos:
       - id: codespell
         args: ["-L", "crate, fpt"]
 
+        # The PISA dialect contains operation names that look like misspellings.
+        exclude: >
+          (?x)^(
+            .*\/pisa\/.*\.mlir|
+            .*\/PISA\/.*\.td|
+            .*\/PISA\/.*\.cpp
+          )$
 
 # Changes tabs to spaces
 -   repo: https://github.com/Lucas-C/pre-commit-hooks

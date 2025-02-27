@@ -1,1 +1,2 @@
 add_subdirectory(PolynomialToModArith)
+add_subdirectory(PolynomialToPISA)

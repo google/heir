@@ -3,6 +3,7 @@
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
+#include "lib/Target/PISA/PISAEmitter.h"
 // This comment includes internal emitters
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
@@ -36,6 +37,10 @@ int main(int argc, char **argv) {
 
   // AutoHOG input
   mlir::heir::registerFromAutoHogTranslation();
+
+  // PISA
+  mlir::heir::pisa::registerToPISAInputsTranslation();
+  mlir::heir::pisa::registerToPISATranslation();
 
   // This comment inserts internal emitters
 
