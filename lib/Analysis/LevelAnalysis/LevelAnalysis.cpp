@@ -111,7 +111,8 @@ static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
   return maxLevel;
 }
 
-void annotateLevel(Operation *top, DataFlowSolver *solver) {
+/// baseLevel is for B/FV scheme, where all the analysis result would be 0
+void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
   auto maxLevel = getMaxLevel(top, solver);
 
   auto getIntegerAttr = [&](int level) {
@@ -121,7 +122,8 @@ void annotateLevel(Operation *top, DataFlowSolver *solver) {
   // use L to 0 instead of 0 to L
   auto getLevel = [&](Value value) {
     return maxLevel -
-           solver->lookupState<LevelLattice>(value)->getValue().getLevel();
+           solver->lookupState<LevelLattice>(value)->getValue().getLevel() +
+           baseLevel;
   };
 
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
