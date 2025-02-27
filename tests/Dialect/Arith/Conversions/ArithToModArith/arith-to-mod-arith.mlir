@@ -54,6 +54,26 @@ func.func @test_lower_mul_vec(%lhs : tensor<4xi32>, %rhs : tensor<4xi32>) -> ten
   return %res : tensor<4xi32>
 }
 
+// CHECK-LABEL: @test_arith_constant
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_arith_constant() -> i32 {
+  // CHECK: %[[C:.*]] = mod_arith.constant 17 : [[T]]
+  // CHECK: return %[[C:.*]] : [[T]]
+  %c17 = arith.constant 17 : i32
+  return %c17 : i32
+}
+
+// CHECK-LABEL: @test_arith_constant_no_convert_index
+// CHECK-SAME: (%[[ARG:.*]]: tensor<2x[[T:.*]]>) -> [[T]] {
+func.func @test_arith_constant_no_convert_index(%arg : tensor<2xi32>) -> i32 {
+  // CHECK: %[[IDX:.*]] = arith.constant 17 : index
+  %idx = arith.constant 17 : index
+  // CHECK: %[[RES:.*]] = tensor.extract %[[ARG]][%[[IDX]]] : tensor<2x[[T]]>
+  %res = tensor.extract %arg[%idx] : tensor<2xi32>
+  // CHECK: return %[[RES:.*]] : [[T]]
+  return %res : i32
+}
+
 // CHECK-LABEL: @test_memref_global
 // CHECK-SAME: (%[[ARG:.*]]: memref<1x1x!Z2147483648_i33_>) -> memref<1x1x!Z2147483648_i33_> {
 module attributes {tf_saved_model.semantics} {
