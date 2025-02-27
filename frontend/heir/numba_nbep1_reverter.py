@@ -1,4 +1,5 @@
-"""This file is a near-verbatim copy of numba.core.typing.builtins.py,
+"""This file is a near-verbatim copy of numba.core.typing.old_builtins.py,
+i.e., numba.core.typing.builtins if config.USE_LEGACY_TYPE_SYSTEM is set
 
 with only one change: we override integer_binop_cases to stop numba
 from upcasting, e.g., int8 + int8 to int64 or int32 (intp in numba).
@@ -14,46 +15,35 @@ developers express their computation in terms of 8-bit or 16-bit integers.
 """
 
 import itertools
+
+
+import numpy as np
 import operator
 
+from numba.core import types, errors
 from numba import prange
-from numba.core import errors, types
-from numba.core.extending import (
-    make_attribute_wrapper,
-    models,
-    register_model,
-    type_callable,
-    typeof_impl,
-)
+from numba.parfors.parfor import internal_prange
+
 from numba.core.typing.templates import (
-    AbstractTemplate,
     AttributeTemplate,
     ConcreteTemplate,
-    bound_function,
+    AbstractTemplate,
+    infer_global,
     infer,
     infer_getattr,
-    infer_global,
-    make_callable_template,
     signature,
+    bound_function,
+    make_callable_template,
 )
-from numba.parfors.parfor import internal_prange
-import numpy as np
 
 
-def get_type_max_value(typ):
-  if isinstance(typ, types.Float):
-    return np.inf
-  if isinstance(typ, types.Integer):
-    return typ.maxval
-  raise NotImplementedError("Unsupported type")
-
-
-def get_type_min_value(typ):
-  if isinstance(typ, types.Float):
-    return -np.inf
-  if isinstance(typ, types.Integer):
-    return typ.minval
-  raise NotImplementedError("Unsupported type")
+from numba.core.extending import (
+    typeof_impl,
+    type_callable,
+    models,
+    register_model,
+    make_attribute_wrapper,
+)
 
 
 @infer_global(print)
@@ -63,7 +53,7 @@ class Print(AbstractTemplate):
     for a in args:
       sig = self.context.resolve_function_type("print_item", (a,), {})
       if sig is None:
-        raise TypeError("Type %s is not printable." % a)
+        raise errors.TypingError("Type %s is not printable." % a)
       assert sig.return_type is types.none
     return signature(types.none, *args)
 
@@ -158,7 +148,9 @@ class IterNext(AbstractTemplate):
 
 @infer
 class PairFirst(AbstractTemplate):
-  """Given a heterogeneous pair, return the first element."""
+  """
+  Given a heterogeneous pair, return the first element.
+  """
 
   key = "pair_first"
 
@@ -171,7 +163,9 @@ class PairFirst(AbstractTemplate):
 
 @infer
 class PairSecond(AbstractTemplate):
-  """Given a heterogeneous pair, return the second element."""
+  """
+  Given a heterogeneous pair, return the second element.
+  """
 
   key = "pair_second"
 
@@ -183,12 +177,12 @@ class PairSecond(AbstractTemplate):
 
 
 def choose_result_bitwidth(*inputs):
-  return max(tp.bitwidth for tp in inputs)
+  return max(types.intp.bitwidth, *(tp.bitwidth for tp in inputs))
 
 
 def choose_result_int(*inputs):
-  """Choose the integer result type for an operation on integer inputs,
-
+  """
+  Choose the integer result type for an operation on integer inputs,
   according to the integer typing NBEP.
   """
   bitwidth = choose_result_bitwidth(*inputs)
@@ -210,7 +204,7 @@ integer_binop_cases = [signature(op, op, op) for op in types.integer_domain]
 # integer_binop_cases = tuple(
 #     signature(choose_result_int(op1, op2), op1, op2)
 #     for op1, op2 in itertools.product(machine_ints, machine_ints)
-#     )
+# )
 
 
 class BinOp(ConcreteTemplate):
@@ -615,8 +609,8 @@ class CmpOpIsNot(CmpOpIdentity):
 
 
 def normalize_1d_index(index):
-  """Normalize the *index* type (an integer or slice) for indexing a 1D
-
+  """
+  Normalize the *index* type (an integer or slice) for indexing a 1D
   sequence.
   """
   if isinstance(index, types.SliceType):
@@ -753,7 +747,6 @@ class StaticGetItemLiteralStrKeyDict(AbstractTemplate):
 @infer
 class StaticGetItemClass(AbstractTemplate):
   """This handles the "static_getitem" when a Numba type is subscripted e.g:
-
   var = typed.List.empty_list(float64[::1, :])
   It only allows this on simple numerical types. Compound types, like
   records, are not supported.
@@ -913,9 +906,8 @@ class NumberClassAttribute(AttributeTemplate):
   key = types.NumberClass
 
   def resolve___call__(self, classty):
-    """Resolve a NumPy number class's constructor (e.g.
-
-    calling numpy.int32(...))
+    """
+    Resolve a NumPy number class's constructor (e.g. calling numpy.int32(...))
     """
     ty = classty.instance_type
 
@@ -956,9 +948,8 @@ class TypeRefAttribute(AttributeTemplate):
   key = types.TypeRef
 
   def resolve___call__(self, classty):
-    """Resolve a core number's constructor (e.g.
-
-    calling int(...))
+    """
+    Resolve a core number's constructor (e.g. calling int(...))
 
     Note:
 
@@ -1006,7 +997,9 @@ class MinMaxBase(AbstractTemplate):
     return self.context.unify_types(*tys)
 
   def generic(self, args, kws):
-    """Resolve a min() or max() call."""
+    """
+    Resolve a min() or max() call.
+    """
     assert not kws
 
     if not args:
@@ -1016,7 +1009,7 @@ class MinMaxBase(AbstractTemplate):
       if isinstance(args[0], types.BaseTuple):
         tys = list(args[0])
         if not tys:
-          raise TypeError(
+          raise errors.TypingError(
               "%s() argument is an empty tuple" % (self.key.__name__,)
           )
       else:
@@ -1240,22 +1233,10 @@ class DeferredAttribute(AttributeTemplate):
 # ------------------------------------------------------------------------------
 
 
-@infer_global(get_type_min_value)
-@infer_global(get_type_max_value)
-class MinValInfer(AbstractTemplate):
-
-  def generic(self, args, kws):
-    assert not kws
-    assert len(args) == 1
-    if isinstance(args[0], (types.DType, types.NumberClass)):
-      return signature(args[0].dtype, *args)
-
-
-# ------------------------------------------------------------------------------
-
-
 class IndexValue(object):
-  """Index and value"""
+  """
+  Index and value
+  """
 
   def __init__(self, ind, val):
     self.index = ind

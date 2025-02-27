@@ -1,7 +1,7 @@
 """Example of HEIR Python usage."""
 
-from frontend.heir import compile
-from frontend.heir.mlir import F32, I16, I64, Secret, Tensor
+from heir import compile
+from heir.mlir import F32, I16, I64, Secret, Tensor
 
 # TODO (#1162): Also add the tensorflow-to-tosa-to-HEIR example in example.py, even it doesn't use the main Python frontend?
 
