@@ -33,3 +33,11 @@ func.func @test_barrett_neg_mod_err(%arg : i8) -> i8 {
   %res = mod_arith.barrett_reduce %arg { modulus = -3 : i7 } : i8
   return %res : i8
 }
+
+// -----
+// CHECK-NOT @test_constant_bad_width
+func.func @test_constant_bad_width() {
+  // expected-error@+1 {{Constant value's bitwidth must be smaller than underlying type.}}
+  %c = mod_arith.constant 512 : !mod_arith.int<17 : i8>
+  return
+}

@@ -15,8 +15,8 @@ func.func @test_arith_syntax() {
   %c_vec3 = arith.constant dense<[1, 1, 1, 1]> : tensor<4xi10>
   %cmod_vec = arith.constant dense<17> : tensor<4xi10>
 
-  // CHECK: mod_arith.constant 123 : !mod_arith.int<17 : i10>
-  %const123 = mod_arith.constant 123 : !Zp
+  // CHECK: mod_arith.constant 12 : !mod_arith.int<17 : i10>
+  %const123 = mod_arith.constant 12 : !Zp
 
   // CHECK-COUNT-6: mod_arith.encapsulate
   %e4 = mod_arith.encapsulate %c4 : i10 -> !Zp

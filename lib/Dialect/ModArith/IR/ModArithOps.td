@@ -2,7 +2,6 @@
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 
 include "lib/Dialect/ModArith/IR/ModArithDialect.td"
-include "lib/Dialect/ModArith/IR/ModArithAttributes.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
@@ -83,8 +82,7 @@ def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure, SameOperandsAndResul
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
 
-def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
-    [Pure, InferTypeOpAdaptor]> {
+def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [Pure]> {
   let summary = "Define a constant value via an attribute.";
   let description = [{
     Example:
@@ -93,15 +91,10 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
     %0 = mod_arith.constant 123 : !mod_arith.int<65537:i32>
     ```
   }];
-  let arguments = (ins ModArith_ModArithAttr:$value);
+  let arguments = (ins APIntAttr:$value);
   let results = (outs ModArith_ModArithType:$output);
   let hasCustomAssemblyFormat = 1;
-
-  let builders = [
-    OpBuilder<(ins "::mlir::heir::mod_arith::ModArithType":$ty, "int64_t":$value), [{
-      return build($_builder, $_state, ty, mod_arith::ModArithAttr::get(ty, value));
-    }]>
-  ];
+  let hasVerifier = 1;
 }
 
 

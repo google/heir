@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <utility>
 
-#include "lib/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
@@ -91,10 +90,9 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
     if (isa<IndexType>(op.getValue().getType())) {
       return failure();
     }
-
-    auto result = b.create<mod_arith::ConstantOp>(mod_arith::ModArithAttr::get(
-        convertArithType(op.getType()),
-        cast<IntegerAttr>(op.getValue()).getValue().getSExtValue()));
+    // FIXME: the cast is unsafe here, as we might also have a dense int attr?
+    auto result = b.create<mod_arith::ConstantOp>(
+        convertArithType(op.getType()), cast<IntegerAttr>(op.getValue()));
 
     rewriter.replaceOp(op, result);
     return success();
