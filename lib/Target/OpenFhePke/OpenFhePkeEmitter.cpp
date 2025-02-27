@@ -235,7 +235,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::CallOp op) {
          << "\"] = \"";
       // Use AsmPrinter to print Attribute
       if (mlir::isa<StringAttr>(attr.getValue())) {
-        os << mlir::cast<StringAttr>(attr.getValue()).getValue() << "\"\n";
+        os << mlir::cast<StringAttr>(attr.getValue()).getValue() << "\";\n";
       } else {
         os << attr.getValue() << "\";\n";
       }

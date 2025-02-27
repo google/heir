@@ -85,10 +85,43 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
       if (!typeToInt.count(valueType)) {
         typeToInt[valueType] = typeToInt.size();
       }
+
+      // get attribute associated with value
+      SmallVector<NamedAttribute> attrs;
+      if (auto blockArg = dyn_cast<BlockArgument>(value)) {
+        auto *parentOp = blockArg.getOwner()->getParentOp();
+        auto funcOp = dyn_cast<FunctionOpInterface>(parentOp);
+        if (funcOp) {
+          // always dialect attr
+          for (auto namedAttr : funcOp.getArgAttrs(blockArg.getArgNumber())) {
+            attrs.push_back(namedAttr);
+          }
+        }
+      } else {
+        auto *parentOp = value.getDefiningOp();
+        for (auto namedAttr : parentOp->getDialectAttrs()) {
+          attrs.push_back(namedAttr);
+        }
+      }
+
+      auto messageType =
+          lweCiphertextType.getApplicationData().getMessageType();
+      auto messageSize = 1;
+      if (auto tensorMessageType = dyn_cast<TensorType>(messageType)) {
+        auto shape = tensorMessageType.getShape();
+        if (shape.size() != 1) {
+          op->emitWarning("Only support 1D tensor for message type");
+        }
+        messageSize = shape[0];
+      }
+      attrs.push_back(b.getNamedAttr(
+          "message.size", b.getStringAttr(std::to_string(messageSize))));
+
       b.create<func::CallOp>(
-          getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
-                                       lweCiphertextType, typeToInt),
-          ArrayRef<Value>{privateKey, value});
+           getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
+                                        lweCiphertextType, typeToInt),
+           ArrayRef<Value>{privateKey, value})
+          ->setDialectAttrs(attrs);
     }
   };
 

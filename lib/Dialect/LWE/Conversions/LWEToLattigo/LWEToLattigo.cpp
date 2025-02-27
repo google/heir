@@ -181,8 +181,9 @@ struct ConvertFuncCallOp : public OpConversionPattern<func::CallOp> {
       newOperands.push_back(operand);
     }
 
-    rewriter.replaceOpWithNewOp<func::CallOp>(op, callee, resultTypes,
-                                              newOperands);
+    rewriter
+        .replaceOpWithNewOp<func::CallOp>(op, callee, resultTypes, newOperands)
+        ->setDialectAttrs(op->getDialectAttrs());
     return success();
   }
 
@@ -210,8 +211,9 @@ struct RemoveKeyArgForFuncCall : public OpConversionPattern<func::CallOp> {
         newOperands.push_back(operand);
       }
     }
-    rewriter.replaceOpWithNewOp<func::CallOp>(op, callee, resultTypes,
-                                              newOperands);
+    rewriter
+        .replaceOpWithNewOp<func::CallOp>(op, callee, resultTypes, newOperands)
+        ->setDialectAttrs(op->getDialectAttrs());
     return success();
   }
 };
@@ -505,7 +507,41 @@ using ConvertCKKSDecodeOp =
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h.inc"
 
 struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
+  // See https://github.com/llvm/llvm-project/pull/127772
+  // During dialect conversion, the attribute of the func::CallOp is not
+  // preserved. We save the dialect attributes of func::CallOp before
+  // conversion and restore them after conversion.
+  //
+  // Note that this is not safe as after conversion the order of func::CallOp
+  // may change. However, this is the best we can do for now as we do not have
+  // a map from the old func::CallOp to the new func::CallOp.
+  SmallVector<SmallVector<NamedAttribute>> funcCallOpDialectAttrs;
+
+  void saveFuncCallOpDialectAttrs() {
+    funcCallOpDialectAttrs.clear();
+    auto *module = getOperation();
+    module->walk([&](func::CallOp callOp) {
+      SmallVector<NamedAttribute> dialectAttrs;
+      for (auto namedAttr : callOp->getDialectAttrs()) {
+        dialectAttrs.push_back(namedAttr);
+      }
+      funcCallOpDialectAttrs.push_back(dialectAttrs);
+    });
+  }
+
+  void restoreFuncCallOpDialectAttrs() {
+    auto *module = getOperation();
+    auto *funcCallOpDialectAttrsIter = funcCallOpDialectAttrs.begin();
+    module->walk([&](func::CallOp callOp) {
+      callOp->setDialectAttrs(*funcCallOpDialectAttrsIter);
+      ++funcCallOpDialectAttrsIter;
+    });
+  }
+
   void runOnOperation() override {
+    // Save the dialect attributes of func::CallOp before conversion.
+    saveFuncCallOpDialectAttrs();
+
     MLIRContext *context = &getContext();
     auto *module = getOperation();
     ToLattigoTypeConverter typeConverter(context);
@@ -688,6 +724,9 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     postPatterns2.add<RemoveKeyArg<lattigo::RLWESecretKeyType>>(context);
     postPatterns2.add<RemoveKeyArg<lattigo::RLWEPublicKeyType>>(context);
     walkAndApplyPatterns(module, std::move(postPatterns2));
+
+    // Restore the dialect attributes of func::CallOp after conversion.
+    restoreFuncCallOpDialectAttrs();
   }
 };
 
