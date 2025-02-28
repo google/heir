@@ -17,6 +17,16 @@ func.func @test_arith_syntax() {
 
   // CHECK: mod_arith.constant 12 : !mod_arith.int<17 : i10>
   %const123 = mod_arith.constant 12 : !Zp
+  // CHECK: mod_arith.constant 0 : !mod_arith.int<17 : i10>
+  %constZero = mod_arith.constant 0 : !Zp
+  // CHECK: mod_arith.constant -1 : !mod_arith.int<17 : i10>
+  %constNegative = mod_arith.constant -1 : !Zp
+  // CHECK: mod_arith.constant dense<[1, 2, 3, 4]> : tensor<4x!mod_arith.int<17 : i10>>
+  %constdense = mod_arith.constant dense<[1, 2, 3, 4]> : !Zp_vec
+  // CHECK: mod_arith.constant dense<[0, 2, 3, 4]> : tensor<4x!mod_arith.int<17 : i10>>
+  %constdenseZero = mod_arith.constant dense<[0, 2, 3, 4]> : !Zp_vec
+  // CHECK: mod_arith.constant dense<[-1, -2, -3, -4]> : tensor<4x!mod_arith.int<17 : i10>>
+  %constdenseNegative = mod_arith.constant dense<[-1, -2, -3, -4]> : !Zp_vec
 
   // CHECK-COUNT-6: mod_arith.encapsulate
   %e4 = mod_arith.encapsulate %c4 : i10 -> !Zp
