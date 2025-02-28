@@ -186,8 +186,10 @@ void registerTosaToJaxitePipeline(const std::string &yosysFilesPath,
       "tosa-to-boolean-jaxite", "Arithmetic modules to jaxite pipeline.",
       [yosysFilesPath, abcPath](OpPassManager &pm,
                                 const TosaToBooleanJaxiteOptions &options) {
-        tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
-                                  /*abcBooleanGates=*/false);
+        if (!options.inputCggi) {
+          tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
+                                    /*abcBooleanGates=*/false);
+        }
         if (options.parallelism > 0) {
           pm.addPass(
               cggi::createBooleanVectorizer(cggi::BooleanVectorizerOptions{
