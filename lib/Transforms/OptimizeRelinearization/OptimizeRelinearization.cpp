@@ -3,8 +3,10 @@
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/OptimizeRelinearizationAnalysis/OptimizeRelinearizationAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
@@ -83,8 +85,34 @@ struct OptimizeRelinearization
 
     // optimize-relinearization will invalidate mgmt attr
     // so re-annotate it
+
+    // temporary workaround for B/FV
+    auto baseLevel = 0;
+    if (moduleIsBFV(getOperation())) {
+      // inherit mulDepth information from existing mgmt attr.
+      mgmt::MgmtAttr mgmtAttr = nullptr;
+      getOperation()->walk([&](secret::GenericOp op) {
+        for (auto i = 0; i != op->getBlock()->getNumArguments(); ++i) {
+          if ((mgmtAttr = dyn_cast<mgmt::MgmtAttr>(
+                   op.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
+            break;
+          }
+        }
+      });
+
+      if (!mgmtAttr) {
+        getOperation()->emitError(
+            "No mgmt attribute found in the module for B/FV");
+        return signalPassFailure();
+      }
+
+      baseLevel = mgmtAttr.getLevel();
+    }
+
     OpPassManager pipeline("builtin.module");
-    pipeline.addPass(mgmt::createAnnotateMgmt());
+    mgmt::AnnotateMgmtOptions annotateMgmtOptions;
+    annotateMgmtOptions.baseLevel = baseLevel;
+    pipeline.addPass(mgmt::createAnnotateMgmt(annotateMgmtOptions));
     (void)runPipeline(pipeline, getOperation());
   }
 };

@@ -8,6 +8,7 @@ package(
 cc_library(
     name = "SecretInsertMgmt",
     srcs = [
+        "SecretInsertMgmtBFV.cpp",
         "SecretInsertMgmtBGV.cpp",
         "SecretInsertMgmtCKKS.cpp",
     ],
@@ -20,6 +21,7 @@ cc_library(
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/MulResultAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/Transforms",
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",

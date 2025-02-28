@@ -130,12 +130,15 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   // place mgmt.op and MgmtAttr for BGV
   // which is required for secret-to-<scheme> lowering
   switch (scheme) {
-    case RLWEScheme::bgvScheme:
-    case RLWEScheme::bfvScheme: {
+    case RLWEScheme::bgvScheme: {
       auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
       secretInsertMgmtBGVOptions.includeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
+      break;
+    }
+    case RLWEScheme::bfvScheme: {
+      pm.addPass(createSecretInsertMgmtBFV());
       break;
     }
     case RLWEScheme::ckksScheme: {
@@ -156,8 +159,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
 
   // IR is stable now, compute scheme param
   switch (scheme) {
-    case RLWEScheme::bgvScheme:
-    case RLWEScheme::bfvScheme: {
+    case RLWEScheme::bgvScheme: {
       auto validateNoiseOptions = ValidateNoiseOptions{};
       validateNoiseOptions.model = options.noiseModel;
       validateNoiseOptions.plaintextModulus = options.plaintextModulus;
@@ -165,6 +167,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       pm.addPass(createValidateNoise(validateNoiseOptions));
       break;
     }
+    case RLWEScheme::bfvScheme:
     case RLWEScheme::ckksScheme: {
       break;
     }
@@ -195,7 +198,6 @@ void mlirToRLWEPipeline(OpPassManager &pm,
     case RLWEScheme::bfvScheme: {
       auto secretToBGVOpts = SecretToBGVOptions{};
       secretToBGVOpts.polyModDegree = options.ciphertextDegree;
-      secretToBGVOpts.isBFV = scheme == RLWEScheme::bfvScheme;
       pm.addPass(createSecretToBGV(secretToBGVOpts));
       break;
     }
