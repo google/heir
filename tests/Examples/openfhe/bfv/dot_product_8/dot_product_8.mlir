@@ -1,0 +1,1 @@
+../../../common/dot_product_8.mlir
