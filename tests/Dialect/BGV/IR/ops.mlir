@@ -61,7 +61,7 @@ module {
   // CHECK-LABEL: @test_rotate_extract
   func.func @test_rotate_extract(%arg3: !ct_tensor) -> !ct_scalar {
     %c0 = arith.constant 0 : index
-    %add = bgv.rotate %arg3 { offset = 1 } : !ct_tensor
+    %add = bgv.rotate_cols %arg3 { offset = 1 } : !ct_tensor
     %ext = bgv.extract %add, %c0 : (!ct_tensor, index) -> !ct_scalar
     // CHECK: message_type = i16
     // CHECK: ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>, !mod_arith.int<1032955396097 : i64>>, polynomialModulus = <1 + x**1024>>

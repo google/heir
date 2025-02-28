@@ -43,7 +43,7 @@ module attributes {scheme.bgv} {
     // CHECK: %[[rescale:.*]] = lattigo.bgv.rescale_new [[C]], %[[relin]] : ([[S]], [[T]]) -> [[T]]
     %rescale = bgv.modulus_switch %relin {to_ring = #ring_rns_L0_1_x1024_} : !ct -> !ct2
     // CHECK: %[[rot:.*]] = lattigo.bgv.rotate_columns_new [[C]], %[[rescale]] {offset = 1 : i64} : ([[S]], [[T]]) -> [[T]]
-    %rot = bgv.rotate %rescale { offset = 1 } : !ct2
+    %rot = bgv.rotate_cols %rescale { offset = 1 } : !ct2
     return
   }
 }

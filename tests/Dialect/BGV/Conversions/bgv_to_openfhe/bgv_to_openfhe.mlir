@@ -46,7 +46,7 @@ module {
     %mul = bgv.mul %x, %y  : (!ct, !ct) -> !ct_D3
     // CHECK: %[[v5:.*]] = openfhe.rot [[C]], %[[x5:.*]] {index = 4 : i64}
     // CHECK-SAME: ([[S]], [[T]]) -> [[T]]
-    %rot = bgv.rotate %x { offset = 4 } : !ct
+    %rot = bgv.rotate_cols %x { offset = 4 } : !ct
     return %negate, %add, %sub, %mul, %rot : !ct, !ct, !ct, !ct_D3, !ct
   }
 
