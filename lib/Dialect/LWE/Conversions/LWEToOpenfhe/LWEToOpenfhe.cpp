@@ -406,7 +406,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         ConvertCiphertextPlaintextOp<ckks::MulPlainOp, openfhe::MulPlainOp>,
 
         // Rotate
-        ConvertRotateOp<bgv::RotateOp, openfhe::RotOp>,
+        ConvertRotateOp<bgv::RotateColumnsOp, openfhe::RotOp>,
         ConvertRotateOp<ckks::RotateOp, openfhe::RotOp>,
         // Relin
         ConvertRelinOp<bgv::RelinearizeOp, openfhe::RelinOp>,

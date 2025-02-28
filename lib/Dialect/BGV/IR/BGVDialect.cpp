@@ -41,7 +41,9 @@ void BGVDialect::initialize() {
 
 LogicalResult MulOp::verify() { return verifyMulOp(this); }
 
-LogicalResult RotateOp::verify() { return verifyRotateOp(this); }
+LogicalResult RotateColumnsOp::verify() { return verifyRotateOp(this); }
+
+LogicalResult RotateRowsOp::verify() { return verifyRotateOp(this); }
 
 LogicalResult RelinearizeOp::verify() { return verifyRelinearizeOp(this); }
 

@@ -26,11 +26,11 @@ func.func @dot_product(%arg0: !in_ty, %arg1: !in_ty) -> (!out_ty, !out_ty) {
   %c7 = arith.constant 7 : index
   %0 = bgv.mul %arg0, %arg1 : (!in_ty, !in_ty) -> !mul_ty
   %1 = bgv.relinearize %0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !mul_ty -> !in_ty
-  %2 = bgv.rotate %1 { offset = 4 } : !in_ty
+  %2 = bgv.rotate_cols %1 { offset = 4 } : !in_ty
   %3 = bgv.add %1, %2 : (!in_ty, !in_ty) -> !in_ty
-  %4 = bgv.rotate %3 { offset = 2 } : !in_ty
+  %4 = bgv.rotate_cols %3 { offset = 2 } : !in_ty
   %5 = bgv.add %3, %4 : (!in_ty, !in_ty) -> !in_ty
-  %6 = bgv.rotate %5 { offset = 1 } : !in_ty
+  %6 = bgv.rotate_cols %5 { offset = 1 } : !in_ty
   %7 = bgv.add %5, %6 : (!in_ty, !in_ty) -> !in_ty
   %8 = bgv.extract %7, %c7 : (!in_ty, index) -> !out_ty
   return %8, %8 : !out_ty, !out_ty

@@ -26,15 +26,15 @@ func.func private @external_func(!out_ty) -> !out_ty
 
 func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
   %c31 = arith.constant 31 : index
-  %0 = bgv.rotate %arg0 { offset = 16 } : !in_ty
+  %0 = bgv.rotate_cols %arg0 { offset = 16 } : !in_ty
   %1 = bgv.add %arg0, %0 : (!in_ty, !in_ty) -> !in_ty
-  %2 = bgv.rotate %1 { offset = 8 } : !in_ty
+  %2 = bgv.rotate_cols %1 { offset = 8 } : !in_ty
   %3 = bgv.add %1, %2 : (!in_ty, !in_ty) -> !in_ty
-  %4 = bgv.rotate %3 { offset = 4 } : !in_ty
+  %4 = bgv.rotate_cols %3 { offset = 4 } : !in_ty
   %5 = bgv.add %3, %4 : (!in_ty, !in_ty) -> !in_ty
-  %6 = bgv.rotate %5 { offset = 2 } : !in_ty
+  %6 = bgv.rotate_cols %5 { offset = 2 } : !in_ty
   %7 = bgv.add %5, %6 : (!in_ty, !in_ty) -> !in_ty
-  %8 = bgv.rotate %7 { offset = 1 } : !in_ty
+  %8 = bgv.rotate_cols %7 { offset = 1 } : !in_ty
   %9 = bgv.add %7, %8 : (!in_ty, !in_ty) -> !in_ty
   %10 = bgv.extract %9, %c31 : (!in_ty, index) -> !out_ty
   %11 = func.call @external_func(%10) : (!out_ty) -> !out_ty

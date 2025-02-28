@@ -91,8 +91,44 @@ def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain"> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
 }
 
-def BGV_RotateOp : BGV_Op<"rotate", [Pure, AllTypesMatch<["input", "output"]>]> {
-  let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
+def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [Pure, AllTypesMatch<["input", "output"]>]> {
+  let summary = "Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.";
+
+  let description = [{
+    This operation rotates the columns of the coefficients of the ciphertext using a
+    Galois automorphism.
+
+    Often BGV scheme is instantiated with a ring of the form `Z_q[X]/(X^N + 1)` and
+    plaintext modulus `t` where `N` is a power of 2 and `t` is a prime number. In
+    this case, the plaintext slots can be viewed as a `2 x N/2` matrix where
+    `N/2` is the number of columns and `2` is the number of rows.
+  }];
+
+  let arguments = (ins
+    NewLWECiphertext:$input,
+    Builtin_IntegerAttr:$offset
+  );
+
+  let results = (outs
+    NewLWECiphertext:$output
+  );
+
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
+}
+
+def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [Pure, AllTypesMatch<["input", "output"]>]> {
+  let summary = "Rotate the rows of the coefficients of the ciphertext using a Galois automorphism.";
+
+  let description = [{
+    This operation rotates the rows of the coefficients of the ciphertext using a
+    Galois automorphism.
+
+    Often BGV scheme is instantiated with a ring of the form `Z_q[X]/(X^N + 1)` and
+    plaintext modulus `t` where `N` is a power of 2 and `t` is a prime number. In
+    this case, the plaintext slots can be viewed as a `2 x N/2` matrix where
+    `N/2` is the number of columns and `2` is the number of rows.
+  }];
 
   let arguments = (ins
     NewLWECiphertext:$input,
