@@ -33,12 +33,6 @@ def SecretToCKKS : Pass<"secret-to-ckks"> {
     Option<"polyModDegree", "poly-mod-degree", "int",
            /*default=*/"1024", "Default degree of the cyclotomic polynomial "
            "modulus to use for ciphertext space.">,
-    Option<"firstModBits", "first-mod-bits", "int",
-           /*default=*/"55", "Default number of bits of the first prime "
-           "coefficient modulus to use for the ciphertext space.">,
-    Option<"scalingModBits", "scaling-mod-bits", "int",
-           /*default=*/"45", "Default number of bits of the scaling prime "
-           "coefficient modulus to use for the ciphertext space.">,
   ];
 }
 

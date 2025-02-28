@@ -4,7 +4,7 @@
 
 #mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 
-module {
+module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937, 17179967489, 17180262401, 17180295169, 17180393473, 70368744210433], P = [70368744570881, 70368744701953], plaintextModulus = 65537>} {
   // CHECK-LABEL: func @test_add_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>

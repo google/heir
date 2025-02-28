@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks=include-first-mul=false --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --secret-insert-mgmt-ckks=include-first-mul=false --generate-param-ckks --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
 
 // CHECK-LABEL: @hamming
 // CHECK: ckks.sub

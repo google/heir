@@ -1,4 +1,4 @@
-// RUN: heir-opt --secretize --wrap-generic --cse --canonicalize --secret-insert-mgmt-bgv --secret-distribute-generic --secret-to-bgv=poly-mod-degree=32 --bgv-to-lwe --lwe-to-openfhe --openfhe-configure-crypto-context=entry-function=complex_func %s | FileCheck %s
+// RUN: heir-opt --secretize --wrap-generic --cse --canonicalize --secret-insert-mgmt-bgv --generate-param-bgv --secret-distribute-generic --secret-to-bgv=poly-mod-degree=32 --bgv-to-lwe --lwe-to-openfhe --openfhe-configure-crypto-context=entry-function=complex_func %s | FileCheck %s
 
 !ty = tensor<32xi16>
 

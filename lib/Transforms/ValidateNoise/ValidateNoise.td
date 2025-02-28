@@ -8,30 +8,12 @@ def ValidateNoise : Pass<"validate-noise"> {
   let description = [{
     This pass validates the noise of the HE circuit against a given noise model.
 
-    Currently the pass works for BGV scheme, and there are two noise models
-    available: "bgv-noise-by-bound-coeff-average-case{-pk,-sk}",
-    "bgv-noise-by-bound-coeff-worst-case{-pk,-sk}" and
-    "bgv-noise-by-variance-coeff{-pk,-sk}".
+    The pass expects the scheme parameters to be annotated in the IR. Usually
+    this is done by the `generate-param-<scheme>` passes.
 
-    The first two models are taken from KPZ21, and they work by bounding
-    the coefficient embedding of the ciphertexts. The difference
-    of the two models is expansion factor used for multiplication
-    of the coefficients, the first being `2\sqrt{N}` and the second
-    being `N`. The `-pk`/`-sk` suffixes assume the input ciphertexts are
-    encrypted using the public/secret key.
+    For available noise models, see `generate-param-<scheme>` passes.
 
-    The third model is taken from MP24. It works by tracking the variance
-    of the coefficient embedding of the ciphertexts. This gives a more accurate
-    noise estimate, but it may give underestimates in some cases. See the paper
-    for more details.
-
-    This pass is experimental. The result should be observed using
-    --debug-only=ValidateNoise.
-
-    This pass relies on the presence of the `mgmt` dialect ops to model
-    relinearize/modreduce, and it relies on `mgmt.mgmt` attribute to determine
-    the ciphertext level/dimension. These ops and attributes can be added by
-    a pass like `--secret-insert-mgmt-<scheme>` and `--annotate-mgmt`.
+    The result should be observed using --debug-only=ValidateNoise.
 
     Example
     ```bash
@@ -47,11 +29,9 @@ def ValidateNoise : Pass<"validate-noise"> {
 
   let options = [
     Option<"model", "model", "std::string",
-           /*default=*/"", "Noise model to validate against.">,
-    Option<"plaintextModulus", "plaintext-modulus", "int64_t",
-           /*default=*/"65537", "Plaintext modulus.">,
-    Option<"slotNumber", "slot-number", "int",
-           /*default=*/"0", "Minimum number of slots for parameter generation.">,
+           /*default=*/"\"bgv-noise-by-bound-coeff-average-case-pk\"", "Noise model to validate against.">,
+    Option<"annotateNoiseBound", "annotate-noise-bound", "bool",
+           /*default=*/"false", "Annotate the noise bound to the IR.">,
   ];
 }
 

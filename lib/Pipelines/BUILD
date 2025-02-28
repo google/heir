@@ -108,6 +108,7 @@ cc_library(
         "@heir//lib/Dialect/TensorExt/Transforms:RotateAndReduce",
         "@heir//lib/Transforms/ApplyFolders",
         "@heir//lib/Transforms/FullLoopUnroll",
+        "@heir//lib/Transforms/GenerateParam",
         "@heir//lib/Transforms/LinalgCanonicalizations",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/OperationBalancer",

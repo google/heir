@@ -2,7 +2,7 @@
 
 // Tests invalid secret types
 
-module {
+module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937, 17179967489, 17180262401, 17180295169, 17180393473, 70368744210433], P = [70368744570881, 70368744701953], plaintextModulus = 65537>} {
   // expected-error@below {{expected batched secret types to be tensors with dimension matching ring parameter}}
   func.func @test_invalid_dimension(%arg0 : !secret.secret<tensor<1000xi1>>) -> (!secret.secret<tensor<1000xi1>>) {
     return %arg0 : !secret.secret<tensor<1000xi1>>
@@ -11,7 +11,9 @@ module {
 
 // -----
 
-// CHECK: test_valid_dimension
-func.func @test_valid_dimension(%arg0 : !secret.secret<tensor<1024xi1>>) -> (!secret.secret<tensor<1024xi1>>) {
-  return %arg0 : !secret.secret<tensor<1024xi1>>
+module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937, 17179967489, 17180262401, 17180295169, 17180393473, 70368744210433], P = [70368744570881, 70368744701953], plaintextModulus = 65537>} {
+  // CHECK: test_valid_dimension
+  func.func @test_valid_dimension(%arg0 : !secret.secret<tensor<1024xi1>>) -> (!secret.secret<tensor<1024xi1>>) {
+    return %arg0 : !secret.secret<tensor<1024xi1>>
+  }
 }
