@@ -88,6 +88,7 @@ cc_binary(
         "@heir//lib/Dialect/Secret/Transforms:BufferizableOpInterface",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
         "@heir//lib/Dialect/TOSA/Conversions/TosaToSecretArith",
+        "@heir//lib/Dialect/TensorExt/Conversions/TensorExtToTensor",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/Transforms",
         "@heir//lib/Dialect/TensorExt/Transforms:CollapseInsertionChains",

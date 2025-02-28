@@ -277,6 +277,9 @@ class ReplicatedTensorTypeConverter : public TypeConverter {
     addConversion([](Type type) { return type; });
 
     addConversion([this](RankedTensorType type) -> Type {
+      if (type.getShape().size() == 1) {
+        return type;
+      }
       // Assuming 2-d operations only
       if (type.getShape()[0] == 1) {
         return RankedTensorType::get({1, this->maxTilingSize},
