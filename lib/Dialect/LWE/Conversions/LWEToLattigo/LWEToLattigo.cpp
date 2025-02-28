@@ -464,31 +464,31 @@ using ConvertBGVDecodeOp =
 
 // CKKS
 using ConvertCKKSAddOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
-                                          lwe::RAddOp, lattigo::CKKSAddOp>;
+                                          lwe::RAddOp, lattigo::CKKSAddNewOp>;
 using ConvertCKKSSubOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
-                                          lwe::RSubOp, lattigo::CKKSSubOp>;
+                                          lwe::RSubOp, lattigo::CKKSSubNewOp>;
 using ConvertCKKSMulOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
-                                          lwe::RMulOp, lattigo::CKKSMulOp>;
+                                          lwe::RMulOp, lattigo::CKKSMulNewOp>;
 using ConvertCKKSAddPlainOp =
     ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::AddPlainOp,
-                       lattigo::CKKSAddOp>;
+                       lattigo::CKKSAddNewOp>;
 using ConvertCKKSSubPlainOp =
     ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::SubPlainOp,
-                       lattigo::CKKSSubOp>;
+                       lattigo::CKKSSubNewOp>;
 using ConvertCKKSMulPlainOp =
     ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::MulPlainOp,
-                       lattigo::CKKSMulOp>;
+                       lattigo::CKKSMulNewOp>;
 
 using ConvertCKKSRelinOp =
     ConvertRlweUnaryOp<lattigo::CKKSEvaluatorType, ckks::RelinearizeOp,
-                       lattigo::CKKSRelinearizeOp>;
+                       lattigo::CKKSRelinearizeNewOp>;
 using ConvertCKKSModulusSwitchOp =
     ConvertRlweUnaryOp<lattigo::CKKSEvaluatorType, ckks::RescaleOp,
-                       lattigo::CKKSRescaleOp>;
+                       lattigo::CKKSRescaleNewOp>;
 
 using ConvertCKKSRotateOp =
     ConvertRlweRotateOp<lattigo::CKKSEvaluatorType, ckks::RotateOp,
-                        lattigo::CKKSRotateOp>;
+                        lattigo::CKKSRotateNewOp>;
 
 using ConvertCKKSEncryptOp =
     ConvertRlweUnaryOp<lattigo::RLWEEncryptorType, lwe::RLWEEncryptOp,
