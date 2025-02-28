@@ -8,7 +8,7 @@
 #include "llvm/include/llvm/ADT/StringExtras.h"      // from @llvm-project
 #include "llvm/include/llvm/ADT/StringRef.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/StringSet.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project

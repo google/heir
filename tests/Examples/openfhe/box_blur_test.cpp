@@ -1,9 +1,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "gmock/gmock.h"              // from @googletest
-#include "gtest/gtest.h"              // from @googletest
-#include "src/pke/include/openfhe.h"  // from @openfhe
+#include "gmock/gmock.h"  // from @googletest
+#include "gtest/gtest.h"  // from @googletest
 
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/box_blur_64x64_lib.h"

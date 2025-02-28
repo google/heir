@@ -1,6 +1,5 @@
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
 
-#include <cstddef>
 #include <cstdint>
 #include <utility>
 

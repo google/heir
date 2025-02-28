@@ -1,7 +1,6 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 
 #include "lib/Dialect/Lattigo/IR/LattigoTypes.h"
-#include "mlir/include/mlir/IR/BuiltinTypes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"      // from @llvm-project
 

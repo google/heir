@@ -8,7 +8,6 @@
 
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
-#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project

@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include "lib/Dialect/Comb/IR/CombOps.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project

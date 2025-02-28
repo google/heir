@@ -4,7 +4,6 @@
 #include "mlir/include/mlir/Dialect/Affine/LoopUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"         // from @llvm-project
 
 namespace mlir {
 namespace heir {

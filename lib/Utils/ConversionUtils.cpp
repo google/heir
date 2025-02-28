@@ -4,11 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <optional>
-#include <string>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project

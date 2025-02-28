@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include "lib/Utils/Graph/Graph.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/TopologicalSortUtils.h"  // from @llvm-project
@@ -16,8 +15,6 @@
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
 #define DEBUG_TYPE "straight-line-vectorizer"
 
