@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolOps.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project

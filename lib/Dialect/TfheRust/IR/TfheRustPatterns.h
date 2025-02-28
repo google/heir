@@ -4,7 +4,6 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 namespace mlir {

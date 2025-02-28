@@ -2,14 +2,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <map>
 #include <ostream>
+#include <string>
 #include <vector>
 
 #include "gtest/gtest.h"                               // from @googletest
 #include "src/core/include/lattice/hal/lat-backend.h"  // from @openfhe
 #include "src/core/include/utils/inttypes.h"           // from @openfhe
 #include "src/pke/include/key/privatekey-fwd.h"        // from @openfhe
-#include "src/pke/include/openfhe.h"                   // from @openfhe
 
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/dot_product_8_debug_lib.h"

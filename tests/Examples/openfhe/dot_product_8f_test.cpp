@@ -1,8 +1,6 @@
-#include <cstdint>
 #include <vector>
 
-#include "gtest/gtest.h"              // from @googletest
-#include "src/pke/include/openfhe.h"  // from @openfhe
+#include "gtest/gtest.h"  // from @googletest
 
 // Generated headers (block clang-format from messing up order)
 #include "tests/Examples/openfhe/dot_product_8f_lib.h"

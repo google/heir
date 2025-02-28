@@ -1,5 +1,10 @@
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <vector>
+
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
@@ -15,11 +20,11 @@
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 
 #define DEBUG_TYPE "ValidateNoise"
 

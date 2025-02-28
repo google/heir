@@ -3,10 +3,7 @@
 #include <cstdint>
 
 #include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/ADT/DenseSet.h"    // from @llvm-project
-#include "llvm/include/llvm/ADT/StringRef.h"   // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project

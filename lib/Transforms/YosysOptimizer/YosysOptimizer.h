@@ -1,8 +1,6 @@
 #ifndef LIB_TRANSFORMS_YOSYSOPTIMIZER_YOSYSOPTIMIZER_H_
 #define LIB_TRANSFORMS_YOSYSOPTIMIZER_YOSYSOPTIMIZER_H_
 
-#include <stdbool.h>
-
 #include <memory>
 #include <string>
 

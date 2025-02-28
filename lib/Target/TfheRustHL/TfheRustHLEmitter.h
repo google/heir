@@ -5,7 +5,6 @@
 #include <string_view>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
-#include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustOps.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
