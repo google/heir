@@ -110,13 +110,23 @@ struct AllocToInplace : impl::AllocToInplaceBase<AllocToInplace> {
     RewritePatternSet patterns(context);
 
     patterns.add<
+        // BGV
         ConvertBinOp<lattigo::BGVAddNewOp, lattigo::BGVAddOp>,
         ConvertBinOp<lattigo::BGVSubNewOp, lattigo::BGVSubOp>,
         ConvertBinOp<lattigo::BGVMulNewOp, lattigo::BGVMulOp>,
         ConvertUnaryOp<lattigo::BGVRelinearizeNewOp, lattigo::BGVRelinearizeOp>,
         ConvertUnaryOp<lattigo::BGVRescaleNewOp, lattigo::BGVRescaleOp>,
         ConvertRotateOp<lattigo::BGVRotateColumnsNewOp,
-                        lattigo::BGVRotateColumnsOp> >(context, &liveness);
+                        lattigo::BGVRotateColumnsOp>,
+        // CKKS
+        ConvertBinOp<lattigo::CKKSAddNewOp, lattigo::CKKSAddOp>,
+        ConvertBinOp<lattigo::CKKSSubNewOp, lattigo::CKKSSubOp>,
+        ConvertBinOp<lattigo::CKKSMulNewOp, lattigo::CKKSMulOp>,
+        ConvertUnaryOp<lattigo::CKKSRelinearizeNewOp,
+                       lattigo::CKKSRelinearizeOp>,
+        ConvertUnaryOp<lattigo::CKKSRescaleNewOp, lattigo::CKKSRescaleOp>,
+        ConvertRotateOp<lattigo::CKKSRotateNewOp, lattigo::CKKSRotateOp> >(
+        context, &liveness);
 
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
