@@ -25,6 +25,7 @@
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
@@ -160,15 +161,35 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   // IR is stable now, compute scheme param
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
+      auto generateParamOptions = GenerateParamBGVOptions{};
+      if (!options.noiseModel.empty()) {
+        generateParamOptions.model = options.noiseModel;
+      }
+      generateParamOptions.plaintextModulus = options.plaintextModulus;
+      generateParamOptions.slotNumber = options.ciphertextDegree;
+      pm.addPass(createGenerateParamBGV(generateParamOptions));
+
       auto validateNoiseOptions = ValidateNoiseOptions{};
-      validateNoiseOptions.model = options.noiseModel;
-      validateNoiseOptions.plaintextModulus = options.plaintextModulus;
-      validateNoiseOptions.slotNumber = options.ciphertextDegree;
+      if (!options.noiseModel.empty()) {
+        validateNoiseOptions.model = options.noiseModel;
+      }
+      validateNoiseOptions.annotateNoiseBound = options.annotateNoiseBound;
       pm.addPass(createValidateNoise(validateNoiseOptions));
       break;
     }
-    case RLWEScheme::bfvScheme:
+    case RLWEScheme::bfvScheme: {
+      auto generateParamOptions = GenerateParamBFVOptions{};
+      generateParamOptions.plaintextModulus = options.plaintextModulus;
+      generateParamOptions.slotNumber = options.ciphertextDegree;
+      pm.addPass(createGenerateParamBFV(generateParamOptions));
+      break;
+    }
     case RLWEScheme::ckksScheme: {
+      auto generateParamOptions = GenerateParamCKKSOptions{};
+      generateParamOptions.firstModBits = options.firstModBits;
+      generateParamOptions.scalingModBits = options.scalingModBits;
+      generateParamOptions.slotNumber = options.ciphertextDegree;
+      pm.addPass(createGenerateParamCKKS(generateParamOptions));
       break;
     }
     default:

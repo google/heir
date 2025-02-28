@@ -111,6 +111,7 @@ cc_binary(
         "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
+        "@heir//lib/Transforms/GenerateParam",
         "@heir//lib/Transforms/LayoutPropagation",
         "@heir//lib/Transforms/LinalgCanonicalizations",
         "@heir//lib/Transforms/MemrefToArith:ExpandCopy",

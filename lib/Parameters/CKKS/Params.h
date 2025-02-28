@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Parameters/RLWEParams.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 
@@ -28,6 +29,8 @@ class SchemeParam : public RLWESchemeParam {
   static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
                                             int logDefaultScale,
                                             int slotNumber);
+
+  static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };
 
 }  // namespace ckks

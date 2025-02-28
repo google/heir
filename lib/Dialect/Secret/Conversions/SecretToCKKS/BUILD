@@ -22,7 +22,6 @@ cc_library(
         "@heir//lib/Dialect/RNS/IR:RNSTypes",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Parameters/CKKS:Params",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
         "@heir//lib/Utils/Polynomial",

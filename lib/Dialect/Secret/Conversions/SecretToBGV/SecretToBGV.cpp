@@ -22,7 +22,6 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "lib/Parameters/BGV/Params.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
@@ -184,49 +183,23 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
 
-    // used by LWE type
-    int64_t plaintextModulus;
-    std::vector<int64_t> primes;
-
-    // Use previously computed ring parameters
-    if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
-            bgv::BGVDialect::kSchemeParamAttrName)) {
-      // NOTE: 2 ** logN != polyModDegree
-      // they have different semantic
-      // auto logN = schemeParamAttr.getLogN();
-      auto Q = schemeParamAttr.getQ();
-      for (auto prime : Q.asArrayRef()) {
-        primes.push_back(prime);
-      }
-      plaintextModulus = schemeParamAttr.getPlaintextModulus();
-    } else {
-      // TODO(#661) : Calculate the appropriate values by analyzing the function
-      plaintextModulus = 4295294977;
-
-      // generate fallback scheme parameters
-      auto maxLevel = getMaxLevel();
-      std::vector<double> logPrimes(maxLevel + 1, 45);  // all primes of 45 bits
-
-      // pass option polyModDegree is actually the number of slots
-      // assuming slots = ringDim / 2 for 1-dim vector behavior
-      // TODO(#1402): use a proper name for BGV
-      auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(
-          logPrimes, plaintextModulus, polyModDegree);
-
-      primes = schemeParam.getQi();
-
-      // annotate bgv::SchemeParamAttr to ModuleOp
-      module->setAttr(
-          bgv::BGVDialect::kSchemeParamAttrName,
-          bgv::SchemeParamAttr::get(
-              context, log2(schemeParam.getRingDim()),
-              DenseI64ArrayAttr::get(context, ArrayRef(schemeParam.getQi())),
-              DenseI64ArrayAttr::get(&getContext(),
-                                     ArrayRef(schemeParam.getPi())),
-              schemeParam.getPlaintextModulus()));
+    auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
+        bgv::BGVDialect::kSchemeParamAttrName);
+    if (!schemeParamAttr) {
+      module->emitError("expected BGV scheme parameters");
+      signalPassFailure();
+      return;
     }
 
-    auto rlweRing = getRlweRNSRing(context, primes, polyModDegree);
+    // NOTE: 2 ** logN != polyModDegree
+    // they have different semantic
+    // auto logN = schemeParamAttr.getLogN();
+    auto plaintextModulus = schemeParamAttr.getPlaintextModulus();
+
+    // pass option polyModDegree is actually the number of slots
+    // TODO(#1402): use a proper name for BGV
+    auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
+                                   polyModDegree);
     if (failed(rlweRing)) {
       return signalPassFailure();
     }

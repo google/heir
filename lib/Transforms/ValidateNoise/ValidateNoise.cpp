@@ -81,14 +81,17 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     auto budget = NoiseModel::toLogBudget(localParam, noiseState);
 
+    auto boundString = NoiseModel::toLogBoundString(localParam, noiseState);
+    auto budgetString = NoiseModel::toLogBudgetString(localParam, noiseState);
+    auto totalString = NoiseModel::toLogTotalString(localParam);
+
     LLVM_DEBUG({
-      auto boundString = NoiseModel::toLogBoundString(localParam, noiseState);
-      auto budgetString = NoiseModel::toLogBudgetString(localParam, noiseState);
-      auto totalString = NoiseModel::toLogTotalString(localParam);
       llvm::dbgs() << "Noise Bound: " << boundString
                    << " Budget: " << budgetString << " Total: " << totalString
                    << " for value: " << value << " " << "\n";
-      // annotate the bound when debugging
+    });
+
+    if (annotateNoiseBound) {
       auto boundStringAttr = StringAttr::get(&getContext(), boundString);
       if (auto blockArg = mlir::dyn_cast<BlockArgument>(value)) {
         auto *parentOp = blockArg.getOwner()->getParentOp();
@@ -101,7 +104,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
         auto *parentOp = value.getDefiningOp();
         parentOp->setAttr("noise.bound", boundStringAttr);
       }
-    });
+    }
 
     if (budget < 0) {
       return failure();
@@ -114,18 +117,6 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   LogicalResult validate(
       DataFlowSolver *solver,
       const typename NoiseAnalysis::SchemeParamType &schemeParam) {
-    solver->load<dataflow::DeadCodeAnalysis>();
-    solver->load<dataflow::SparseConstantPropagation>();
-    // NoiseAnalysis depends on SecretnessAnalysis
-    solver->load<SecretnessAnalysis>();
-
-    solver->load<NoiseAnalysis>(schemeParam);
-
-    if (failed(solver->initializeAndRun(getOperation()))) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
-      signalPassFailure();
-    }
-
     auto res = getOperation()->walk([&](secret::GenericOp genericOp) {
       // check arguments
       for (Value arg : genericOp.getBody()->getArguments()) {
@@ -154,157 +145,43 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   }
 
   template <typename NoiseAnalysis>
-  typename NoiseAnalysis::SchemeParamType generateParamByGap(
-      DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam) {
-    using NoiseModel = typename NoiseAnalysis::NoiseModel;
-    using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
-    using LocalParamType = typename NoiseAnalysis::LocalParamType;
-
-    // for level i, the biggest gap observed.
-    std::map<int, double> levelToGap;
-
-    auto updateLevelToGap = [&](int level, double gap) {
-      if (levelToGap.count(level) == 0) {
-        levelToGap[level] = gap;
-      } else {
-        levelToGap[level] = std::max(levelToGap.at(level), gap);
-      }
-    };
-
-    auto getLocalParam = [&](Value value) {
-      auto level = getLevelFromMgmtAttr(value);
-      auto dimension = getDimensionFromMgmtAttr(value);
-      return LocalParamType(&schemeParam, level, dimension);
-    };
-
-    auto getBound = [&](Value value) {
-      auto localParam = getLocalParam(value);
-      auto noiseLattice = solver->lookupState<NoiseLatticeType>(value);
-      return NoiseModel::toLogBound(localParam, noiseLattice->getValue());
-    };
-
-    auto firstModSize = 0;
-
-    getOperation()->walk([&](secret::GenericOp genericOp) {
-      // gaps caused by mod reduce
-      genericOp.getBody()->walk([&](mgmt::ModReduceOp op) {
-        auto operandBound = getBound(op.getOperand());
-        auto resultBound = getBound(op.getResult());
-        // the gap between the operand and result
-        updateLevelToGap(getLevelFromMgmtAttr(op.getOperand()),
-                         operandBound - resultBound);
-        return WalkResult::advance();
-      });
-
-      // find the max noise for the first level
-      genericOp.getBody()->walk([&](Operation *op) {
-        for (Value result : op->getResults()) {
-          if (getLevelFromMgmtAttr(result) == 0) {
-            auto bound = getBound(result);
-            // the bound is from v_ms + v / q, where v / q is negligible
-            // so originally bound(v_ms) + 1 is enough
-            // after the parameter selection with smaller primes, we have
-            // v_ms \approx v / q so bound(2 * v_ms) approx bound(v_ms) + 0.5
-            // now we need bound(v_ms) + 1.5 or bound + 2 to ensure the noise
-            firstModSize = std::max(firstModSize, 2 + int(ceil(bound)));
-          }
-        }
-        return WalkResult::advance();
-      });
-    });
-
-    auto maxLevel = levelToGap.size() + 1;
-    auto qiSize = std::vector<double>(maxLevel, 0);
-    qiSize[0] = firstModSize;
-
-    for (auto &[level, gap] : levelToGap) {
-      // the prime size should be larger than the gap to ensure after mod reduce
-      // the noise is still within the bound
-      qiSize[level] = 1 + int(ceil(gap));
-    }
-
-    LLVM_DEBUG({
-      llvm::dbgs() << "Gap logqi: ";
-      for (auto size : qiSize) {
-        llvm::dbgs() << static_cast<int>(size) << " ";
-      }
-      llvm::dbgs() << "\n";
-    });
-
-    auto concreteSchemeParam =
-        NoiseAnalysis::SchemeParamType::getConcreteSchemeParam(
-            qiSize, schemeParam.getPlaintextModulus(), slotNumber);
-
-    LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
-                            << concreteSchemeParam << "\n");
-
-    return concreteSchemeParam;
-  }
-
-  template <typename NoiseAnalysis>
   void run() {
-    DataFlowSolver solver;
-
     int maxLevel = getMaxLevel();
 
-    // if bgv.schemeParam is already set, use it
-    if (auto schemeParamAttr =
-            getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
-                bgv::BGVDialect::kSchemeParamAttrName)) {
-      auto schemeParam = NoiseAnalysis::SchemeParamType::getSchemeParamFromAttr(
-          schemeParamAttr);
-      if (schemeParam.getLevel() < maxLevel) {
-        getOperation()->emitOpError()
-            << "The level in the scheme param is smaller than the max level.\n";
-        signalPassFailure();
-        return;
-      }
-      if (failed(validate<NoiseAnalysis>(&solver, schemeParam))) {
-        getOperation()->emitOpError() << "Noise validation failed.\n";
-        signalPassFailure();
-      }
+    auto schemeParamAttr = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
+        bgv::BGVDialect::kSchemeParamAttrName);
+    if (!schemeParamAttr) {
+      getOperation()->emitOpError() << "No scheme param found.\n";
+      signalPassFailure();
       return;
     }
 
-    // plaintext modulus from command line option
     auto schemeParam =
-        NoiseAnalysis::SchemeParamType::getConservativeSchemeParam(
-            maxLevel, plaintextModulus, slotNumber);
+        NoiseAnalysis::SchemeParamType::getSchemeParamFromAttr(schemeParamAttr);
+    if (schemeParam.getLevel() < maxLevel) {
+      getOperation()->emitOpError()
+          << "The level in the scheme param is smaller than the max level.\n";
+      signalPassFailure();
+      return;
+    }
 
-    LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
-                            << schemeParam << "\n");
+    DataFlowSolver solver;
+    solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
+    // NoiseAnalysis depends on SecretnessAnalysis
+    solver.load<SecretnessAnalysis>();
+
+    solver.load<NoiseAnalysis>(schemeParam);
+
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+    }
 
     if (failed(validate<NoiseAnalysis>(&solver, schemeParam))) {
       getOperation()->emitOpError() << "Noise validation failed.\n";
       signalPassFailure();
-      return;
     }
-
-    // use previous analysis result to generate concrete scheme param
-    auto concreteSchemeParam =
-        generateParamByGap<NoiseAnalysis>(&solver, schemeParam);
-
-    // new solver as the NoiseAnalysis need to load a new schemeParam
-    DataFlowSolver solver2;
-    if (failed(validate<NoiseAnalysis>(&solver2, concreteSchemeParam))) {
-      getOperation()->emitOpError()
-          << "Noise validation failed for generated param.\n";
-      signalPassFailure();
-      return;
-    }
-
-    // annotate scheme param
-    getOperation()->setAttr(
-        bgv::BGVDialect::kSchemeParamAttrName,
-        bgv::SchemeParamAttr::get(
-            &getContext(), log2(concreteSchemeParam.getRingDim()),
-
-            DenseI64ArrayAttr::get(&getContext(),
-                                   ArrayRef(concreteSchemeParam.getQi())),
-            DenseI64ArrayAttr::get(&getContext(),
-                                   ArrayRef(concreteSchemeParam.getPi())),
-            concreteSchemeParam.getPlaintextModulus()));
   }
 
   void runOnOperation() override {
