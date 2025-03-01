@@ -10,12 +10,14 @@ class EndToEndTest(absltest.TestCase):
 
     @compile()
     def loopa(a: Secret[I64]):
-      result = a
+      result1 = a
+      result2 = 0
       lb = 1
       ub = 5
       for _ in range(lb, ub):
-        result = result + result
-      return result
+        result1 = result1 + result1
+        result2 = result2 + 1
+      return result1
 
     self.assertEqual(32, loopa(2))
 

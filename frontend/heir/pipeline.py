@@ -53,7 +53,9 @@ def run_pipeline(
     numba_signature = ""
     secret_args = ""
     try:
-      numba_signature, secret_args = parse_annotations(function.__annotations__)
+      numba_signature, secret_args, rettype = parse_annotations(
+          function.__annotations__
+      )
     except Exception as e:
       print(
           Fore.RED
@@ -89,6 +91,14 @@ def run_pipeline(
           f" signature {numba_signature} with {type(e).__name__}: {e}"
       )
       raise
+
+    # If a result type was annotated, compare with numba
+    if rettype is not None and debug:
+      if rettype != restype:
+        print(
+            "HEIR Debug: Warning: user provided return type does not match"
+            f" numba inference, expected {restype}, got {rettype}"
+        )
 
     # Emit Textual IR
     mlir_textual = TextualMlirEmitter(

@@ -7,6 +7,8 @@ import textwrap
 
 from numba.core import ir
 from numba.core import types
+from numba.core import bytecode
+from numba.core import controlflow
 
 
 def mlirType(numba_type):
@@ -86,7 +88,7 @@ class RangeArgs:
     self.step = 1
     match len(args):
       case 1:
-        self.stop = args
+        self.stop = args[0]
       case 2:
         self.start, self.stop = args
       case 3:
@@ -111,28 +113,42 @@ class Loop:
   inits: list[ir.Var]
 
 
-def build_loop_from_call(index, body, blocks):
+def build_loop_from_call(index, block_id, blocks, cfa):
+  body = blocks[block_id].body
   # Build a loop from a range call starting at index
   header_id = body[index + 3].target
   header = HeaderInfo(blocks[header_id])
   range_args = RangeArgs(body[index])
 
   # Loop body must start with assigning the local iter var
-  loop_body = blocks[header.body_id].body
-  assert loop_body[0].value == header.phi_var
+  loop_body = blocks[header.body_id]
+  assert loop_body.body[0].value == header.phi_var
+  iter_var = loop_body.body[0].target
 
-  inits = []
-  for instr in loop_body[1:]:
-    if type(instr) == ir.Assign and not instr.target.is_temp:
-      inits.append(instr.target)
-  if len(inits) > 1:
-    raise NotImplementedError("Multiple iter_args not supported")
+  inits = set()
+  loop_body_blocks = cfa.graph._loops[header_id].body
+  loop_header_blocks = set([l.header for l in cfa.graph._loops.values()])
+  loop_body_blocks = loop_body_blocks - loop_header_blocks
+
+  for id in loop_body_blocks:
+    block = blocks[id]
+    for instr in blocks[id].body:
+      match type(instr):
+        case ir.Assign:
+          if type(instr.value) == ir.Global:
+            continue
+          if instr.target == iter_var:
+            continue
+          # not temp and defined outside before the loop block
+          if not instr.target.is_temp:
+            if instr.target.loc.line < block.loc.line:
+              inits.add(instr.target)
 
   return Loop(
       header_id,
       header,
       range_args,
-      inits,
+      list(inits),
   )
 
 
@@ -181,6 +197,12 @@ class TextualMlirEmitter:
     self.globals_map = {}
     self.loops = {}
 
+  def get_control_flow(self):
+    bc = bytecode.ByteCode(self.ssa_ir.func_id)
+    cfa = controlflow.ControlFlowAnalysis(bc)
+    cfa.run()
+    return cfa
+
   def emit(self):
     func_name = self.ssa_ir.func_id.func_name
     secret_flag = " {secret.secret}"
@@ -207,22 +229,27 @@ class TextualMlirEmitter:
 
   def emit_blocks(self):
     blocks = self.ssa_ir.blocks
+    cfa = self.get_control_flow()
 
     # collect loops and block header needs
     block_ids_to_omit_header = set()
-    for block_id, block in blocks.items():
+    loop_entries = [list(l.entries)[0] for l in cfa.graph._loops.values()]
+    for entry_id in loop_entries:
+      block = blocks[entry_id]
       for i in range(len(block.body)):
         # Detect a range call
         instr = block.body[i]
         if is_start_of_loop(i, block.body, self.ssa_ir):
-          loop = build_loop_from_call(i, block.body, blocks)
+          loop = build_loop_from_call(i, entry_id, blocks, cfa)
           self.loops[instr.target] = loop
           block_ids_to_omit_header.add(loop.header.next_id)
 
-    sorted_blocks = sorted(blocks.items())
+    sorted_blocks = list(cfa.iterblocks())
     # first block doesn't require a block header
-    block_ids_to_omit_header.add(sorted_blocks[0][0])
-    blocks_to_print = deque(sorted_blocks)
+    block_ids_to_omit_header.add(sorted_blocks[0].offset)
+    blocks_to_print = deque(
+        [(b.offset, blocks[b.offset]) for b in sorted_blocks]
+    )
 
     # print blocks
     str_blocks = []
@@ -250,17 +277,17 @@ class TextualMlirEmitter:
         # Exit instructions, should be the end of the block
         break
       else:
-        result = self.emit_instruction(instr)
+        result = self.emit_instruction(instr, blocks_to_print)
       if result:
         instructions.append(result)
     return "\n".join(instructions)
 
-  def emit_instruction(self, instr):
+  def emit_instruction(self, instr, blocks_to_print):
     match instr:
       case ir.Assign():
         return self.emit_assign(instr)
       case ir.Branch():
-        return self.emit_branch(instr)
+        return self.emit_branch(instr, blocks_to_print)
       case ir.Return():
         return self.emit_return(instr)
       case ir.Jump():
@@ -300,6 +327,9 @@ class TextualMlirEmitter:
     to_name = self.numba_names_to_ssa_var_names[to_var.name]
     self.numba_names_to_ssa_var_names[from_var.name] = to_name
 
+  def forward_name_to_id(self, from_var, to_str):
+    self.numba_names_to_ssa_var_names[from_var.name] = to_str
+
   def emit_assign(self, assign):
     match assign.value:
       case ir.Arg():
@@ -317,7 +347,7 @@ class TextualMlirEmitter:
         emitted_expr = self.emit_binop(assign.value)
         return (
             f"{name} = {emitted_expr} :"
-            f" {mlirType(self.typemap.get(assign.target.name))} {mlirLoc(assign.loc)}"
+            f" {mlirType(self.typemap.get(assign.value.lhs.name))} {mlirLoc(assign.loc)}"
         )
       case ir.Expr(op="call"):
         func = assign.value.func
@@ -402,18 +432,44 @@ class TextualMlirEmitter:
     match binop.fn:
       case operator.lt:
         return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}"
+      case operator.ge:
+        return f"arith.cmp{suffix} sge, {lhs_ssa}, {rhs_ssa}"
+      case operator.eq:
+        return f"arith.cmp{suffix} eq, {lhs_ssa}, {rhs_ssa}"
+      case operator.ne:
+        return f"arith.cmp{suffix} ne, {lhs_ssa}, {rhs_ssa}"
       case operator.add:
         return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}"
       case operator.mul:
         return f"arith.mul{suffix} {lhs_ssa}, {rhs_ssa}"
       case operator.sub:
         return f"arith.sub{suffix} {lhs_ssa}, {rhs_ssa}"
+      case operator.lshift:
+        return f"arith.shl{suffix} {lhs_ssa}, {rhs_ssa}"
+      case operator.and_:
+        return f"arith.and{suffix} {lhs_ssa}, {rhs_ssa}"
+      case operator.xor:
+        return f"arith.xor{suffix} {lhs_ssa}, {rhs_ssa}"
+      case operator.mod:
+        # Used signed semantics when integer types
+        suffix = "si" if suffix == "i" else suffix
+        return f"arith.rem{suffix} {lhs_ssa}, {rhs_ssa}"
 
     raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
 
-  def emit_branch(self, branch):
+  def emit_branch(self, branch, blocks_to_print):
     condvar = self.get_name(branch.cond)
-    return f"cf.cond_br {condvar}, ^bb{branch.truebr}, ^bb{branch.falsebr}"
+    branches = [branch.truebr, branch.falsebr]
+    branch_strs = [
+        f"cf.cond_br {condvar}, ^bb{branch.truebr}, ^bb{branch.falsebr}"
+    ]
+    for _ in range(2):
+      block_id, branch_block = blocks_to_print.popleft()
+      assert block_id in branches
+      body_str = self.emit_block(branch_block, blocks_to_print)
+      block_header = f"^bb{block_id}:\n"
+      branch_strs.append(block_header + textwrap.indent(body_str, "  "))
+    return "\n".join(branch_strs)
 
   def emit_var_or_int(self, var_or_int):
     if type(var_or_int) == ir.Var:
@@ -447,14 +503,18 @@ class TextualMlirEmitter:
     if step != 1:
       for_str = f"{for_str} step {step}"
 
-    if len(loop.inits) == 1:
-      # Note: we must generalize to inits > 1
-      init_val = self.get_name(loop.inits[0])
+    if loop.inits:
       # Within the loop, forward the name for the init val to a new temp var
-      iter_arg = self.forward_to_new_id(loop.inits[0])
+      init_args = [self.get_name(i) for i in loop.inits]
+      iter_args = [self.forward_to_new_id(i) for i in loop.inits]
+      iter_types = [mlirType(self.typemap.get(str(i))) for i in loop.inits]
+      iter_args = ", ".join(
+          [f"{it} = {init}" for (it, init) in zip(iter_args, init_args)]
+      )
+      iter_types = ", ".join([f"{ty}" for ty in iter_types])
       for_str = (
-          f"{resultvar} = {for_str} iter_args({iter_arg} = {init_val}) ->"
-          f" ({mlirType(self.typemap.get(str(target)))})"
+          f"{resultvar}:{len(loop.inits)} = {for_str} iter_args({iter_args}) ->"
+          f" ({iter_types})"
       )
     header.append(for_str + " {")
     return "\n".join(header)
@@ -472,16 +532,20 @@ class TextualMlirEmitter:
         raise NotImplementedError("Nested loops are not supported")
 
     body_str = self.emit_block(loop_block, blocks_to_print)
-    if len(loop.inits) == 1:
-      # Yield the iter arg
-      yield_var = self.get_name(loop.inits[0])
-      yield_str = f"affine.yield {yield_var} : i64"
+    if len(loop.inits) > 1:
+      # Yield the iter args
+      yield_vars = ", ".join([self.get_name(init) for init in loop.inits])
+      ret_types = ", ".join(
+          [mlirType(self.typemap.get(str(i))) for i in loop.inits]
+      )
+      yield_str = f"affine.yield {yield_vars} : {ret_types}"
       body_str += "\n" + yield_str
 
     # After we emit the body, we need to replace all uses of the iterarg after
     # the block with the result of the for loop.
-    if loop.inits:
-      self.forward_name(loop.inits[0], target)
+    target_ssa_name = self.get_name(target).strip("%")
+    for i in range(len(loop.inits)):
+      self.forward_name_to_id(loop.inits[i], f"{target_ssa_name}#{i}")
 
     result = "\n".join([header, textwrap.indent(body_str, "  "), "}"])
     return result
