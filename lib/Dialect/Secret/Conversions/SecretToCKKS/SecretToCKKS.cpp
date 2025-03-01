@@ -121,12 +121,14 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 
 }  // namespace
 
-class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
+class SecretToCKKSTypeConverter
+    : public UniquelyNamedAttributeAwareTypeConverter {
  public:
   SecretToCKKSTypeConverter(MLIRContext *ctx,
                             ::mlir::heir::polynomial::RingAttr rlweRing,
                             bool packTensorInSlots)
-      : TypeWithAttrTypeConverter(mgmt::MgmtDialect::kArgMgmtAttrName) {
+      : UniquelyNamedAttributeAwareTypeConverter(
+            mgmt::MgmtDialect::kArgMgmtAttrName) {
     addConversion([](Type type) { return type; });
 
     ring_ = rlweRing;
@@ -189,10 +191,8 @@ class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
                                  ciphertext);
   }
 
-  Type convertTypeWithAttr(Type type, Attribute attr) const override {
-    auto secretTy = dyn_cast<secret::SecretType>(type);
-    // guard against null attribute
-    if (secretTy && attr) {
+  FailureOr<Type> convert(Type type, Attribute attr) const override {
+    if (auto secretTy = dyn_cast<secret::SecretType>(type)) {
       auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr);
       if (mgmtAttr) {
         return convertSecretTypeWithMgmtAttr(secretTy, mgmtAttr);
@@ -286,25 +286,35 @@ class SecretForOpConversion : public OpConversionPattern<affine::AffineForOp> {
       affine::AffineForOp forOp, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const final {
     const auto *contextAwareTypeConverter =
-        dynamic_cast<const TypeWithAttrTypeConverter *>(getTypeConverter());
+        dynamic_cast<const AttributeAwareTypeConverter *>(getTypeConverter());
     SmallVector<Type> newInitTypes;
-    contextAwareTypeConverter->convertValueRangeTypes(forOp.getInits(),
-                                                      newInitTypes);
+    if (failed(contextAwareTypeConverter->convertValueRangeTypes(
+            forOp.getInits(), newInitTypes)))
+      return failure();
+
+    // A hack because OpAdaptor doesn't use the context aware type converter to
+    // convert operand types.
+    for (size_t i = 0; i < newInitTypes.size(); i++) {
+      adaptor.getInits()[i].setType(newInitTypes[i]);
+    }
 
     Location loc = forOp.getLoc();
     auto newForOp = rewriter.create<affine::AffineForOp>(
         loc, ValueRange(forOp.getLowerBoundOperands()),
         forOp.getLowerBoundMap(), ValueRange(forOp.getUpperBoundOperands()),
         forOp.getUpperBoundMap(), forOp.getStep().getZExtValue(),
-        adaptor.getInits(), [](OpBuilder &, Location, Value, ValueRange) {});
+        adaptor.getInits());
+
     newForOp->setAttrs(forOp->getAttrs());
 
     mlir::Block *newBody = newForOp.getBody();
     mlir::Block *oldBody = forOp.getBody();
-    rewriter.setInsertionPoint(newBody, newBody->begin());
+    rewriter.setInsertionPointToStart(newBody);
+    IRMapping mp;
 
     SmallVector<Value> newBlockArgs;
     for (auto arg : newBody->getArguments()) {
+      auto oldArg = oldBody->getArgument(arg.getArgNumber());
       if (auto lweTy = dyn_cast<lwe::NewLWECiphertextType>(arg.getType())) {
         // For each block arg that is a secret type, we need to create an
         // operation inside the for loops block that can hold the mgmt attr for
@@ -314,19 +324,36 @@ class SecretForOpConversion : public OpConversionPattern<affine::AffineForOp> {
             lweTy.getApplicationData().getMessageType());
         auto cast = rewriter.create<mlir::UnrealizedConversionCastOp>(
             loc, underlyingTy, arg);
-        cast->setAttrs(oldBody->getArgument(arg.getArgNumber())
-                           .getUsers()
-                           .begin()
-                           ->getAttrs());
+        cast->setAttrs(oldArg.getUsers().begin()->getAttrs());
         newBlockArgs.push_back(cast.getResult(0));
+        mp.map(oldArg, cast.getResult(0));
       } else {
         newBlockArgs.push_back(arg);
+        mp.map(oldArg, arg);
       }
     }
 
-    // Move the body of the old ForOp to the new one.
-    rewriter.mergeBlocks(oldBody, newBody, newBlockArgs);
+    for (auto &op : *oldBody) {
+      rewriter.clone(op, mp);
+    }
+
+    // Hack: ensure the yield is converted at the same time as the for op.
+    auto yieldOp =
+        cast<affine::AffineYieldOp>(newForOp.getBody()->getTerminator());
+    SmallVector<Type> newYieldTypes;
+    if (failed(contextAwareTypeConverter->convertValueRangeTypes(
+            yieldOp.getOperands(), newYieldTypes)))
+      return failure();
+
+    rewriter.modifyOpInPlace(yieldOp, [&] {
+      for (auto [newYield, newYieldType] :
+           llvm::zip(yieldOp.getOperands(), newYieldTypes)) {
+        newYield.setType(newYieldType);
+      }
+    });
+
     rewriter.replaceOp(forOp, newForOp);
+
     return success();
   }
 };
@@ -479,37 +506,21 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
     // for mod reduce on tensor ciphertext
     target.addLegalOp<arith::ConstantOp, tensor::EmptyOp>();
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isFuncArgumentAndResultLegal(op);
-    });
     // to resolve unlinked block arguments
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
+    target.addDynamicallyLegalOp<func::FuncOp>(
+        [&](func::FuncOp op) { return typeConverter.isLegal(op); });
 
     // We add an explicit allowlist of operations to mark legal. If we use
     // markUnknownOpDynamicallyLegal, then ConvertAny will be applied to any
     // remaining operations and potentially cause a crash.
+    target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp>(
+        [&](Operation *op) { return typeConverter.isLegal(op); });
     target.addDynamicallyLegalOp<func::CallOp>(
-        [&](Operation *op) { return typeConverter.isOperationLegal(op); });
-    target.addDynamicallyLegalOp<affine::AffineYieldOp>(
-        [&](Operation *op) { return typeConverter.isOperationLegal(op); });
-    target.addDynamicallyLegalOp<tensor::ExtractOp, tensor::InsertOp>(
-        [&](Operation *op) { return typeConverter.isOperationLegal(op); });
-    // We can't use typeConverter.isOperationLegal here because it requires the
-    // region being converted.
-    target.addDynamicallyLegalOp<affine::AffineForOp>(
-        [&](affine::AffineForOp op) {
-          for (auto operand : op->getOperands()) {
-            if (!typeConverter.isValueLegal(operand)) {
-              return false;
-            }
-          }
-          for (auto result : op->getResults()) {
-            if (!typeConverter.isValueLegal(result)) {
-              return false;
-            }
-          }
-          return true;
-        });
+        [&](Operation *op) { return typeConverter.isLegal(op); });
+    target.addDynamicallyLegalOp<tensor::ExtractOp, tensor::ExtractSliceOp,
+                                 tensor::InsertOp>(
+        [&](Operation *op) { return typeConverter.isLegal(op); });
 
     patterns.add<
         ConvertFuncWithContextAwareTypeConverter,
@@ -533,7 +544,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpCipherPlainConversion<arith::SubIOp, ckks::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulIOp, ckks::MulPlainOp>,
         SecretForOpConversion, ConvertAny<affine::AffineYieldOp>,
-        SecretGenericFuncCallConversion>(typeConverter, context);
+        ConvertAny<tensor::ExtractSliceOp>, SecretGenericFuncCallConversion>(
+        typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

@@ -5,7 +5,10 @@ def executable_attr(label):
     return attr.label(
         default = Label(label),
         executable = True,
-        cfg = "exec",
+        # commenting this out breaks cross-compilation, but this should not be a problem
+        # for developer builds
+        # cfg = "exec",
+        cfg = "target",
     )
 
 _HEIR_OPT = "@heir//tools:heir-opt"

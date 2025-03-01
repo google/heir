@@ -8,7 +8,10 @@ def executable_attr(label):
         default = Label(label),
         allow_single_file = True,
         executable = True,
-        cfg = "exec",
+        # commenting this out breaks cross-compilation, but this should not be a problem
+        # for developer builds
+        # cfg = "exec",
+        cfg = "target",
     )
 
 _LLC = "@llvm-project//llvm:llc"
