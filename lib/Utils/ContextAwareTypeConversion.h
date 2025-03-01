@@ -42,7 +42,6 @@ class ContextAwareTypeConverter {
   }
 
   // ---- New functions added by HEIR ----- //
-  // FIXME: remove the registration machinery in favor of this one function
   // Require subclasses to implement this instead of registering multiple
   // conversions and materializations.
   virtual FailureOr<Type> convert(Type type, Attribute attr) const = 0;
@@ -52,6 +51,12 @@ class ContextAwareTypeConverter {
   // This may indicate that no type conversion is necessary. As a result, the
   // returned Attribute is never nullptr.
   virtual FailureOr<Attribute> getContextualAttr(Value value) const = 0;
+
+  // Get the attribute for a given input of a function. Since the function may
+  // be a declaration, it may not have any SSA value with which to use
+  // getContextualAttr(Value) above,
+  virtual FailureOr<Attribute> getContextualAttr(FuncOpInterface funcOp,
+                                                 int inputIndex) const = 0;
 
   /// This class provides all of the information necessary to convert a type
   /// signature.
@@ -256,8 +261,11 @@ class ContextAwareTypeConverter {
   /// the type is removed and any usages of the existing value are expected to
   /// be removed during conversion.
   ///
-  /// HEIR: the added argument Value v corresponds to the context of the type
+  /// HEIR: the added argument Attribute corresponds to the context of the type
   /// (v.getType() == t)
+  LogicalResult convertType(Type t, Attribute attr,
+                            SmallVectorImpl<Type> &results) const;
+  /// Here the value is used as context
   LogicalResult convertType(Type t, Value v,
                             SmallVectorImpl<Type> &results) const;
   /// HEIR: added an option to convert a type with Operation context
@@ -384,9 +392,9 @@ class ContextAwareTypeConverter {
 
   /// Generate a wrapper for the given callback. This allows for accepting
   /// different callback forms, that all compose into a single version.
-  /// With callback of form: `std::optional<Type>(T)`
+  /// With callback of form: `std::optional<Type>(T, Value)`
   template <typename T, typename FnT>
-  std::enable_if_t<std::is_invocable_v<FnT, T>, ConversionCallbackFn>
+  std::enable_if_t<std::is_invocable_v<FnT, T, Value>, ConversionCallbackFn>
   wrapCallback(FnT &&callback) const {
     return wrapCallback<T>(
         [callback = std::forward<FnT>(callback)](
@@ -400,9 +408,9 @@ class ContextAwareTypeConverter {
         });
   }
   /// With callback of form: `std::optional<LogicalResult>(
-  ///     T, SmallVectorImpl<Type> &, ArrayRef<Type>)`.
+  ///     T, Value, SmallVectorImpl<Type> &, ArrayRef<Type>)`.
   template <typename T, typename FnT>
-  std::enable_if_t<std::is_invocable_v<FnT, T, SmallVectorImpl<Type> &>,
+  std::enable_if_t<std::is_invocable_v<FnT, T, Value, SmallVectorImpl<Type> &>,
                    ConversionCallbackFn>
   wrapCallback(FnT &&callback) const {
     return [callback = std::forward<FnT>(callback)](

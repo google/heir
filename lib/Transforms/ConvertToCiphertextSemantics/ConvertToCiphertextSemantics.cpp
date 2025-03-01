@@ -2,6 +2,7 @@
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
@@ -62,10 +63,18 @@ void tryRemoveLayoutAttrFromDefiningOp(Value value) {
 // The presence of a layout attribute on the op definine a value is required
 // for this type converter to trigger. So patterns that use this and convert
 // types must remove any layout attributes when they are done.
-struct LayoutMaterializationTypeConverter : public AttributeAwareTypeConverter {
+struct LayoutMaterializationTypeConverter : public ContextAwareTypeConverter {
  public:
   LayoutMaterializationTypeConverter(int ciphertextSize)
-      : ciphertextSize(ciphertextSize) {}
+      : ciphertextSize(ciphertextSize) {
+    addConversion([&](Type type, Value v) -> std::optional<Type> {
+      auto result = getContextualAttr(v);
+      if (failed(result)) return std::nullopt;
+      return convert(type, result.value());
+    });
+
+    addConversion([&](Type type, Value v) { return type; });
+  }
 
   FailureOr<Type> convert(Type type, Attribute attr) const override {
     LLVM_DEBUG(llvm::dbgs() << "Converting type " << type << " with layout "

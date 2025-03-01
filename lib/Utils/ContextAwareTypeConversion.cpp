@@ -159,11 +159,8 @@ void ContextAwareTypeConverter::SignatureConversion::remapInput(
 }
 
 LogicalResult ContextAwareTypeConverter::convertType(
-    Type t, Value v, SmallVectorImpl<Type> &results) const {
+    Type t, Attribute attr, SmallVectorImpl<Type> &results) const {
   assert(t && "expected non-null type");
-  FailureOr<Attribute> result = getContextualAttr(v);
-  if (failed(result)) return failure();
-  Attribute attr = result.value();
   TypeAndAttribute key{t, attr};
 
   {
@@ -199,6 +196,14 @@ LogicalResult ContextAwareTypeConverter::convertType(
     }
   }
   return failure();
+}
+
+LogicalResult convertType(Type t, Value v,
+                          SmallVectorImpl<Type> &results) const {
+  FailureOr<Attribute> result = getContextualAttr(v);
+  if (failed(result)) return failure();
+  Attribute attr = result.value();
+  return convertType(t, attr, results);
 }
 
 Type ContextAwareTypeConverter::convertType(Type t, Value v) const {
