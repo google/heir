@@ -1,25 +1,40 @@
 """Example of HEIR Python usage."""
 
 from heir import compile
-from heir.mlir import F32, I16, I64, Secret, Tensor
+from heir.mlir import F32, I16, I64, I8, Secret, Tensor
 
 # TODO (#1162): Also add the tensorflow-to-tosa-to-HEIR example in example.py, even it doesn't use the main Python frontend?
 
-
-### Simple Example
 @compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
-def func(x: Secret[I16], y: Secret[I16]):
-  sum = x + y
-  diff = x - y
-  mul = x * y
-  expression = sum * diff + mul
-  deadcode = expression * mul
-  return expression
-
+def mul_gf256(x: Secret[I8], y: I8) -> I8:
+  '''Rinjdael multiplication in the ring GF(256)'''
+  z = 0
+  for i in range(2):
+      if y & (1 << i):
+          z = z ^ x
+      x = (x << 1) 
+      if x >= 256 :
+          x = (x & 255) ^ 27
+  return z
 
 print(
-    f"Expected result for `func`: {func.original(7,8)}, FHE result: {func(7,8)}"
+    f"Expected result for `func`: {mul_gf256.original(7,8)}, FHE result: {mul_gf256(7,8)}"
 )
+
+### Simple Example
+# @compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
+# def func(x: Secret[I16], y: Secret[I16]):
+#   sum = x + y
+#   diff = x - y
+#   mul = x * y
+#   expression = sum * diff + mul
+#   deadcode = expression * mul
+#   return expression
+
+
+# print(
+#     f"Expected result for `func`: {func.original(7,8)}, FHE result: {func(7,8)}"
+# )
 
 
 # ### Manual setup/enc/dec example

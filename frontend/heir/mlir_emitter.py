@@ -118,21 +118,38 @@ def build_loop_from_call(index, body, blocks):
   range_args = RangeArgs(body[index])
 
   # Loop body must start with assigning the local iter var
-  loop_body = blocks[header.body_id].body
-  assert loop_body[0].value == header.phi_var
+  loop_body = blocks[header.body_id]
+  assert loop_body.body[0].value == header.phi_var
+  iter_var = loop_body.body[0].target
 
-  inits = []
-  for instr in loop_body[1:]:
-    if type(instr) == ir.Assign and not instr.target.is_temp:
-      inits.append(instr.target)
-  if len(inits) > 1:
-    raise NotImplementedError("Multiple iter_args not supported")
+  inits = set()
+  visited = set()
+  loop_body_blocks = deque([loop_body])
+  while loop_body_blocks:
+    block = loop_body_blocks.popleft()
+    if block in visited:
+      continue
+    for instr in block.body:
+      match type(instr):
+        case ir.Assign:
+          if type(instr.value) == ir.Global:
+            continue
+          if instr.target == iter_var:
+            continue
+          if not instr.target.is_temp:
+            inits.add(instr.target)
+        case ir.Jump:
+          loop_body_blocks.append(blocks[instr.target])
+        case ir.Branch:
+          loop_body_blocks.append(blocks[instr.falsebr])
+          loop_body_blocks.append(blocks[instr.truebr])
+    visited.add(block)
 
   return Loop(
       header_id,
       header,
       range_args,
-      inits,
+      list(inits),
   )
 
 
@@ -211,7 +228,9 @@ class TextualMlirEmitter:
     # collect loops and block header needs
     block_ids_to_omit_header = set()
     for block_id, block in blocks.items():
+      print(block_id)
       for i in range(len(block.body)):
+        print("\t"+ str(block.body[i]))
         # Detect a range call
         instr = block.body[i]
         if is_start_of_loop(i, block.body, self.ssa_ir):
@@ -402,12 +421,20 @@ class TextualMlirEmitter:
     match binop.fn:
       case operator.lt:
         return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}"
+      case operator.ge:
+        return f"arith.cmp{suffix} ge, {lhs_ssa}, {rhs_ssa}"
       case operator.add:
         return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}"
       case operator.mul:
         return f"arith.mul{suffix} {lhs_ssa}, {rhs_ssa}"
       case operator.sub:
         return f"arith.sub{suffix} {lhs_ssa}, {rhs_ssa}"
+      case operator.lshift:
+        return f"arith.shl{suffix} {lhs_ssa}, {rhs_ssa}"
+      case operator.and_:
+        return f"arith.and{suffix} {lhs_ssa}, {rhs_ssa}"
+      case operator.xor:
+        return f"arith.xor{suffix} {lhs_ssa}, {rhs_ssa}"
 
     raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
 
@@ -447,13 +474,12 @@ class TextualMlirEmitter:
     if step != 1:
       for_str = f"{for_str} step {step}"
 
-    if len(loop.inits) == 1:
-      # Note: we must generalize to inits > 1
+    if loop.inits:
       init_val = self.get_name(loop.inits[0])
       # Within the loop, forward the name for the init val to a new temp var
       iter_arg = self.forward_to_new_id(loop.inits[0])
       for_str = (
-          f"{resultvar} = {for_str} iter_args({iter_arg} = {init_val}) ->"
+          f"{resultvar}#{len(loop.inits)} = {for_str} iter_args({iter_arg} = {init_val}) ->"
           f" ({mlirType(self.typemap.get(str(target)))})"
       )
     header.append(for_str + " {")
