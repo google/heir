@@ -67,6 +67,23 @@ cc_library(
 )
 
 cc_library(
+    name = "ContextAwareDialectConversion",
+    srcs = ["ContextAwareDialectConversion.cpp"],
+    hdrs = ["ContextAwareDialectConversion.h"],
+    deps = [
+        ":ContextAwareTypeConversion",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
     name = "TargetUtils",
     srcs = ["TargetUtils.cpp"],
     hdrs = ["TargetUtils.h"],

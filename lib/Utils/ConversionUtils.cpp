@@ -53,12 +53,12 @@ FailureOr<Operation *> convertAnyOperand(const TypeConverter *typeConverter,
   SmallVector<Type> newOperandTypes;
   SmallVector<Type> newResultTypes;
   if (contextAwareTypeConverter) {
-    if (failed(contextAwareTypeConverter->convertValueRangeTypes(
-            op->getResults(), newResultTypes)))
+    if (failed(contextAwareTypeConverter->convertTypes(
+            op->getResultTypes(), op->getResults(), newResultTypes)))
       return failure();
 
-    if (failed(contextAwareTypeConverter->convertValueRangeTypes(
-            op->getOperands(), newOperandTypes)))
+    if (failed(contextAwareTypeConverter->convertTypes(
+            op->getOperandTypes(), op->getOperands(), newOperandTypes)))
       return failure();
 
     if (newOperandTypes == op->getOperandTypes() &&

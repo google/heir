@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <functional>
 #include <numeric>
-#include <optional>
-#include <string>
 
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -17,7 +15,6 @@
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -33,9 +30,8 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -133,6 +129,7 @@ class SecretGenericOpConversion
 
     // Assemble the arguments for the Scheme operation.
     SmallVector<Value> inputs;
+    SmallVector<Type> oldInputTypes;
     for (OpOperand &operand : innerOp.getOpOperands()) {
       if (auto *secretArg = op.getOpOperandForBlockArgument(operand.get())) {
         inputs.push_back(
@@ -140,16 +137,17 @@ class SecretGenericOpConversion
       } else {
         inputs.push_back(operand.get());
       }
+      oldInputTypes.push_back(inputs.back().getType());
     }
 
     if (contextAwareTypeConverter) {
       // manually do the OpAdaptor's work
-      SmallVector<Type> inputTypes;
-      if (failed(contextAwareTypeConverter->convertValueRangeTypes(inputs,
-                                                                   inputTypes)))
+      SmallVector<Type> newInputTypes;
+      if (failed(contextAwareTypeConverter->convertTypes(oldInputTypes, inputs,
+                                                         newInputTypes)))
         return failure();
       rewriter.modifyOpInPlace(op, [&] {
-        for (const auto &[input, newType] : llvm::zip(inputs, inputTypes)) {
+        for (const auto &[input, newType] : llvm::zip(inputs, newInputTypes)) {
           input.setType(newType);
         }
       });
@@ -159,8 +157,8 @@ class SecretGenericOpConversion
     // convert the result types
     SmallVector<Type> resultTypes;
     if (contextAwareTypeConverter) {
-      if (failed(contextAwareTypeConverter->convertValueRangeTypes(
-              op.getResults(), resultTypes)))
+      if (failed(contextAwareTypeConverter->convertTypes(
+              op.getResultTypes(), op.getResults(), resultTypes)))
         return failure();
     } else {
       if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
@@ -222,8 +220,8 @@ class SecretGenericConversion : public OpConversionPattern<secret::GenericOp> {
     if (contextAwareTypeConverter) {
       // manually do the OpAdaptor's work
       SmallVector<Type> inputTypes;
-      if (failed(contextAwareTypeConverter->convertValueRangeTypes(inputs,
-                                                                   inputTypes)))
+      if (failed(contextAwareTypeConverter->convertTypes(op.getOperandTypes(),
+                                                         inputs, inputTypes)))
         return failure();
       rewriter.modifyOpInPlace(op, [&] {
         for (const auto &[opOperand, newType] :
@@ -245,8 +243,8 @@ class SecretGenericConversion : public OpConversionPattern<secret::GenericOp> {
     // convert the result types
     SmallVector<Type> resultTypes;
     if (contextAwareTypeConverter) {
-      if (failed(contextAwareTypeConverter->convertValueRangeTypes(
-              op.getResults(), resultTypes)))
+      if (failed(contextAwareTypeConverter->convertTypes(
+              op.getResultTypes(), op.getResults(), resultTypes)))
         return failure();
     } else {
       if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
@@ -522,13 +520,13 @@ int widthFromEncodingAttr(Attribute encoding);
 // this op.
 template <typename ArgType>
 FailureOr<Value> getContextualArgFromFunc(Operation *op) {
-  for (auto block_arg : op->getParentOfType<func::FuncOp>()
-                            .getBody()
-                            .getBlocks()
-                            .front()
-                            .getArguments()) {
-    if (mlir::isa<ArgType>(block_arg.getType())) {
-      return block_arg;
+  for (auto blockArg : op->getParentOfType<func::FuncOp>()
+                           .getBody()
+                           .getBlocks()
+                           .front()
+                           .getArguments()) {
+    if (mlir::isa<ArgType>(blockArg.getType())) {
+      return blockArg;
     }
   }
   return failure();
