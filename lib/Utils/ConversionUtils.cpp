@@ -33,14 +33,15 @@ using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;
 using ::mlir::func::ReturnOp;
 
-LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
-                                Operation *op, ArrayRef<Value> operands,
-                                ConversionPatternRewriter &rewriter) {
-  const auto *typeWithAttrTypeConverter =
-      dynamic_cast<const AttributeAwareTypeConverter *>(typeConverter);
+FailureOr<Operation *> convertAnyOperand(const TypeConverter *typeConverter,
+                                         Operation *op,
+                                         ArrayRef<Value> operands,
+                                         ConversionPatternRewriter &rewriter) {
+  const auto *contextAwareTypeConverter =
+      dynamic_cast<const ContextAwareTypeConverter *>(typeConverter);
 
-  if (typeWithAttrTypeConverter) {
-    if (typeWithAttrTypeConverter->isLegal(op)) {
+  if (contextAwareTypeConverter) {
+    if (contextAwareTypeConverter->isLegal(op)) {
       return failure();
     }
   } else {
@@ -51,12 +52,12 @@ LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
 
   SmallVector<Type> newOperandTypes;
   SmallVector<Type> newResultTypes;
-  if (typeWithAttrTypeConverter) {
-    if (failed(typeWithAttrTypeConverter->convertValueRangeTypes(
+  if (contextAwareTypeConverter) {
+    if (failed(contextAwareTypeConverter->convertValueRangeTypes(
             op->getResults(), newResultTypes)))
       return failure();
 
-    if (failed(typeWithAttrTypeConverter->convertValueRangeTypes(
+    if (failed(contextAwareTypeConverter->convertValueRangeTypes(
             op->getOperands(), newOperandTypes)))
       return failure();
 
@@ -88,7 +89,7 @@ LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
       op->getAttrs(), op->getSuccessors(), regions));
 
   rewriter.replaceOp(op, newOp);
-  return success();
+  return newOp;
 }
 
 struct ConvertExtract : public OpConversionPattern<tensor::ExtractOp> {

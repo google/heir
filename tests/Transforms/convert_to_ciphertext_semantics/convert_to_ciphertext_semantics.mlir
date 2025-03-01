@@ -9,7 +9,7 @@ func.func @convert_minimal_example(
   %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32x32xi16>>)
                       attrs = {arg0 = {layout = #map}, layout = [#map]} {
   ^body(%input0: tensor<32x32xi16>):
-    %1 = arith.addi %input0, %input0 : tensor<32x32xi16>
+    %1 = arith.addi %input0, %input0 {layout = [#map]} : tensor<32x32xi16>
     secret.yield %1 : tensor<32x32xi16>
   } -> !secret.secret<tensor<32x32xi16>>
   return %0 : !secret.secret<tensor<32x32xi16>>

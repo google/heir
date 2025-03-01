@@ -16,22 +16,60 @@
 namespace mlir {
 namespace heir {
 
+auto &kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
+auto &kOriginalTypeAttrName =
+    tensor_ext::TensorExtDialect::kOriginalTypeAttrName;
+
 #define GEN_PASS_DEF_CONVERTTOCIPHERTEXTSEMANTICS
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h.inc"
 
 bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
+
+int getIndexOfOpResult(Operation *op, Value result) {
+  int index = 0;
+  for (auto res : op->getResults()) {
+    if (res == result) return index;
+    ++index;
+  }
+  return -1;
+}
+
+// Remove the layout attribute from the defining op of a given value. Since ops
+// may have multiple results, this will not delete the attribute, but rather
+// set it to nullptr and expect the rest of this pass to treat a null attribute
+// as meaning the type has already been converted.
+void tryRemoveLayoutAttrFromDefiningOp(Value value) {
+  auto *parentOp = value.getDefiningOp();
+  if (!parentOp) return;
+
+  ArrayAttr resultLayouts = parentOp->getAttrOfType<ArrayAttr>("layout");
+  int resultIndex = getIndexOfOpResult(parentOp, value);
+  if (resultIndex == -1) return;
+
+  SmallVector<Attribute> newResultLayouts(resultLayouts.begin(),
+                                          resultLayouts.end());
+  newResultLayouts[resultIndex] = nullptr;
+  parentOp->setAttr("layout",
+                    ArrayAttr::get(value.getContext(), newResultLayouts));
+}
 
 // This type converter converts types like tensor<NxMxi16> where the dimensions
 // represent tensor-semantic data to tensor<ciphertext_count x num_slots x
 // i16>, where the last dimension represents the ciphertext or plaintext slot
 // count, and the other dimensions are determined by a layout attribute
 // indexing.
+//
+// The presence of a layout attribute on the op definine a value is required
+// for this type converter to trigger. So patterns that use this and convert
+// types must remove any layout attributes when they are done.
 struct LayoutMaterializationTypeConverter : public AttributeAwareTypeConverter {
  public:
   LayoutMaterializationTypeConverter(int ciphertextSize)
       : ciphertextSize(ciphertextSize) {}
 
   FailureOr<Type> convert(Type type, Attribute attr) const override {
+    LLVM_DEBUG(llvm::dbgs() << "Converting type " << type << " with layout "
+                            << attr << "\n");
     // Convert secret<tensor<...>> to secret<tensor<...>>
     // Convert tensor<...> to tensor<...>
     bool isSecret = isa<secret::SecretType>(type);
@@ -103,9 +141,10 @@ struct LayoutMaterializationTypeConverter : public AttributeAwareTypeConverter {
       auto funcOp = dyn_cast<FunctionOpInterface>(parentOp);
       if (funcOp) {
         auto argAttr =
-            funcOp.getArgAttr(blockArg.getArgNumber(),
-                              tensor_ext::TensorExtDialect::kLayoutAttrName);
+            funcOp.getArgAttr(blockArg.getArgNumber(), kLayoutAttrName);
         if (!argAttr) return failure();
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Found layout attr " << argAttr << " on function args\n");
 
         return argAttr;
       }
@@ -113,8 +152,13 @@ struct LayoutMaterializationTypeConverter : public AttributeAwareTypeConverter {
       // It may be a secret.generic arg
       auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
       if (genericOp) {
-        return cast<AffineMapAttr>(
+        auto attr = dyn_cast_or_null<AffineMapAttr>(
             genericOp.getArgAttr(blockArg.getArgNumber(), "layout"));
+        if (!attr) return failure();
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Found layout attr " << attr
+                   << " on secret generic, for value " << value << "\n");
+        return attr;
       }
 
       return failure();
@@ -122,18 +166,17 @@ struct LayoutMaterializationTypeConverter : public AttributeAwareTypeConverter {
 
     // For any other op, the layout attribute is an array of result layouts
     ArrayAttr resultLayouts = parentOp->getAttrOfType<ArrayAttr>("layout");
-
-    int valueIndex = -1;
-    for (auto result : parentOp->getResults()) {
-      ++valueIndex;
-      if (result == value) break;
-    }
-
-    if (valueIndex == -1) {
+    if (!resultLayouts) return failure();
+    int resultIndex = getIndexOfOpResult(parentOp, value);
+    if (resultIndex == -1) {
       return failure();
     }
 
-    return cast<AffineMapAttr>(resultLayouts[valueIndex]);
+    auto attr = dyn_cast_or_null<AffineMapAttr>(resultLayouts[resultIndex]);
+    if (!attr) return failure();
+    LLVM_DEBUG(llvm::dbgs() << "Found layout attr " << attr
+                            << " on defining op, for value " << value << "\n");
+    return attr;
   }
 
  private:
@@ -143,14 +186,33 @@ struct LayoutMaterializationTypeConverter : public AttributeAwareTypeConverter {
 
 bool hasLayoutArgAttrs(func::FuncOp op) {
   for (int i = 0; i < op.getNumArguments(); ++i) {
-    if (op.getArgAttr(i, tensor_ext::TensorExtDialect::kLayoutAttrName))
-      return true;
+    if (op.getArgAttr(i, kLayoutAttrName)) return true;
+  }
+  return false;
+}
+
+bool hasLayoutArgAttrs(secret::GenericOp op) {
+  for (int i = 0; i < op.getNumOperands(); ++i) {
+    if (op.getArgAttr(i, "layout")) return true;
   }
   return false;
 }
 
 bool hasLayoutResultAttrs(Operation *op) {
-  return (op->getAttrOfType<ArrayAttr>("layout") != nullptr);
+  auto layoutAttrs = op->getAttrOfType<ArrayAttr>("layout");
+  if (!layoutAttrs) return false;
+
+  // If any layout attribute is nullptr, it means the type has already been
+  // converted. If any result has a non-null attribute, it still needs to be
+  // converted.
+  return llvm::any_of(layoutAttrs,
+                      [](Attribute attr) { return attr != nullptr; });
+}
+
+bool hasOperandsWithLayouts(Operation *op) {
+  return llvm::any_of(op->getOperands(), [](Value operand) {
+    return hasLayoutResultAttrs(operand.getDefiningOp());
+  });
 }
 
 struct ConvertFunc : public ConvertFuncWithContextAwareTypeConverter {
@@ -165,22 +227,87 @@ struct ConvertFunc : public ConvertFuncWithContextAwareTypeConverter {
   LogicalResult finalizeFuncOpModification(
       func::FuncOp op, ArrayRef<Type> oldArgTypes,
       ArrayRef<Type> oldResultTypes, PatternRewriter &rewriter) const override {
-    // Replace layout arg attrs with secret.original_type arg attrs
+    // Replace layout arg attrs with secret.original_type arg attrs This is
+    // necessary so that later encoding/decoding functions can know what the
+    // original type of the tensor was and how it was encoded.
     rewriter.modifyOpInPlace(op, [&] {
       for (int i = 0; i < op.getNumArguments(); ++i) {
-        auto layoutAttr =
-            op.getArgAttr(i, tensor_ext::TensorExtDialect::kLayoutAttrName);
+        auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
         if (!layoutAttr) continue;
 
-        op.removeArgAttr(i, tensor_ext::TensorExtDialect::kLayoutAttrName);
+        op.removeArgAttr(i, kLayoutAttrName);
         AffineMap layout = cast<AffineMapAttr>(layoutAttr).getValue();
-        op.setArgAttr(i, tensor_ext::TensorExtDialect::kOriginalTypeAttrName,
+        op.setArgAttr(i, kOriginalTypeAttrName,
                       tensor_ext::OriginalTypeAttr::get(
                           getContext(), oldArgTypes[i], layout));
+      }
+
+      for (int i = 0; i < op.getNumResults(); ++i) {
+        auto layoutAttr = dyn_cast_or_null<AffineMapAttr>(
+            op.getResultAttr(i, kLayoutAttrName));
+        if (!layoutAttr) continue;
+
+        op.setResultAttr(
+            i, kOriginalTypeAttrName,
+            tensor_ext::OriginalTypeAttr::get(getContext(), oldResultTypes[i],
+                                              layoutAttr.getValue()));
+      }
+
+      // Since the func.return was converted, we need to erase layout ops from
+      // the operations that generated the return's operands.
+      auto returnOperands = op.getBody().front().getTerminator()->getOperands();
+      for (auto returnOperand : returnOperands) {
+        tryRemoveLayoutAttrFromDefiningOp(returnOperand);
       }
     });
     return success();
   };
+};
+
+struct ConvertGeneric : public SecretGenericConversion {
+  using SecretGenericConversion::SecretGenericConversion;
+
+ public:
+  LogicalResult finalizeOpModification(
+      secret::GenericOp op,
+      ConversionPatternRewriter &rewriter) const override {
+    LLVM_DEBUG(llvm::dbgs()
+               << "Finalizing secret.generic conversion for " << op << "\n");
+    rewriter.modifyOpInPlace(op, [&] {
+      for (int i = 0; i < op.getNumOperands(); ++i) {
+        op.removeArgAttr(i, "layout");
+      }
+
+      for (int i = 0; i < op.getNumResults(); ++i) {
+        op->removeAttr("layout");
+      }
+    });
+    LLVM_DEBUG(llvm::dbgs() << "Post-Finalization: " << op << "\n");
+    return success();
+  };
+};
+
+// A clone of ConvertAny<> but which erases the layout attribute afterward.
+struct ConvertAnyRemovingLayout : public ConversionPattern {
+  ConvertAnyRemovingLayout(const TypeConverter &anyTypeConverter,
+                           MLIRContext *context)
+      : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          /*benefit=*/0, context) {
+    setDebugName("ConvertAny");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  LogicalResult matchAndRewrite(
+      Operation *op, ArrayRef<Value> operands,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Operation *> result =
+        convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+    if (failed(result)) return failure();
+
+    Operation *newOp = result.value();
+    rewriter.modifyOpInPlace(newOp, [&] { newOp->removeAttr("layout"); });
+    return success();
+  }
 };
 
 struct ConvertToCiphertextSemantics
@@ -198,10 +325,13 @@ struct ConvertToCiphertextSemantics
     ConversionTarget target(*context);
     target.addDynamicallyLegalOp<func::FuncOp>(
         [&](func::FuncOp op) { return !hasLayoutArgAttrs(op); });
+    target.addDynamicallyLegalOp<secret::GenericOp>(
+        [&](secret::GenericOp op) { return !hasLayoutArgAttrs(op); });
     target.markUnknownOpDynamicallyLegal(
         [&](Operation *op) { return !hasLayoutResultAttrs(op); });
 
-    patterns.add<ConvertFunc>(typeConverter, context);
+    patterns.add<ConvertFunc, ConvertGeneric, ConvertAnyRemovingLayout>(
+        typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

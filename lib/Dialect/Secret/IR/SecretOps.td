@@ -246,6 +246,9 @@ def Secret_GenericOp : Secret_Op<"generic", [
       inlineInPlaceDroppingSecrets(rewriter, getOperands());
     }
 
+    GenericOp cloneWithNewResultTypes(TypeRange newTypes, PatternRewriter &rewriter,
+                                      bool preserveAttrs = false);
+
     //===------------------------------------------------------------------===//
     // Argument Attributes
     //===------------------------------------------------------------------===//

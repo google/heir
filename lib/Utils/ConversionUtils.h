@@ -41,9 +41,10 @@
 namespace mlir {
 namespace heir {
 
-LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
-                                Operation *op, ArrayRef<Value> operands,
-                                ConversionPatternRewriter &rewriter);
+FailureOr<Operation *> convertAnyOperand(const TypeConverter *typeConverter,
+                                         Operation *op,
+                                         ArrayRef<Value> operands,
+                                         ConversionPatternRewriter &rewriter);
 
 template <typename T = void>
 struct ConvertAny : public ConversionPattern {
@@ -162,9 +163,9 @@ class SecretGenericOpConversion
               op.getResults(), resultTypes)))
         return failure();
     } else {
-      auto result =
-          getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes);
-      if (failed(result)) return failure();
+      if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                  resultTypes)))
+        return failure();
     }
 
     // only preserve dialect attrs
@@ -194,6 +195,73 @@ class SecretGenericOpConversion
       ArrayRef<NamedAttribute> attributes,
       ConversionPatternRewriter &rewriter) const {
     rewriter.replaceOpWithNewOp<Y>(op, outputTypes, inputs, attributes);
+    return success();
+  }
+};
+
+// A converter for a secret.generic that doesn't touch the inner ops
+class SecretGenericConversion : public OpConversionPattern<secret::GenericOp> {
+ public:
+  using OpConversionPattern<secret::GenericOp>::OpConversionPattern;
+
+  virtual LogicalResult finalizeOpModification(
+      secret::GenericOp op, ConversionPatternRewriter &rewriter) const {
+    return success();
+  };
+
+  LogicalResult matchAndRewrite(
+      secret::GenericOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const final {
+    // NOTE: use C++ RTTI instead of LLVM RTTI
+    // because TypeConverter does not support LLVM RTTI
+    const auto *contextAwareTypeConverter =
+        dynamic_cast<const ContextAwareTypeConverter *>(getTypeConverter());
+
+    SmallVector<Value> inputs = op.getOperands();
+    SmallVector<Type> inputTypes;
+    if (contextAwareTypeConverter) {
+      // manually do the OpAdaptor's work
+      SmallVector<Type> inputTypes;
+      if (failed(contextAwareTypeConverter->convertValueRangeTypes(inputs,
+                                                                   inputTypes)))
+        return failure();
+      rewriter.modifyOpInPlace(op, [&] {
+        for (const auto &[opOperand, newType] :
+             llvm::zip(op->getOpOperands(), inputTypes)) {
+          opOperand.get().setType(newType);
+
+          // And set the inner block argument
+          auto secretType = dyn_cast<secret::SecretType>(newType);
+          if (secretType) {
+            auto blockArg =
+                op.getBody()->getArgument(opOperand.getOperandNumber());
+            blockArg.setType(secretType.getValueType());
+          }
+        }
+      });
+    }
+    // else OpAdaptor will do it for us
+
+    // convert the result types
+    SmallVector<Type> resultTypes;
+    if (contextAwareTypeConverter) {
+      if (failed(contextAwareTypeConverter->convertValueRangeTypes(
+              op.getResults(), resultTypes)))
+        return failure();
+    } else {
+      if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                  resultTypes)))
+        return failure();
+    }
+
+    // Replace the generic op with a new generic op that has the new result
+    // types
+    secret::GenericOp newGeneric =
+        op.cloneWithNewResultTypes(resultTypes, rewriter);
+    rewriter.replaceOp(op, newGeneric);
+
+    if (failed(finalizeOpModification(newGeneric, rewriter))) return failure();
+
     return success();
   }
 };
