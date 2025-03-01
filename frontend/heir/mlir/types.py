@@ -121,7 +121,7 @@ def to_numba_str(type) -> str:
   if issubclass(type, MLIRTypeAnnotation):
     return type.numba_str()
 
-  raise TypeError(f"Unsupported type annotation: {type}, {type.__origin__}")
+  raise TypeError(f"Unsupported type annotation: {type}, {get_origin(type)}")
 
 
 def parse_annotations(annotations):
@@ -129,7 +129,9 @@ def parse_annotations(annotations):
     raise TypeError("Function is missing type annotations.")
   signature = ""
   secret_args = []
-  for idx, (_, arg_type) in enumerate(annotations.items()):
+  for idx, (name, arg_type) in enumerate(annotations.items()):
+    if name == 'return':
+      continue
     if get_origin(arg_type) == Secret:
       secret_args.append(idx)
       assert len(get_args(arg_type)) == 1
