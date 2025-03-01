@@ -82,7 +82,7 @@ def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure, SameOperandsAndResul
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
 
-def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [Pure]> {
+def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [ConstantLike, Pure]> {
   let summary = "Define a constant value via an attribute.";
   let description = [{
     Example:
@@ -95,6 +95,7 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [Pure]> {
   let results = (outs ModArith_ModArithType:$output);
   let hasCustomAssemblyFormat = 1;
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 
@@ -139,6 +140,8 @@ def ModArith_AddOp : ModArith_BinaryOp<"add", [Commutative]> {
     Unless otherwise specified, the operation assumes both inputs are canonical
     representatives and guarantees the output being canonical representative.
   }];
+
+  let hasFolder = 1;
 }
 
 def ModArith_SubOp : ModArith_BinaryOp<"sub"> {
