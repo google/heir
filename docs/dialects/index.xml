@@ -10829,7 +10829,7 @@ determine which casts are considered valid.&lt;/p>
 &lt;h3 id="secretconceal-heirsecretconcealop">&lt;code>secret.conceal&lt;/code> (heir::secret::ConcealOp)&lt;/h3>
 &lt;p>&lt;em>Convert a non-secret value into a secret&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.conceal` $cleartext attr-dict `:` type($cleartext) `-&amp;gt;` type($output)
+&lt;pre tabindex="0">&lt;code>operation ::= `secret.conceal` $cleartext attr-dict `:` qualified(type($cleartext)) `-&amp;gt;` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Convert a value to a secret containing the same value.&lt;/p>
 &lt;p>This op represents a scheme-agnostic encryption operation, as well as a
 &amp;ldquo;trivial encryption&amp;rdquo; operation which is needed for some FHE schemes. This
@@ -10938,7 +10938,7 @@ block.&lt;/p>
 &lt;h3 id="secretreveal-heirsecretrevealop">&lt;code>secret.reveal&lt;/code> (heir::secret::RevealOp)&lt;/h3>
 &lt;p>&lt;em>Convert a secret value into a non-secret&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `secret.reveal` $input attr-dict `:` type($input) `-&amp;gt;` type($cleartext)
+&lt;pre tabindex="0">&lt;code>operation ::= `secret.reveal` $input attr-dict `:` qualified(type($input)) `-&amp;gt;` qualified(type($cleartext))
 &lt;/code>&lt;/pre>&lt;p>Convert a secret into a non-secret containing the same value.&lt;/p>
 &lt;p>This op represents a scheme-agnostic decryption operation. This op is also
 useful for target materialization in the dialect conversion framework.&lt;/p>
