@@ -34,6 +34,14 @@ struct SecretInsertMgmtBGV
     // Helper for future lowerings that want to know what scheme was used
     moduleSetBGV(getOperation());
 
+    if (afterMul && beforeMulIncludeFirstMul) {
+      getOperation()->emitOpError()
+          << "afterMul and beforeMulIncludeFirstMul cannot be true at the same "
+             "time.\n";
+      signalPassFailure();
+      return;
+    }
+
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
@@ -47,23 +55,34 @@ struct SecretInsertMgmtBGV
       return;
     }
 
+    if (afterMul) {
+      RewritePatternSet patternsMultModReduce(&getContext());
+      patternsMultModReduce.add<ModReduceAfterMult<arith::MulIOp>>(
+          &getContext(), getOperation(), &solver);
+      patternsMultModReduce.add<ModReduceAfterMult<tensor::ExtractOp>>(
+          &getContext(), getOperation(), &solver);
+      (void)walkAndApplyPatterns(getOperation(),
+                                 std::move(patternsMultModReduce));
+    } else {
+      RewritePatternSet patternsMultModReduce(&getContext());
+      patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
+          &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
+      // tensor::ExtractOp = mulConst + rotate
+      patternsMultModReduce.add<ModReduceBefore<tensor::ExtractOp>>(
+          &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
+      // includeFirstMul = false here
+      // as before yield we only want mulResult to be mod reduced
+      patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
+          &getContext(), /*includeFirstMul*/ false, getOperation(), &solver);
+      (void)walkAndApplyPatterns(getOperation(),
+                                 std::move(patternsMultModReduce));
+    }
+
+    // this must be run after ModReduceAfterMult
     RewritePatternSet patternsRelinearize(&getContext());
     patternsRelinearize.add<MultRelinearize<arith::MulIOp>>(
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
-
-    RewritePatternSet patternsMultModReduce(&getContext());
-    patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
-        &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
-    // tensor::ExtractOp = mulConst + rotate
-    patternsMultModReduce.add<ModReduceBefore<tensor::ExtractOp>>(
-        &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
-    // includeFirstMul = false here
-    // as before yield we only want mulResult to be mod reduced
-    patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
-        &getContext(), /*includeFirstMul*/ false, getOperation(), &solver);
-    (void)walkAndApplyPatterns(getOperation(),
-                               std::move(patternsMultModReduce));
 
     // when other binary op operands level mismatch
     int scaleCounter = -1;  // for making adjust_scale op different to void cse
