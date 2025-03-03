@@ -75,9 +75,10 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
               // CKKS
               CKKSNewParametersFromLiteralOp, CKKSNewEncoderOp,
               CKKSNewEvaluatorOp, CKKSNewPlaintextOp, CKKSEncodeOp,
-              CKKSDecodeOp, CKKSAddOp, CKKSSubOp, CKKSMulOp, CKKSRelinearizeOp,
-              CKKSRescaleOp, CKKSRotateOp>(
-              [&](auto op) { return printOperation(op); })
+              CKKSDecodeOp, CKKSAddNewOp, CKKSSubNewOp, CKKSMulNewOp, CKKSAddOp,
+              CKKSSubOp, CKKSMulOp, CKKSRelinearizeOp, CKKSRescaleOp,
+              CKKSRotateOp, CKKSRelinearizeNewOp, CKKSRescaleNewOp,
+              CKKSRotateNewOp>([&](auto op) { return printOperation(op); })
           .Default([&](Operation &) {
             return emitError(op.getLoc(), "unable to find printer for op");
           });
@@ -596,8 +597,6 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";
   os << getName(op.getPlaintext()) << ")\n";
-  os << getName(op.getEncoded()) << " := " << getName(op.getPlaintext())
-     << "\n";
   return success();
 }
 
@@ -621,37 +620,78 @@ LogicalResult LattigoEmitter::printOperation(CKKSDecodeOp op) {
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(CKKSAddOp op) {
+LogicalResult LattigoEmitter::printOperation(CKKSAddNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "AddNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(CKKSSubOp op) {
+LogicalResult LattigoEmitter::printOperation(CKKSSubNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "SubNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(CKKSMulOp op) {
+LogicalResult LattigoEmitter::printOperation(CKKSMulNewOp op) {
   return printEvalNewMethod(op.getResult(), op.getEvaluator(),
                             {op.getLhs(), op.getRhs()}, "MulNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeOp op) {
+LogicalResult LattigoEmitter::printOperation(CKKSAddOp op) {
+  return printEvalInplaceMethod(op.getEvaluator(),
+                                {op.getLhs(), op.getRhs(), op.getInplace()},
+                                "Add", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSSubOp op) {
+  return printEvalInplaceMethod(op.getEvaluator(),
+                                {op.getLhs(), op.getRhs(), op.getInplace()},
+                                "Sub", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSMulOp op) {
+  return printEvalInplaceMethod(op.getEvaluator(),
+                                {op.getLhs(), op.getRhs(), op.getInplace()},
+                                "Mul", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeNewOp op) {
   return printEvalNewMethod(op.getOutput(), op.getEvaluator(), op.getInput(),
                             "RelinearizeNew", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
-  return printEvalInplaceMethod(op.getOutput(), op.getEvaluator(),
-                                op.getInput(), op.getInput(), "Rescale", true);
+LogicalResult LattigoEmitter::printOperation(CKKSRescaleNewOp op) {
+  // there is no RescaleNew method in Lattigo, manually create new ciphertext
+  os << getName(op.getOutput()) << " := " << getName(op.getInput())
+     << ".CopyNew()\n";
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getInput(), op.getOutput()}, "Rescale", true);
 }
 
-LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
+LogicalResult LattigoEmitter::printOperation(CKKSRotateNewOp op) {
   auto errName = getErrName();
   os << getName(op.getOutput()) << ", " << errName
      << " := " << getName(op.getEvaluator()) << ".RotateNew(";
   os << getName(op.getInput()) << ", ";
   os << op.getOffset().getInt() << ")\n";
+  printErrPanic(errName);
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSRelinearizeOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getInput(), op.getInplace()}, "Relinearize", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSRescaleOp op) {
+  return printEvalInplaceMethod(
+      op.getEvaluator(), {op.getInput(), op.getInplace()}, "Rescale", true);
+}
+
+LogicalResult LattigoEmitter::printOperation(CKKSRotateOp op) {
+  auto errName = getErrName();
+  os << errName << " := " << getName(op.getEvaluator()) << ".Rotate(";
+  os << getName(op.getInput()) << ", ";
+  os << op.getOffset().getInt() << ", ";
+  os << getName(op.getInplace()) << ")\n";
   printErrPanic(errName);
   return success();
 }
@@ -706,25 +746,6 @@ LogicalResult LattigoEmitter::printNewMethod(::mlir::Value result,
   if (err) {
     printErrPanic(errName);
   }
-  return success();
-}
-
-LogicalResult LattigoEmitter::printEvalInplaceMethod(
-    ::mlir::Value result, ::mlir::Value evaluator, ::mlir::Value operand,
-    ::mlir::Value operandInplace, std::string_view op, bool err) {
-  std::string errName = getErrName();
-  if (err) {
-    os << errName << " := ";
-  }
-  os << getName(evaluator) << "." << op << "(" << getName(operand) << ", "
-     << getName(operandInplace) << ");\n";
-  if (err) {
-    printErrPanic(errName);
-  }
-  // for inplace operation, operandInplace is actually a pointer in GO
-  // so assigning it is not costly, but for lowering pass to Lattigo, they
-  // should ensure the operandInplace is only used once
-  os << getName(result) << " := " << getName(operandInplace) << "\n";
   return success();
 }
 

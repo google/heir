@@ -42,7 +42,7 @@ def Lattigo_CKKSNewEncoderOp : Lattigo_CKKSOp<"new_encoder"> {
   let results = (outs Lattigo_CKKSEncoder:$encoder);
 }
 
-def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode"> {
+def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InplaceOpInterface]> {
   let summary = "Encode a plaintext value in the Lattigo CKKS dialect";
   let description = [{
     This operation encodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.
@@ -55,6 +55,8 @@ def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode"> {
     Lattigo_RLWEPlaintext:$plaintext
   );
   let results = (outs Lattigo_RLWEPlaintext:$encoded);
+
+  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
 }
 
 def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "decoded"]>]> {
@@ -69,6 +71,8 @@ def Lattigo_CKKSDecodeOp : Lattigo_CKKSOp<"decode", [AllTypesMatch<["value", "de
     Lattigo_RLWEPlaintext:$plaintext,
     RankedTensorOf<[AnyFloat, AnyComplex]>:$value
   );
+  // although bgv.Decode is also an inplace operation as bgv.Encode, as there are post-processing
+  // steps in emitter, we mark it as a normal operation.
   let results = (outs RankedTensorOf<[AnyFloat, AnyComplex]>:$decoded);
 }
 
@@ -102,24 +106,69 @@ class Lattigo_CKKSBinaryOp<string mnemonic> :
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_CKKSAddOp : Lattigo_CKKSBinaryOp<"add"> {
+def Lattigo_CKKSAddNewOp : Lattigo_CKKSBinaryOp<"add_new"> {
   let summary = "Add two ciphertexts in the Lattigo CKKS dialect";
   let description = [{
     This operation adds two ciphertext values in the Lattigo CKKS dialect.
   }];
 }
 
-def Lattigo_CKKSSubOp : Lattigo_CKKSBinaryOp<"sub"> {
+def Lattigo_CKKSSubNewOp : Lattigo_CKKSBinaryOp<"sub_new"> {
   let summary = "Subtract two ciphertexts in the Lattigo CKKS dialect";
   let description = [{
     This operation subtracts one ciphertext value from another in the Lattigo CKKS dialect.
   }];
 }
 
-def Lattigo_CKKSMulOp : Lattigo_CKKSBinaryOp<"mul"> {
+def Lattigo_CKKSMulNewOp : Lattigo_CKKSBinaryOp<"mul_new"> {
   let summary = "Multiply two ciphertexts in the Lattigo CKKS dialect";
   let description = [{
     This operation multiplies two ciphertext values in the Lattigo CKKS dialect.
+  }];
+}
+
+class Lattigo_CKKSBinaryInplaceOp<string mnemonic> :
+        Lattigo_CKKSOp<mnemonic, [InplaceOpInterface]> {
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$lhs,
+    Lattigo_RLWECiphertextOrPlaintext:$rhs,
+    // Lattigo API is like bgv.Add(lhs, rhs, out) but for MLIR we need to
+    // satisfy the SSA form, so we still have a separate output.
+    Lattigo_RLWECiphertext:$inplace
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+
+  let extraClassDeclaration = "int getInplaceOperandIndex() { return 3; }";
+}
+
+def Lattigo_CKKSAddOp : Lattigo_CKKSBinaryInplaceOp<"add"> {
+  let summary = "Add two ciphertexts in the Lattigo CKKS dialect";
+  let description = [{
+    This operation adds two ciphertext values in the Lattigo CKKS dialect.
+
+    The result will be written to the `inplace` operand. The `output`result is
+    a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
+  }];
+}
+
+def Lattigo_CKKSSubOp : Lattigo_CKKSBinaryInplaceOp<"sub"> {
+  let summary = "Subtract two ciphertexts in the Lattigo CKKS dialect";
+  let description = [{
+    This operation subtracts one ciphertext value from another in the Lattigo CKKS dialect.
+
+    The result will be written to the `inplace` operand. The `output`result is
+    a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
+  }];
+}
+
+def Lattigo_CKKSMulOp : Lattigo_CKKSBinaryInplaceOp<"mul"> {
+  let summary = "Multiply two ciphertexts in the Lattigo CKKS dialect";
+  let description = [{
+    This operation multiplies two ciphertext values in the Lattigo CKKS dialect.
+
+    The result will be written to the `inplace` operand. The `output`result is
+    a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
   }];
 }
 
@@ -132,21 +181,21 @@ class Lattigo_CKKSUnaryOp<string mnemonic> :
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_CKKSRelinearizeOp : Lattigo_CKKSUnaryOp<"relinearize"> {
+def Lattigo_CKKSRelinearizeNewOp : Lattigo_CKKSUnaryOp<"relinearize_new"> {
   let summary = "Relinearize a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     This operation relinearizes a ciphertext value in the Lattigo CKKS dialect.
   }];
 }
 
-def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryOp<"rescale"> {
+def Lattigo_CKKSRescaleNewOp : Lattigo_CKKSUnaryOp<"rescale_new"> {
   let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     This operation rescales a ciphertext value in the Lattigo CKKS dialect.
   }];
 }
 
-def Lattigo_CKKSRotateOp : Lattigo_CKKSOp<"rotate"> {
+def Lattigo_CKKSRotateNewOp : Lattigo_CKKSOp<"rotate_new"> {
   let summary = "Rotate slots of a ciphertext in the Lattigo CKKS dialect";
   let description = [{
     This operation rotates slots of a ciphertext value in the Lattigo CKKS dialect.
@@ -160,6 +209,63 @@ def Lattigo_CKKSRotateOp : Lattigo_CKKSOp<"rotate"> {
   let arguments = (ins
     Lattigo_CKKSEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
+    Builtin_IntegerAttr:$offset
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+class Lattigo_CKKSUnaryInplaceOp<string mnemonic> :
+        Lattigo_CKKSOp<mnemonic, [InplaceOpInterface]> {
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    // see BinaryInplaceOp above
+    Lattigo_RLWECiphertext:$inplace
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+
+  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
+}
+
+def Lattigo_CKKSRelinearizeOp : Lattigo_CKKSUnaryInplaceOp<"relinearize"> {
+  let summary = "Relinearize a ciphertext in the Lattigo CKKS dialect";
+  let description = [{
+    This operation relinearizes a ciphertext value in the Lattigo CKKS dialect.
+
+    The result will be written to the `inplace` operand. The `output`result is
+    a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
+  }];
+}
+
+def Lattigo_CKKSRescaleOp : Lattigo_CKKSUnaryInplaceOp<"rescale"> {
+  let summary = "Rescale a ciphertext in the Lattigo CKKS dialect";
+  let description = [{
+    This operation rescales a ciphertext value in the Lattigo CKKS dialect.
+
+    The result will be written to the `inplace` operand. The `output`result is
+    a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
+  }];
+}
+
+def Lattigo_CKKSRotateOp : Lattigo_CKKSUnaryInplaceOp<"rotate"> {
+  let summary = "Rotate slots of a ciphertext in the Lattigo CKKS dialect";
+  let description = [{
+    This operation rotates slots of a ciphertext value in the Lattigo CKKS dialect.
+
+    For vanilla CKKS, the maximum number of slots is N/2 with each slot being complex number.
+    Lattigo also support a conjugate-invariant version of CKKS, i.e. the ring is
+    Z[X + X^{-1} ]/(X^N+1), which allows for a maximum of N slots with each slot being real number.
+
+    Offset is valid for both positive and negative number.
+
+    The result will be written to the `inplace` operand. The `output`result is
+    a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
+  }];
+  let arguments = (ins
+    Lattigo_CKKSEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    // see BinaryInplaceOp above
+    Lattigo_RLWECiphertext:$inplace,
     Builtin_IntegerAttr:$offset
   );
   let results = (outs Lattigo_RLWECiphertext:$output);

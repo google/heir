@@ -97,6 +97,12 @@ class LattigoEmitter {
   LogicalResult printOperation(CKKSNewPlaintextOp op);
   LogicalResult printOperation(CKKSEncodeOp op);
   LogicalResult printOperation(CKKSDecodeOp op);
+  LogicalResult printOperation(CKKSAddNewOp op);
+  LogicalResult printOperation(CKKSSubNewOp op);
+  LogicalResult printOperation(CKKSMulNewOp op);
+  LogicalResult printOperation(CKKSRelinearizeNewOp op);
+  LogicalResult printOperation(CKKSRescaleNewOp op);
+  LogicalResult printOperation(CKKSRotateNewOp op);
   LogicalResult printOperation(CKKSAddOp op);
   LogicalResult printOperation(CKKSSubOp op);
   LogicalResult printOperation(CKKSMulOp op);
@@ -110,12 +116,6 @@ class LattigoEmitter {
   LogicalResult printNewMethod(::mlir::Value result,
                                ::mlir::ValueRange operands, std::string_view op,
                                bool err);
-
-  LogicalResult printEvalInplaceMethod(::mlir::Value result,
-                                       ::mlir::Value evaluator,
-                                       ::mlir::Value operand,
-                                       ::mlir::Value operandInplace,
-                                       std::string_view op, bool err);
 
   LogicalResult printEvalInplaceMethod(::mlir::Value evaluator,
                                        ::mlir::ValueRange operands,
