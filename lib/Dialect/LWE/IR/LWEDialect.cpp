@@ -11,20 +11,18 @@
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
-#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/STLFunctionalExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"         // from @llvm-project
 
 // Generated definitions
 #include "lib/Dialect/LWE/IR/LWEDialect.cpp.inc"
 #include "lib/Dialect/LWE/IR/LWEEnums.cpp.inc"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/OpImplementation.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project

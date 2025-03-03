@@ -1,7 +1,5 @@
 #include "lib/Dialect/LWE/Conversions/LWEToPolynomial/LWEToPolynomial.h"
 
-#include <cstddef>
-#include <optional>
 #include <utility>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
@@ -12,7 +10,6 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
-#include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Random/IR/RandomEnums.h"
 #include "lib/Dialect/Random/IR/RandomOps.h"
 #include "lib/Dialect/Random/IR/RandomTypes.h"
@@ -23,6 +20,7 @@
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project

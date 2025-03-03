@@ -1,6 +1,7 @@
 #ifndef LIB_TARGET_OPENFHEPKE_OPENFHEPKEEMITTER_H_
 #define LIB_TARGET_OPENFHEPKE_OPENFHEPKEEMITTER_H_
 
+#include <string>
 #include <string_view>
 
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"

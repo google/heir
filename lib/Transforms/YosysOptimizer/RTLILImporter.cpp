@@ -8,7 +8,6 @@
 #include <string>
 #include <utility>
 
-#include "lib/Dialect/Comb/IR/CombOps.h"
 #include "llvm/include/llvm/ADT/MapVector.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/Sequence.h"              // from @llvm-project
@@ -33,7 +32,6 @@
 // Block clang-format from reordering
 // clang-format off
 #include "kernel/rtlil.h" // from @at_clifford_yosys
-#include "kernel/yosys.h" // from @at_clifford_yosys
 // clang-format on
 
 #define DEBUG_TYPE "rtlil-importer"

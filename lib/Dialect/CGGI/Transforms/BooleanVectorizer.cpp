@@ -1,6 +1,5 @@
 #include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <vector>

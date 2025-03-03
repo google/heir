@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
-#include <string>
 
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"

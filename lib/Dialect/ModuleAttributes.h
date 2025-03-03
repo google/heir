@@ -1,8 +1,6 @@
 #ifndef LIB_DIALECT_MODULEATTRIBUTES_H_
 #define LIB_DIALECT_MODULEATTRIBUTES_H_
 
-#include <string>
-
 #include "llvm/include/llvm/ADT/StringRef.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"   // from @llvm-project
 

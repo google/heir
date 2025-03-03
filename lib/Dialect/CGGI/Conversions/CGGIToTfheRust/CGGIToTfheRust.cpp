@@ -12,10 +12,7 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project

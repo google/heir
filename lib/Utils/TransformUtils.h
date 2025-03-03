@@ -1,6 +1,8 @@
 #ifndef LIB_UTILS_TRANSFORMUTILS_H_
 #define LIB_UTILS_TRANSFORMUTILS_H_
 
+#include <string_view>
+
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 

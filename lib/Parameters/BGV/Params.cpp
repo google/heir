@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Parameters/RLWEParams.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 
