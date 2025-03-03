@@ -71,8 +71,10 @@ def SecretInsertMgmtBGV : Pass<"secret-insert-mgmt-bgv", "ModuleOp"> {
   ];
 
   let options = [
-    Option<"includeFirstMul", "include-first-mul", "bool",
-           /*default=*/"false", "Modulus switching right before the first multiplication (default to false)">
+    Option<"afterMul", "after-mul", "bool",
+           /*default=*/"false", "Modulus switching after each multiplication (default to false)">,
+    Option<"beforeMulIncludeFirstMul", "before-mul-include-first-mul", "bool",
+           /*default=*/"false", "Modulus switching before each multiplication, including the first multiplication (default to false)">,
   ];
 }
 

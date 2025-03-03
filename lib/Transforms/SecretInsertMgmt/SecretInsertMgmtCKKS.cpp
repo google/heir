@@ -102,6 +102,7 @@ struct SecretInsertMgmtCKKS
     // Helper for future lowerings that want to know what scheme was used
     moduleSetCKKS(getOperation());
 
+    /*
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
@@ -140,65 +141,67 @@ struct SecretInsertMgmtCKKS
     patternsRelinearize.add<MultRelinearize<arith::MulFOp>>(
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
+    */
 
-    RewritePatternSet patternsMultModReduce(&getContext());
-    patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
-    patternsMultModReduce.add<ModReduceBefore<arith::MulFOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
-    // tensor::ExtractOp = mulConst + rotate
-    patternsMultModReduce.add<ModReduceBefore<tensor::ExtractOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
-    // isMul = true and includeFirstMul = false here
-    // as before yield we want mulResult to be mod reduced
-    patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
-        &getContext(), /*isMul*/ true, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    (void)walkAndApplyPatterns(getOperation(),
-                               std::move(patternsMultModReduce));
+    // RewritePatternSet patternsMultModReduce(&getContext());
+    // patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
+    //     &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
+    //     &solver);
+    // patternsMultModReduce.add<ModReduceBefore<arith::MulFOp>>(
+    //     &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
+    //     &solver);
+    //// tensor::ExtractOp = mulConst + rotate
+    // patternsMultModReduce.add<ModReduceBefore<tensor::ExtractOp>>(
+    //     &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
+    //     &solver);
+    //// isMul = true and includeFirstMul = false here
+    //// as before yield we want mulResult to be mod reduced
+    // patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
+    //     &getContext(), /*isMul*/ true, /*includeFirstMul*/ false,
+    //     getOperation(), &solver);
+    //(void)walkAndApplyPatterns(getOperation(),
+    //                            std::move(patternsMultModReduce));
 
-    // insert BootstrapOp after mgmt::ModReduceOp
-    // This must be run before level mismatch
-    // NOTE: actually bootstrap before mod reduce is better
-    // as after modreduce to level `0` there still might be add/sub
-    // and these op done there could be minimal cost.
-    // However, this greedy strategy is temporary so not too much
-    // optimization now
-    RewritePatternSet patternsBootstrapWaterLine(&getContext());
-    patternsBootstrapWaterLine.add<BootstrapWaterLine<mgmt::ModReduceOp>>(
-        &getContext(), getOperation(), &solver, bootstrapWaterline);
-    (void)walkAndApplyPatterns(getOperation(),
-                               std::move(patternsBootstrapWaterLine));
+    //// insert BootstrapOp after mgmt::ModReduceOp
+    //// This must be run before level mismatch
+    //// NOTE: actually bootstrap before mod reduce is better
+    //// as after modreduce to level `0` there still might be add/sub
+    //// and these op done there could be minimal cost.
+    //// However, this greedy strategy is temporary so not too much
+    //// optimization now
+    // RewritePatternSet patternsBootstrapWaterLine(&getContext());
+    // patternsBootstrapWaterLine.add<BootstrapWaterLine<mgmt::ModReduceOp>>(
+    //     &getContext(), getOperation(), &solver, bootstrapWaterline);
+    //(void)walkAndApplyPatterns(getOperation(),
+    //                            std::move(patternsBootstrapWaterLine));
 
-    // when other binary op operands level mismatch
-    // includeFirstMul not used for these ops
-    RewritePatternSet patternsAddModReduce(&getContext());
-    patternsAddModReduce.add<ModReduceBefore<arith::AddIOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    patternsAddModReduce.add<ModReduceBefore<arith::AddFOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    patternsAddModReduce.add<ModReduceBefore<arith::SubIOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    patternsAddModReduce.add<ModReduceBefore<arith::SubFOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    (void)walkAndApplyPatterns(getOperation(), std::move(patternsAddModReduce));
+    //// when other binary op operands level mismatch
+    //// includeFirstMul not used for these ops
+    // RewritePatternSet patternsAddModReduce(&getContext());
+    // patternsAddModReduce.add<ModReduceBefore<arith::AddIOp>>(
+    //     &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
+    //     getOperation(), &solver);
+    // patternsAddModReduce.add<ModReduceBefore<arith::AddFOp>>(
+    //     &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
+    //     getOperation(), &solver);
+    // patternsAddModReduce.add<ModReduceBefore<arith::SubIOp>>(
+    //     &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
+    //     getOperation(), &solver);
+    // patternsAddModReduce.add<ModReduceBefore<arith::SubFOp>>(
+    //     &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
+    //     getOperation(), &solver);
+    //(void)walkAndApplyPatterns(getOperation(),
+    // std::move(patternsAddModReduce));
 
-    // call CSE here because there may be redundant mod reduce
-    // one Value may get mod reduced multiple times in
-    // multiple Uses
-    //
-    // also run annotate-mgmt for lowering
-    OpPassManager pipeline("builtin.module");
-    pipeline.addPass(createCSEPass());
-    pipeline.addPass(mgmt::createAnnotateMgmt());
-    (void)runPipeline(pipeline, getOperation());
+    //// call CSE here because there may be redundant mod reduce
+    //// one Value may get mod reduced multiple times in
+    //// multiple Uses
+    ////
+    //// also run annotate-mgmt for lowering
+    // OpPassManager pipeline("builtin.module");
+    // pipeline.addPass(createCSEPass());
+    // pipeline.addPass(mgmt::createAnnotateMgmt());
+    //(void)runPipeline(pipeline, getOperation());
   }
 };
 
