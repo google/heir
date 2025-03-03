@@ -23,7 +23,9 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
+        "@heir//lib/Utils/Tablegen:InplaceOpInterface",
         "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
