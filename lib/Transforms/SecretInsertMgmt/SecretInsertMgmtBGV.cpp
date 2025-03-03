@@ -76,13 +76,15 @@ struct SecretInsertMgmtBGV
         &getContext(), &scaleCounter, getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsAddModReduce));
 
+    // call Canonicalizer here because mgmt ops need to be ordered
     // call CSE here because there may be redundant mod reduce
     // one Value may get mod reduced multiple times in
     // multiple Uses
     //
     // also run annotate-mgmt for lowering
     OpPassManager pipeline("builtin.module");
-    // pipeline.addPass(createCSEPass());
+    pipeline.addPass(createCanonicalizerPass());
+    pipeline.addPass(createCSEPass());
     pipeline.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(pipeline, getOperation());
   }

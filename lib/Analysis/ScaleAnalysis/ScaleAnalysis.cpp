@@ -42,25 +42,60 @@ LogicalResult ScaleAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  auto getOperandScales = [&](Operation *op, SmallVectorImpl<int64_t> &scales) {
+    SmallVector<OpOperand *> secretOperands;
+    this->getSecretOperands(op, secretOperands);
+
+    for (auto *operand : secretOperands) {
+      auto operandState = getLatticeElement(operand->get())->getValue();
+      if (!operandState.isInitialized()) {
+        continue;
+      }
+      scales.push_back(operandState.getScale());
+    }
+    if (scales.size() > 1) {
+      if (scales[0] != scales[1]) {
+        LLVM_DEBUG(llvm::dbgs() << "Different scales: " << scales[0] << ", "
+                                << scales[1] << " for " << *op << "\n");
+      }
+    }
+  };
+
   llvm::TypeSwitch<Operation &>(*op)
       .Case<secret::GenericOp>([&](auto genericOp) {
         Block *body = genericOp.getBody();
         for (auto i = 0; i != body->getNumArguments(); ++i) {
           auto blockArg = body->getArgument(i);
-          // initialized to 1
-          propagate(blockArg, ScaleState(1));
+          propagate(blockArg, ScaleState(inputScale));
         }
       })
       .Case<arith::MulIOp>([&](auto mulOp) {
+        SmallVector<int64_t> scales;
+        getOperandScales(mulOp, scales);
+        // there must be at least one secret operand that has scale
+        if (scales.empty()) {
+          return;
+        }
+        auto scaleLhs = scales[0];
+        auto scaleRhs = scaleLhs;
+        // default to the same scale for both operand
+        if (scales.size() > 1) {
+          scaleRhs = scales[1];
+        }
         // propagate scale to result
-        auto lhs = operands[0]->getValue().getScale();
-        auto rhs = operands[1]->getValue().getScale();
-        auto result = lhs * rhs % t;
+        auto result = scaleLhs * scaleRhs % t;
         propagate(mulOp.getResult(), ScaleState(result));
       })
       .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
+        SmallVector<int64_t> scales;
+        getOperandScales(modReduceOp, scales);
+        // there must be at least one secret operand that has scale
+        if (scales.empty()) {
+          return;
+        }
+
         // propagate scale to result
-        auto scale = operands[0]->getValue().getScale();
+        auto scale = scales[0];
         // get level of the operand. MgmtAttr is attached to the result.
         auto level = getLevelFromMgmtAttr(modReduceOp) + 1;
 
@@ -72,6 +107,11 @@ LogicalResult ScaleAnalysis::visitOperation(
         propagate(modReduceOp.getResult(), ScaleState(newScale));
       })
       .Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {
+        // if adjust scale op is not initialized, just do not propagate
+        int64_t scale = adjustScaleOp.getScale();
+        if (scale < 0) {
+          return;
+        }
         propagate(adjustScaleOp.getResult(),
                   ScaleState(adjustScaleOp.getScale()));
       })
@@ -83,10 +123,15 @@ LogicalResult ScaleAnalysis::visitOperation(
           return;
         }
 
+        SmallVector<int64_t> scales;
+        getOperandScales(&op, scales);
+        if (scales.empty()) {
+          return;
+        }
+
         // just propagate the scale
-        auto scale = operands[0]->getValue().getScale();
         for (auto result : secretResults) {
-          propagate(result, ScaleState(scale));
+          propagate(result, ScaleState(scales[0]));
         }
       });
   return success();
