@@ -5,11 +5,12 @@
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
@@ -42,97 +43,133 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       qi.push_back(Q[i]);
     }
 
-    auto L = Q.size() - 1;
-
     auto t = bgvSchemeParamAttr.getPlaintextModulus();
-
-    std::vector<int64_t> scale(L + 1, 0);
-
-    // set initial scale to 1
-    // NOTE that this is important for the first level for both
-    // include-mul-first={true,false} style mgmt
-    scale[L] = 1;
-    // calculate per-level scaling factor as we go down
-    // scale[i] = scale[i+1] * scale[i+1] * q[i+1]^-1 mod t
-    for (auto i = L - 1; i >= 0; i--) {
-      auto q = qi[i + 1] % t;
-      auto qInvT = ::mlir::heir::polynomial::multiplicativeInverse(
-          llvm::APInt(64, q), llvm::APInt(64, t));
-      auto newScale =
-          ((scale[i + 1] * scale[i + 1] % t) * qInvT.getSExtValue() % t);
-      scale[i] = newScale;
-    }
-
-    // for arith.mul, the result scale is scale big
-    std::vector<int64_t> scaleBig(L + 1, 0);
-    for (auto i = 0; i <= L; i++) {
-      scaleBig[i] = scale[i] * scale[i] % t;
-    }
-
-    LLVM_DEBUG({
-      llvm::dbgs() << "PopulateScale: scale = [";
-      for (long i : scale) {
-        llvm::dbgs() << i << ", ";
-      }
-      llvm::dbgs() << "]\n";
-    });
-
-    LLVM_DEBUG({
-      llvm::dbgs() << "PopulateScale: scaleBig = [";
-      for (long i : scaleBig) {
-        llvm::dbgs() << i << ", ";
-      }
-      llvm::dbgs() << "]\n";
-    });
-
-    // now we calculate the scale required for adjust_scale
-    // adjust_scale[i] = scale[i - 1] * scale[i - 1] * q[i] mod t
-    // which means adjust_scale[i] * q[i]^-1 = scale[i - 1] * scale[i - 1] mod t
-    // this is for level i - 1, the majority of the scale is scale[i - 1] *
-    // scale[i - 1] namely scaleDeg = 2
-    // this is highly coupled with secret-insert-mgmt-bgv!
-    std::vector<int64_t> adjustScale(L + 1, 0);
-    adjustScale[0] = 1;
-    for (auto i = 1; i <= L; i++) {
-      auto q = qi[i] % t;
-      auto newScale = ((scale[i - 1] * scale[i - 1] % t) * q) % t;
-      adjustScale[i] = newScale;
-    }
-
-    LLVM_DEBUG({
-      llvm::dbgs() << "PopulateScale: adjustScale = [";
-      for (long i : adjustScale) {
-        llvm::dbgs() << i << ", ";
-      }
-      llvm::dbgs() << "]\n";
-    });
-
-    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
-      auto mgmtAttr = op->getAttrOfType<mgmt::MgmtAttr>(
-          mgmt::MgmtDialect::kArgMgmtAttrName);
-      if (!mgmtAttr) {
-        getOperation()->emitError("AdjustScaleOp does not have MgmtAttr");
-      }
-      auto level = mgmtAttr.getLevel();
-      auto newScale = adjustScale[level];
-      op->setAttr(
-          "scale",
-          IntegerAttr::get(IntegerType::get(op.getContext(), 64), newScale));
-    });
 
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
     // ScaleAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
+    // set input scale to 1
+    // NOTE that this is important for the input level for both
+    // before-mul,include-mul-first={true,false} style mgmt
     solver.load<ScaleAnalysis>(
-        bgv::SchemeParam::getSchemeParamFromAttr(bgvSchemeParamAttr));
+        bgv::SchemeParam::getSchemeParamFromAttr(bgvSchemeParamAttr),
+        /*inputScale*/ 1);
 
+    // the first analysis partially populates the scales
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
       return;
     }
+
+    auto getI64Attr = [&](int64_t value) -> IntegerAttr {
+      return IntegerAttr::get(
+          IntegerType::get(getOperation()->getContext(), 64), value);
+    };
+
+    // this part is kind of "back propagation" of scales
+    //
+    // for adjust scale op, find scale from arith op
+    // the sequence is adjust_scale + mod_reduce + arith
+    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
+      auto mgmtAttr = op->getAttrOfType<mgmt::MgmtAttr>(
+          mgmt::MgmtDialect::kArgMgmtAttrName);
+      if (!mgmtAttr) {
+        getOperation()->emitError("AdjustScaleOp does not have MgmtAttr");
+      }
+      if (!op->hasOneUse()) {
+        getOperation()->emitError(
+            "AdjustScaleOp does not have exactly one use");
+      }
+      auto nextOp = dyn_cast<mgmt::ModReduceOp>(op->use_begin()->getOwner());
+      if (!nextOp) {
+        getOperation()->emitError(
+            "AdjustScaleOp does not have ModReduceOp as its use");
+      }
+      if (!nextOp->hasOneUse()) {
+        getOperation()->emitError("ModReduceOp does not have exactly one use");
+      }
+      auto *arithOp = nextOp->use_begin()->getOwner();
+      if (!mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp>(arithOp)) {
+        getOperation()->emitError(
+            "ModReduceOp does not have MulIOp, AddIOp, or SubIOp as its use");
+      }
+
+      int64_t arithScale = 0;
+      for (auto operand : arithOp->getOperands()) {
+        const auto *scaleLattice = solver.lookupState<ScaleLattice>(operand);
+        if (!scaleLattice) {
+          continue;
+        }
+        auto scaleState = scaleLattice->getValue();
+        if (!scaleState.isInitialized()) {
+          continue;
+        }
+        arithScale = scaleState.getScale();
+        break;
+      }
+      if (arithScale == 0) {
+        getOperation()->emitError("ArithOp does not have scale");
+      }
+
+      auto level = mgmtAttr.getLevel();
+      int64_t newScale = qi[level] * arithScale % t;
+      op->setAttr("scale", getI64Attr(newScale));
+    });
+
+    // re-run the analysis to propagate all scales
+    solver.eraseAllStates();
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+
+    auto lookupScale = [&](Value value) -> int64_t {
+      const auto *scaleLattice = solver.lookupState<ScaleLattice>(value);
+      if (!scaleLattice) {
+        return -1;
+      }
+      auto scaleState = scaleLattice->getValue();
+      if (!scaleState.isInitialized()) {
+        return -1;
+      }
+      return scaleState.getScale();
+    };
+
+    // annotate scale
+    getOperation()->walk([&](secret::GenericOp genericOp) {
+      Block *body = genericOp.getBody();
+      for (auto i = 0; i != body->getNumArguments(); ++i) {
+        auto blockArg = body->getArgument(i);
+        genericOp.setArgAttr(i, "scale", getI64Attr(lookupScale(blockArg)));
+      }
+      genericOp.walk([&](Operation *op) {
+        if (op->getNumResults() != 1 || mlir::isa<secret::GenericOp>(op)) {
+          return;
+        }
+        auto result = op->getResult(0);
+        op->setAttr("scale", getI64Attr(lookupScale(result)));
+
+        // validate the input scale is the same
+        if (op->getNumOperands() > 1) {
+          auto scale = 0;
+          for (auto operand : op->getOperands()) {
+            auto operandScale = lookupScale(operand);
+            if (operandScale == -1) {
+              continue;
+            }
+            if (scale == 0) {
+              scale = operandScale;
+            } else if (scale != operandScale) {
+              op->emitError("Different scales");
+            }
+          }
+        }
+      });
+    });
   }
 };
 

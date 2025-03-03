@@ -74,9 +74,11 @@ class ScaleAnalysis
 
   using SchemeParamType = typename bgv::SchemeParam;
 
-  ScaleAnalysis(DataFlowSolver &solver, const SchemeParamType &schemeParam)
+  ScaleAnalysis(DataFlowSolver &solver, const SchemeParamType &schemeParam,
+                int64_t inputScale)
       : dataflow::SparseForwardDataFlowAnalysis<ScaleLattice>(solver),
-        schemeParam(schemeParam) {}
+        schemeParam(schemeParam),
+        inputScale(inputScale) {}
 
   void setToEntryState(ScaleLattice *lattice) override {
     propagateIfChanged(lattice, lattice->join(ScaleState()));
@@ -96,6 +98,7 @@ class ScaleAnalysis
 
  private:
   const SchemeParamType schemeParam;
+  int64_t inputScale;
 };
 
 }  // namespace heir
