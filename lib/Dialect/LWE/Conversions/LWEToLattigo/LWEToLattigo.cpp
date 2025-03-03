@@ -442,9 +442,8 @@ using ConvertBGVModulusSwitchOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::ModulusSwitchOp,
                        lattigo::BGVRescaleNewOp>;
 
-// TODO(#1186): figure out generic rotating using BGVRotateColumns/RowsOp
-using ConvertBGVRotateOp =
-    ConvertRlweRotateOp<lattigo::BGVEvaluatorType, bgv::RotateOp,
+using ConvertBGVRotateColumnsOp =
+    ConvertRlweRotateOp<lattigo::BGVEvaluatorType, bgv::RotateColumnsOp,
                         lattigo::BGVRotateColumnsNewOp>;
 
 using ConvertBGVEncryptOp =
@@ -680,9 +679,10 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
       patterns
           .add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
                ConvertBGVAddPlainOp, ConvertBGVSubPlainOp, ConvertBGVMulPlainOp,
-               ConvertBGVRelinOp, ConvertBGVModulusSwitchOp, ConvertBGVRotateOp,
-               ConvertBGVEncryptOp, ConvertBGVDecryptOp, ConvertBGVEncodeOp,
-               ConvertBGVDecodeOp>(typeConverter, context);
+               ConvertBGVRelinOp, ConvertBGVModulusSwitchOp,
+               ConvertBGVRotateColumnsOp, ConvertBGVEncryptOp,
+               ConvertBGVDecryptOp, ConvertBGVEncodeOp, ConvertBGVDecodeOp>(
+              typeConverter, context);
     }
     if (moduleIsCKKS(module)) {
       patterns.add<ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
