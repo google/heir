@@ -24,6 +24,12 @@ def ArithToModArith : Pass<"arith-to-mod-arith", "ModuleOp"> {
     "mlir::arith::ArithDialect",
     "mlir::heir::mod_arith::ModArithDialect",
   ];
+
+  let options = [
+    Option<"modulus", "modulus", "int64_t",
+           /*default=*/"0", "Modulus to use for the mod-arith dialect."
+           " If not specified, the pass will use the natural modulus for that integer type">,
+  ];
 }
 
 #endif  // LIB_DIALECT_MODARITH_CONVERSIONS_ARITHTOMODARITH_ARITHTOMODARITH_TD_
