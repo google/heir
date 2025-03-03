@@ -396,11 +396,17 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="bgvrotate-heirbgvrotateop">&lt;code>bgv.rotate&lt;/code> (heir::bgv::RotateOp)&lt;/h3>
-&lt;p>&lt;em>Rotate the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;h3 id="bgvrotate_cols-heirbgvrotatecolumnsop">&lt;code>bgv.rotate_cols&lt;/code> (heir::bgv::RotateColumnsOp)&lt;/h3>
+&lt;p>&lt;em>Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate` operands attr-dict `:` qualified(type($input))
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_cols` operands attr-dict `:` qualified(type($input))
+&lt;/code>&lt;/pre>&lt;p>This operation rotates the columns of the coefficients of the ciphertext using a
+Galois automorphism.&lt;/p>
+&lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
+plaintext modulus &lt;code>t&lt;/code> where &lt;code>N&lt;/code> is a power of 2 and &lt;code>t&lt;/code> is a prime number. In
+this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> matrix where
+&lt;code>N/2&lt;/code> is the number of columns and &lt;code>2&lt;/code> is the number of rows.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-2">Attributes:&lt;/h4>
@@ -438,6 +444,54 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="bgvrotate_rows-heirbgvrotaterowsop">&lt;code>bgv.rotate_rows&lt;/code> (heir::bgv::RotateRowsOp)&lt;/h3>
+&lt;p>&lt;em>Rotate the rows of the coefficients of the ciphertext using a Galois automorphism.&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `bgv.rotate_rows` operands attr-dict `:` qualified(type($input))
+&lt;/code>&lt;/pre>&lt;p>This operation rotates the rows of the coefficients of the ciphertext using a
+Galois automorphism.&lt;/p>
+&lt;p>Often BGV scheme is instantiated with a ring of the form &lt;code>Z_q[X]/(X^N + 1)&lt;/code> and
+plaintext modulus &lt;code>t&lt;/code> where &lt;code>N&lt;/code> is a power of 2 and &lt;code>t&lt;/code> is a prime number. In
+this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> matrix where
+&lt;code>N/2&lt;/code> is the number of columns and &lt;code>2&lt;/code> is the number of rows.&lt;/p>
+&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;h4 id="attributes-3">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>offset&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="bgvsub-heirbgvsubop">&lt;code>bgv.sub&lt;/code> (heir::bgv::SubOp)&lt;/h3>
 &lt;p>&lt;em>Subtraction operation between ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
@@ -445,7 +499,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-9">Operands:&lt;/h4>
+&lt;h4 id="operands-10">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -464,7 +518,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-9">Results:&lt;/h4>
+&lt;h4 id="results-10">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -486,7 +540,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
-&lt;h4 id="operands-10">Operands:&lt;/h4>
+&lt;h4 id="operands-11">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -505,7 +559,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-10">Results:&lt;/h4>
+&lt;h4 id="results-11">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
