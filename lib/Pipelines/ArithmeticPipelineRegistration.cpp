@@ -133,7 +133,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
       auto secretInsertMgmtBGVOptions = SecretInsertMgmtBGVOptions{};
-      secretInsertMgmtBGVOptions.includeFirstMul =
+      secretInsertMgmtBGVOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       pm.addPass(createSecretInsertMgmtBGV(secretInsertMgmtBGVOptions));
       break;

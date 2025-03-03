@@ -54,29 +54,25 @@ struct SecretInsertMgmtBGV
 
     RewritePatternSet patternsMultModReduce(&getContext());
     patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
+        &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
     // tensor::ExtractOp = mulConst + rotate
     patternsMultModReduce.add<ModReduceBefore<tensor::ExtractOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
-    // isMul = true and includeFirstMul = false here
-    // as before yield we want mulResult to be mod reduced
+        &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
+    // includeFirstMul = false here
+    // as before yield we only want mulResult to be mod reduced
     patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
-        &getContext(), /*isMul*/ true, /*includeFirstMul*/ false,
-        getOperation(), &solver);
+        &getContext(), /*includeFirstMul*/ false, getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(),
                                std::move(patternsMultModReduce));
 
     // when other binary op operands level mismatch
-    // includeFirstMul not used for these ops
     RewritePatternSet patternsAddModReduce(&getContext());
-    patternsAddModReduce.add<ModReduceBefore<arith::AddIOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    patternsAddModReduce.add<ModReduceBefore<arith::SubIOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::AddIOp>>(
+        &getContext(), getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::SubIOp>>(
+        &getContext(), getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::MulIOp>>(
+        &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsAddModReduce));
 
     // call CSE here because there may be redundant mod reduce
@@ -85,7 +81,7 @@ struct SecretInsertMgmtBGV
     //
     // also run annotate-mgmt for lowering
     OpPassManager pipeline("builtin.module");
-    pipeline.addPass(createCSEPass());
+    // pipeline.addPass(createCSEPass());
     pipeline.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(pipeline, getOperation());
   }
