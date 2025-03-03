@@ -65,6 +65,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
               RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
               RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp, RLWEGenGaloisKeyOp,
               RLWENewEvaluationKeySetOp, RLWEEncryptOp, RLWEDecryptOp,
+              RLWELevelReduceNewOp,
               // BGV
               BGVNewParametersFromLiteralOp, BGVNewEncoderOp, BGVNewEvaluatorOp,
               BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddNewOp,
@@ -336,6 +337,17 @@ LogicalResult LattigoEmitter::printOperation(RLWEDecryptOp op) {
                             {op.getCiphertext()}, "DecryptNew", false);
 }
 
+LogicalResult LattigoEmitter::printOperation(RLWELevelReduceNewOp op) {
+  // there is no LevelReduceNew method in Lattigo, manually create new
+  // ciphertext
+  os << getName(op.getOutput()) << " := " << getName(op.getInput())
+     << ".CopyNew()\n";
+  os << getName(op.getOutput()) << ".Resize(" << getName(op.getOutput())
+     << ".Degree(), " << getName(op.getOutput()) << ".Level()-"
+     << op.getLevelToDrop() << ")\n";
+  return success();
+}
+
 // BGV
 
 LogicalResult LattigoEmitter::printOperation(BGVNewEncoderOp op) {
@@ -381,7 +393,8 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   }
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
 
-  auto packedName = getName(op.getValue()) + "_packed";
+  auto packedName =
+      getName(op.getValue()) + "_" + getName(op.getPlaintext()) + "_packed";
   os << packedName << " := make([]int64, ";
   os << maxSlotsName << ")\n";
   os << "for i := range " << packedName << " {\n";
@@ -390,6 +403,13 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
      << getName(op.getValue()) << ")])\n";
   os.unindent();
   os << "}\n";
+
+  // set the scale of plaintext
+  if (auto scaleAttr = op->getAttrOfType<IntegerAttr>("lwe.scale")) {
+    os << getName(op.getPlaintext()) << ".Scale = ";
+    os << getName(newPlaintextOp.getParams()) << ".NewScale(";
+    os << scaleAttr.getInt() << ")\n";
+  }
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";

@@ -213,7 +213,7 @@ def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings, Infer
 }
 
 def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
-  let summary = "Lower the modulus level of the ciphertext.";
+  let summary = "Lower the modulus level of the ciphertext via modulus switching.";
 
   let arguments = (ins
     NewLWECiphertext:$input,
@@ -225,6 +225,38 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
   );
 
   let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+}
+
+def BGV_LevelReduceOp : BGV_Op<"level_reduce"> {
+  let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
+
+  let arguments = (ins
+    NewLWECiphertext:$input,
+    DefaultValuedAttr<I64Attr, "1">:$levelToDrop
+    //Polynomial_RingAttr:$to_ring
+  );
+
+  let results = (outs
+    NewLWECiphertext:$output
+  );
+
+  //let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+}
+
+def BGV_AdjustScaleOp : BGV_Op<"adjust_scale"> {
+  let summary = "Adjust the scale metadata of the ciphertext.";
+
+  let arguments = (ins
+    NewLWECiphertext:$input
+  );
+
+  let results = (outs
+    NewLWECiphertext:$output
+  );
+
+  //let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 

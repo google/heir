@@ -69,6 +69,18 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
           IntegerType::get(getOperation()->getContext(), 64), value);
     };
 
+    auto lookupScale = [&](Value value) -> int64_t {
+      const auto *scaleLattice = solver.lookupState<ScaleLattice>(value);
+      if (!scaleLattice) {
+        return -1;
+      }
+      auto scaleState = scaleLattice->getValue();
+      if (!scaleState.isInitialized()) {
+        return -1;
+      }
+      return scaleState.getScale();
+    };
+
     // this part is kind of "back propagation" of scales
     //
     // for adjust scale op, find scale from arith op
@@ -99,15 +111,11 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
 
       int64_t arithScale = 0;
       for (auto operand : arithOp->getOperands()) {
-        const auto *scaleLattice = solver.lookupState<ScaleLattice>(operand);
-        if (!scaleLattice) {
+        auto operandScale = lookupScale(operand);
+        if (operandScale == -1) {
           continue;
         }
-        auto scaleState = scaleLattice->getValue();
-        if (!scaleState.isInitialized()) {
-          continue;
-        }
-        arithScale = scaleState.getScale();
+        arithScale = operandScale;
         break;
       }
       if (arithScale == 0) {
@@ -117,6 +125,19 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       auto level = mgmtAttr.getLevel();
       int64_t newScale = qi[level] * arithScale % t;
       op->setAttr("scale", getI64Attr(newScale));
+
+      // compute the constant needed to adjust the scale for mul constant
+      auto input = op->getOperand(0);
+      auto inputScale = lookupScale(input);
+      if (inputScale == -1) {
+        getOperation()->emitError("Input does not have scale");
+      }
+      auto inputScaleInverse =
+          heir::polynomial::multiplicativeInverse(llvm::APInt(64, inputScale),
+                                                  llvm::APInt(64, t))
+              .getSExtValue();
+      auto deltaScale = (newScale * inputScaleInverse) % t;
+      op->setAttr("delta_scale", getI64Attr(deltaScale));
     });
 
     // re-run the analysis to propagate all scales
@@ -127,16 +148,21 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       return;
     }
 
-    auto lookupScale = [&](Value value) -> int64_t {
-      const auto *scaleLattice = solver.lookupState<ScaleLattice>(value);
-      if (!scaleLattice) {
-        return -1;
+    auto updateMgmtAttr = [&](Operation *op) {
+      auto mgmtAttr =
+          dyn_cast_or_null<mgmt::MgmtAttr>(op->getAttrOfType<mgmt::MgmtAttr>(
+              mgmt::MgmtDialect::kArgMgmtAttrName));
+      if (!mgmtAttr) {
+        return;
       }
-      auto scaleState = scaleLattice->getValue();
-      if (!scaleState.isInitialized()) {
-        return -1;
+      auto scale = lookupScale(op->getResult(0));
+      if (scale == -1) {
+        return;
       }
-      return scaleState.getScale();
+      auto newMgmtAttr =
+          mgmt::MgmtAttr::get(op->getContext(), mgmtAttr.getLevel(),
+                              mgmtAttr.getDimension(), scale);
+      op->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, newMgmtAttr);
     };
 
     // annotate scale
@@ -144,14 +170,22 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       Block *body = genericOp.getBody();
       for (auto i = 0; i != body->getNumArguments(); ++i) {
         auto blockArg = body->getArgument(i);
-        genericOp.setArgAttr(i, "scale", getI64Attr(lookupScale(blockArg)));
+        auto mgmtAttr = dyn_cast_or_null<mgmt::MgmtAttr>(
+            genericOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName));
+        if (!mgmtAttr) {
+          continue;
+        }
+        auto newMgmtAttr =
+            mgmt::MgmtAttr::get(genericOp->getContext(), mgmtAttr.getLevel(),
+                                mgmtAttr.getDimension(), lookupScale(blockArg));
+        genericOp.setArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName,
+                             newMgmtAttr);
       }
       genericOp.walk([&](Operation *op) {
         if (op->getNumResults() != 1 || mlir::isa<secret::GenericOp>(op)) {
           return;
         }
-        auto result = op->getResult(0);
-        op->setAttr("scale", getI64Attr(lookupScale(result)));
+        updateMgmtAttr(op);
 
         // validate the input scale is the same
         if (op->getNumOperands() > 1) {
