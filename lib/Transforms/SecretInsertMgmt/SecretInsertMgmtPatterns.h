@@ -80,8 +80,10 @@ template <typename Op>
 struct MatchCrossLevel : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  MatchCrossLevel(MLIRContext *context, Operation *top, DataFlowSolver *solver)
+  MatchCrossLevel(MLIRContext *context, int *scaleCounter, Operation *top,
+                  DataFlowSolver *solver)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
+        scaleCounter(scaleCounter),
         top(top),
         solver(solver) {}
 
@@ -89,6 +91,7 @@ struct MatchCrossLevel : public OpRewritePattern<Op> {
                                 PatternRewriter &rewriter) const override;
 
  private:
+  int *scaleCounter;
   Operation *top;
   DataFlowSolver *solver;
 };

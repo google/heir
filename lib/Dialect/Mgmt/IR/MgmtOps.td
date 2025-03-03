@@ -32,6 +32,8 @@ def Mgmt_ModReduceOp : Mgmt_Op<"modreduce"> {
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
+
+  let hasCanonicalizer = 1;
 }
 
 def Mgmt_LevelReduceOp : Mgmt_Op<"level_reduce"> {
@@ -55,6 +57,8 @@ def Mgmt_LevelReduceOp : Mgmt_Op<"level_reduce"> {
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
+
+  let hasCanonicalizer = 1;
 }
 
 def Mgmt_RelinearizeOp : Mgmt_Op<"relinearize"> {
@@ -137,6 +141,8 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale"> {
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
+
+  let hasCanonicalizer = 1;
 }
 
 #endif  // LIB_DIALECT_MGMT_IR_MGMTOPS_TD_
