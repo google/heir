@@ -7986,7 +7986,7 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;h4 id="attributes-1">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>value&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>arbitrary integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>value&lt;/code>&lt;/td>&lt;td>::mlir::TypedAttr&lt;/td>&lt;td>TypedAttr instance&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="results-2">Results:&lt;/h4>
 &lt;table>
@@ -7999,7 +7999,7 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>Integer type with modular arithmetic&lt;/td>
+&lt;td>mod_arith-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
