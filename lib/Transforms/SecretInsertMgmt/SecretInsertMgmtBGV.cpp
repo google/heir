@@ -66,13 +66,14 @@ struct SecretInsertMgmtBGV
                                std::move(patternsMultModReduce));
 
     // when other binary op operands level mismatch
+    int scaleCounter = -1;  // for making adjust_scale op different to void cse
     RewritePatternSet patternsAddModReduce(&getContext());
     patternsAddModReduce.add<MatchCrossLevel<arith::AddIOp>>(
-        &getContext(), getOperation(), &solver);
+        &getContext(), &scaleCounter, getOperation(), &solver);
     patternsAddModReduce.add<MatchCrossLevel<arith::SubIOp>>(
-        &getContext(), getOperation(), &solver);
+        &getContext(), &scaleCounter, getOperation(), &solver);
     patternsAddModReduce.add<MatchCrossLevel<arith::MulIOp>>(
-        &getContext(), getOperation(), &solver);
+        &getContext(), &scaleCounter, getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsAddModReduce));
 
     // call CSE here because there may be redundant mod reduce
