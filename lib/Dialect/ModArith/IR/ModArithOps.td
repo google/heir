@@ -91,8 +91,8 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [Pure]> {
     %0 = mod_arith.constant 123 : !mod_arith.int<65537:i32>
     ```
   }];
-  let arguments = (ins APIntAttr:$value);
-  let results = (outs ModArith_ModArithType:$output);
+  let arguments = (ins TypedAttrInterface:$value);
+  let results = (outs ModArithLike:$output);
   let hasCustomAssemblyFormat = 1;
   let hasVerifier = 1;
 }
