@@ -304,6 +304,22 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
   }
 };
 
+template <typename LevelReduceOp, typename LattigoLevelReduceOp>
+struct ConvertRlweLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
+  using OpConversionPattern<LevelReduceOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      LevelReduceOp op, typename LevelReduceOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(
+        op, rewriter.create<LattigoLevelReduceOp>(
+                op.getLoc(),
+                this->typeConverter->convertType(op.getOutput().getType()),
+                adaptor.getInput(), op.getLevelToDrop()));
+    return success();
+  }
+};
+
 template <typename EvaluatorType, typename ParamType, typename EncodeOp,
           typename LattigoEncodeOp, typename AllocOp>
 struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
@@ -332,9 +348,11 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
         op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
         params);
 
-    rewriter.replaceOpWithNewOp<LattigoEncodeOp>(
-        op, this->typeConverter->convertType(op.getOutput().getType()),
-        evaluator, input, alloc);
+    rewriter
+        .replaceOpWithNewOp<LattigoEncodeOp>(
+            op, this->typeConverter->convertType(op.getOutput().getType()),
+            evaluator, input, alloc)
+        ->setDialectAttrs(op->getDialectAttrs());
     return success();
   }
 };
@@ -460,6 +478,9 @@ using ConvertBGVDecodeOp =
     ConvertRlweDecodeOp<lattigo::BGVEncoderType, lwe::RLWEDecodeOp,
                         lattigo::BGVDecodeOp, arith::ConstantOp,
                         /*UsingFloat*/ false>;
+
+using ConvertBGVLevelReduceOp =
+    ConvertRlweLevelReduceOp<bgv::LevelReduceOp, lattigo::RLWELevelReduceNewOp>;
 
 // CKKS
 using ConvertCKKSAddOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
@@ -676,13 +697,13 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     patterns.add<ConvertFuncCallOp>(context, evaluators);
 
     if (moduleIsBGVOrBFV(module)) {
-      patterns
-          .add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
-               ConvertBGVAddPlainOp, ConvertBGVSubPlainOp, ConvertBGVMulPlainOp,
-               ConvertBGVRelinOp, ConvertBGVModulusSwitchOp,
-               ConvertBGVRotateColumnsOp, ConvertBGVEncryptOp,
-               ConvertBGVDecryptOp, ConvertBGVEncodeOp, ConvertBGVDecodeOp>(
-              typeConverter, context);
+      patterns.add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
+                   ConvertBGVAddPlainOp, ConvertBGVSubPlainOp,
+                   ConvertBGVMulPlainOp, ConvertBGVRelinOp,
+                   ConvertBGVModulusSwitchOp, ConvertBGVRotateColumnsOp,
+                   ConvertBGVEncryptOp, ConvertBGVDecryptOp, ConvertBGVEncodeOp,
+                   ConvertBGVDecodeOp, ConvertBGVLevelReduceOp>(typeConverter,
+                                                                context);
     }
     if (moduleIsCKKS(module)) {
       patterns.add<ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
