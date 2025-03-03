@@ -34,9 +34,10 @@ enum class OpenfheImportType {
 std::string getModulePrelude(OpenfheScheme scheme,
                              OpenfheImportType importType);
 
-/// Convert a type to a string.
+/// Convert a type to a string, using a const specifier if constant is true.
 ::mlir::FailureOr<std::string> convertType(::mlir::Type type,
-                                           ::mlir::Location loc);
+                                           ::mlir::Location loc,
+                                           bool constant = true);
 
 /// Find the CryptoContext SSA value in the input operation's parent func
 /// arguments.

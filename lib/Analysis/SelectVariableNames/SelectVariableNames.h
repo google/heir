@@ -32,6 +32,13 @@ class SelectVariableNames {
     return variableToInteger.lookup(value);
   }
 
+  // Map from one value's name to another value's name.
+  void mapValueNameToValue(Value fromValue, Value toValue) {
+    assert(variableNames.contains(toValue));
+    variableNames[fromValue] = variableNames[toValue];
+    variableToInteger[fromValue] = variableToInteger[toValue];
+  }
+
  private:
   std::string suggestNameForValue(Value value);
 

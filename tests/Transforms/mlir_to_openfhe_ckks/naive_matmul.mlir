@@ -4,10 +4,10 @@
 // CHECK-SAME:    CryptoContextT [[v0:[^,]*]],
 // CHECK-SAME:    std::vector<CiphertextT> [[v1:[^,]*]],
 // CHECK-SAME:    std::vector<CiphertextT> [[v2:[^,]*]])
-// CHECK-DAG:      std::vector<double> [[v3:.*]](16, 6.000000e+00);
-// CHECK-DAG:      std::vector<double> [[v4:.*]](16, 3.000000e+00);
-// CHECK-DAG:      std::vector<double> [[v5:.*]](16, 4.000000e+00);
-// CHECK-DAG:      std::vector<double> [[v6:.*]](16, 2.000000e+00);
+// CHECK-DAG:      std::vector<double> [[v3:.*]](16, 6);
+// CHECK-DAG:      std::vector<double> [[v4:.*]](16, 3);
+// CHECK-DAG:      std::vector<double> [[v5:.*]](16, 4);
+// CHECK-DAG:      std::vector<double> [[v6:.*]](16, 2);
 // CHECK-DAG:      auto [[v6_filled:.*]] = [[v6]];
 // CHECK-DAG:      [[v6_filled]].push_back([[v6]]
 // CHECK-DAG:      size_t [[v7:.*]] = 1;
