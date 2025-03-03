@@ -9,6 +9,7 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/IRMapping.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
@@ -61,8 +62,11 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
         op.getResultTypes(),
         [](Type t) -> Type { return secret::SecretType::get(t); }));
 
-    op.setFunctionType(
-        FunctionType::get(getContext(), {newInputs}, {newOutputs}));
+    // modification to function type should go through the rewriter
+    rewriter.modifyOpInPlace(op, [&] {
+      op.setFunctionType(
+          FunctionType::get(getContext(), {newInputs}, {newOutputs}));
+    });
 
     // Externally defined functions have no body
     if (op.isDeclaration()) {
@@ -103,8 +107,65 @@ struct WrapWithGeneric : public OpRewritePattern<func::FuncOp> {
   }
 };
 
+struct ConvertFuncCall : public OpRewritePattern<func::CallOp> {
+  ConvertFuncCall(mlir::MLIRContext *context, Operation *top)
+      : mlir::OpRewritePattern<func::CallOp>(context), top(top) {}
+
+  LogicalResult matchAndRewrite(func::CallOp op,
+                                PatternRewriter &rewriter) const override {
+    auto module = mlir::cast<ModuleOp>(top);
+    auto callee = module.lookupSymbol<func::FuncOp>(op.getCallee());
+    if (callee.isDeclaration()) {
+      return success();
+    }
+
+    SmallVector<Value> newOperands;
+    auto funcResultTypes = llvm::to_vector(callee.getResultTypes());
+
+    for (auto i = 0; i != op->getNumOperands(); ++i) {
+      auto operand = op.getOperand(i);
+      auto funcArgType = callee.getArgumentTypes()[i];
+      if (mlir::isa<secret::SecretType>(funcArgType)) {
+        auto newOperand =
+            rewriter.create<secret::ConcealOp>(op.getLoc(), operand);
+        newOperands.push_back(newOperand.getResult());
+      } else {
+        newOperands.push_back(operand);
+      }
+    }
+
+    auto newOp = rewriter.create<func::CallOp>(op->getLoc(), op.getCallee(),
+                                               funcResultTypes, newOperands);
+    newOp->setAttrs(op->getAttrs());
+
+    for (auto i = 0; i != newOp->getNumResults(); ++i) {
+      auto result = op.getResult(i);
+      auto newResult = newOp.getResult(i);
+      if (mlir::isa<secret::SecretType>(newResult.getType())) {
+        newResult = rewriter.create<secret::RevealOp>(op.getLoc(), newResult);
+      }
+      rewriter.replaceAllUsesWith(result, newResult);
+    }
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+ private:
+  Operation *top;
+};
+
 struct WrapGeneric : impl::WrapGenericBase<WrapGeneric> {
   using WrapGenericBase::WrapGenericBase;
+
+  void detectSecretGeneric() {
+    bool hasSecretGeneric = false;
+    getOperation().walk([&](secret::GenericOp op) { hasSecretGeneric = true; });
+    if (!hasSecretGeneric) {
+      getOperation().emitWarning(
+          "No secret found in the module. Did you forget to annotate "
+          "{secret.secret} to the function arguments?");
+    }
+  }
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
@@ -112,6 +173,14 @@ struct WrapGeneric : impl::WrapGenericBase<WrapGeneric> {
     mlir::RewritePatternSet patterns(context);
     patterns.add<WrapWithGeneric>(context);
     (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
+
+    // func.call should be converted after callee func type updated
+    mlir::RewritePatternSet patterns2(context);
+    patterns2.add<ConvertFuncCall>(context, getOperation());
+    (void)walkAndApplyPatterns(getOperation(), std::move(patterns2));
+
+    // warn if no secret.generic found
+    detectSecretGeneric();
   }
 };
 

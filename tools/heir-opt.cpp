@@ -45,6 +45,7 @@
 #include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Secret/Transforms/Passes.h"
 #include "lib/Dialect/TOSA/Conversions/TosaToSecretArith/TosaToSecretArith.h"
+#include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/Transforms/Passes.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
@@ -299,6 +300,7 @@ int main(int argc, char **argv) {
   lwe::registerLWEToPolynomialPasses();
   ::mlir::heir::linalg::registerLinalgToTensorExtPasses();
   ::mlir::heir::polynomial::registerPolynomialToModArithPasses();
+  tensor_ext::registerTensorExtToTensorPasses();
   registerCGGIToJaxitePasses();
   registerCGGIToTfheRustPasses();
   registerCGGIToTfheRustBoolPasses();

@@ -59,7 +59,7 @@ def Secret_ConcealOp : Secret_Op<"conceal", [Pure]> {
 
   let arguments = (ins AnyType:$cleartext);
   let results = (outs Secret:$output);
-  let assemblyFormat = "$cleartext attr-dict `:` type($cleartext) `->` type($output)";
+  let assemblyFormat = "$cleartext attr-dict `:` qualified(type($cleartext)) `->` qualified(type($output))";
 
   let builders = [
     // Builder to infer output type from the input type
@@ -84,7 +84,7 @@ def Secret_RevealOp : Secret_Op<"reveal", [Pure]> {
 
   let arguments = (ins Secret:$input);
   let results = (outs AnyType:$cleartext);
-  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($cleartext)";
+  let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `->` qualified(type($cleartext))";
 
   let builders = [
     // Builder to infer output type from the input type
