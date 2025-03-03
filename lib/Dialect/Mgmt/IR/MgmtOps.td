@@ -137,7 +137,8 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale"> {
 
   let arguments = (ins
     AnyType:$input,
-    DefaultValuedAttr<I64Attr, "0">:$scale
+    DefaultValuedAttr<I64Attr, "0">:$scale,
+    DefaultValuedAttr<F64Attr, "0.0">:$scaleFloat
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";

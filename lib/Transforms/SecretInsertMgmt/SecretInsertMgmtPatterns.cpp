@@ -188,7 +188,8 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
       // make a different adjust scale each time
       // only after parameter selection can we decide the actual scale
       managed = rewriter.create<mgmt::AdjustScaleOp>(
-          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--));
+          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--),
+          rewriter.getF64FloatAttr(0.0));
       managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
       // NOTE that only at most one operand/Value will experience such
       // replacement. For op with two operands with same Value, such replace
