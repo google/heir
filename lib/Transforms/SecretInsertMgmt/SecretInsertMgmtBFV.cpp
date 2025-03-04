@@ -25,9 +25,7 @@ struct SecretInsertMgmtBFV
 
   void runOnOperation() override {
     OpPassManager pipeline("builtin.module");
-    SecretInsertMgmtBGVOptions options;
-    options.includeFirstMul = false;
-    pipeline.addPass(createSecretInsertMgmtBGV(options));
+    pipeline.addPass(createSecretInsertMgmtBGV());
     (void)runPipeline(pipeline, getOperation());
 
     // Helper for future lowerings that want to know what scheme was used.
