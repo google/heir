@@ -146,4 +146,22 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale"> {
   let hasCanonicalizer = 1;
 }
 
+def Mgmt_NoOp : Mgmt_Op<"no_op"> {
+  let summary = "No operation";
+
+  let description = [{
+    This is a no-op operation that does nothing.
+
+    This is used to represent the no-op operation in the IR.
+    Used in the context of the management dialect, it is used
+    as a placeholder for management attributes.
+  }];
+
+  let arguments = (ins
+    AnyType:$input
+  );
+  let results = (outs AnyType:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
 #endif  // LIB_DIALECT_MGMT_IR_MGMTOPS_TD_

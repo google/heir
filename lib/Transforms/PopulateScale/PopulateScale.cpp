@@ -167,10 +167,9 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       allOnes->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
 
       rewriter.setInsertionPoint(op);
-      // drop 0 level, means no-op
-      // this is for preventing mul 1 being constant folded
-      auto noOp = rewriter.create<mgmt::LevelReduceOp>(op.getLoc(), inputType,
-                                                       allOnes.getResult(), 0);
+      // no-op for preventing mul 1 being constant folded
+      auto noOp = rewriter.create<mgmt::NoOp>(op.getLoc(), inputType,
+                                              allOnes.getResult());
       noOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
       auto mulOp = rewriter.create<arith::MulIOp>(
           op.getLoc(), inputType, op.getInput(), noOp.getOutput());
@@ -300,13 +299,26 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
           }
           if (plaintextOperandIndex != -1) {
             auto plaintextOperand = op->getOperand(plaintextOperandIndex);
+            auto noOp = mlir::dyn_cast_or_null<mgmt::NoOp>(
+                plaintextOperand.getDefiningOp());
             auto arithConstantOp = mlir::dyn_cast_or_null<arith::ConstantOp>(
                 plaintextOperand.getDefiningOp());
-            if (!arithConstantOp) {
-              op->emitWarning() << "plaintext operand is not defined by "
-                                   "arith.constant, could "
-                                   "not annotate scale in mgmt attr.";
-            } else {
+            if (noOp) {
+              auto mgmtAttr = noOp->getAttrOfType<mgmt::MgmtAttr>(
+                  mgmt::MgmtDialect::kArgMgmtAttrName);
+              if (!mgmtAttr) {
+                op->emitError("NoOp does not have MgmtAttr");
+              } else {
+                auto newMgmtAttr =
+                    mgmt::MgmtAttr::get(noOp->getContext(), mgmtAttr.getLevel(),
+                                        mgmtAttr.getDimension(), scale);
+                noOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, newMgmtAttr);
+                // set the lattice for later validation
+                auto *lattice =
+                    solver.getOrCreateState<ScaleLattice>(noOp.getResult());
+                (void)lattice->join(ScaleState(scale));
+              }
+            } else if (arithConstantOp) {
               // create a new arith.constant with mgmt attr
               // this is because an arith.constant op can be used in multiple
               // places and we don't want to change the original one
@@ -330,6 +342,10 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
                     newArithConstantOp.getResult());
                 (void)lattice->join(ScaleState(scale));
               }
+            } else {
+              op->emitWarning() << "plaintext operand is not defined by "
+                                   "arith.constant or mgmt.no_op, could "
+                                   "not annotate scale in mgmt attr.";
             }
           }
         }

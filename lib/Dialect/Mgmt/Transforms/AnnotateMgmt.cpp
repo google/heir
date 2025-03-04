@@ -5,6 +5,7 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
@@ -101,9 +102,16 @@ void copyMgmtAttrToPlaintextOperand(Operation *top) {
         auto arithConstantOp = mlir::dyn_cast_or_null<arith::ConstantOp>(
             plaintextOperand.getDefiningOp());
         if (!arithConstantOp) {
-          op->emitWarning()
-              << "plaintext operand is not defined by arith.constant, could "
-                 "not annotate mgmt attr.";
+          if (dyn_cast<BlockArgument>(plaintextOperand)) {
+            auto newNoOp = b.create<mgmt::NoOp>(
+                op->getLoc(), plaintextOperand.getType(), plaintextOperand);
+            newNoOp->setAttr(MgmtDialect::kArgMgmtAttrName, mgmtAttr);
+            op->setOperand(plaintextOperandIndex, newNoOp.getResult());
+            return;
+          }
+          op->emitWarning() << "plaintext operand is not defined by "
+                               "arith.constant or func argument, could "
+                               "not annotate mgmt attr.";
           return;
         }
         // create a new arith.constant with mgmt attr
