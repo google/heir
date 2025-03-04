@@ -105,9 +105,10 @@ inline APFloat log2(const APFloat &x) {
 inline APFloat round(const APFloat &x) {
   return APFloat(std::round(x.convertToDouble()));
 }
-inline APFloat roundeven(const APFloat &x) {
-  return APFloat(roundevenf(x.convertToDouble()));
-}
+// not available on apple cmath?
+// inline APFloat _roundeven(const APFloat &x) {
+//   return APFloat(roundeven(x.convertToDouble()));
+// }
 inline APFloat rsqrt(const APFloat &x) {
   return APFloat(1.0 / std::sqrt(x.convertToDouble()));
 }
@@ -197,7 +198,6 @@ struct PolynomialApproximation
     patterns.add<ConvertUnaryOp<math::Log1pOp>>(context, log1p);
     patterns.add<ConvertUnaryOp<math::Log2Op>>(context, log2);
     patterns.add<ConvertUnaryOp<math::RoundOp>>(context, round);
-    patterns.add<ConvertUnaryOp<math::RoundEvenOp>>(context, roundeven);
     patterns.add<ConvertUnaryOp<math::RsqrtOp>>(context, rsqrt);
     patterns.add<ConvertUnaryOp<math::SinOp>>(context, sin);
     patterns.add<ConvertUnaryOp<math::SinhOp>>(context, sinh);
@@ -205,6 +205,9 @@ struct PolynomialApproximation
     patterns.add<ConvertUnaryOp<math::TanOp>>(context, tan);
     patterns.add<ConvertUnaryOp<math::TanhOp>>(context, tanh);
     patterns.add<ConvertUnaryOp<math::TruncOp>>(context, trunc);
+
+    // TODO(#1514): Restore with alternative roundeven
+    // patterns.add<ConvertUnaryOp<math::RoundEvenOp>>(context, _roundeven);
 
     // Unsupported math dialect unary ops:
     // math::AbsIOp
