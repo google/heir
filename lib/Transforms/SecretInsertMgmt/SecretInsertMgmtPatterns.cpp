@@ -111,19 +111,19 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     if (!levelState.isInitialized()) {
       return failure();
     }
-    auto isMulResultState =
+    auto mulResultState =
         solver->lookupState<MulResultLattice>(operand->get())->getValue();
-    if (!isMulResultState.isInitialized()) {
+    if (!mulResultState.isInitialized()) {
       return failure();
     }
 
     auto level = levelState.getLevel();
     maxLevel = std::max(maxLevel, level);
-    isMulResult |= isMulResultState.getIsMulResult();
+    isMulResult |= mulResultState.getIsMulResult();
 
     LLVM_DEBUG(llvm::dbgs() << "  ModReduceBefore: Operand: " << operand->get()
-                            << " Level: " << level << " isMulresult "
-                            << isMulResultState.getIsMulResult() << "\n");
+                            << " Level: " << level << " IsMulResult: "
+                            << mulResultState.getIsMulResult() << "\n");
   }
 
   // first mulOp in the chain, skip
@@ -208,7 +208,7 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
 }
 
 template <typename Op>
-LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
+LogicalResult MatchCrossMulResult<Op>::matchAndRewrite(
     Op op, PatternRewriter &rewriter) const {
   Value result = op.getResult();
   bool secret = isSecret(result, solver);
@@ -219,29 +219,32 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
   auto maxMulDepth = 0;
   SmallVector<OpOperand *, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
-  for (auto *operand : secretOperands) {
-    auto mulDepthState =
-        solver->lookupState<MulDepthLattice>(operand->get())->getValue();
-    if (!mulDepthState.isInitialized()) {
-      return failure();
-    }
-    auto mulDepth = mulDepthState.getMulDepth();
-    maxMulDepth = std::max(maxMulDepth, mulDepth);
+  if (secretOperands.size() < 2) {
+    return success();
   }
 
-  bool inserted = false;
+  SmallVector<bool, 2> mulResults;
   for (auto *operand : secretOperands) {
-    auto mulDepthState =
-        solver->lookupState<MulDepthLattice>(operand->get())->getValue();
-    if (!mulDepthState.isInitialized()) {
+    auto mulResultState =
+        solver->lookupState<MulResultLattice>(operand->get())->getValue();
+    if (!mulResultState.isInitialized()) {
       return failure();
     }
+    auto mulResult = mulResultState.getIsMulResult();
+    mulResults.push_back(mulResult);
+  }
 
-    auto mulDepth = mulDepthState.getMulDepth();
-    if (mulDepth < maxMulDepth) {
-      assert(maxMulDepth - mulDepth <= 1 &&
-             "Level/MulDepth mismatch can be at most 1");
-      inserted = true;
+  bool mismatch = mulResults[0] != mulResults[1];
+  if (!mismatch) {
+    return success();
+  }
+
+  // for one operand being mulResult and another not,
+  // we should match their scale by adding one adjust scale op
+  for (auto i = 0; i < secretOperands.size(); i++) {
+    auto *operand = secretOperands[i];
+    auto mulResult = mulResults[i];
+    if (!mulResult) {
       rewriter.setInsertionPoint(op);
       Value managed = operand->get();
       // make a different adjust scale each time
@@ -253,9 +256,6 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
     }
   }
 
-  if (!inserted) {
-    return success();
-  }
   // propagateIfChanged only push workitem to the worklist queue
   // actually execute the transfer for the new values
   solver->eraseAllStates();
@@ -322,9 +322,9 @@ template struct MatchCrossLevel<arith::MulIOp>;
 template struct MatchCrossLevel<arith::AddIOp>;
 template struct MatchCrossLevel<arith::SubIOp>;
 
-template struct MatchCrossMulDepth<arith::MulIOp>;
-template struct MatchCrossMulDepth<arith::AddIOp>;
-template struct MatchCrossMulDepth<arith::SubIOp>;
+template struct MatchCrossMulResult<arith::MulIOp>;
+template struct MatchCrossMulResult<arith::AddIOp>;
+template struct MatchCrossMulResult<arith::SubIOp>;
 
 // for B/FV
 template struct RemoveOp<mgmt::ModReduceOp>;

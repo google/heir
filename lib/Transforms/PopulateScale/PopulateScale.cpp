@@ -133,7 +133,7 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
 
       auto inputType = op.getInput().getType();
 
-      APInt one(getElementTypeOrSelf(inputType).getIntOrFloatBitWidth(), 0);
+      APInt one(getElementTypeOrSelf(inputType).getIntOrFloatBitWidth(), 1);
       TypedAttr constantAttr;
       if (auto inputTensorType = dyn_cast<RankedTensorType>(inputType)) {
         constantAttr = DenseElementsAttr::get(inputTensorType, one);

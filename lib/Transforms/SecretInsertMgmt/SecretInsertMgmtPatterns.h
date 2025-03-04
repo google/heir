@@ -97,11 +97,11 @@ struct MatchCrossLevel : public OpRewritePattern<Op> {
 };
 
 template <typename Op>
-struct MatchCrossMulDepth : public OpRewritePattern<Op> {
+struct MatchCrossMulResult : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  MatchCrossMulDepth(MLIRContext *context, int *scaleCounter, Operation *top,
-                     DataFlowSolver *solver)
+  MatchCrossMulResult(MLIRContext *context, int *scaleCounter, Operation *top,
+                      DataFlowSolver *solver)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
         scaleCounter(scaleCounter),
         top(top),
