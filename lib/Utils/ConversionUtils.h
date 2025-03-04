@@ -478,56 +478,6 @@ class SecretGenericOpLevelReduceConversion
   }
 };
 
-template <typename T>
-class SecretGenericOpAdjustScaleConversion
-    : public SecretGenericOpConversion<mgmt::AdjustScaleOp, T> {
- public:
-  using SecretGenericOpConversion<mgmt::AdjustScaleOp,
-                                  T>::SecretGenericOpConversion;
-
-  LogicalResult matchAndRewriteInner(
-      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-      ArrayRef<NamedAttribute> attributes,
-      ConversionPatternRewriter &rewriter) const override {
-    auto outputType = outputTypes[0];
-    auto ciphertextType = cast<lwe::NewLWECiphertextType>(outputType);
-    auto innerOp =
-        cast<mgmt::AdjustScaleOp>(op.getBody()->getOperations().front());
-    auto deltaScale = innerOp->getAttrOfType<IntegerAttr>("delta_scale");
-    if (!deltaScale) {
-      return failure();
-    }
-
-    auto messageType = ciphertextType.getApplicationData().getMessageType();
-
-    APInt one(getElementTypeOrSelf(messageType).getIntOrFloatBitWidth(), 1);
-    TypedAttr constantAttr;
-    if (auto messageTensorType = dyn_cast<RankedTensorType>(messageType)) {
-      constantAttr = DenseElementsAttr::get(messageTensorType, one);
-    } else {
-      constantAttr = IntegerAttr::get(messageType, one);
-    }
-
-    auto allOnes = rewriter.create<mlir::arith::ConstantOp>(
-        op.getLoc(), messageType, constantAttr);
-    auto plaintextTy = lwe::NewLWEPlaintextType::get(
-        op.getContext(), ciphertextType.getApplicationData(),
-        ciphertextType.getPlaintextSpace());
-    auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
-        op.getLoc(), plaintextTy, allOnes,
-        ciphertextType.getPlaintextSpace().getEncoding(),
-        ciphertextType.getPlaintextSpace().getRing());
-
-    // the scale of the message...
-    // should be put in LWE type!
-    plaintext->setAttr("lwe.scale", deltaScale);
-
-    rewriter.replaceOpWithNewOp<T>(op, outputType, inputs[0], plaintext)
-        ->setDialectAttrs(attributes);
-    return success();
-  }
-};
-
 // Adds conversion patterns that deal with tensor<..xsource_type>
 // when source_type will be type converted to tensor<...>, too
 void addTensorOfTensorConversionPatterns(TypeConverter &typeConverter,

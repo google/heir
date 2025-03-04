@@ -273,9 +273,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
         SecretGenericOpLevelReduceConversion<bgv::LevelReduceOp>,
         SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
-        SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>,
-        SecretGenericOpAdjustScaleConversion<bgv::MulPlainOp>>(typeConverter,
-                                                               context);
+        SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>>(
+        typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

@@ -245,19 +245,4 @@ def BGV_LevelReduceOp : BGV_Op<"level_reduce"> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_AdjustScaleOp : BGV_Op<"adjust_scale"> {
-  let summary = "Adjust the scale metadata of the ciphertext.";
-
-  let arguments = (ins
-    NewLWECiphertext:$input
-  );
-
-  let results = (outs
-    NewLWECiphertext:$output
-  );
-
-  //let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
-}
-
 #endif  // LIB_DIALECT_BGV_IR_BGVOPS_TD_
