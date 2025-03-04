@@ -22,10 +22,28 @@ cc_library(
         "attributes_inc_gen",
         "dialect_inc_gen",
         "ops_inc_gen",
+        ":MgmtAttributes",
         ":MgmtOps",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+    ],
+)
+
+cc_library(
+    name = "MgmtAttributes",
+    srcs = [
+        "MgmtAttributes.cpp",
+    ],
+    hdrs = [
+        "MgmtAttributes.h",
+        "MgmtDialect.h",
+    ],
+    deps = [
+        ":attributes_inc_gen",
+        ":dialect_inc_gen",
+        "@heir//lib/Utils:AttributeUtils",
+        "@llvm-project//mlir:IR",
     ],
 )
 

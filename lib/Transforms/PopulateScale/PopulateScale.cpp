@@ -11,6 +11,7 @@
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
@@ -33,17 +34,141 @@ namespace heir {
 struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
   using PopulateScaleBase::PopulateScaleBase;
 
+  // ciphetext modulus of each level
+  std::vector<int64_t> qi;
+  // plaintext modulus
+  int64_t t;
+
+  void populateScaleForAdjustScaleOp(
+      std::function<int64_t(Value)> lookupScale) {
+    auto getI64Attr = [&](int64_t value) -> IntegerAttr {
+      return IntegerAttr::get(
+          IntegerType::get(getOperation()->getContext(), 64), value);
+    };
+
+    auto arithOpGetOperandScale = [&](Operation *arithOp) {
+      int64_t arithScale = 0;
+      for (auto operand : arithOp->getOperands()) {
+        auto operandScale = lookupScale(operand);
+        if (operandScale == -1) {
+          continue;
+        }
+        arithScale = operandScale;
+        break;
+      }
+      if (arithScale == 0) {
+        getOperation()->emitError("ArithOp does not have scale");
+      }
+      return arithScale;
+    };
+
+    // this part is kind of "back propagation" of scales
+    //
+    // for adjust scale op, find scale from arith op
+    // the sequence is adjust_scale (+ mod_reduce) + arith
+    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
+      auto mgmtAttr = op->getAttrOfType<mgmt::MgmtAttr>(
+          mgmt::MgmtDialect::kArgMgmtAttrName);
+      if (!mgmtAttr) {
+        getOperation()->emitError("AdjustScaleOp does not have MgmtAttr");
+      }
+      if (!op->hasOneUse()) {
+        getOperation()->emitError(
+            "AdjustScaleOp does not have exactly one use");
+      }
+      auto *nextOp = op->use_begin()->getOwner();
+
+      Operation *arithOp = nullptr;
+      bool nextIsModReduceOp = isa<mgmt::ModReduceOp>(nextOp);
+      if (auto modReduceOp = dyn_cast<mgmt::ModReduceOp>(nextOp)) {
+        if (!modReduceOp->hasOneUse()) {
+          getOperation()->emitError(
+              "ModReduceOp does not have exactly one use");
+        }
+        arithOp = modReduceOp->use_begin()->getOwner();
+      } else {
+        arithOp = nextOp;
+      }
+      if (!mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp>(arithOp)) {
+        getOperation()->emitError(
+            "AdjustScaleOp does not have MulIOp, AddIOp, or SubIOp as its "
+            "(subsequent) use");
+      }
+
+      auto arithScale = arithOpGetOperandScale(arithOp);
+
+      int64_t scale = arithScale;
+      if (nextIsModReduceOp) {
+        auto level = mgmtAttr.getLevel();
+        scale = qi[level] * scale % t;
+      }
+      op->setAttr("scale", getI64Attr(scale));
+
+      // compute the constant needed to adjust the scale for mul constant
+      auto input = op->getOperand(0);
+      auto inputScale = lookupScale(input);
+      if (inputScale == -1) {
+        getOperation()->emitError("Input does not have scale");
+      }
+      auto inputScaleInverse =
+          heir::polynomial::multiplicativeInverse(llvm::APInt(64, inputScale),
+                                                  llvm::APInt(64, t))
+              .getSExtValue();
+      auto deltaScale = (scale * inputScaleInverse) % t;
+      op->setAttr("delta_scale", getI64Attr(deltaScale));
+    });
+  }
+
+  void lowerAdjustScaleOpToMulPlain() {
+    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
+      auto funcOp = op->getParentOfType<func::FuncOp>();
+      OpBuilder b = OpBuilder::atBlockBegin(&funcOp.getBody().front());
+      auto deltaScale = op->getAttrOfType<IntegerAttr>("delta_scale").getInt();
+      auto scale = op->getAttrOfType<IntegerAttr>("scale").getInt();
+      auto mgmtAttr = op->getAttrOfType<mgmt::MgmtAttr>(
+          mgmt::MgmtDialect::kArgMgmtAttrName);
+
+      auto inputType = op.getInput().getType();
+
+      APInt one(getElementTypeOrSelf(inputType).getIntOrFloatBitWidth(), 1);
+      TypedAttr constantAttr;
+      if (auto inputTensorType = dyn_cast<RankedTensorType>(inputType)) {
+        constantAttr = DenseElementsAttr::get(inputTensorType, one);
+      } else {
+        constantAttr = IntegerAttr::get(inputType, one);
+      }
+
+      auto allOnes = b.create<mlir::arith::ConstantOp>(op.getLoc(), inputType,
+                                                       constantAttr);
+      auto allOnesMgmtAttr =
+          mgmt::MgmtAttr::get(op->getContext(), mgmtAttr.getLevel(),
+                              mgmtAttr.getDimension(), deltaScale);
+      allOnes->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
+
+      b.setInsertionPoint(op);
+      auto mulOp = b.create<arith::MulIOp>(op.getLoc(), inputType,
+                                           op.getInput(), allOnes.getResult());
+      auto mulOpMgmtAttr =
+          mgmt::MgmtAttr::get(op->getContext(), mgmtAttr.getLevel(),
+                              mgmtAttr.getDimension(), scale);
+      mulOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, mulOpMgmtAttr);
+      for (auto &use : op->getUses()) {
+        use.set(mulOp.getResult());
+      }
+      op->erase();
+    });
+  }
+
   void runOnOperation() override {
     auto bgvSchemeParamAttr = mlir::dyn_cast<bgv::SchemeParamAttr>(
         getOperation()->getAttr(bgv::BGVDialect::kSchemeParamAttrName));
     auto Q = bgvSchemeParamAttr.getQ();
-    std::vector<int64_t> qi;
     qi.reserve(Q.size());
     for (int i = 0; i < Q.size(); i++) {
       qi.push_back(Q[i]);
     }
 
-    auto t = bgvSchemeParamAttr.getPlaintextModulus();
+    t = bgvSchemeParamAttr.getPlaintextModulus();
 
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
@@ -64,11 +189,6 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       return;
     }
 
-    auto getI64Attr = [&](int64_t value) -> IntegerAttr {
-      return IntegerAttr::get(
-          IntegerType::get(getOperation()->getContext(), 64), value);
-    };
-
     auto lookupScale = [&](Value value) -> int64_t {
       const auto *scaleLattice = solver.lookupState<ScaleLattice>(value);
       if (!scaleLattice) {
@@ -81,64 +201,8 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       return scaleState.getScale();
     };
 
-    // this part is kind of "back propagation" of scales
-    //
-    // for adjust scale op, find scale from arith op
-    // the sequence is adjust_scale + mod_reduce + arith
-    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
-      auto mgmtAttr = op->getAttrOfType<mgmt::MgmtAttr>(
-          mgmt::MgmtDialect::kArgMgmtAttrName);
-      if (!mgmtAttr) {
-        getOperation()->emitError("AdjustScaleOp does not have MgmtAttr");
-      }
-      if (!op->hasOneUse()) {
-        getOperation()->emitError(
-            "AdjustScaleOp does not have exactly one use");
-      }
-      auto nextOp = dyn_cast<mgmt::ModReduceOp>(op->use_begin()->getOwner());
-      if (!nextOp) {
-        getOperation()->emitError(
-            "AdjustScaleOp does not have ModReduceOp as its use");
-      }
-      if (!nextOp->hasOneUse()) {
-        getOperation()->emitError("ModReduceOp does not have exactly one use");
-      }
-      auto *arithOp = nextOp->use_begin()->getOwner();
-      if (!mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp>(arithOp)) {
-        getOperation()->emitError(
-            "ModReduceOp does not have MulIOp, AddIOp, or SubIOp as its use");
-      }
-
-      int64_t arithScale = 0;
-      for (auto operand : arithOp->getOperands()) {
-        auto operandScale = lookupScale(operand);
-        if (operandScale == -1) {
-          continue;
-        }
-        arithScale = operandScale;
-        break;
-      }
-      if (arithScale == 0) {
-        getOperation()->emitError("ArithOp does not have scale");
-      }
-
-      auto level = mgmtAttr.getLevel();
-      int64_t newScale = qi[level] * arithScale % t;
-      op->setAttr("scale", getI64Attr(newScale));
-
-      // compute the constant needed to adjust the scale for mul constant
-      auto input = op->getOperand(0);
-      auto inputScale = lookupScale(input);
-      if (inputScale == -1) {
-        getOperation()->emitError("Input does not have scale");
-      }
-      auto inputScaleInverse =
-          heir::polynomial::multiplicativeInverse(llvm::APInt(64, inputScale),
-                                                  llvm::APInt(64, t))
-              .getSExtValue();
-      auto deltaScale = (newScale * inputScaleInverse) % t;
-      op->setAttr("delta_scale", getI64Attr(deltaScale));
-    });
+    // populate scales for adjust scale op
+    populateScaleForAdjustScaleOp(lookupScale);
 
     // re-run the analysis to propagate all scales
     solver.eraseAllStates();
@@ -167,6 +231,9 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
 
     // annotate scale
     getOperation()->walk([&](secret::GenericOp genericOp) {
+      auto funcOp = genericOp->getParentOfType<func::FuncOp>();
+      OpBuilder b = OpBuilder::atBlockBegin(&funcOp.getBody().front());
+
       Block *body = genericOp.getBody();
       for (auto i = 0; i != body->getNumArguments(); ++i) {
         auto blockArg = body->getArgument(i);
@@ -187,14 +254,63 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
         }
         updateMgmtAttr(op);
 
+        // update the scale for ct-pt op
+        if (mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp>(op)) {
+          int64_t scale = -1;
+          int plaintextOperandIndex = -1;
+          // find the plaintext operand and get mgmt attr from the other operand
+          for (auto i = 0; i != op->getNumOperands(); ++i) {
+            auto operandScale = lookupScale(op->getOperand(i));
+            if (operandScale == -1) {
+              plaintextOperandIndex = i;
+            } else {
+              scale = operandScale;
+            }
+          }
+          if (scale == -1) {
+            op->emitError("ArithOp does not have scale");
+          }
+          if (plaintextOperandIndex != -1) {
+            auto plaintextOperand = op->getOperand(plaintextOperandIndex);
+            auto arithConstantOp = mlir::dyn_cast_or_null<arith::ConstantOp>(
+                plaintextOperand.getDefiningOp());
+            if (!arithConstantOp) {
+              op->emitWarning() << "plaintext operand is not defined by "
+                                   "arith.constant, could "
+                                   "not annotate scale in mgmt attr.";
+            } else {
+              // create a new arith.constant with mgmt attr
+              // this is because an arith.constant op can be used in multiple
+              // places and we don't want to change the original one
+              auto newArithConstantOp = b.create<arith::ConstantOp>(
+                  arithConstantOp.getLoc(), arithConstantOp.getType(),
+                  arithConstantOp.getValue());
+              auto mgmtAttr = arithConstantOp->getAttrOfType<mgmt::MgmtAttr>(
+                  mgmt::MgmtDialect::kArgMgmtAttrName);
+              if (!mgmtAttr) {
+                op->emitError("ArithConstantOp does not have MgmtAttr");
+              } else {
+                auto newMgmtAttr = mgmt::MgmtAttr::get(
+                    arithConstantOp->getContext(), mgmtAttr.getLevel(),
+                    mgmtAttr.getDimension(), scale);
+                newArithConstantOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName,
+                                            newMgmtAttr);
+                op->setOperand(plaintextOperandIndex,
+                               newArithConstantOp.getResult());
+                // set the lattice for later validation
+                auto *lattice = solver.getOrCreateState<ScaleLattice>(
+                    newArithConstantOp.getResult());
+                (void)lattice->join(ScaleState(scale));
+              }
+            }
+          }
+        }
+
         // validate the input scale is the same
         if (op->getNumOperands() > 1) {
           auto scale = 0;
           for (auto operand : op->getOperands()) {
             auto operandScale = lookupScale(operand);
-            if (operandScale == -1) {
-              continue;
-            }
             if (scale == 0) {
               scale = operandScale;
             } else if (scale != operandScale) {
@@ -204,6 +320,8 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
         }
       });
     });
+
+    lowerAdjustScaleOpToMulPlain();
   }
 };
 
