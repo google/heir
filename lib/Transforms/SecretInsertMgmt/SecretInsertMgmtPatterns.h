@@ -96,6 +96,26 @@ struct MatchCrossLevel : public OpRewritePattern<Op> {
   DataFlowSolver *solver;
 };
 
+template <typename Op>
+struct MatchCrossMulDepth : public OpRewritePattern<Op> {
+  using OpRewritePattern<Op>::OpRewritePattern;
+
+  MatchCrossMulDepth(MLIRContext *context, int *scaleCounter, Operation *top,
+                     DataFlowSolver *solver)
+      : OpRewritePattern<Op>(context, /*benefit=*/1),
+        scaleCounter(scaleCounter),
+        top(top),
+        solver(solver) {}
+
+  LogicalResult matchAndRewrite(Op op,
+                                PatternRewriter &rewriter) const override;
+
+ private:
+  int *scaleCounter;
+  Operation *top;
+  DataFlowSolver *solver;
+};
+
 // when reached a certain depth (water line), bootstrap
 template <typename Op>
 struct BootstrapWaterLine : public OpRewritePattern<Op> {

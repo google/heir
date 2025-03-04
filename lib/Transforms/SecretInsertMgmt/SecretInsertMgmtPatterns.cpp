@@ -208,6 +208,61 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
 }
 
 template <typename Op>
+LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
+    Op op, PatternRewriter &rewriter) const {
+  Value result = op.getResult();
+  bool secret = isSecret(result, solver);
+  if (!secret) {
+    return success();
+  }
+
+  auto maxMulDepth = 0;
+  SmallVector<OpOperand *, 2> secretOperands;
+  getSecretOperands(op, secretOperands, solver);
+  for (auto *operand : secretOperands) {
+    auto mulDepthState =
+        solver->lookupState<MulDepthLattice>(operand->get())->getValue();
+    if (!mulDepthState.isInitialized()) {
+      return failure();
+    }
+    auto mulDepth = mulDepthState.getMulDepth();
+    maxMulDepth = std::max(maxMulDepth, mulDepth);
+  }
+
+  bool inserted = false;
+  for (auto *operand : secretOperands) {
+    auto mulDepthState =
+        solver->lookupState<MulDepthLattice>(operand->get())->getValue();
+    if (!mulDepthState.isInitialized()) {
+      return failure();
+    }
+
+    auto mulDepth = mulDepthState.getMulDepth();
+    if (mulDepth < maxMulDepth) {
+      assert(maxMulDepth - mulDepth <= 1 &&
+             "Level/MulDepth mismatch can be at most 1");
+      inserted = true;
+      rewriter.setInsertionPoint(op);
+      Value managed = operand->get();
+      // make a different adjust scale each time
+      // only after parameter selection can we decide the actual scale
+      managed = rewriter.create<mgmt::AdjustScaleOp>(
+          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--),
+          rewriter.getF64FloatAttr(0.0));
+      op->replaceUsesOfWith(operand->get(), managed);
+    }
+  }
+
+  if (!inserted) {
+    return success();
+  }
+  // propagateIfChanged only push workitem to the worklist queue
+  // actually execute the transfer for the new values
+  solver->eraseAllStates();
+  return solver->initializeAndRun(top);
+}
+
+template <typename Op>
 LogicalResult RemoveOp<Op>::matchAndRewrite(Op op,
                                             PatternRewriter &rewriter) const {
   rewriter.replaceAllUsesWith(op->getResult(0), op->getOperand(0));
@@ -266,6 +321,10 @@ template struct ModReduceBefore<secret::YieldOp>;
 template struct MatchCrossLevel<arith::MulIOp>;
 template struct MatchCrossLevel<arith::AddIOp>;
 template struct MatchCrossLevel<arith::SubIOp>;
+
+template struct MatchCrossMulDepth<arith::MulIOp>;
+template struct MatchCrossMulDepth<arith::AddIOp>;
+template struct MatchCrossMulDepth<arith::SubIOp>;
 
 // for B/FV
 template struct RemoveOp<mgmt::ModReduceOp>;
