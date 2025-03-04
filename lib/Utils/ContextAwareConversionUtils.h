@@ -378,6 +378,27 @@ class SecretGenericOpModulusSwitchConversion
   }
 };
 
+template <typename T>
+class SecretGenericOpLevelReduceConversion
+    : public SecretGenericOpConversion<mgmt::LevelReduceOp, T> {
+ public:
+  using SecretGenericOpConversion<mgmt::LevelReduceOp,
+                                  T>::SecretGenericOpConversion;
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter &rewriter) const override {
+    auto innerOp =
+        cast<mgmt::LevelReduceOp>(op.getBody()->getOperations().front());
+    auto levelToDrop = innerOp.getLevelToDrop();
+
+    auto newOp =
+        rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], levelToDrop);
+    return newOp.getOperation();
+  }
+};
+
 struct ContextAwareFuncConversion
     : public ContextAwareOpConversionPattern<func::FuncOp> {
  public:

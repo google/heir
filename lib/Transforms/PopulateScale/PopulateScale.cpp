@@ -99,21 +99,6 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
         scale = qi[level] * scale % t;
       }
       op.setScale(scale);
-
-      // compute the constant needed to adjust the scale for mul constant
-      auto input = op->getOperand(0);
-      auto inputScale = lookupScale(input);
-      if (inputScale == -1) {
-        getOperation()->emitError("Input does not have scale");
-      }
-      auto inputScaleInverse =
-          heir::polynomial::multiplicativeInverse(llvm::APInt(64, inputScale),
-                                                  llvm::APInt(64, t))
-              .getSExtValue();
-      auto deltaScale = (scale * inputScaleInverse) % t;
-      op->setAttr(
-          "delta_scale",
-          IntegerAttr::get(IntegerType::get(op->getContext(), 64), deltaScale));
     });
   }
 
