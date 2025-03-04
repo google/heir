@@ -95,6 +95,21 @@ struct SecretInsertMgmtBGV
         &getContext(), &scaleCounter, getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsAddModReduce));
 
+    // when other binary op operands mulDepth mismatch
+    // this only happen for before-mul but not include-first-mul case
+    // at the first level, a Value can be both mulResult or not mulResult
+    // we should match their scale by adding one adjust scale op
+    if (!beforeMulIncludeFirstMul && !afterMul) {
+      RewritePatternSet patternsMulDepth(&getContext());
+      patternsMulDepth.add<MatchCrossMulDepth<arith::MulIOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      patternsMulDepth.add<MatchCrossMulDepth<arith::AddIOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      patternsMulDepth.add<MatchCrossMulDepth<arith::SubIOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      (void)walkAndApplyPatterns(getOperation(), std::move(patternsMulDepth));
+    }
+
     // call Canonicalizer here because mgmt ops need to be ordered
     // call CSE here because there may be redundant mod reduce
     // one Value may get mod reduced multiple times in
