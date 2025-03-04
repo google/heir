@@ -114,29 +114,13 @@ void copyMgmtAttrToPlaintextOperand(Operation *top) {
         assert(mgmtAttr &&
                "ct-pt op should have at least one ciphertext operand");
         auto plaintextOperand = op->getOperand(plaintextOperandIndex);
-        auto arithConstantOp = mlir::dyn_cast_or_null<arith::ConstantOp>(
-            plaintextOperand.getDefiningOp());
-        if (!arithConstantOp) {
-          if (dyn_cast<BlockArgument>(plaintextOperand)) {
-            auto newNoOp = b.create<mgmt::NoOp>(
-                op->getLoc(), plaintextOperand.getType(), plaintextOperand);
-            newNoOp->setAttr(MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-            op->setOperand(plaintextOperandIndex, newNoOp.getResult());
-            return;
-          }
-          op->emitWarning() << "plaintext operand is not defined by "
-                               "arith.constant or func argument, could "
-                               "not annotate mgmt attr.";
-          return;
-        }
-        // create a new arith.constant with mgmt attr
-        // this is because an arith.constant op can be used in multiple places
+        // create a new mgmt.no_op with mgmt attr
+        // this is because plaintextOperand can be used in multiple places
         // and we don't want to change the original one
-        auto newArithConstantOp = b.create<arith::ConstantOp>(
-            arithConstantOp.getLoc(), arithConstantOp.getType(),
-            arithConstantOp.getValue());
-        newArithConstantOp->setAttr(MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-        op->setOperand(plaintextOperandIndex, newArithConstantOp.getResult());
+        auto newNoOp = b.create<mgmt::NoOp>(
+            op->getLoc(), plaintextOperand.getType(), plaintextOperand);
+        newNoOp->setAttr(MgmtDialect::kArgMgmtAttrName, mgmtAttr);
+        op->setOperand(plaintextOperandIndex, newNoOp.getResult());
       }
     });
   });

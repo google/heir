@@ -149,10 +149,11 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       auto allOnesMgmtAttr =
           mgmt::MgmtAttr::get(op->getContext(), mgmtAttr.getLevel(),
                               mgmtAttr.getDimension(), deltaScale);
-      allOnes->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
+      // do not annotate it to arith.constant as canonicalizer will merge
+      // arith.constant with same value and mgmt attr will be lost
 
       rewriter.setInsertionPoint(op);
-      // no-op for preventing mul 1 being constant folded
+      // no-op also for preventing mul 1 being constant folded
       auto noOp = rewriter.create<mgmt::NoOp>(op.getLoc(), inputType,
                                               allOnes.getResult());
       noOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
@@ -354,6 +355,13 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
     RewritePatternSet patterns(&getContext());
     patterns.add<ConvertAdjustScaleToMulPlain>(&getContext(), t);
     walkAndApplyPatterns(getOperation(), std::move(patterns));
+
+    // run canonicalizer and CSE to clean up arith.constant and move no-op out
+    // of the loop
+    OpPassManager pipeline("builtin.module");
+    pipeline.addPass(createCanonicalizerPass());
+    pipeline.addPass(createCSEPass());
+    (void)runPipeline(pipeline, getOperation());
   }
 };
 
