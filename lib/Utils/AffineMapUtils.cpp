@@ -30,7 +30,7 @@ LogicalResult makeExplicit1DMapping(AffineMap map, unsigned rank,
 
   llvm::copy(llvm::map_range(
                  permInputs,
-                 [&](Attribute permInput) {
+                 [&](Attribute permInput) -> int64_t {
                    SmallVector<Attribute> results;
                    // AffineMap::constantFold is the mechanism to evaluate the
                    // affine map on statically known inputs.

@@ -1,19 +1,16 @@
-name: Build and Test (Linux)
+name: Build and Test (macOS 15)
 permissions: read-all
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  schedule:
+    # daily at 3 AM
+    - cron: "0 3 * * *"
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 jobs:
   check-cache:
     runs-on:
-      labels: ubuntu-22.04-8core
+      labels: macos-15
     outputs:
       runner: ${{ steps.runner.outputs.runner }}
     steps:
@@ -38,9 +35,9 @@ jobs:
           set -euo pipefail
 
           if [[ "${CACHE_HIT}" == "true" ]]; then
-            echo "runner=ubuntu-22.04-8core" >> "$GITHUB_OUTPUT"
+            echo "runner=macos-15" >> "$GITHUB_OUTPUT"
           else
-            echo "runner=ubuntu-22.04-32core" >> "$GITHUB_OUTPUT"
+            echo "runner=macos-15" >> "$GITHUB_OUTPUT"
           fi
 
   build-and-test:
@@ -71,15 +68,6 @@ jobs:
           bazel build --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
 
       - name: "Run `bazel test`"
+        # (TODO:#1521): re-enable all tests
         run: |
-          bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
-
-      # Tests specifically for the tfhe-rs codegen
-      - name: rustup toolchain install
-        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # pin@1.72.1
-        with:
-          toolchain: stable
-
-      - name: Test rust codegen targets
-        run: |
-          bash .github/workflows/run_rust_tests.sh
+          bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //tests/Dialect/...:all

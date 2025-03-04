@@ -11,12 +11,20 @@ common --enable_workspace
 # prevents changes to PATH from causing a full rebuild
 common --incompatible_strict_action_env
 
-# default to clang and lld
+# compile with clang on all platforms
 build --action_env=CC=clang
 build --action_env=CXX=clang++
 build --host_action_env=CC=clang
 build --host_action_env=CXX=clang++
-build --linkopt="-fuse-ld=lld"
+
+# linux-specific options
+build:linux --linkopt="-fuse-ld=lld"
+
+# macos specific options
+build:macos --apple_platform_type=macos
+build:macos --macos_minimum_os=10.13
+build:macos --macos_sdk_version=10.13
+build:macos_arm64 --cpu=darwin_arm64
 
 # run with --config=gcc to force use of gcc
 # (and the default linker, usually ld) instead
