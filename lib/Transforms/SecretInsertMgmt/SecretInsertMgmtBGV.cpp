@@ -100,14 +100,14 @@ struct SecretInsertMgmtBGV
     // at the first level, a Value can be both mulResult or not mulResult
     // we should match their scale by adding one adjust scale op
     if (!beforeMulIncludeFirstMul && !afterMul) {
-      RewritePatternSet patternsMulDepth(&getContext());
-      patternsMulDepth.add<MatchCrossMulDepth<arith::MulIOp>>(
+      RewritePatternSet patternsMulResult(&getContext());
+      patternsMulResult.add<MatchCrossMulResult<arith::MulIOp>>(
           &getContext(), &scaleCounter, getOperation(), &solver);
-      patternsMulDepth.add<MatchCrossMulDepth<arith::AddIOp>>(
+      patternsMulResult.add<MatchCrossMulResult<arith::AddIOp>>(
           &getContext(), &scaleCounter, getOperation(), &solver);
-      patternsMulDepth.add<MatchCrossMulDepth<arith::SubIOp>>(
+      patternsMulResult.add<MatchCrossMulResult<arith::SubIOp>>(
           &getContext(), &scaleCounter, getOperation(), &solver);
-      (void)walkAndApplyPatterns(getOperation(), std::move(patternsMulDepth));
+      (void)walkAndApplyPatterns(getOperation(), std::move(patternsMulResult));
     }
 
     // call Canonicalizer here because mgmt ops need to be ordered
