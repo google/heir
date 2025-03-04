@@ -51,9 +51,21 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
   PassOptions::Option<std::string> noiseModel{
       *this, "noise-model",
       llvm::cl::desc("Noise model to use during parameter generation, see "
-                     "--validate-noise pass options for available models"
-                     "(default to bgv-noise-by-bound-coeff-average-case-pk)"),
-      llvm::cl::init("bgv-noise-by-bound-coeff-average-case-pk")};
+                     "--generate-param pass options for available models"),
+      llvm::cl::init("")};
+  PassOptions::Option<bool> annotateNoiseBound{
+      *this, "annotate-noise-bound",
+      llvm::cl::desc("If true, the noise predicted by noise model is annotated "
+                     "in the IR."),
+      llvm::cl::init(false)};
+  PassOptions::Option<int> firstModBits{
+      *this, "first-mod-bits",
+      llvm::cl::desc("The number of bits in the first modulus for CKKS"),
+      llvm::cl::init(55)};
+  PassOptions::Option<int> scalingModBits{
+      *this, "scaling-mod-bits",
+      llvm::cl::desc("The number of bits in the scaling modulus for CKKS"),
+      llvm::cl::init(45)};
 };
 
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {

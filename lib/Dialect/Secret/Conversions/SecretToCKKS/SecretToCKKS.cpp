@@ -22,7 +22,6 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
@@ -61,8 +60,6 @@ namespace {
 
 // Returns an RLWE ring given the specified number of bits needed and polynomial
 // modulus degree.
-// TODO(#536): Integrate a general library to compute appropriate prime moduli
-// given any number of bits.
 FailureOr<polynomial::RingAttr> getRlweRNSRing(
     MLIRContext *ctx, const std::vector<int64_t> &primes, int polyModDegree) {
   // monomial
@@ -375,54 +372,26 @@ class SecretGenericFuncCallConversion
 struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
   using SecretToCKKSBase::SecretToCKKSBase;
 
-  // assume only one main func
-  // also assume max level at entry
-  int getMaxLevel() {
-    int maxLevel = 0;
-    getOperation()->walk([&](func::FuncOp funcOp) {
-      // get mgmtattr from funcop argument
-      for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-        auto mgmtAttr =
-            funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
-        if (mgmtAttr) {
-          maxLevel = cast<mgmt::MgmtAttr>(mgmtAttr).getLevel();
-          break;
-        }
-      }
-    });
-    return maxLevel;
-  }
-
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();
 
-    // generate scheme parameters
-    auto maxLevel = getMaxLevel();
-    std::vector<double> logPrimes;
-    logPrimes.push_back(firstModBits);
-    for (int i = 0; i < maxLevel; i++) {
-      logPrimes.push_back(scalingModBits);
+    auto schemeParamAttr = module->getAttrOfType<ckks::SchemeParamAttr>(
+        ckks::CKKSDialect::kSchemeParamAttrName);
+    if (!schemeParamAttr) {
+      module->emitError("expected CKKS scheme parameters");
+      signalPassFailure();
+      return;
     }
+
+    // NOTE: 2 ** logN != polyModDegree
+    // they have different semantic
+    // auto logN = schemeParamAttr.getLogN();
 
     // pass option polyModDegree is actually the number of slots
     // TODO(#1402): use a proper name for CKKS
-    auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
-        logPrimes, scalingModBits, polyModDegree);
-    LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
-                            << schemeParam << "\n");
-
-    // annotate ckks::SchemeParamAttr to ModuleOp
-    module->setAttr(
-        ckks::CKKSDialect::kSchemeParamAttrName,
-        ckks::SchemeParamAttr::get(
-            context, log2(schemeParam.getRingDim()),
-            DenseI64ArrayAttr::get(context, ArrayRef(schemeParam.getQi())),
-            DenseI64ArrayAttr::get(&getContext(),
-                                   ArrayRef(schemeParam.getPi())),
-            schemeParam.getLogDefaultScale()));
-
-    auto rlweRing = getRlweRNSRing(context, schemeParam.getQi(), polyModDegree);
+    auto rlweRing = getRlweRNSRing(context, schemeParamAttr.getQ().asArrayRef(),
+                                   polyModDegree);
     if (failed(rlweRing)) {
       return signalPassFailure();
     }

@@ -5,7 +5,7 @@
 
 #mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 
-module {
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
   // CHECK-LABEL: func @test_addi_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
