@@ -55,6 +55,7 @@ LogicalResult AddOp::inferReturnTypes(
     MLIRContext *ctx, std::optional<Location>, AddOp::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {
   return inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+  // TODO: verify scaling factor
 }
 
 LogicalResult SubOp::inferReturnTypes(

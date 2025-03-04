@@ -108,8 +108,33 @@ LogicalResult RMulOp::inferReturnTypes(
   auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
   auto newDim =
       x.getCiphertextSpace().getSize() + y.getCiphertextSpace().getSize() - 1;
+  auto xPlaintextSpace = x.getPlaintextSpace();
+  auto yPlaintextSpace = y.getPlaintextSpace();
+  int64_t plaintextModulus = cast<mod_arith::ModArithType>(
+                                 xPlaintextSpace.getRing().getCoefficientType())
+                                 .getModulus()
+                                 .getValue()
+                                 .getSExtValue();
+  int64_t xScale = 0;
+  int64_t yScale = 0;
+  llvm::TypeSwitch<Attribute>(xPlaintextSpace.getEncoding())
+      .Case<lwe::FullCRTPackingEncodingAttr>([&](auto attr) {
+        xScale = attr.getScalingFactor();
+        yScale = mlir::cast<lwe::FullCRTPackingEncodingAttr>(
+                     yPlaintextSpace.getEncoding())
+                     .getScalingFactor();
+      });
+  auto newScale = (xScale * yScale) % plaintextModulus;
+  lwe::PlaintextSpaceAttr newPlaintextSpaceAttr;
+  llvm::TypeSwitch<Attribute>(xPlaintextSpace.getEncoding())
+      .Case<lwe::FullCRTPackingEncodingAttr>([&](auto attr) {
+        newPlaintextSpaceAttr = lwe::PlaintextSpaceAttr::get(
+            ctx, xPlaintextSpace.getRing(),
+            lwe::FullCRTPackingEncodingAttr::get(ctx, newScale));
+      });
+
   inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
-      ctx, x.getApplicationData(), x.getPlaintextSpace(),
+      ctx, x.getApplicationData(), newPlaintextSpaceAttr,
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
                                     newDim),
