@@ -126,6 +126,11 @@ void polynomialToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addPass(arith::createArithExpandOpsPass());
   manager.addPass(createSCFToControlFlowPass());
   manager.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
+  // expand strided metadata will create affine map. Needed to lower affine.map
+  // and affine.apply
+  manager.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  manager.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  manager.addPass(createLowerAffinePass());
   manager.addPass(createConvertToLLVMPass());
 
   // Cleanup
