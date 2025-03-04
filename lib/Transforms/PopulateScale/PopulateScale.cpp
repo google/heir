@@ -334,17 +334,19 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
                                    "not annotate scale in mgmt attr.";
             }
           }
-        }
 
-        // validate the input scale is the same
-        if (op->getNumOperands() > 1) {
-          auto scale = 0;
-          for (auto operand : op->getOperands()) {
-            auto operandScale = lookupScale(operand);
-            if (scale == 0) {
-              scale = operandScale;
-            } else if (scale != operandScale) {
-              op->emitError("Different scales");
+          // Validate the input scale is the same.
+          // Note that at this time AdjustScale has not been lowered to MulConst
+          // so all mul/add/sub should have the same scale for both operands
+          if (op->getNumOperands() > 1) {
+            auto scale = 0;
+            for (auto operand : op->getOperands()) {
+              auto operandScale = lookupScale(operand);
+              if (scale == 0) {
+                scale = operandScale;
+              } else if (scale != operandScale) {
+                op->emitError("Different scales");
+              }
             }
           }
         }

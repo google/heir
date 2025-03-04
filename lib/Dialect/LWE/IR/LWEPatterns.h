@@ -85,8 +85,9 @@ struct ConvertExtract : public OpRewritePattern<ExtractOp> {
                                     ctTy.getPlaintextSpace().getEncoding(),
                                     ctTy.getPlaintextSpace().getRing())
             .getResult();
-    auto plainMul =
-        b.create<MulPlainOp>(op.getInput(), oneHotPlaintext).getResult();
+    auto plainMul = b.create<MulPlainOp>(op.getInput().getType(), op.getInput(),
+                                         oneHotPlaintext)
+                        .getResult();
     auto rotated = b.create<RotateOp>(plainMul, offsetAttr);
     // It might make sense to move this op to the add-client-interface pass,
     // but it also seems like a backend implementation detail, and not part

@@ -109,6 +109,7 @@ class SecretToBGVTypeConverter
                                      mgmt::MgmtAttr mgmtAttr) const {
     auto level = mgmtAttr.getLevel();
     auto dimension = mgmtAttr.getDimension();
+    auto scale = mgmtAttr.getScale();
 
     auto *ctx = type.getContext();
     auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
@@ -129,7 +130,8 @@ class SecretToBGVTypeConverter
         lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
                                       lwe::NoOverflowAttr::get(ctx)),
         lwe::PlaintextSpaceAttr::get(
-            ctx, plaintextRing, lwe::FullCRTPackingEncodingAttr::get(ctx, 0)),
+            ctx, plaintextRing,
+            lwe::FullCRTPackingEncodingAttr::get(ctx, scale)),
         lwe::CiphertextSpaceAttr::get(ctx, getRlweRNSRingWithLevel(ring, level),
                                       lwe::LweEncryptionType::lsb, dimension),
         lwe::KeyAttr::get(ctx, 0),
