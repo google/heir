@@ -21,76 +21,75 @@ namespace heir {
 // but before --secret-distribute-generic
 // where a whole secret::GenericOp is assumed
 
-// represent the multiplicative depth of a value.
-// 0 for not a multiplication result and >= 1 for a multiplication result
-// after each multiplication, the depth is increased by 1
+// represent whether a value is a multiplication result or the derived value of
+// a multiplication result
 // where mutiplication is in secretness domain
-class MulDepthState {
+class MulResultState {
  public:
-  MulDepthState() : mulDepth(std::nullopt) {}
-  explicit MulDepthState(int mulDepth) : mulDepth(mulDepth) {}
-  ~MulDepthState() = default;
+  MulResultState() : isMulResult(std::nullopt) {}
+  explicit MulResultState(bool isMulResult) : isMulResult(isMulResult) {}
+  ~MulResultState() = default;
 
-  int getMulDepth() const {
+  bool getIsMulResult() const {
     assert(isInitialized());
-    return mulDepth.value();
+    return isMulResult.value();
   }
 
-  bool operator==(const MulDepthState &rhs) const {
-    return mulDepth == rhs.mulDepth;
+  bool operator==(const MulResultState &rhs) const {
+    return isMulResult == rhs.isMulResult;
   }
 
-  bool isInitialized() const { return mulDepth.has_value(); }
+  bool isInitialized() const { return isMulResult.has_value(); }
 
-  static MulDepthState join(const MulDepthState &lhs,
-                            const MulDepthState &rhs) {
+  static MulResultState join(const MulResultState &lhs,
+                             const MulResultState &rhs) {
     if (!lhs.isInitialized()) return rhs;
     if (!rhs.isInitialized()) return lhs;
 
-    return MulDepthState{std::max(lhs.getMulDepth(), rhs.getMulDepth())};
+    return MulResultState{lhs.getIsMulResult() || rhs.getIsMulResult()};
   }
 
   void print(llvm::raw_ostream &os) const {
     if (isInitialized()) {
-      os << "MulDepthState(" << mulDepth.value() << ")";
+      os << "MulResultState(" << isMulResult.value() << ")";
     } else {
-      os << "MulDepthState(uninitialized)";
+      os << "MulResultState(uninitialized)";
     }
   }
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const MulDepthState &state) {
+                                       const MulResultState &state) {
     state.print(os);
     return os;
   }
 
  private:
-  std::optional<int> mulDepth;
+  std::optional<bool> isMulResult;
 };
 
-class MulDepthLattice : public dataflow::Lattice<MulDepthState> {
+class MulResultLattice : public dataflow::Lattice<MulResultState> {
  public:
   using Lattice::Lattice;
 };
 
-class MulDepthAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<MulDepthLattice>,
-      public SecretnessAnalysisDependent<MulDepthAnalysis> {
+class MulResultAnalysis
+    : public dataflow::SparseForwardDataFlowAnalysis<MulResultLattice>,
+      public SecretnessAnalysisDependent<MulResultAnalysis> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
-  friend class SecretnessAnalysisDependent<MulDepthAnalysis>;
+  friend class SecretnessAnalysisDependent<MulResultAnalysis>;
 
-  void setToEntryState(MulDepthLattice *lattice) override {
-    propagateIfChanged(lattice, lattice->join(MulDepthState()));
+  void setToEntryState(MulResultLattice *lattice) override {
+    propagateIfChanged(lattice, lattice->join(MulResultState()));
   }
 
   LogicalResult visitOperation(Operation *op,
-                               ArrayRef<const MulDepthLattice *> operands,
-                               ArrayRef<MulDepthLattice *> results) override;
+                               ArrayRef<const MulResultLattice *> operands,
+                               ArrayRef<MulResultLattice *> results) override;
 
   void visitExternalCall(CallOpInterface call,
-                         ArrayRef<const MulDepthLattice *> argumentLattices,
-                         ArrayRef<MulDepthLattice *> resultLattices) override;
+                         ArrayRef<const MulResultLattice *> argumentLattices,
+                         ArrayRef<MulResultLattice *> resultLattices) override;
 
   void propagateIfChangedWrapper(AnalysisState *state, ChangeResult changed) {
     propagateIfChanged(state, changed);

@@ -1,9 +1,8 @@
-#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
+#include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
 
 #include <functional>
 
 #include "lib/Analysis/Utils.h"
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -11,16 +10,17 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
 
-LogicalResult MulDepthAnalysis::visitOperation(
-    Operation *op, ArrayRef<const MulDepthLattice *> operands,
-    ArrayRef<MulDepthLattice *> results) {
-  auto propagate = [&](Value value, const MulDepthState &state) {
+LogicalResult MulResultAnalysis::visitOperation(
+    Operation *op, ArrayRef<const MulResultLattice *> operands,
+    ArrayRef<MulResultLattice *> results) {
+  auto propagate = [&](Value value, const MulResultState &state) {
     auto *lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
@@ -31,7 +31,7 @@ LogicalResult MulDepthAnalysis::visitOperation(
         Block *body = genericOp.getBody();
         for (auto i = 0; i != body->getNumArguments(); ++i) {
           auto blockArg = body->getArgument(i);
-          propagate(blockArg, MulDepthState(0));
+          propagate(blockArg, MulResultState(false));
         }
       })
       .Default([&](auto &op) {
@@ -42,10 +42,10 @@ LogicalResult MulDepthAnalysis::visitOperation(
           return;
         }
 
-        auto isMul = false;
+        auto isMulResult = false;
 
-        if (isa<arith::MulIOp, arith::MulFOp, mgmt::AdjustScaleOp>(op)) {
-          isMul = true;
+        if (isa<arith::MulIOp, arith::MulFOp>(op)) {
+          isMulResult = true;
         }
 
         // NOTE: special case for ExtractOp... it is a mulconst+rotate
@@ -55,38 +55,34 @@ LogicalResult MulDepthAnalysis::visitOperation(
         if (auto extractOp = dyn_cast<tensor::ExtractOp>(op)) {
           if (!extractOp->getAttr("slot_extract")) {
             // must be true
-            isMul = true;
+            isMulResult = true;
           }
         }
 
         // inherit mul result from secret operands
         SmallVector<OpOperand *> secretOperands;
         getSecretOperands(&op, secretOperands);
-        int operandsMulDepth = 0;
         for (auto *operand : secretOperands) {
           auto &mulResultState = getLatticeElement(operand->get())->getValue();
           if (!mulResultState.isInitialized()) {
             return;
           }
-          operandsMulDepth =
-              std::max(operandsMulDepth, mulResultState.getMulDepth());
+          isMulResult = isMulResult || mulResultState.getIsMulResult();
         }
 
-        auto resultMulDepth = operandsMulDepth + (isMul ? 1 : 0);
-
         for (auto result : secretResults) {
-          propagate(result, MulDepthState(resultMulDepth));
+          propagate(result, MulResultState(isMulResult));
         }
       });
   return success();
 }
 
-void MulDepthAnalysis::visitExternalCall(
-    CallOpInterface call, ArrayRef<const MulDepthLattice *> argumentLattices,
-    ArrayRef<MulDepthLattice *> resultLattices) {
-  auto callback = std::bind(&MulDepthAnalysis::propagateIfChangedWrapper, this,
+void MulResultAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const MulResultLattice *> argumentLattices,
+    ArrayRef<MulResultLattice *> resultLattices) {
+  auto callback = std::bind(&MulResultAnalysis::propagateIfChangedWrapper, this,
                             std::placeholders::_1, std::placeholders::_2);
-  ::mlir::heir::visitExternalCall<MulDepthState, MulDepthLattice>(
+  ::mlir::heir::visitExternalCall<MulResultState, MulResultLattice>(
       call, argumentLattices, resultLattices, callback);
 }
 
