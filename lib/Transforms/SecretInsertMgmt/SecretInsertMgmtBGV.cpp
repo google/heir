@@ -1,7 +1,7 @@
 #include <utility>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
-#include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/Mgmt/Transforms/Passes.h"
@@ -46,7 +46,7 @@ struct SecretInsertMgmtBGV
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
     solver.load<SecretnessAnalysis>();
-    solver.load<MulResultAnalysis>();
+    solver.load<MulDepthAnalysis>();
     solver.load<LevelAnalysis>();
 
     if (failed(solver.initializeAndRun(getOperation()))) {
