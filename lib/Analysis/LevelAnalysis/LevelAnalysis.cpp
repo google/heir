@@ -157,22 +157,10 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
 }
 
 LevelState::LevelType getLevelFromMgmtAttr(Value value) {
-  Attribute attr;
-  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-    auto *parentOp = blockArg.getOwner()->getParentOp();
-    auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
-    if (genericOp) {
-      attr = genericOp.getOperandAttr(blockArg.getArgNumber(),
-                                      mgmt::MgmtDialect::kArgMgmtAttrName);
-    }
-  } else {
-    auto *parentOp = value.getDefiningOp();
-    attr = parentOp->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-  }
-  if (!mlir::isa<mgmt::MgmtAttr>(attr)) {
+  auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(value);
+  if (!mgmtAttr) {
     assert(false && "MgmtAttr not found");
   }
-  auto mgmtAttr = mlir::cast<mgmt::MgmtAttr>(attr);
   return mgmtAttr.getLevel();
 }
 

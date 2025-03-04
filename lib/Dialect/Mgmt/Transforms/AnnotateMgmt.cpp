@@ -11,6 +11,7 @@
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
@@ -86,6 +87,53 @@ void annotateMgmtAttr(Operation *top) {
   populateOperandAttrInterface(top, MgmtDialect::kArgMgmtAttrName);
 }
 
+void copyMgmtAttrToPlaintextOperand(Operation *top) {
+  top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
+    auto funcOp = genericOp->getParentOfType<func::FuncOp>();
+    OpBuilder b = OpBuilder::atBlockBegin(&funcOp.getBody().front());
+
+    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
+      if (mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp, arith::MulFOp,
+                    arith::AddFOp, arith::SubFOp>(op)) {
+        MgmtAttr mgmtAttr;
+        int plaintextOperandIndex = -1;
+        // find the plaintext operand and get mgmt attr from the other operand
+        for (auto i = 0; i != op->getNumOperands(); ++i) {
+          auto attr = getMgmtAttrFromValue(op->getOperand(i));
+          if (!attr) {
+            plaintextOperandIndex = i;
+          } else {
+            mgmtAttr = attr;
+          }
+        }
+        if (plaintextOperandIndex == -1) {
+          return;
+        }
+
+        assert(mgmtAttr &&
+               "ct-pt op should have at least one ciphertext operand");
+        auto plaintextOperand = op->getOperand(plaintextOperandIndex);
+        auto arithConstantOp = mlir::dyn_cast_or_null<arith::ConstantOp>(
+            plaintextOperand.getDefiningOp());
+        if (!arithConstantOp) {
+          op->emitWarning()
+              << "plaintext operand is not defined by arith.constant, could "
+                 "not annotate mgmt attr.";
+          return;
+        }
+        // create a new arith.constant with mgmt attr
+        // this is because an arith.constant op can be used in multiple places
+        // and we don't want to change the original one
+        auto newArithConstantOp = b.create<arith::ConstantOp>(
+            arithConstantOp.getLoc(), arithConstantOp.getType(),
+            arithConstantOp.getValue());
+        newArithConstantOp->setAttr(MgmtDialect::kArgMgmtAttrName, mgmtAttr);
+        op->setOperand(plaintextOperandIndex, newArithConstantOp.getResult());
+      }
+    });
+  });
+}
+
 struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
   using AnnotateMgmtBase::AnnotateMgmtBase;
 
@@ -108,6 +156,8 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
     // combine level and dimension into MgmtAttr
     // also removes the level/dimension annotations
     annotateMgmtAttr(getOperation());
+    // annotate the plaintext operand of ct-pt operations
+    copyMgmtAttrToPlaintextOperand(getOperation());
   }
 };
 
