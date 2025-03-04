@@ -3,7 +3,7 @@
 #include <algorithm>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
-#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
+#include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -111,19 +111,19 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     if (!levelState.isInitialized()) {
       return failure();
     }
-    auto mulDepthState =
-        solver->lookupState<MulDepthLattice>(operand->get())->getValue();
-    if (!mulDepthState.isInitialized()) {
+    auto isMulResultState =
+        solver->lookupState<MulResultLattice>(operand->get())->getValue();
+    if (!isMulResultState.isInitialized()) {
       return failure();
     }
 
     auto level = levelState.getLevel();
     maxLevel = std::max(maxLevel, level);
-    isMulResult |= (mulDepthState.getMulDepth() > 0);
+    isMulResult |= isMulResultState.getIsMulResult();
 
     LLVM_DEBUG(llvm::dbgs() << "  ModReduceBefore: Operand: " << operand->get()
-                            << " Level: " << level << " MulDepth: "
-                            << mulDepthState.getMulDepth() << "\n");
+                            << " Level: " << level << " isMulresult "
+                            << isMulResultState.getIsMulResult() << "\n");
   }
 
   // first mulOp in the chain, skip
