@@ -14,6 +14,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Dialect/TfheRust/IR/TfheRustTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -330,16 +331,45 @@ class SecretGenericOpCipherPlainConversion
       return failure();
     }
     Value cleartext = cleartextValues[0];
+    auto noOp =
+        dyn_cast_or_null<mgmt::NoOp>(cleartextValues[0].getDefiningOp());
+    if (!noOp) {
+      return failure();
+    }
+    Value realCleartext = noOp.getInput();
+    auto cleartextMgmtAttr = noOp->template getAttrOfType<mgmt::MgmtAttr>(
+        mgmt::MgmtDialect::kArgMgmtAttrName);
+    if (!cleartextMgmtAttr) {
+      return failure();
+    }
     lwe::NewLWECiphertextType ciphertextTy = ciphertext.getType();
+    Attribute ciphertextEncoding =
+        ciphertextTy.getPlaintextSpace().getEncoding();
+    Attribute plaintextEncoding =
+        llvm::TypeSwitch<Attribute, Attribute>(ciphertextEncoding)
+            .template Case<lwe::FullCRTPackingEncodingAttr>([&](auto attr) {
+              return lwe::FullCRTPackingEncodingAttr::get(
+                  op.getContext(), cleartextMgmtAttr.getScale());
+            })
+            .Default([&](Attribute) {
+              op.emitError("unsupported encoding for ciphertext");
+              return nullptr;
+            });
+    if (!plaintextEncoding) {
+      return failure();
+    }
+
+    // TODO: inherit level/dimension from no-op mgmt attr
     auto plaintextTy = lwe::NewLWEPlaintextType::get(
         op.getContext(), ciphertextTy.getApplicationData(),
-        ciphertextTy.getPlaintextSpace());
+        lwe::PlaintextSpaceAttr::get(op.getContext(),
+                                     ciphertextTy.getPlaintextSpace().getRing(),
+                                     plaintextEncoding));
     auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
-        op.getLoc(), plaintextTy, cleartext,
-        ciphertextTy.getPlaintextSpace().getEncoding(),
+        op.getLoc(), plaintextTy, realCleartext, plaintextEncoding,
         ciphertextTy.getPlaintextSpace().getRing());
 
-    rewriter.replaceOpWithNewOp<Y>(op, ciphertext, plaintext)
+    rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], ciphertext, plaintext)
         ->setDialectAttrs(attributes);
     return success();
   }

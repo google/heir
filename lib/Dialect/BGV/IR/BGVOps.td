@@ -21,12 +21,13 @@ class BGV_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
-    [Pure, AllTypesMatch<["ciphertextInput", "output"]>,
-    TypesMatchWith<"type of 'plaintextInput' matches encoding type of 'ciphertextInput'",
-                    "ciphertextInput", "plaintextInput",
-                    "lwe::NewLWEPlaintextType::get($_ctxt, "
-                      "::llvm::cast<lwe::NewLWECiphertextType>($_self).getApplicationData(),"
-                      "::llvm::cast<lwe::NewLWECiphertextType>($_self).getPlaintextSpace())">]> :
+    [Pure//AllTypesMatch<["ciphertextInput", "output"]>
+    //TypesMatchWith<"type of 'plaintextInput' matches encoding type of 'ciphertextInput'",
+    //                "ciphertextInput", "plaintextInput",
+    //                "lwe::NewLWEPlaintextType::get($_ctxt, "
+    //                  "::llvm::cast<lwe::NewLWECiphertextType>($_self).getApplicationData(),"
+    //                  "::llvm::cast<lwe::NewLWECiphertextType>($_self).getPlaintextSpace())">
+                      ]> :
         BGV_Op<mnemonic, traits> {
   let arguments = (ins
     NewLWECiphertext:$ciphertextInput,
