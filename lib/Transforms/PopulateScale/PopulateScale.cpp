@@ -17,6 +17,7 @@
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
+#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "PopulateScale"
 
@@ -41,11 +42,6 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
 
   void populateScaleForAdjustScaleOp(
       std::function<int64_t(Value)> lookupScale) {
-    auto getI64Attr = [&](int64_t value) -> IntegerAttr {
-      return IntegerAttr::get(
-          IntegerType::get(getOperation()->getContext(), 64), value);
-    };
-
     auto arithOpGetOperandScale = [&](Operation *arithOp) {
       int64_t arithScale = 0;
       for (auto operand : arithOp->getOperands()) {
@@ -102,7 +98,7 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
         auto level = mgmtAttr.getLevel();
         scale = qi[level] * scale % t;
       }
-      op->setAttr("scale", getI64Attr(scale));
+      op.setScale(scale);
 
       // compute the constant needed to adjust the scale for mul constant
       auto input = op->getOperand(0);
@@ -115,22 +111,44 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
                                                   llvm::APInt(64, t))
               .getSExtValue();
       auto deltaScale = (scale * inputScaleInverse) % t;
-      op->setAttr("delta_scale", getI64Attr(deltaScale));
+      op->setAttr(
+          "delta_scale",
+          IntegerAttr::get(IntegerType::get(op->getContext(), 64), deltaScale));
     });
   }
 
-  void lowerAdjustScaleOpToMulPlain() {
-    getOperation()->walk([&](mgmt::AdjustScaleOp op) {
-      auto funcOp = op->getParentOfType<func::FuncOp>();
-      OpBuilder b = OpBuilder::atBlockBegin(&funcOp.getBody().front());
-      auto deltaScale = op->getAttrOfType<IntegerAttr>("delta_scale").getInt();
-      auto scale = op->getAttrOfType<IntegerAttr>("scale").getInt();
+  struct ConvertAdjustScaleToMulPlain
+      : public OpRewritePattern<mgmt::AdjustScaleOp> {
+    using OpRewritePattern<mgmt::AdjustScaleOp>::OpRewritePattern;
+
+    ConvertAdjustScaleToMulPlain(MLIRContext *context, int64_t plaintextModulus)
+        : OpRewritePattern<mgmt::AdjustScaleOp>(context, /*benefit=*/1),
+          plaintextModulus(plaintextModulus) {}
+
+    LogicalResult matchAndRewrite(mgmt::AdjustScaleOp op,
+                                  PatternRewriter &rewriter) const override {
+      auto inputScale = mgmt::getMgmtAttrFromValue(op.getInput()).getScale();
+      auto scale = op.getScale();
+      // no need to adjust scale
+      if (scale == inputScale) {
+        rewriter.replaceAllOpUsesWith(op, op->getOperand(0));
+        return success();
+      }
+
+      auto inputScaleInverse =
+          heir::polynomial::multiplicativeInverse(
+              llvm::APInt(64, inputScale), llvm::APInt(64, plaintextModulus))
+              .getSExtValue();
+      auto deltaScale = (scale * inputScaleInverse) % plaintextModulus;
+
+      // lower to (input * all_ones)
+
       auto mgmtAttr = op->getAttrOfType<mgmt::MgmtAttr>(
           mgmt::MgmtDialect::kArgMgmtAttrName);
 
       auto inputType = op.getInput().getType();
 
-      APInt one(getElementTypeOrSelf(inputType).getIntOrFloatBitWidth(), 1);
+      APInt one(getElementTypeOrSelf(inputType).getIntOrFloatBitWidth(), 0);
       TypedAttr constantAttr;
       if (auto inputTensorType = dyn_cast<RankedTensorType>(inputType)) {
         constantAttr = DenseElementsAttr::get(inputTensorType, one);
@@ -138,26 +156,35 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
         constantAttr = IntegerAttr::get(inputType, one);
       }
 
-      auto allOnes = b.create<mlir::arith::ConstantOp>(op.getLoc(), inputType,
-                                                       constantAttr);
+      // create arith.constant at the beginning of the function
+      auto funcOp = op->getParentOfType<func::FuncOp>();
+      rewriter.setInsertionPointToStart(&funcOp.getBody().front());
+      auto allOnes = rewriter.create<mlir::arith::ConstantOp>(
+          op.getLoc(), inputType, constantAttr);
       auto allOnesMgmtAttr =
           mgmt::MgmtAttr::get(op->getContext(), mgmtAttr.getLevel(),
                               mgmtAttr.getDimension(), deltaScale);
       allOnes->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
 
-      b.setInsertionPoint(op);
-      auto mulOp = b.create<arith::MulIOp>(op.getLoc(), inputType,
-                                           op.getInput(), allOnes.getResult());
+      rewriter.setInsertionPoint(op);
+      // drop 0 level, means no-op
+      // this is for preventing mul 1 being constant folded
+      auto noOp = rewriter.create<mgmt::LevelReduceOp>(op.getLoc(), inputType,
+                                                       allOnes.getResult(), 0);
+      noOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
+      auto mulOp = rewriter.create<arith::MulIOp>(
+          op.getLoc(), inputType, op.getInput(), noOp.getOutput());
       auto mulOpMgmtAttr =
           mgmt::MgmtAttr::get(op->getContext(), mgmtAttr.getLevel(),
                               mgmtAttr.getDimension(), scale);
       mulOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, mulOpMgmtAttr);
-      for (auto &use : op->getUses()) {
-        use.set(mulOp.getResult());
-      }
-      op->erase();
-    });
-  }
+      rewriter.replaceAllOpUsesWith(op, mulOp.getResult());
+      return success();
+    }
+
+   private:
+    int64_t plaintextModulus;
+  };
 
   void runOnOperation() override {
     auto bgvSchemeParamAttr = mlir::dyn_cast<bgv::SchemeParamAttr>(
@@ -258,7 +285,8 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
         if (mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp>(op)) {
           int64_t scale = -1;
           int plaintextOperandIndex = -1;
-          // find the plaintext operand and get mgmt attr from the other operand
+          // find the plaintext operand and get mgmt attr from the other
+          // operand
           for (auto i = 0; i != op->getNumOperands(); ++i) {
             auto operandScale = lookupScale(op->getOperand(i));
             if (operandScale == -1) {
@@ -321,7 +349,10 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       });
     });
 
-    lowerAdjustScaleOpToMulPlain();
+    // convert adjust scale to mul plain
+    RewritePatternSet patterns(&getContext());
+    patterns.add<ConvertAdjustScaleToMulPlain>(&getContext(), t);
+    walkAndApplyPatterns(getOperation(), std::move(patterns));
   }
 };
 
