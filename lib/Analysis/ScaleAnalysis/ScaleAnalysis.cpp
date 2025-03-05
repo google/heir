@@ -107,25 +107,37 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
           propagate(blockArg, ScaleState(inputScale));
         }
       })
-      // TODO: handle tensor.extract for CKKS
-      .template Case<arith::MulIOp, arith::MulFOp>([&](auto mulOp) {
-        SmallVector<int64_t> scales;
-        getOperandScales(mulOp, scales);
-        // there must be at least one secret operand that has scale
-        if (scales.empty()) {
-          return;
-        }
-        auto scaleLhs = scales[0];
-        auto scaleRhs = scaleLhs;
-        // default to the same scale for both operand
-        if (scales.size() > 1) {
-          scaleRhs = scales[1];
-        }
-        // propagate scale to result
-        auto result = ScaleModelT::evalMulScale(
-            getLocalParam(mulOp.getResult()), scaleLhs, scaleRhs);
-        propagate(mulOp.getResult(), ScaleState(result));
-      })
+      .template Case<arith::MulIOp, arith::MulFOp, tensor::ExtractOp>(
+          [&](auto mulOp) {
+            SmallVector<int64_t> scales;
+            getOperandScales(mulOp, scales);
+            // there must be at least one secret operand that has scale
+            if (scales.empty()) {
+              return;
+            }
+            auto scaleLhs = scales[0];
+            auto scaleRhs = scaleLhs;
+            // default to the same scale for both operand
+            if (scales.size() > 1) {
+              scaleRhs = scales[1];
+            }
+
+            // NOTE: special case for ExtractOp... it is a mulconst+rotate
+            // if not annotated with slot_extract
+            // TODO(#1174): decide packing earlier in the pipeline instead of
+            // annotation
+            if (auto extractOp = dyn_cast<tensor::ExtractOp>(op)) {
+              if (extractOp->getAttr("slot_extract")) {
+                propagate(mulOp.getResult(), ScaleState(scaleLhs));
+                return;
+              }
+            }
+
+            // propagate scale to result
+            auto result = ScaleModelT::evalMulScale(
+                getLocalParam(mulOp.getResult()), scaleLhs, scaleRhs);
+            propagate(mulOp.getResult(), ScaleState(result));
+          })
       .template Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         SmallVector<int64_t> scales;
         getOperandScales(modReduceOp, scales);
