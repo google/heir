@@ -89,8 +89,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     LLVM_DEBUG({
       llvm::dbgs() << "Noise Bound: " << boundString
                    << " Budget: " << budgetString << " Total: " << totalString
-                   << " for value: " << value << " "
-                   << "\n";
+                   << " for value: " << value << " " << "\n";
     });
 
     if (annotateNoiseBound) {
