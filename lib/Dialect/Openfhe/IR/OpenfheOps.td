@@ -253,7 +253,14 @@ def SquareOp : Openfhe_UnaryOp<"square"> { let summary = "OpenFHE square operati
 def RelinOp : Openfhe_UnaryTypeSwitchOp<"relin"> { let summary = "OpenFHE relinearize operation of a ciphertext."; }
 
 def ModReduceOp : Openfhe_UnaryTypeSwitchOp<"mod_reduce"> { let summary = "OpenFHE mod_reduce operation of a ciphertext. (used only for BGV/CKKS)"; }
-def LevelReduceOp : Openfhe_UnaryTypeSwitchOp<"level_reduce"> { let summary = "OpenFHE level_reduce operation of a ciphertext."; }
+def LevelReduceOp : Openfhe_UnaryTypeSwitchOp<"level_reduce"> {
+  let summary = "OpenFHE level_reduce operation of a ciphertext.";
+  let arguments = (ins
+    Openfhe_CryptoContext:$cryptoContext,
+    NewLWECiphertext:$ciphertext,
+    DefaultValuedAttr<I64Attr, "1">:$levelToDrop
+  );
+}
 
 def RotOp : Openfhe_Op<"rot",[
   Pure,

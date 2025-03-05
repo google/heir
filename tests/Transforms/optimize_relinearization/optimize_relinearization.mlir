@@ -169,6 +169,8 @@ func.func @repeated_mul(%arg0: tensor<8xi16>) -> tensor<8xi16> {
 // CHECK-LABEL: func.func @smoke_test
 // CHECK-NEXT: arith.constant
 // CHECK-NEXT: arith.constant
+// CHECK-NEXT: mgmt.no_op
+// CHECK-NEXT: mgmt.no_op
 // CHECK-NEXT: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
