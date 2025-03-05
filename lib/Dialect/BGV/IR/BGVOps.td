@@ -224,6 +224,7 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
     NewLWECiphertext:$output
   );
 
+  // TODO: verify scaling factor change
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
