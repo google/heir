@@ -10,8 +10,6 @@ namespace bgv {
 // Op verifiers
 //===----------------------------------------------------------------------===//
 
-// TODO: verify scaling factor for add/mul
-
 LogicalResult MulOp::verify() { return lwe::verifyMulOp(this); }
 
 LogicalResult RotateColumnsOp::verify() { return lwe::verifyRotateOp(this); }

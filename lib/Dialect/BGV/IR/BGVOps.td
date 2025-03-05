@@ -13,22 +13,15 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
 
 class BGV_Op<string mnemonic, list<Trait> traits = []> :
-        Op<BGV_Dialect, mnemonic, traits> {
+        Op<BGV_Dialect, mnemonic, traits # [Pure]> {
   let cppNamespace = "::mlir::heir::bgv";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)
   }];
 }
 
-class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
-    [Pure//AllTypesMatch<["ciphertextInput", "output"]>
-    //TypesMatchWith<"type of 'plaintextInput' matches encoding type of 'ciphertextInput'",
-    //                "ciphertextInput", "plaintextInput",
-    //                "lwe::NewLWEPlaintextType::get($_ctxt, "
-    //                  "::llvm::cast<lwe::NewLWECiphertextType>($_self).getApplicationData(),"
-    //                  "::llvm::cast<lwe::NewLWECiphertextType>($_self).getPlaintextSpace())">
-                      ]> :
-        BGV_Op<mnemonic, traits> {
+class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
+      : BGV_Op<mnemonic, traits> {
   let arguments = (ins
     NewLWECiphertext:$ciphertextInput,
     NewLWEPlaintext:$plaintextInput
@@ -39,7 +32,8 @@ class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
   );
 }
 
-def BGV_AddOp : BGV_Op<"add", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def BGV_AddOp : BGV_Op<"add", [Commutative,
+    SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
@@ -52,11 +46,13 @@ def BGV_AddOp : BGV_Op<"add", [Pure, Commutative, SameOperandsAndResultRings, In
   );
 }
 
-def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain"> {
+def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain", [AllTypesMatch<["ciphertextInput", "output"]>,
+        SameOperandsAndResultPlaintextTypes]> {
   let summary = "Addition operation between ciphertext-plaintext.";
 }
 
-def BGV_SubOp : BGV_Op<"sub", [Pure, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def BGV_SubOp : BGV_Op<"sub", [SameOperandsAndResultRings,
+    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
@@ -69,11 +65,12 @@ def BGV_SubOp : BGV_Op<"sub", [Pure, SameOperandsAndResultRings, InferTypeOpAdap
   );
 }
 
-def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain"> {
+def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain", [AllTypesMatch<["ciphertextInput", "output"]>,
+        SameOperandsAndResultPlaintextTypes]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
-def BGV_MulOp : BGV_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
@@ -90,9 +87,10 @@ def BGV_MulOp : BGV_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, In
 
 def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain"> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
+  // TODO: verifier
 }
 
-def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [Pure, AllTypesMatch<["input", "output"]>]> {
+def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the columns of the coefficients of the ciphertext using a Galois automorphism.";
 
   let description = [{
@@ -118,7 +116,7 @@ def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [Pure, AllTypesMatch<["input", "
   let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
 }
 
-def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [Pure, AllTypesMatch<["input", "output"]>]> {
+def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the rows of the coefficients of the ciphertext using a Galois automorphism.";
 
   let description = [{
@@ -144,7 +142,7 @@ def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [Pure, AllTypesMatch<["input", "out
   let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
 }
 
-def BGV_ExtractOp : BGV_Op<"extract", [Pure, SameOperandsAndResultRings]> {
+def BGV_ExtractOp : BGV_Op<"extract", [SameOperandsAndResultRings]> {
   let summary = "Extract the i-th element of a ciphertext.";
 
   let description = [{
@@ -172,7 +170,7 @@ def BGV_ExtractOp : BGV_Op<"extract", [Pure, SameOperandsAndResultRings]> {
   let hasVerifier = 1;
 }
 
-def BGV_NegateOp : BGV_Op<"negate", [Pure, Involution, SameOperandsAndResultType]> {
+def BGV_NegateOp : BGV_Op<"negate", [Involution, SameOperandsAndResultType]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
@@ -229,7 +227,7 @@ def BGV_ModulusSwitchOp : BGV_Op<"modulus_switch"> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def BGV_LevelReduceOp : BGV_Op<"level_reduce"> {
+def BGV_LevelReduceOp : BGV_Op<"level_reduce", [SameOperandsAndResultPlaintextTypes]> {
   let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
 
   let arguments = (ins
