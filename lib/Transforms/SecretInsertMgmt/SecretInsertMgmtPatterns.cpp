@@ -325,17 +325,25 @@ template struct MatchCrossMulResult<arith::SubIOp>;
 
 // for B/FV
 template struct RemoveOp<mgmt::ModReduceOp>;
+template struct RemoveOp<mgmt::LevelReduceOp>;
+template struct RemoveOp<mgmt::AdjustScaleOp>;
 
 // for CKKS
 template struct MultRelinearize<arith::MulFOp>;
 
-//// isMul = true
+template struct ModReduceAfterMult<arith::MulFOp>;
+
 template struct ModReduceBefore<arith::MulFOp>;
-//// isMul = false
-// template struct ModReduceBefore<arith::AddFOp>;
-// template struct ModReduceBefore<arith::SubFOp>;
 
 template struct BootstrapWaterLine<mgmt::ModReduceOp>;
+
+template struct MatchCrossLevel<arith::MulFOp>;
+template struct MatchCrossLevel<arith::AddFOp>;
+template struct MatchCrossLevel<arith::SubFOp>;
+
+template struct MatchCrossMulResult<arith::MulFOp>;
+template struct MatchCrossMulResult<arith::AddFOp>;
+template struct MatchCrossMulResult<arith::SubFOp>;
 
 }  // namespace heir
 }  // namespace mlir
