@@ -106,9 +106,45 @@ LogicalResult CountAnalysis::visitOperation(
       .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         // implicitly ensure that the operand is secret
 
+        // should not propagate through mgmt::ModReduceOp, reset
         propagate(modReduceOp.getResult(), CountState(0, 0));
-      });
-  // should not propagate through mgmt::ModReduceOp
+      })
+      .Default(
+          [&](auto &op) {
+            if (!mlir::isa<arith::ExtSIOp, arith::ExtUIOp, arith::ExtFOp>(op)) {
+              op.emitError()
+                  << "Unsupported operation for count analysis encountered: "
+                  << op;
+            }
+
+            // condition on result secretness
+            SmallVector<OpResult> secretResults;
+            getSecretResults(&op, secretResults);
+            if (secretResults.empty()) {
+              return;
+            }
+
+            SmallVector<OpOperand *> secretOperands;
+            getSecretOperands(&op, secretOperands);
+            if (secretOperands.empty()) {
+              return;
+            }
+
+            // inherit count from the first secret operand
+            CountState first;
+            for (auto *operand : secretOperands) {
+              auto &countState = getLatticeElement(operand->get())->getValue();
+              if (!countState.isInitialized()) {
+                return;
+              }
+              first = countState;
+              break;
+            }
+
+            for (auto result : secretResults) {
+              propagate(result, first);
+            }
+          });
   return success();
 }
 
