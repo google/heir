@@ -85,9 +85,9 @@ def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTyp
   let hasVerifier = 1;
 }
 
-def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain"> {
+def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
-  // TODO: verifier
+  let hasVerifier = 1;
 }
 
 def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [AllTypesMatch<["input", "output"]>]> {
@@ -184,7 +184,8 @@ def BGV_NegateOp : BGV_Op<"negate", [Involution, SameOperandsAndResultType]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def BGV_RelinearizeOp : BGV_Op<"relinearize", [SameOperandsAndResultRings,
+    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Relinearize the ciphertext.";
 
   let description = [{

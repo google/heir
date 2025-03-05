@@ -19,6 +19,8 @@ namespace ckks {
 
 LogicalResult MulOp::verify() { return lwe::verifyMulOp(this); }
 
+LogicalResult MulPlainOp::verify() { return lwe::verifyMulPlainOp(this); }
+
 LogicalResult RotateOp::verify() { return lwe::verifyRotateOp(this); }
 
 LogicalResult RelinearizeOp::verify() { return lwe::verifyRelinearizeOp(this); }
@@ -49,6 +51,12 @@ LogicalResult MulOp::inferReturnTypes(
     MLIRContext *ctx, std::optional<Location>, MulOp::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {
   return lwe::inferMulOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult MulPlainOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, MulPlainOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  return lwe::inferMulPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
 LogicalResult RelinearizeOp::inferReturnTypes(
