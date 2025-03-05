@@ -2,6 +2,7 @@
 
 #include <functional>
 
+#include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
@@ -28,11 +29,46 @@ llvm::APInt multiplicativeInverse(const llvm::APInt &x,
 namespace mlir {
 namespace heir {
 
-LogicalResult ScaleAnalysis::visitOperation(
+int64_t BGVScaleModel::evalMulScale(const bgv::LocalParam &param, int64_t lhs,
+                                    int64_t rhs) {
+  const auto *schemeParam = param.getSchemeParam();
+  auto t = schemeParam->getPlaintextModulus();
+  return lhs * rhs % t;
+}
+
+int64_t BGVScaleModel::evalModReduceScale(const bgv::LocalParam &inputParam,
+                                          int64_t scale) {
+  const auto *schemeParam = inputParam.getSchemeParam();
+  auto t = schemeParam->getPlaintextModulus();
+  auto qi = schemeParam->getQi();
+  auto level = inputParam.getCurrentLevel();
+  auto qInvT = ::mlir::heir::polynomial::multiplicativeInverse(
+      APInt(64, qi[level] % t), APInt(64, t));
+  return scale * qInvT.getSExtValue() % t;
+}
+
+int64_t CKKSScaleModel::evalMulScale(const ckks::LocalParam &param, int64_t lhs,
+                                     int64_t rhs) {
+  return lhs + rhs;
+}
+
+int64_t CKKSScaleModel::evalModReduceScale(const ckks::LocalParam &inputParam,
+                                           int64_t scale) {
+  const auto *schemeParam = inputParam.getSchemeParam();
+  auto logqi = schemeParam->getLogqi();
+  auto level = inputParam.getCurrentLevel();
+  return scale - logqi[level];
+}
+
+template <typename ScaleModelT>
+LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
     Operation *op, ArrayRef<const ScaleLattice *> operands,
     ArrayRef<ScaleLattice *> results) {
-  auto t = schemeParam.getPlaintextModulus();
-  auto qi = schemeParam.getQi();
+  auto getLocalParam = [&](Value value) {
+    auto level = getLevelFromMgmtAttr(value);
+    auto dimension = getDimensionFromMgmtAttr(value);
+    return LocalParamType(&schemeParam, level, dimension);
+  };
 
   auto propagate = [&](Value value, const ScaleState &state) {
     auto *lattice = getLatticeElement(value);
@@ -69,7 +105,7 @@ LogicalResult ScaleAnalysis::visitOperation(
           propagate(blockArg, ScaleState(inputScale));
         }
       })
-      .Case<arith::MulIOp>([&](auto mulOp) {
+      .template Case<arith::MulIOp>([&](auto mulOp) {
         SmallVector<int64_t> scales;
         getOperandScales(mulOp, scales);
         // there must be at least one secret operand that has scale
@@ -83,10 +119,11 @@ LogicalResult ScaleAnalysis::visitOperation(
           scaleRhs = scales[1];
         }
         // propagate scale to result
-        auto result = scaleLhs * scaleRhs % t;
+        auto result = ScaleModelT::evalMulScale(
+            getLocalParam(mulOp.getResult()), scaleLhs, scaleRhs);
         propagate(mulOp.getResult(), ScaleState(result));
       })
-      .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
+      .template Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         SmallVector<int64_t> scales;
         getOperandScales(modReduceOp, scales);
         // there must be at least one secret operand that has scale
@@ -96,17 +133,13 @@ LogicalResult ScaleAnalysis::visitOperation(
 
         // propagate scale to result
         auto scale = scales[0];
-        // get level of the operand. MgmtAttr is attached to the result.
-        auto level = getLevelFromMgmtAttr(modReduceOp) + 1;
-
-        auto qInvT = ::mlir::heir::polynomial::multiplicativeInverse(
-            APInt(64, qi[level] % t), APInt(64, t));
-
-        auto newScale = scale * qInvT.getSExtValue() % t;
+        // get level of the operand.
+        auto newScale = ScaleModelT::evalModReduceScale(
+            getLocalParam(modReduceOp.getInput()), scale);
 
         propagate(modReduceOp.getResult(), ScaleState(newScale));
       })
-      .Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {
+      .template Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {
         // if adjust scale op is not initialized, just do not propagate
         int64_t scale = adjustScaleOp.getScale();
         if (scale < 0) {
@@ -118,7 +151,7 @@ LogicalResult ScaleAnalysis::visitOperation(
       .Default([&](auto &op) {
         // condition on result secretness
         SmallVector<OpResult> secretResults;
-        getSecretResults(&op, secretResults);
+        this->getSecretResults(&op, secretResults);
         if (secretResults.empty()) {
           return;
         }
@@ -137,7 +170,8 @@ LogicalResult ScaleAnalysis::visitOperation(
   return success();
 }
 
-void ScaleAnalysis::visitExternalCall(
+template <typename ScaleModelT>
+void ScaleAnalysis<ScaleModelT>::visitExternalCall(
     CallOpInterface call, ArrayRef<const ScaleLattice *> argumentLattices,
     ArrayRef<ScaleLattice *> resultLattices) {
   auto callback = std::bind(&ScaleAnalysis::propagateIfChangedWrapper, this,
@@ -145,6 +179,10 @@ void ScaleAnalysis::visitExternalCall(
   ::mlir::heir::visitExternalCall<ScaleState, ScaleLattice>(
       call, argumentLattices, resultLattices, callback);
 }
+
+// instantiation
+template class ScaleAnalysis<BGVScaleModel>;
+template class ScaleAnalysis<CKKSScaleModel>;
 
 }  // namespace heir
 }  // namespace mlir

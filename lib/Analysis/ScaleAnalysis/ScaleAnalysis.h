@@ -6,6 +6,7 @@
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Parameters/BGV/Params.h"
+#include "lib/Parameters/CKKS/Params.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -65,14 +66,36 @@ class ScaleLattice : public dataflow::Lattice<ScaleState> {
   using Lattice::Lattice;
 };
 
+struct BGVScaleModel {
+  using SchemeParam = bgv::SchemeParam;
+  using LocalParam = bgv::LocalParam;
+
+  static int64_t evalMulScale(const LocalParam &param, int64_t lhs,
+                              int64_t rhs);
+  static int64_t evalModReduceScale(const LocalParam &inputParam,
+                                    int64_t scale);
+};
+
+struct CKKSScaleModel {
+  using SchemeParam = ckks::SchemeParam;
+  using LocalParam = ckks::LocalParam;
+
+  static int64_t evalMulScale(const LocalParam &param, int64_t lhs,
+                              int64_t rhs);
+  static int64_t evalModReduceScale(const LocalParam &inputParam,
+                                    int64_t scale);
+};
+
+template <typename ScaleModelT>
 class ScaleAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<ScaleLattice>,
-      public SecretnessAnalysisDependent<ScaleAnalysis> {
+      public SecretnessAnalysisDependent<ScaleAnalysis<ScaleModelT>> {
  public:
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
-  friend class SecretnessAnalysisDependent<ScaleAnalysis>;
+  friend class SecretnessAnalysisDependent<ScaleAnalysis<ScaleModelT>>;
 
-  using SchemeParamType = typename bgv::SchemeParam;
+  using SchemeParamType = typename ScaleModelT::SchemeParam;
+  using LocalParamType = typename ScaleModelT::LocalParam;
 
   ScaleAnalysis(DataFlowSolver &solver, const SchemeParamType &schemeParam,
                 int64_t inputScale)
