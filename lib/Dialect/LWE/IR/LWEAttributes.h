@@ -9,4 +9,16 @@
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/LWE/IR/LWEAttributes.h.inc"
 
+namespace mlir {
+namespace heir {
+namespace lwe {
+
+PlaintextSpaceAttr inferMulOpPlaintextSpaceAttr(MLIRContext *ctx,
+                                                PlaintextSpaceAttr x,
+                                                PlaintextSpaceAttr y);
+
+}  // namespace lwe
+}  // namespace heir
+}  // namespace mlir
+
 #endif  // LIB_DIALECT_LWE_IR_LWEATTRIBUTES_H_

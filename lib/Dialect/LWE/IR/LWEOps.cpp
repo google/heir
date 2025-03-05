@@ -8,95 +8,11 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
-LogicalResult RMulOp::verify() {
-  auto x = getLhs().getType();
-  auto y = getRhs().getType();
-  if (x.getCiphertextSpace().getSize() != y.getCiphertextSpace().getSize()) {
-    return emitOpError() << "input dimensions do not match";
-  }
-  auto out = getOutput().getType();
-  if (out.getCiphertextSpace().getSize() !=
-      y.getCiphertextSpace().getSize() + x.getCiphertextSpace().getSize() - 1) {
-    return emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
-  }
-  return success();
-}
+//===----------------------------------------------------------------------===//
+// Op verifiers
+//===----------------------------------------------------------------------===//
 
-LogicalResult RAddOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, RAddOp::Adaptor adaptor,
-    SmallVectorImpl<Type>& inferredReturnTypes) {
-  // NOT using FHEHelpers.h here because cyclic dependency
-  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
-  auto newDim = std::max(x.getCiphertextSpace().getSize(),
-                         y.getCiphertextSpace().getSize());
-  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
-      ctx, x.getApplicationData(), x.getPlaintextSpace(),
-      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
-                                    x.getCiphertextSpace().getEncryptionType(),
-                                    newDim),
-      x.getKey(), x.getModulusChain()));
-  return success();
-}
-
-LogicalResult RSubOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, RSubOp::Adaptor adaptor,
-    SmallVectorImpl<Type>& inferredReturnTypes) {
-  // NOT using FHEHelpers.h here because cyclic dependency
-  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
-  auto newDim = std::max(x.getCiphertextSpace().getSize(),
-                         y.getCiphertextSpace().getSize());
-  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
-      ctx, x.getApplicationData(), x.getPlaintextSpace(),
-      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
-                                    x.getCiphertextSpace().getEncryptionType(),
-                                    newDim),
-      x.getKey(), x.getModulusChain()));
-  return success();
-}
-
-LogicalResult RMulOp::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
-    SmallVectorImpl<Type>& inferredReturnTypes) {
-  // NOT using FHEHelpers.h here because cyclic dependency
-  auto x = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
-  auto y = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
-  auto newDim =
-      x.getCiphertextSpace().getSize() + y.getCiphertextSpace().getSize() - 1;
-  auto xPlaintextSpace = x.getPlaintextSpace();
-  auto yPlaintextSpace = y.getPlaintextSpace();
-  int64_t plaintextModulus = cast<mod_arith::ModArithType>(
-                                 xPlaintextSpace.getRing().getCoefficientType())
-                                 .getModulus()
-                                 .getValue()
-                                 .getSExtValue();
-  int64_t xScale = 0;
-  int64_t yScale = 0;
-  llvm::TypeSwitch<Attribute>(xPlaintextSpace.getEncoding())
-      .Case<lwe::FullCRTPackingEncodingAttr>([&](auto attr) {
-        xScale = attr.getScalingFactor();
-        yScale = mlir::cast<lwe::FullCRTPackingEncodingAttr>(
-                     yPlaintextSpace.getEncoding())
-                     .getScalingFactor();
-      });
-  auto newScale = (xScale * yScale) % plaintextModulus;
-  lwe::PlaintextSpaceAttr newPlaintextSpaceAttr;
-  llvm::TypeSwitch<Attribute>(xPlaintextSpace.getEncoding())
-      .Case<lwe::FullCRTPackingEncodingAttr>([&](auto attr) {
-        newPlaintextSpaceAttr = lwe::PlaintextSpaceAttr::get(
-            ctx, xPlaintextSpace.getRing(),
-            lwe::FullCRTPackingEncodingAttr::get(ctx, newScale));
-      });
-
-  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
-      ctx, x.getApplicationData(), newPlaintextSpaceAttr,
-      lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
-                                    x.getCiphertextSpace().getEncryptionType(),
-                                    newDim),
-      x.getKey(), x.getModulusChain()));
-  return success();
-}
+LogicalResult RMulOp::verify() { return lwe::verifyMulOp(this); }
 
 LogicalResult TrivialEncryptOp::verify() {
   auto paramsAttr = this->getParamsAttr();
@@ -198,6 +114,28 @@ LogicalResult RLWEEncodeOp::verify() {
 
 LogicalResult RLWEDecodeOp::verify() {
   return verifyEncodingAndTypeMatch(getResult().getType(), getEncoding());
+}
+
+//===----------------------------------------------------------------------===//
+// Op type inference.
+//===----------------------------------------------------------------------===//
+
+LogicalResult RAddOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RAddOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult RSubOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RSubOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult RMulOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferMulOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
 }  // namespace lwe

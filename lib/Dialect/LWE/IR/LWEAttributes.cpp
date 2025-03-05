@@ -1,10 +1,65 @@
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace lwe {
+
+int64_t getScalingFactorFromEncodingAttr(Attribute encoding) {
+  return llvm::TypeSwitch<Attribute, int64_t>(encoding)
+      .Case<FullCRTPackingEncodingAttr>(
+          [](auto attr) { return attr.getScalingFactor(); })
+      .Case<InverseCanonicalEncodingAttr>(
+          [](auto attr) { return attr.getScalingFactor(); })
+      .Default([](Attribute) { return 0; });
+}
+
+int64_t inferMulOpScalingFactor(Attribute xEncoding, Attribute yEncoding,
+                                int64_t plaintextModulus) {
+  int64_t xScale = getScalingFactorFromEncodingAttr(xEncoding);
+  int64_t yScale = getScalingFactorFromEncodingAttr(yEncoding);
+  return llvm::TypeSwitch<Attribute, int64_t>(xEncoding)
+      .Case<FullCRTPackingEncodingAttr>(
+          // TODO: use int128_t in case of large ptm
+          [&](auto attr) { return (xScale * yScale) % plaintextModulus; })
+      .Case<InverseCanonicalEncodingAttr>(
+          [&](auto attr) { return xScale + yScale; })
+      .Default([](Attribute) { return 0; });
+}
+
+Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
+                                              int64_t newScale) {
+  return llvm::TypeSwitch<Attribute, Attribute>(encoding)
+      .Case<FullCRTPackingEncodingAttr>([&](auto attr) {
+        return FullCRTPackingEncodingAttr::get(encoding.getContext(), newScale);
+      })
+      .Case<InverseCanonicalEncodingAttr>([&](auto attr) {
+        return InverseCanonicalEncodingAttr::get(encoding.getContext(),
+                                                 newScale);
+      })
+      .Default([](Attribute) { return nullptr; });
+}
+
+PlaintextSpaceAttr inferMulOpPlaintextSpaceAttr(MLIRContext* ctx,
+                                                PlaintextSpaceAttr x,
+                                                PlaintextSpaceAttr y) {
+  auto xRing = x.getRing();
+  auto xEncoding = x.getEncoding();
+  auto yEncoding = y.getEncoding();
+
+  int64_t plaintextModulus = 0;
+  if (auto modArithType =
+          llvm::dyn_cast<mod_arith::ModArithType>(xRing.getCoefficientType())) {
+    plaintextModulus = modArithType.getModulus().getValue().getSExtValue();
+  }
+
+  auto newScale =
+      inferMulOpScalingFactor(xEncoding, yEncoding, plaintextModulus);
+  return PlaintextSpaceAttr::get(
+      ctx, xRing, getEncodingAttrWithNewScalingFactor(xEncoding, newScale));
+}
 
 LogicalResult BitFieldEncodingAttr::verifyEncoding(
     ArrayRef<int64_t> shape, Type elementType,
