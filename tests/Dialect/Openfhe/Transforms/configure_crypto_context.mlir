@@ -36,7 +36,7 @@ func.func @simple_sum(%arg0: !openfhe.crypto_context, %arg1: !ct_L1_) -> !ct_L0_
   %10 = openfhe.make_packed_plaintext %arg0, %cst : (!openfhe.crypto_context, tensor<32xi64>) -> !pt
   %11 = openfhe.mul_plain %arg0, %9, %10 : (!openfhe.crypto_context, !ct_L1_, !pt) -> !ct_L1_
   %12 = openfhe.rot %arg0, %11 {index = 31 : index} : (!openfhe.crypto_context, !ct_L1_) -> !ct_L1_
-  %13 = lwe.reinterpret_underlying_type %12 : !ct_L1_ to !ct_L1_1
+  %13 = lwe.reinterpret_application_data %12 : !ct_L1_ to !ct_L1_1
   %14 = openfhe.mod_reduce %arg0, %13 : (!openfhe.crypto_context, !ct_L1_1) -> !ct_L0_
   return %14 : !ct_L0_
 }

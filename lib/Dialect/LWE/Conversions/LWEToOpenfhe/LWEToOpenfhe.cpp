@@ -332,7 +332,7 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
     target.addIllegalDialect<ckks::CKKSDialect>();
     target.addIllegalDialect<lwe::LWEDialect>();
     // We can keep the following ops, which the emitter can handle directly
-    target.addLegalOp<lwe::ReinterpretUnderlyingTypeOp, lwe::RLWEDecodeOp>();
+    target.addLegalOp<lwe::ReinterpretApplicationDataOp, lwe::RLWEDecodeOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);

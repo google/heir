@@ -27,7 +27,7 @@ func.func @test_lower_extract(%arg0: !ty1) -> !ty2 {
   // CHECK: openfhe.make_packed_plaintext
   // CHECK: openfhe.mul_plain
   // CHECK: openfhe.rot
-  // CHECK: lwe.reinterpret_underlying_type
+  // CHECK: lwe.reinterpret_application_data
   // CHECK: return
   %c4 = arith.constant 4 : index
   %0 = bgv.extract %arg0, %c4 : (!ty1, index) -> !ty2

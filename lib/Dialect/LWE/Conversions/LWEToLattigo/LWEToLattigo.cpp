@@ -387,7 +387,7 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
     auto decodeOp = rewriter.create<LattigoDecodeOp>(
         op.getLoc(), outputTensorType, evaluator, adaptor.getInput(), alloc);
 
-    // TODO(#1174): the sin of lwe.reinterpret_underlying_type
+    // TODO(#1174): the sin of lwe.reinterpret_application_data
     if (isScalar) {
       SmallVector<Value, 1> indices;
       auto index = rewriter.create<arith::ConstantOp>(op.getLoc(),
@@ -403,12 +403,12 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
   }
 };
 
-struct ConvertLWEReinterpretUnderlyingType
-    : public OpConversionPattern<lwe::ReinterpretUnderlyingTypeOp> {
+struct ConvertLWEReinterpretApplicationData
+    : public OpConversionPattern<lwe::ReinterpretApplicationDataOp> {
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      lwe::ReinterpretUnderlyingTypeOp op, OpAdaptor adaptor,
+      lwe::ReinterpretApplicationDataOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     // erase reinterpret underlying
     rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
@@ -553,7 +553,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
-                      lwe::ReinterpretUnderlyingTypeOp>();
+                      lwe::ReinterpretApplicationDataOp>();
 
     RewritePatternSet patterns(context);
     addStructuralConversionPatterns(typeConverter, patterns, target);
@@ -694,7 +694,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                                                              context);
     }
     // Misc
-    patterns.add<ConvertLWEReinterpretUnderlyingType>(typeConverter, context);
+    patterns.add<ConvertLWEReinterpretApplicationData>(typeConverter, context);
 
     if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
       return signalPassFailure();

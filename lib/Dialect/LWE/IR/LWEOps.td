@@ -264,12 +264,13 @@ def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [
   let results = (outs NewLWEPlaintext:$output);
 }
 
-def ReinterpretUnderlyingTypeOp : LWE_Op<"reinterpret_underlying_type", []> {
+def ReinterpretApplicationDataOp : LWE_Op<"reinterpret_application_data", []> {
   let summary = "A placeholder cast from one ciphertext type to another";
   let description = [{
-    The `cast` op is thus used to translate `underlying_type` between
-    ciphertexts in particular situations , such as when lowering to an API that
-    does not keep track of types for you.
+    The `cast` op is thus used to translate application data (e.g., `message_type`)
+    between ciphertexts in particular situations, such as when the bitwidth of the
+    message type changes, but this change is not observed in the plaintext space,
+    or when lowering to an API that does not keep track of types.
   }];
 
   let arguments = (ins NewLWECiphertext:$input);

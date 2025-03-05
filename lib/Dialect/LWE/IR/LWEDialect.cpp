@@ -180,7 +180,7 @@ LogicalResult TrivialEncryptOp::verify() {
   return success();
 }
 
-LogicalResult ReinterpretUnderlyingTypeOp::verify() {
+LogicalResult ReinterpretApplicationDataOp::verify() {
   auto inputType = getInput().getType();
   auto outputType = getOutput().getType();
   if (inputType.getPlaintextSpace() != outputType.getPlaintextSpace() ||
