@@ -7882,13 +7882,14 @@ applied.&lt;/p>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="lwereinterpret_underlying_type-heirlwereinterpretunderlyingtypeop">&lt;code>lwe.reinterpret_underlying_type&lt;/code> (heir::lwe::ReinterpretUnderlyingTypeOp)&lt;/h3>
+&lt;h3 id="lwereinterpret_application_data-heirlwereinterpretapplicationdataop">&lt;code>lwe.reinterpret_application_data&lt;/code> (heir::lwe::ReinterpretApplicationDataOp)&lt;/h3>
 &lt;p>&lt;em>A placeholder cast from one ciphertext type to another&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.reinterpret_underlying_type` $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
-&lt;/code>&lt;/pre>&lt;p>The &lt;code>cast&lt;/code> op is thus used to translate &lt;code>underlying_type&lt;/code> between
-ciphertexts in particular situations , such as when lowering to an API that
-does not keep track of types for you.&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.reinterpret_application_data` $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
+&lt;/code>&lt;/pre>&lt;p>The &lt;code>cast&lt;/code> op is thus used to translate application data (e.g., &lt;code>message_type&lt;/code>)
+between ciphertexts in particular situations, such as when the bitwidth of the
+message type changes, but this change is not observed in the plaintext space,
+or when lowering to an API that does not keep track of types.&lt;/p>
 &lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
