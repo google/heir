@@ -75,8 +75,10 @@ void annotateMgmtAttr(Operation *top) {
 
 void copyMgmtAttrToPlaintextOperand(Operation *top) {
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
+    // insert before the generic op
     auto funcOp = genericOp->getParentOfType<func::FuncOp>();
     OpBuilder b = OpBuilder::atBlockBegin(&funcOp.getBody().front());
+    b.setInsertionPoint(genericOp);
 
     genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
       if (mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp, arith::MulFOp,
