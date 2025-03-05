@@ -7,8 +7,8 @@ include "mlir/IR/PatternBase.td"
 
 // mod reduce should be put after adjust scale
 def ModReduceAfterAdjustScale : Pat<
-  (Mgmt_AdjustScaleOp:$adjustScaleOp (Mgmt_ModReduceOp:$modReduceOp $input), $scale, $scaleFloat),
-  (Mgmt_ModReduceOp (Mgmt_AdjustScaleOp $input, $scale, $scaleFloat)),
+  (Mgmt_AdjustScaleOp:$adjustScaleOp (Mgmt_ModReduceOp:$modReduceOp $input), $scale),
+  (Mgmt_ModReduceOp (Mgmt_AdjustScaleOp $input, $scale)),
   [(HasOneUse:$adjustScaleOp), (HasOneUse:$modReduceOp)]
 >;
 
@@ -21,8 +21,8 @@ def ModReduceAfterLevelReduce : Pat<
 
 // adjust scale should be put after level reduce
 def AdjustScaleAfterLevelReduce : Pat<
-  (Mgmt_LevelReduceOp:$levelReduceOp (Mgmt_AdjustScaleOp:$adjustScaleOp $input, $scale, $scaleFloat), $levelToDrop),
-  (Mgmt_AdjustScaleOp (Mgmt_LevelReduceOp $input, $levelToDrop), $scale, $scaleFloat),
+  (Mgmt_LevelReduceOp:$levelReduceOp (Mgmt_AdjustScaleOp:$adjustScaleOp $input, $scale), $levelToDrop),
+  (Mgmt_AdjustScaleOp (Mgmt_LevelReduceOp $input, $levelToDrop), $scale),
   [(HasOneUse:$levelReduceOp), (HasOneUse:$adjustScaleOp)]
 >;
 

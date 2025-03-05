@@ -188,8 +188,7 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
       // make a different adjust scale each time
       // only after parameter selection can we decide the actual scale
       managed = rewriter.create<mgmt::AdjustScaleOp>(
-          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--),
-          rewriter.getF64FloatAttr(0.0));
+          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--));
       managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
       // NOTE that only at most one operand/Value will experience such
       // replacement. For op with two operands with same Value, such replace
@@ -216,7 +215,6 @@ LogicalResult MatchCrossMulResult<Op>::matchAndRewrite(
     return success();
   }
 
-  auto maxMulDepth = 0;
   SmallVector<OpOperand *, 2> secretOperands;
   getSecretOperands(op, secretOperands, solver);
   if (secretOperands.size() < 2) {
@@ -250,8 +248,7 @@ LogicalResult MatchCrossMulResult<Op>::matchAndRewrite(
       // make a different adjust scale each time
       // only after parameter selection can we decide the actual scale
       managed = rewriter.create<mgmt::AdjustScaleOp>(
-          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--),
-          rewriter.getF64FloatAttr(0.0));
+          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--));
       op->replaceUsesOfWith(operand->get(), managed);
     }
   }
