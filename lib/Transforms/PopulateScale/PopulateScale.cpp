@@ -190,7 +190,7 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
     // set input scale to 1
     // NOTE that this is important for the input level for both
     // before-mul,include-mul-first={true,false} style mgmt
-    solver.load<ScaleAnalysis>(
+    solver.load<ScaleAnalysis<BGVScaleModel>>(
         bgv::SchemeParam::getSchemeParamFromAttr(bgvSchemeParamAttr),
         /*inputScale*/ 1);
 
