@@ -92,7 +92,7 @@ class LWE_EncodingAttrWithScalingParam<string attrName, string attrMnemonic, lis
   let assemblyFormat = "`<` struct(params) `>`";
 
   let parameters = (ins
-    "unsigned":$scaling_factor
+    "int64_t":$scaling_factor
   );
 }
 

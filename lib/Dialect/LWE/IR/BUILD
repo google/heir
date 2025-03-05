@@ -9,7 +9,10 @@ package(
 cc_library(
     name = "Dialect",
     srcs = [
+        "LWEAttributes.cpp",
         "LWEDialect.cpp",
+        "LWEOps.cpp",
+        "LWETypes.cpp",
     ],
     hdrs = [
         "LWEAttributes.h",

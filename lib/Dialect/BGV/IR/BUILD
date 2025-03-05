@@ -12,6 +12,7 @@ cc_library(
     name = "Dialect",
     srcs = [
         "BGVDialect.cpp",
+        "BGVOps.cpp",
     ],
     hdrs = [
         "BGVAttributes.h",
@@ -22,7 +23,6 @@ cc_library(
         ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
-        "@heir//lib/Dialect:FHEHelpers",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",

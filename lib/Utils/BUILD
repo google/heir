@@ -27,6 +27,19 @@ cc_library(
 )
 
 cc_library(
+    name = "AttributeUtils",
+    srcs = ["AttributeUtils.cpp"],
+    hdrs = ["AttributeUtils.h"],
+    deps = [
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "ConversionUtils",
     srcs = ["ConversionUtils.cpp"],
     hdrs = ["ConversionUtils.h"],
