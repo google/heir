@@ -261,7 +261,6 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       return typeConverter.isFuncArgumentAndResultLegal(op);
     });
-    target.addLegalOp<arith::ConstantOp>();
 
     patterns.add<
         ConvertFuncWithContextAwareTypeConverter,
