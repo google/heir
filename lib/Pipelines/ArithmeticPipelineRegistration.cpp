@@ -144,7 +144,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
     }
     case RLWEScheme::ckksScheme: {
       auto secretInsertMgmtCKKSOptions = SecretInsertMgmtCKKSOptions{};
-      secretInsertMgmtCKKSOptions.includeFirstMul =
+      secretInsertMgmtCKKSOptions.beforeMulIncludeFirstMul =
           options.modulusSwitchBeforeFirstMul;
       secretInsertMgmtCKKSOptions.slotNumber = options.ciphertextDegree;
       pm.addPass(createSecretInsertMgmtCKKS(secretInsertMgmtCKKSOptions));
