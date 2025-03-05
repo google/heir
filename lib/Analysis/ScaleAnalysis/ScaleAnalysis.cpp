@@ -55,9 +55,11 @@ int64_t CKKSScaleModel::evalMulScale(const ckks::LocalParam &param, int64_t lhs,
 int64_t CKKSScaleModel::evalModReduceScale(const ckks::LocalParam &inputParam,
                                            int64_t scale) {
   const auto *schemeParam = inputParam.getSchemeParam();
-  auto logqi = schemeParam->getLogqi();
-  auto level = inputParam.getCurrentLevel();
-  return scale - logqi[level];
+  // TODO: rescale using logqi instead of logDefaultScale
+  // auto logqi = schemeParam->getLogqi();
+  // auto level = inputParam.getCurrentLevel();
+  auto logDefaultScale = schemeParam->getLogDefaultScale();
+  return scale - logDefaultScale;
 }
 
 template <typename ScaleModelT>
@@ -105,7 +107,8 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
           propagate(blockArg, ScaleState(inputScale));
         }
       })
-      .template Case<arith::MulIOp>([&](auto mulOp) {
+      // TODO: handle tensor.extract for CKKS
+      .template Case<arith::MulIOp, arith::MulFOp>([&](auto mulOp) {
         SmallVector<int64_t> scales;
         getOperandScales(mulOp, scales);
         // there must be at least one secret operand that has scale

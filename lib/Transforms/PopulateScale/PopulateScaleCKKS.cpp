@@ -1,11 +1,10 @@
-#include "lib/Transforms/PopulateScale/PopulateScale.h"
-
 #include "lib/Analysis/ScaleAnalysis/ScaleAnalysis.h"
-#include "lib/Dialect/BGV/IR/BGVAttributes.h"
-#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
@@ -21,24 +20,15 @@
 
 #define DEBUG_TYPE "PopulateScale"
 
-namespace mlir::heir::polynomial {
-llvm::APInt multiplicativeInverse(const llvm::APInt &x,
-                                  const llvm::APInt &modulo);
-}  // namespace mlir::heir::polynomial
-
 namespace mlir {
 namespace heir {
 
-#define GEN_PASS_DEF_POPULATESCALE
+#define GEN_PASS_DEF_POPULATESCALECKKS
 #include "lib/Transforms/PopulateScale/PopulateScale.h.inc"
 
-struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
-  using PopulateScaleBase::PopulateScaleBase;
-
-  // ciphetext modulus of each level
-  std::vector<int64_t> qi;
-  // plaintext modulus
-  int64_t t;
+struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
+  using PopulateScaleCKKSBase::PopulateScaleCKKSBase;
+  int64_t logDefaultScale;
 
   void populateScaleForAdjustScaleOp(
       std::function<int64_t(Value)> lookupScale) {
@@ -85,9 +75,9 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       } else {
         arithOp = nextOp;
       }
-      if (!mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp>(arithOp)) {
+      if (!mlir::isa<arith::MulFOp, arith::AddFOp, arith::SubFOp>(arithOp)) {
         getOperation()->emitError(
-            "AdjustScaleOp does not have MulIOp, AddIOp, or SubIOp as its "
+            "AdjustScaleOp does not have MulFOp, AddFOp, or SubFOp as its "
             "(subsequent) use");
       }
 
@@ -95,8 +85,7 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
 
       int64_t scale = arithScale;
       if (nextIsModReduceOp) {
-        auto level = mgmtAttr.getLevel();
-        scale = qi[level] * scale % t;
+        scale = logDefaultScale + scale;
       }
       op.setScale(scale);
     });
@@ -106,25 +95,23 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       : public OpRewritePattern<mgmt::AdjustScaleOp> {
     using OpRewritePattern<mgmt::AdjustScaleOp>::OpRewritePattern;
 
-    ConvertAdjustScaleToMulPlain(MLIRContext *context, int64_t plaintextModulus)
-        : OpRewritePattern<mgmt::AdjustScaleOp>(context, /*benefit=*/1),
-          plaintextModulus(plaintextModulus) {}
+    ConvertAdjustScaleToMulPlain(MLIRContext *context)
+        : OpRewritePattern<mgmt::AdjustScaleOp>(context, /*benefit=*/1) {}
 
     LogicalResult matchAndRewrite(mgmt::AdjustScaleOp op,
                                   PatternRewriter &rewriter) const override {
       auto inputScale = mgmt::getMgmtAttrFromValue(op.getInput()).getScale();
-      auto scale = op.getScale();
+      int64_t scale = op.getScale();
       // no need to adjust scale
       if (scale == inputScale) {
         rewriter.replaceAllOpUsesWith(op, op->getOperand(0));
         return success();
       }
 
-      auto inputScaleInverse =
-          heir::polynomial::multiplicativeInverse(
-              llvm::APInt(64, inputScale), llvm::APInt(64, plaintextModulus))
-              .getSExtValue();
-      auto deltaScale = (scale * inputScaleInverse) % plaintextModulus;
+      auto deltaScale = scale - inputScale;
+      if (deltaScale < 0) {
+        op.emitError() << "delta scale is negative";
+      }
 
       // lower to (input * all_ones)
 
@@ -132,13 +119,28 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
           mgmt::MgmtDialect::kArgMgmtAttrName);
 
       auto inputType = op.getInput().getType();
+      auto inputElementType = getElementTypeOrSelf(inputType);
+      if (!inputElementType.isIntOrFloat()) {
+        return op.emitOpError() << "Unsupported type for lowering";
+      }
 
-      APInt one(getElementTypeOrSelf(inputType).getIntOrFloatBitWidth(), 1);
+      llvm::APFloatBase::Semantics floatEnum;
+      if (inputElementType.isF64()) {
+        floatEnum = llvm::APFloatBase::S_IEEEdouble;
+      } else if (inputElementType.isF32()) {
+        floatEnum = llvm::APFloatBase::S_IEEEsingle;
+      } else if (inputElementType.isF16()) {
+        floatEnum = llvm::APFloatBase::S_IEEEhalf;
+      } else {
+        return op.emitOpError()
+               << "Unsupported floating point type for lowering";
+      }
+      APFloat one(llvm::APFloatBase::EnumToSemantics(floatEnum), "1.0");
       TypedAttr constantAttr;
       if (auto inputTensorType = dyn_cast<RankedTensorType>(inputType)) {
         constantAttr = DenseElementsAttr::get(inputTensorType, one);
       } else {
-        constantAttr = IntegerAttr::get(inputType, one);
+        constantAttr = FloatAttr::get(inputType, one);
       }
 
       // create arith.constant at the beginning of the function
@@ -157,7 +159,7 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       auto noOp = rewriter.create<mgmt::NoOp>(op.getLoc(), inputType,
                                               allOnes.getResult());
       noOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName, allOnesMgmtAttr);
-      auto mulOp = rewriter.create<arith::MulIOp>(
+      auto mulOp = rewriter.create<arith::MulFOp>(
           op.getLoc(), inputType, op.getInput(), noOp.getOutput());
       auto mulOpMgmtAttr =
           mgmt::MgmtAttr::get(op->getContext(), mgmtAttr.getLevel(),
@@ -166,33 +168,27 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
       rewriter.replaceAllOpUsesWith(op, mulOp.getResult());
       return success();
     }
-
-   private:
-    int64_t plaintextModulus;
   };
 
   void runOnOperation() override {
-    auto bgvSchemeParamAttr = mlir::dyn_cast<bgv::SchemeParamAttr>(
-        getOperation()->getAttr(bgv::BGVDialect::kSchemeParamAttrName));
-    auto Q = bgvSchemeParamAttr.getQ();
-    qi.reserve(Q.size());
-    for (int i = 0; i < Q.size(); i++) {
-      qi.push_back(Q[i]);
-    }
-
-    t = bgvSchemeParamAttr.getPlaintextModulus();
+    auto ckksSchemeParamAttr = mlir::dyn_cast<ckks::SchemeParamAttr>(
+        getOperation()->getAttr(ckks::CKKSDialect::kSchemeParamAttrName));
+    logDefaultScale = ckksSchemeParamAttr.getLogDefaultScale();
 
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
     // ScaleAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
-    // set input scale to 1
-    // NOTE that this is important for the input level for both
-    // before-mul,include-mul-first={true,false} style mgmt
-    solver.load<ScaleAnalysis<BGVScaleModel>>(
-        bgv::SchemeParam::getSchemeParamFromAttr(bgvSchemeParamAttr),
-        /*inputScale*/ 1);
+    // set input scale to logDefaultScale
+    auto inputScale = logDefaultScale;
+    if (beforeMulIncludeFirstMul) {
+      // encode at double degree
+      inputScale *= 2;
+    }
+    solver.load<ScaleAnalysis<CKKSScaleModel>>(
+        ckks::SchemeParam::getSchemeParamFromAttr(ckksSchemeParamAttr),
+        /*inputScale*/ inputScale);
 
     // the first analysis partially populates the scales
     if (failed(solver.initializeAndRun(getOperation()))) {
@@ -243,9 +239,6 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
 
     // annotate scale
     getOperation()->walk([&](secret::GenericOp genericOp) {
-      auto funcOp = genericOp->getParentOfType<func::FuncOp>();
-      OpBuilder b = OpBuilder::atBlockBegin(&funcOp.getBody().front());
-
       Block *body = genericOp.getBody();
       for (auto i = 0; i != body->getNumArguments(); ++i) {
         auto blockArg = body->getArgument(i);
@@ -287,8 +280,6 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
             auto plaintextOperand = op->getOperand(plaintextOperandIndex);
             auto noOp = mlir::dyn_cast_or_null<mgmt::NoOp>(
                 plaintextOperand.getDefiningOp());
-            auto arithConstantOp = mlir::dyn_cast_or_null<arith::ConstantOp>(
-                plaintextOperand.getDefiningOp());
             if (noOp) {
               auto mgmtAttr = noOp->getAttrOfType<mgmt::MgmtAttr>(
                   mgmt::MgmtDialect::kArgMgmtAttrName);
@@ -304,34 +295,10 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
                     solver.getOrCreateState<ScaleLattice>(noOp.getResult());
                 (void)lattice->join(ScaleState(scale));
               }
-            } else if (arithConstantOp) {
-              // create a new arith.constant with mgmt attr
-              // this is because an arith.constant op can be used in multiple
-              // places and we don't want to change the original one
-              auto newArithConstantOp = b.create<arith::ConstantOp>(
-                  arithConstantOp.getLoc(), arithConstantOp.getType(),
-                  arithConstantOp.getValue());
-              auto mgmtAttr = arithConstantOp->getAttrOfType<mgmt::MgmtAttr>(
-                  mgmt::MgmtDialect::kArgMgmtAttrName);
-              if (!mgmtAttr) {
-                op->emitError("ArithConstantOp does not have MgmtAttr");
-              } else {
-                auto newMgmtAttr = mgmt::MgmtAttr::get(
-                    arithConstantOp->getContext(), mgmtAttr.getLevel(),
-                    mgmtAttr.getDimension(), scale);
-                newArithConstantOp->setAttr(mgmt::MgmtDialect::kArgMgmtAttrName,
-                                            newMgmtAttr);
-                op->setOperand(plaintextOperandIndex,
-                               newArithConstantOp.getResult());
-                // set the lattice for later validation
-                auto *lattice = solver.getOrCreateState<ScaleLattice>(
-                    newArithConstantOp.getResult());
-                (void)lattice->join(ScaleState(scale));
-              }
             } else {
-              op->emitWarning() << "plaintext operand is not defined by "
-                                   "arith.constant or mgmt.no_op, could "
-                                   "not annotate scale in mgmt attr.";
+              op->emitWarning()
+                  << "plaintext operand is not defined by mgmt.no_op, could "
+                     "not annotate scale in mgmt attr.";
             }
           }
 
@@ -355,7 +322,7 @@ struct PopulateScale : impl::PopulateScaleBase<PopulateScale> {
 
     // convert adjust scale to mul plain
     RewritePatternSet patterns(&getContext());
-    patterns.add<ConvertAdjustScaleToMulPlain>(&getContext(), t);
+    patterns.add<ConvertAdjustScaleToMulPlain>(&getContext());
     walkAndApplyPatterns(getOperation(), std::move(patterns));
 
     // run canonicalizer and CSE to clean up arith.constant and move no-op out
