@@ -36,6 +36,9 @@ def MergeLevelReduce : Pat<
 
 def LevelOne : NativeCodeCall<"$_builder.getI64IntegerAttr(1)">;
 
+// Technically this transformation is not equivalent, as two mod reduce ops will
+// change the scaling factor twice. This assumes there is an AdjustScaleOp somewhere
+// in the line to correct the scaling factor.
 def MergeModReduce : Pat<
   (Mgmt_ModReduceOp:$modReduceOp2 (Mgmt_ModReduceOp:$modReduceOp1 $input)),
   (Mgmt_ModReduceOp (Mgmt_LevelReduceOp $input, (LevelOne))),
