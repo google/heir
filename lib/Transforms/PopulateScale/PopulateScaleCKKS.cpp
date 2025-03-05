@@ -260,7 +260,7 @@ struct PopulateScaleCKKS : impl::PopulateScaleCKKSBase<PopulateScaleCKKS> {
         updateMgmtAttr(op);
 
         // update the scale for ct-pt op
-        if (mlir::isa<arith::MulIOp, arith::AddIOp, arith::SubIOp>(op)) {
+        if (mlir::isa<arith::MulFOp, arith::AddFOp, arith::SubFOp>(op)) {
           int64_t scale = -1;
           int plaintextOperandIndex = -1;
           // find the plaintext operand and get mgmt attr from the other
