@@ -7,7 +7,10 @@ package(
 
 cc_library(
     name = "PopulateScale",
-    srcs = ["PopulateScale.cpp"],
+    srcs = [
+        "PopulateScaleBGV.cpp",
+        "PopulateScaleCKKS.cpp",
+    ],
     hdrs = ["PopulateScale.h"],
     deps = [
         ":pass_inc_gen",
