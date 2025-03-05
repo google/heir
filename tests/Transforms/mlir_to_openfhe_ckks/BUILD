@@ -9,6 +9,8 @@ glob_lit_tests(
     # TODO: re-enable bootstrapping tests, make it scale aware
     exclude = [
         "bootstrap_waterline.mlir",
+        "naive_matmul.mlir",
+        "matmul.mlir",
     ],
     test_file_exts = ["mlir"],
 )

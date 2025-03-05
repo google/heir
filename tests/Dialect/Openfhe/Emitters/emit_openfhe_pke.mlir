@@ -40,7 +40,7 @@
 // CHECK-NEXT:      const auto& [[v9:.*]] = [[CC]]->EvalMult([[v7]], [[const]]);
 // CHECK-NEXT:      const auto& [[v10:.*]] = [[CC]]->Relinearize([[v9]]);
 // CHECK-NEXT:      const auto& [[v11:.*]] = [[CC]]->ModReduce([[v10]]);
-// CHECK-NEXT:      const auto& [[v12:.*]] = [[CC]]->LevelReduce([[v11]]);
+// CHECK-NEXT:      const auto& [[v12:.*]] = [[CC]]->LevelReduce([[v11]], nullptr, 1);
 // CHECK-NEXT:      const auto& [[v13:.*]] = [[CC]]->EvalRotate([[v12]], 4);
 // CHECK-NEXT:      std::map<uint32_t, EvalKeyT> [[v14_evalkeymap:.*]] = {{[{][{]}}0, [[ARG4]]{{[}][}]}};
 // CHECK-NEXT:      const auto& [[v14:.*]] = [[CC]]->EvalAutomorphism([[v13]], 0, [[v14_evalkeymap]]);

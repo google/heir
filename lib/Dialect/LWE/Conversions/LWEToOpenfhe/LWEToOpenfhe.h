@@ -159,6 +159,28 @@ struct ConvertModulusSwitchOp : public OpConversionPattern<ModulusSwitchOp> {
   }
 };
 
+template <typename LevelReduceOp>
+struct ConvertLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
+  ConvertLevelReduceOp(mlir::MLIRContext *context)
+      : OpConversionPattern<LevelReduceOp>(context) {}
+
+  using OpConversionPattern<LevelReduceOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      LevelReduceOp op, typename LevelReduceOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result = getContextualCryptoContext(op.getOperation());
+    if (failed(result)) return result;
+
+    Value cryptoContext = result.value();
+    rewriter.replaceOp(op,
+                       rewriter.create<openfhe::LevelReduceOp>(
+                           op.getLoc(), op.getOutput().getType(), cryptoContext,
+                           adaptor.getInput(), op.getLevelToDrop()));
+    return success();
+  }
+};
+
 }  // namespace mlir::heir::lwe
 
 #endif  // LIB_DIALECT_LWE_CONVERSIONS_LWETOOPENFHE_LWETOOPENFHE_H_
