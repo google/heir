@@ -209,7 +209,8 @@ def SubPlainOp : Openfhe_Op<"sub_plain",[
   let results = (outs NewLWECiphertext:$output);
 }
 
-def MulOp : Openfhe_BinaryOp<"mul", [AllTypesMatch<["lhs", "rhs", "output"]>]> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
+// TODO: verifier on scale
+def MulOp : Openfhe_BinaryOp<"mul"> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
 
 def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, SameOperandsAndResultRings]> {
   let summary = "OpenFHE mul operation of two ciphertexts without relinearization.";
@@ -222,8 +223,7 @@ def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, SameOperandsAndResultRings]
 }
 
 def MulPlainOp : Openfhe_Op<"mul_plain",[
-    Pure,
-    AllTypesMatch<["ciphertext", "output"]>
+    Pure
 ]> {
   let summary = "OpenFHE mul operation of a ciphertext and a plaintext.";
   let arguments = (ins
@@ -232,6 +232,7 @@ def MulPlainOp : Openfhe_Op<"mul_plain",[
     NewLWEPlaintext:$plaintext
   );
   let results = (outs NewLWECiphertext:$output);
+  // TODO: verifier on scale
 }
 
 def MulConstOp : Openfhe_Op<"mul_const",[

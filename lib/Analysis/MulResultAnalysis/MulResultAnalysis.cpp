@@ -45,7 +45,8 @@ LogicalResult MulResultAnalysis::visitOperation(
 
         auto isMulResult = false;
 
-        if (isa<arith::MulIOp, arith::MulFOp, mgmt::AdjustScaleOp>(op)) {
+        if (isa<arith::MulIOp, arith::MulFOp, mgmt::AdjustScaleOp,
+                mgmt::BootstrapOp>(op)) {
           isMulResult = true;
         }
 
