@@ -188,6 +188,7 @@ def CKKS_RescaleOp : CKKS_Op<"rescale"> {
     NewLWECiphertext:$output
   );
 
+  // TODO: verify scaling factor change
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }

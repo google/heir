@@ -345,16 +345,9 @@ class SecretGenericOpCipherPlainConversion
     lwe::NewLWECiphertextType ciphertextTy = ciphertext.getType();
     Attribute ciphertextEncoding =
         ciphertextTy.getPlaintextSpace().getEncoding();
-    Attribute plaintextEncoding =
-        llvm::TypeSwitch<Attribute, Attribute>(ciphertextEncoding)
-            .template Case<lwe::FullCRTPackingEncodingAttr>([&](auto attr) {
-              return lwe::FullCRTPackingEncodingAttr::get(
-                  op.getContext(), cleartextMgmtAttr.getScale());
-            })
-            .Default([&](Attribute) {
-              op.emitError("unsupported encoding for ciphertext");
-              return nullptr;
-            });
+    Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
+        ciphertextEncoding, cleartextMgmtAttr.getScale());
+
     if (!plaintextEncoding) {
       return failure();
     }

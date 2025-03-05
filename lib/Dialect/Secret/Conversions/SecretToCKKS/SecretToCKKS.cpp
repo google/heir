@@ -130,6 +130,7 @@ class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
     auto *ctx = type.getContext();
     auto level = mgmtAttr.getLevel();
     auto dimension = mgmtAttr.getDimension();
+    auto scale = mgmtAttr.getScale();
 
     Type valueTy = type.getValueType();
 
@@ -146,14 +147,13 @@ class SecretToCKKSTypeConverter : public TypeWithAttrTypeConverter {
       moduliChain.push_back(modulus);
     }
 
-    // TODO(#785): Set a scaling parameter for floating point values.
     auto ciphertext = lwe::NewLWECiphertextType::get(
         ctx,
         lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
                                       lwe::NoOverflowAttr::get(ctx)),
         lwe::PlaintextSpaceAttr::get(
             ctx, plaintextRing,
-            lwe::InverseCanonicalEncodingAttr::get(ctx, 1 << 10)),
+            lwe::InverseCanonicalEncodingAttr::get(ctx, scale)),
         lwe::CiphertextSpaceAttr::get(ctx,
                                       getRlweRNSRingWithLevel(ring_, level),
                                       lwe::LweEncryptionType::lsb, dimension),
@@ -487,6 +487,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericTensorExtractConversion,
         SecretGenericTensorInsertConversion,
         SecretGenericOpRotateConversion<ckks::RotateOp>,
+        SecretGenericOpLevelReduceConversion<ckks::LevelReduceOp>,
         SecretGenericOpCipherPlainConversion<arith::AddFOp, ckks::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubFOp, ckks::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulFOp, ckks::MulPlainOp>,

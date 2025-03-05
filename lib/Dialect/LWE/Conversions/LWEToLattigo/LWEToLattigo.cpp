@@ -349,13 +349,7 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
         params);
 
     auto encoding = op.getEncoding();
-    int64_t scale = 1;
-    llvm::TypeSwitch<Attribute>(encoding)
-        .Case<lwe::FullCRTPackingEncodingAttr>(
-            [&](auto attr) { scale = attr.getScalingFactor(); })
-        .Default([&](Attribute) {
-          return op.emitOpError() << "Unsupported encoding type for encoding";
-        });
+    int64_t scale = lwe::getScalingFactorFromEncodingAttr(encoding);
 
     rewriter
         .replaceOpWithNewOp<LattigoEncodeOp>(
@@ -533,6 +527,10 @@ using ConvertCKKSDecodeOp =
     ConvertRlweDecodeOp<lattigo::CKKSEncoderType, lwe::RLWEDecodeOp,
                         lattigo::CKKSDecodeOp, arith::ConstantOp,
                         /*UsingFloat*/ true>;
+
+using ConvertCKKSLevelReduceOp =
+    ConvertRlweLevelReduceOp<ckks::LevelReduceOp,
+                             lattigo::RLWELevelReduceNewOp>;
 
 #define GEN_PASS_DEF_LWETOLATTIGO
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h.inc"
@@ -715,13 +713,13 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
                                                                 context);
     }
     if (moduleIsCKKS(module)) {
-      patterns.add<ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
-                   ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp,
-                   ConvertCKKSMulPlainOp, ConvertCKKSRelinOp,
-                   ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
-                   ConvertCKKSEncryptOp, ConvertCKKSDecryptOp,
-                   ConvertCKKSEncodeOp, ConvertCKKSDecodeOp>(typeConverter,
-                                                             context);
+      patterns.add<
+          ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
+          ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp, ConvertCKKSMulPlainOp,
+          ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
+          ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
+          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp>(typeConverter,
+                                                         context);
     }
     // Misc
     patterns.add<ConvertLWEReinterpretUnderlyingType>(typeConverter, context);

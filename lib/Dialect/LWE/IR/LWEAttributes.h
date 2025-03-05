@@ -13,9 +13,14 @@ namespace mlir {
 namespace heir {
 namespace lwe {
 
+int64_t getScalingFactorFromEncodingAttr(Attribute encoding);
+
 PlaintextSpaceAttr inferMulOpPlaintextSpaceAttr(MLIRContext *ctx,
                                                 PlaintextSpaceAttr x,
                                                 PlaintextSpaceAttr y);
+
+Attribute getEncodingAttrWithNewScalingFactor(Attribute encoding,
+                                              int64_t newScale);
 
 }  // namespace lwe
 }  // namespace heir
