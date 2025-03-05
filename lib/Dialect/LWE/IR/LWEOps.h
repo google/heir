@@ -22,6 +22,7 @@ namespace lwe {
 
 template <typename Op>
 LogicalResult verifyMulOp(Op* op) {
+  // verify dimension matches
   auto x = op->getLhs().getType();
   auto y = op->getRhs().getType();
   if (x.getCiphertextSpace().getSize() != y.getCiphertextSpace().getSize()) {
@@ -31,6 +32,34 @@ LogicalResult verifyMulOp(Op* op) {
   if (out.getCiphertextSpace().getSize() !=
       y.getCiphertextSpace().getSize() + x.getCiphertextSpace().getSize() - 1) {
     return op->emitOpError() << "output.dim == x.dim + y.dim - 1 does not hold";
+  }
+  // verify plaintext space matches
+  auto xPlaintext = x.getPlaintextSpace();
+  auto yPlaintext = y.getPlaintextSpace();
+  auto outPlaintext = out.getPlaintextSpace();
+  if (outPlaintext !=
+      inferMulOpPlaintextSpaceAttr(op->getContext(), xPlaintext, yPlaintext)) {
+    return op->emitOpError() << "output plaintext space does not match";
+  }
+  return success();
+}
+
+template <typename Op>
+LogicalResult verifyMulPlainOp(Op* op) {
+  auto x = op->getCiphertextInput().getType();
+  auto y = op->getPlaintextInput().getType();
+  auto out = op->getOutput().getType();
+  // verify dimension matches
+  if (x.getCiphertextSpace().getSize() != out.getCiphertextSpace().getSize()) {
+    return op->emitOpError() << "output.dim == x.dim does not hold";
+  }
+  // verify plaintext space matches
+  auto xPlaintext = x.getPlaintextSpace();
+  auto yPlaintext = y.getPlaintextSpace();
+  auto outPlaintext = out.getPlaintextSpace();
+  if (outPlaintext !=
+      inferMulOpPlaintextSpaceAttr(op->getContext(), xPlaintext, yPlaintext)) {
+    return op->emitOpError() << "output plaintext space does not match";
   }
   return success();
 }
@@ -192,6 +221,26 @@ LogicalResult inferMulOpReturnTypes(
                                     x.getCiphertextSpace().getEncryptionType(),
                                     newDim),
       x.getKey(), x.getModulusChain()));
+  return success();
+}
+
+template <typename Adaptor>
+LogicalResult inferMulPlainOpReturnTypes(
+    MLIRContext* ctx, Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  auto x =
+      cast<lwe::NewLWECiphertextType>(adaptor.getCiphertextInput().getType());
+  auto y =
+      cast<lwe::NewLWEPlaintextType>(adaptor.getPlaintextInput().getType());
+  auto xPlaintextSpace = x.getPlaintextSpace();
+  auto yPlaintextSpace = y.getPlaintextSpace();
+
+  lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
+      inferMulOpPlaintextSpaceAttr(ctx, xPlaintextSpace, yPlaintextSpace);
+
+  inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
+      ctx, x.getApplicationData(), newPlaintextSpaceAttr,
+      x.getCiphertextSpace(), x.getKey(), x.getModulusChain()));
   return success();
 }
 
