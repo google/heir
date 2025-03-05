@@ -190,7 +190,7 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
                 tensor::ExtractSliceOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
-          .Case<lwe::RLWEDecodeOp, lwe::ReinterpretUnderlyingTypeOp>(
+          .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
               [&](auto op) { return printOperation(op); })
           // OpenFHE ops
           .Case<AddOp, AddPlainOp, SubOp, SubPlainOp, MulNoRelinOp, MulOp,
@@ -799,7 +799,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::SplatOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(
-    lwe::ReinterpretUnderlyingTypeOp op) {
+    lwe::ReinterpretApplicationDataOp op) {
   emitAutoAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(op.getInput()) << ";\n";
   return success();

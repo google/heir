@@ -91,7 +91,7 @@ struct ConvertExtract : public OpRewritePattern<ExtractOp> {
     // It might make sense to move this op to the add-client-interface pass,
     // but it also seems like a backend implementation detail, and not part
     // of RLWE schemes generally.
-    auto recast = b.create<lwe::ReinterpretUnderlyingTypeOp>(
+    auto recast = b.create<lwe::ReinterpretApplicationDataOp>(
                        op.getOutput().getType(), rotated.getResult())
                       .getResult();
     rewriter.replaceOp(op, recast);
