@@ -124,7 +124,7 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale"> {
 
     At the time of secret-insert-mgmt-{scheme}, the concrete scale
     is not known as the scheme parameter is not generated. After that pass
-    the scale defaults to 0 so it could not be lowered. Further passes
+    the scale defaults to negative number so it could not be lowered. Further passes
     is responsible for materializing the concrete scale when the
     scheme parameter is known.
 
@@ -137,8 +137,7 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale"> {
 
   let arguments = (ins
     AnyType:$input,
-    DefaultValuedAttr<I64Attr, "0">:$scale,
-    DefaultValuedAttr<F64Attr, "0.0">:$scaleFloat
+    DefaultValuedAttr<I64Attr, "0">:$scale
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
