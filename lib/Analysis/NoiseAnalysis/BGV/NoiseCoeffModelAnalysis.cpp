@@ -172,7 +172,42 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             propagate(relinearizeOp.getResult(), relinearize);
             return success();
           })
-          .Default([&](auto &op) { return success(); });
+          .Default([&](auto &op) {
+            if (!mlir::isa<arith::ExtSIOp, arith::ExtUIOp, arith::ExtFOp>(op)) {
+              op.emitError()
+                  << "Unsupported operation for noise analysis encountered: "
+                  << op;
+            }
+
+            // condition on result secretness
+            SmallVector<OpResult> secretResults;
+            this->getSecretResults(&op, secretResults);
+            if (secretResults.empty()) {
+              return success();
+            }
+
+            SmallVector<OpOperand *> secretOperands;
+            this->getSecretOperands(&op, secretOperands);
+            if (secretOperands.empty()) {
+              return success();
+            }
+
+            // inherit noise from the first secret operand
+            NoiseState first;
+            for (auto *operand : secretOperands) {
+              auto &noise = this->getLatticeElement(operand->get())->getValue();
+              if (!noise.isInitialized()) {
+                return success();
+              }
+              first = noise;
+              break;
+            }
+
+            for (auto result : secretResults) {
+              propagate(result, first);
+            }
+            return success();
+          });
   return res;
 }
 
