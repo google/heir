@@ -33,6 +33,11 @@ glob_lit_tests(
     # macro, replacing it with a standard invocation of lit whose config is in
     # lit.cfg.py
     driver = "@heir//tests:run_lit.sh",
+    exclude = [
+        "Examples/common/*",
+        # Has a custom driver
+        "Examples/cleartext/dot_product_8.mlir",
+    ],
     test_file_exts = ["mlir"],
 )
 

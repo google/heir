@@ -133,7 +133,7 @@ harness to call into the HEIR-generated functions.
 Note: other backends are similar, but the different backends are in varying
 stages of development.
 
-The input program is in `tests/Examples/openfhe/dot_product_8.mlir`. Support for
+The input program is in `tests/Examples/common/dot_product_8.mlir`. Support for
 standard input languages like `C` and `C++` are currently experimental at best,
 but eventually we would use an MLIR-based tool to convert an input language to
 MLIR like in that file. The program is below:
@@ -163,7 +163,7 @@ Now we run the `heir-opt` command to optimize and compile the program.
 bazel run //tools:heir-opt -- \
 --mlir-to-bgv='ciphertext-degree=8'\
 --scheme-to-openfhe='entry-function=dot_product'  \
-$PWD/tests/Examples/openfhe/dot_product_8.mlir > output.mlir
+$PWD/tests/Examples/common/dot_product_8.mlir > output.mlir
 ```
 
 This produces a file in the `openfhe` exit dialect (part of HEIR).
@@ -442,7 +442,7 @@ you understand what is going on more easily.
 Still taking the `dot_product_8.mlir` as an example:
 
 ```bash
-bazel run --ui_event_filters=-info,-debug,-warning,-stderr,-stdout --noshow_progress --logging=0 //tools:heir-opt -- --wrap-generic --heir-simd-vectorizer $PWD/tests/Examples/openfhe/dot_product_8.mlir --view-op-graph 2> dot_product_8.dot
+bazel run --ui_event_filters=-info,-debug,-warning,-stderr,-stdout --noshow_progress --logging=0 //tools:heir-opt -- --wrap-generic --heir-simd-vectorizer $PWD/tests/Examples/common/dot_product_8.mlir --view-op-graph 2> dot_product_8.dot
 dot -Tpdf dot_product_8.dot > dot_product_8.pdf
 # open pdf in your favorite pdf viewer
 ```
