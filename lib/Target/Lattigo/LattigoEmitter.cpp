@@ -405,11 +405,10 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   os << "}\n";
 
   // set the scale of plaintext
-  if (auto scaleAttr = op->getAttrOfType<IntegerAttr>("lwe.scale")) {
-    os << getName(op.getPlaintext()) << ".Scale = ";
-    os << getName(newPlaintextOp.getParams()) << ".NewScale(";
-    os << scaleAttr.getInt() << ")\n";
-  }
+  auto scale = op.getScale();
+  os << getName(op.getPlaintext()) << ".Scale = ";
+  os << getName(newPlaintextOp.getParams()) << ".NewScale(";
+  os << scale << ")\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";

@@ -348,10 +348,19 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
         op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
         params);
 
+    auto encoding = op.getEncoding();
+    int64_t scale = 1;
+    llvm::TypeSwitch<Attribute>(encoding)
+        .Case<lwe::FullCRTPackingEncodingAttr>(
+            [&](auto attr) { scale = attr.getScalingFactor(); })
+        .Default([&](Attribute) {
+          return op.emitOpError() << "Unsupported encoding type for encoding";
+        });
+
     rewriter
         .replaceOpWithNewOp<LattigoEncodeOp>(
             op, this->typeConverter->convertType(op.getOutput().getType()),
-            evaluator, input, alloc)
+            evaluator, input, alloc, rewriter.getI64IntegerAttr(scale))
         ->setDialectAttrs(op->getDialectAttrs());
     return success();
   }
