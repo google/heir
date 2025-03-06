@@ -173,10 +173,10 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             return success();
           })
           .Default([&](auto &op) {
-            if (!mlir::isa<arith::ExtSIOp, arith::ExtUIOp, arith::ExtFOp>(op)) {
+            if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
+                           arith::ExtFOp>(op)) {
               op.emitError()
-                  << "Unsupported operation for noise analysis encountered: "
-                  << op;
+                  << "Unsupported operation for noise analysis encountered.";
             }
 
             // condition on result secretness

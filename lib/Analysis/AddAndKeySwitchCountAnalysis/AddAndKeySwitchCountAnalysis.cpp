@@ -111,10 +111,10 @@ LogicalResult CountAnalysis::visitOperation(
       })
       .Default(
           [&](auto &op) {
-            if (!mlir::isa<arith::ExtSIOp, arith::ExtUIOp, arith::ExtFOp>(op)) {
+            if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
+                           arith::ExtFOp>(op)) {
               op.emitError()
-                  << "Unsupported operation for count analysis encountered: "
-                  << op;
+                  << "Unsupported operation for count analysis encountered.";
             }
 
             // condition on result secretness
