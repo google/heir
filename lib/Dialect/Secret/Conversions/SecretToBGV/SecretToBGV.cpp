@@ -12,6 +12,7 @@
 #include "lib/Dialect/BGV/IR/BGVOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -265,6 +266,10 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
         SecretGenericOpCipherConversion<arith::AddIOp, bgv::AddOp>,
         SecretGenericOpCipherConversion<arith::SubIOp, bgv::SubOp>,
         SecretGenericOpCipherConversion<arith::MulIOp, bgv::MulOp>,
+        SecretGenericOpCipherConversion<arith::ExtUIOp,
+                                        lwe::ReinterpretApplicationDataOp>,
+        SecretGenericOpCipherConversion<arith::ExtSIOp,
+                                        lwe::ReinterpretApplicationDataOp>,
         SecretGenericOpRelinearizeConversion<bgv::RelinearizeOp>,
         SecretGenericOpModulusSwitchConversion<bgv::ModulusSwitchOp>,
         SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,

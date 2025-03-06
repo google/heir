@@ -12,6 +12,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
+#include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -480,6 +481,10 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpCipherConversion<arith::AddFOp, ckks::AddOp>,
         SecretGenericOpCipherConversion<arith::SubFOp, ckks::SubOp>,
         SecretGenericOpCipherConversion<arith::MulFOp, ckks::MulOp>,
+        SecretGenericOpCipherConversion<arith::ExtUIOp,
+                                        lwe::ReinterpretApplicationDataOp>,
+        SecretGenericOpCipherConversion<arith::ExtSIOp,
+                                        lwe::ReinterpretApplicationDataOp>,
         SecretGenericOpCipherConversion<tensor::EmptyOp, tensor::EmptyOp>,
         SecretGenericOpRelinearizeConversion<ckks::RelinearizeOp>,
         SecretGenericOpModulusSwitchConversion<ckks::RescaleOp>,
