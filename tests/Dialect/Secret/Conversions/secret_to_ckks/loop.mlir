@@ -2,7 +2,7 @@
 
 module {
 // CHECK-LABEL: func @hv_matmul
-// CHECK-SAME:    %[[ct:.*]]: !ct_L1_
+// CHECK-SAME:    %[[ct:.*]]: !ct_L1
 // CHECK:      %[[pt:.*]] = lwe.rlwe_encode
 // CHECK-NEXT: %[[ct2:.*]] = ckks.mul_plain %[[ct]], %[[pt]]
 // CHECK:      %[[pt3:.*]] = lwe.rlwe_encode
