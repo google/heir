@@ -30,3 +30,7 @@ glob_lit_tests(
     },
     test_file_exts = ["mlir"],
 )
+
+exports_files([
+    "hello_world_small.mlir",
+])

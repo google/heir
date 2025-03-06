@@ -45,9 +45,6 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
                                const std::string &yosysFilesPath,
                                const std::string &abcPath,
                                bool abcBooleanGates) {
-  // Secretize inputs
-  pm.addPass(createSecretize(SecretizeOptions{options.entryFunction}));
-
   // TOSA to linalg
   ::mlir::heir::tosaToLinalg(pm);
 
