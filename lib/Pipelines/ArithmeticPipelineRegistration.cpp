@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
@@ -18,7 +19,9 @@
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
+#include "lib/Dialect/Secret/Transforms/ForgetSecrets.h"
 #include "lib/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
+#include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
@@ -121,6 +124,35 @@ void mlirToSecretArithmeticPipelineBuilder(
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
+}
+
+void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
+                                    const PlaintextBackendOptions &options) {
+  // Convert to secret arithmetic
+  MlirToRLWEPipelineOptions mlirToRLWEPipelineOptions;
+  mlirToSecretArithmeticPipelineBuilder(pm, mlirToRLWEPipelineOptions);
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+
+  // Forget secrets to convert secret types to standard types
+  pm.addPass(secret::createSecretForgetSecrets());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+
+  if (options.plaintextModulus != 0) {
+    // Convert to plaintext arithmetic in Zp
+    arith::ArithToModArithOptions arithToModArithOptions;
+    arithToModArithOptions.modulus = options.plaintextModulus;
+    pm.addPass(arith::createArithToModArith(arithToModArithOptions));
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+  }
+
+  // Convert to standard dialect
+  pm.addPass(tensor_ext::createTensorExtToTensor());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
+  polynomialToLLVMPipelineBuilder(pm);
 }
 
 void mlirToRLWEPipeline(OpPassManager &pm,

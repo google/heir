@@ -36,7 +36,7 @@ glob_lit_tests(
     exclude = [
         "Examples/common/*",
         # Has a custom driver
-        "Examples/cleartext/dot_product_8.mlir",
+        "Examples/plaintext/*",
     ],
     test_file_exts = ["mlir"],
 )

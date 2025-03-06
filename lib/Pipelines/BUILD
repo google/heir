@@ -85,6 +85,7 @@ cc_library(
     hdrs = ["ArithmeticPipelineRegistration.h"],
     deps = [
         ":PipelineRegistration",
+        "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
         "@heir//lib/Dialect/CKKS/Conversions/CKKSToLWE",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
@@ -101,8 +102,10 @@ cc_library(
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCKKS",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
+        "@heir//lib/Dialect/Secret/Transforms:ForgetSecrets",
         "@heir//lib/Dialect/Secret/Transforms:MergeAdjacentGenerics",
         "@heir//lib/Dialect/TOSA/Conversions/TosaToSecretArith",
+        "@heir//lib/Dialect/TensorExt/Conversions/TensorExtToTensor",
         "@heir//lib/Dialect/TensorExt/Transforms:CollapseInsertionChains",
         "@heir//lib/Dialect/TensorExt/Transforms:InsertRotate",
         "@heir//lib/Dialect/TensorExt/Transforms:RotateAndReduce",
