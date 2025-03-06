@@ -77,9 +77,12 @@ use_repo(
 #
 # See the project repo for more details and configuration options
 # https://github.com/hedronvision/bazel-compile-commands-extractor
+#
+# For the override pointing to a different repo, see
+# https://github.com/hedronvision/bazel-compile-commands-extractor/pull/219
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",
-    commit = "4f28899228fb3ad0126897876f147ca15026151e",  # v5.0.0
-    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    commit = "f5fbd4cee671d8d908f37c83abaf70fba5928fc7",
+    remote = "https://github.com/mikael-s-persson/bazel-compile-commands-extractor",
 )
