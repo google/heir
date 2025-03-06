@@ -34,6 +34,8 @@ enum class OpenfheImportType {
 std::string getModulePrelude(OpenfheScheme scheme,
                              OpenfheImportType importType);
 
+std::string getWeightsPrelude();
+
 /// Convert a type to a string, using a const specifier if constant is true.
 ::mlir::FailureOr<std::string> convertType(::mlir::Type type,
                                            ::mlir::Location loc,

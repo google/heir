@@ -59,6 +59,7 @@ cc_library(
     ],
     deps = [
         ":OpenFheUtils",
+        "@cereal",
         "@heir//lib/Analysis/SelectVariableNames",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/LWE/IR:Dialect",
