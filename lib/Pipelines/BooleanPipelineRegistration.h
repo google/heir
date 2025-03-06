@@ -27,13 +27,6 @@ struct TosaToBooleanTfheOptions
       llvm::cl::init("main")};
 };
 
-struct TosaToArithTfheOptions
-    : public PassPipelineOptions<TosaToArithTfheOptions> {
-  PassOptions::Option<bool> unroll{*this, "full-unroll",
-                                   llvm::cl::desc("Full unroll all loops."),
-                                   llvm::cl::init(true)};
-};
-
 struct TosaToBooleanJaxiteOptions : public TosaToBooleanTfheOptions {
   PassOptions::Option<int> parallelism{
       *this, "parallelism",

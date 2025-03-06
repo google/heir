@@ -69,6 +69,7 @@ jobs:
       - name: "Run `bazel build`"
         run: |
           bazel build --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
+          bazel build --noincompatible_strict_action_env --//:enable_openmp=0 --//:enable_yosys=0 -c fastbuild //tools/...
 
       - name: "Run `bazel test`"
         run: |

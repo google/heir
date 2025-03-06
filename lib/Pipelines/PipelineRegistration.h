@@ -11,6 +11,12 @@ void tosaToLinalg(OpPassManager &manager);
 
 void oneShotBufferize(OpPassManager &manager);
 
+struct TosaToArithOptions : public PassPipelineOptions<TosaToArithOptions> {
+  PassOptions::Option<bool> unroll{*this, "full-unroll",
+                                   llvm::cl::desc("Full unroll all loops."),
+                                   llvm::cl::init(true)};
+};
+
 void tosaPipelineBuilder(OpPassManager &manager, bool unroll);
 
 void polynomialToLLVMPipelineBuilder(OpPassManager &manager);

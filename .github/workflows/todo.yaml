@@ -4,7 +4,7 @@ on:
     branches:
       - main
 jobs:
-  build-and-test:
+  insert-backlinks:
     runs-on: ubuntu-latest
     permissions:
       issues: write
