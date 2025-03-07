@@ -315,11 +315,11 @@ int main(int argc, char **argv) {
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   rns::registerExternalRNSTypeInterfaces(registry);
 
-  PassPipelineRegistration<TosaToArithTfheOptions>(
+  PassPipelineRegistration<TosaToArithOptions>(
       "heir-tosa-to-arith",
       "Run passes to lower TOSA models with stripped "
       "quant types to arithmetic",
-      [](OpPassManager &pm, const TosaToArithTfheOptions &options) {
+      [](OpPassManager &pm, const TosaToArithOptions &options) {
         ::mlir::heir::tosaPipelineBuilder(pm, options.unroll);
       });
 
