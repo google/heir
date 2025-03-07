@@ -204,16 +204,18 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
     auto lhs =
         b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
     auto rhs =
         b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getRhs());
     auto mul = b.create<arith::MulIOp>(lhs, rhs);
-    auto remu = b.create<arith::RemUIOp>(mul, cmod);
-    auto trunc = b.create<arith::TruncIOp>(modulusType(op), remu);
 
-    rewriter.replaceOp(op, trunc);
+    auto modArithType = getResultModArithType(op);
+    // here mul in [0, q^2], internal constraint
+    auto bar = b.create<mod_arith::BarrettReduceOp>(modArithType, mul);
+    auto subifge = b.create<mod_arith::SubIfGEOp>(modArithType, bar);
+
+    rewriter.replaceOp(op, subifge);
     return success();
   }
 };
@@ -246,11 +248,6 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
   }
 };
 
-namespace rewrites {
-// In an inner namespace to avoid conflicts with canonicalization patterns
-#include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.cpp.inc"
-}  // namespace rewrites
-
 struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
   ConvertBarrettReduce(mlir::MLIRContext *context)
       : OpConversionPattern<BarrettReduceOp>(context) {}
@@ -262,50 +259,74 @@ struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    // Compute B = 4^{bitWidth} and ratio = floordiv(B / modulus)
-    auto input = adaptor.getInput();
-    auto mod = op.getModulus();
-    auto bitWidth = (mod - 1).getActiveBits();
-    mod = mod.trunc(3 * bitWidth);
-    auto B = APInt(3 * bitWidth, 1).shl(2 * bitWidth);
-    auto barrettRatio = B.udiv(mod);
+    // Compute B = 2^{2 * width} and ratio = floordiv(B / modulus)
+    auto resultModArithType = getResultModArithType(op);
+    APInt modulus = resultModArithType.getModulus().getValue();
+    auto mulWidth = getElementTypeOrSelf(op.getInput().getType()).getIntOrFloatBitWidth();
+    auto width = modulus.getBitWidth();
+    assert(2 * width == mulWidth);
+    mulWidth = mulWidth + width;  // mulwidth = 3 * width
+    auto B = APInt(mulWidth, 1).shl(2 * width);
+    auto truncmod = modulus.zextOrTrunc(mulWidth);
+    auto barrettRatio = B.udiv(truncmod);
 
-    Type intermediateType = IntegerType::get(b.getContext(), 3 * bitWidth);
+    Type mulType = IntegerType::get(op.getContext(), mulWidth);
 
     // Create our pre-computed constants
-    TypedAttr ratioAttr, shiftAttr, modAttr;
-    if (auto tensorType = dyn_cast<RankedTensorType>(input.getType())) {
-      tensorType = tensorType.clone(tensorType.getShape(), intermediateType);
-      ratioAttr = DenseElementsAttr::get(tensorType, barrettRatio);
-      shiftAttr =
-          DenseElementsAttr::get(tensorType, APInt(3 * bitWidth, 2 * bitWidth));
-      modAttr = DenseElementsAttr::get(tensorType, mod);
-      intermediateType = tensorType;
-    } else if (auto integerType = dyn_cast<IntegerType>(input.getType())) {
-      ratioAttr = IntegerAttr::get(intermediateType, barrettRatio);
-      shiftAttr =
-          IntegerAttr::get(intermediateType, APInt(3 * bitWidth, 2 * bitWidth));
-      modAttr = IntegerAttr::get(intermediateType, mod);
-    }
 
-    auto ratioValue = b.create<arith::ConstantOp>(intermediateType, ratioAttr);
-    auto shiftValue = b.create<arith::ConstantOp>(intermediateType, shiftAttr);
-    auto modValue = b.create<arith::ConstantOp>(intermediateType, modAttr);
+    TypedAttr ratioAttr, shiftAttr, modAttr;
+    if (auto st = mlir::dyn_cast<ShapedType>(op.getResult().getType())) {
+      auto containerType = st.cloneWith(st.getShape(), mulType);
+      ratioAttr = DenseElementsAttr::get(containerType, barrettRatio);
+      shiftAttr = DenseElementsAttr::get(containerType, APInt(mulWidth, 2 * width));
+      modAttr = DenseElementsAttr::get(containerType, truncmod);
+      mulType = containerType;
+    } else {
+      ratioAttr = IntegerAttr::get(mulType, barrettRatio);
+      shiftAttr = IntegerAttr::get(mulType, APInt(mulWidth, 2 * width));
+      modAttr = IntegerAttr::get(mulType, truncmod);
+    }
+  
+    auto ratioValue = b.create<arith::ConstantOp>(mulType, ratioAttr);
+    auto shiftValue = b.create<arith::ConstantOp>(mulType, shiftAttr);
+    auto modValue = b.create<arith::ConstantOp>(mulType, modAttr);
 
     // Intermediate value will be in the range [0,p^3) so we need to extend to
-    // 3*bitWidth
-    auto extendOp = b.create<arith::ExtUIOp>(intermediateType, input);
+    // 3 * width
+    auto extendOp = b.create<arith::ExtUIOp>(mulType, adaptor.getInput());
 
     // Compute x - floordiv(x * ratio, B) * mod
+
     auto mulRatioOp = b.create<arith::MulIOp>(extendOp, ratioValue);
-    auto shrOp = b.create<arith::ShRUIOp>(mulRatioOp, shiftValue);
+    auto shrOp = b.create<arith::ShRUIOp>(mulRatioOp, shiftValue);    
     auto mulModOp = b.create<arith::MulIOp>(shrOp, modValue);
     auto subOp = b.create<arith::SubIOp>(extendOp, mulModOp);
 
-    auto truncOp = b.create<arith::TruncIOp>(input.getType(), subOp);
+    auto truncOp = b.create<arith::TruncIOp>(modulusType(op, false), subOp);
 
     rewriter.replaceOp(op, truncOp);
+    return success();
+  }
+};
 
+struct ConvertSubIfGE : public OpConversionPattern<SubIfGEOp> {
+  ConvertSubIfGE(mlir::MLIRContext *context)
+      : OpConversionPattern<SubIfGEOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SubIfGEOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto input = adaptor.getInput();
+    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
+    auto sub = b.create<arith::SubIOp>(input, cmod);
+    auto cmp = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, input, cmod);
+    auto select = b.create<arith::SelectOp>(cmp, sub, input);
+
+    rewriter.replaceOp(op, select);
     return success();
   }
 };
@@ -326,13 +347,12 @@ void ModArithToArith::runOnOperation() {
   target.addLegalDialect<arith::ArithDialect>();
 
   RewritePatternSet patterns(context);
-  rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
-           ConvertSub, ConvertMul, ConvertMac, ConvertBarrettReduce,
-           ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
-           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
-          typeConverter, context);
+  patterns.add<
+      ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd, ConvertSub,
+      ConvertMul, ConvertMac, ConvertBarrettReduce, ConvertSubIfGE,
+      ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
+      typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
@@ -350,3 +370,5 @@ void ModArithToArith::runOnOperation() {
 }  // namespace mod_arith
 }  // namespace heir
 }  // namespace mlir
+
+
