@@ -2,7 +2,7 @@
 
 // CHECK: func.func private @extract_plaintext(f32) -> f32
 // CHECK: func.func @call_plaintext(%[[arg0:.*]]: !secret.secret<f32>) -> !secret.secret<f32>
-// CHECK-NEXT:  %[[v0:.*]] = secret.generic ins(%[[arg0]] : !secret.secret<f32>) attrs = {[[arg0]] = {mgmt.mgmt = #mgmt.mgmt<level = 0>}}
+// CHECK-NEXT:  %[[v0:.*]] = secret.generic ins(%[[arg0]] : !secret.secret<f32>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0>}]} {
 // CHECK-NEXT:     ^body(%[[input0:.*]]: f32)
 // CHECK-NEXT:       %[[v1:.*]] = func.call @extract_plaintext(%[[input0]]) {mgmt.mgmt = #mgmt.mgmt<level = 0>} : (f32) -> f32
 // CHECK-NEXT:       secret.yield %[[v1]] : f32

@@ -38,6 +38,7 @@ cc_binary(
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis",  # buildcleaner: keep
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseCoeffModelAnalysis",  # buildcleaner: keep
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/Arith/Conversions/ArithToCGGIQuart",
         "@heir//lib/Dialect/Arith/Conversions/ArithToModArith",

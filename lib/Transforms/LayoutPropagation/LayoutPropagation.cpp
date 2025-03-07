@@ -254,8 +254,8 @@ LogicalResult LayoutPropagation::visitOperation(GenericOp op) {
     BlockArgument blockArg =
         op.getRegion().getArgument(operand.getOperandNumber());
     assignedLayouts.insert({blockArg, layout});
-    op.setArgAttr(operand.getOperandNumber(), "layout",
-                  AffineMapAttr::get(layout));
+    op.setOperandAttr(operand.getOperandNumber(), "layout",
+                      AffineMapAttr::get(layout));
     debugAssignLayout(blockArg, layout);
   }
 

@@ -4,6 +4,7 @@
 #include "lib/Analysis/OptimizeRelinearizationAnalysis/OptimizeRelinearizationAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
@@ -93,8 +94,8 @@ struct OptimizeRelinearization
       mgmt::MgmtAttr mgmtAttr = nullptr;
       getOperation()->walk([&](secret::GenericOp op) {
         for (auto i = 0; i != op->getBlock()->getNumArguments(); ++i) {
-          if ((mgmtAttr = dyn_cast<mgmt::MgmtAttr>(
-                   op.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
+          if ((mgmtAttr = dyn_cast<mgmt::MgmtAttr>(op.getOperandAttr(
+                   i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
             break;
           }
         }

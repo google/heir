@@ -1,7 +1,5 @@
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 
-#include <cassert>
-#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -23,7 +21,10 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
-#include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/ContextAwareConversionUtils.h"
+#include "lib/Utils/ContextAwareDialectConversion.h"
+#include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"           // from @llvm-project
@@ -37,9 +38,8 @@
 #include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir::heir {
@@ -88,17 +88,21 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 
 }  // namespace
 
-class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
+class SecretToBGVTypeConverter
+    : public UniquelyNamedAttributeAwareTypeConverter {
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
                            ::mlir::heir::polynomial::RingAttr rlweRing,
                            int64_t ptm)
-      : TypeWithAttrTypeConverter(mgmt::MgmtDialect::kArgMgmtAttrName) {
+      : UniquelyNamedAttributeAwareTypeConverter(
+            mgmt::MgmtDialect::kArgMgmtAttrName) {
     ring = rlweRing;
     plaintextModulus = ptm;
 
-    // isLegal/isSignatureLegal will always be true
-    addConversion([](Type type) { return type; });
+    addConversion([](Type type, Attribute attr) { return type; });
+    addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
+      return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
+    });
   }
 
   Type convertSecretTypeWithMgmtAttr(secret::SecretType type,
@@ -130,18 +134,6 @@ class SecretToBGVTypeConverter : public TypeWithAttrTypeConverter {
                                       lwe::LweEncryptionType::lsb, dimension),
         lwe::KeyAttr::get(ctx, 0),
         lwe::ModulusChainAttr::get(ctx, moduliChain, level));
-  }
-
-  Type convertTypeWithAttr(Type type, Attribute attr) const override {
-    auto secretTy = dyn_cast<secret::SecretType>(type);
-    // guard against null attribute
-    if (secretTy && attr) {
-      auto mgmtAttr = dyn_cast<mgmt::MgmtAttr>(attr);
-      if (mgmtAttr) {
-        return convertSecretTypeWithMgmtAttr(secretTy, mgmtAttr);
-      }
-    }
-    return type;
   }
 
  private:
@@ -241,12 +233,10 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       return;
     }
 
-    // Invariant: for every SecretType, there is a
-    // corresponding MgmtAttr attached to it,
-    // either in its DefiningOp or getOwner()->getParentOp()
-    // (i.e., the FuncOp).
-    // Otherwise the typeConverter won't find the proper type information
-    // and fail
+    // Invariant: for every SecretType, there is a corresponding MgmtAttr
+    // attached to it, either in its DefiningOp or getOwner()->getParentOp()
+    // (i.e., the FuncOp). Otherwise the typeConverter won't find the proper
+    // type information and fail
     SecretToBGVTypeConverter typeConverter(context, rlweRing.value(),
                                            plaintextModulus);
 
@@ -257,42 +247,32 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     target.addIllegalDialect<secret::SecretDialect>();
     target.addIllegalOp<mgmt::ModReduceOp, mgmt::RelinearizeOp>();
     target.addIllegalOp<secret::GenericOp>();
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isFuncArgumentAndResultLegal(op);
-    });
 
     patterns.add<
-        ConvertFuncWithContextAwareTypeConverter,
-        SecretGenericOpCipherConversion<arith::AddIOp, bgv::AddOp>,
-        SecretGenericOpCipherConversion<arith::SubIOp, bgv::SubOp>,
-        SecretGenericOpCipherConversion<arith::MulIOp, bgv::MulOp>,
-        SecretGenericOpCipherConversion<arith::ExtUIOp,
-                                        lwe::ReinterpretApplicationDataOp>,
-        SecretGenericOpCipherConversion<arith::ExtSIOp,
-                                        lwe::ReinterpretApplicationDataOp>,
+        SecretGenericOpConversion<arith::AddIOp, bgv::AddOp>,
+        SecretGenericOpConversion<arith::SubIOp, bgv::SubOp>,
+        SecretGenericOpConversion<arith::MulIOp, bgv::MulOp>,
+        SecretGenericOpConversion<arith::ExtUIOp,
+                                  lwe::ReinterpretApplicationDataOp>,
+        SecretGenericOpConversion<arith::ExtSIOp,
+                                  lwe::ReinterpretApplicationDataOp>,
         SecretGenericOpRelinearizeConversion<bgv::RelinearizeOp>,
         SecretGenericOpModulusSwitchConversion<bgv::ModulusSwitchOp>,
         SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
         SecretGenericOpRotateConversion<bgv::RotateColumnsOp>,
         SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
-        SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>>(
-        typeConverter, context);
+        SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>,
+        SecretGenericFuncCallConversion>(typeConverter, context);
 
-    if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
+    addStructuralConversionPatterns(typeConverter, patterns, target);
+
+    if (failed(applyContextAwarePartialConversion(module, target,
+                                                  std::move(patterns)))) {
       return signalPassFailure();
     }
 
-    // cleanup MgmtAttr
-    getOperation()->walk([&](Operation *op) {
-      if (auto funcOp = dyn_cast<FunctionOpInterface>(op)) {
-        for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-          funcOp.removeArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
-        }
-      } else {
-        op->removeAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-      }
-    });
+    clearAttrs(getOperation(), mgmt::MgmtDialect::kArgMgmtAttrName);
   }
 };
 

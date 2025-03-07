@@ -11,7 +11,7 @@ func.func @test_distribute_generic_preserve_attr(%value: !secret.secret<i32>, %c
 
   // CHECK-NEXT: return %[[g0]] : !secret.secret<i32>
   %Z = secret.generic
-    ins(%value : !secret.secret<i32>) attrs = {arg0 = {dialect.attr = 2}} {
+    ins(%value : !secret.secret<i32>) attrs = {__argattrs = [{dialect.attr = 2}]} {
     ^bb0(%clear_value: i32):
       %0 = arith.muli %clear_value, %clear_value {dialect.attr = 1} : i32
       secret.yield %0 : i32

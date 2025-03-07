@@ -39,7 +39,7 @@ struct SecretInsertMgmtBFV
     getOperation()->walk([&](secret::GenericOp op) {
       for (auto i = 0; i != op->getBlock()->getNumArguments(); ++i) {
         if ((mgmtAttr = dyn_cast<mgmt::MgmtAttr>(
-                 op.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
+                 op.getOperandAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
           break;
         }
       }

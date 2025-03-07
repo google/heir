@@ -16,6 +16,7 @@
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
@@ -314,6 +315,7 @@ int main(int argc, char **argv) {
   // Interfaces in HEIR
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   rns::registerExternalRNSTypeInterfaces(registry);
+  registerOperandAndResultAttrInterface(registry);
 
   PassPipelineRegistration<TosaToArithOptions>(
       "heir-tosa-to-arith",
