@@ -4,7 +4,7 @@ While one might expect this dialect to contain types along the lines of LWE and 
 See Wikipedia for an overview of LWE and the related RLWE problem.
 While one might expect this dialect to contain types along the lines of LWE and RLWE ciphertexts, and operations like encryption, decryption, adding and multiplying ciphertexts, these concepts are not centralized here because they are too scheme-specific."><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/dialects/lwe/"><meta property="article:section" content="docs"><meta itemprop=name content="LWE"><meta itemprop=description content="&rsquo;lwe&rsquo; Dialect The lwe dialect is a dialect for concepts related to cryptosystems in the Learning With Errors (LWE) family.
 See Wikipedia for an overview of LWE and the related RLWE problem.
-While one might expect this dialect to contain types along the lines of LWE and RLWE ciphertexts, and operations like encryption, decryption, adding and multiplying ciphertexts, these concepts are not centralized here because they are too scheme-specific."><meta itemprop=wordCount content="3581"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="LWE"><meta name=twitter:description content="&rsquo;lwe&rsquo; Dialect The lwe dialect is a dialect for concepts related to cryptosystems in the Learning With Errors (LWE) family.
+While one might expect this dialect to contain types along the lines of LWE and RLWE ciphertexts, and operations like encryption, decryption, adding and multiplying ciphertexts, these concepts are not centralized here because they are too scheme-specific."><meta itemprop=wordCount content="3562"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="LWE"><meta name=twitter:description content="&rsquo;lwe&rsquo; Dialect The lwe dialect is a dialect for concepts related to cryptosystems in the Learning With Errors (LWE) family.
 See Wikipedia for an overview of LWE and the related RLWE problem.
 While one might expect this dialect to contain types along the lines of LWE and RLWE ciphertexts, and operations like encryption, decryption, adding and multiplying ciphertexts, these concepts are not centralized here because they are too scheme-specific."><link rel=preload href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
 <script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]]}}</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
@@ -73,22 +73,19 @@ plaintext space to ciphertext space of an FHE scheme.</p><p>The ciphertext space
 space that the ciphertext elements belong to. The ring attribute contains a
 coefficient type attribute that describes the semantics of the coefficient.
 For example, a ring modulo $1 + x^1024$ with coefficients modulo $q =
-298374$ will be described as</p><pre tabindex=0><code>!ideal = !polynomial.int_polynomial&lt;1 + x**1024&gt;
-!cmod = !mod_arith.mod_arith&lt;modulus=298374 : i64&gt;
-#ring = #polynomial.ring&lt;coefficientType = !cmod, modulus = !ideal&gt;
-#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = #encryption_type&gt;
+298374$ will be described as</p><pre tabindex=0><code>!cmod = !mod_arith.mod_arith&lt;modulus=298374 : i64&gt;
+#ring = #polynomial.ring&lt;coefficientType = !cmod, polynomialModulus = &lt;1 + x**1024&gt;&gt;
+#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = lsb&gt;
 </code></pre><p>Ciphertexts using an RNS representation for $q$ will use an RNS type in
-their ring&rsquo;s coefficient type attribute.</p><p>// TODO(#1085): Validate syntax of polynomial ring after coefficientType changes.</p><pre tabindex=0><code>!ideal = !polynomial.int_polynomial&lt;1 + x**1024&gt;
-!limb1 = !mod_arith.mod_arith&lt;modulus=2251799814045697 : i64&gt;
+their ring&rsquo;s coefficient type attribute.</p><pre tabindex=0><code>!limb1 = !mod_arith.mod_arith&lt;modulus=2251799814045697 : i64&gt;
 !limb2 = !mod_arith.mod_arith&lt;modulus=65537 : i64&gt;
 #rns_mod = !rns.rns&lt;!limb1, !limb2&gt;
-#ring = #polynomial.ring&lt;coefficientType = #rns_mod, modulus = #ideal&gt;
-#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = #encryption_type&gt;
+#ring = #polynomial.ring&lt;coefficientType = #rns_mod, polynomialModulus = &lt;1 + x**1024&gt;&gt;
+#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = lsb&gt;
 </code></pre><p>Scalar LWE ciphertexts (like those used in CGGI) use an ideal polynomial of
 degree 1, $x$. CGGI ciphertexts will typically use a power of two modulus
-and may use a native integer type for its coefficient modulus.</p><pre tabindex=0><code>!ideal = !polynomial.int_polynomial&lt;1 + x**1024&gt;
-#ring = #polynomial.ring&lt;coefficientType = i32, modulus = #ideal&gt;
-#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = #encryption_type&gt;
+and may use a native integer type for its coefficient modulus.</p><pre tabindex=0><code>#ring = #polynomial.ring&lt;coefficientType = i32, polynomialModulus = &lt;1 + x**1024&gt;&gt;
+#ciphertext_space = #lwe.ciphertext_space&lt;ring = #ring, encryption_type = lsb&gt;
 </code></pre><p>The ciphertext encoding info is used to describe the way the plaintext data
 is encoded into the ciphertext (in the MSB, LSB, or mixed).</p><p>The <code>size</code> parameter is used to describe the number of polynomials
 comprising the ciphertext. This is typically 2 for RLWE ciphertexts that
