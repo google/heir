@@ -31,15 +31,17 @@ func.func @insert_conversion(%arg0: !stensor, %arg1: !stensor) -> !stensor2 {
   // CHECK-SAME: [[row_reduced_map]]
   %0 = secret.generic ins(%arg0, %arg1: !stensor, !stensor) {
   ^body(%pt_arg0: !tensor, %pt_arg1: !tensor):
-    // CHECK: tensor_ext.assign_layout [[init0]] {tensor_ext.layout = [[row_reduced_map]]}
+    // CHECK: tensor_ext.assign_layout [[init0]] {layout = [[row_reduced_map]], tensor_ext.layout = [[row_reduced_map]]}
 
     // result of sum has row-major layout, i.e., with implicit repetition at the end
     // (1, 2, ..., 32, 1, 2, ..., 32, ...)
     // CHECK: [[unconverted:[^ ]+]] = linalg.reduce
-    // CHECK-SAME: {tensor_ext.layout = [[[row_reduced_map]]]}
+    // CHECK-SAME: {tensor_ext.layout = [
+    // CHECK-SAM: [[row_reduced_map]]]}
     %1 = linalg.reduce { arith.addi } ins(%pt_arg0:!tensor) outs(%out_1:!tensor2) dimensions = [0]
 
     // CHECK: tensor_ext.assign_layout [[init1]]
+    // CHECK-sAME: layout = [[row_reduced_map]]
     // CHECK-sAME: tensor_ext.layout = [[row_reduced_map]]
     // CHECK: tensor_ext.convert_layout
     // CHECK-SAME: from_layout = [[row_reduced_map]]
