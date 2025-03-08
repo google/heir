@@ -1,5 +1,6 @@
 #include "lib/Source/AutoHog/AutoHogImporter.h"
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
+#include "lib/Target/JaxiteWord/JaxiteWordEmitter.h"
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
@@ -23,6 +24,7 @@ int main(int argc, char **argv) {
 
   // jaxite output
   mlir::heir::jaxite::registerToJaxiteTranslation();
+  mlir::heir::jaxiteword::registerToJaxiteWordTranslation();
 
   // OpenFHE
   mlir::heir::openfhe::registerTranslateOptions();
