@@ -5,20 +5,20 @@
 #ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#cycl_2048>
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
-// CHECK: !Z65536_i32_ = !mod_arith.int<65536 : i32>
+// CHECK: !Z65536_i32 = !mod_arith.int<65536 : i32>
 // CHECK: #[[LHS_MAP:.*]] = affine_map<(d0, d1) -> (d0)>
 // CHECK: #[[RHS_MAP:.*]] = affine_map<(d0, d1) -> (d1)>
 // CHECK: #[[OUTPUT_MAP:.*]] = affine_map<(d0, d1) -> (d0 + d1)>
 
-// CHECK: func.func @lower_poly_mul(%[[poly0:.*]]: [[INPUT_TENSOR_TY:tensor<1024x!Z65536_i32_>]], %[[poly1:.*]]: [[INPUT_TENSOR_TY]]) -> [[INPUT_TENSOR_TY]] {
+// CHECK: func.func @lower_poly_mul(%[[poly0:.*]]: [[INPUT_TENSOR_TY:tensor<1024x!Z65536_i32>]], %[[poly1:.*]]: [[INPUT_TENSOR_TY]]) -> [[INPUT_TENSOR_TY]] {
 // CHECK:      %[[NAIVE_POLYMUL_OUTPUT_STORAGE:.*]] = arith.constant dense<0> : [[NAIVE_POLYMUL_TENSOR_TY_STORAGE:tensor<2047xi32>]]
-// CHECK:      %[[NAIVE_POLYMUL_OUTPUT:.*]] = mod_arith.encapsulate %[[NAIVE_POLYMUL_OUTPUT_STORAGE]] : [[NAIVE_POLYMUL_TENSOR_TY_STORAGE]] -> [[NAIVE_POLYMUL_TENSOR_TY:tensor<2047x!Z65536_i32_>]]
+// CHECK:      %[[NAIVE_POLYMUL_OUTPUT:.*]] = mod_arith.encapsulate %[[NAIVE_POLYMUL_OUTPUT_STORAGE]] : [[NAIVE_POLYMUL_TENSOR_TY_STORAGE]] -> [[NAIVE_POLYMUL_TENSOR_TY:tensor<2047x!Z65536_i32>]]
 // CHECK:      %[[GENERIC_RESULT:.*]] = linalg.generic
 // CHECK-SAME:     indexing_maps = [#[[LHS_MAP]], #[[RHS_MAP]], #[[OUTPUT_MAP]]]
 // CHECK-SAME:     iterator_types = ["parallel", "parallel"]
 // CHECK-SAME:     ins(%[[generic_arg0:.*]], %[[generic_arg1:.*]] : [[INPUT_TENSOR_TY]], [[INPUT_TENSOR_TY]])
 // CHECK-SAME:     outs(%[[NAIVE_POLYMUL_OUTPUT]] : [[NAIVE_POLYMUL_TENSOR_TY]])
-// CHECK:     ^[[BB0:.*]](%[[LHS_IN:.*]]: [[COEFF_TY:!Z65536_i32_]], %[[RHS_IN:.*]]: [[COEFF_TY]], %[[OUT:.*]]: [[COEFF_TY]]):
+// CHECK:     ^[[BB0:.*]](%[[LHS_IN:.*]]: [[COEFF_TY:!Z65536_i32]], %[[RHS_IN:.*]]: [[COEFF_TY]], %[[OUT:.*]]: [[COEFF_TY]]):
 // CHECK:       %[[MULTED:.*]] = mod_arith.mul %[[LHS_IN]], %[[RHS_IN]]
 // CHECK:       %[[SUMMED:.*]] = mod_arith.add %[[MULTED]], %[[OUT]]
 // CHECK:       linalg.yield %[[SUMMED]]
