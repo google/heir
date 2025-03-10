@@ -4,13 +4,13 @@ load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 load("@rules_python//python:py_library.bzl", "py_library")
 
-def fhe_jaxite_lib(name, mlir_src, entry_function_flag = "", py_lib_target_name = "", tags = [], deps = [], **kwargs):
+def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name = "", tags = [], deps = [], **kwargs):
     """A rule for generating Jaxite code.
 
     Args:
       name: The name of the py_test target and the generated .cc file basename.
       mlir_src: The source mlir file to run through heir-translate.
-      entry_function_flag: Flags for entry function.
+      heir_opt_pass_flags: Flags for heir-opt.
       py_lib_target_name: target_name for the py_library.
       tags: Tags to pass to py_test.
       deps: Deps to pass to py_test and py_library.
@@ -23,12 +23,11 @@ def fhe_jaxite_lib(name, mlir_src, entry_function_flag = "", py_lib_target_name 
     if not py_lib_target_name:
         py_lib_target_name = "%s_py_lib" % name
 
-    if entry_function_flag:
-        heir_opt_pass_flag = "--tosa-to-boolean-jaxite=%s" % entry_function_flag
+    if heir_opt_pass_flags:
         heir_opt(
             name = heir_opt_name,
             src = mlir_src,
-            pass_flags = [heir_opt_pass_flag],
+            pass_flags = heir_opt_pass_flags,
             generated_filename = generated_heir_opt_name,
             HEIR_YOSYS = True,
             data = ["@heir//lib/Transforms/YosysOptimizer/yosys:share_files"],
