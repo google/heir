@@ -68,6 +68,15 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::init(45)};
 };
 
+struct PlaintextBackendOptions
+    : public PassPipelineOptions<PlaintextBackendOptions> {
+  PassOptions::Option<int64_t> plaintextModulus{
+      *this, "plaintext-modulus",
+      llvm::cl::desc("Plaintext modulus for BGV/BFV scheme (if not specified, "
+                     "execute in the original integer type)"),
+      llvm::cl::init(0)};
+};
+
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {
   PassOptions::Option<std::string> entryFunction{
       *this, "entry-function", llvm::cl::desc("Entry function"),
@@ -91,6 +100,9 @@ void mlirToRLWEPipeline(OpPassManager &pm,
 
 void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager &pm, const MlirToRLWEPipelineOptions &options);
+
+void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
+                                    const PlaintextBackendOptions &options);
 
 RLWEPipelineBuilder mlirToRLWEPipelineBuilder(RLWEScheme scheme);
 
