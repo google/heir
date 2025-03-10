@@ -41,24 +41,12 @@ class ContextAwareConversionPatternRewriter;
 /// patterns of this type can only be used with the 'apply*' methods below.
 class ContextAwareConversionPattern : public RewritePattern {
  public:
-  /// Hook for derived classes to implement rewriting. `op` is the (first)
-  /// operation matched by the pattern, `operands` is a list of the rewritten
-  /// operand values that are passed to `op`, `rewriter` can be used to emit the
-  /// new operations. This function should not fail. If some specific cases of
-  /// the operation are not supported, these cases should not be matched.
-  virtual void rewrite(Operation *op, ArrayRef<Value> operands,
-                       ContextAwareConversionPatternRewriter &rewriter) const {
-    llvm_unreachable("unimplemented rewrite");
-  }
-
   /// Hook for derived classes to implement combined matching and rewriting.
   /// This overload supports only 1:1 replacements.
   virtual LogicalResult matchAndRewrite(
       Operation *op, ArrayRef<Value> operands,
       ContextAwareConversionPatternRewriter &rewriter) const {
-    if (failed(match(op))) return failure();
-    rewrite(op, operands, rewriter);
-    return success();
+    llvm_unreachable("matchAndRewrite is not implemented");
   }
   virtual LogicalResult matchAndRewrite(
       Operation *op, ArrayRef<ValueRange> operands,
@@ -100,9 +88,6 @@ class ContextAwareConversionPattern : public RewritePattern {
  protected:
   /// An optional type converter for use by this pattern.
   const ContextAwareTypeConverter *typeConverter = nullptr;
-
- private:
-  using RewritePattern::rewrite;
 };
 
 /// ContextAwareOpConversionPattern is a wrapper around
@@ -124,16 +109,6 @@ class ContextAwareOpConversionPattern : public ContextAwareConversionPattern {
       : ContextAwareConversionPattern(
             typeConverter, SourceOp::getOperationName(), benefit, context) {}
 
-  /// Wrappers around the ContextAwareConversionPattern methods that pass the
-  /// derived op type.
-  LogicalResult match(Operation *op) const final {
-    return match(cast<SourceOp>(op));
-  }
-  void rewrite(Operation *op, ArrayRef<Value> operands,
-               ContextAwareConversionPatternRewriter &rewriter) const final {
-    auto sourceOp = cast<SourceOp>(op);
-    rewrite(sourceOp, OpAdaptor(operands, sourceOp), rewriter);
-  }
   LogicalResult matchAndRewrite(
       Operation *op, ArrayRef<Value> operands,
       ContextAwareConversionPatternRewriter &rewriter) const final {
@@ -141,25 +116,11 @@ class ContextAwareOpConversionPattern : public ContextAwareConversionPattern {
     return matchAndRewrite(sourceOp, OpAdaptor(operands, sourceOp), rewriter);
   }
 
-  /// Rewrite and Match methods that operate on the SourceOp type. These must be
-  /// overridden by the derived pattern class.
-  virtual LogicalResult match(SourceOp op) const {
-    llvm_unreachable("must override match or matchAndRewrite");
-  }
-  virtual void rewrite(SourceOp op, OpAdaptor adaptor,
-                       ContextAwareConversionPatternRewriter &rewriter) const {
-    llvm_unreachable("must override matchAndRewrite or a rewrite method");
-  }
   virtual LogicalResult matchAndRewrite(
       SourceOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const {
-    if (failed(match(op))) return failure();
-    rewrite(op, adaptor, rewriter);
-    return success();
+    llvm_unreachable("matchAndRewrite is not implemented");
   }
-
- private:
-  using ContextAwareConversionPattern::matchAndRewrite;
 };
 
 //===----------------------------------------------------------------------===//
