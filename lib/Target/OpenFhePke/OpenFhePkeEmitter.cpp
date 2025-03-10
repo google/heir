@@ -4,13 +4,18 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <functional>
+#include <ios>
 #include <iterator>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "include/cereal/archives/binary.hpp"           // from @cereal
+#include "include/cereal/archives/json.hpp"             // from @cereal
+#include "include/cereal/archives/portable_binary.hpp"  // from @cereal
 #include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
@@ -24,6 +29,7 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/LogicalResult.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
@@ -32,6 +38,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -161,12 +168,73 @@ FailureOr<std::string> printOneDimDenseElementsAttr(DenseElementsAttr attr) {
   return ss.str();
 }
 
+// Adds the given DenseElementsAttr to the weights map.
+LogicalResult addWeightTo(DenseElementsAttr attr, std::string &name,
+                          Weights *weights) {
+  // Only double, float, and int_{8, 16, 32, 64}t are supported.
+  return llvm::TypeSwitch<Type, LogicalResult>(attr.getElementType())
+      .Case<Float32Type>([&](auto type) {
+        std::vector<float> floats;
+        for (auto value : attr.getValues<float>()) {
+          floats.push_back(value);
+        }
+        weights->floats[name] = floats;
+        return success();
+      })
+      .Case<Float64Type>([&](auto type) {
+        std::vector<double> doubles;
+        for (auto value : attr.getValues<double>()) {
+          doubles.push_back(value);
+        }
+        weights->doubles[name] = doubles;
+        return success();
+      })
+      .Case<IntegerType>([&](IntegerType type) {
+        std::vector<int64_t> int64_ts;
+        for (auto value : attr.getValues<APInt>()) {
+          int64_ts.push_back(value.getSExtValue());
+        }
+        switch (type.getWidth()) {
+          case 64:
+            weights->int64_ts[name] = int64_ts;
+            return success();
+          case 32:
+            weights->int32_ts[name] = {int64_ts.begin(), int64_ts.end()};
+            return success();
+          case 16:
+            weights->int16_ts[name] = {int64_ts.begin(), int64_ts.end()};
+            return success();
+          case 8:
+            weights->int8_ts[name] = {int64_ts.begin(), int64_ts.end()};
+            return success();
+          default:
+            return failure();
+        };
+      })
+      .Default([&](auto type) { return failure(); });
+}
+
+FailureOr<std::string> getWeightType(Type type) {
+  auto result = llvm::TypeSwitch<Type, std::string>(type)
+                    .Case<Float32Type>([&](auto type) { return "float"; })
+                    .Case<Float64Type>([&](auto type) { return "double"; })
+                    .Case<IntegerType>([&](auto type) {
+                      return llvm::formatv("int{0}_t", type.getWidth());
+                    })
+                    .Default([&](auto type) { return ""; });
+  if (result.empty()) {
+    return failure();
+  }
+  return result;
+}
+
 }  // namespace
 
 LogicalResult translateToOpenFhePke(Operation *op, llvm::raw_ostream &os,
-                                    const OpenfheImportType &importType) {
+                                    const OpenfheImportType &importType,
+                                    const std::string &weightsFile) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeEmitter emitter(os, &variableNames, importType);
+  OpenFhePkeEmitter emitter(os, &variableNames, importType, weightsFile);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -224,12 +292,27 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModuleOp moduleOp) {
   }
 
   os << getModulePrelude(scheme, importType_) << "\n";
+
+  if (!weightsFile_.empty()) {
+    os << getWeightsPrelude() << "\n";
+  }
   for (Operation &op : moduleOp) {
     if (failed(translate(op))) {
       return failure();
     }
   }
 
+  // Emit the weights file.
+  if (!weightsFile_.empty()) {
+    std::ofstream file(weightsFile_, std::ios::out | std::ios::binary);
+    if (file.is_open()) {
+      cereal::PortableBinaryOutputArchive archive(file);
+      archive(weightsMap_);
+      file.close();
+    } else {
+      return failure();
+    }
+  }
   return success();
 }
 
@@ -303,6 +386,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(func::FuncOp funcOp) {
 
   os << " {\n";
   os.indent();
+
+  if (!weightsFile_.empty() && !funcOp.getOps<arith::ConstantOp>().empty()) {
+    os << llvm::formatv("Weights weights = GetWeightModule(\"{0}\");\n",
+                        weightsFile_);
+  }
 
   for (Block &block : funcOp.getBlocks()) {
     for (Operation &op : block.getOperations()) {
@@ -619,7 +707,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
       return failure();
     }
 
-    os << " " << variableNames->getNameForValue(op.getResult());
+    auto name = variableNames->getNameForValue(op.getResult());
+    os << " " << name;
     auto result = printOneDimDenseElementsAttr(flattenedElementsAttr);
     if (failed(result)) {
       return failure();
@@ -627,6 +716,20 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
     if (denseElementsAttr.isSplat()) {
       os << "(" << flattenedElementsAttr.getNumElements() << ", "
          << result.value() << ");\n";
+    } else if (!weightsFile_.empty()) {
+      if (failed(addWeightTo(flattenedElementsAttr, name, &weightsMap_))) {
+        return emitError(
+            op.getLoc(),
+            llvm::formatv("Failed to add weight for type {0}", flattenedType));
+      }
+      auto weightType = getWeightType(flattenedType.getElementType());
+      if (failed(weightType)) {
+        return emitError(op.getLoc(),
+                         llvm::formatv("Failed to get weight type for type {0}",
+                                       flattenedType));
+      }
+      os << llvm::formatv(" = weights.{0}s[\"{1}\"];\n", weightType.value(),
+                          name);
     } else {
       os << " = " << result.value() << ";\n";
     }
@@ -1049,8 +1152,12 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc,
 
 OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream &os,
                                      SelectVariableNames *variableNames,
-                                     const OpenfheImportType &importType)
-    : importType_(importType), os(os), variableNames(variableNames) {}
+                                     const OpenfheImportType &importType,
+                                     const std::string &weightsFile)
+    : importType_(importType),
+      os(os),
+      variableNames(variableNames),
+      weightsFile_(weightsFile) {}
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir

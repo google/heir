@@ -43,6 +43,9 @@ struct TranslateOptions {
                      "source-relative",
                      "Emit OpenFHE with source-relative import paths (default "
                      "for HEIR-internal development)"))};
+  llvm::cl::opt<std::string> weightsFile{
+      "weights-file",
+      llvm::cl::desc("Emit all dense elements attributes to this binary file")};
 };
 static llvm::ManagedStatic<TranslateOptions> options;
 
@@ -69,7 +72,8 @@ void registerToOpenFhePkeTranslation() {
       "emit-openfhe-pke",
       "translate the openfhe dialect to C++ code against the OpenFHE pke API",
       [](Operation *op, llvm::raw_ostream &output) {
-        return translateToOpenFhePke(op, output, options->openfheImportType);
+        return translateToOpenFhePke(op, output, options->openfheImportType,
+                                     options->weightsFile);
       },
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,

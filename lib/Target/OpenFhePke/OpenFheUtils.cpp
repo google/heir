@@ -37,6 +37,8 @@ std::string getModulePrelude(OpenfheScheme scheme,
   return std::string(import) + prelude;
 }
 
+std::string getWeightsPrelude() { return std::string(kWeightsPreludeTemplate); }
+
 FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
   // Right now we only support non-const ciphertext types that may be modified
   // in a loop body.
