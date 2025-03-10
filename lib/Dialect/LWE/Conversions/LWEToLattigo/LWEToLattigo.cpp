@@ -304,6 +304,22 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
   }
 };
 
+template <typename LevelReduceOp, typename LattigoLevelReduceOp>
+struct ConvertRlweLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
+  using OpConversionPattern<LevelReduceOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      LevelReduceOp op, typename LevelReduceOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(
+        op, rewriter.create<LattigoLevelReduceOp>(
+                op.getLoc(),
+                this->typeConverter->convertType(op.getOutput().getType()),
+                adaptor.getInput(), op.getLevelToDrop()));
+    return success();
+  }
+};
+
 template <typename EvaluatorType, typename ParamType, typename EncodeOp,
           typename LattigoEncodeOp, typename AllocOp>
 struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
@@ -332,9 +348,14 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
         op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
         params);
 
-    rewriter.replaceOpWithNewOp<LattigoEncodeOp>(
-        op, this->typeConverter->convertType(op.getOutput().getType()),
-        evaluator, input, alloc);
+    auto encoding = op.getEncoding();
+    int64_t scale = lwe::getScalingFactorFromEncodingAttr(encoding);
+
+    rewriter
+        .replaceOpWithNewOp<LattigoEncodeOp>(
+            op, this->typeConverter->convertType(op.getOutput().getType()),
+            evaluator, input, alloc, rewriter.getI64IntegerAttr(scale))
+        ->setDialectAttrs(op->getDialectAttrs());
     return success();
   }
 };
@@ -461,6 +482,9 @@ using ConvertBGVDecodeOp =
                         lattigo::BGVDecodeOp, arith::ConstantOp,
                         /*UsingFloat*/ false>;
 
+using ConvertBGVLevelReduceOp =
+    ConvertRlweLevelReduceOp<bgv::LevelReduceOp, lattigo::RLWELevelReduceNewOp>;
+
 // CKKS
 using ConvertCKKSAddOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
                                           lwe::RAddOp, lattigo::CKKSAddNewOp>;
@@ -503,6 +527,10 @@ using ConvertCKKSDecodeOp =
     ConvertRlweDecodeOp<lattigo::CKKSEncoderType, lwe::RLWEDecodeOp,
                         lattigo::CKKSDecodeOp, arith::ConstantOp,
                         /*UsingFloat*/ true>;
+
+using ConvertCKKSLevelReduceOp =
+    ConvertRlweLevelReduceOp<ckks::LevelReduceOp,
+                             lattigo::RLWELevelReduceNewOp>;
 
 #define GEN_PASS_DEF_LWETOLATTIGO
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h.inc"
@@ -676,22 +704,22 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     patterns.add<ConvertFuncCallOp>(context, evaluators);
 
     if (moduleIsBGVOrBFV(module)) {
-      patterns
-          .add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
-               ConvertBGVAddPlainOp, ConvertBGVSubPlainOp, ConvertBGVMulPlainOp,
-               ConvertBGVRelinOp, ConvertBGVModulusSwitchOp,
-               ConvertBGVRotateColumnsOp, ConvertBGVEncryptOp,
-               ConvertBGVDecryptOp, ConvertBGVEncodeOp, ConvertBGVDecodeOp>(
-              typeConverter, context);
+      patterns.add<ConvertBGVAddOp, ConvertBGVSubOp, ConvertBGVMulOp,
+                   ConvertBGVAddPlainOp, ConvertBGVSubPlainOp,
+                   ConvertBGVMulPlainOp, ConvertBGVRelinOp,
+                   ConvertBGVModulusSwitchOp, ConvertBGVRotateColumnsOp,
+                   ConvertBGVEncryptOp, ConvertBGVDecryptOp, ConvertBGVEncodeOp,
+                   ConvertBGVDecodeOp, ConvertBGVLevelReduceOp>(typeConverter,
+                                                                context);
     }
     if (moduleIsCKKS(module)) {
-      patterns.add<ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
-                   ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp,
-                   ConvertCKKSMulPlainOp, ConvertCKKSRelinOp,
-                   ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
-                   ConvertCKKSEncryptOp, ConvertCKKSDecryptOp,
-                   ConvertCKKSEncodeOp, ConvertCKKSDecodeOp>(typeConverter,
-                                                             context);
+      patterns.add<
+          ConvertCKKSAddOp, ConvertCKKSSubOp, ConvertCKKSMulOp,
+          ConvertCKKSAddPlainOp, ConvertCKKSSubPlainOp, ConvertCKKSMulPlainOp,
+          ConvertCKKSRelinOp, ConvertCKKSModulusSwitchOp, ConvertCKKSRotateOp,
+          ConvertCKKSEncryptOp, ConvertCKKSDecryptOp, ConvertCKKSEncodeOp,
+          ConvertCKKSDecodeOp, ConvertCKKSLevelReduceOp>(typeConverter,
+                                                         context);
     }
     // Misc
     patterns.add<ConvertLWEReinterpretApplicationData>(typeConverter, context);

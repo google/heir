@@ -95,6 +95,8 @@ def Lattigo_RLWECiphertext : Lattigo_RLWEType<"Ciphertext", "ciphertext"> {
   let description = [{
     This type represents the ciphertext for the RLWE encryption scheme.
   }];
+  // RLWE Ciphertext should have recorded the scaling factor.
+  // We rely on Lattigo internal implementation to track the scaling factor.
   let asmName = "ct";
 }
 

@@ -15,6 +15,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Utils:APIntUtils",
         "@heir//lib/Utils:ConversionUtils",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",

@@ -31,18 +31,6 @@ cc_library(
 )
 
 cc_library(
-    name = "FHEHelpers",
-    hdrs = ["FHEHelpers.h"],
-    deps = [
-        "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/RNS/IR:Dialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
     name = "ModuleAttributes",
     srcs = ["ModuleAttributes.cpp"],
     hdrs = ["ModuleAttributes.h"],

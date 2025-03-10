@@ -65,6 +65,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
               RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
               RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp, RLWEGenGaloisKeyOp,
               RLWENewEvaluationKeySetOp, RLWEEncryptOp, RLWEDecryptOp,
+              RLWELevelReduceNewOp, RLWELevelReduceOp,
               // BGV
               BGVNewParametersFromLiteralOp, BGVNewEncoderOp, BGVNewEvaluatorOp,
               BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddNewOp,
@@ -336,6 +337,28 @@ LogicalResult LattigoEmitter::printOperation(RLWEDecryptOp op) {
                             {op.getCiphertext()}, "DecryptNew", false);
 }
 
+LogicalResult LattigoEmitter::printOperation(RLWELevelReduceNewOp op) {
+  // there is no LevelReduceNew method in Lattigo, manually create new
+  // ciphertext
+  os << getName(op.getOutput()) << " := " << getName(op.getInput())
+     << ".CopyNew()\n";
+  os << getName(op.getOutput()) << ".Resize(" << getName(op.getOutput())
+     << ".Degree(), " << getName(op.getOutput()) << ".Level()-"
+     << op.getLevelToDrop() << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(RLWELevelReduceOp op) {
+  if (getName(op.getOutput()) != getName(op.getInput())) {
+    os << getName(op.getInput()) << ".Copy(" << getName(op.getOutput())
+       << ")\n";
+  }
+  os << getName(op.getOutput()) << ".Resize(" << getName(op.getOutput())
+     << ".Degree(), " << getName(op.getOutput()) << ".Level()-"
+     << op.getLevelToDrop() << ")\n";
+  return success();
+}
+
 // BGV
 
 LogicalResult LattigoEmitter::printOperation(BGVNewEncoderOp op) {
@@ -381,7 +404,8 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   }
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
 
-  auto packedName = getName(op.getValue()) + "_packed";
+  auto packedName =
+      getName(op.getValue()) + "_" + getName(op.getPlaintext()) + "_packed";
   os << packedName << " := make([]int64, ";
   os << maxSlotsName << ")\n";
   os << "for i := range " << packedName << " {\n";
@@ -390,6 +414,13 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
      << getName(op.getValue()) << ")])\n";
   os.unindent();
   os << "}\n";
+
+  // set the scale of plaintext
+  // Enable this part only when we have scale management
+  // auto scale = op.getScale();
+  // os << getName(op.getPlaintext()) << ".Scale = ";
+  // os << getName(newPlaintextOp.getParams()) << ".NewScale(";
+  // os << scale << ")\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";
@@ -584,7 +615,8 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   }
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
 
-  auto packedName = getName(op.getValue()) + "_packed";
+  auto packedName =
+      getName(op.getValue()) + "_" + getName(op.getPlaintext()) + "_packed";
   os << packedName << " := make([]float64, ";
   os << maxSlotsName << ")\n";
   os << "for i := range " << packedName << " {\n";
@@ -593,6 +625,13 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
      << getName(op.getValue()) << ")])\n";
   os.unindent();
   os << "}\n";
+
+  // set the scale of plaintext
+  // Enable this part only when we have scale management
+  // auto scale = op.getScale();
+  // os << getName(op.getPlaintext()) << ".Scale = ";
+  // os << getName(newPlaintextOp.getParams()) << ".NewScale(math.Pow(2, ";
+  // os << scale << "))\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";

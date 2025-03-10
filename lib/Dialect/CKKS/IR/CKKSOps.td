@@ -13,21 +13,15 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
 
 class CKKS_Op<string mnemonic, list<Trait> traits = []> :
-        Op<CKKS_Dialect, mnemonic, traits> {
+        Op<CKKS_Dialect, mnemonic, traits # [Pure]> {
   let cppNamespace = "::mlir::heir::ckks";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)
   }];
 }
 
-class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
-    [Pure, AllTypesMatch<["ciphertextInput", "output"]>,
-    TypesMatchWith<"type of 'plaintextInput' matches encoding type of 'ciphertextInput'",
-                    "ciphertextInput", "plaintextInput",
-                    "lwe::NewLWEPlaintextType::get($_ctxt, "
-                      "::llvm::cast<lwe::NewLWECiphertextType>($_self).getApplicationData(),"
-                      "::llvm::cast<lwe::NewLWECiphertextType>($_self).getPlaintextSpace())">]> :
-        CKKS_Op<mnemonic, traits> {
+class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
+      : CKKS_Op<mnemonic, traits> {
   let arguments = (ins
     NewLWECiphertext:$ciphertextInput,
     NewLWEPlaintext:$plaintextInput
@@ -38,7 +32,8 @@ class CKKS_CiphertextPlaintextOp<string mnemonic, list<Trait> traits =
   );
 }
 
-def CKKS_AddOp : CKKS_Op<"add", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def CKKS_AddOp : CKKS_Op<"add", [Commutative, SameOperandsAndResultRings,
+    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Addition operation between ciphertexts.";
 
   let arguments = (ins
@@ -51,11 +46,13 @@ def CKKS_AddOp : CKKS_Op<"add", [Pure, Commutative, SameOperandsAndResultRings, 
   );
 }
 
-def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain"> {
+def CKKS_AddPlainOp : CKKS_CiphertextPlaintextOp<"add_plain", [AllTypesMatch<["ciphertextInput", "output"]>,
+      SameOperandsAndResultPlaintextTypes]> {
   let summary = "Addition operation between ciphertext-plaintext.";
 }
 
-def CKKS_SubOp : CKKS_Op<"sub", [Pure, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def CKKS_SubOp : CKKS_Op<"sub", [SameOperandsAndResultRings,
+    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Subtraction operation between ciphertexts.";
 
   let arguments = (ins
@@ -68,11 +65,12 @@ def CKKS_SubOp : CKKS_Op<"sub", [Pure, SameOperandsAndResultRings, InferTypeOpAd
   );
 }
 
-def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain"> {
+def CKKS_SubPlainOp : CKKS_CiphertextPlaintextOp<"sub_plain", [AllTypesMatch<["ciphertextInput", "output"]>,
+      SameOperandsAndResultPlaintextTypes]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
 
-def CKKS_MulOp : CKKS_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def CKKS_MulOp : CKKS_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertexts.";
 
   let arguments = (ins
@@ -87,11 +85,12 @@ def CKKS_MulOp : CKKS_Op<"mul", [Pure, Commutative, SameOperandsAndResultRings, 
   let hasVerifier = 1;
 }
 
-def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain"> {
+def CKKS_MulPlainOp : CKKS_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
+  let hasVerifier = 1;
 }
 
-def CKKS_RotateOp : CKKS_Op<"rotate", [Pure, AllTypesMatch<["input", "output"]>]> {
+def CKKS_RotateOp : CKKS_Op<"rotate", [AllTypesMatch<["input", "output"]>]> {
   let summary = "Rotate the coefficients of the ciphertext using a Galois automorphism.";
 
   let arguments = (ins
@@ -135,7 +134,7 @@ def CKKS_ExtractOp : CKKS_Op<"extract", [SameOperandsAndResultRings]> {
   let hasVerifier = 1;
 }
 
-def CKKS_NegateOp : CKKS_Op<"negate", [Pure, SameOperandsAndResultType, Involution]> {
+def CKKS_NegateOp : CKKS_Op<"negate", [SameOperandsAndResultType, Involution]> {
   let summary = "Negate the coefficients of the ciphertext.";
 
   let arguments = (ins
@@ -149,7 +148,8 @@ def CKKS_NegateOp : CKKS_Op<"negate", [Pure, SameOperandsAndResultType, Involuti
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 }
 
-def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [Pure, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
+def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
+    SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Relinearize the ciphertext.";
 
   let description = [{
@@ -176,7 +176,7 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [Pure, SameOperandsAndResultRing
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_RescaleOp : CKKS_Op<"rescale", [Pure]> {
+def CKKS_RescaleOp : CKKS_Op<"rescale"> {
   let summary = "Rescales the ciphertext, which is the CKKS version of modulus switching in BGV/BFV.";
 
   let arguments = (ins
@@ -192,7 +192,23 @@ def CKKS_RescaleOp : CKKS_Op<"rescale", [Pure]> {
   let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
 }
 
-def CKKS_BootstrapOp : CKKS_Op<"bootstrap", [Pure]> {
+def CKKS_LevelReduceOp : CKKS_Op<"level_reduce", [SameOperandsAndResultPlaintextTypes]> {
+  let summary = "Lower the modulus level of the ciphertext via dropping RNS limbs.";
+
+  let arguments = (ins
+    NewLWECiphertext:$input,
+    DefaultValuedAttr<I64Attr, "1">:$levelToDrop
+  );
+
+  let results = (outs
+    NewLWECiphertext:$output
+  );
+
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+}
+
+def CKKS_BootstrapOp : CKKS_Op<"bootstrap"> {
   let summary = "Bootstrap the ciphertext to reduce noise and refresh its parameters.";
 
   let description = [{
