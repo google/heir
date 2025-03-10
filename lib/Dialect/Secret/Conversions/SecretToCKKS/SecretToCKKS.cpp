@@ -152,13 +152,13 @@ class SecretToCKKSTypeConverter
     }
 
     // TODO(#785): Set a scaling parameter for floating point values.
+    // Scaling factor is 0 now for passing through all the type verifier.
     auto ciphertext = lwe::NewLWECiphertextType::get(
         ctx,
         lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
                                       lwe::NoOverflowAttr::get(ctx)),
         lwe::PlaintextSpaceAttr::get(
-            ctx, plaintextRing,
-            lwe::InverseCanonicalEncodingAttr::get(ctx, 1 << 10)),
+            ctx, plaintextRing, lwe::InverseCanonicalEncodingAttr::get(ctx, 0)),
         lwe::CiphertextSpaceAttr::get(ctx,
                                       getRlweRNSRingWithLevel(ring_, level),
                                       lwe::LweEncryptionType::lsb, dimension),

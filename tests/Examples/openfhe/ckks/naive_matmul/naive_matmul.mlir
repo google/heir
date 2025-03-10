@@ -11,7 +11,7 @@
 !rns_L0_ = !rns.rns<!Z1095233372161_i64_>
 #ring_rns_L0_1_x1024_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**1024>>
 #ring_Z65537_i64_1_x1024_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**1024>>
-#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 1024>
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 0>
 #plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x1024_, encoding = #inverse_canonical_encoding>
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 !rlwe_pt = !lwe.new_lwe_plaintext<application_data = <message_type = f32>, plaintext_space = #plaintext_space>

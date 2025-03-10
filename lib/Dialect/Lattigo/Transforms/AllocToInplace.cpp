@@ -230,6 +230,42 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
   DenseMap<Block *, StorageInfo> *blockToStorageInfo;
 };
 
+template <typename LevelReduceOp, typename InplaceOp>
+struct ConvertLevelReduceOp : public OpRewritePattern<LevelReduceOp> {
+  using OpRewritePattern<LevelReduceOp>::OpRewritePattern;
+
+  ConvertLevelReduceOp(mlir::MLIRContext *context, Liveness *liveness,
+                       DenseMap<Block *, StorageInfo> *blockToStorageInfo)
+      : OpRewritePattern<LevelReduceOp>(context),
+        liveness(liveness),
+        blockToStorageInfo(blockToStorageInfo) {}
+
+  LogicalResult matchAndRewrite(LevelReduceOp op,
+                                PatternRewriter &rewriter) const override {
+    auto &storageInfo = (*blockToStorageInfo)[op->getBlock()];
+    auto storage = storageInfo.getAvailableStorage(op, liveness);
+    if (!storage) {
+      return failure();
+    }
+
+    // InplaceOp has the form: output = InplaceOp(lhs, inplace) {levelToDrop}
+    // where inplace is the actual output but for SSA form we need to return a
+    // new value
+    auto inplaceOp = rewriter.create<InplaceOp>(
+        op.getLoc(), op.getOperand().getType(), op.getOperand(), storage,
+        op.getLevelToDrop());
+
+    // update storage info
+    storageInfo.replaceAllocWithInplace(op, inplaceOp, storage);
+    rewriter.replaceOp(op, inplaceOp);
+    return success();
+  }
+
+ private:
+  Liveness *liveness;
+  DenseMap<Block *, StorageInfo> *blockToStorageInfo;
+};
+
 #define GEN_PASS_DEF_ALLOCTOINPLACE
 #include "lib/Dialect/Lattigo/Transforms/Passes.h.inc"
 
@@ -293,8 +329,11 @@ struct AllocToInplace : impl::AllocToInplaceBase<AllocToInplace> {
         ConvertUnaryOp<lattigo::CKKSRelinearizeNewOp,
                        lattigo::CKKSRelinearizeOp>,
         ConvertUnaryOp<lattigo::CKKSRescaleNewOp, lattigo::CKKSRescaleOp>,
-        ConvertRotateOp<lattigo::CKKSRotateNewOp, lattigo::CKKSRotateOp>>(
-        context, &liveness, &blockToStorageInfo);
+        ConvertRotateOp<lattigo::CKKSRotateNewOp, lattigo::CKKSRotateOp>,
+        // RLWE
+        ConvertLevelReduceOp<lattigo::RLWELevelReduceNewOp,
+                             lattigo::RLWELevelReduceOp>>(context, &liveness,
+                                                          &blockToStorageInfo);
 
     // The greedy policy relies on the order of processing the operations.
     walkAndApplyPatterns(getOperation(), std::move(patterns));

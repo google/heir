@@ -48,11 +48,14 @@ def Lattigo_CKKSEncodeOp : Lattigo_CKKSOp<"encode", [InplaceOpInterface]> {
     This operation encodes a plaintext value using the specified encoder in the Lattigo CKKS dialect.
 
     The input value tensor should have elements of float type or complex type.
+
+    The `scale` attribute indicates the scaling factor for encoding.
   }];
   let arguments = (ins
     Lattigo_CKKSEncoder:$encoder,
     RankedTensorOf<[AnyFloat, AnyComplex]>:$value,
-    Lattigo_RLWEPlaintext:$plaintext
+    Lattigo_RLWEPlaintext:$plaintext,
+    DefaultValuedAttr<I64Attr, "1">:$scale
   );
   let results = (outs Lattigo_RLWEPlaintext:$encoded);
 

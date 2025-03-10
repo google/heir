@@ -622,8 +622,16 @@ LogicalResult OpenFhePkeEmitter::printOperation(ModReduceOp op) {
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(LevelReduceOp op) {
-  return printEvalMethod(op.getResult(), op.getCryptoContext(),
-                         {op.getCiphertext()}, "LevelReduce");
+  emitAutoAssignPrefix(op.getResult());
+
+  os << variableNames->getNameForValue(op.getCryptoContext()) << "->"
+     << "LevelReduce" << "(";
+  os << commaSeparatedValues({op.getCiphertext()}, [&](Value value) {
+    return variableNames->getNameForValue(value);
+  });
+  os << ", nullptr, ";
+  os << op.getLevelToDrop() << ");\n";
+  return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(RotOp op) {

@@ -18,31 +18,83 @@ class SameOperandsAndResultRings
  public:
   static LogicalResult verifyTrait(Operation *op) {
     ::mlir::heir::polynomial::RingAttr rings = nullptr;
+    auto initOrCheckRings =
+        [&](::mlir::heir::polynomial::RingAttr ring) {
+          if (rings == nullptr) {
+            rings = ring;
+            return success();
+          }
+          if (rings != ring) {
+            op->emitOpError()
+                << "requires all operands and results to have the same rings";
+            return failure();
+          }
+          return success();
+        };
     for (auto rTy : op->getResultTypes()) {
       auto ct = dyn_cast<lwe::NewLWECiphertextType>(rTy);
       if (!ct) continue;
-      if (rings == nullptr) {
-        rings = ct.getCiphertextSpace().getRing();
-        continue;
-      }
-      if (rings != ct.getCiphertextSpace().getRing()) {
-        return op->emitOpError()
-               << "requires all operands and results to have the same rings";
+      if (failed(initOrCheckRings(ct.getCiphertextSpace().getRing()))) {
+        return failure();
       }
     }
 
     for (auto oTy : op->getOperandTypes()) {
       auto ct = dyn_cast<lwe::NewLWECiphertextType>(oTy);
       if (!ct) continue;  // Check only ciphertexts
-
-      if (rings == nullptr) {
-        rings = ct.getCiphertextSpace().getRing();
-        continue;
+      if (failed(initOrCheckRings(ct.getCiphertextSpace().getRing()))) {
+        return failure();
       }
+    }
+    return success();
+  }
+};
 
-      if (rings != ct.getCiphertextSpace().getRing()) {
-        return op->emitOpError()
-               << "requires all operands and results to have the same rings";
+// Trait that ensures that all operands and results ciphertext/plaintext have
+// the same set of application space/plaintext spaces.
+template <typename ConcreteType>
+class SameOperandsAndResultPlaintextTypes
+    : public OpTrait::TraitBase<ConcreteType,
+                                SameOperandsAndResultPlaintextTypes> {
+ public:
+  static LogicalResult verifyTrait(Operation *op) {
+    lwe::NewLWEPlaintextType plaintextTypes = nullptr;
+    auto initOrCheckPlaintextTypes = [&](NewLWEPlaintextType ps) {
+      if (plaintextTypes == nullptr) {
+        plaintextTypes = ps;
+        return success();
+      }
+      if (plaintextTypes != ps) {
+        op->emitOpError() << "requires all operands and results to have "
+                             "the same plaintextTypes";
+        return failure();
+      }
+      return success();
+    };
+    auto getPlaintextTypeFromCiphertextType = [&](NewLWECiphertextType ct) {
+      return lwe::NewLWEPlaintextType::get(
+          op->getContext(), ct.getApplicationData(), ct.getPlaintextSpace());
+    };
+
+    for (auto rTy : op->getResultTypes()) {
+      auto ct = dyn_cast<lwe::NewLWECiphertextType>(rTy);
+      if (!ct) continue;
+      if (failed(initOrCheckPlaintextTypes(
+              getPlaintextTypeFromCiphertextType(ct)))) {
+        return failure();
+      }
+    }
+
+    for (auto oTy : op->getOperandTypes()) {
+      auto ct = dyn_cast<lwe::NewLWECiphertextType>(oTy);
+      auto pt = dyn_cast<lwe::NewLWEPlaintextType>(oTy);
+      if (!ct && !pt) continue;  // Check only ciphertexts and plaintexts
+      if (ct && failed(initOrCheckPlaintextTypes(
+                    getPlaintextTypeFromCiphertextType(ct)))) {
+        return failure();
+      }
+      if (pt && failed(initOrCheckPlaintextTypes(pt))) {
+        return failure();
       }
     }
     return success();
