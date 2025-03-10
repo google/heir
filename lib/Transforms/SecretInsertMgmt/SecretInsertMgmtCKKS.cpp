@@ -134,31 +134,40 @@ struct SecretInsertMgmtCKKS
       return;
     }
 
+    if (afterMul) {
+      RewritePatternSet patternsMultModReduce(&getContext());
+      patternsMultModReduce.add<ModReduceAfterMult<arith::MulIOp>>(
+          &getContext(), getOperation(), &solver);
+      patternsMultModReduce.add<ModReduceAfterMult<arith::MulFOp>>(
+          &getContext(), getOperation(), &solver);
+      patternsMultModReduce.add<ModReduceAfterMult<tensor::ExtractOp>>(
+          &getContext(), getOperation(), &solver);
+      (void)walkAndApplyPatterns(getOperation(),
+                                 std::move(patternsMultModReduce));
+    } else {
+      RewritePatternSet patternsMultModReduce(&getContext());
+      patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
+          &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
+      patternsMultModReduce.add<ModReduceBefore<arith::MulFOp>>(
+          &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
+      // tensor::ExtractOp = mulConst + rotate
+      patternsMultModReduce.add<ModReduceBefore<tensor::ExtractOp>>(
+          &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
+      // includeFirstMul = false here
+      // as before yield we only want mulResult to be mod reduced
+      patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
+          &getContext(), /*includeFirstMul*/ false, getOperation(), &solver);
+      (void)walkAndApplyPatterns(getOperation(),
+                                 std::move(patternsMultModReduce));
+    }
+
+    // this must be run after ModReduceAfterMult
     RewritePatternSet patternsRelinearize(&getContext());
     patternsRelinearize.add<MultRelinearize<arith::MulIOp>>(
         &getContext(), getOperation(), &solver);
     patternsRelinearize.add<MultRelinearize<arith::MulFOp>>(
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
-
-    RewritePatternSet patternsMultModReduce(&getContext());
-    patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
-    patternsMultModReduce.add<ModReduceBefore<arith::MulFOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
-    // tensor::ExtractOp = mulConst + rotate
-    patternsMultModReduce.add<ModReduceBefore<tensor::ExtractOp>>(
-        &getContext(), /*isMul*/ true, includeFirstMul, getOperation(),
-        &solver);
-    // isMul = true and includeFirstMul = false here
-    // as before yield we want mulResult to be mod reduced
-    patternsMultModReduce.add<ModReduceBefore<secret::YieldOp>>(
-        &getContext(), /*isMul*/ true, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    (void)walkAndApplyPatterns(getOperation(),
-                               std::move(patternsMultModReduce));
 
     // insert BootstrapOp after mgmt::ModReduceOp
     // This must be run before level mismatch
@@ -174,28 +183,51 @@ struct SecretInsertMgmtCKKS
                                std::move(patternsBootstrapWaterLine));
 
     // when other binary op operands level mismatch
-    // includeFirstMul not used for these ops
+    int scaleCounter = -1;  // for making adjust_scale op different to void cse
     RewritePatternSet patternsAddModReduce(&getContext());
-    patternsAddModReduce.add<ModReduceBefore<arith::AddIOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    patternsAddModReduce.add<ModReduceBefore<arith::AddFOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    patternsAddModReduce.add<ModReduceBefore<arith::SubIOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
-    patternsAddModReduce.add<ModReduceBefore<arith::SubFOp>>(
-        &getContext(), /*isMul*/ false, /*includeFirstMul*/ false,
-        getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::AddIOp>>(
+        &getContext(), &scaleCounter, getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::SubIOp>>(
+        &getContext(), &scaleCounter, getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::MulIOp>>(
+        &getContext(), &scaleCounter, getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::AddFOp>>(
+        &getContext(), &scaleCounter, getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::SubFOp>>(
+        &getContext(), &scaleCounter, getOperation(), &solver);
+    patternsAddModReduce.add<MatchCrossLevel<arith::MulFOp>>(
+        &getContext(), &scaleCounter, getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsAddModReduce));
 
+    // when other binary op operands mulDepth mismatch
+    // this only happen for before-mul but not include-first-mul case
+    // at the first level, a Value can be both mulResult or not mulResult
+    // we should match their scale by adding one adjust scale op
+    if (!beforeMulIncludeFirstMul && !afterMul) {
+      RewritePatternSet patternsMulResult(&getContext());
+      patternsMulResult.add<MatchCrossMulResult<arith::MulIOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      patternsMulResult.add<MatchCrossMulResult<arith::AddIOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      patternsMulResult.add<MatchCrossMulResult<arith::SubIOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      patternsMulResult.add<MatchCrossMulResult<arith::MulFOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      patternsMulResult.add<MatchCrossMulResult<arith::AddFOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      patternsMulResult.add<MatchCrossMulResult<arith::SubFOp>>(
+          &getContext(), &scaleCounter, getOperation(), &solver);
+      (void)walkAndApplyPatterns(getOperation(), std::move(patternsMulResult));
+    }
+
+    // call Canonicalizer here because mgmt ops need to be ordered
     // call CSE here because there may be redundant mod reduce
     // one Value may get mod reduced multiple times in
     // multiple Uses
     //
     // also run annotate-mgmt for lowering
     OpPassManager pipeline("builtin.module");
+    pipeline.addPass(createCanonicalizerPass());
     pipeline.addPass(createCSEPass());
     pipeline.addPass(mgmt::createAnnotateMgmt());
     (void)runPipeline(pipeline, getOperation());

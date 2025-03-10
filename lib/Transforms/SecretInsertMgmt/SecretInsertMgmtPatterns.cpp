@@ -48,6 +48,34 @@ LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
   return solver->initializeAndRun(top);
 }
 
+template <typename MulOp>
+LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
+    MulOp mulOp, PatternRewriter &rewriter) const {
+  Value result = mulOp.getResult();
+  bool secret = isSecret(result, solver);
+  if (!secret) {
+    return success();
+  }
+
+  // guard against tensor::ExtractOp with slot_extract = false
+  // TODO(#1174): decide packing earlier in the pipeline instead of annotation
+  // workaround
+  if (isa<tensor::ExtractOp>(mulOp)) {
+    auto slotExtractAttr = mulOp->getAttr("slot_extract");
+    if (isa_and_nonnull<BoolAttr>(slotExtractAttr)) {
+      // must be false!
+      return success();
+    }
+  }
+
+  rewriter.setInsertionPointAfter(mulOp);
+  auto modReduced = rewriter.create<mgmt::ModReduceOp>(mulOp.getLoc(), result);
+  result.replaceAllUsesExcept(modReduced, {modReduced});
+
+  solver->eraseAllStates();
+  return solver->initializeAndRun(top);
+}
+
 template <typename Op>
 LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     Op op, PatternRewriter &rewriter) const {
@@ -75,68 +103,160 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
 
   auto maxLevel = 0;
   auto isMulResult = false;
-  // use map in case we have same operands
-  DenseMap<Value, LevelState::LevelType> operandsInsertLevel;
-  for (auto operand : op.getOperands()) {
-    bool secret = isSecret(operand, solver);
-    if (!secret) {
-      continue;
-    }
-    auto levelLattice = solver->lookupState<LevelLattice>(operand)->getValue();
-    if (!levelLattice.isInitialized()) {
+  SmallVector<OpOperand *, 2> secretOperands;
+  getSecretOperands(op, secretOperands, solver);
+  for (auto *operand : secretOperands) {
+    auto levelState =
+        solver->lookupState<LevelLattice>(operand->get())->getValue();
+    if (!levelState.isInitialized()) {
       return failure();
     }
-    auto isMulResultLattice =
-        solver->lookupState<MulResultLattice>(operand)->getValue();
-    if (!isMulResultLattice.isInitialized()) {
+    auto mulResultState =
+        solver->lookupState<MulResultLattice>(operand->get())->getValue();
+    if (!mulResultState.isInitialized()) {
       return failure();
     }
 
-    auto level = levelLattice.getLevel();
-    operandsInsertLevel[operand] = level;
+    auto level = levelState.getLevel();
     maxLevel = std::max(maxLevel, level);
-    isMulResult |= isMulResultLattice.getIsMulResult();
+    isMulResult |= mulResultState.getIsMulResult();
 
-    LLVM_DEBUG(llvm::dbgs() << "  ModReduceBefore: Operand: " << operand
-                            << " Level: " << level << " isMulresult "
-                            << isMulResultLattice.getIsMulResult() << "\n");
+    LLVM_DEBUG(llvm::dbgs() << "  ModReduceBefore: Operand: " << operand->get()
+                            << " Level: " << level << " IsMulResult: "
+                            << mulResultState.getIsMulResult() << "\n");
   }
 
-  auto resultLevel = maxLevel;
-  // for other op it is only mod reduce when operand mismatch level
-  if (isMul) {
-    // if includeFirstMul, we always mod reduce before
-    // else, check if it is a mul result
-    if (includeFirstMul || (!includeFirstMul && isMulResult)) {
-      // Inserting mod reduce before mulOp means resultLevel = maxLevel +
-      // 1
-      resultLevel = maxLevel + 1;
-    }
+  // first mulOp in the chain, skip
+  if (!includeFirstMul && !isMulResult) {
+    return success();
   }
+
+  auto resultLevel = maxLevel + 1;
 
   LLVM_DEBUG(llvm::dbgs() << "ModReduceBefore: " << op
                           << " Level: " << resultLevel << "\n");
 
-  bool inserted = false;
-  for (auto [operand, operandLevel] : operandsInsertLevel) {
-    Value managed = operand;
+  SmallVector<Value, 2> secretOperandValues = llvm::to_vector(
+      llvm::map_range(secretOperands, [](OpOperand *op) { return op->get(); }));
+  // iterating over Values instead of OpOperands
+  // because one Value can corresponds to multiple OpOperands
+  for (auto operand : secretOperandValues) {
     rewriter.setInsertionPoint(op);
-    for (auto i = 0; i < resultLevel - operandLevel; ++i) {
-      inserted = true;
-      managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
-    };
+    auto managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), operand);
     op->replaceUsesOfWith(operand, managed);
   }
 
-  // when actually created new op, re-run the solver
-  // otherwise performance issue
-  if (inserted) {
-    // propagateIfChanged only push workitem to the worklist queue
-    // actually execute the transfer for the new values
-    solver->eraseAllStates();
-    return solver->initializeAndRun(top);
+  // propagateIfChanged only push workitem to the worklist queue
+  // actually execute the transfer for the new values
+  solver->eraseAllStates();
+  return solver->initializeAndRun(top);
+}
+
+template <typename Op>
+LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
+    Op op, PatternRewriter &rewriter) const {
+  Value result = op.getResult();
+  bool secret = isSecret(result, solver);
+  if (!secret) {
+    return success();
   }
-  return success();
+  auto resultLevelState = solver->lookupState<LevelLattice>(result)->getValue();
+  if (!resultLevelState.isInitialized()) {
+    return failure();
+  }
+  auto resultLevel = resultLevelState.getLevel();
+
+  bool inserted = false;
+  SmallVector<OpOperand *, 2> secretOperands;
+  getSecretOperands(op, secretOperands, solver);
+  for (auto *operand : secretOperands) {
+    auto levelState =
+        solver->lookupState<LevelLattice>(operand->get())->getValue();
+    if (!levelState.isInitialized()) {
+      return failure();
+    }
+
+    auto level = levelState.getLevel();
+    if (level < resultLevel) {
+      inserted = true;
+      rewriter.setInsertionPoint(op);
+      Value managed = operand->get();
+      if (resultLevel - level > 1) {
+        managed = rewriter.create<mgmt::LevelReduceOp>(op.getLoc(), managed,
+                                                       resultLevel - level - 1);
+      }
+      // make a different adjust scale each time
+      // only after parameter selection can we decide the actual scale
+      managed = rewriter.create<mgmt::AdjustScaleOp>(
+          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--));
+      managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
+      // NOTE that only at most one operand/Value will experience such
+      // replacement. For op with two operands with same Value, such replace
+      // won't happen.
+      op->replaceUsesOfWith(operand->get(), managed);
+    }
+  }
+
+  if (!inserted) {
+    return success();
+  }
+  // propagateIfChanged only push workitem to the worklist queue
+  // actually execute the transfer for the new values
+  solver->eraseAllStates();
+  return solver->initializeAndRun(top);
+}
+
+template <typename Op>
+LogicalResult MatchCrossMulResult<Op>::matchAndRewrite(
+    Op op, PatternRewriter &rewriter) const {
+  Value result = op.getResult();
+  bool secret = isSecret(result, solver);
+  if (!secret) {
+    return success();
+  }
+
+  SmallVector<OpOperand *, 2> secretOperands;
+  getSecretOperands(op, secretOperands, solver);
+  if (secretOperands.size() < 2) {
+    return success();
+  }
+
+  SmallVector<bool, 2> mulResults;
+  for (auto *operand : secretOperands) {
+    auto mulResultState =
+        solver->lookupState<MulResultLattice>(operand->get())->getValue();
+    if (!mulResultState.isInitialized()) {
+      return failure();
+    }
+    auto mulResult = mulResultState.getIsMulResult();
+    mulResults.push_back(mulResult);
+  }
+
+  bool mismatch = mulResults[0] != mulResults[1];
+  if (!mismatch) {
+    return success();
+  }
+
+  // for one operand being mulResult and another not,
+  // we should match their scale by adding one adjust scale op
+  for (auto i = 0; i < secretOperands.size(); i++) {
+    auto *operand = secretOperands[i];
+    auto mulResult = mulResults[i];
+    if (!mulResult) {
+      rewriter.setInsertionPoint(op);
+      Value managed = operand->get();
+      // make a different adjust scale each time
+      // only after parameter selection can we decide the actual scale
+      managed = rewriter.create<mgmt::AdjustScaleOp>(
+          op.getLoc(), managed, rewriter.getI64IntegerAttr((*scaleCounter)--));
+      op->replaceUsesOfWith(operand->get(), managed);
+    }
+  }
+
+  // propagateIfChanged only push workitem to the worklist queue
+  // actually execute the transfer for the new values
+  solver->eraseAllStates();
+  return solver->initializeAndRun(top);
 }
 
 template <typename Op>
@@ -184,29 +304,46 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
 // for BGV
 template struct MultRelinearize<arith::MulIOp>;
 
-// isMul = true
+template struct ModReduceAfterMult<arith::MulIOp>;
+// extract = mulplain + rotate for annotated slot_extract = true
+// TODO(#1174): decide packing earlier in the pipeline instead of annotation
+template struct ModReduceAfterMult<tensor::ExtractOp>;
+
 template struct ModReduceBefore<arith::MulIOp>;
 // extract = mulplain + rotate for annotated slot_extract = true
 // TODO(#1174): decide packing earlier in the pipeline instead of annotation
 template struct ModReduceBefore<tensor::ExtractOp>;
 template struct ModReduceBefore<secret::YieldOp>;
-// isMul = false
-template struct ModReduceBefore<arith::AddIOp>;
-template struct ModReduceBefore<arith::SubIOp>;
+
+template struct MatchCrossLevel<arith::MulIOp>;
+template struct MatchCrossLevel<arith::AddIOp>;
+template struct MatchCrossLevel<arith::SubIOp>;
+
+template struct MatchCrossMulResult<arith::MulIOp>;
+template struct MatchCrossMulResult<arith::AddIOp>;
+template struct MatchCrossMulResult<arith::SubIOp>;
 
 // for B/FV
 template struct RemoveOp<mgmt::ModReduceOp>;
+template struct RemoveOp<mgmt::LevelReduceOp>;
+template struct RemoveOp<mgmt::AdjustScaleOp>;
 
 // for CKKS
 template struct MultRelinearize<arith::MulFOp>;
 
-// isMul = true
+template struct ModReduceAfterMult<arith::MulFOp>;
+
 template struct ModReduceBefore<arith::MulFOp>;
-// isMul = false
-template struct ModReduceBefore<arith::AddFOp>;
-template struct ModReduceBefore<arith::SubFOp>;
 
 template struct BootstrapWaterLine<mgmt::ModReduceOp>;
+
+template struct MatchCrossLevel<arith::MulFOp>;
+template struct MatchCrossLevel<arith::AddFOp>;
+template struct MatchCrossLevel<arith::SubFOp>;
+
+template struct MatchCrossMulResult<arith::MulFOp>;
+template struct MatchCrossMulResult<arith::AddFOp>;
+template struct MatchCrossMulResult<arith::SubFOp>;
 
 }  // namespace heir
 }  // namespace mlir
