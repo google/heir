@@ -649,6 +649,174 @@ class ConvertLinalgReduce
   };
 };
 
+// FIXME: add tensor shape arguments
+bool isLayoutSquatDiagonal(const AffineMap &layout) {
+  // FIXME: implement
+  return false;
+}
+
+bool isLayoutRowMajor(const AffineMap &layout) {
+  // FIXME: implement
+  return false;
+}
+
+struct ConvertLinalgMatvec
+    : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      linalg::MatvecOp>::ContextAwareOpConversionPattern;
+
+  AffineMapAttr getLayoutAttr(Value value) const {
+    auto layoutLookup = getTypeConverter()->getContextualAttr(value);
+    if (failed(layoutLookup)) {
+      return nullptr;
+    }
+    return cast<AffineMapAttr>(layoutLookup.value());
+  }
+
+  bool supportsHaleviShoup(linalg::MatvecOp op) const {
+    Value matrix = op.getInputs()[0];
+    Value vector = op.getInputs()[1];
+    auto matrixType = cast<RankedTensorType>(matrix.getType());
+    auto dimensions = matrixType.getShape();
+    int64_t numRows = dimensions[0];
+    int64_t numCols = dimensions[1];
+
+    // If one of these dimensions is not a power of two, then we can't do
+    // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
+    if (!isPowerOfTwo(numRows) || !isPowerOfTwo(numCols)) {
+      return false;
+    }
+
+    // Assert the matrix has a diagonal layout and the vector has a row-major
+    // layout.
+    AffineMap matrixLayout = getLayoutAttr(matrix).getValue();
+    AffineMap vectorLayout = getLayoutAttr(vector).getValue();
+    if (!isLayoutSquatDiagonal(matrixLayout) ||
+        !isLayoutRowMajor(vectorLayout)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  void haleviShoupKernel() const {}
+
+  LogicalResult matchAndRewrite(
+      linalg::MatvecOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter &rewriter) const final {
+    Value matrix = op.getInputs()[0];
+    Value vector = op.getInputs()[1];
+    auto outputs = op.getOutputs();
+
+    if (!getLayoutAttr(matrix) || !getLayoutAttr(vector)) {
+      return op.emitError() << "missing layout attribute for matrix or vector";
+    }
+
+    if (supportsHaleviShoup(op)) {
+      haleviShoupKernel();
+      return success();
+    }
+
+    // Otherwise options are:
+    //
+    // - insert layout conversion, but the optimizer was supposed to do this
+    // - do a naive matvec kernel, if the input is laid out row-major
+    //
+    // For now, return failure.
+    return op.emitError() << "unsupported layout for matrix in matvec: "
+                          << getLayoutAttr(matrix).getValue();
+
+    // Diagonalize the matrix only if the matrix is a constant.
+    auto matrixConstantValues =
+        dyn_cast<arith::ConstantOp>(publicMatrix.getDefiningOp());
+    auto biasConstantValues = dyn_cast<arith::ConstantOp>(bias.getDefiningOp());
+    if (!matrixConstantValues || !biasConstantValues) {
+      return failure();
+    }
+
+    DenseElementsAttr denseAttr =
+        dyn_cast<DenseElementsAttr>(matrixConstantValues.getValueAttr());
+    DenseElementsAttr biasAttr =
+        dyn_cast<DenseElementsAttr>(biasConstantValues.getValueAttr());
+
+    // If the constant values doesn't have a dense attribute, then we can't
+    // diagonalize the matrix.
+    if (!denseAttr || !biasAttr) {
+      return failure();
+    }
+
+    auto type = denseAttr.getElementType();
+    auto originalShape = denseAttr.getType().getShape();
+
+    if (!type.isIntOrFloat()) {
+      return failure();
+    }
+
+    // Define local function pointers or lambdas that refer to the functions
+    auto diagMatrixInt = diagonalizeMatrix<APInt>;
+    auto duplicateBiasInt = duplicateBias<APInt>;
+    auto multDiagMatrixWithVectorInt =
+        multiplyDiagonalizedMatrixWithVector<arith::AddIOp, arith::MulIOp>;
+
+    auto diagMatrixFloat = diagonalizeMatrix<APFloat>;
+    auto duplicateBiasFloat = duplicateBias<APFloat>;
+    auto multDiagMatrixWithVectorFloat =
+        multiplyDiagonalizedMatrixWithVector<arith::AddFOp, arith::MulFOp>;
+
+    SmallVector<Value> opInputs;
+    for (OpOperand &operand : op->getOpOperands()) {
+      if (auto *secretArg = op.getOpOperandForBlockArgument(operand.get())) {
+        opInputs.push_back(
+            adaptor.getODSOperands(0)[secretArg->getOperandNumber()]);
+      } else {
+        opInputs.push_back(operand.get());
+      }
+    }
+
+    SmallVector<Type> opOutputTypes;
+    auto result =
+        getTypeConverter()->convertTypes(op.getResultTypes(), opOutputTypes);
+    if (failed(result)) return failure();
+
+    auto newGeneric = rewriter.create<secret::GenericOp>(
+        op.getLoc(), opInputs, opOutputTypes,
+        [&](OpBuilder &builder, Location loc, ValueRange blockArguments) {
+          // The blockArguments should include the secret vector and public
+          // matrix.
+
+          Value secretValues = blockArguments[secretValuesIndex];
+          ImplicitLocOpBuilder b(loc, rewriter);
+          Value result;
+
+          // Compute diagonalized matrix and duplicated bias inside the body.
+          if (type.isInteger()) {
+            Value diagonalizedMatrix =
+                diagMatrixInt(b, denseAttr, isLeftOperandSecret, maxTilingSize);
+            Value duplicatedBias = duplicateBiasInt(
+                b, biasAttr, isLeftOperandSecret, maxTilingSize);
+            result = multDiagMatrixWithVectorInt(
+                b, diagonalizedMatrix, originalShape, secretValues,
+                duplicatedBias, isLeftOperandSecret, maxTilingSize);
+          } else {  // Floating point
+            Value diagonalizedMatrix = diagMatrixFloat(
+                b, denseAttr, isLeftOperandSecret, maxTilingSize);
+            Value duplicatedBias = duplicateBiasFloat(
+                b, biasAttr, isLeftOperandSecret, maxTilingSize);
+            result = multDiagMatrixWithVectorFloat(
+                b, diagonalizedMatrix, originalShape, secretValues,
+                duplicatedBias, isLeftOperandSecret, maxTilingSize);
+          }
+          // Yield the final result.
+          b.create<secret::YieldOp>(loc, result);
+        });
+
+    // Replace the original operation with the new op
+    rewriter.replaceOp(op, newGeneric);
+    return success();
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -666,8 +834,12 @@ struct ConvertToCiphertextSemantics
       return isa<ModuleOp>(op) || hasMaterializedAttr(op);
     });
 
-    patterns.add<ConvertFunc, ConvertGeneric, ConvertAssignLayout,
-                 ConvertConvertLayout, ConvertLinalgReduce,
+    patterns.add<ConvertFunc, ConvertGeneric,
+                 // tensor_ext ops
+                 ConvertAssignLayout, ConvertConvertLayout,
+                 // linalg ops
+                 ConvertLinalgReduce, ConvertLinalgMatvec,
+                 // default
                  ConvertAnyAddingMaterializedAttr>(typeConverter, context);
 
     if (failed(applyContextAwarePartialConversion(module, target,
