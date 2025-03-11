@@ -231,6 +231,7 @@ class ConvertAssignLayout
   LogicalResult matchAndRewrite(
       tensor_ext::AssignLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const final {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     // This pattern is different because its inputs do not have a layout,
     // so the type converter doesn't convert their input types. Instead,
     // the result's layout is defined by this op.
@@ -245,11 +246,48 @@ class ConvertAssignLayout
                             << ciphertextSemanticType << "\n");
     RankedTensorType dataSemanticType = op.getTensor().getType();
     Value input = adaptor.getTensor();
+    AffineMap layout = op.getLayout().getValue();
 
-    // TODO(#1542): support multi-packed ciphertexts
+    // FIXME: what will happen if the output size is bigger than the input size?
     if (ciphertextSemanticType.getRank() != 1) {
-      return op.emitError()
-             << "Does not support packing into multiple ciphertexts yet";
+      // Encode as a linalg.generic (is there a named op that can permute
+      // indices like this?)
+      auto emptyOp =
+          b.create<tensor::EmptyOp>(ciphertextSemanticType.getShape(),
+                                    ciphertextSemanticType.getElementType());
+      setMaterializedAttr(emptyOp);
+      emptyOp->setAttr(kLayoutAttrName, AffineMapAttr(op.getLayout()));
+
+      SmallVector<utils::IteratorType> iteratorTypes(
+          op.getLayout().getValue().getNumDims(),
+          utils::IteratorType::parallel);
+      SmallVector<AffineMap> indexingMaps = {
+          // The first map corresponds to how the iteration indices map to the
+          // input tensor indices. This is the identity because the loop is
+          // mapping the input values to ciphertext slots.
+          AffineMap::getMultiDimIdentityMap(layout.getNumDims(),
+                                            op.getContext()),
+          // The first map is the actual layout, mapping input tensor indices
+          // to ciphertext slots.
+          layout};
+      auto materializeLayoutOp = b.create<linalg::GenericOp>(
+          /*resultTypes=*/emptyOp.getResult().getType(),
+          /*inputs=*/input,
+          /*outputs=*/emptyOp.getResult(), indexingMaps, iteratorTypes,
+          /*bodyBuilder=*/
+          [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+            // Do nothing, which just assigns the input to the output slot.
+            auto yieldOp =
+                nestedBuilder.create<linalg::YieldOp>(nestedLoc, args[0]);
+            setMaterializedAttr(yieldOp);
+          });
+
+      setMaterializedAttr(materializeLayoutOp);
+      materializeLayoutOp->setAttr(kLayoutAttrName,
+                                   op->getAttr(kLayoutAttrName));
+      rewriter.replaceOp(op, materializeLayoutOp);
+      materializeLayoutOp->dump();
+      return success();
     }
 
     if (ciphertextSemanticType == input.getType()) {
@@ -270,7 +308,6 @@ class ConvertAssignLayout
                                "size, or else repetition assumption fails!";
     }
 
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     int64_t numIters = ciphertextSize / dataSize;
     SmallVector<Value> repeatedInputs(numIters, input);
     auto concatOp = b.create<tensor::ConcatOp>(
