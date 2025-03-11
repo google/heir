@@ -1,7 +1,6 @@
 // RUN: heir-opt --layout-propagation %s | FileCheck %s
 
 !stensor = !secret.secret<tensor<32x32xi16>>
-#row_major = affine_map<(i, j) -> (32*i + j)>
 
 // Just test that the layout propagation pass runs, even though no layout
 // conversion ops are inserted.

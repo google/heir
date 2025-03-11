@@ -1,62 +1,47 @@
 // RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
 
-#map = affine_map<(d0, d1) -> (d0 * 4 + d1)>
-#map1 = affine_map<(d0) -> (d0)>
-#map2 = affine_map<(d0) -> (d0 * 4)>
+#row_major_matrix = #tensor_ext.layout<map = (d0, d1) -> (d0 * 4 + d1)>
+#row_major_vec_align = #tensor_ext.alignment<in = [4], out = [16]>
+#row_major_vec = #tensor_ext.layout<map = (d0) -> (d0), alignment=#row_major_vec_align>
+#col_major_vec_align = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0>
+#col_major_vec = #tensor_ext.layout<map = (d0) -> (d0 * 4), alignment=#col_major_vec_align>
 
 // CHECK-LABEL: @convert_linalg_reduce
 // CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xi16>>]]
-// CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4x4xi16>>, layout = (d0, d1) -> (d0 * 4 + d1)>}
+// CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4x4xi16>>, layout = <map = (d0, d1) -> (d0 * 4 + d1)>>}
 // CHECK-SAME: [[arg1:%[^:]*]]: [[materialized_ty]]
-// CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4x4xi16>>, layout = (d0, d1) -> (d0 * 4 + d1)>
-// CHECK-SAME: -> ([[materialized_ty]] {tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4xi16>>, layout = (d0) -> (d0)>})
+// CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4x4xi16>>, layout = <map = (d0, d1) -> (d0 * 4 + d1)>>
+// CHECK-SAME: -> ([[materialized_ty]] {tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4xi16>>, layout = <map = (d0) -> (d0), alignment = <in = [4], out = [16]>>>})
 func.func @convert_linalg_reduce(
-    %arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = affine_map<(d0, d1) -> (d0 * 4 + d1)>},
-    %arg1: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = affine_map<(d0, d1) -> (d0 * 4 + d1)>}) ->
-       (!secret.secret<tensor<4xi16>> {tensor_ext.layout = affine_map<(d0) -> (d0)>}) {
+    %arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix},
+    %arg1: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix}) ->
+       (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #row_major_vec}) {
   // CHECK: [[cst:%[^ ]+]] = arith.constant dense<0> : tensor<4xi16>
   %cst = arith.constant dense<0> : tensor<4xi16>
 
-  // lifted the first tensor_ext.assign_layout
-  // CHECK: [[encoded_cst1:%[^ ]+]] = secret.generic {
-  // CHECK-NEXT: tensor.empty() : tensor<16xi16>
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [0] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [4] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [8] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [12] [4] [1]
-  // CHECK-NEXT: secret.yield
-
   // lifted the second tensor_ext.assign_layout
-  // CHECK: [[encoded_cst2:%[^ ]+]] = secret.generic {
-  // CHECK-NEXT: tensor.empty() : tensor<16xi16>
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [0] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [4] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [8] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [12] [4] [1]
-  // CHECK-NEXT: secret.yield
 
   // CHECK: secret.generic ins(
-  // CHECK-SAME: [[arg0]], [[arg1]], [[encoded_cst1]], [[encoded_cst2]]
+  // CHECK-SAME: [[arg0]], [[arg1]]
   // CHECK-NEXT: ^body(
   // CHECK-SAME: [[pt_arg0:%[^ ]*]]:
   // CHECK-SAME: [[pt_arg1:%[^ ]*]]:
-  // CHECK-SAME: [[pt_cst1:%[^ ]*]]:
-  // CHECK-SAME: [[pt_cst2:%[^ ]*]]:
   %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<4x4xi16>>, !secret.secret<tensor<4x4xi16>>)
                       attrs = {
-                        __argattrs = [{tensor_ext.layout = #map}, {tensor_ext.layout = #map}],
-                        __resattrs = [{tensor_ext.layout = #map1}]
+                        __argattrs = [{tensor_ext.layout = #row_major_matrix}, {tensor_ext.layout = #row_major_matrix}],
+                        __resattrs = [{tensor_ext.layout = #row_major_vec}]
                       } {
   ^body(%input0: tensor<4x4xi16>, %input1: tensor<4x4xi16>):
-    %1 = tensor_ext.assign_layout %cst {layout = #map1, tensor_ext.layout = [#map1]} : tensor<4xi16>
+    // CHECK-NEXT: tensor.empty() : tensor<16xi16>
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [0] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [4] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [8] [4] [1]
+    // CHECK-NEXT: [[pt_cst1:[^ ]*]] = tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [12] [4] [1]
+    %1 = tensor_ext.assign_layout %cst {layout = #row_major_vec, tensor_ext.layout = #row_major_vec} : tensor<4xi16>
 
     // First reduction
     // CHECK:  [[rotate1:%[^ ]*]] = tensor_ext.permute [[pt_arg0]] {permutation = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]>
@@ -70,11 +55,20 @@ func.func @convert_linalg_reduce(
     %reduced = linalg.reduce { arith.addi {overflowFlags = #arith.overflow<none>} }
       ins(%input0 : tensor<4x4xi16>)
       outs(%1 : tensor<4xi16>)
-      dimensions = [0]  {tensor_ext.layout = [#map1]}
+      dimensions = [0]  {tensor_ext.layout = #row_major_vec}
 
-    %2 = tensor_ext.assign_layout %cst {layout = #map1, tensor_ext.layout = [#map1]} : tensor<4xi16>
+    // CHECK-NEXT: tensor.empty() : tensor<16xi16>
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [0] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [4] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [8] [4] [1]
+    // CHECK-NEXT: [[pt_cst2:[^ ]*]] = tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [12] [4] [1]
+    %2 = tensor_ext.assign_layout %cst {layout = #row_major_vec, tensor_ext.layout = #row_major_vec} : tensor<4xi16>
     // CHECK:  [[converted1:%[^ ]*]] = tensor_ext.permute [[pt_cst2]] {permutation = dense<[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]>
-    %3 = tensor_ext.convert_layout %2 {from_layout = #map1, tensor_ext.layout = [#map2], to_layout = #map2} : tensor<4xi16>
+    %3 = tensor_ext.convert_layout %2 {from_layout = #row_major_vec, tensor_ext.layout = #col_major_vec, to_layout = #col_major_vec} : tensor<4xi16>
 
     // second reduction
     // CHECK:  [[rotate1_2:%[^ ]*]] = tensor_ext.permute [[pt_arg1]] {permutation = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]>
@@ -88,34 +82,33 @@ func.func @convert_linalg_reduce(
     %reduced_1 = linalg.reduce { arith.addi {overflowFlags = #arith.overflow<none>} }
       ins(%input1 : tensor<4x4xi16>)
       outs(%3 : tensor<4xi16>)
-      dimensions = [1]  {tensor_ext.layout = [#map2]}
+      dimensions = [1]  {tensor_ext.layout = #col_major_vec}
 
     // CHECK: [[converted2:%[^ ]*]] = tensor_ext.permute [[sum4_2]] {permutation = dense<[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]>
-    %4 = tensor_ext.convert_layout %reduced_1 {from_layout = #map2, tensor_ext.layout = [#map1], to_layout = #map1} : tensor<4xi16>
+    %4 = tensor_ext.convert_layout %reduced_1 {from_layout = #col_major_vec, tensor_ext.layout = #row_major_vec, to_layout = #row_major_vec} : tensor<4xi16>
     // CHECK: arith.addi [[sum4]], [[converted2]]
-    %5 = arith.addi %reduced, %4 {tensor_ext.layout = [#map1]} : tensor<4xi16>
+    %5 = arith.addi %reduced, %4 {tensor_ext.layout = #row_major_vec} : tensor<4xi16>
     secret.yield %5 : tensor<4xi16>
   } -> !secret.secret<tensor<4xi16>>
   return %0 : !secret.secret<tensor<4xi16>>
 }
 
-func.func @reduce_mulop(
-    %arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = affine_map<(d0, d1) -> (d0 * 4 + d1)>}) ->
-       (!secret.secret<tensor<4xi16>> {tensor_ext.layout = affine_map<(d0) -> (d0)>}) {
+func.func @reduce_mulop(%arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix}) ->
+       (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #row_major_vec}) {
   %cst = arith.constant dense<0> : tensor<4xi16>
   %0 = secret.generic ins(%arg0 : !secret.secret<tensor<4x4xi16>>)
                       attrs = {
-                        __argattrs = [{tensor_ext.layout = #map}],
-                        __resattrs = [{tensor_ext.layout = #map1}]
+                        __argattrs = [{tensor_ext.layout = #row_major_matrix}],
+                        __resattrs = [{tensor_ext.layout = #row_major_vec}]
                       } {
   ^body(%input0: tensor<4x4xi16>):
-    %1 = tensor_ext.assign_layout %cst {layout = #map1, tensor_ext.layout = [#map1]} : tensor<4xi16>
+    %1 = tensor_ext.assign_layout %cst {layout = #row_major_vec, tensor_ext.layout = #row_major_vec} : tensor<4xi16>
 
     // CHECK-COUNT-4: arith.muli
     %reduced = linalg.reduce { arith.muli }
       ins(%input0 : tensor<4x4xi16>)
       outs(%1 : tensor<4xi16>)
-      dimensions = [0]  {tensor_ext.layout = [#map1]}
+      dimensions = [0]  {tensor_ext.layout = #row_major_vec}
 
     secret.yield %reduced : tensor<4xi16>
   } -> !secret.secret<tensor<4xi16>>

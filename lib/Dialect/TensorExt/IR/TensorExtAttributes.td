@@ -6,6 +6,7 @@ include "lib/Dialect/TensorExt/IR/TensorExtDialect.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/DialectBase.td"
 include "mlir/IR/TensorEncoding.td"
+include "mlir/IR/CommonAttrConstraints.td"
 
 class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
     : AttrDef<TensorExt_Dialect, name, traits> {
@@ -13,7 +14,8 @@ class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
+// FIXME: remove and remove align-tensor-sizes
+def TensorExt_SIMDPackingAttr : TensorExt_Attr<"SIMDPacking", "simd_packing",
       [DeclareAttrInterfaceMethods<VerifiableTensorEncoding>]> {
   let summary = "An attribute describing the SIMD packing of a tensor.";
   let description = [{
@@ -46,12 +48,12 @@ def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
     may be used on a tensor type like
 
     ```
-    tensor<1x16xi32, #packing>
+    tensor<16xi32>
     ```
 
-    If the original tensor had values `[1, 2, 3, 4, 5, 6, 7]` then a tensor with
-    this attribute contains the data `[1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6,
-    7, 0]`.
+    This indicates that the original input tensor was a `tensor<7xi32>`, and if
+    it had values `[1, 2, 3, 4, 5, 6, 7]` then the packed tensor contains the
+    data `[1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0]`.
   }];
 
   let parameters = (ins
@@ -64,22 +66,149 @@ def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
   let assemblyFormat =  "`<` struct(params) `>`";
 }
 
-def OriginalType_Attr : TensorExt_Attr<"OriginalType", "original_type"> {
+def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
+  let summary = "An attribute describing padding and alignment of a tensor.";
+  let description = [{
+    This attribute is used to describe how a data-semantic tensor is padded
+    and replicated to align its size before applying a ciphertext layout
+    (see `tensor_ext.layout`).
+
+    It describes transformations to be applied to an input tensor.
+
+    The `in` attribute describes the shape of the original tensor.
+    The following transformations are applied to the input tensor.
+
+    1. New unit dimensions are inserted to match the number of dimensions
+       of the output tensor. The `insertedDims` attribute is an array
+       specifying which axes in the output tensor are new unit dimensions. By
+       default no new dimensions are inserted.
+    2. Padding is applied. The `padding` attribute is an array with the same
+       size as the output tensor shape, which each entry denoting the number of
+       values to pad at the end of that axis. The `paddingValue` attribute,
+       defaulting to zero, describes the value used for padding.
+    3. The padded result is replicated to fill the output tensor shape.
+
+    Example:
+
+    ```mlir
+    #repl = #tensor_ext.alignment<
+      in = [7],
+      padding = [1],
+      paddingValue = 0,
+      out = [16],
+    >
+    ```
+
+    This indicates that the original input tensor is a `tensor<7x?>`, and it
+    is being padded and replicated into a `tensor<16x?>`. If the input tensor
+    has values `[1, 2, 3, 4, 5, 6, 7]` then the packed tensor contains the data
+    `[1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0]`.
+
+    Example:
+
+    ```mlir
+    #repl = #tensor_ext.alignment<
+      in = [3, 10],
+      padding = [1, 6],
+      paddingValue = 0,
+      out = [32, 32],
+    >
+    ```
+
+    This indicates that the original input tensor is a `tensor<3x10x?>`, and it
+    is being padded and replicated into a `tensor<32x32x?>`. One row of zeros
+    and six columns of zeros are added to the input tensor, and then it is
+    repeated once along the column dimension and four times along the row
+    dimension to fill the 32x32 output tensor.
+
+    Example:
+
+    ```mlir
+    #repl = #tensor_ext.alignment<
+      in = [10],
+      insertedDims = [0],
+      padding = [0, 6],
+      paddingValue = 0,
+      out = [32, 32],
+    >
+    ```
+
+    This indicates that the original input tensor is a `tensor<10x?>`, and it
+    is being padded and replicated into a `tensor<32x32x?>`. First a unit dimension
+    is inserted as the first axis, then zeros are padded along the second axis
+    to make a `tensor<1x16x?>`. Finally, it is replicated twice along the columns
+    and 32 times along the rows to fill the 32x32 output tensor.
+  }];
+
+  let parameters = (ins
+    "::mlir::DenseI64ArrayAttr":$in,
+    "::mlir::DenseI64ArrayAttr":$out,
+    DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$padding,
+    DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$insertedDims,
+    // FIXME: support floating point padding with a TypedAttr
+    DefaultValuedParameter<"int64_t", "0">:$paddingValue
+  );
+
+  let assemblyFormat =  "`<` struct(params) `>`";
+
+  // FIXME: add verification:
+  // 1. in.size() + insertedDims.size() == out.size()
+  // 2. Unit dimensions doesn't repeat any indices
+  // 3. Padding.size() == out.size()
+  // 4. for each axis, input dim + padding divides or is divisibile by output dim
+}
+
+def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
+  let summary = "The description of the layout of a data-semantic tensor.";
+  let description = [{
+    This attribute describes how a data-semantic tensor is laid out
+    among a tensor of ciphertexts. The layout is described by an affine map
+    mapping the data-semantic tensor indices to the ciphertext tensor indices,
+    where the trailing affine map's result expressions mark the slot index
+    (or indices) of the ciphertext.
+
+    The layout may include optional padding and alignment of the
+    data-semantic tensor before the layout is applied. This would be required
+    if, for example, a `tensor<4xi32>` is to be laid out in a `tensor<16xi32>`
+    ciphertext tensor. The data-semantic tensor must be extended somehow to
+    fill the 16 slots.
+  }];
+  let parameters = (ins
+    "::mlir::AffineMap":$map,
+    // FIXME: describe the default, or leave it for the pass definition?
+    OptionalParameter<"::mlir::heir::tensor_ext::AlignmentAttr">:$alignment
+  );
+  let assemblyFormat =  "`<` struct(params) `>`";
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "::mlir::AffineMap":$map,
+                                        "::mlir::heir::tensor_ext::AlignmentAttr":$alignment), [{
+      return $_get(map.getContext(), map, alignment);
+    }]>,
+    AttrBuilderWithInferredContext<(ins "::mlir::AffineMap":$map), [{
+      return $_get(map.getContext(), map, nullptr);
+    }]>,
+  ];
+  // FIXME: verifier:
+  // 1. The affine map's number of inputs matches the number of dimensions
+  //     of the aligned tensor.
+}
+
+def TensorExt_OriginalTypeAttr : TensorExt_Attr<"OriginalType", "original_type"> {
   let summary = "The original type of a secret tensor whose layout has been converted to ciphertext semantics.";
   let description = [{
     This attribute is used to retain the original type of a secret tensor after
     its conversion to ciphertext semantics, i.e. after applying any padding or
-    replication to fill ciphertext data types. For example, if a
-    `!secret.secret<tensor<32xi8>>` is replicated into a ciphertext of ring
-    dimension 1024, the new type would be `!secret.secret<tensor<1024xi8>>`
+    alignment to fill ciphertext data types. For example, if a
+    `!secret.secret<tensor<32xi8>>` is laid out in a ciphertext with
+    1024 slots, the new type would be `!secret.secret<tensor<1024xi8>>`
     with attribute `tensor_ext.original_type<!secret.secret<tensor<32xi8>>`.
   }];
   let parameters = (ins
     "::mlir::Type":$originalType,
-    "::mlir::AffineMap":$layout
+    TensorExt_LayoutAttr:$layout
   );
   let assemblyFormat =  "`<` struct(params) `>`";
 }
-
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTATTRIBUTES_TD_
