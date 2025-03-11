@@ -4,7 +4,7 @@
 #include <cassert>
 #include <string>
 
-#include "lib/Analysis/NoiseAnalysis/BGV/Noise.h"
+#include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Parameters/BGV/Params.h"
 
 namespace mlir {

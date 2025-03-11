@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISEBYBOUNDCOEFFMODEL_H_
-#define INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISEBYBOUNDCOEFFMODEL_H_
+#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_BFV_NOISEBYBOUNDCOEFFMODEL_H_
+#define INCLUDE_ANALYSIS_NOISEANALYSIS_BFV_NOISEBYBOUNDCOEFFMODEL_H_
 
 #include <cassert>
 #include <string>
@@ -9,7 +9,7 @@
 
 namespace mlir {
 namespace heir {
-namespace bgv {
+namespace bfv {
 
 // coefficient embedding noise model
 // both average-case (from HPS19/KPZ21) and worst-case
@@ -18,11 +18,10 @@ namespace bgv {
 template <bool W, bool P>
 class NoiseByBoundCoeffModel {
  public:
-  // for KPZ21, NoiseState stores the bound ||e|| for error e
-  // instead of t * ||e||.
+  // for KPZ21, NoiseState stores the bound ||e|| for error e.
   using StateType = NoiseState;
-  using SchemeParamType = SchemeParam;
-  using LocalParamType = LocalParam;
+  using SchemeParamType = bgv::SchemeParam;
+  using LocalParamType = bgv::LocalParam;
 
  private:
   static double getExpansionFactor(const LocalParamType &param);
@@ -42,13 +41,11 @@ class NoiseByBoundCoeffModel {
                            const StateType &lhs, const StateType &rhs);
   static StateType evalRelinearize(const LocalParamType &inputParam,
                                    const StateType &input);
-  static StateType evalModReduce(const LocalParamType &inputParam,
-                                 const StateType &input);
 
-  // logTotal: log(Ql / 2)
-  // logBound: bound on ||m + t * e|| predicted by the model
+  // logTotal: log(Q / (t * 2))
+  // logBound: bound on ||e|| predicted by the model
   // logBudget: logTotal - logBound
-  // as ||m + t * e|| < Ql / 2 for correct decryption
+  // as ||e|| < Q / (t * 2) for correct decryption
   static double toLogBound(const LocalParamType &param, const StateType &noise);
   static std::string toLogBoundString(const LocalParamType &param,
                                       const StateType &noise);
@@ -67,8 +64,8 @@ using NoiseByBoundCoeffAverageCaseSkModel =
     NoiseByBoundCoeffModel<false, false>;
 using NoiseByBoundCoeffWorstCaseSkModel = NoiseByBoundCoeffModel<true, false>;
 
-}  // namespace bgv
+}  // namespace bfv
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_BGV_NOISEBYBOUNDCOEFFMODEL_H_
+#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_BFV_NOISEBYBOUNDCOEFFMODEL_H_

@@ -170,18 +170,25 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       pm.addPass(createGenerateParamBGV(generateParamOptions));
 
       auto validateNoiseOptions = ValidateNoiseOptions{};
-      if (!options.noiseModel.empty()) {
-        validateNoiseOptions.model = options.noiseModel;
-      }
+      validateNoiseOptions.model = generateParamOptions.model;
       validateNoiseOptions.annotateNoiseBound = options.annotateNoiseBound;
       pm.addPass(createValidateNoise(validateNoiseOptions));
       break;
     }
     case RLWEScheme::bfvScheme: {
       auto generateParamOptions = GenerateParamBFVOptions{};
+      if (!options.noiseModel.empty()) {
+        generateParamOptions.model = options.noiseModel;
+      }
+      generateParamOptions.modBits = options.bfvModBits;
       generateParamOptions.plaintextModulus = options.plaintextModulus;
       generateParamOptions.slotNumber = options.ciphertextDegree;
       pm.addPass(createGenerateParamBFV(generateParamOptions));
+
+      auto validateNoiseOptions = ValidateNoiseOptions{};
+      validateNoiseOptions.model = generateParamOptions.model;
+      validateNoiseOptions.annotateNoiseBound = options.annotateNoiseBound;
+      pm.addPass(createValidateNoise(validateNoiseOptions));
       break;
     }
     case RLWEScheme::ckksScheme: {

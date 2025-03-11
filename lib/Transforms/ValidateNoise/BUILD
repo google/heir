@@ -14,6 +14,7 @@ cc_library(
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/NoiseAnalysis",
+        "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseByBoundCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByBoundCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByVarianceCoeffModel",
         "@heir//lib/Analysis/SecretnessAnalysis",

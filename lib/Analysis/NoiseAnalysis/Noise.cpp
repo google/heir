@@ -1,4 +1,4 @@
-#include "lib/Analysis/NoiseAnalysis/BGV/Noise.h"
+#include "lib/Analysis/NoiseAnalysis/Noise.h"
 
 #include <cmath>
 #include <string>
@@ -8,14 +8,13 @@
 
 namespace mlir {
 namespace heir {
-namespace bgv {
 
 std::string NoiseState::toString() const {
   switch (noiseType) {
     case (NoiseType::UNINITIALIZED):
       return "NoiseState(uninitialized)";
     case (NoiseType::SET):
-      return "NoiseState(" + std::to_string(log(getValue()) / log(2)) + ") ";
+      return "NoiseState(" + std::to_string(log2(getValue())) + ") ";
   }
 }
 
@@ -27,6 +26,5 @@ Diagnostic &operator<<(Diagnostic &diagnostic, const NoiseState &noise) {
   return diagnostic << noise.toString();
 }
 
-}  // namespace bgv
 }  // namespace heir
 }  // namespace mlir

@@ -52,4 +52,17 @@ func __heir_debug(evaluator *bgv.Evaluator, param bgv.Parameters, encoder *bgv.E
 	}
 	// t * e for BGV
 	fmt.Printf("  Noise: %.2f Total: %d\n", max+param.LogT(), total)
+
+	// print the predicted bound by analysis
+	noiseBoundStr, ok := debugAttrMap["noise.bound"]
+	if ok {
+		noiseBound, err := strconv.ParseFloat(noiseBoundStr, 64)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("  Noise Bound: %.2f Gap: %.2f\n", noiseBound, noiseBound-(max+param.LogT()))
+		if noiseBound < max+param.LogT() {
+			panic("Noise Bound Exceeded")
+		}
+	}
 }

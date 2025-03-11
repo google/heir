@@ -1,4 +1,4 @@
-#include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 
 #include <cassert>
 #include <cmath>
@@ -10,7 +10,7 @@
 
 namespace mlir {
 namespace heir {
-namespace bgv {
+namespace bfv {
 
 // the formulae below are mainly taken from KPZ21
 // "Revisiting Homomorphic Encryption Schemes for Finite Fields"
@@ -22,10 +22,7 @@ using Model = NoiseByBoundCoeffModel<W, P>;
 template <bool W, bool P>
 double Model<W, P>::toLogBound(const LocalParamType &param,
                                const StateType &noise) {
-  auto t = param.getSchemeParam()->getPlaintextModulus();
-  // StateType only stores e in (m + t * e), so when we want to print the bound
-  // we need to multiply t back
-  return log2(t * noise.getValue());
+  return log2(noise.getValue());
 }
 
 template <bool W, bool P>
@@ -38,10 +35,11 @@ template <bool W, bool P>
 double Model<W, P>::toLogTotal(const LocalParamType &param) {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
-  for (auto i = 0; i <= param.getCurrentLevel(); ++i) {
+  for (auto i = 0; i <= param.getSchemeParam()->getLevel(); ++i) {
     total += logqi[i];
   }
-  return total - 1.0;
+  double logT = log2(param.getSchemeParam()->getPlaintextModulus());
+  return total - logT - 1.0;
 }
 
 template <bool W, bool P>
@@ -108,9 +106,9 @@ typename Model<W, P>::StateType Model<W, P>::evalEncryptPk(
   auto boundKey = getBoundKey(param);
   auto expansionFactor = getExpansionFactor(param);
 
-  // public key (-as + t * e, a)
-  // public key encryption (-aus + t(u * e + e_0) + m, au + e_1)
-  // m + t * (u * e + e_1 * s + e_0)
+  // public key (-as + e, a)
+  // public key encryption (-aus + u * e + e_0 + (Q/t)m, au + e_1)
+  // (Q/t)m + u * e + e_1 * s + e_0
   // v_fresh = u * e + e_1 * s + e_0
   double fresh = boundErr * (1. + 2. * expansionFactor * boundKey);
   return StateType::of(fresh);
@@ -122,7 +120,7 @@ typename Model<W, P>::StateType Model<W, P>::evalEncryptSk(
   auto boundErr = getBoundErr(param);
 
   // secret key s
-  // secret key encryption (-as + m + t * e, a)
+  // secret key encryption (-as + (Q/t)m + e, a)
   // v_fresh = e
   double fresh = boundErr;
   return StateType::of(fresh);
@@ -142,7 +140,7 @@ typename Model<W, P>::StateType Model<W, P>::evalEncrypt(
 template <bool W, bool P>
 typename Model<W, P>::StateType Model<W, P>::evalConstant(
     const LocalParamType &param) {
-  // constant is m + t * 0
+  // constant is (Q/t)m + 0
   // v_constant = 0
   return StateType::of(0);
 }
@@ -150,8 +148,8 @@ typename Model<W, P>::StateType Model<W, P>::evalConstant(
 template <bool W, bool P>
 typename Model<W, P>::StateType Model<W, P>::evalAdd(const StateType &lhs,
                                                      const StateType &rhs) {
-  // m_0 + tv_0 + m_1 + tv_1 <= [m_0 + m_1]_t + t(v_0 + v_1 + u)
-  // v_add = v_0 + v_1 + u
+  // (Q/t)m_0 + v_0 + (Q/t)m_1 + v_1 <= (Q/t)[m_0 + m_1]_t + (v_0 + v_1 + r(Q)u)
+  // mod Q v_add = v_0 + v_1 + r(Q)u
   // where ||u|| <= 1
   return StateType::of(lhs.getValue() + rhs.getValue() + 1);
 }
@@ -160,47 +158,26 @@ template <bool W, bool P>
 typename Model<W, P>::StateType Model<W, P>::evalMul(
     const LocalParamType &resultParam, const StateType &lhs,
     const StateType &rhs) {
-  auto t = resultParam.getSchemeParam()->getPlaintextModulus();
   auto expansionFactor = getExpansionFactor(resultParam);
+  auto t = resultParam.getSchemeParam()->getPlaintextModulus();
+  auto v0 = lhs.getValue();
+  auto v1 = rhs.getValue();
+  auto boundKey = getBoundKey(resultParam);
 
-  // (m_0 + tv_0) * (m_1 + tv_1) <=
-  //   [m_0 * m_1]_t + t(v_0 * m_1 + v_1 * m_0 + v_0 * v_1 + r_m)
-  // where m_0 * m_1 = [m_0 * m_1]_t + tr_m
-  // ||r_m|| <= delta * t / 2, delta is the expansion factor
-  // v_mul = v_0 * m_1 + v_1 * m_0 + v_0 * v_1 + r_m
-  // ||v_mul|| <=
-  //   (delta * t / 2) * (2 * ||v_0|| * ||v_1|| + ||v_0|| + ||v_1|| + 1)
-  return StateType::of((expansionFactor * t / 2) *
-                       (lhs.getValue() * rhs.getValue() * 2 + lhs.getValue() +
-                        rhs.getValue() + 1));
-}
+  auto logqi = resultParam.getSchemeParam()->getLogqi();
+  auto logQ = std::accumulate(logqi.begin(), logqi.end(), 0.0);
+  // we hope double is big enough...
+  // if logQ > 1024... we may have a problem
+  auto Q = pow(2.0, logQ);
 
-template <bool W, bool P>
-typename Model<W, P>::StateType Model<W, P>::evalModReduce(
-    const LocalParamType &inputParam, const StateType &input) {
-  // for cv > 2 the rounding error term is different!
-  // like (tau_0, tau_1, tau_2) and the error becomes
-  // tau_0 + tau_1 s + tau_2 s^2
-  assert(inputParam.getDimension() == 2);
-
-  auto currentLogqi =
-      inputParam.getSchemeParam()->getLogqi()[inputParam.getCurrentLevel()];
-
-  double modulus = pow(2.0, currentLogqi);
-
-  auto expansionFactor = getExpansionFactor(inputParam);
-  auto boundKey = getBoundKey(inputParam);
-
-  // modulus switching is essentially a scaling operation
-  // so the original error is scaled by the modulus
-  // ||v_scaled|| = ||v_input|| / modulus
-  auto scaled = input.getValue() / modulus;
-  // in the meantime, it will introduce an rounding error
-  // (tau_0, tau_1) to the (ct_0, ct_1) where ||tau_i|| < t / 2
-  // so ||tau_0 + tau_1 * s|| <= t / 2 (1 + delta ||s||)
-  // ||v_added|| <= (1 + delta * Bkey) / 2
-  auto added = (1.0 + expansionFactor * boundKey) / 2;
-  return StateType::of(scaled + added);
+  // See KPZ21
+  auto term1 = expansionFactor * t * v0 * v1 / Q;
+  auto term2 = (expansionFactor * t / 2.0) *
+               (4.0 + expansionFactor * boundKey) * (v0 + v1);
+  auto term3 = (1.0 + expansionFactor * boundKey +
+                expansionFactor * expansionFactor * boundKey * boundKey) /
+               2.0;
+  return StateType::of(term1 + term2 + term3);
 }
 
 template <bool W, bool P>
@@ -221,9 +198,9 @@ typename Model<W, P>::StateType Model<W, P>::evalRelinearizeHYBRID(
   auto boundErr = getBoundErr(inputParam);
   auto boundKey = getBoundKey(inputParam);
 
-  auto currentLevel = inputParam.getCurrentLevel();
-  // modup from Ql to QlP, so one more digit
-  auto currentNumDigit = ceil(static_cast<double>(currentLevel + 1) / dnum) + 1;
+  auto level = inputParam.getSchemeParam()->getLevel();
+  // modup from Q to QP, so one more digit
+  auto numDigit = ceil(static_cast<double>(level + 1) / dnum) + 1;
 
   // log(qiq_{i+1}...), the digit size for a certain digit
   // we use log(pip_{i+1}...) as an approximation,
@@ -238,8 +215,7 @@ typename Model<W, P>::StateType Model<W, P>::evalRelinearizeHYBRID(
   // there are "currentNumDigit" digits
   // and ||c_2|| <= digitSize / 2
   // ||c_2 * e_ksk|| <= delta * digitSize * Berr / 2
-  auto boundKeySwitch =
-      currentNumDigit * digitSize * expansionFactor * boundErr / 2.0;
+  auto boundKeySwitch = numDigit * digitSize * expansionFactor * boundErr / 2.0;
 
   // moddown by P
   auto scaled = boundKeySwitch / digitSize;
@@ -267,6 +243,6 @@ template class NoiseByBoundCoeffModel<true, true>;
 template class NoiseByBoundCoeffModel<false, false>;
 template class NoiseByBoundCoeffModel<true, false>;
 
-}  // namespace bgv
+}  // namespace bfv
 }  // namespace heir
 }  // namespace mlir
