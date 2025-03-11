@@ -48,11 +48,14 @@ def Lattigo_BGVEncodeOp : Lattigo_BGVOp<"encode", [InplaceOpInterface]> {
     This operation encodes a plaintext value using the specified encoder in the Lattigo BGV dialect.
 
     The input value tensor should have elements of integer type.
+
+    The `scale` attribute indicates the scaling factor for encoding.
   }];
   let arguments = (ins
     Lattigo_BGVEncoder:$encoder,
     RankedTensorOf<[AnyInteger]>:$value,
-    Lattigo_RLWEPlaintext:$plaintext
+    Lattigo_RLWEPlaintext:$plaintext,
+    DefaultValuedAttr<I64Attr, "1">:$scale
   );
   let results = (outs Lattigo_RLWEPlaintext:$encoded);
 
@@ -70,6 +73,8 @@ def Lattigo_BGVDecodeOp : Lattigo_BGVOp<"decode", [AllTypesMatch<["value", "deco
     Lattigo_BGVEncoder:$encoder,
     Lattigo_RLWEPlaintext:$plaintext,
     RankedTensorOf<[AnyInteger]>:$value
+    // Rely on Lattigo internal tracking of scale for decoding.
+    // DefaultValuedAttr<I64Attr, "1">:$scale
   );
   // although bgv.Decode is also an inplace operation as bgv.Encode, as there are post-processing
   // steps in emitter, we mark it as a normal operation.

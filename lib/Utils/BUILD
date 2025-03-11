@@ -27,6 +27,16 @@ cc_library(
 )
 
 cc_library(
+    name = "APIntUtils",
+    srcs = ["APIntUtils.cpp"],
+    hdrs = ["APIntUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "AttributeUtils",
     srcs = ["AttributeUtils.cpp"],
     hdrs = ["AttributeUtils.h"],

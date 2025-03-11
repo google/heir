@@ -69,6 +69,8 @@ class LattigoEmitter {
   LogicalResult printOperation(RLWENewEvaluationKeySetOp op);
   LogicalResult printOperation(RLWEEncryptOp op);
   LogicalResult printOperation(RLWEDecryptOp op);
+  LogicalResult printOperation(RLWELevelReduceNewOp op);
+  LogicalResult printOperation(RLWELevelReduceOp op);
   // BGV
   LogicalResult printOperation(BGVNewParametersFromLiteralOp op);
   LogicalResult printOperation(BGVNewEncoderOp op);

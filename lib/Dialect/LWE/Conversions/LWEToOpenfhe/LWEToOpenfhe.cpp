@@ -415,6 +415,9 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         lwe::ConvertModulusSwitchOp<bgv::ModulusSwitchOp>,
         // Rescale (CKKS version of Modulus Switch)
         lwe::ConvertModulusSwitchOp<ckks::RescaleOp>,
+        // Level Reduce
+        lwe::ConvertLevelReduceOp<bgv::LevelReduceOp>,
+        lwe::ConvertLevelReduceOp<ckks::LevelReduceOp>,
         // Bootstrap (CKKS only)
         ConvertBootstrapOp
         // End of Pattern List
