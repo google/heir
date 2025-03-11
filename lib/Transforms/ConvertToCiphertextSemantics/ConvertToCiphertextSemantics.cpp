@@ -253,7 +253,10 @@ class ConvertAssignLayout
     }
 
     if (ciphertextSemanticType == input.getType()) {
-      // No conversion needed, the input is already the right size
+      LLVM_DEBUG(llvm::dbgs() << "AssignLayoutOp can be replaced with input\n");
+      if (input.getDefiningOp()) setMaterializedAttr(input.getDefiningOp());
+      setAttributeAssociatedWith(input, kLayoutAttrName,
+                                 AffineMapAttr(op.getLayout()));
       rewriter.replaceOp(op, input);
       return success();
     }

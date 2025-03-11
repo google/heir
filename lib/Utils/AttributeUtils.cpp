@@ -97,6 +97,63 @@ FailureOr<Attribute> findAttributeAssociatedWith(Value value,
   return attr;
 }
 
+void setAttributeForBlockArgument(BlockArgument blockArg, StringRef attrName,
+                                  Attribute attr) {
+  auto *parentOp = blockArg.getOwner()->getParentOp();
+  assert(parentOp != nullptr &&
+         "Missing parent op! Was this value not properly remapped?");
+
+  llvm::TypeSwitch<Operation *>(parentOp)
+      .Case<FunctionOpInterface>([&](auto op) {
+        return op.setArgAttr(blockArg.getArgNumber(), attrName, attr);
+      })
+      .Case<affine::AffineForOp>([&](affine::AffineForOp op) {
+        // For op has as its first block argument the induction
+        // variable, which does not correspond to a single operand.
+        if (blockArg.getArgNumber() == 0) return;
+
+        auto argAttrInterface = cast<OperandAndResultAttrInterface>(*op);
+        auto initArg = op.getInits()[blockArg.getArgNumber() - 1];
+        int operandNumber = getOperandNumber(op, initArg);
+        if (operandNumber == -1) return;
+        return argAttrInterface.setOperandAttr(operandNumber, attrName, attr);
+      })
+      .Case<OperandAndResultAttrInterface>([&](auto op) {
+        return op.setOperandAttr(blockArg.getArgNumber(), attrName, attr);
+      });
+}
+
+void setAttributeForResult(Value result, StringRef attrName, Attribute attr) {
+  auto *parentOp = result.getDefiningOp();
+  assert(parentOp &&
+         "Missing defining op, but the input value is not a BlockArgument. "
+         "This is madness.");
+  int resultNumber = cast<OpResult>(result).getResultNumber();
+
+  llvm::TypeSwitch<Operation *>(parentOp)
+      .Case<OperandAndResultAttrInterface>(
+          [&](auto op) { op.setResultAttr(resultNumber, attrName, attr); })
+      .Default([&](Operation *op) {
+        if (auto arrayAttr = dyn_cast_or_null<ArrayAttr>(attr)) {
+          assert(arrayAttr.size() == op->getNumResults() &&
+                 "Array attr does not match number of results");
+          arrayAttr[resultNumber] = attr;
+          op->setAttr(attrName, arrayAttr);
+        } else {
+          op->setAttr(attrName, attr);
+        }
+      });
+}
+
+void setAttributeAssociatedWith(Value value, StringRef attrName,
+                                Attribute attr) {
+  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
+    setAttributeForBlockArgument(blockArg, attrName, attr);
+  } else {
+    setAttributeForResult(value, attrName, attr);
+  }
+}
+
 void clearAttrs(Operation *op, StringRef attrName) {
   op->walk([&](Operation *op) {
     llvm::TypeSwitch<Operation *>(op)
