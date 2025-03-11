@@ -25,9 +25,7 @@ struct SecretInsertMgmtBFV
 
   void runOnOperation() override {
     OpPassManager pipeline("builtin.module");
-    SecretInsertMgmtBGVOptions options;
-    options.includeFirstMul = false;
-    pipeline.addPass(createSecretInsertMgmtBGV(options));
+    pipeline.addPass(createSecretInsertMgmtBGV());
     (void)runPipeline(pipeline, getOperation());
 
     // Helper for future lowerings that want to know what scheme was used.
@@ -50,9 +48,11 @@ struct SecretInsertMgmtBFV
       return signalPassFailure();
     }
 
-    // Remove mgmt::ModReduceOp
+    // Remove mgmt::ModReduceOp/LevelReduceOp/AdjustScaleOp
     RewritePatternSet patterns(&getContext());
     patterns.add<RemoveOp<mgmt::ModReduceOp>>(&getContext());
+    patterns.add<RemoveOp<mgmt::LevelReduceOp>>(&getContext());
+    patterns.add<RemoveOp<mgmt::AdjustScaleOp>>(&getContext());
     (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
 
     // annotate mgmt attribute with all levels set to mulDepth

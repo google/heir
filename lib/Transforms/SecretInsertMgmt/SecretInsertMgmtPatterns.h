@@ -27,14 +27,31 @@ struct MultRelinearize : public OpRewritePattern<MulOp> {
   DataFlowSolver *solver;
 };
 
+template <typename MulOp>
+struct ModReduceAfterMult : public OpRewritePattern<MulOp> {
+  using OpRewritePattern<MulOp>::OpRewritePattern;
+
+  ModReduceAfterMult(MLIRContext *context, Operation *top,
+                     DataFlowSolver *solver)
+      : OpRewritePattern<MulOp>(context, /*benefit=*/1),
+        top(top),
+        solver(solver) {}
+
+  LogicalResult matchAndRewrite(MulOp op,
+                                PatternRewriter &rewriter) const override;
+
+ private:
+  Operation *top;
+  DataFlowSolver *solver;
+};
+
 template <typename Op>
 struct ModReduceBefore : public OpRewritePattern<Op> {
   using OpRewritePattern<Op>::OpRewritePattern;
 
-  ModReduceBefore(MLIRContext *context, bool isMul, bool includeFirstMul,
-                  Operation *top, DataFlowSolver *solver)
+  ModReduceBefore(MLIRContext *context, bool includeFirstMul, Operation *top,
+                  DataFlowSolver *solver)
       : OpRewritePattern<Op>(context, /*benefit=*/1),
-        isMul(isMul),
         includeFirstMul(includeFirstMul),
         top(top),
         solver(solver) {}
@@ -43,7 +60,6 @@ struct ModReduceBefore : public OpRewritePattern<Op> {
                                 PatternRewriter &rewriter) const override;
 
  private:
-  bool isMul;
   bool includeFirstMul;
   Operation *top;
   DataFlowSolver *solver;
@@ -58,9 +74,46 @@ struct RemoveOp : public OpRewritePattern<Op> {
 
   LogicalResult matchAndRewrite(Op op,
                                 PatternRewriter &rewriter) const override;
+};
+
+template <typename Op>
+struct MatchCrossLevel : public OpRewritePattern<Op> {
+  using OpRewritePattern<Op>::OpRewritePattern;
+
+  MatchCrossLevel(MLIRContext *context, int *scaleCounter, Operation *top,
+                  DataFlowSolver *solver)
+      : OpRewritePattern<Op>(context, /*benefit=*/1),
+        scaleCounter(scaleCounter),
+        top(top),
+        solver(solver) {}
+
+  LogicalResult matchAndRewrite(Op op,
+                                PatternRewriter &rewriter) const override;
 
  private:
+  int *scaleCounter;
   Operation *top;
+  DataFlowSolver *solver;
+};
+
+template <typename Op>
+struct MatchCrossMulResult : public OpRewritePattern<Op> {
+  using OpRewritePattern<Op>::OpRewritePattern;
+
+  MatchCrossMulResult(MLIRContext *context, int *scaleCounter, Operation *top,
+                      DataFlowSolver *solver)
+      : OpRewritePattern<Op>(context, /*benefit=*/1),
+        scaleCounter(scaleCounter),
+        top(top),
+        solver(solver) {}
+
+  LogicalResult matchAndRewrite(Op op,
+                                PatternRewriter &rewriter) const override;
+
+ private:
+  int *scaleCounter;
+  Operation *top;
+  DataFlowSolver *solver;
 };
 
 // when reached a certain depth (water line), bootstrap

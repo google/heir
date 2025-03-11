@@ -50,6 +50,16 @@ LogicalResult LevelAnalysis::visitOperation(
         auto level = operandLattice->getValue().getLevel();
         propagate(modReduceOp.getResult(), LevelState(level + 1));
       })
+      .Case<mgmt::LevelReduceOp>([&](auto levelReduceOp) {
+        // implicitly ensure that the operand is secret
+        const auto *operandLattice = operands[0];
+        if (!operandLattice->getValue().isInitialized()) {
+          return;
+        }
+        auto level = operandLattice->getValue().getLevel();
+        propagate(levelReduceOp.getResult(),
+                  LevelState(level + levelReduceOp.getLevelToDrop()));
+      })
       .Case<mgmt::BootstrapOp>([&](auto bootstrapOp) {
         // implicitly ensure that the result is secret
         // reset level to 0
@@ -147,22 +157,10 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
 }
 
 LevelState::LevelType getLevelFromMgmtAttr(Value value) {
-  Attribute attr;
-  if (auto blockArg = dyn_cast<BlockArgument>(value)) {
-    auto *parentOp = blockArg.getOwner()->getParentOp();
-    auto genericOp = dyn_cast<secret::GenericOp>(parentOp);
-    if (genericOp) {
-      attr = genericOp.getOperandAttr(blockArg.getArgNumber(),
-                                      mgmt::MgmtDialect::kArgMgmtAttrName);
-    }
-  } else {
-    auto *parentOp = value.getDefiningOp();
-    attr = parentOp->getAttr(mgmt::MgmtDialect::kArgMgmtAttrName);
-  }
-  if (!mlir::isa<mgmt::MgmtAttr>(attr)) {
+  auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(value);
+  if (!mgmtAttr) {
     assert(false && "MgmtAttr not found");
   }
-  auto mgmtAttr = mlir::cast<mgmt::MgmtAttr>(attr);
   return mgmtAttr.getLevel();
 }
 
