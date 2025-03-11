@@ -55,6 +55,21 @@ Attribute findAttributeForBlockArgument(BlockArgument blockArg,
       .Default([](Operation *op) { return nullptr; });
 }
 
+Attribute getUndistinguishedResultAttr(Operation *op, int resultNumber,
+                                       StringRef attrName) {
+  Attribute attr = op->getAttr(attrName);
+  // Some ops store the relevant attribute as an array attr with a name
+  // (e.g., "tensor_ext.layout" being an array of layout attrs for a
+  // multi-result op. In this case, we assert the array entries match
+  // with operation results, and return the relevant entry.
+  if (auto arrayAttr = dyn_cast_or_null<ArrayAttr>(attr)) {
+    assert(arrayAttr.size() == op->getNumResults() &&
+           "Array attr does not match number of results");
+    return arrayAttr[resultNumber];
+  }
+  return attr;
+}
+
 Attribute findAttributeForResult(Value result, StringRef attrName) {
   auto *parentOp = result.getDefiningOp();
   assert(parentOp &&
@@ -66,20 +81,10 @@ Attribute findAttributeForResult(Value result, StringRef attrName) {
       .Case<OperandAndResultAttrInterface>([&](auto op) -> Attribute {
         Attribute attr = op.getResultAttr(resultNumber, attrName);
         if (attr) return attr;
-        return op->getAttr(attrName);
+        return getUndistinguishedResultAttr(op, resultNumber, attrName);
       })
       .Default([&](Operation *op) {
-        Attribute attr = op->getAttr(attrName);
-        // Some ops store the relevant attribute as an array attr with a name
-        // (e.g., "tensor_ext.layout" being an array of layout attrs for a
-        // multi-result op. In this case, we assert the array entries match
-        // with operation results, and return the relevant entry.
-        if (auto arrayAttr = dyn_cast_or_null<ArrayAttr>(attr)) {
-          assert(arrayAttr.size() == op->getNumResults() &&
-                 "Array attr does not match number of results");
-          return arrayAttr[resultNumber];
-        }
-        return attr;
+        return getUndistinguishedResultAttr(op, resultNumber, attrName);
       });
 }
 

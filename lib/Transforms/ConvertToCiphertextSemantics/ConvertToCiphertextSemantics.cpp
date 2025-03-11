@@ -250,11 +250,13 @@ class ConvertAssignLayout
 
     // FIXME: what will happen if the output size is bigger than the input size?
     if (ciphertextSemanticType.getRank() != 1) {
-      // Encode as a linalg.generic (is there a named op that can permute
-      // indices like this?)
-      auto emptyOp =
-          b.create<tensor::EmptyOp>(ciphertextSemanticType.getShape(),
-                                    ciphertextSemanticType.getElementType());
+      // Materialize encoding via linalg.generic (is there a named op that can
+      // permute indices like this?)
+      //
+      // Nb., rather than use tensor.empty(), start with constant zeros which
+      // plays better with secret.generic lowerings.
+      auto emptyOp = b.create<mlir::arith::ConstantOp>(
+          b.getZeroAttr(ciphertextSemanticType));
       setMaterializedAttr(emptyOp);
       emptyOp->setAttr(kLayoutAttrName, AffineMapAttr(op.getLayout()));
 
@@ -286,10 +288,10 @@ class ConvertAssignLayout
       materializeLayoutOp->setAttr(kLayoutAttrName,
                                    op->getAttr(kLayoutAttrName));
       rewriter.replaceOp(op, materializeLayoutOp);
-      materializeLayoutOp->dump();
       return success();
     }
 
+    // FIXME: this breaks if the layout is not the identity!
     if (ciphertextSemanticType == input.getType()) {
       LLVM_DEBUG(llvm::dbgs() << "AssignLayoutOp can be replaced with input\n");
       if (input.getDefiningOp()) setMaterializedAttr(input.getDefiningOp());
@@ -689,15 +691,24 @@ class ConvertLinalgReduce
   };
 };
 
-// FIXME: add tensor shape arguments
-bool isLayoutSquatDiagonal(const AffineMap &layout) {
-  // FIXME: implement
-  return false;
-}
+bool isLayoutSquatDiagonal(RankedTensorType inputType,
+                           RankedTensorType outputType,
+                           const AffineMap &layout) {
+  // Squat diagonal forces (i, j) -> (j % n, (i+j) % m) where (n, m) are the
+  // dimensions of the output matrix.
+  if (outputType.getRank() != 2 || inputType.getRank() != 2) return false;
 
-bool isLayoutRowMajor(const AffineMap &layout) {
-  // FIXME: implement
-  return false;
+  int64_t n = outputType.getDimSize(0);
+  int64_t m = outputType.getDimSize(1);
+  AffineExpr i, j;
+  bindDims(inputType.getContext(), i, j);
+  AffineMap expected =
+      AffineMap::get(2, 0, {j % n, (i + j) % m}, inputType.getContext());
+
+  auto simplified = simplifyAffineMap(layout);
+  LLVM_DEBUG(llvm::dbgs() << "isLayoutSquatDiagonal: " << "simplified="
+                          << simplified << " expected=" << expected << "\n");
+  return simplified == expected;
 }
 
 struct ConvertLinalgMatvec
@@ -714,47 +725,138 @@ struct ConvertLinalgMatvec
     return cast<AffineMapAttr>(layoutLookup.value());
   }
 
-  bool supportsHaleviShoup(linalg::MatvecOp op) const {
+  bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
     Value matrix = op.getInputs()[0];
     Value vector = op.getInputs()[1];
     auto matrixType = cast<RankedTensorType>(matrix.getType());
-    auto dimensions = matrixType.getShape();
-    int64_t numRows = dimensions[0];
-    int64_t numCols = dimensions[1];
+    auto vectorType = cast<RankedTensorType>(vector.getType());
+    auto materializedMatrixType =
+        cast<RankedTensorType>(adaptor.getInputs()[0].getType());
+    auto materializedVectorType =
+        cast<RankedTensorType>(adaptor.getInputs()[1].getType());
 
     // If one of these dimensions is not a power of two, then we can't do
     // the Halevi-Shoup or Squat Packing Matrix Multiplication conversion.
+    auto dimensions = matrixType.getShape();
+    int64_t numRows = dimensions[0];
+    int64_t numCols = dimensions[1];
     if (!isPowerOfTwo(numRows) || !isPowerOfTwo(numCols)) {
       return false;
     }
 
-    // Assert the matrix has a diagonal layout and the vector has a row-major
-    // layout.
     AffineMap matrixLayout = getLayoutAttr(matrix).getValue();
     AffineMap vectorLayout = getLayoutAttr(vector).getValue();
-    if (!isLayoutSquatDiagonal(matrixLayout) ||
-        !isLayoutRowMajor(vectorLayout)) {
-      return false;
-    }
+    bool isSquatDiagonal =
+        isLayoutSquatDiagonal(matrixType, materializedMatrixType, matrixLayout);
+    bool isRowMajor =
+        isLayoutRowMajor(vectorType, materializedVectorType, vectorLayout);
 
-    return true;
+    LLVM_DEBUG(llvm::dbgs()
+               << "supportsHaleviShoup: " << "isSquatDiagonal="
+               << isSquatDiagonal << " isRowMajor=" << isRowMajor << "\n");
+
+    return isSquatDiagonal && isRowMajor;
   }
 
-  void haleviShoupKernel() const {}
+  void haleviShoupKernel(
+      linalg::MatvecOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter &rewriter) const {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    Value result = op.getOutputs()[0];
+    Value packedMatrix = adaptor.getInputs()[0];
+    Value packedVector = adaptor.getInputs()[1];
+    auto packedMatrixType = cast<RankedTensorType>(packedMatrix.getType());
+    auto packedVectorType = cast<RankedTensorType>(packedVector.getType());
+    int64_t numRotations = packedVectorType.getShape()[0];
+    Attribute layoutAttr = op->getAttr(kLayoutAttrName);
+
+    // Two iter args: one for the accumulated result, and one for the
+    // iteratively rotated vector; in each loop we rotate by 1 more, which
+    // minimizes the number of rotation keys needed, but also adds a serial
+    // dependency to the order of operations in the loop.
+    //
+    // TODO(#744): should we instead use many rotation keys and let a later
+    // pass determine how to optimize this?
+    SmallVector<Value> iterArgs({result, packedVector});
+    auto forOp =
+        b.create<mlir::affine::AffineForOp>(0, numRotations, 1, iterArgs);
+    setMaterializedAttr(forOp);
+    // The for will have two yielded results, and though we only the first
+    // result should be queried by the context-aware type converter for its
+    // layout attribute when processing later ops, I'm going to set both for
+    // consistency.
+    OperandAndResultAttrInterface forOpInterface(forOp);
+    forOpInterface.setResultAttr(0, kLayoutAttrName, layoutAttr);
+    forOpInterface.setResultAttr(1, kLayoutAttrName, layoutAttr);
+
+    b.setInsertionPointToStart(forOp.getBody());
+    auto index = forOp.getInductionVar();
+    auto accumulator = forOp.getRegionIterArgs()[0];
+    auto incrementallyRotatedVector = forOp.getRegionIterArgs()[1];
+
+    // construct vector.rotate(i)
+    auto rotateOp = b.create<tensor_ext::RotateOp>(
+        incrementallyRotatedVector, b.create<arith::ConstantIntOp>(1, 64));
+    setMaterializedAttr(rotateOp);
+
+    // get the corresponding element of the ciphertext tensor,
+    // which is row i
+    SmallVector<OpFoldResult> offsets = {index, b.getIndexAttr(0)};
+    SmallVector<OpFoldResult> sizes = {
+        b.getIndexAttr(1), b.getIndexAttr(packedMatrixType.getShape()[1])};
+    SmallVector<OpFoldResult> strides = {b.getIndexAttr(1), b.getIndexAttr(1)};
+    auto extractRowOp =
+        b.create<tensor::ExtractSliceOp>(packedMatrix, offsets, sizes, strides);
+    setMaterializedAttr(extractRowOp);
+
+    // The extractRowOp produces a 1xN tensor, but we need a rank-1 tensor, so
+    // drop the unit dim. (Is it possible to use ExtractSliceOp to get a rank-1
+    // output?)
+    SmallVector<mlir::ReassociationIndices> reassociation;
+    reassociation.push_back(mlir::ReassociationIndices({0, 1}));
+    auto collapseOp = b.create<tensor::CollapseShapeOp>(
+        extractRowOp.getResult(), reassociation);
+    setMaterializedAttr(collapseOp);
+
+    StringRef mulOpName = isa<IntegerType>(packedVectorType.getElementType())
+                              ? "arith.muli"
+                              : "arith.mulf";
+    StringRef addOpName = isa<IntegerType>(packedVectorType.getElementType())
+                              ? "arith.addi"
+                              : "arith.addf";
+    Operation *mulOp = b.create(OperationState(
+        op->getLoc(), mulOpName, {rotateOp.getResult(), collapseOp.getResult()},
+        {packedVectorType}));
+    Operation *addOp = b.create(
+        OperationState(op->getLoc(), addOpName,
+                       {accumulator, mulOp->getResult(0)}, {packedVectorType}));
+    auto yieldOp = b.create<affine::AffineYieldOp>(
+        ValueRange({addOp->getResult(0), rotateOp.getResult()}));
+
+    setMaterializedAttr(mulOp);
+    setMaterializedAttr(addOp);
+    setMaterializedAttr(yieldOp);
+
+    rewriter.replaceOp(op, forOp.getResult(0));
+    // FIXME: add the reduction step to combine partial sums for squat packing
+    //
+    // FIXME: mark out the first n entries in the squat packing case
+    //
+    // FIXME: only do squat packing if n < m, otherwise give up?
+  }
 
   LogicalResult matchAndRewrite(
       linalg::MatvecOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const final {
     Value matrix = op.getInputs()[0];
     Value vector = op.getInputs()[1];
-    auto outputs = op.getOutputs();
 
     if (!getLayoutAttr(matrix) || !getLayoutAttr(vector)) {
       return op.emitError() << "missing layout attribute for matrix or vector";
     }
 
-    if (supportsHaleviShoup(op)) {
-      haleviShoupKernel();
+    if (supportsHaleviShoup(op, adaptor)) {
+      haleviShoupKernel(op, adaptor, rewriter);
       return success();
     }
 
@@ -765,95 +867,7 @@ struct ConvertLinalgMatvec
     //
     // For now, return failure.
     return op.emitError() << "unsupported layout for matrix in matvec: "
-                          << getLayoutAttr(matrix).getValue();
-
-    // Diagonalize the matrix only if the matrix is a constant.
-    auto matrixConstantValues =
-        dyn_cast<arith::ConstantOp>(publicMatrix.getDefiningOp());
-    auto biasConstantValues = dyn_cast<arith::ConstantOp>(bias.getDefiningOp());
-    if (!matrixConstantValues || !biasConstantValues) {
-      return failure();
-    }
-
-    DenseElementsAttr denseAttr =
-        dyn_cast<DenseElementsAttr>(matrixConstantValues.getValueAttr());
-    DenseElementsAttr biasAttr =
-        dyn_cast<DenseElementsAttr>(biasConstantValues.getValueAttr());
-
-    // If the constant values doesn't have a dense attribute, then we can't
-    // diagonalize the matrix.
-    if (!denseAttr || !biasAttr) {
-      return failure();
-    }
-
-    auto type = denseAttr.getElementType();
-    auto originalShape = denseAttr.getType().getShape();
-
-    if (!type.isIntOrFloat()) {
-      return failure();
-    }
-
-    // Define local function pointers or lambdas that refer to the functions
-    auto diagMatrixInt = diagonalizeMatrix<APInt>;
-    auto duplicateBiasInt = duplicateBias<APInt>;
-    auto multDiagMatrixWithVectorInt =
-        multiplyDiagonalizedMatrixWithVector<arith::AddIOp, arith::MulIOp>;
-
-    auto diagMatrixFloat = diagonalizeMatrix<APFloat>;
-    auto duplicateBiasFloat = duplicateBias<APFloat>;
-    auto multDiagMatrixWithVectorFloat =
-        multiplyDiagonalizedMatrixWithVector<arith::AddFOp, arith::MulFOp>;
-
-    SmallVector<Value> opInputs;
-    for (OpOperand &operand : op->getOpOperands()) {
-      if (auto *secretArg = op.getOpOperandForBlockArgument(operand.get())) {
-        opInputs.push_back(
-            adaptor.getODSOperands(0)[secretArg->getOperandNumber()]);
-      } else {
-        opInputs.push_back(operand.get());
-      }
-    }
-
-    SmallVector<Type> opOutputTypes;
-    auto result =
-        getTypeConverter()->convertTypes(op.getResultTypes(), opOutputTypes);
-    if (failed(result)) return failure();
-
-    auto newGeneric = rewriter.create<secret::GenericOp>(
-        op.getLoc(), opInputs, opOutputTypes,
-        [&](OpBuilder &builder, Location loc, ValueRange blockArguments) {
-          // The blockArguments should include the secret vector and public
-          // matrix.
-
-          Value secretValues = blockArguments[secretValuesIndex];
-          ImplicitLocOpBuilder b(loc, rewriter);
-          Value result;
-
-          // Compute diagonalized matrix and duplicated bias inside the body.
-          if (type.isInteger()) {
-            Value diagonalizedMatrix =
-                diagMatrixInt(b, denseAttr, isLeftOperandSecret, maxTilingSize);
-            Value duplicatedBias = duplicateBiasInt(
-                b, biasAttr, isLeftOperandSecret, maxTilingSize);
-            result = multDiagMatrixWithVectorInt(
-                b, diagonalizedMatrix, originalShape, secretValues,
-                duplicatedBias, isLeftOperandSecret, maxTilingSize);
-          } else {  // Floating point
-            Value diagonalizedMatrix = diagMatrixFloat(
-                b, denseAttr, isLeftOperandSecret, maxTilingSize);
-            Value duplicatedBias = duplicateBiasFloat(
-                b, biasAttr, isLeftOperandSecret, maxTilingSize);
-            result = multDiagMatrixWithVectorFloat(
-                b, diagonalizedMatrix, originalShape, secretValues,
-                duplicatedBias, isLeftOperandSecret, maxTilingSize);
-          }
-          // Yield the final result.
-          b.create<secret::YieldOp>(loc, result);
-        });
-
-    // Replace the original operation with the new op
-    rewriter.replaceOp(op, newGeneric);
-    return success();
+                          << getLayoutAttr(matrix);
   }
 };
 
@@ -888,9 +902,9 @@ struct ConvertToCiphertextSemantics
     }
 
     // Hoist tensor.concat ops from constant layouts out of the generic
-    RewritePatternSet cleanupPatterns(context);
-    cleanupPatterns.add<secret::HoistPlaintextOps>(context);
-    walkAndApplyPatterns(module, std::move(cleanupPatterns));
+    // RewritePatternSet cleanupPatterns(context);
+    // cleanupPatterns.add<secret::HoistPlaintextOps>(context);
+    // walkAndApplyPatterns(module, std::move(cleanupPatterns));
 
     // Decompose tensor.concat into repeated tensor.insert_slice ops.
     // Note ConvertAssignLayout generates tensor.concat

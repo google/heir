@@ -68,7 +68,7 @@ bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
 
   SmallVector<AffineExpr> dims;
   AffineExpr result;
-  for (int dim = 0; dim < outputType.getRank(); ++dim) {
+  for (int dim = 0; dim < inputType.getRank(); ++dim) {
     dims.push_back(getAffineDimExpr(dim, inputType.getContext()));
   }
 
@@ -80,11 +80,11 @@ bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
         result ? result + inputType.getDimSize(dim + 1) * dims[dim] : dims[dim];
   }
 
-  bindDims(inputType.getContext(), dims);
   AffineMap expected = AffineMap::get(dims.size(), 0, {result});
   AffineMap expected2 =
       AffineMap::get(dims.size(), 0, {result % outputType.getNumElements()});
   auto simplified = simplifyAffineMap(layout);
+
   return (simplified == expected || simplified == expected2);
 }
 
