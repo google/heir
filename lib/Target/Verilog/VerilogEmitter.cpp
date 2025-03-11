@@ -246,8 +246,8 @@ LogicalResult VerilogEmitter::translate(
           .Case<arith::AddIOp, arith::CmpIOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::IndexCastOp, arith::MaxSIOp, arith::MinSIOp,
                 arith::MulIOp, arith::SelectOp, arith::ShLIOp, arith::ShRSIOp,
-                arith::ShRUIOp, arith::SubIOp, arith::TruncIOp, arith::AndIOp>(
-              [&](auto op) { return printOperation(op); })
+                arith::ShRUIOp, arith::SubIOp, arith::TruncIOp, arith::AndIOp,
+                arith::XOrIOp>([&](auto op) { return printOperation(op); })
           // Custom math ops.
           .Case<math::CountLeadingZerosOp>(
               [&](auto op) { return printOperation(op); })
@@ -526,6 +526,10 @@ LogicalResult VerilogEmitter::printOperation(arith::AddIOp op) {
 
 LogicalResult VerilogEmitter::printOperation(arith::AndIOp op) {
   return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "&");
+}
+
+LogicalResult VerilogEmitter::printOperation(arith::XOrIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "^");
 }
 
 LogicalResult VerilogEmitter::printOperation(arith::CmpIOp op) {
