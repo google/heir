@@ -8,6 +8,7 @@
 #include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 
@@ -41,6 +42,9 @@ void printPermutation(::llvm::ArrayRef<int64_t> permutation, T &os) {
   }
   os << "\n";
 }
+
+bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
+                      const AffineMap &layout);
 
 template void printPermutation(::llvm::ArrayRef<int64_t>,
                                ::llvm::raw_ostream &);

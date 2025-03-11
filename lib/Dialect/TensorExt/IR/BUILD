@@ -19,6 +19,7 @@ cc_library(
         "TensorExtOps.h",
     ],
     deps = [
+        ":TensorExtAttributes",
         ":TensorExtOps",
         ":attributes_inc_gen",
         ":dialect_inc_gen",
@@ -32,15 +33,37 @@ cc_library(
 )
 
 cc_library(
+    name = "TensorExtAttributes",
+    srcs = [
+        "TensorExtAttributes.cpp",
+    ],
+    hdrs = [
+        "TensorExtAttributes.h",
+        "TensorExtDialect.h",
+    ],
+    deps = [
+        ":attributes_inc_gen",
+        ":dialect_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
     name = "TensorExtOps",
     srcs = [
         "TensorExtOps.cpp",
     ],
     hdrs = [
+        "TensorExtAttributes.h",
         "TensorExtDialect.h",
         "TensorExtOps.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
