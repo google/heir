@@ -4,7 +4,7 @@ To align the tensors in the input IR, the pass first zero pads the input to the 
 This pass resizes input tensors with arbitrary sizes into tensors with whose final dimensions has a fixed size. All input tensors are required to be one-dimensional. The --size option specifies the size of the final dimension of the output tensors, and is required to be a power of two.
 To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><meta property="og:type" content="article"><meta property="og:url" content="https://heir.dev/docs/passes/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2024-10-21T23:00:12-07:00"><meta itemprop=name content="Passes"><meta itemprop=description content="-align-tensor-sizes Resize tensors into tensors with a fixed size final dimension
 This pass resizes input tensors with arbitrary sizes into tensors with whose final dimensions has a fixed size. All input tensors are required to be one-dimensional. The --size option specifies the size of the final dimension of the output tensors, and is required to be a power of two.
-To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><meta itemprop=dateModified content="2024-10-21T23:00:12-07:00"><meta itemprop=wordCount content="9594"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-align-tensor-sizes Resize tensors into tensors with a fixed size final dimension
+To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><meta itemprop=dateModified content="2024-10-21T23:00:12-07:00"><meta itemprop=wordCount content="9707"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Passes"><meta name=twitter:description content="-align-tensor-sizes Resize tensors into tensors with a fixed size final dimension
 This pass resizes input tensors with arbitrary sizes into tensors with whose final dimensions has a fixed size. All input tensors are required to be one-dimensional. The --size option specifies the size of the final dimension of the output tensors, and is required to be a power of two.
 To align the tensors in the input IR, the pass first zero pads the input to the nearest power of two before replicating or splitting it into the output shape determined by size."><link rel=preload href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css as=style><link href=/scss/main.min.dffc1689fd83830a5fb090d38ca9680587c322008ad97c675ee0ca22e5fb10d5.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-3.6.3.min.js integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin=anonymous></script>
 <script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]]}}</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
@@ -333,9 +333,15 @@ to tensor.extract ops.</p><p>Does not support complex control flow within a bloc
 arbitrary subregions.</p><h3 id=-forward-store-to-load><code>-forward-store-to-load</code></h3><p><em>Forward stores to loads within a single block</em></p><p>This pass is a simplified version of mem2reg and similar passes.
 It analyzes an operation, finding all basic blocks within that op
 that have memrefs whose stores can be forwarded to loads.</p><p>Does not support complex control flow within a block, nor ops
-with arbitrary subregions.</p><h3 id=-full-loop-unroll><code>-full-loop-unroll</code></h3><p><em>Fully unroll all loops</em></p><p>Scan the IR for affine.for loops and unroll them all.</p><h3 id=-generate-param-bfv><code>-generate-param-bfv</code></h3><p><em>Generate BFV Scheme Parameter</em></p><p>The pass generates the BFV scheme parameter.</p><p>This pass get the multiplicative depth from the IR and generates the
-moduli chain of that long consisting of 60 bits primes.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
-relinearize/modreduce, and it relies on <code>mgmt.mgmt</code> attribute to determine
+with arbitrary subregions.</p><h3 id=-full-loop-unroll><code>-full-loop-unroll</code></h3><p><em>Fully unroll all loops</em></p><p>Scan the IR for affine.for loops and unroll them all.</p><h3 id=-generate-param-bfv><code>-generate-param-bfv</code></h3><p><em>Generate BFV Scheme Parameter</em></p><p>The pass generates the BFV scheme parameter using a given noise model.</p><p>There are three noise models available:</p><ul><li><code>bfv-noise-by-bound-coeff-average-case{-pk,-sk}</code></li><li><code>bfv-noise-by-bound-coeff-worst-case{-pk,-sk}</code></li></ul><p>The <code>-pk</code>/<code>-sk</code> suffixes assume the input ciphertexts are
+encrypted using the public/secret key.</p><p>The first two models are taken from KPZ21, and they work by bounding
+the coefficient embedding of the ciphertexts. The difference
+of the two models is expansion factor used for multiplication
+of the coefficients, the first being $2 \sqrt{N}$ and the second
+being $N$.</p><p>This pass then generates the moduli chain consisting of primes
+of bits specified by the <code>mod-bits</code> field.</p><p>Usually for B/FV <code>mod-bits</code> is set to 60. But when machine word size is
+small, users may also want to set it to 57.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
+relinearize, and it relies on <code>mgmt.mgmt</code> attribute to determine
 the ciphertext level/dimension. These ops and attributes can be added by
 a pass like <code>--secret-insert-mgmt-bgv</code> and <code>--annotate-mgmt</code>.</p><p>User can provide custom scheme parameters by annotating bgv::SchemeParamAttr
 at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.</p><p>Example:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span>module <span style=color:#000;font-weight:700>{</span>
@@ -353,14 +359,16 @@ at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.</p><p>Exam
 </span></span><span style=display:flex><span>    <span style=color:#8f5902;font-style:italic>// same as above
 </span></span></span><span style=display:flex><span><span style=color:#8f5902;font-style:italic></span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
-</span></span></code></pre></div><h4 id=options-9>Options</h4><pre tabindex=0><code>-slot-number       : Minimum number of slots for parameter generation.
+</span></span></code></pre></div><h4 id=options-9>Options</h4><pre tabindex=0><code>-model             : Noise model to validate against.
+-mod-bits          : Default number of bits for all prime coefficient modulusto use for the ciphertext space.
+-slot-number       : Minimum number of slots for parameter generation.
 -plaintext-modulus : Plaintext modulus.
 </code></pre><h3 id=-generate-param-bgv><code>-generate-param-bgv</code></h3><p><em>Generate BGV Scheme Parameter using a given noise model</em></p><p>The pass generates the BGV scheme parameter using a given noise model.</p><p>There are three noise models available:</p><ul><li><code>bgv-noise-by-bound-coeff-average-case{-pk,-sk}</code></li><li><code>bgv-noise-by-bound-coeff-worst-case{-pk,-sk}</code></li><li><code>bgv-noise-by-variance-coeff{-pk,-sk}</code></li></ul><p>The <code>-pk</code>/<code>-sk</code> suffixes assume the input ciphertexts are
 encrypted using the public/secret key.</p><p>The first two models are taken from KPZ21, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
-of the coefficients, the first being <code>2\sqrt{N}</code> and the second
-being <code>N</code>.</p><p>The third model is taken from MP24. It works by tracking the variance
+of the coefficients, the first being $2 \sqrt{N}$ and the second
+being $N$.</p><p>The third model is taken from MP24. It works by tracking the variance
 of the coefficient embedding of the ciphertexts. This gives a more accurate
 noise estimate, but it may give underestimates in some cases. See the paper
 for more details.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
