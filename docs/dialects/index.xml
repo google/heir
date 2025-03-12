@@ -9607,8 +9607,8 @@ testing purposes.&lt;/p>
 &lt;p>&lt;em>OpenFHE mul operation of two ciphertexts without relinearization.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.mul_no_relin` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>SameOperandsAndResultRings&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-17">Operands:&lt;/h4>
 &lt;table>
