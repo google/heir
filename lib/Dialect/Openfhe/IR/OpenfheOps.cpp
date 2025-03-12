@@ -20,6 +20,8 @@ namespace openfhe {
 // Op verifiers
 //===----------------------------------------------------------------------===//
 
+LogicalResult MulNoRelinOp::verify() { return lwe::verifyMulOp(this); }
+
 LogicalResult MakePackedPlaintextOp::verify() {
   auto enc = this->getPlaintext().getType().getPlaintextSpace().getEncoding();
   if (!llvm::isa<lwe::FullCRTPackingEncodingAttr>(enc)) {
@@ -50,6 +52,12 @@ LogicalResult SubOp::inferReturnTypes(
     MLIRContext *ctx, std::optional<Location>, SubOp::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {
   return lwe::inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult MulNoRelinOp::inferReturnTypes(
+    MLIRContext *ctx, std::optional<Location>, MulNoRelinOp::Adaptor adaptor,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  return lwe::inferMulOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
 }  // namespace openfhe
