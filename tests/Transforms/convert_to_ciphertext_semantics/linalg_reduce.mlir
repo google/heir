@@ -17,45 +17,28 @@ func.func @convert_linalg_reduce(
   // CHECK: [[cst:%[^ ]+]] = arith.constant dense<0> : tensor<4xi16>
   %cst = arith.constant dense<0> : tensor<4xi16>
 
-  // lifted the first tensor_ext.assign_layout
-  // CHECK: [[encoded_cst1:%[^ ]+]] = secret.generic {
-  // CHECK-NEXT: tensor.empty() : tensor<16xi16>
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [0] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [4] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [8] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [12] [4] [1]
-  // CHECK-NEXT: secret.yield
-
   // lifted the second tensor_ext.assign_layout
-  // CHECK: [[encoded_cst2:%[^ ]+]] = secret.generic {
-  // CHECK-NEXT: tensor.empty() : tensor<16xi16>
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [0] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [4] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [8] [4] [1]
-  // CHECK-NEXT: tensor.insert_slice [[cst]] into
-  // CHECK-SAME: [12] [4] [1]
-  // CHECK-NEXT: secret.yield
 
   // CHECK: secret.generic ins(
-  // CHECK-SAME: [[arg0]], [[arg1]], [[encoded_cst1]], [[encoded_cst2]]
+  // CHECK-SAME: [[arg0]], [[arg1]]
   // CHECK-NEXT: ^body(
   // CHECK-SAME: [[pt_arg0:%[^ ]*]]:
   // CHECK-SAME: [[pt_arg1:%[^ ]*]]:
-  // CHECK-SAME: [[pt_cst1:%[^ ]*]]:
-  // CHECK-SAME: [[pt_cst2:%[^ ]*]]:
   %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<4x4xi16>>, !secret.secret<tensor<4x4xi16>>)
                       attrs = {
                         __argattrs = [{tensor_ext.layout = #map}, {tensor_ext.layout = #map}],
                         __resattrs = [{tensor_ext.layout = #map1}]
                       } {
   ^body(%input0: tensor<4x4xi16>, %input1: tensor<4x4xi16>):
+    // CHECK-NEXT: tensor.empty() : tensor<16xi16>
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [0] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [4] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [8] [4] [1]
+    // CHECK-NEXT: [[pt_cst1:[^ ]*]] = tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [12] [4] [1]
     %1 = tensor_ext.assign_layout %cst {layout = #map1, tensor_ext.layout = [#map1]} : tensor<4xi16>
 
     // First reduction
@@ -72,6 +55,15 @@ func.func @convert_linalg_reduce(
       outs(%1 : tensor<4xi16>)
       dimensions = [0]  {tensor_ext.layout = [#map1]}
 
+    // CHECK-NEXT: tensor.empty() : tensor<16xi16>
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [0] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [4] [4] [1]
+    // CHECK-NEXT: tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [8] [4] [1]
+    // CHECK-NEXT: [[pt_cst2:[^ ]*]] = tensor.insert_slice [[cst]] into
+    // CHECK-SAME: [12] [4] [1]
     %2 = tensor_ext.assign_layout %cst {layout = #map1, tensor_ext.layout = [#map1]} : tensor<4xi16>
     // CHECK:  [[converted1:%[^ ]*]] = tensor_ext.permute [[pt_cst2]] {permutation = dense<[0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]>
     %3 = tensor_ext.convert_layout %2 {from_layout = #map1, tensor_ext.layout = [#map2], to_layout = #map2} : tensor<4xi16>
