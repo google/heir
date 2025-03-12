@@ -11,12 +11,14 @@ cc_library(
         "Passes.h",
     ],
     deps = [
+        ":AddDebugPort",
         ":CaptureGenericAmbientScope",
         ":DistributeGeneric",
         ":ExtractGenericBody",
         ":ForgetSecrets",
         ":GenericAbsorbConstants",
         ":GenericAbsorbDealloc",
+        ":ImportExecutionResult",
         ":MergeAdjacentGenerics",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -148,6 +150,41 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "AddDebugPort",
+    srcs = ["AddDebugPort.cpp"],
+    hdrs = [
+        "AddDebugPort.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect:FuncUtils",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "ImportExecutionResult",
+    srcs = ["ImportExecutionResult.cpp"],
+    hdrs = [
+        "ImportExecutionResult.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",

@@ -70,6 +70,11 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       *this, "bfv-mod-bits",
       llvm::cl::desc("The number of bits for all moduli for B/FV"),
       llvm::cl::init(60)};
+  PassOptions::Option<std::string> plaintextExecutionResultFileName{
+      *this, "plaintext-execution-result-file-name",
+      llvm::cl::desc("File name to import execution result from (c.f. --secret-"
+                     "import-execution-result)"),
+      llvm::cl::init("")};
 };
 
 struct PlaintextBackendOptions
@@ -79,6 +84,11 @@ struct PlaintextBackendOptions
       llvm::cl::desc("Plaintext modulus for BGV/BFV scheme (if not specified, "
                      "execute in the original integer type)"),
       llvm::cl::init(0)};
+  PassOptions::Option<bool> debug{
+      *this, "insert-debug-handler-calls",
+      llvm::cl::desc("Insert function calls to an externally-defined debug "
+                     "function (cf. --secret-add-debug-port)"),
+      llvm::cl::init(false)};
 };
 
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {
