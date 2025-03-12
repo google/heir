@@ -1,6 +1,7 @@
 # Tests for HEIR
 
 load("//bazel:lit.bzl", "glob_lit_tests")
+load("//devtools/python/blaze:pytype.bzl", "pytype_strict_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -36,7 +37,7 @@ glob_lit_tests(
     exclude = [
         "Examples/common/*",
         # Has a custom driver
-        "Examples/cleartext/dot_product_8.mlir",
+        "Examples/plaintext/*",
     ],
     test_file_exts = ["mlir"],
 )
@@ -45,4 +46,9 @@ exports_files(
     [
         "run_lit.sh",
     ],
+)
+
+pytype_strict_library(
+    name = "lit_cfg",
+    srcs = ["lit.cfg.py"],
 )

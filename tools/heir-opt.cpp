@@ -353,6 +353,15 @@ int main(int argc, char **argv) {
         mlirToSecretArithmeticPipelineBuilder(pm, options);
       });
 
+  PassPipelineRegistration<mlir::heir::PlaintextBackendOptions>(
+      "mlir-to-plaintext-backend",
+      "Convert a func using standard MLIR dialects to plaintext backend "
+      "executed in secret arithmetic",
+      [](OpPassManager &pm,
+         const mlir::heir::PlaintextBackendOptions &options) {
+        mlirToPlaintextPipelineBuilder(pm, options);
+      });
+
   PassPipelineRegistration<mlir::heir::MlirToRLWEPipelineOptions>(
       "mlir-to-bgv",
       "Convert a func using standard MLIR dialects to FHE using "
