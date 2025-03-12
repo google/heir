@@ -1,7 +1,6 @@
 # Tests for HEIR
 
 load("//bazel:lit.bzl", "glob_lit_tests")
-load("//devtools/python/blaze:pytype.bzl", "pytype_strict_library")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
@@ -46,9 +45,4 @@ exports_files(
     [
         "run_lit.sh",
     ],
-)
-
-pytype_strict_library(
-    name = "lit_cfg",
-    srcs = ["lit.cfg.py"],
 )
