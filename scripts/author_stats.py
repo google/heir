@@ -1,18 +1,19 @@
 """Compute statistics about (non-Googler, non-bot) authors of commits."""
 
-from collections import defaultdict
-from datetime import datetime
+import collections
 import csv
-import requests
+import datetime
 import sys
 import time
+import requests
+
+defaultdict = collections.defaultdict
+datetime = datetime.datetime
 
 # Constants
 GITHUB_API_URL = "https://api.github.com"
 REPO = "google/heir"  # replace with the desired repo
-# TOKEN = "your_github_token_here"  # Replace with your personal access token (if needed)
-
-stats = []
+# TOKEN = "your_github_token_here"
 
 # Define email patterns to exclude
 excluded_email_patterns = ["dependabot", "no-reply@google.com"]
@@ -20,11 +21,14 @@ excluded_email_patterns = ["dependabot", "no-reply@google.com"]
 # excluded_patterns = ["google.com", "j2kun", "kun.jeremy", "dependabot"]
 
 # Define commit message patterns to exclude
-excluded_message_patterns = ["Integrate LLVM at llvm/llvm-project@"]
+excluded_message_patterns = [
+    "Integrate LLVM at llvm/llvm-project@",
+    "dependabot",
+]
 
 
-# Check if a commit should be excluded
 def should_exclude(commit):
+  """Checks if a commit should be excluded."""
   email = commit.get("email")
   message = commit.get("message")
   exclude_for_email = (
@@ -40,8 +44,8 @@ def should_exclude(commit):
   return exclude_for_email or exclude_for_message
 
 
-# Function to fetch all commits from a repository (with pagination)
 def fetch_commits(repo):
+  """Fetches all commits from a repository, handling pagination."""
   url = f"{GITHUB_API_URL}/repos/{repo}/commits"
   # headers = {"Authorization": f"token {TOKEN}"}
   params = {"per_page": 100}  # Fetch up to 100 commits per page
@@ -52,6 +56,9 @@ def fetch_commits(repo):
     print(f"Fetching page {page} of commits...")
     time.sleep(1)
     response = requests.get(url, params=params)
+    # for token-based auth:
+    # response = requests.get(url, params=params, headers=headers)
+
     response.raise_for_status()  # Raise an error if the request failed
     data = response.json()
     commits.extend(data)
@@ -66,30 +73,33 @@ def fetch_commits(repo):
   return commits
 
 
-def extract_commits(commits):
-  all_commits = []
-  for commit in commits:
+def extract_commits(all_commits):
+  """Extracts relevant commit information and filters out excluded commits."""
+  extracted = []
+  for commit in all_commits:
     commit_data = commit["commit"]
     author_data = commit_data.get("author", {})
+    message = commit_data.get("message")
     date_str = author_data.get("date")
     email = author_data.get("email")
     name = author_data.get("name")
 
-    if not email or should_exclude(commit_data):
+    if should_exclude({"email": email, "message": message}):
       continue
 
     date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
-    all_commits.append({
+    extracted.append({
         "date": date,
         "author": name,
         "email": email,
-        "message": commit_data.get("message").split("\n")[0],
+        "message": message.split("\n")[0],
     })
 
-  return all_commits
+  return extracted
 
 
 def compute_stats(commits):
+  """Computes monthly author and commit statistics."""
   monthly_authors = defaultdict(set)
   author_commit_count = defaultdict(int)
   monthly_commits = defaultdict(int)
@@ -103,22 +113,24 @@ def compute_stats(commits):
     monthly_commits[year_month] += 1
     author_commit_count[name] += 1
 
-  stats = []
+  monthly_stats = []
   for date, authors in monthly_authors.items():
-    stats.append({
+    monthly_stats.append({
         "date": date,
         "distinct authors": len(authors),
         "commits": monthly_commits[date],
     })
 
-  return stats
+  return monthly_stats
 
 
 if __name__ == "__main__":
+  extracted_commits = []
+  stats = []
   try:
-    commits = extract_commits(fetch_commits(REPO))
-    stats = compute_stats(commits)
-  except Exception as e:
+    extracted_commits = extract_commits(fetch_commits(REPO))
+    stats = compute_stats(extracted_commits)
+  except requests.exceptions.RequestException as e:
     print(f"Error fetching commits: {e}")
     sys.exit(1)
 
@@ -127,7 +139,7 @@ if __name__ == "__main__":
         f, fieldnames=["date", "author", "email", "message"]
     )
     writer.writeheader()
-    writer.writerows(commits)
+    writer.writerows(extracted_commits)
 
   with open("monthly_author_stats.csv", "w") as f:
     writer = csv.DictWriter(
