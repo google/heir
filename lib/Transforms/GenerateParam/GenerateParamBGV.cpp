@@ -2,6 +2,7 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
@@ -210,6 +211,10 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       run<NoiseAnalysis<bgv::NoiseByVarianceCoeffPkModel>>();
     } else if (model == "bgv-noise-by-variance-coeff-sk") {
       run<NoiseAnalysis<bgv::NoiseByVarianceCoeffSkModel>>();
+    } else if (model == "bgv-noise-mono-pk") {
+      run<NoiseAnalysis<bgv::NoiseCanEmbPkModel>>();
+    } else if (model == "bgv-noise-mono-sk") {
+      run<NoiseAnalysis<bgv::NoiseCanEmbSkModel>>();
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();

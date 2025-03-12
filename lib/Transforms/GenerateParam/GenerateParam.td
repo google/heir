@@ -8,10 +8,11 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
   let description = [{
     The pass generates the BGV scheme parameter using a given noise model.
 
-    There are three noise models available:
+    There are four noise models available:
     - `bgv-noise-by-bound-coeff-average-case{-pk,-sk}`
     - `bgv-noise-by-bound-coeff-worst-case{-pk,-sk}`
     - `bgv-noise-by-variance-coeff{-pk,-sk}`
+    - `bgv-noise-mono{-pk,-sk}`
 
     The `-pk`/`-sk` suffixes assume the input ciphertexts are
     encrypted using the public/secret key.
@@ -26,6 +27,11 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
     of the coefficient embedding of the ciphertexts. This gives a more accurate
     noise estimate, but it may give underestimates in some cases. See the paper
     for more details.
+
+    The last model is taken from MMLGA22. It uses the canonical embedding to
+    bound the critical quantity of a ciphertext that defines whether c can be
+    decrypted correctly. According to the authors they achieve more accurate and
+    better bounds than KPZ21. See the paper for more details.
 
     This pass relies on the presence of the `mgmt` dialect ops to model
     relinearize/modreduce, and it relies on `mgmt.mgmt` attribute to determine
