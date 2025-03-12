@@ -33,9 +33,6 @@ LogicalResult verifyMulOp(Op* op) {
   // verify dimension matches
   auto x = op->getLhs().getType();
   auto y = op->getRhs().getType();
-  if (x.getCiphertextSpace().getSize() != y.getCiphertextSpace().getSize()) {
-    return op->emitOpError() << "input dimensions do not match";
-  }
   auto out = op->getOutput().getType();
   if (out.getCiphertextSpace().getSize() !=
       y.getCiphertextSpace().getSize() + x.getCiphertextSpace().getSize() - 1) {
@@ -305,7 +302,7 @@ LogicalResult inferRelinearizeOpReturnTypes(
       ctx, x.getApplicationData(), x.getPlaintextSpace(),
       lwe::CiphertextSpaceAttr::get(ctx, x.getCiphertextSpace().getRing(),
                                     x.getCiphertextSpace().getEncryptionType(),
-                                    2),
+                                    adaptor.getToBasis().size()),
       x.getKey(), x.getModulusChain()));
   return success();
 }

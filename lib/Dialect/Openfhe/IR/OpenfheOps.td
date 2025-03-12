@@ -211,7 +211,7 @@ def SubPlainOp : Openfhe_Op<"sub_plain",[
 
 def MulOp : Openfhe_BinaryOp<"mul"> { let summary = "OpenFHE mul operation of two ciphertexts with relinearization."; }
 
-def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, SameOperandsAndResultRings]> {
+def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, SameOperandsAndResultRings, InferTypeOpAdaptor]> {
   let summary = "OpenFHE mul operation of two ciphertexts without relinearization.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
@@ -219,6 +219,7 @@ def MulNoRelinOp : Openfhe_Op<"mul_no_relin", [Pure, SameOperandsAndResultRings]
     NewLWECiphertext:$rhs
   );
   let results = (outs NewLWECiphertext:$output);
+  let hasVerifier = 1;
 }
 
 def MulPlainOp : Openfhe_Op<"mul_plain",[
