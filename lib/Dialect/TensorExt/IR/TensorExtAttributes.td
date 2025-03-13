@@ -64,4 +64,22 @@ def SIMDPacking_Attr : TensorExt_Attr<"SIMDPacking", "simd_packing",
   let assemblyFormat =  "`<` struct(params) `>`";
 }
 
+def OriginalType_Attr : TensorExt_Attr<"OriginalType", "original_type"> {
+  let summary = "The original type of a secret tensor whose layout has been converted to ciphertext semantics.";
+  let description = [{
+    This attribute is used to retain the original type of a secret tensor after
+    its conversion to ciphertext semantics, i.e. after applying any padding or
+    replication to fill ciphertext data types. For example, if a
+    `!secret.secret<tensor<32xi8>>` is replicated into a ciphertext of ring
+    dimension 1024, the new type would be `!secret.secret<tensor<1024xi8>>`
+    with attribute `tensor_ext.original_type<!secret.secret<tensor<32xi8>>`.
+  }];
+  let parameters = (ins
+    "::mlir::Type":$originalType,
+    "::mlir::AffineMap":$layout
+  );
+  let assemblyFormat =  "`<` struct(params) `>`";
+}
+
+
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTATTRIBUTES_TD_

@@ -4,11 +4,13 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "llvm/include/llvm/ADT/STLExtras.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/AffineMap.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineMap.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -52,6 +54,28 @@ bool isPermutation(ArrayRef<int64_t> materializedMapping) {
     if (!seen.insert(i).second) return false;
   }
   return true;
+}
+
+inline Attribute getIndexAttr(MLIRContext *ctx, int64_t value) {
+  return IntegerAttr::get(IndexType::get(ctx), value);
+}
+
+void evaluateStatic(AffineMap map, ArrayRef<int64_t> values,
+                    SmallVector<int64_t> &results) {
+  MLIRContext *context = map.getContext();
+  SmallVector<Attribute> mapInputs = llvm::map_to_vector(
+      values, [&](int64_t i) { return getIndexAttr(context, i); });
+
+  // Evaluate the affine map on the inputs
+  SmallVector<Attribute> foldResults;
+  if (failed(map.constantFold(mapInputs, foldResults))) {
+    assert(false && "constant folding should never fail here");
+  }
+
+  results.reserve(foldResults.size());
+  for (Attribute attr : foldResults) {
+    results.push_back(cast<IntegerAttr>(attr).getInt());
+  }
 }
 
 }  // namespace heir

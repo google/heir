@@ -1,7 +1,12 @@
 #include "lib/Utils/Utils.h"
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -67,6 +72,63 @@ bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
       });
     });
   });
+}
+
+void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
+                    ArrayRef<int64_t> fixedIndices,
+                    ArrayRef<int64_t> fixedIndexValues) {
+  if (shape.empty()) return;
+  assert(fixedIndices.size() == fixedIndexValues.size() &&
+         "size mismatch on fixed indices");
+  for (size_t i = 0; i < fixedIndices.size(); ++i) {
+    assert(fixedIndices[i] >= 0 ||
+           fixedIndices[i] < static_cast<int64_t>(shape.size()) &&
+               "Fixed index is out of range");
+    assert(fixedIndexValues[i] >= 0 ||
+           fixedIndexValues[i] < shape[fixedIndices[i]] &&
+               "Fixed index value is out of range");
+  }
+
+  std::map<int64_t, int64_t> fixedIndexToValue;
+  for (size_t i = 0; i < fixedIndices.size(); ++i) {
+    fixedIndexToValue[fixedIndices[i]] = fixedIndexValues[i];
+  }
+
+  auto isFixed = [&fixedIndexToValue](int64_t idx) -> bool {
+    return fixedIndexToValue.count(idx) > 0;
+  };
+
+  std::vector<int64_t> indices(shape.size(), 0);
+  // Pre-populate with fixed indices
+  for (size_t i = 0; i < fixedIndices.size(); ++i) {
+    indices[fixedIndices[i]] = fixedIndexValues[i];
+  }
+
+  bool done = false;
+
+  while (!done) {
+    // Process current indices
+    process(indices);
+
+    int dim = shape.size() - 1;
+    while (dim >= 0) {
+      if (!isFixed(dim)) {
+        indices[dim]++;
+        if (indices[dim] < shape[dim]) {
+          // No carry needed
+          break;
+        }
+        // Reset this digit and move to the next
+        indices[dim] = 0;
+      }
+      dim--;
+    }
+
+    // If we've decremented past the first dimension, we're done
+    if (dim < 0) {
+      done = true;
+    }
+  }
 }
 
 }  // namespace heir

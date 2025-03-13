@@ -45,10 +45,10 @@ template <typename T = void>
 struct ConvertAnyContextAware : public ContextAwareConversionPattern {
   ConvertAnyContextAware(
       const ContextAwareTypeConverter &anyContextAwareTypeConverter,
-      MLIRContext *context)
+      MLIRContext *context, int benefit = 1)
       : ContextAwareConversionPattern(anyContextAwareTypeConverter,
                                       RewritePattern::MatchAnyOpTypeTag(),
-                                      /*benefit=*/1, context) {
+                                      benefit, context) {
     setDebugName("ConvertAnyContextAware");
     setHasBoundedRewriteRecursion(true);
   }
@@ -84,10 +84,10 @@ template <>
 struct ConvertAnyContextAware<void> : public ContextAwareConversionPattern {
   ConvertAnyContextAware<void>(
       const ContextAwareTypeConverter &anyContextAwareTypeConverter,
-      MLIRContext *context)
+      MLIRContext *context, int benefit = 1)
       : ContextAwareConversionPattern(anyContextAwareTypeConverter,
                                       RewritePattern::MatchAnyOpTypeTag(),
-                                      /*benefit=*/1, context) {
+                                      benefit, context) {
     setDebugName("ConvertAnyContextAware");
     setHasBoundedRewriteRecursion(true);
   }
