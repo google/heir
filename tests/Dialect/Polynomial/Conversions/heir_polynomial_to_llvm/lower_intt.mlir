@@ -72,7 +72,7 @@
 // CHECK:      %[[OUTPUT_ENC:.*]] = mod_arith.encapsulate %[[OUTPUT_VEC]] : [[INT_TYPE]] -> [[MOD_TYPE]]
 // CHECK:      %[[ORDERED_OUTPUT:.*]] = linalg.generic {indexing_maps = [#[[ID_MAP]], #[[ID_MAP]]], iterator_types = ["parallel"]}
 // CHECK-SAME:   ins(%[[REVERSE_BIT_ORDER_COEFFS]] : tensor<4xindex>) outs(%[[OUTPUT_ENC]] : [[MOD_TYPE]]) {
-// CHECK:       ^bb0(%[[REV_INDEX:.*]]: index, %[[OUT:.*]]: [[coeff_ty:!Z7681_i32_]]):
+// CHECK:       ^bb0(%[[REV_INDEX:.*]]: index, %[[OUT:.*]]: [[coeff_ty:!Z7681_i32]]):
 // CHECK:         %[[EXTRACTED:.*]] = tensor.extract %[[RES_INTT]][%[[REV_INDEX]]] : [[MOD_TYPE]]
 // CHECK:         linalg.yield %[[EXTRACTED]] : [[coeff_ty]]
 // CHECK:       } -> [[MOD_TYPE]]
