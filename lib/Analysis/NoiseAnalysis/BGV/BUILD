@@ -13,15 +13,14 @@ cc_library(
     deps = [
         ":NoiseByBoundCoeffModel",
         ":NoiseByVarianceCoeffModel",
+        ":NoiseCanEmbModel",
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/NoiseAnalysis",
-        "@heir//lib/Analysis/NoiseAnalysis:Noise",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Parameters/BGV:Params",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:CallOpInterfaces",
@@ -38,6 +37,20 @@ cc_library(
     ],
     hdrs = [
         "NoiseByBoundCoeffModel.h",
+    ],
+    deps = [
+        "@heir//lib/Analysis/NoiseAnalysis:Noise",
+        "@heir//lib/Parameters/BGV:Params",
+    ],
+)
+
+cc_library(
+    name = "NoiseCanEmbModel",
+    srcs = [
+        "NoiseCanEmbModel.cpp",
+    ],
+    hdrs = [
+        "NoiseCanEmbModel.h",
     ],
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis:Noise",
