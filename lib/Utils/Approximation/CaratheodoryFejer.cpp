@@ -26,20 +26,12 @@ using ::llvm::SmallVector;
 using ::mlir::heir::polynomial::FloatPolynomial;
 
 FloatPolynomial caratheodoryFejerApproximationUnitInterval(
-    const std::function<APFloat(APFloat)> &func, int32_t degree,
-    std::optional<int32_t> chebDegree) {
+    const std::function<APFloat(APFloat)> &func, int32_t degree) {
   // Construct the Chebyshev interpolant.
-  SmallVector<APFloat> chebPts, chebEvalPts, chebCoeffs;
-  int32_t actualChebDegree = chebDegree.value_or(2 * degree);
-  int32_t numChebPts = 1 + actualChebDegree;
-  assert(numChebPts >= 2 * degree + 1 &&
-         "Chebyshev degree must be at least twice the CF degree plus 1");
-  chebPts.reserve(numChebPts);
-  getChebyshevPoints(numChebPts, chebPts);
-  for (auto &pt : chebPts) {
-    chebEvalPts.push_back(func(pt));
-  }
-  interpolateChebyshev(chebEvalPts, chebCoeffs);
+  SmallVector<APFloat> chebCoeffs;
+  interpolateChebyshevWithSmartDegreeSelection(func, chebCoeffs);
+  size_t chebDegree = chebCoeffs.size() - 1;
+  if (chebDegree <= degree) return chebyshevToMonomial(chebCoeffs);
 
   // Use the tail coefficients to construct a Hankel matrix
   // where A[i, j] = c[i+j]
@@ -90,7 +82,7 @@ FloatPolynomial caratheodoryFejerApproximationUnitInterval(
   SmallVector<APFloat> b =
       SmallVector<APFloat>(tailChebCoeffs.begin(), tailChebCoeffs.end());
 
-  int32_t t = actualChebDegree - degree - 1;
+  int32_t t = chebDegree - degree - 1;
   for (int32_t i = degree; i > -degree - 1; --i) {
     SmallVector<APFloat> sliceB(b.begin(), b.begin() + t);
 
@@ -123,7 +115,7 @@ FloatPolynomial caratheodoryFejerApproximationUnitInterval(
 
 FloatPolynomial caratheodoryFejerApproximation(
     const std::function<APFloat(APFloat)> &func, int32_t degree, double lower,
-    double upper, std::optional<int32_t> chebDegree) {
+    double upper) {
   bool needsScaling = lower != -1.0 || upper != 1.0;
   double midPoint = (lower + upper) / 2;
   double halfLen = (upper - lower) / 2;
@@ -136,8 +128,8 @@ FloatPolynomial caratheodoryFejerApproximation(
   } else {
     funcScaled = func;
   }
-  FloatPolynomial approximant = caratheodoryFejerApproximationUnitInterval(
-      funcScaled, degree, chebDegree);
+  FloatPolynomial approximant =
+      caratheodoryFejerApproximationUnitInterval(funcScaled, degree);
 
   if (needsScaling) {
     FloatPolynomial y =

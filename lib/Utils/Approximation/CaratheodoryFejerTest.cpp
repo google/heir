@@ -25,8 +25,8 @@ TEST(CaratheodoryFejerTest, ApproximateExpDegree3) {
   FloatPolynomial actual = caratheodoryFejerApproximation(func, 3);
   // Values taken from reference impl are exact.
   FloatPolynomial expected = FloatPolynomial::fromCoefficients(
-      {0.9945811640427066, 0.9956553725361579, 0.5429702814725632,
-       0.1795458211087378});
+      {0.9945794763246951, 0.9956677100276301, 0.5429727883818608,
+       0.17953348361617388});
   EXPECT_EQ(actual, expected);
 }
 
@@ -35,11 +35,15 @@ TEST(CaratheodoryFejerTest, ApproximateExpDegree3MinusTwoTwoInterval) {
     return APFloat(std::exp(x.convertToDouble()));
   };
   FloatPolynomial actual = caratheodoryFejerApproximation(func, 3, -2.0, 2.0);
-  // Values taken from reference impl are exact.
-  FloatPolynomial expected = FloatPolynomial::fromCoefficients(
-      {0.9027606216774033, 0.9213683539241497, 0.6884695578424328,
-       0.2230154631561722});
-  EXPECT_EQ(actual, expected);
+  auto terms = actual.getTerms();
+  EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),
+              DoubleNear(0.9023129365897373, EPSILON));
+  EXPECT_THAT(terms[1].getCoefficient().convertToDouble(),
+              DoubleNear(0.9221474912559928, EPSILON));
+  EXPECT_THAT(terms[2].getCoefficient().convertToDouble(),
+              DoubleNear(0.688635050076054, EPSILON));
+  EXPECT_THAT(terms[3].getCoefficient().convertToDouble(),
+              DoubleNear(0.2228206781698768, EPSILON));
 }
 
 TEST(CaratheodoryFejerTest, ApproximateReluDegree14) {
@@ -76,35 +80,35 @@ TEST(CaratheodoryFejerTest, ApproximateReluDegree14) {
   // point error accumulation as the rest of the algorithm proceeds.
   auto terms = actual.getTerms();
   EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),
-              DoubleNear(0.010384627976349288, EPSILON));
+              DoubleNear(0.012463964097674111, EPSILON));
   EXPECT_THAT(terms[1].getCoefficient().convertToDouble(),
-              DoubleNear(0.4999999999999994, EPSILON));
+              DoubleNear(0.49999999999999944, EPSILON));
   EXPECT_THAT(terms[2].getCoefficient().convertToDouble(),
-              DoubleNear(3.227328667600437, EPSILON));
+              DoubleNear(3.1497214624871868, EPSILON));
   EXPECT_THAT(terms[3].getCoefficient().convertToDouble(),
-              DoubleNear(2.1564570993799688e-14, EPSILON));
+              DoubleNear(1.125613084629512e-14, EPSILON));
   EXPECT_THAT(terms[4].getCoefficient().convertToDouble(),
-              DoubleNear(-27.86732536231614, EPSILON));
+              DoubleNear(-26.28684650927164, EPSILON));
   EXPECT_THAT(terms[5].getCoefficient().convertToDouble(),
-              DoubleNear(-1.965772591254676e-13, EPSILON));
+              DoubleNear(-8.710818612582302e-14, EPSILON));
   EXPECT_THAT(terms[6].getCoefficient().convertToDouble(),
-              DoubleNear(139.12944753041404, EPSILON));
+              DoubleNear(128.21098801816572, EPSILON));
   EXPECT_THAT(terms[7].getCoefficient().convertToDouble(),
-              DoubleNear(7.496488571843804e-13, EPSILON));
+              DoubleNear(2.9771289412372216e-13, EPSILON));
   EXPECT_THAT(terms[8].getCoefficient().convertToDouble(),
-              DoubleNear(-363.6062351528312, EPSILON));
+              DoubleNear(-329.7013599574576, EPSILON));
   EXPECT_THAT(terms[9].getCoefficient().convertToDouble(),
-              DoubleNear(-1.3773783921527744e-12, EPSILON));
+              DoubleNear(-4.950876525219969e-13, EPSILON));
   EXPECT_THAT(terms[10].getCoefficient().convertToDouble(),
-              DoubleNear(505.9489721657369, EPSILON));
+              DoubleNear(453.4426992698845, EPSILON));
   EXPECT_THAT(terms[11].getCoefficient().convertToDouble(),
-              DoubleNear(1.2076732984649801e-12, EPSILON));
+              DoubleNear(3.9333787272256463e-13, EPSILON));
   EXPECT_THAT(terms[12].getCoefficient().convertToDouble(),
-              DoubleNear(-355.4120699445272, EPSILON));
+              DoubleNear(-315.7369991939929, EPSILON));
   EXPECT_THAT(terms[13].getCoefficient().convertToDouble(),
-              DoubleNear(-4.050490139246503e-13, EPSILON));
+              DoubleNear(-1.195396993539409e-13, EPSILON));
   EXPECT_THAT(terms[14].getCoefficient().convertToDouble(),
-              DoubleNear(99.07988219049058, EPSILON));
+              DoubleNear(87.41796048301983, EPSILON));
 }
 
 }  // namespace

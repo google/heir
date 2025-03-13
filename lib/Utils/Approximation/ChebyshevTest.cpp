@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -98,6 +99,30 @@ TEST(ChebyshevTest, TestInterpolateChebyshevExpDegree3) {
   // sure why.
   // EXPECT_THAT(actual[3].convertToDouble(), DoubleEq(0.04433686088543568));
   EXPECT_THAT(actual[3].convertToDouble(), DoubleEq(0.044336860885435536));
+}
+
+TEST(ChebyshevTest, ExpAutoSelectDegree) {
+  auto func = [](const APFloat& x) {
+    return APFloat(std::exp(x.convertToDouble()));
+  };
+  SmallVector<APFloat> coeffs;
+  interpolateChebyshevWithSmartDegreeSelection(func, coeffs);
+  FloatPolynomial result = chebyshevToMonomial(coeffs);
+
+  // approximate infinity norm error on [-1, 1]
+  double error = 0.0;
+  int N = 100;
+  for (int i = 0; i < N; ++i) {
+    double input = 2.0 * i / (double)N - 1.0;
+    double expected = std::exp(input);
+    double actual = 0;
+    for (auto& term : result.getTerms()) {
+      actual += term.getCoefficient().convertToDouble() *
+                std::pow(input, term.getExponent().getZExtValue());
+    }
+    error = std::max(error, std::abs(expected - actual));
+  }
+  EXPECT_LT(error, 1e-15);
 }
 
 }  // namespace

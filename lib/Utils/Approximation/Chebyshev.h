@@ -2,6 +2,7 @@
 #define LIB_UTILS_APPROXIMATION_CHEBYSHEV_H_
 
 #include <cstdint>
+#include <functional>
 
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APFloat.h"   // from @llvm-project
@@ -50,6 +51,15 @@ void getChebyshevPolynomials(
 void interpolateChebyshev(
     ::llvm::ArrayRef<::llvm::APFloat> chebEvalPoints,
     ::llvm::SmallVector<::llvm::APFloat> &outputChebCoeffs);
+
+/// Computes a Chebyshev interpolant of the given function on the unit interval,
+/// automatically choosing the degree of the approximation to ensure that (a)
+/// the degree is not more than maxDegree, or (b) the absolute error is less
+/// than the given tolerance.
+void interpolateChebyshevWithSmartDegreeSelection(
+    const std::function<APFloat(APFloat)> &func,
+    ::llvm::SmallVector<::llvm::APFloat> &outputChebCoeffs,
+    double tolerance = 1e-16, int64_t maxDegree = 129);
 
 }  // namespace approximation
 }  // namespace heir
