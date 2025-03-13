@@ -17,7 +17,7 @@ heir_lattigo_lib(
     extra_srcs = ["dot_product_8_debug.go"],
     go_library_name = "dotproduct8debug",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=8 annotate-noise-bound=true",
+        "--mlir-to-bgv=ciphertext-degree=8 annotate-noise-bound=true encryption-technique-extended=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "dot_product_8.mlir",

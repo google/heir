@@ -82,7 +82,8 @@ def GenParamsOp : Openfhe_Op<"gen_params"> {
     I64Attr:$plainMod,
     BoolAttr:$insecure,
     I64Attr:$evalAddCount,
-    I64Attr:$keySwitchCount
+    I64Attr:$keySwitchCount,
+    BoolAttr:$encryptionTechniqueExtended
   );
   let results = (outs Openfhe_CCParams:$params);
 }

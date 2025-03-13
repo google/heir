@@ -9,7 +9,7 @@ heir_lattigo_lib(
     name = "roberts_cross",
     go_library_name = "robertscross",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681",
+        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681 encryption-technique-extended=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "roberts_cross_64x64.mlir",

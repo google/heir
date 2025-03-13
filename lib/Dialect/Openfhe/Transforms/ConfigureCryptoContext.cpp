@@ -12,6 +12,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheOps.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheTypes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
@@ -78,7 +79,8 @@ bool hasBootstrapOp(func::FuncOp op) {
 // function that generates the crypto context with proper parameters
 LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
                               int64_t mulDepth, bool hasBootstrapOp,
-                              bool insecure, ImplicitLocOpBuilder &builder) {
+                              bool insecure, bool encryptionTechniqueExtended,
+                              ImplicitLocOpBuilder &builder) {
   Type openfheContextType =
       openfhe::CryptoContextType::get(builder.getContext());
   SmallVector<Type> funcArgTypes;
@@ -119,7 +121,7 @@ LogicalResult generateGenFunc(func::FuncOp op, const std::string &genFuncName,
   Type openfheParamsType = openfhe::CCParamsType::get(builder.getContext());
   Value ccParams = builder.create<openfhe::GenParamsOp>(
       openfheParamsType, mulDepth, plainMod, insecure, evalAddCount,
-      keySwitchCount);
+      keySwitchCount, encryptionTechniqueExtended);
   Value cryptoContext = builder.create<openfhe::GenContextOp>(
       openfheContextType, ccParams,
       BoolAttr::get(builder.getContext(), hasBootstrapOp));
@@ -187,9 +189,18 @@ LogicalResult convertFunc(func::FuncOp op, int levelBudgetEncode,
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
 
+  bool encryptionTechniqueExtended = false;
   // remove bgv.schemeParam attribute if present
   if (auto schemeParamAttr = module->getAttrOfType<bgv::SchemeParamAttr>(
           bgv::BGVDialect::kSchemeParamAttrName)) {
+    if (moduleIsBGV(module) && schemeParamAttr.getEncryptionTechnique() ==
+                                   bgv::BGVEncryptionTechnique::extended) {
+      module->emitError(
+          "Extended encryption technique is not supported in OpenFHE BGV");
+      return failure();
+    }
+    encryptionTechniqueExtended = schemeParamAttr.getEncryptionTechnique() ==
+                                  bgv::BGVEncryptionTechnique::extended;
     module->removeAttr(bgv::BGVDialect::kSchemeParamAttrName);
   }
 
@@ -222,7 +233,7 @@ LogicalResult convertFunc(func::FuncOp op, int levelBudgetEncode,
     mulDepth += bootstrapDepth;
   }
   if (failed(generateGenFunc(op, genFuncName, mulDepth, hasBootstrapOpResult,
-                             insecure, builder))) {
+                             insecure, encryptionTechniqueExtended, builder))) {
     return failure();
   }
 

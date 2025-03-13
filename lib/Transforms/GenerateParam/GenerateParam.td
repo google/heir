@@ -9,13 +9,13 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
     The pass generates the BGV scheme parameter using a given noise model.
 
     There are four noise models available:
-    - `bgv-noise-by-bound-coeff-average-case{-pk,-sk}`
-    - `bgv-noise-by-bound-coeff-worst-case{-pk,-sk}`
-    - `bgv-noise-by-variance-coeff{-pk,-sk}`
-    - `bgv-noise-mono{-pk,-sk}`
+    - `bgv-noise-by-bound-coeff-average-case` or `bgv-noise-kpz21`
+    - `bgv-noise-by-bound-coeff-worst-case`
+    - `bgv-noise-by-variance-coeff` or `bgv-noise-mp24`
+    - `bgv-noise-mono`
 
-    The `-pk`/`-sk` suffixes assume the input ciphertexts are
-    encrypted using the public/secret key.
+    To use public-key encryption/secret-key encryption in the model, the option
+    `usePublicKey` could be set accordingly.
 
     The first two models are taken from KPZ21, and they work by bounding
     the coefficient embedding of the ciphertexts. The difference
@@ -73,11 +73,15 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
 
   let options = [
     Option<"model", "model", "std::string",
-           /*default=*/"\"bgv-noise-by-bound-coeff-average-case-pk\"", "Noise model to validate against.">,
+           /*default=*/"\"bgv-noise-kpz21\"", "Noise model to validate against.">,
     Option<"plaintextModulus", "plaintext-modulus", "int64_t",
            /*default=*/"65537", "Plaintext modulus.">,
     Option<"slotNumber", "slot-number", "int",
            /*default=*/"0", "Minimum number of slots for parameter generation.">,
+    Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
+           "If true, uses a public key for encryption.">,
+    Option<"encryptionTechniqueExtended", "encryption-technique-extended", "bool", /*default=*/"false",
+           "If true, uses EXTENDED encryption technique for encryption.">,
   ];
 }
 
@@ -87,11 +91,11 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     The pass generates the BFV scheme parameter using a given noise model.
 
     There are three noise models available:
-    - `bfv-noise-by-bound-coeff-average-case{-pk,-sk}`
-    - `bfv-noise-by-bound-coeff-worst-case{-pk,-sk}`
+    - `bfv-noise-by-bound-coeff-average-case`
+    - `bfv-noise-by-bound-coeff-worst-case` or `bfv-noise-kpz21`
 
-    The `-pk`/`-sk` suffixes assume the input ciphertexts are
-    encrypted using the public/secret key.
+    To use public-key encryption/secret-key encryption in the model, the option
+    `usePublicKey` could be set accordingly.
 
     The first two models are taken from KPZ21, and they work by bounding
     the coefficient embedding of the ciphertexts. The difference
@@ -145,7 +149,7 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
 
   let options = [
     Option<"model", "model", "std::string",
-           /*default=*/"\"bfv-noise-by-bound-coeff-average-case-pk\"", "Noise model to validate against.">,
+           /*default=*/"\"bfv-noise-kpz21\"", "Noise model to validate against.">,
     Option<"modBits", "mod-bits", "int",
            /*default=*/"60", "Default number of bits for all prime coefficient modulus"
            "to use for the ciphertext space.">,
@@ -153,6 +157,10 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
            /*default=*/"0", "Minimum number of slots for parameter generation.">,
     Option<"plaintextModulus", "plaintext-modulus", "int64_t",
            /*default=*/"65537", "Plaintext modulus.">,
+    Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
+           "If true, uses a public key for encryption.">,
+    Option<"encryptionTechniqueExtended", "encryption-technique-extended", "bool", /*default=*/"false",
+           "If true, uses EXTENDED encryption technique for encryption.">,
   ];
 }
 
@@ -212,6 +220,8 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
     Option<"scalingModBits", "scaling-mod-bits", "int",
            /*default=*/"45", "Default number of bits of the scaling prime "
            "coefficient modulus to use for the ciphertext space.">,
+    Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
+           "If true, uses a public key for encryption.">,
   ];
 }
 

@@ -2,6 +2,7 @@
 #define LIB_DIALECT_CKKS_IR_CKKSATTRIBUTES_H_
 
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSEnums.h"
 
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h.inc"

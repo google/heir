@@ -210,10 +210,8 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
 }
 
 // template instantiation
-template class NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCasePkModel>;
-template class NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCasePkModel>;
-template class NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseSkModel>;
-template class NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseSkModel>;
+template class NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseModel>;
+template class NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseModel>;
 
 }  // namespace heir
 }  // namespace mlir

@@ -1,4 +1,4 @@
-// RUN: heir-opt '--lwe-add-client-interface=use-public-key=true' %s | FileCheck %s
+// RUN: heir-opt --lwe-add-client-interface %s | FileCheck %s
 
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
@@ -22,18 +22,20 @@
 !mul_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D3_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 !out_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-func.func @dot_product(%arg0: !in_ty, %arg1: !in_ty) -> (!out_ty, !out_ty) {
-  %c7 = arith.constant 7 : index
-  %0 = bgv.mul %arg0, %arg1 : (!in_ty, !in_ty) -> !mul_ty
-  %1 = bgv.relinearize %0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !mul_ty -> !in_ty
-  %2 = bgv.rotate_cols %1 { offset = 4 } : !in_ty
-  %3 = bgv.add %1, %2 : (!in_ty, !in_ty) -> !in_ty
-  %4 = bgv.rotate_cols %3 { offset = 2 } : !in_ty
-  %5 = bgv.add %3, %4 : (!in_ty, !in_ty) -> !in_ty
-  %6 = bgv.rotate_cols %5 { offset = 1 } : !in_ty
-  %7 = bgv.add %5, %6 : (!in_ty, !in_ty) -> !in_ty
-  %8 = bgv.extract %7, %c7 : (!in_ty, index) -> !out_ty
-  return %8, %8 : !out_ty, !out_ty
+module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [], P = [], plaintextModulus = 65537, encryptionType = pk>, scheme.bgv} {
+  func.func @dot_product(%arg0: !in_ty, %arg1: !in_ty) -> (!out_ty, !out_ty) {
+    %c7 = arith.constant 7 : index
+    %0 = bgv.mul %arg0, %arg1 : (!in_ty, !in_ty) -> !mul_ty
+    %1 = bgv.relinearize %0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !mul_ty -> !in_ty
+    %2 = bgv.rotate_cols %1 { offset = 4 } : !in_ty
+    %3 = bgv.add %1, %2 : (!in_ty, !in_ty) -> !in_ty
+    %4 = bgv.rotate_cols %3 { offset = 2 } : !in_ty
+    %5 = bgv.add %3, %4 : (!in_ty, !in_ty) -> !in_ty
+    %6 = bgv.rotate_cols %5 { offset = 1 } : !in_ty
+    %7 = bgv.add %5, %6 : (!in_ty, !in_ty) -> !in_ty
+    %8 = bgv.extract %7, %c7 : (!in_ty, index) -> !out_ty
+    return %8, %8 : !out_ty, !out_ty
+  }
 }
 
 // CHECK: func.func @dot_product__encrypt__arg0

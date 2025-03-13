@@ -36,9 +36,13 @@ struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
       llvm::cl::init(1024)};
   PassOptions::Option<bool> usePublicKey{
       *this, "use-public-key",
-      llvm::cl::desc("If true, generate a client interface that uses a public "
-                     "key for encryption."),
+      llvm::cl::desc("If true, use public key encryption (default to true)"),
       llvm::cl::init(true)};
+  PassOptions::Option<bool> encryptionTechniqueExtended{
+      *this, "encryption-technique-extended",
+      llvm::cl::desc("If true, use extended encryption technique (default to "
+                     "false)"),
+      llvm::cl::init(false)};
   PassOptions::Option<bool> modulusSwitchBeforeFirstMul{
       *this, "modulus-switch-before-first-mul",
       llvm::cl::desc("Modulus switching right before the first multiplication "

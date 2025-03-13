@@ -29,7 +29,7 @@ int computeDnum(int level) {
 }
 
 RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(
-    int level, int slotNumber) {
+    int level, int slotNumber, bool usePublicKey) {
   auto logModuli = 60;  // assume all 60 bit moduli
   auto dnum = computeDnum(level);
   std::vector<double> logqi(level + 1, logModuli);
@@ -40,7 +40,7 @@ RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(
 
   auto ringDim = computeRingDim(totalQP, slotNumber);
 
-  return RLWESchemeParam(ringDim, level, logqi, dnum, logpi);
+  return RLWESchemeParam(ringDim, level, logqi, dnum, logpi, usePublicKey);
 }
 
 int64_t findPrime(int qi, int ringDim,
@@ -79,7 +79,8 @@ int64_t findPrime(int qi, int ringDim,
 }
 
 RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
-    std::vector<double> logqi, int slotNumber, int64_t plaintextModulus) {
+    std::vector<double> logqi, int slotNumber, bool usePublicKey,
+    int64_t plaintextModulus) {
   auto level = logqi.size() - 1;
   auto dnum = computeDnum(level);
 
@@ -145,7 +146,8 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
     logpi.push_back(log2(pi));
   }
 
-  return RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl);
+  return RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl,
+                         usePublicKey);
 }
 
 void RLWESchemeParam::print(llvm::raw_ostream &os) const {
@@ -178,6 +180,7 @@ void RLWESchemeParam::print(llvm::raw_ostream &os) const {
     os << pi << " ";
   }
   os << "\n";
+  os << "usePublicKey: " << usePublicKey << "\n";
 }
 
 }  // namespace heir

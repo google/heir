@@ -27,8 +27,8 @@ class SchemeParam : public RLWESchemeParam {
   void print(llvm::raw_ostream &os) const override;
 
   static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
-                                            int logDefaultScale,
-                                            int slotNumber);
+                                            int logDefaultScale, int slotNumber,
+                                            bool usePublicKey);
 
   static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };

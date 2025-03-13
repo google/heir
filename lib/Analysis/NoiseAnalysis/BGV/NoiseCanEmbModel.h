@@ -13,9 +13,6 @@ namespace bgv {
 
 // canonical embedding noise model from MMLGA22
 // see https://eprint.iacr.org/2022/706
-// use template here just for the sake of code reuse
-// P for public key
-template <bool P>
 class NoiseCanEmbModel {
  public:
   // for MMLGA22, NoiseState stores the bound ||m + t * e||^{can} for error e.
@@ -62,10 +59,6 @@ class NoiseCanEmbModel {
   static double toLogTotal(const LocalParamType &param);
   static std::string toLogTotalString(const LocalParamType &param);
 };
-
-// user-facing typedefs
-using NoiseCanEmbPkModel = NoiseCanEmbModel<true>;
-using NoiseCanEmbSkModel = NoiseCanEmbModel<false>;
 
 }  // namespace bgv
 }  // namespace heir

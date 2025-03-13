@@ -18,7 +18,7 @@ heir_lattigo_lib(
     name = "simple_sum",
     go_library_name = "simplesum",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=32",
+        "--mlir-to-bgv=ciphertext-degree=32 encryption-technique-extended=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "simple_sum.mlir",

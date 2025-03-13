@@ -1,3 +1,5 @@
+#include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
+
 #include <functional>
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
@@ -5,7 +7,6 @@
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
-#include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -213,18 +214,14 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
 }
 
 // template instantiation
-template class NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCasePkModel>;
-template class NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCasePkModel>;
-template class NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseSkModel>;
-template class NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseSkModel>;
+template class NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseModel>;
+template class NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseModel>;
 
 // for mono bounds
-template class NoiseAnalysis<bgv::NoiseCanEmbPkModel>;
-template class NoiseAnalysis<bgv::NoiseCanEmbSkModel>;
+template class NoiseAnalysis<bgv::NoiseCanEmbModel>;
 
 // for by variance
-template class NoiseAnalysis<bgv::NoiseByVarianceCoeffPkModel>;
-template class NoiseAnalysis<bgv::NoiseByVarianceCoeffSkModel>;
+template class NoiseAnalysis<bgv::NoiseByVarianceCoeffModel>;
 
 }  // namespace heir
 }  // namespace mlir

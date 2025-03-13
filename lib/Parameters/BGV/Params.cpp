@@ -14,22 +14,23 @@ namespace mlir {
 namespace heir {
 namespace bgv {
 
-SchemeParam SchemeParam::getConservativeSchemeParam(int level,
-                                                    int64_t plaintextModulus,
-                                                    int slotNumber) {
+SchemeParam SchemeParam::getConservativeSchemeParam(
+    int level, int64_t plaintextModulus, int slotNumber, bool usePublicKey,
+    bool encryptionTechniqueExtended) {
   // Use only half of the BGV slot number to make 1-dim vector.
-  return SchemeParam(
-      RLWESchemeParam::getConservativeRLWESchemeParam(level, 2 * slotNumber),
-      plaintextModulus);
+  return SchemeParam(RLWESchemeParam::getConservativeRLWESchemeParam(
+                         level, 2 * slotNumber, usePublicKey),
+                     plaintextModulus, encryptionTechniqueExtended);
 }
 
-SchemeParam SchemeParam::getConcreteSchemeParam(std::vector<double> logqi,
-                                                int64_t plaintextModulus,
-                                                int slotNumber) {
+SchemeParam SchemeParam::getConcreteSchemeParam(
+    std::vector<double> logqi, int64_t plaintextModulus, int slotNumber,
+    bool usePublicKey, bool encryptionTechniqueExtended) {
   // Use only half of the BGV slot number to make 1-dim vector.
-  return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
-                         std::move(logqi), 2 * slotNumber, plaintextModulus),
-                     plaintextModulus);
+  return SchemeParam(
+      RLWESchemeParam::getConcreteRLWESchemeParam(
+          std::move(logqi), 2 * slotNumber, usePublicKey, plaintextModulus),
+      plaintextModulus, encryptionTechniqueExtended);
 }
 
 SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
@@ -52,9 +53,12 @@ SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
   }
   auto level = logqi.size() - 1;
   auto dnum = ceil(static_cast<double>(qiImpl.size()) / piImpl.size());
-  return SchemeParam(
-      RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl),
-      plaintextModulus);
+  auto usePublicKey = attr.getEncryptionType() == BGVEncryptionType::pk;
+  auto encryptionTechniqueExtended =
+      attr.getEncryptionTechnique() == BGVEncryptionTechnique::extended;
+  return SchemeParam(RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi,
+                                     piImpl, usePublicKey),
+                     plaintextModulus, encryptionTechniqueExtended);
 }
 
 void SchemeParam::print(llvm::raw_ostream &os) const {

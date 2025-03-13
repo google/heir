@@ -128,7 +128,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
 
     auto concreteSchemeParam =
         NoiseAnalysis::SchemeParamType::getConcreteSchemeParam(
-            qiSize, schemeParam.getPlaintextModulus(), slotNumber);
+            qiSize, schemeParam.getPlaintextModulus(), slotNumber, usePublicKey,
+            encryptionTechniqueExtended);
 
     return concreteSchemeParam;
   }
@@ -143,7 +144,12 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
                                    ArrayRef(schemeParam.getQi())),
             DenseI64ArrayAttr::get(&getContext(),
                                    ArrayRef(schemeParam.getPi())),
-            schemeParam.getPlaintextModulus()));
+            schemeParam.getPlaintextModulus(),
+            usePublicKey ? bgv::BGVEncryptionType::pk
+                         : bgv::BGVEncryptionType::sk,
+            encryptionTechniqueExtended
+                ? bgv::BGVEncryptionTechnique::extended
+                : bgv::BGVEncryptionTechnique::standard));
   }
 
   template <typename NoiseAnalysis>
@@ -153,7 +159,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     // plaintext modulus from command line option
     auto schemeParam =
         NoiseAnalysis::SchemeParamType::getConservativeSchemeParam(
-            maxLevel, plaintextModulus, slotNumber);
+            maxLevel, plaintextModulus, slotNumber, usePublicKey,
+            encryptionTechniqueExtended);
 
     LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
                             << schemeParam << "\n");
@@ -185,7 +192,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     std::vector<double> logPrimes(maxLevel + 1, 45);  // all primes of 45 bits
 
     auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(
-        logPrimes, plaintextModulus, slotNumber);
+        logPrimes, plaintextModulus, slotNumber, usePublicKey,
+        encryptionTechniqueExtended);
 
     annotateSchemeParam(schemeParam);
   }
@@ -199,22 +207,16 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       return;
     }
 
-    if (model == "bgv-noise-by-bound-coeff-worst-case-pk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCasePkModel>>();
-    } else if (model == "bgv-noise-by-bound-coeff-average-case-pk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCasePkModel>>();
-    } else if (model == "bgv-noise-by-bound-coeff-worst-case-sk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseSkModel>>();
-    } else if (model == "bgv-noise-by-bound-coeff-average-case-sk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseSkModel>>();
-    } else if (model == "bgv-noise-by-variance-coeff-pk") {
-      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffPkModel>>();
-    } else if (model == "bgv-noise-by-variance-coeff-sk") {
-      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffSkModel>>();
-    } else if (model == "bgv-noise-mono-pk") {
-      run<NoiseAnalysis<bgv::NoiseCanEmbPkModel>>();
-    } else if (model == "bgv-noise-mono-sk") {
-      run<NoiseAnalysis<bgv::NoiseCanEmbSkModel>>();
+    if (model == "bgv-noise-by-bound-coeff-worst-case") {
+      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseModel>>();
+    } else if (model == "bgv-noise-by-bound-coeff-average-case" ||
+               model == "bgv-noise-kpz21") {
+      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseModel>>();
+    } else if (model == "bgv-noise-by-variance-coeff" ||
+               model == "bgv-noise-mp24") {
+      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffModel>>();
+    } else if (model == "bgv-noise-mono") {
+      run<NoiseAnalysis<bgv::NoiseCanEmbModel>>();
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();
