@@ -498,33 +498,34 @@ struct ConvertSecretCastOp
       ContextAwareConversionPatternRewriter &rewriter) const override {
     // If this is a cast from secret<i8> to secret<memref<8xi1>> or vice
     // versa, replace with the cast's input.
-    auto lhsType =
-        cast<secret::SecretType>(op.getInput().getType()).getValueType();
-    auto rhsType =
-        cast<secret::SecretType>(op.getOutput().getType()).getValueType();
+    auto lhsType = adaptor.getInput().getType();
+    auto rhsType = typeConverter->convertType(
+        op.getOutput().getType(),
+        typeConverter->getContextualAttr(op.getOutput()).value_or(nullptr));
 
-    int lhsBits = getElementTypeOrSelf(lhsType).getIntOrFloatBitWidth();
-    int rhsBits = getElementTypeOrSelf(rhsType).getIntOrFloatBitWidth();
     auto lhsMemRefTy = dyn_cast<MemRefType>(lhsType);
-    if (lhsMemRefTy) {
-      lhsBits *= lhsMemRefTy.getNumElements();
-    }
     auto rhsMemRefTy = dyn_cast<MemRefType>(rhsType);
-    if (rhsMemRefTy) {
-      rhsBits *= rhsMemRefTy.getNumElements();
+    if (!lhsMemRefTy || !rhsMemRefTy) {
+      return op->emitOpError()
+             << "expected cast between multi-bit secret types, got " << lhsType
+             << " and " << rhsType;
     }
-
+    int lhsBits = lhsMemRefTy.getNumElements();
+    int rhsBits = rhsMemRefTy.getNumElements();
     if (lhsBits != rhsBits) {
       return op->emitOpError() << "expected cast between secrets holding the "
                                   "same number of total bits, got "
                                << lhsType << " and " << rhsType;
     }
 
-    if ((lhsMemRefTy == nullptr) != (rhsMemRefTy == nullptr)) {
+    if (lhsMemRefTy.getShape() == rhsMemRefTy.getShape()) {
+      // This happens when one of the original shapes was a memref and the other
+      // was an integer, for e.g. a secret.cast from i8 to memref<8xlwe_ct>.
+      // Fold the cast.
+      assert(isa<ShapedType>(op.getInput().getType()) !=
+             isa<ShapedType>(op.getOutput().getType()));
       LLVM_DEBUG(op.emitRemark() << "Only one of the inputs to secret.cast is "
                                     "a memref, can replace with input\n");
-      // If they both contain the same bits but only one is a memref, then
-      // simply replace with the input.
       rewriter.replaceOp(op, adaptor.getInput());
       return success();
     }
@@ -546,7 +547,7 @@ struct ConvertSecretCastOp
         // secret<memref<8xi1>> (memref<8xlwe_ciphertext>). In this case,
         // collapse the memref shape.
         SmallVector<mlir::ReassociationIndices> reassociation;
-        auto range = llvm::seq<unsigned>(0, lhsMemRefTy.getRank() + 1);
+        auto range = llvm::seq<unsigned>(0, lhsMemRefTy.getRank());
         reassociation.emplace_back(range.begin(), range.end());
         rewriter.replaceOpWithNewOp<memref::CollapseShapeOp>(
             op, adaptor.getInput(), reassociation);
@@ -558,7 +559,7 @@ struct ConvertSecretCastOp
         // secret<memref<8xi1>> (memref<8xlwe_ciphertext>) to
         // secret<memref<1x2xi4>> (memref<1x2x4xlwe_ciphertext>).
         SmallVector<mlir::ReassociationIndices> reassociation;
-        auto range = llvm::seq<unsigned>(0, rhsMemRefTy.getRank() + 1);
+        auto range = llvm::seq<unsigned>(0, rhsMemRefTy.getRank());
         reassociation.emplace_back(range.begin(), range.end());
         rewriter.replaceOpWithNewOp<memref::ExpandShapeOp>(
             op, outRhsType, adaptor.getInput(), reassociation);
