@@ -10,9 +10,13 @@ digraph G {
 
     subgraph cluster_inputs {
         label = "Upstream Frontends"
-        Python
         Polygeist
         TOSA
+    }
+
+    subgraph cluster_heir_inputs {
+        label = "HEIR Frontend"
+        Python
     }
 
     // MLIR dialects
@@ -20,16 +24,18 @@ digraph G {
         label = "Upstream MLIR"
         node [fillcolor="#beaed4"]
         Arith
+        Linalg
         Affine
         Func
         Memref
     }
 
     lower_from_mlir [shape=point label="" fillcolor=black]
-    {Arith Affine Func Memref} -> lower_from_mlir [arrowhead=none]
+    {Arith Linalg Affine Func Memref} -> lower_from_mlir [arrowhead=none]
 
     TOSA -> Memref [lhead=cluster_mlir]
     Polygeist -> Func [lhead=cluster_mlir]
+    Python -> Affine [lhead=cluster_mlir]
 
     // External tools
     subgraph external_tools {
@@ -46,19 +52,21 @@ digraph G {
     Verilog [ fillcolor="#7fc97f" shape="note"]
     Secret -> Verilog
 
+    Mgmt [URL="https://heir.dev/docs/dialects/mgmt/"]
+    Secret -> Mgmt
 
     subgraph cluster_fhe {
         label = "Core Dialects"
         LWE [URL="https://heir.dev/docs/dialects/lwe/"]
         subgraph cluster_fhe_schemes {
             label = "FHE Schemes"
-            BGV [URL="https://heir.dev/docs/dialects/bgv/"]
+            BGV [ label="BGV(B/FV)"  URL="https://heir.dev/docs/dialects/bgv/" ]
             CKKS [URL="https://heir.dev/docs/dialects/ckks/"]
             CGGI [URL="https://heir.dev/docs/dialects/cggi/"]
         }
     }
 
-    Secret -> BGV [lhead=cluster_fhe]
+    Mgmt -> BGV [lhead=cluster_fhe]
     Comb -> CGGI:ne // change e to use the right port of the destination node
 
 
@@ -67,8 +75,10 @@ digraph G {
         label="Polynomial Dialects"
         Polynomial [URL="https://heir.dev/docs/dialects/polynomial/"]
         RNS [URL="https://heir.dev/docs/dialects/rns/"]
+        ModArith [URL="https://heir.dev/docs/dialects/modarith/"]
     }
 
+    Lattigo  [URL="https://heir.dev/docs/dialects/lattigo/"]
     OpenFHE  [URL="https://heir.dev/docs/dialects/openfhe/"]
     Standard [fillcolor="#beaed4"]  //Tensor, Linalg, Affine etc.
     Jaxite [URL="https://heir.dev/docs/dialects/jaxite/"]
@@ -77,9 +87,11 @@ digraph G {
 
     LLVM [fillcolor="gray"]
 
-    BGV ->  OpenFHE
-    CKKS ->  OpenFHE
     BGV -> LWE
+    CKKS -> LWE
+    lower_from_lwe [shape=point label="" fillcolor=black]
+    LWE -> lower_from_lwe [arrowhead=none]
+    lower_from_lwe ->  {OpenFHE Lattigo}
     LWE -> Polynomial [lhead=cluster_poly]
     lower_from_cggi [shape=point label="" fillcolor=black]
     CGGI -> lower_from_cggi [arrowhead=none]
@@ -96,7 +108,7 @@ digraph G {
     // Keep RNS below FHE Schemes
     LWE -> RNS
     // Keep Poly above Targets
-    Polynomial -> {OpenFHE TfheRust TfheRustBool Jaxite}
+    Polynomial -> {Lattigo OpenFHE TfheRust TfheRustBool Jaxite}
     // Keep Verilog below Targets: LeftmostTarget -> Verilog
     OpenFHE -> Verilog
 }
