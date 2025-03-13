@@ -2951,7 +2951,7 @@ at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.</p><p>Exam
 -mod-bits          : Default number of bits for all prime coefficient modulusto use for the ciphertext space.
 -slot-number       : Minimum number of slots for parameter generation.
 -plaintext-modulus : Plaintext modulus.
-</code></pre><h3 id=-generate-param-bgv><code>-generate-param-bgv</code></h3><p><em>Generate BGV Scheme Parameter using a given noise model</em></p><p>The pass generates the BGV scheme parameter using a given noise model.</p><p>There are three noise models available:</p><ul><li><code>bgv-noise-by-bound-coeff-average-case{-pk,-sk}</code></li><li><code>bgv-noise-by-bound-coeff-worst-case{-pk,-sk}</code></li><li><code>bgv-noise-by-variance-coeff{-pk,-sk}</code></li></ul><p>The <code>-pk</code>/<code>-sk</code> suffixes assume the input ciphertexts are
+</code></pre><h3 id=-generate-param-bgv><code>-generate-param-bgv</code></h3><p><em>Generate BGV Scheme Parameter using a given noise model</em></p><p>The pass generates the BGV scheme parameter using a given noise model.</p><p>There are four noise models available:</p><ul><li><code>bgv-noise-by-bound-coeff-average-case{-pk,-sk}</code></li><li><code>bgv-noise-by-bound-coeff-worst-case{-pk,-sk}</code></li><li><code>bgv-noise-by-variance-coeff{-pk,-sk}</code></li><li><code>bgv-noise-mono{-pk,-sk}</code></li></ul><p>The <code>-pk</code>/<code>-sk</code> suffixes assume the input ciphertexts are
 encrypted using the public/secret key.</p><p>The first two models are taken from KPZ21, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
@@ -2959,7 +2959,10 @@ of the coefficients, the first being $2 \sqrt{N}$ and the second
 being $N$.</p><p>The third model is taken from MP24. It works by tracking the variance
 of the coefficient embedding of the ciphertexts. This gives a more accurate
 noise estimate, but it may give underestimates in some cases. See the paper
-for more details.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
+for more details.</p><p>The last model is taken from MMLGA22. It uses the canonical embedding to
+bound the critical quantity of a ciphertext that defines whether c can be
+decrypted correctly. According to the authors they achieve more accurate and
+better bounds than KPZ21. See the paper for more details.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
 relinearize/modreduce, and it relies on <code>mgmt.mgmt</code> attribute to determine
 the ciphertext level/dimension. These ops and attributes can be added by
 a pass like <code>--secret-insert-mgmt-bgv</code> and <code>--annotate-mgmt</code>.</p><p>User can provide custom scheme parameters by annotating bgv::SchemeParamAttr
