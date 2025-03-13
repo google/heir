@@ -262,3 +262,13 @@ bzl_library(
         "@rules_python//python:py_library_bzl",
     ],
 )
+
+bzl_library(
+    name = "heir_openfhe_bzl",
+    srcs = ["heir-openfhe.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":heir_opt_bzl",
+        ":heir_translate_bzl",
+    ],
+)
