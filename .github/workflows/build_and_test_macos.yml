@@ -72,4 +72,4 @@ jobs:
         # Nb. any test that uses the mlir-runner is going to fail on MacOS (not sure why)
         # we have to manually exclude those.
         run: |
-          bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild 'tests/Dialect/...:all except tests/Dialect/Polynomial/Conversions/heir_polynomial_to_llvm/...:all'
+          bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild "$(bazel query 'tests/Dialect/...:all except tests/Dialect/Polynomial/Conversions/heir_polynomial_to_llvm/...:all')"
