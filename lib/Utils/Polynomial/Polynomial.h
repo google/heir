@@ -10,8 +10,8 @@
 #include "llvm/include/llvm/ADT/APFloat.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/APInt.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/ArrayRef.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Hashing.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallString.h"      // from @llvm-project
 #include "llvm/include/llvm/ADT/Twine.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -240,6 +240,14 @@ class PolynomialBase {
     return result;
   }
 
+  inline DenseMap<int64_t, Monomial> getCoeffMap() const {
+    DenseMap<int64_t, Monomial> coeffMap;
+    for (auto term : terms) {
+      coeffMap.insert({term.getExponent().getZExtValue(), term});
+    }
+    return coeffMap;
+  }
+
   // Compose two polynomials this(other)
   Derived compose(const Derived &other) const {
     // This = a_0 + a_1x + ... + a_nx^n
@@ -259,13 +267,17 @@ class PolynomialBase {
     init.setExponent(zero);
     Derived result = Derived::fromMonomials(init).value();
 
+    DenseMap<int64_t, Monomial> coeffMap = getCoeffMap();
+
     // For each term a_i x^i in decreasing degree order, compute
     // result = result * b(x) + a_i
-    for (Monomial term : llvm::drop_begin(llvm::reverse(terms))) {
-      Monomial nextCoeffConstant = Monomial(term);
-      nextCoeffConstant.setExponent(zero);
-      Derived nextCoeff = Derived::fromMonomials({nextCoeffConstant}).value();
-      result = result.naiveMul(other).add(nextCoeff);
+    for (int i = getDegree() - 1; i >= 0; --i) {
+      result = result.naiveMul(other);
+      if (coeffMap.contains(i)) {
+        Monomial constCoeff(coeffMap[i]);
+        constCoeff.setExponent(zero);
+        result = result.add(Derived::fromMonomials({constCoeff}).value());
+      }
     }
 
     result.canonicalize();

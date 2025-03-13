@@ -107,6 +107,32 @@ TEST(PolynomialTest, TestComposeFloat) {
   EXPECT_EQ(expected, result);
 }
 
+TEST(PolynomialTest, TestComposeSkippingDegree) {
+  SmallVector<IntMonomial> monomials;
+  // 1 + 4x^3
+  monomials.emplace_back(1, 0);
+  monomials.emplace_back(4, 3);
+  IntPolynomial p1 = IntPolynomial::fromMonomials(monomials).value();
+
+  SmallVector<IntMonomial> monomials2;
+  // -1 + 3x^2
+  monomials2.emplace_back(-1, 0);
+  monomials2.emplace_back(3, 2);
+  IntPolynomial p2 = IntPolynomial::fromMonomials(monomials2).value();
+  IntPolynomial result = p1.compose(p2);
+
+  SmallVector<IntMonomial> expectedMonomials;
+  // -3 + 36 x^2 - 108 x^4 + 108 x^6
+  expectedMonomials.emplace_back(-3, 0);
+  expectedMonomials.emplace_back(36, 2);
+  expectedMonomials.emplace_back(-108, 4);
+  expectedMonomials.emplace_back(108, 6);
+  IntPolynomial expected =
+      IntPolynomial::fromMonomials(expectedMonomials).value();
+  result.dump();
+  EXPECT_EQ(expected, result);
+}
+
 }  // namespace
 }  // namespace polynomial
 }  // namespace heir
