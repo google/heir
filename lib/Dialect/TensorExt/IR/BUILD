@@ -37,10 +37,12 @@ cc_library(
         "TensorExtOps.cpp",
     ],
     hdrs = [
+        "TensorExtAttributes.h",
         "TensorExtDialect.h",
         "TensorExtOps.h",
     ],
     deps = [
+        ":attributes_inc_gen",
         ":canonicalize_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",

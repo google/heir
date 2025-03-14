@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -47,6 +46,8 @@
 
 namespace mlir {
 namespace heir {
+
+using tensor_ext::LayoutAttr;
 
 auto &kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 auto &kMaterializedAttrName = "tensor_ext.layout_materialized";
@@ -164,24 +165,23 @@ struct ConvertFunc : public ContextAwareFuncConversion {
     rewriter.modifyOpInPlace(op, [&] {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
-        auto layoutAttr = op.getArgAttr(i, kLayoutAttrName);
+        auto layoutAttr =
+            dyn_cast_or_null<LayoutAttr>(op.getArgAttr(i, kLayoutAttrName));
         if (!layoutAttr) continue;
 
-        AffineMap layout = cast<AffineMapAttr>(layoutAttr).getValue();
         op.setArgAttr(i, kOriginalTypeAttrName,
                       tensor_ext::OriginalTypeAttr::get(
-                          getContext(), oldArgTypes[i], layout));
+                          getContext(), oldArgTypes[i], layoutAttr));
       }
 
       for (int i = 0; i < op.getNumResults(); ++i) {
-        auto layoutAttr = dyn_cast_or_null<AffineMapAttr>(
-            op.getResultAttr(i, kLayoutAttrName));
+        auto layoutAttr =
+            dyn_cast_or_null<LayoutAttr>(op.getResultAttr(i, kLayoutAttrName));
         if (!layoutAttr) continue;
 
-        op.setResultAttr(
-            i, kOriginalTypeAttrName,
-            tensor_ext::OriginalTypeAttr::get(getContext(), oldResultTypes[i],
-                                              layoutAttr.getValue()));
+        op.setResultAttr(i, kOriginalTypeAttrName,
+                         tensor_ext::OriginalTypeAttr::get(
+                             getContext(), oldResultTypes[i], layoutAttr));
       }
     });
     return success();
@@ -246,7 +246,7 @@ class ConvertAssignLayout
                             << ciphertextSemanticType << "\n");
     RankedTensorType dataSemanticType = op.getTensor().getType();
     Value input = adaptor.getTensor();
-    AffineMap layout = op.getLayout().getValue();
+    AffineMap layout = op.getLayout().getMap();
 
     // FIXME: what will happen if the output size is bigger than the input size?
     if (ciphertextSemanticType.getRank() != 1) {
@@ -258,11 +258,10 @@ class ConvertAssignLayout
       auto emptyOp = b.create<mlir::arith::ConstantOp>(
           b.getZeroAttr(ciphertextSemanticType));
       setMaterializedAttr(emptyOp);
-      emptyOp->setAttr(kLayoutAttrName, AffineMapAttr(op.getLayout()));
+      emptyOp->setAttr(kLayoutAttrName, op.getLayout());
 
       SmallVector<utils::IteratorType> iteratorTypes(
-          op.getLayout().getValue().getNumDims(),
-          utils::IteratorType::parallel);
+          op.getLayout().getMap().getNumDims(), utils::IteratorType::parallel);
       SmallVector<AffineMap> indexingMaps = {
           // The first map corresponds to how the iteration indices map to the
           // input tensor indices. This is the identity because the loop is
@@ -294,8 +293,7 @@ class ConvertAssignLayout
     if (ciphertextSemanticType == input.getType() && layout.isIdentity()) {
       LLVM_DEBUG(llvm::dbgs() << "AssignLayoutOp can be replaced with input\n");
       if (input.getDefiningOp()) setMaterializedAttr(input.getDefiningOp());
-      setAttributeAssociatedWith(input, kLayoutAttrName,
-                                 AffineMapAttr(op.getLayout()));
+      setAttributeAssociatedWith(input, kLayoutAttrName, op.getLayout());
       rewriter.replaceOp(op, input);
       return success();
     }
@@ -373,8 +371,8 @@ class ConvertConvertLayout
                << "ConvertConvertLayout: dataSemanticType=" << dataSemanticType
                << ", ciphertextSemanticType=" << ciphertextSemanticType
                << "\n");
-    AffineMap fromLayout = op.getFromLayout().getValue();
-    AffineMap toLayout = op.getToLayout().getValue();
+    LayoutAttr fromLayout = op.getFromLayout();
+    LayoutAttr toLayout = op.getToLayout();
 
     // TODO(#1542): support multi-packed ciphertexts
     if (ciphertextSemanticType.getRank() != 1) {
@@ -414,8 +412,8 @@ class ConvertConvertLayout
           [&](const std::vector<int64_t> &indices) {
             SmallVector<int64_t> fromResults;
             SmallVector<int64_t> toResults;
-            evaluateStatic(fromLayout, indices, fromResults);
-            evaluateStatic(toLayout, indices, toResults);
+            evaluateStatic(fromLayout.getMap(), indices, fromResults);
+            evaluateStatic(toLayout.getMap(), indices, toResults);
             int64_t input =
                 (minUnusedInput + fromResults[fromResults.size() - 1]) %
                 numSlots;
@@ -716,12 +714,12 @@ struct ConvertLinalgMatvec
   using ContextAwareOpConversionPattern<
       linalg::MatvecOp>::ContextAwareOpConversionPattern;
 
-  AffineMapAttr getLayoutAttr(Value value) const {
+  LayoutAttr getLayoutAttr(Value value) const {
     auto layoutLookup = getTypeConverter()->getContextualAttr(value);
     if (failed(layoutLookup)) {
       return nullptr;
     }
-    return cast<AffineMapAttr>(layoutLookup.value());
+    return cast<LayoutAttr>(layoutLookup.value());
   }
 
   bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
@@ -743,12 +741,12 @@ struct ConvertLinalgMatvec
       return false;
     }
 
-    AffineMap matrixLayout = getLayoutAttr(matrix).getValue();
-    AffineMap vectorLayout = getLayoutAttr(vector).getValue();
-    bool isSquatDiagonal =
-        isLayoutSquatDiagonal(matrixType, materializedMatrixType, matrixLayout);
-    bool isRowMajor =
-        isLayoutRowMajor(vectorType, materializedVectorType, vectorLayout);
+    LayoutAttr matrixLayout = getLayoutAttr(matrix);
+    LayoutAttr vectorLayout = getLayoutAttr(vector);
+    bool isSquatDiagonal = isLayoutSquatDiagonal(
+        matrixType, materializedMatrixType, matrixLayout.getMap());
+    bool isRowMajor = isLayoutRowMajor(vectorType, materializedVectorType,
+                                       vectorLayout.getMap());
 
     LLVM_DEBUG(llvm::dbgs()
                << "supportsHaleviShoup: " << "isSquatDiagonal="
