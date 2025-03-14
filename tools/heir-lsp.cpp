@@ -8,6 +8,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
+#include "lib/Dialect/PISA/IR/PISADialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
@@ -46,6 +47,7 @@ int main(int argc, char **argv) {
   registry.insert<lwe::LWEDialect>();
   registry.insert<mod_arith::ModArithDialect>();
   registry.insert<mgmt::MgmtDialect>();
+  registry.insert<pisa::PISADialect>();
   registry.insert<random::RandomDialect>();
   registry.insert<openfhe::OpenfheDialect>();
   registry.insert<rns::RNSDialect>();
