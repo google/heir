@@ -16,6 +16,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
@@ -93,12 +94,12 @@ class SecretToBGVTypeConverter
  public:
   SecretToBGVTypeConverter(MLIRContext *ctx,
                            ::mlir::heir::polynomial::RingAttr rlweRing,
-                           int64_t ptm)
+                           int64_t ptm, bool isBFV)
       : UniquelyNamedAttributeAwareTypeConverter(
-            mgmt::MgmtDialect::kArgMgmtAttrName) {
-    ring = rlweRing;
-    plaintextModulus = ptm;
-
+            mgmt::MgmtDialect::kArgMgmtAttrName),
+        ring(rlweRing),
+        plaintextModulus(ptm),
+        isBFV(isBFV) {
     addConversion([](Type type, Attribute attr) { return type; });
     addConversion([this](secret::SecretType type, mgmt::MgmtAttr mgmtAttr) {
       return convertSecretTypeWithMgmtAttr(type, mgmtAttr);
@@ -124,6 +125,9 @@ class SecretToBGVTypeConverter
       moduliChain.push_back(modulus);
     }
 
+    auto encryptionType =
+        isBFV ? lwe::LweEncryptionType::msb : lwe::LweEncryptionType::lsb;
+
     return lwe::NewLWECiphertextType::get(
         ctx,
         lwe::ApplicationDataAttr::get(ctx, type.getValueType(),
@@ -131,7 +135,7 @@ class SecretToBGVTypeConverter
         lwe::PlaintextSpaceAttr::get(
             ctx, plaintextRing, lwe::FullCRTPackingEncodingAttr::get(ctx, 0)),
         lwe::CiphertextSpaceAttr::get(ctx, getRlweRNSRingWithLevel(ring, level),
-                                      lwe::LweEncryptionType::lsb, dimension),
+                                      encryptionType, dimension),
         lwe::KeyAttr::get(ctx, 0),
         lwe::ModulusChainAttr::get(ctx, moduliChain, level));
   }
@@ -139,6 +143,7 @@ class SecretToBGVTypeConverter
  private:
   ::mlir::heir::polynomial::RingAttr ring;
   int64_t plaintextModulus;
+  bool isBFV;
 };
 
 LogicalResult disallowFloatlike(const Type &type) {
@@ -238,7 +243,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     // (i.e., the FuncOp). Otherwise the typeConverter won't find the proper
     // type information and fail
     SecretToBGVTypeConverter typeConverter(context, rlweRing.value(),
-                                           plaintextModulus);
+                                           plaintextModulus,
+                                           moduleIsBFV(getOperation()));
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
