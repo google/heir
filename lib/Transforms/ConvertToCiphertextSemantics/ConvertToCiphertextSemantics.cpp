@@ -233,8 +233,8 @@ class ConvertAssignLayout
       ContextAwareConversionPatternRewriter &rewriter) const final {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     // This pattern is different because its inputs do not have a layout,
-    // so the type converter doesn't convert their input types. Instead,
-    // the result's layout is defined by this op.
+    // so the type converter fails to find attributes for the input types.
+    // Instead, the result's layout is defined by this op.
     //
     // The input hence needs to be reshaped to fit the output layout, and
     // by default we assume all values are repeated cyclically according
@@ -291,8 +291,7 @@ class ConvertAssignLayout
       return success();
     }
 
-    // FIXME: this breaks if the layout is not the identity!
-    if (ciphertextSemanticType == input.getType()) {
+    if (ciphertextSemanticType == input.getType() && layout.isIdentity()) {
       LLVM_DEBUG(llvm::dbgs() << "AssignLayoutOp can be replaced with input\n");
       if (input.getDefiningOp()) setMaterializedAttr(input.getDefiningOp());
       setAttributeAssociatedWith(input, kLayoutAttrName,
