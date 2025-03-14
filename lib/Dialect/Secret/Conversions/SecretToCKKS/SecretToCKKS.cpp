@@ -161,7 +161,7 @@ class SecretToCKKSTypeConverter
             ctx, plaintextRing, lwe::InverseCanonicalEncodingAttr::get(ctx, 0)),
         lwe::CiphertextSpaceAttr::get(ctx,
                                       getRlweRNSRingWithLevel(ring_, level),
-                                      lwe::LweEncryptionType::lsb, dimension),
+                                      lwe::LweEncryptionType::mix, dimension),
         lwe::KeyAttr::get(ctx, 0),
         lwe::ModulusChainAttr::get(ctx, moduliChain, level));
 
