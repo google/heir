@@ -9,7 +9,7 @@ heir_lattigo_lib(
     name = "dot_product_8_bfv",
     go_library_name = "dotproduct8bfv",
     heir_opt_flags = [
-        "--mlir-to-bfv=ciphertext-degree=8",
+        "--mlir-to-bfv=ciphertext-degree=8 encryption-technique-extended=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "dot_product_8.mlir",

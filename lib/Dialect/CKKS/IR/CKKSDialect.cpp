@@ -1,6 +1,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
+#include "lib/Dialect/CKKS/IR/CKKSEnums.h"
 #include "lib/Dialect/CKKS/IR/CKKSOps.h"
 
 // IWYU pragma: begin_keep
@@ -9,6 +10,7 @@
 
 // Generated definitions
 #include "lib/Dialect/CKKS/IR/CKKSDialect.cpp.inc"
+#include "lib/Dialect/CKKS/IR/CKKSEnums.cpp.inc"
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.cpp.inc"
 #define GET_OP_CLASSES

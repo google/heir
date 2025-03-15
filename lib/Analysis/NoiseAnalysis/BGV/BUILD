@@ -4,9 +4,9 @@ package(
 )
 
 cc_library(
-    name = "NoiseCoeffModelAnalysis",
+    name = "NoiseAnalysis",
     srcs = [
-        "NoiseCoeffModelAnalysis.cpp",
+        "NoiseAnalysis.cpp",
     ],
     hdrs = [
     ],

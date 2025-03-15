@@ -9,7 +9,7 @@ heir_lattigo_lib(
     name = "dot_product_8_sk",
     go_library_name = "dotproduct8sk",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=8 use-public-key=false",
+        "--mlir-to-bgv=ciphertext-degree=8 use-public-key=false encryption-technique-extended=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "dot_product_8.mlir",

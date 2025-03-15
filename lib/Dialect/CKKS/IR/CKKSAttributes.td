@@ -29,7 +29,8 @@ def CKKS_SchemeParam
       "int":$logN,
       "DenseI64ArrayAttr":$Q,
       "DenseI64ArrayAttr":$P,
-      "int":$logDefaultScale
+      "int":$logDefaultScale,
+      DefaultValuedParameter<"CKKSEncryptionType", "CKKSEncryptionType::pk">:$encryptionType
     );
 }
 

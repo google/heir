@@ -17,11 +17,13 @@ cc_library(
     hdrs = [
         "BGVAttributes.h",
         "BGVDialect.h",
+        "BGVEnums.h",
         "BGVOps.h",
     ],
     deps = [
         ":attributes_inc_gen",
         ":dialect_inc_gen",
+        ":enums_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@llvm-project//llvm:Support",
@@ -36,6 +38,7 @@ td_library(
     srcs = [
         "BGVAttributes.td",
         "BGVDialect.td",
+        "BGVEnums.td",
         "BGVOps.td",
     ],
     deps = [
@@ -71,6 +74,16 @@ add_heir_dialect_library(
     dialect = "BGV",
     kind = "attribute",
     td_file = "BGVAttributes.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "enums_inc_gen",
+    dialect = "BGV",
+    kind = "enum",
+    td_file = "BGVEnums.td",
     deps = [
         ":td_files",
     ],

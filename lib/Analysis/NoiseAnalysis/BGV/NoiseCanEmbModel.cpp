@@ -19,25 +19,19 @@ namespace bgv {
 // "Finding and Evaluating Parameters for BGV"
 // https://eprint.iacr.org/2022/706
 
-template <bool P>
-using Model = NoiseCanEmbModel<P>;
+using Model = NoiseCanEmbModel;
 
-template <bool P>
-double Model<P>::toLogBound(const LocalParamType &param,
-                            const StateType &noise) {
+double Model::toLogBound(const LocalParamType &param, const StateType &noise) {
   auto cm = getRingExpansionFactor(param);
   // ||a|| <= c_m * ||a||^{can}
   return log(cm * noise.getValue()) / log(2);
 }
 
-template <bool P>
-double Model<P>::toLogBudget(const LocalParamType &param,
-                             const StateType &noise) {
+double Model::toLogBudget(const LocalParamType &param, const StateType &noise) {
   return toLogTotal(param) - toLogBound(param, noise);
 }
 
-template <bool P>
-double Model<P>::toLogTotal(const LocalParamType &param) {
+double Model::toLogTotal(const LocalParamType &param) {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
   for (auto i = 0; i <= param.getCurrentLevel(); ++i) {
@@ -46,46 +40,40 @@ double Model<P>::toLogTotal(const LocalParamType &param) {
   return total - 1.0;
 }
 
-template <bool P>
-std::string Model<P>::toLogBoundString(const LocalParamType &param,
-                                       const StateType &noise) {
+std::string Model::toLogBoundString(const LocalParamType &param,
+                                    const StateType &noise) {
   auto logBound = toLogBound(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBound;
   return stream.str();
 }
 
-template <bool P>
-std::string Model<P>::toLogBudgetString(const LocalParamType &param,
-                                        const StateType &noise) {
+std::string Model::toLogBudgetString(const LocalParamType &param,
+                                     const StateType &noise) {
   auto logBudget = toLogBudget(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBudget;
   return stream.str();
 }
 
-template <bool P>
-std::string Model<P>::toLogTotalString(const LocalParamType &param) {
+std::string Model::toLogTotalString(const LocalParamType &param) {
   auto logTotal = toLogTotal(param);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logTotal;
   return stream.str();
 }
 
-template <bool P>
-double Model<P>::getVarianceErr(const LocalParamType &param) {
+double Model::getVarianceErr(const LocalParamType &param) {
   auto std0 = param.getSchemeParam()->getStd0();
   return std0 * std0;
 }
 
-template <bool P>
-double Model<P>::getVarianceKey(const LocalParamType &param) {
+double Model::getVarianceKey(const LocalParamType &param) {
   // assume UNIFORM_TERNARY
   return 2.0 / 3.0;
 }
 
-template <bool P>
-double Model<P>::getRingExpansionFactor(const LocalParamType &param) {
+double Model::getRingExpansionFactor(const LocalParamType &param) {
   [[maybe_unused]] auto N = param.getSchemeParam()->getRingDim();
   // Assert that N is a power of 2
   assert((N > 0) && ((N & (N - 1)) == 0) && "N must be a power of 2");
@@ -93,16 +81,14 @@ double Model<P>::getRingExpansionFactor(const LocalParamType &param) {
   return 1.;
 }
 
-template <bool P>
-double Model<P>::getAssuranceFactor(const LocalParamType &param) {
+double Model::getAssuranceFactor(const LocalParamType &param) {
   // probability that a exceeds its standard deviation by more than a factor of
   // D is roughly erfc(D) with erfc(6) = 2^-55, erfc(5) = 2^-40, erfc(4.5) =
   // 2^-32
   return 6.;
 }
 
-template <bool P>
-double Model<P>::getBScale(const LocalParamType &param) {
+double Model::getBScale(const LocalParamType &param) {
   auto varianceKey = getVarianceKey(param);
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto d = getAssuranceFactor(param);
@@ -113,8 +99,7 @@ double Model<P>::getBScale(const LocalParamType &param) {
   return d * t * sqrt(innerTerm);
 }
 
-template <bool P>
-double Model<P>::getBKs(const LocalParamType &param) {
+double Model::getBKs(const LocalParamType &param) {
   auto varianceError = getVarianceErr(param);
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto d = getAssuranceFactor(param);
@@ -124,14 +109,11 @@ double Model<P>::getBKs(const LocalParamType &param) {
   return d * t * phi * sqrt(varianceError / 12.);
 }
 
-template <bool P>
-double Model<P>::getPhi(const LocalParamType &param) {
+double Model::getPhi(const LocalParamType &param) {
   return param.getSchemeParam()->getRingDim();
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalEncryptPk(
-    const LocalParamType &param) {
+typename Model::StateType Model::evalEncryptPk(const LocalParamType &param) {
   auto varianceError = getVarianceErr(param);
   // uniform ternary
   auto varianceKey = getVarianceKey(param);
@@ -149,9 +131,7 @@ typename Model<P>::StateType Model<P>::evalEncryptPk(
   return StateType::of(fresh);
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalEncryptSk(
-    const LocalParamType &param) {
+typename Model::StateType Model::evalEncryptSk(const LocalParamType &param) {
   auto varianceError = getVarianceErr(param);
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto d = getAssuranceFactor(param);
@@ -165,20 +145,22 @@ typename Model<P>::StateType Model<P>::evalEncryptSk(
   return StateType::of(fresh);
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalEncrypt(
-    const LocalParamType &param) {
-  // P stands for public key encryption
-  if constexpr (P) {
-    return evalEncryptPk(param);
-  } else {
-    return evalEncryptSk(param);
+typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
+  auto usePublicKey = param.getSchemeParam()->getUsePublicKey();
+  auto isEncryptionTechniqueExtended =
+      param.getSchemeParam()->isEncryptionTechniqueExtended();
+  if (isEncryptionTechniqueExtended) {
+    // for extended encryption technique, namely encrypt at Qp then mod reduce
+    // back to Q, the noise is modreduce(encrypt)
+    return evalModReduce(param, evalEncryptPk(param));
   }
+  if (usePublicKey) {
+    return evalEncryptPk(param);
+  }
+  return evalEncryptSk(param);
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalConstant(
-    const LocalParamType &param) {
+typename Model::StateType Model::evalConstant(const LocalParamType &param) {
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto phi = getPhi(param);
 
@@ -187,24 +169,21 @@ typename Model<P>::StateType Model<P>::evalConstant(
   return StateType::of(t * sqrt(phi / 12.0));
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalAdd(const StateType &lhs,
-                                               const StateType &rhs) {
+typename Model::StateType Model::evalAdd(const StateType &lhs,
+                                         const StateType &rhs) {
   // v_add <= v_0 + v_1
   return StateType::of(lhs.getValue() + rhs.getValue());
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalMul(
-    const LocalParamType &resultParam, const StateType &lhs,
-    const StateType &rhs) {
+typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
+                                         const StateType &lhs,
+                                         const StateType &rhs) {
   // v_mul <= v_0 * v_1
   return StateType::of(lhs.getValue() * rhs.getValue());
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalModReduce(
-    const LocalParamType &inputParam, const StateType &input) {
+typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
+                                               const StateType &input) {
   auto currentLogqi =
       inputParam.getSchemeParam()->getLogqi()[inputParam.getCurrentLevel()];
   double modulus = pow(2.0, currentLogqi);
@@ -222,8 +201,7 @@ typename Model<P>::StateType Model<P>::evalModReduce(
   return StateType::of(scaled + bScale);
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalRelinearizeHYBRID(
+typename Model::StateType Model::evalRelinearizeHYBRID(
     const LocalParamType &inputParam, const StateType &input) {
   // for v_input, after modup and moddown, it remains the same (with rounding).
   // We only need to consider the error from key switching key
@@ -269,18 +247,13 @@ typename Model<P>::StateType Model<P>::evalRelinearizeHYBRID(
   return StateType::of(input.getValue() + noiseKs + noiseScale);
 }
 
-template <bool P>
-typename Model<P>::StateType Model<P>::evalRelinearize(
+typename Model::StateType Model::evalRelinearize(
     const LocalParamType &inputParam, const StateType &input) {
   // assume HYBRID
   // if we further introduce BV to SchemeParam we can have alternative
   // implementation.
   return evalRelinearizeHYBRID(inputParam, input);
 }
-
-// instantiate template class
-template class NoiseCanEmbModel<false>;
-template class NoiseCanEmbModel<true>;
 
 }  // namespace bgv
 }  // namespace heir

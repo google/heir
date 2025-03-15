@@ -14,10 +14,6 @@ def AddClientInterface : Pass<"lwe-add-client-interface"> {
   must be encoded as a tensor).
   }];
   let dependentDialects = ["mlir::heir::lwe::LWEDialect"];
-  let options = [
-    Option<"usePublicKey", "use-public-key", "bool", /*default=*/"false",
-           "If true, generate a client interface that uses a public key for encryption.">,
-  ];
 }
 
 def AddDebugPort : Pass<"lwe-add-debug-port"> {

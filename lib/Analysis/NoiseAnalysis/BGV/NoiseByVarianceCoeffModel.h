@@ -12,9 +12,6 @@ namespace heir {
 namespace bgv {
 
 // coefficient embedding noise model using variance
-// use template here just for the sake of code reuse
-// P for public key
-template <bool P>
 class NoiseByVarianceCoeffModel {
  public:
   // for MP24, NoiseState stores the variance var for the one coefficient of
@@ -61,10 +58,6 @@ class NoiseByVarianceCoeffModel {
   static double toLogTotal(const LocalParamType &param);
   static std::string toLogTotalString(const LocalParamType &param);
 };
-
-// user-facing typedefs
-using NoiseByVarianceCoeffPkModel = NoiseByVarianceCoeffModel<true>;
-using NoiseByVarianceCoeffSkModel = NoiseByVarianceCoeffModel<false>;
 
 }  // namespace bgv
 }  // namespace heir

@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-bgv --validate-noise="model=bgv-noise-by-bound-coeff-worst-case-pk" --verify-diagnostics %s
+// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-bgv --validate-noise="model=bgv-noise-by-bound-coeff-worst-case" --verify-diagnostics %s
 
 // This is only for testing whether validate-noise would fail, but
 // not for testing the noise model.

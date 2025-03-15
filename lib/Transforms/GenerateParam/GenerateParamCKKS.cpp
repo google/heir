@@ -63,7 +63,7 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
     logPrimes[0] = firstModBits;
 
     auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
-        logPrimes, scalingModBits, slotNumber);
+        logPrimes, scalingModBits, slotNumber, usePublicKey);
 
     LLVM_DEBUG(llvm::dbgs() << "Scheme Param:\n" << schemeParam << "\n");
 
@@ -76,7 +76,9 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
                                    ArrayRef(schemeParam.getQi())),
             DenseI64ArrayAttr::get(&getContext(),
                                    ArrayRef(schemeParam.getPi())),
-            schemeParam.getLogDefaultScale()));
+            schemeParam.getLogDefaultScale(),
+            usePublicKey ? ckks::CKKSEncryptionType::pk
+                         : ckks::CKKSEncryptionType::sk));
   }
 };
 

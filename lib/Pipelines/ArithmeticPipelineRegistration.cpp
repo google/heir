@@ -199,6 +199,9 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       }
       generateParamOptions.plaintextModulus = options.plaintextModulus;
       generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.usePublicKey = options.usePublicKey;
+      generateParamOptions.encryptionTechniqueExtended =
+          options.encryptionTechniqueExtended;
       pm.addPass(createGenerateParamBGV(generateParamOptions));
 
       auto validateNoiseOptions = ValidateNoiseOptions{};
@@ -215,6 +218,9 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       generateParamOptions.modBits = options.bfvModBits;
       generateParamOptions.plaintextModulus = options.plaintextModulus;
       generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.usePublicKey = options.usePublicKey;
+      generateParamOptions.encryptionTechniqueExtended =
+          options.encryptionTechniqueExtended;
       pm.addPass(createGenerateParamBFV(generateParamOptions));
 
       auto validateNoiseOptions = ValidateNoiseOptions{};
@@ -228,6 +234,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       generateParamOptions.firstModBits = options.firstModBits;
       generateParamOptions.scalingModBits = options.scalingModBits;
       generateParamOptions.slotNumber = options.ciphertextDegree;
+      generateParamOptions.usePublicKey = options.usePublicKey;
       pm.addPass(createGenerateParamCKKS(generateParamOptions));
       break;
     }
@@ -267,9 +274,7 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   }
 
   // Add client interface (helper functions)
-  auto addClientInterfaceOptions = lwe::AddClientInterfaceOptions{};
-  addClientInterfaceOptions.usePublicKey = options.usePublicKey;
-  pm.addPass(lwe::createAddClientInterface(addClientInterfaceOptions));
+  pm.addPass(lwe::createAddClientInterface());
 
   // TODO (#1145): This should also generate keygen/param gen functions,
   // which can then be lowered to backend specific stuff later.

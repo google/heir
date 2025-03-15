@@ -9,7 +9,7 @@ heir_lattigo_lib(
     name = "box_blur",
     go_library_name = "boxblur",
     heir_opt_flags = [
-        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=786433",
+        "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=786433  encryption-technique-extended=true",
         "--scheme-to-lattigo",
     ],
     mlir_src = "box_blur_64x64.mlir",

@@ -187,30 +187,21 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   }
 
   void runOnOperation() override {
-    if (model == "bgv-noise-by-bound-coeff-worst-case-pk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCasePkModel>>();
-    } else if (model == "bgv-noise-by-bound-coeff-average-case-pk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCasePkModel>>();
-    } else if (model == "bgv-noise-by-bound-coeff-worst-case-sk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseSkModel>>();
-    } else if (model == "bgv-noise-by-bound-coeff-average-case-sk") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseSkModel>>();
-    } else if (model == "bgv-noise-by-variance-coeff-pk") {
-      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffPkModel>>();
-    } else if (model == "bgv-noise-by-variance-coeff-sk") {
-      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffSkModel>>();
-    } else if (model == "bfv-noise-by-bound-coeff-worst-case-pk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCasePkModel>>();
-    } else if (model == "bfv-noise-by-bound-coeff-average-case-pk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCasePkModel>>();
-    } else if (model == "bfv-noise-by-bound-coeff-worst-case-sk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseSkModel>>();
-    } else if (model == "bfv-noise-by-bound-coeff-average-case-sk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseSkModel>>();
-    } else if (model == "bgv-noise-mono-pk") {
-      run<NoiseAnalysis<bgv::NoiseCanEmbPkModel>>();
-    } else if (model == "bgv-noise-mono-sk") {
-      run<NoiseAnalysis<bgv::NoiseCanEmbSkModel>>();
+    if (model == "bgv-noise-by-bound-coeff-worst-case") {
+      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseModel>>();
+    } else if (model == "bgv-noise-by-bound-coeff-average-case" ||
+               model == "bgv-noise-kpz21") {
+      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseModel>>();
+    } else if (model == "bgv-noise-by-variance-coeff" ||
+               model == "bgv-noise-mp24") {
+      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffModel>>();
+    } else if (model == "bgv-noise-mono") {
+      run<NoiseAnalysis<bgv::NoiseCanEmbModel>>();
+    } else if (model == "bfv-noise-by-bound-coeff-worst-case") {
+      run<NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseModel>>();
+    } else if (model == "bfv-noise-by-bound-coeff-average-case" ||
+               model == "bfv-noise-kpz21") {
+      run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseModel>>();
     } else {
       getOperation()->emitOpError() << "Unknown noise model.\n";
       signalPassFailure();

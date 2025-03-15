@@ -29,7 +29,7 @@ def ValidateNoise : Pass<"validate-noise"> {
 
   let options = [
     Option<"model", "model", "std::string",
-           /*default=*/"\"bgv-noise-by-bound-coeff-average-case-pk\"", "Noise model to validate against.">,
+           /*default=*/"\"bgv-noise-kpz21\"", "Noise model to validate against.">,
     Option<"annotateNoiseBound", "annotate-noise-bound", "bool",
            /*default=*/"false", "Annotate the noise bound to the IR.">,
   ];

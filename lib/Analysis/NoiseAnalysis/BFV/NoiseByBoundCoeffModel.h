@@ -14,8 +14,8 @@ namespace bfv {
 // coefficient embedding noise model
 // both average-case (from HPS19/KPZ21) and worst-case
 // use template here just for the sake of code reuse
-// W for worst-case, P for public key
-template <bool W, bool P>
+// W for worst-case
+template <bool W>
 class NoiseByBoundCoeffModel {
  public:
   // for KPZ21, NoiseState stores the bound ||e|| for error e.
@@ -58,11 +58,8 @@ class NoiseByBoundCoeffModel {
 };
 
 // user-facing typedefs
-using NoiseByBoundCoeffAverageCasePkModel = NoiseByBoundCoeffModel<false, true>;
-using NoiseByBoundCoeffWorstCasePkModel = NoiseByBoundCoeffModel<true, true>;
-using NoiseByBoundCoeffAverageCaseSkModel =
-    NoiseByBoundCoeffModel<false, false>;
-using NoiseByBoundCoeffWorstCaseSkModel = NoiseByBoundCoeffModel<true, false>;
+using NoiseByBoundCoeffAverageCaseModel = NoiseByBoundCoeffModel<false>;
+using NoiseByBoundCoeffWorstCaseModel = NoiseByBoundCoeffModel<true>;
 
 }  // namespace bfv
 }  // namespace heir

@@ -13,24 +13,26 @@ namespace heir {
 class RLWESchemeParam {
  public:
   RLWESchemeParam(int ringDim, int level, const std::vector<double> &logqi,
-                  int dnum, const std::vector<double> &logpi)
+                  int dnum, const std::vector<double> &logpi, bool usePublicKey)
       : ringDim(ringDim),
         level(level),
         logqi(logqi),
         dnum(dnum),
-        logpi(logpi) {}
+        logpi(logpi),
+        usePublicKey(usePublicKey) {}
 
   RLWESchemeParam(int ringDim, int level, const std::vector<double> &logqi,
                   const std::vector<int64_t> &qi, int dnum,
                   const std::vector<double> &logpi,
-                  const std::vector<int64_t> &pi)
+                  const std::vector<int64_t> &pi, bool usePublicKey)
       : ringDim(ringDim),
         level(level),
         logqi(logqi),
         qi(qi),
         dnum(dnum),
         logpi(logpi),
-        pi(pi) {}
+        pi(pi),
+        usePublicKey(usePublicKey) {}
 
   virtual ~RLWESchemeParam() = default;
 
@@ -62,6 +64,9 @@ class RLWESchemeParam {
   // special modulus
   std::vector<int64_t> pi;
 
+  // whether to use public key
+  bool usePublicKey;
+
  public:
   int getRingDim() const { return ringDim; }
   int getLevel() const { return level; }
@@ -71,6 +76,7 @@ class RLWESchemeParam {
   const std::vector<double> &getLogpi() const { return logpi; }
   const std::vector<int64_t> &getPi() const { return pi; }
   double getStd0() const { return std0; }
+  bool getUsePublicKey() const { return usePublicKey; }
 
   virtual void print(llvm::raw_ostream &os) const;
 
@@ -81,12 +87,14 @@ class RLWESchemeParam {
   }
 
   static RLWESchemeParam getConservativeRLWESchemeParam(int level,
-                                                        int minRingDim);
+                                                        int minRingDim,
+                                                        bool usePublicKey);
 
   // plaintext modulus for BGV
   // for CKKS this field is not used
   static RLWESchemeParam getConcreteRLWESchemeParam(
-      std::vector<double> logqi, int minRingDim, int64_t plaintextModulus = 0);
+      std::vector<double> logqi, int minRingDim, bool usePublicKey,
+      int64_t plaintextModulus = 0);
 };
 
 // Parameter for each RLWE ciphertext SSA value.

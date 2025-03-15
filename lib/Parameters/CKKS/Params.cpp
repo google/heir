@@ -13,10 +13,11 @@ namespace ckks {
 
 SchemeParam SchemeParam::getConcreteSchemeParam(std::vector<double> logqi,
                                                 int logDefaultScale,
-                                                int slotNumber) {
+                                                int slotNumber,
+                                                bool usePublicKey) {
   // CKKS slot number = ringDim / 2
   return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
-                         std::move(logqi), 2 * slotNumber),
+                         std::move(logqi), 2 * slotNumber, usePublicKey),
                      logDefaultScale);
 }
 
@@ -40,9 +41,10 @@ SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
   }
   auto level = logqi.size() - 1;
   auto dnum = ceil(static_cast<double>(qiImpl.size()) / piImpl.size());
-  return SchemeParam(
-      RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl),
-      logDefaultScale);
+  auto usePublicKey = attr.getEncryptionType() == CKKSEncryptionType::pk;
+  return SchemeParam(RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi,
+                                     piImpl, usePublicKey),
+                     logDefaultScale);
 }
 
 void SchemeParam::print(llvm::raw_ostream &os) const {

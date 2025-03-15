@@ -27,6 +27,9 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",

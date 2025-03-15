@@ -54,7 +54,12 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
                                    ArrayRef(schemeParam.getQi())),
             DenseI64ArrayAttr::get(&getContext(),
                                    ArrayRef(schemeParam.getPi())),
-            schemeParam.getPlaintextModulus()));
+            schemeParam.getPlaintextModulus(),
+            usePublicKey ? bgv::BGVEncryptionType::pk
+                         : bgv::BGVEncryptionType::sk,
+            encryptionTechniqueExtended
+                ? bgv::BGVEncryptionTechnique::extended
+                : bgv::BGVEncryptionTechnique::standard));
   }
 
   template <typename NoiseAnalysis>
@@ -115,7 +120,8 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
 
     auto concreteSchemeParam =
         NoiseAnalysis::SchemeParamType::getConcreteSchemeParam(
-            qiSize, schemeParam.getPlaintextModulus(), slotNumber);
+            qiSize, schemeParam.getPlaintextModulus(), slotNumber, usePublicKey,
+            encryptionTechniqueExtended);
 
     return concreteSchemeParam;
   }
@@ -127,7 +133,8 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
     // plaintext modulus from command line option
     auto schemeParam =
         NoiseAnalysis::SchemeParamType::getConservativeSchemeParam(
-            maxLevel, plaintextModulus, slotNumber);
+            maxLevel, plaintextModulus, slotNumber, usePublicKey,
+            encryptionTechniqueExtended);
 
     LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
                             << schemeParam << "\n");
@@ -160,7 +167,8 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
                                   modBits);  // all primes of modBits bits
 
     auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(
-        logPrimes, plaintextModulus, slotNumber);
+        logPrimes, plaintextModulus, slotNumber, usePublicKey,
+        encryptionTechniqueExtended);
 
     annotateSchemeParam(schemeParam);
   }
@@ -174,14 +182,11 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
       return;
     }
 
-    if (model == "bfv-noise-by-bound-coeff-worst-case-pk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCasePkModel>>();
-    } else if (model == "bfv-noise-by-bound-coeff-average-case-pk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCasePkModel>>();
-    } else if (model == "bfv-noise-by-bound-coeff-worst-case-sk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseSkModel>>();
-    } else if (model == "bfv-noise-by-bound-coeff-average-case-sk") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseSkModel>>();
+    if (model == "bfv-noise-by-bound-coeff-worst-case") {
+      run<NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseModel>>();
+    } else if (model == "bfv-noise-by-bound-coeff-average-case" ||
+               model == "bfv-noise-kpz21") {
+      run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseModel>>();
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();

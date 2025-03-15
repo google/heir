@@ -15,24 +15,37 @@ namespace bgv {
 // Parameter for BGV scheme at ModuleOp level
 class SchemeParam : public RLWESchemeParam {
  public:
-  SchemeParam(const RLWESchemeParam &rlweSchemeParam, int64_t plaintextModulus)
-      : RLWESchemeParam(rlweSchemeParam), plaintextModulus(plaintextModulus) {}
+  SchemeParam(const RLWESchemeParam &rlweSchemeParam, int64_t plaintextModulus,
+              bool encryptionTechniqueExtended)
+      : RLWESchemeParam(rlweSchemeParam),
+        plaintextModulus(plaintextModulus),
+        encryptionTechniqueExtended(encryptionTechniqueExtended) {}
 
  private:
   // the plaintext modulus for BGV
   int64_t plaintextModulus;
 
+  // the encryption technique used.
+  // if true, use extended encryption technique.
+  // which means encrypt at Qp then mod reduce to Q.
+  // this has the benefit of smaller encryption noise.
+  bool encryptionTechniqueExtended;
+
  public:
   int64_t getPlaintextModulus() const { return plaintextModulus; }
+  bool isEncryptionTechniqueExtended() const {
+    return encryptionTechniqueExtended;
+  }
   void print(llvm::raw_ostream &os) const override;
 
-  static SchemeParam getConservativeSchemeParam(int level,
-                                                int64_t plaintextModulus,
-                                                int slotNumber);
+  static SchemeParam getConservativeSchemeParam(
+      int level, int64_t plaintextModulus, int slotNumber, bool usePublicKey,
+      bool encryptionTechniqueExtended);
 
   static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
                                             int64_t plaintextModulus,
-                                            int slotNumber);
+                                            int slotNumber, bool usePublicKey,
+                                            bool encryptionTechniqueExtended);
 
   static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };

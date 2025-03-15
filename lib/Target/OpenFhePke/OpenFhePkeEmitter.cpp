@@ -1091,6 +1091,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
   // B/FV defaults to BV, to match HEIR parameter generation we need to
   // set it to HYBRID. Other schemes defaults to HYBRID.
   os << paramsName << ".SetKeySwitchTechnique(HYBRID);\n";
+  // For B/FV, OpenFHE supports EXTENDED encryption technique.
+  if (op.getEncryptionTechniqueExtended()) {
+    os << paramsName << ".SetEncryptionTechnique(EXTENDED);\n";
+  }
   return success();
 }
 

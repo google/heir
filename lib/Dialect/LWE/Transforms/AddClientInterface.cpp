@@ -3,9 +3,14 @@
 #include <cstddef>
 #include <string>
 
+#include "lib/Dialect/BGV/IR/BGVAttributes.h"
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
@@ -234,6 +239,35 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
 struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   using AddClientInterfaceBase::AddClientInterfaceBase;
 
+  bool getUsePublicKey() {
+    bool usePublicKey = true;
+    if (moduleIsBGVOrBFV(getOperation())) {
+      auto bgvSchemeParamAttr =
+          getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
+              bgv::BGVDialect::kSchemeParamAttrName);
+      if (!bgvSchemeParamAttr) {
+        getOperation()->emitError("No BGV scheme param found.");
+        signalPassFailure();
+      }
+      usePublicKey =
+          bgvSchemeParamAttr.getEncryptionType() == bgv::BGVEncryptionType::pk;
+    } else if (moduleIsCKKS(getOperation())) {
+      auto ckksSchemeParamAttr =
+          getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
+              ckks::CKKSDialect::kSchemeParamAttrName);
+      if (!ckksSchemeParamAttr) {
+        getOperation()->emitError("No CKKS scheme param found.");
+        signalPassFailure();
+      }
+      usePublicKey = ckksSchemeParamAttr.getEncryptionType() ==
+                     ckks::CKKSEncryptionType::pk;
+    } else {
+      getOperation()->emitError("Unsupported RLWE scheme");
+      signalPassFailure();
+    }
+    return usePublicKey;
+  }
+
   void runOnOperation() override {
     auto result =
         getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
@@ -241,7 +275,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
             op->emitWarning("Skipping client interface for external func");
             return WalkResult::advance();
           }
-          if (failed(convertFunc(op, usePublicKey))) {
+          if (failed(convertFunc(op, getUsePublicKey()))) {
             op->emitError("Failed to add client interface for func");
             return WalkResult::interrupt();
           }
