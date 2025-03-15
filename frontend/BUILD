@@ -61,6 +61,15 @@ frontend_test(
     ],
 )
 
+frontend_test(
+    name = "mixed_bitwidth_test",
+    srcs = ["mixed_bitwidth_test.py"],
+    tags = [
+        # copybara: manual
+        "notap",
+    ],
+)
+
 bzl_library(
     name = "testing_bzl",
     srcs = ["testing.bzl"],

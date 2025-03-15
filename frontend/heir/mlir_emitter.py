@@ -343,9 +343,10 @@ class TextualMlirEmitter:
         )
         return ""
       case ir.Expr(op="binop"):
+        emitted_expr, ext = self.emit_binop(assign.value)
         name = self.get_or_create_name(assign.target)
-        emitted_expr = self.emit_binop(assign.value)
         return (
+            f"{ext}"
             f"{name} = {emitted_expr} :"
             f" {mlirType(self.typemap.get(assign.value.lhs.name))} {mlirLoc(assign.loc)}"
         )
@@ -379,81 +380,78 @@ class TextualMlirEmitter:
         return ""
     raise NotImplementedError(f"Unsupported IR Element: {assign}")
 
-  def emit_expr(self, expr):
-    if expr.op == "binop":
-      return self.emit_binop(expr)
-    elif expr.op == "inplace_binop":
-      raise NotImplementedError()
-    elif expr.op == "unary":
-      raise NotImplementedError()
-    elif expr.op == "pair_first":
-      raise NotImplementedError()
-    elif expr.op == "pair_second":
-      raise NotImplementedError()
-    elif expr.op in ("getiter", "iternext"):
-      raise NotImplementedError()
+  def emit_ext_if_needed(self, lhs, rhs):
+    lhs_type = self.typemap.get(str(lhs))
+    rhs_type = self.typemap.get(str(rhs))
 
-    # these are all things numba has hooks for upstream, but we didn't implement
-    # in the prototype
+    # Types agree: do nothing
+    if lhs_type == rhs_type:
+      return self.get_name(lhs), self.get_name(rhs), ""
 
-    elif expr.op == "exhaust_iter":
-      raise NotImplementedError()
-    elif expr.op == "getattr":
-      raise NotImplementedError()
-    elif expr.op == "static_getitem":
-      raise NotImplementedError()
-    elif expr.op == "typed_getitem":
-      raise NotImplementedError()
-    elif expr.op == "getitem":
-      raise NotImplementedError()
-    elif expr.op == "build_tuple":
-      raise NotImplementedError()
-    elif expr.op == "build_list":
-      raise NotImplementedError()
-    elif expr.op == "build_set":
-      raise NotImplementedError()
-    elif expr.op == "build_map":
-      raise NotImplementedError()
-    elif expr.op == "phi":
-      raise ValueError("PHI not stripped")
-    elif expr.op == "null":
-      raise NotImplementedError()
-    elif expr.op == "undef":
-      raise NotImplementedError()
+    # types aren't integer types
+    if not isinstance(lhs_type, types.Integer) or not isinstance(
+        rhs_type, types.Integer
+    ):
+      raise NotImplementedError(
+          "Extension handling for non-integer (e.g., floats, tensors) types"
+          " is not yet supported. Please ensure (inferred) bit-widths match."
+      )
+      # TODO (#1162): Support bitwidth extension for float types
+      #      (this probably requires adding support for local variable type hints,
+      #       such as `b : F16 = 1.0` as there is no clear "natural" bitwidth for literals)
+      # TODO (#1162): Support bitwidth extension for non-scalar types (e.g., tensors)
 
-    raise NotImplementedError("Unsupported expr")
+    if lhs_type.bitwidth == rhs_type.bitwidth:
+      return self.get_name(lhs), self.get_name(rhs), ""
+
+    # time to emit some extensions!
+    short, long = lhs, rhs
+    if lhs_type.bitwidth > rhs_type.bitwidth:
+      short, long = rhs, lhs
+
+    tmp = self.get_next_name()
+    ext = (
+        f"{tmp} = arith.extui {self.get_name(short)} : "
+        f"{mlirType(self.typemap.get(str(short)))} "
+        f"to {mlirType(self.typemap.get(str(long)))} "
+        f"{mlirLoc(short.loc)}\n"
+    )
+
+    if lhs_type.bitwidth > rhs_type.bitwidth:
+      return self.get_name(lhs), tmp, ext
+    return tmp, self.get_name(rhs), ext
 
   def emit_binop(self, binop):
-    lhs_ssa = self.get_name(binop.lhs)
-    rhs_ssa = self.get_name(binop.rhs)
     # This should be the same, otherwise MLIR will complain
     suffix = arithSuffix(self.typemap.get(str(binop.lhs)))
 
+    lhs_ssa, rhs_ssa, ext = self.emit_ext_if_needed(binop.lhs, binop.rhs)
+
     match binop.fn:
       case operator.lt:
-        return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}"
+        return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}", ext
       case operator.ge:
-        return f"arith.cmp{suffix} sge, {lhs_ssa}, {rhs_ssa}"
+        return f"arith.cmp{suffix} sge, {lhs_ssa}, {rhs_ssa}", ext
       case operator.eq:
-        return f"arith.cmp{suffix} eq, {lhs_ssa}, {rhs_ssa}"
+        return f"arith.cmp{suffix} eq, {lhs_ssa}, {rhs_ssa}", ext
       case operator.ne:
-        return f"arith.cmp{suffix} ne, {lhs_ssa}, {rhs_ssa}"
+        return f"arith.cmp{suffix} ne, {lhs_ssa}, {rhs_ssa}", ext
       case operator.add:
-        return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}"
+        return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}", ext
       case operator.mul:
-        return f"arith.mul{suffix} {lhs_ssa}, {rhs_ssa}"
+        return f"arith.mul{suffix} {lhs_ssa}, {rhs_ssa}", ext
       case operator.sub:
-        return f"arith.sub{suffix} {lhs_ssa}, {rhs_ssa}"
+        return f"arith.sub{suffix} {lhs_ssa}, {rhs_ssa}", ext
       case operator.lshift:
-        return f"arith.shl{suffix} {lhs_ssa}, {rhs_ssa}"
+        return f"arith.shl{suffix} {lhs_ssa}, {rhs_ssa}", ext
       case operator.and_:
-        return f"arith.and{suffix} {lhs_ssa}, {rhs_ssa}"
+        return f"arith.and{suffix} {lhs_ssa}, {rhs_ssa}", ext
       case operator.xor:
-        return f"arith.xor{suffix} {lhs_ssa}, {rhs_ssa}"
+        return f"arith.xor{suffix} {lhs_ssa}, {rhs_ssa}", ext
       case operator.mod:
         # Used signed semantics when integer types
         suffix = "si" if suffix == "i" else suffix
-        return f"arith.rem{suffix} {lhs_ssa}, {rhs_ssa}"
+        return f"arith.rem{suffix} {lhs_ssa}, {rhs_ssa}", ext
 
     raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
 
@@ -478,7 +476,10 @@ class TextualMlirEmitter:
       new_name = self.forward_to_new_id(var_or_int)
       return (
           new_name,
-          f"{new_name} = arith.index_cast {var_name} : i64 to index",
+          (
+              f"{new_name} = arith.index_cast {var_name} :"
+              f" {mlirType(self.typemap.get(var_or_int.name))} to index"
+          ),
       )
     else:
       return var_or_int, ""
