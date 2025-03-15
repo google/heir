@@ -2494,11 +2494,11 @@ with arbitrary subregions.&lt;/p>
 &lt;p>The pass generates the BFV scheme parameter using a given noise model.&lt;/p>
 &lt;p>There are three noise models available:&lt;/p>
 &lt;ul>
-&lt;li>&lt;code>bfv-noise-by-bound-coeff-average-case{-pk,-sk}&lt;/code>&lt;/li>
-&lt;li>&lt;code>bfv-noise-by-bound-coeff-worst-case{-pk,-sk}&lt;/code>&lt;/li>
+&lt;li>&lt;code>bfv-noise-by-bound-coeff-average-case&lt;/code>&lt;/li>
+&lt;li>&lt;code>bfv-noise-by-bound-coeff-worst-case&lt;/code> or &lt;code>bfv-noise-kpz21&lt;/code>&lt;/li>
 &lt;/ul>
-&lt;p>The &lt;code>-pk&lt;/code>/&lt;code>-sk&lt;/code> suffixes assume the input ciphertexts are
-encrypted using the public/secret key.&lt;/p>
+&lt;p>To use public-key encryption/secret-key encryption in the model, the option
+&lt;code>usePublicKey&lt;/code> could be set accordingly.&lt;/p>
 &lt;p>The first two models are taken from KPZ21, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
@@ -2536,18 +2536,20 @@ at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.&lt;/p>
 -mod-bits : Default number of bits for all prime coefficient modulusto use for the ciphertext space.
 -slot-number : Minimum number of slots for parameter generation.
 -plaintext-modulus : Plaintext modulus.
+-use-public-key : If true, uses a public key for encryption.
+-encryption-technique-extended : If true, uses EXTENDED encryption technique for encryption.
 &lt;/code>&lt;/pre>&lt;h3 id="-generate-param-bgv">&lt;code>-generate-param-bgv&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Generate BGV Scheme Parameter using a given noise model&lt;/em>&lt;/p>
 &lt;p>The pass generates the BGV scheme parameter using a given noise model.&lt;/p>
 &lt;p>There are four noise models available:&lt;/p>
 &lt;ul>
-&lt;li>&lt;code>bgv-noise-by-bound-coeff-average-case{-pk,-sk}&lt;/code>&lt;/li>
-&lt;li>&lt;code>bgv-noise-by-bound-coeff-worst-case{-pk,-sk}&lt;/code>&lt;/li>
-&lt;li>&lt;code>bgv-noise-by-variance-coeff{-pk,-sk}&lt;/code>&lt;/li>
-&lt;li>&lt;code>bgv-noise-mono{-pk,-sk}&lt;/code>&lt;/li>
+&lt;li>&lt;code>bgv-noise-by-bound-coeff-average-case&lt;/code> or &lt;code>bgv-noise-kpz21&lt;/code>&lt;/li>
+&lt;li>&lt;code>bgv-noise-by-bound-coeff-worst-case&lt;/code>&lt;/li>
+&lt;li>&lt;code>bgv-noise-by-variance-coeff&lt;/code> or &lt;code>bgv-noise-mp24&lt;/code>&lt;/li>
+&lt;li>&lt;code>bgv-noise-mono&lt;/code>&lt;/li>
 &lt;/ul>
-&lt;p>The &lt;code>-pk&lt;/code>/&lt;code>-sk&lt;/code> suffixes assume the input ciphertexts are
-encrypted using the public/secret key.&lt;/p>
+&lt;p>To use public-key encryption/secret-key encryption in the model, the option
+&lt;code>usePublicKey&lt;/code> could be set accordingly.&lt;/p>
 &lt;p>The first two models are taken from KPZ21, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
@@ -2588,6 +2590,8 @@ at the module level.&lt;/p>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -plaintext-modulus : Plaintext modulus.
 -slot-number : Minimum number of slots for parameter generation.
+-use-public-key : If true, uses a public key for encryption.
+-encryption-technique-extended : If true, uses EXTENDED encryption technique for encryption.
 &lt;/code>&lt;/pre>&lt;h3 id="-generate-param-ckks">&lt;code>-generate-param-ckks&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Generate CKKS Scheme Parameter&lt;/em>&lt;/p>
 &lt;p>The pass generates the CKKS scheme parameter.&lt;/p>
@@ -2621,6 +2625,7 @@ at the module level.&lt;/p>
 &lt;pre tabindex="0">&lt;code>-slot-number : Minimum number of slots for parameter generation.
 -first-mod-bits : Default number of bits of the first prime coefficient modulus to use for the ciphertext space.
 -scaling-mod-bits : Default number of bits of the scaling prime coefficient modulus to use for the ciphertext space.
+-use-public-key : If true, uses a public key for encryption.
 &lt;/code>&lt;/pre>&lt;h3 id="-implement-shift-network">&lt;code>-implement-shift-network&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Implement tensor_ext.convert_layout ops as shift newtorks&lt;/em>&lt;/p>
 &lt;p>This pass converts &lt;code>tensor_ext.permute&lt;/code> ops into a network of
@@ -2850,9 +2855,7 @@ IR. These functions maintain the same interface as the original function,
 while the compiled function may lose some of this information by the lowerings
 to ciphertext types (e.g., a scalar ciphertext, when lowered through RLWE schemes,
 must be encoded as a tensor).&lt;/p>
-&lt;h4 id="options-16">Options&lt;/h4>
-&lt;pre tabindex="0">&lt;code>-use-public-key : If true, generate a client interface that uses a public key for encryption.
-&lt;/code>&lt;/pre>&lt;h3 id="-lwe-add-debug-port">&lt;code>-lwe-add-debug-port&lt;/code>&lt;/h3>
+&lt;h3 id="-lwe-add-debug-port">&lt;code>-lwe-add-debug-port&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Add debug port to (R)LWE encrypted functions&lt;/em>&lt;/p>
 &lt;p>This pass adds debug ports to the specified function in the IR. The debug ports
 are prefixed with &amp;ldquo;__heir_debug&amp;rdquo; and are invoked after each homomorphic operation in the
@@ -2872,7 +2875,7 @@ arguments, and the debug port is called after each homomorphic operation:&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> __heir_debug&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%sk&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%ct1&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">...&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-17">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-16">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 &lt;/code>&lt;/pre>&lt;h3 id="-lwe-set-default-parameters">&lt;code>-lwe-set-default-parameters&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Set default parameters for LWE ops&lt;/em>&lt;/p>
@@ -2939,7 +2942,7 @@ Mac operation and removes the mul operation.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__generate_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@my_func__configure_crypto_context&lt;/span>&lt;span style="color:#000;font-weight:bold">(!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>private_key&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>openfhe&lt;span style="color:#000;font-weight:bold">.&lt;/span>crypto_context
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-18">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-17">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-entry-function : Default entry function name of entry function.
 -level-budget-encode : Level budget for CKKS bootstrap encode (s2c) phase
 -level-budget-decode : Level budget for CKKS bootstrap decode (c2s) phase
@@ -2988,7 +2991,7 @@ relinearization strategy. It solves an ILP for each &lt;code>func&lt;/code> op i
 &lt;a href="https://heir.dev/docs/design/relinearization_ilp/">docs at the HEIR website&lt;/a>.
 The model is an adaptation of the ILP described in
 &lt;a href="https://www.jeremykun.com/2023/11/15/mlir-a-global-optimization-and-dataflow-analysis">a blog post by Jeremy Kun&lt;/a>.&lt;/p>
-&lt;h4 id="options-19">Options&lt;/h4>
+&lt;h4 id="options-18">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-use-loc-based-variable-names : When true, the ILP uses op source locations in variable names, which can help debug ILP model bugs.
 -allow-mixed-degree-operands : When true, allow ops to have mixed-degree ciphertexts as inputs, e.g., adding two ciphertexts with different key bases; this is supported by many FHE backends, like OpenFHE and Lattigo
 &lt;/code>&lt;/pre>&lt;h3 id="-polynomial-approximation">&lt;code>-polynomial-approximation&lt;/code>&lt;/h3>
@@ -3105,7 +3108,7 @@ program that operates on a secret type annotates the input to a region as
 list of op names (e.g., &lt;code>distribute-thorugh=&amp;quot;affine.for,scf.if&amp;quot;&lt;/code>), which
 limits the distribution to only pass through those ops. If unset, all ops
 are distributed through when possible.&lt;/p>
-&lt;h4 id="options-20">Options&lt;/h4>
+&lt;h4 id="options-19">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-distribute-through : comma-separated list of ops that should be distributed through
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-extract-generic-body">&lt;code>-secret-extract-generic-body&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Extract the bodies of all generic ops into functions&lt;/em>&lt;/p>
@@ -3201,7 +3204,7 @@ RNS Type.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-21">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-20">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-insert-mgmt-ckks">&lt;code>-secret-insert-mgmt-ckks&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Place CKKS ciphertext management operations&lt;/em>&lt;/p>
@@ -3216,7 +3219,7 @@ where when all levels are consumed then a bootstrap is inserted.&lt;/p>
 handled by further lowering.
 TODO(#1207): handle it here so parameter selection can depend on it.
 TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).&lt;/p>
-&lt;h4 id="options-22">Options&lt;/h4>
+&lt;h4 id="options-21">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
 -slot-number : Default number of slots use for ciphertext space.
 -bootstrap-waterline : Waterline for insert bootstrap op
@@ -3236,7 +3239,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-23">Options&lt;/h4>
+&lt;h4 id="options-22">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>cggi&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -3252,20 +3255,20 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-24">Options&lt;/h4>
+&lt;h4 id="options-23">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Adds secret argument attributes to entry function&lt;/em>&lt;/p>
 &lt;p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
 This may be overridden with the option -function=func_name to apply to a single function only.&lt;/p>
-&lt;h4 id="options-25">Options&lt;/h4>
+&lt;h4 id="options-24">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-function : function to add secret annotations to
 &lt;/code>&lt;/pre>&lt;h3 id="-straight-line-vectorize">&lt;code>-straight-line-vectorize&lt;/code>&lt;/h3>
 &lt;p>&lt;em>A vectorizer for straight line programs.&lt;/em>&lt;/p>
 &lt;p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.&lt;/p>
-&lt;h4 id="options-26">Options&lt;/h4>
+&lt;h4 id="options-25">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 &lt;/code>&lt;/pre>&lt;h3 id="-tensor-ext-to-tensor">&lt;code>-tensor-ext-to-tensor&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>tensor_ext&lt;/code> to &lt;code>tensor&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -3314,7 +3317,7 @@ this is done by the &lt;code>generate-param-&amp;lt;scheme&amp;gt;&lt;/code> pas
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic"># with commandline --debug-only=ValidateNoise&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-27">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-26">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -annotate-noise-bound : Annotate the noise bound to the IR.
 &lt;/code>&lt;/pre>&lt;h3 id="-wrap-generic">&lt;code>-wrap-generic&lt;/code>&lt;/h3>
@@ -3362,41 +3365,54 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-05</title><link>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</link><pubDate>Thu, 05 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/05/heir-meeting-2024-09-05/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tohVmC2pn_XDn3gjCFeo3K4Wfyf7VWu3oK1vimEsFD4/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1XGheLF7kvJfwAMJJQ-XbDpa4Ld15kj4t/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-05.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-25</title><link>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</link><pubDate>Thu, 25 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
+&lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
+high-level overview of the HEIR project, brainstorming where new research might
+be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
+&lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
+and this is the first video posted on the
+&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-11</title><link>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</link><pubDate>Thu, 11 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tIrxc4V5OlAeqx_Z1rl_kuMmkd-HUAKEv90q3i-5QSU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1kP1kFKV6qrLVPv4CnIhmqO-7nMDFkCpvhzwIppJEDfU/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1_1CbRJeNr5NqcwEMXnfkxOqy9u5wJPyq/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1-f5ZJ5h28FIgk_-LisNsYa77iuWPIAjU/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-16.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
 from the HEIR meeting on 2024-03-07.&lt;/p>
 &lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
-RWC conferences. Hope to see you all there!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
-&lt;p>The second HEIR meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
+RWC conferences. Hope to see you all there!&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1S893iJdeL08BAonLenmkUGNC34PX1qpg/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>There are some initial design discussion threads started on
-&lt;a href="https://github.com/google/heir/discussions">GitHub Discussions&lt;/a> to get the
-design rolling.&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-25</title><link>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</link><pubDate>Thu, 25 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/25/heir-meeting-2024-01-25/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1yrkAVR_348vT3SD7apb9QDoFIgz0bjHn-SzT2GOacfs/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/11JTfRy_3LvHjJQe0nJuqe8WGa8F9oHu1/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-01-11</title><link>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</link><pubDate>Thu, 11 Jan 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/01/11/heir-meeting-2024-01-11/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/133yuywcbI1AWnbsJezq8QlCpgXfX5HMk7YjXQBSTwoE/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1gLwcshtNda6M6YMWSsyGrNDvlQ8QiL0O/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-01-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
+from the HEIR meeting on 2023-11-28.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
@@ -3413,7 +3429,9 @@ annotation at the module level.&lt;/p>
 int, # logN
 DenseI64ArrayAttr, # Q
 DenseI64ArrayAttr, # P
-int64_t # plaintextModulus
+int64_t, # plaintextModulus
+BGVEncryptionType, # encryptionType
+BGVEncryptionTechnique # encryptionTechnique
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for CKKS.&lt;/p>
 &lt;p>The attribute is a struct with the following fields:&lt;/p>
@@ -3451,6 +3469,16 @@ int64_t # plaintextModulus
 &lt;tr>
 &lt;td style="text-align:center">plaintextModulus&lt;/td>
 &lt;td style="text-align:center">&lt;code>int64_t&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encryptionType&lt;/td>
+&lt;td style="text-align:center">&lt;code>BGVEncryptionType&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encryptionTechnique&lt;/td>
+&lt;td style="text-align:center">&lt;code>BGVEncryptionTechnique&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -4015,6 +4043,56 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
 &lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="bgv-additional-definitions">BGV additional definitions&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="bgvencryptiontechnique">BGVEncryptionTechnique&lt;/h3>
+&lt;p>&lt;em>An enum attribute representing an encryption technique&lt;/em>&lt;/p>
+&lt;h4 id="cases">Cases:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Symbol&lt;/th>
+&lt;th style="text-align:center">Value&lt;/th>
+&lt;th>String&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">standard&lt;/td>
+&lt;td style="text-align:center">&lt;code>0&lt;/code>&lt;/td>
+&lt;td>standard&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">extended&lt;/td>
+&lt;td style="text-align:center">&lt;code>1&lt;/code>&lt;/td>
+&lt;td>extended&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="bgvencryptiontype">BGVEncryptionType&lt;/h3>
+&lt;p>&lt;em>An enum attribute representing an encryption method&lt;/em>&lt;/p>
+&lt;h4 id="cases-1">Cases:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Symbol&lt;/th>
+&lt;th style="text-align:center">Value&lt;/th>
+&lt;th>String&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">pk&lt;/td>
+&lt;td style="text-align:center">&lt;code>0&lt;/code>&lt;/td>
+&lt;td>pk&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">sk&lt;/td>
+&lt;td style="text-align:center">&lt;code>1&lt;/code>&lt;/td>
+&lt;td>sk&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: CGGI</title><link>https://heir.dev/docs/dialects/cggi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/cggi/</guid><description>
@@ -5400,7 +5478,8 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 int, # logN
 DenseI64ArrayAttr, # Q
 DenseI64ArrayAttr, # P
-int # logDefaultScale
+int, # logDefaultScale
+CKKSEncryptionType # encryptionType
 &amp;gt;
 &lt;/code>&lt;/pre>&lt;p>This attribute is used for recording the scheme parameters for CKKS.&lt;/p>
 &lt;p>The attribute is a struct with the following fields:&lt;/p>
@@ -5438,6 +5517,11 @@ int # logDefaultScale
 &lt;tr>
 &lt;td style="text-align:center">logDefaultScale&lt;/td>
 &lt;td style="text-align:center">&lt;code>int&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">encryptionType&lt;/td>
+&lt;td style="text-align:center">&lt;code>CKKSEncryptionType&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -5987,6 +6071,32 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
 &lt;td>A ciphertext type&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="ckks-additional-definitions">CKKS additional definitions&lt;/h2>
+&lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
+&lt;h3 id="ckksencryptiontype">CKKSEncryptionType&lt;/h3>
+&lt;p>&lt;em>An enum attribute representing an encryption method&lt;/em>&lt;/p>
+&lt;h4 id="cases">Cases:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Symbol&lt;/th>
+&lt;th style="text-align:center">Value&lt;/th>
+&lt;th>String&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">pk&lt;/td>
+&lt;td style="text-align:center">&lt;code>0&lt;/code>&lt;/td>
+&lt;td>pk&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">sk&lt;/td>
+&lt;td style="text-align:center">&lt;code>1&lt;/code>&lt;/td>
+&lt;td>sk&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Comb</title><link>https://heir.dev/docs/dialects/comb/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/comb/</guid><description>
@@ -12702,6 +12812,7 @@ testing purposes.&lt;/p>
 &lt;tr>&lt;td>&lt;code>insecure&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>evalAddCount&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>keySwitchCount&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>encryptionTechniqueExtended&lt;/code>&lt;/td>&lt;td>::mlir::BoolAttr&lt;/td>&lt;td>bool attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="results-7">Results:&lt;/h4>
 &lt;table>
