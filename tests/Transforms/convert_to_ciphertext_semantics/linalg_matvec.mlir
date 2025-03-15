@@ -1,18 +1,18 @@
 // RUN: heir-opt %s --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
 
-#vec_layout = affine_map<(d0) -> (d0)>
-#diagonal = affine_map<(d0, d1) -> (d1 mod 16, (d0 + d1) mod 16)>
+#vec_layout = #tensor_ext.layout<map = (d0) -> (d0)>
+#diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 16, (d0 + d1) mod 16)>
 
 // CHECK: [[row_major_indexing_map:#[^ ]*]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> (d1 mod 16, (d0 + d1) mod 16)>
 
 // CHECK-LABEL: @matvec_constant_matrix
 // CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xi16>>]]
-// CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<16xi16>>, layout = (d0) -> (d0)>}
-// CHECK-SAME: -> ([[materialized_ty]] {tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<16xi16>>, layout = (d0) -> (d0)>})
+// CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<16xi16>>, layout = <map = (d0) -> (d0)>>}
+// CHECK-SAME: -> ([[materialized_ty]] {tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<16xi16>>, layout = <map = (d0) -> (d0)>>})
 func.func @matvec_constant_matrix(
     %arg0: !secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout}) ->
-       (!secret.secret<tensor<16xi16>> {tensor_ext.layout = affine_map<(d0) -> (d0)>}) {
+       (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout}) {
   // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<16x16xi16>
   %cst = arith.constant dense<1> : tensor<16x16xi16>
   // CHECK: [[loop_init:%[^ ]+]] = arith.constant dense<0> : tensor<16xi16>

@@ -20,10 +20,11 @@
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"      // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -84,26 +85,26 @@ struct LayoutMaterializationTypeConverter
       : UniquelyNamedAttributeAwareTypeConverter(kLayoutAttrName),
         ciphertextSize(ciphertextSize) {
     addConversion([&](Type type, Attribute attr) { return std::nullopt; });
-    addConversion([&](secret::SecretType type,
-                      AffineMapAttr attr) -> std::optional<Type> {
-      auto innerType = type.getValueType();
-      auto rankedTensorType = dyn_cast<RankedTensorType>(innerType);
-      if (!rankedTensorType) return std::nullopt;
-
-      auto convertedInnerType = materializeLayout(rankedTensorType, attr);
-      if (failed(convertedInnerType)) return std::nullopt;
-
-      return secret::SecretType::get(convertedInnerType.value());
-    });
     addConversion(
-        [&](RankedTensorType type, AffineMapAttr attr) -> std::optional<Type> {
+        [&](secret::SecretType type, LayoutAttr attr) -> std::optional<Type> {
+          auto innerType = type.getValueType();
+          auto rankedTensorType = dyn_cast<RankedTensorType>(innerType);
+          if (!rankedTensorType) return std::nullopt;
+
+          auto convertedInnerType = materializeLayout(rankedTensorType, attr);
+          if (failed(convertedInnerType)) return std::nullopt;
+
+          return secret::SecretType::get(convertedInnerType.value());
+        });
+    addConversion(
+        [&](RankedTensorType type, LayoutAttr attr) -> std::optional<Type> {
           return materializeLayout(type, attr);
         });
   }
 
   FailureOr<Type> materializeLayout(RankedTensorType type,
-                                    AffineMapAttr attr) const {
-    AffineMap layout = attr.getValue();
+                                    LayoutAttr attr) const {
+    AffineMap layout = attr.getMap();
     MLIRContext *ctx = type.getContext();
     OpBuilder b(ctx);
 
@@ -150,8 +151,6 @@ void setMaterializedAttr(Operation *op) {
 
 struct ConvertFunc : public ContextAwareFuncConversion {
  public:
-  using ContextAwareFuncConversion::ContextAwareFuncConversion;
-
   ConvertFunc(const ContextAwareTypeConverter &converter, MLIRContext *context)
       : ContextAwareFuncConversion(converter, context) {}
 
@@ -161,7 +160,6 @@ struct ConvertFunc : public ContextAwareFuncConversion {
     // Replace layout arg attrs with secret.original_type arg attrs This is
     // necessary so that later encoding/decoding functions can know what the
     // original type of the tensor was and how it was encoded.
-    //
     rewriter.modifyOpInPlace(op, [&] {
       setMaterializedAttr(op);
       for (int i = 0; i < op.getNumArguments(); ++i) {
@@ -568,8 +566,7 @@ class ConvertLinalgReduce
     if (failed(layoutFetchResult)) {
       return op.emitError() << "failed to fetch layout attribute for input";
     }
-    AffineMap layout =
-        cast<AffineMapAttr>(layoutFetchResult.value()).getValue();
+    LayoutAttr layout = cast<LayoutAttr>(layoutFetchResult.value());
 
     // See DestinationStyleOpInterface: 1-1 relationship between inits and op
     // results, but the init is type converted already and is the starting
@@ -641,7 +638,7 @@ class ConvertLinalgReduce
       IndexTupleConsumer evaluateNextIndex =
           [&](const std::vector<int64_t> &indices) {
             SmallVector<int64_t> results;
-            evaluateStatic(layout, indices, results);
+            evaluateStatic(layout.getMap(), indices, results);
 
             // Since we are reducing along a dimension, the input that gives us
             // the desired output slot should be the slot that the layout maps
@@ -656,7 +653,8 @@ class ConvertLinalgReduce
               inputsForDesiredResults[fixedIndex] = 0;
             }
             SmallVector<int64_t> desiredResults;
-            evaluateStatic(layout, inputsForDesiredResults, desiredResults);
+            evaluateStatic(layout.getMap(), inputsForDesiredResults,
+                           desiredResults);
 
             // The last dimension of the layout output is the ciphertext
             // dimension, and it contains the slot that the entry is mapped to.

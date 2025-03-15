@@ -1,6 +1,6 @@
 // RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=32 | FileCheck %s
 
-#vec_layout = affine_map<(d0) -> (d0)>
+#vec_layout = #tensor_ext.layout<map = (d0) -> (d0)>
 
 // CHECK-LABEL: @repeat_vector
 func.func @repeat_vector() {
@@ -17,7 +17,7 @@ func.func @repeat_vector() {
 
 // -----
 
-#row_major = affine_map<(d0, d1) -> (4 * d0 + d1)>
+#row_major = #tensor_ext.layout<map = (d0, d1) -> (4 * d0 + d1)>
 
 // CHECK-LABEL: @repeat_vector
 func.func @diagonal_upsized() {

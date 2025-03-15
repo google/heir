@@ -386,7 +386,7 @@ struct ContextAwareFuncConversion
   ContextAwareFuncConversion(
       const ContextAwareTypeConverter &contextAwareTypeConverter,
       MLIRContext *context)
-      : ContextAwareOpConversionPattern(context),
+      : ContextAwareOpConversionPattern(context, /*benefit=*/2),
         contextAwareTypeConverter(&contextAwareTypeConverter) {}
 
   LogicalResult matchAndRewrite(
