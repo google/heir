@@ -31,6 +31,16 @@ cc_library(
 )
 
 cc_library(
+    name = "FuncUtils",
+    srcs = ["FuncUtils.cpp"],
+    hdrs = ["FuncUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "ModuleAttributes",
     srcs = ["ModuleAttributes.cpp"],
     hdrs = ["ModuleAttributes.h"],

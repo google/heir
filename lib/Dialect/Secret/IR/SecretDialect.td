@@ -26,6 +26,10 @@ def Secret_Dialect : Dialect {
         kArgMissingAttrName = "secret.missing";
     constexpr const static ::llvm::StringLiteral
         kArgUnknownAttrName = "secret.unknown";
+
+    // Name of the attribute for plaintext backend execution result.
+    constexpr const static ::llvm::StringLiteral
+        kArgExecutionResultAttrName = "secret.execution_result";
   }];
 
   let cppNamespace = "::mlir::heir::secret";

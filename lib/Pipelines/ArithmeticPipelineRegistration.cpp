@@ -18,8 +18,10 @@
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
+#include "lib/Dialect/Secret/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Dialect/Secret/Transforms/ForgetSecrets.h"
+#include "lib/Dialect/Secret/Transforms/ImportExecutionResult.h"
 #include "lib/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
@@ -134,6 +136,11 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
+  if (options.debug) {
+    // Insert debug handler calls
+    pm.addPass(secret::createSecretAddDebugPort());
+  }
+
   // Forget secrets to convert secret types to standard types
   pm.addPass(secret::createSecretForgetSecrets());
   pm.addPass(createCanonicalizerPass());
@@ -159,6 +166,19 @@ void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         const RLWEScheme scheme) {
   mlirToSecretArithmeticPipelineBuilder(pm, options);
+
+  // Only for debugging purpose.
+  // Note that optimization-relinearization below won't preserve the attribute
+  // in relin op.
+  if (!options.plaintextExecutionResultFileName.empty()) {
+    // Import execution result from file
+    secret::SecretImportExecutionResultOptions
+        secretImportExecutionResultOptions;
+    secretImportExecutionResultOptions.fileName =
+        options.plaintextExecutionResultFileName;
+    pm.addPass(secret::createSecretImportExecutionResult(
+        secretImportExecutionResultOptions));
+  }
 
   // place mgmt.op and MgmtAttr for BGV
   // which is required for secret-to-<scheme> lowering
