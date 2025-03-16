@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <optional>
+#include <optional>  // IWYU pragma: keep
 #include <vector>
 
+#include "lib/Dialect/HEIRInterfaces.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -20,15 +23,14 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 
-// NOLINTBEGIN(misc-include-cleaner): Required to define
-// ModArithDialect, ModArithTypes, ModArithOps,
+// IWYU pragma: begin_keep
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/CommonFolders.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
-// NOLINTEND(misc-include-cleaner)
+// IWYU pragma: end_keep
 
 // Generated definitions
 #include "lib/Dialect/ModArith/IR/ModArithDialect.cpp.inc"
@@ -45,7 +47,32 @@ namespace mlir {
 namespace heir {
 namespace mod_arith {
 
+namespace {
+struct ModArithPolynomialEvalInterface : public DialectPolynomialEvalInterface {
+  using DialectPolynomialEvalInterface::DialectPolynomialEvalInterface;
+
+  bool supportsPolynomial(Attribute polynomialAttr) const final {
+    // raw int polynomials are supported, as well as int polynomials that are
+    // typed to have, say, mod_arith coefficients.
+    return isa<polynomial::IntPolynomialAttr>(polynomialAttr);
+  }
+
+  Value constructConstant(OpBuilder &builder, Location loc,
+                          Attribute constantAttr,
+                          Type evaluatedType) const final {
+    auto modType = cast<ModArithType>(evaluatedType);
+    auto intAttr = cast<IntegerAttr>(constantAttr);
+    return builder
+        .create<ConstantOp>(
+            loc, modType,
+            IntegerAttr::get(modType.getModulus().getType(), intAttr.getInt()))
+        .getResult();
+  }
+};
+}  // namespace
+
 void ModArithDialect::initialize() {
+  addInterfaces<ModArithPolynomialEvalInterface>();
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "lib/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
