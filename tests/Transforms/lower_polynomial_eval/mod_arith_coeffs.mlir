@@ -5,6 +5,8 @@
 !Z65537 = !mod_arith.int<65537 : i64>
 
 func.func @test_mod_arith_coeffs(%arg0: !Z65537) -> !Z65537 {
+  // FIXME: add proper assertions
+  // CHECK: polynomial.eval
   %0 = polynomial.eval #polynomial<typed_int_polynomial <1 + 2x + 3x**2 + 4x**3> : !poly>, %arg0 : !Z65537
   return %0 : !Z65537
 }
