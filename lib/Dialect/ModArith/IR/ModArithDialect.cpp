@@ -54,7 +54,8 @@ struct ModArithPolynomialEvalInterface : public DialectPolynomialEvalInterface {
   bool supportsPolynomial(Attribute polynomialAttr) const final {
     // raw int polynomials are supported, as well as int polynomials that are
     // typed to have, say, mod_arith coefficients.
-    return isa<polynomial::IntPolynomialAttr>(polynomialAttr);
+    return isa<polynomial::IntPolynomialAttr,
+               polynomial::TypedIntPolynomialAttr>(polynomialAttr);
   }
 
   Value constructConstant(OpBuilder &builder, Location loc,
