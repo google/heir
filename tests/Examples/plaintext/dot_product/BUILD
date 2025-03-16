@@ -1,24 +1,6 @@
-load("//bazel:lit.bzl", "glob_lit_tests")
+load("//tests/Examples/plaintext:test.bzl", "plaintext_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
-
-glob_lit_tests(
-    name = "all_tests",
-    data = [
-        ":dot_product_8_mod_test",
-        ":dot_product_8_test",
-        "@heir//tests:test_utilities",
-        "@llvm-project//llvm:llc",
-        "@llvm-project//mlir:mlir-translate",
-    ],
-    driver = "@heir//tests:run_lit.sh",
-    tags_override = {
-        "dot_product_8.mlir": [
-            "notap",
-        ],
-    },
-    test_file_exts = ["mlir"],
-)
 
 cc_library(
     name = "dot_product_8_test",
@@ -28,4 +10,60 @@ cc_library(
 cc_library(
     name = "dot_product_8_mod_test",
     srcs = ["dot_product_8_mod_test.c"],
+)
+
+cc_library(
+    name = "dot_product_8_mod_failure_test",
+    srcs = ["dot_product_8_mod_test.c"],
+    defines = [
+        "EXPECT_FAILURE",
+    ],
+)
+
+# Secret arithmetic plaintext backend with original integer type semantic
+plaintext_test(
+    name = "dot_product_8",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend",
+    ],
+    mlir_src = "dot_product_8.mlir",
+    deps = [
+        ":dot_product_8_test",
+    ],
+)
+
+# Secret arithmetic plaintext backend with plaintext modulus semantic
+plaintext_test(
+    name = "dot_product_8_mod_257",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend=plaintext-modulus=257",
+    ],
+    mlir_src = "dot_product_8.mlir",
+    deps = [
+        ":dot_product_8_mod_test",
+    ],
+)
+
+# Secret arithmetic plaintext backend with plaintext modulus semantic
+plaintext_test(
+    name = "dot_product_8_mod_65537",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend=plaintext-modulus=65537",
+    ],
+    mlir_src = "dot_product_8.mlir",
+    deps = [
+        ":dot_product_8_mod_test",
+    ],
+)
+
+# Secret arithmetic plaintext backend with plaintext modulus semantic
+plaintext_test(
+    name = "dot_product_8_mod_17",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend=plaintext-modulus=17",
+    ],
+    mlir_src = "dot_product_8.mlir",
+    deps = [
+        ":dot_product_8_mod_failure_test",
+    ],
 )

@@ -1,25 +1,19 @@
-load("//bazel:lit.bzl", "glob_lit_tests")
+load("//tests/Examples/plaintext:test.bzl", "plaintext_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
-
-glob_lit_tests(
-    name = "all_tests",
-    data = [
-        ":dot_product_8f_test",
-        "@heir//tests:test_utilities",
-        "@llvm-project//llvm:llc",
-        "@llvm-project//mlir:mlir-translate",
-    ],
-    driver = "@heir//tests:run_lit.sh",
-    tags_override = {
-        "dot_product_8f.mlir": [
-            "notap",
-        ],
-    },
-    test_file_exts = ["mlir"],
-)
 
 cc_library(
     name = "dot_product_8f_test",
     srcs = ["dot_product_8f_test.c"],
+)
+
+plaintext_test(
+    name = "dot_product_8f",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend",
+    ],
+    mlir_src = "dot_product_8f.mlir",
+    deps = [
+        ":dot_product_8f_test",
+    ],
 )
