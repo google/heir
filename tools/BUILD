@@ -121,6 +121,7 @@ cc_binary(
         "@heir//lib/Transforms/LayoutOptimization",
         "@heir//lib/Transforms/LayoutPropagation",
         "@heir//lib/Transforms/LinalgCanonicalizations",
+        "@heir//lib/Transforms/LowerPolynomialEval",
         "@heir//lib/Transforms/MemrefToArith:ExpandCopy",
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/OperationBalancer",

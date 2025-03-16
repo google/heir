@@ -11,6 +11,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/APInt.h"                 // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -264,6 +265,31 @@ LogicalResult MonomialOp::verify() {
 LogicalResult LeadingTermOp::verify() {
   return coefficientTypeMatchesScalarType(getInput().getType(),
                                           getCoefficient().getType(), this);
+}
+
+LogicalResult EvalOp::verify() {
+  Attribute attr = getPolynomialAttr();
+  bool empty =
+      TypeSwitch<Attribute, bool>(attr)
+          .Case<IntPolynomialAttr>([&](IntPolynomialAttr intAttr) {
+            return intAttr.getPolynomial().getTerms().empty();
+          })
+          .Case<TypedIntPolynomialAttr>([&](TypedIntPolynomialAttr intAttr) {
+            return intAttr.getValue().getPolynomial().getTerms().empty();
+          })
+          .Case<FloatPolynomialAttr>([&](FloatPolynomialAttr floatAttr) {
+            return floatAttr.getPolynomial().getTerms().empty();
+          })
+          .Case<TypedFloatPolynomialAttr>(
+              [&](TypedFloatPolynomialAttr floatAttr) {
+                return floatAttr.getValue().getPolynomial().getTerms().empty();
+              })
+          .Default([&](Attribute) { return false; });
+  if (empty) {
+    return emitError() << "Empty polynomials are not supported for eval op";
+  }
+
+  return success();
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {

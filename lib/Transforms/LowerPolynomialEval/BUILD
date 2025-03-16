@@ -1,0 +1,42 @@
+load("@heir//lib/Transforms:transforms.bzl", "add_heir_transforms")
+
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "LowerPolynomialEval",
+    srcs = ["LowerPolynomialEval.cpp"],
+    hdrs = ["LowerPolynomialEval.h"],
+    deps = [
+        ":Patterns",
+        ":pass_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+cc_library(
+    name = "Patterns",
+    srcs = ["Patterns.cpp"],
+    hdrs = ["Patterns.h"],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+add_heir_transforms(
+    generated_target_name = "pass_inc_gen",
+    pass_name = "LowerPolynomialEval",
+    td_file = "LowerPolynomialEval.td",
+)
