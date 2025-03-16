@@ -1,5 +1,6 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 
+// IWYU pragma: begin_keep
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
@@ -17,6 +18,7 @@
 #include "mlir/include/mlir/IR/PatternMatch.h"         // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+// IWYU pragma: end_keep
 
 using namespace mlir;
 using namespace mlir::heir::polynomial;

@@ -8,10 +8,17 @@ package(
 
 cc_library(
     name = "Dialect",
-    srcs = glob(["*.cpp"]),
-    hdrs = glob(["*.h"]),
+    srcs = [
+        "PolynomialDialect.cpp",
+        "PolynomialOps.cpp",
+    ],
+    hdrs = [
+        "PolynomialDialect.h",
+        "PolynomialOps.h",
+        "PolynomialTypes.h",
+    ],
     deps = [
-        ":attributes_inc_gen",
+        ":PolynomialAttributes",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
@@ -23,6 +30,23 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+# ModArith implementation of PolynomialEvalInterface requires knowledge of
+# IntPolynomialAttr. So give a library for PolynomialAttributes alone.
+cc_library(
+    name = "PolynomialAttributes",
+    srcs = ["PolynomialAttributes.cpp"],
+    hdrs = [
+        "PolynomialAttributes.h",
+        "PolynomialDialect.h",
+    ],
+    deps = [
+        ":attributes_inc_gen",
+        ":dialect_inc_gen",
+        "@heir//lib/Utils/Polynomial",
+        "@llvm-project//mlir:IR",
     ],
 )
 
