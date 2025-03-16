@@ -17,11 +17,11 @@
 namespace mlir {
 namespace heir {
 
-/// This class defines a Dialect Interface for any dialect wants to support
-/// polynomial evaluation. The polynomial.eval op support an arbitrary input
-/// type, and so this interface provides the necessary hooks to construct
-/// multiplication and addition ops that work with that type, as well as
-/// how to convert constants into the appropriate type.
+/// This class defines a Dialect Interface for any dialect that wants to loewr
+/// polynomial evaluation via lower-polynomial-eval. The polynomial.eval op
+/// support an arbitrary input type, and so this interface provides the
+/// necessary hooks to construct multiplication and addition ops that work with
+/// that type, as well as how to convert constants into the appropriate type.
 class DialectPolynomialEvalInterface
     : public DialectInterface::Base<DialectPolynomialEvalInterface> {
  public:
@@ -52,7 +52,7 @@ class DialectPolynomialEvalInterface
                                   Attribute constantAttr,
                                   Type evaluatedType) const = 0;
 
-  // FIXME: add add, mul, scalar_add, scalar_mul interface methods
+  // FIXME: add add, mul interface methods
 };
 
 // This is a convenience wrapper that collects all dialects implementing the
