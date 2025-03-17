@@ -320,6 +320,7 @@ int main(int argc, char **argv) {
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   rns::registerExternalRNSTypeInterfaces(registry);
   registerOperandAndResultAttrInterface(registry);
+  registerPolynomialEvalInterface(registry);
 
   PassPipelineRegistration<TosaToArithOptions>(
       "heir-tosa-to-arith",

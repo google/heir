@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --lower-polynomial-eval=method=horner;force=true --canonicalize | FileCheck %s
+// RUN: heir-opt %s --lower-polynomial-eval=method=horner --canonicalize | FileCheck %s
 
 #ring_i32_ = #polynomial.ring<coefficientType = i32>
 !poly = !polynomial.polynomial<ring = #ring_i32_>
