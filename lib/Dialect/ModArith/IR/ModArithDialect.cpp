@@ -59,13 +59,8 @@ struct ModArithPolynomialEvalInterface : public DialectPolynomialEvalInterface {
   Value constructConstant(OpBuilder &builder, Location loc,
                           Attribute constantAttr,
                           Type evaluatedType) const final {
-    auto modType = cast<ModArithType>(evaluatedType);
     auto intAttr = cast<IntegerAttr>(constantAttr);
-    return builder
-        .create<ConstantOp>(
-            loc, modType,
-            IntegerAttr::get(modType.getModulus().getType(), intAttr.getInt()))
-        .getResult();
+    return builder.create<ConstantOp>(loc, evaluatedType, intAttr).getResult();
   }
 
   Value constructMul(OpBuilder &builder, Location loc, Value lhs,
