@@ -1,5 +1,5 @@
 from heir import compile
-from heir.mlir import I64, Secret
+from heir.mlir import I1, I64, Secret
 
 from absl.testing import absltest  # fmt: skip
 
@@ -9,13 +9,12 @@ class EndToEndTest(absltest.TestCase):
   def test_cond(self):
 
     @compile(debug=True)
-    def cond(a: Secret[I64]):
+    def cond(a: Secret[I64], b: Secret[I1]):
       result = 0
-      if a == 0:
-        result = result + 1
-        # return result
+      if b:
+        result = a
       else:
-        result = 2
+        result = 0
       result = result + 1
       return result
 
