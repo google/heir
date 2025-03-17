@@ -1,5 +1,4 @@
-// Package dotproduct8bfvdebug is a debug handler callback for the compiled lattigo code.
-package dotproduct8bfvdebug
+package main
 
 import (
 	"fmt"

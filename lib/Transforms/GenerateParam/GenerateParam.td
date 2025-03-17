@@ -93,6 +93,7 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     There are three noise models available:
     - `bfv-noise-by-bound-coeff-average-case`
     - `bfv-noise-by-bound-coeff-worst-case` or `bfv-noise-kpz21`
+    - `bfv-noise-by-variance-coeff` or `bfv-noise-bmcm23`
 
     To use public-key encryption/secret-key encryption in the model, the option
     `usePublicKey` could be set accordingly.
@@ -102,6 +103,11 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     of the two models is expansion factor used for multiplication
     of the coefficients, the first being $2 \sqrt{N}$ and the second
     being $N$.
+
+    The third model is taken from BMCM23. It works by tracking the variance
+    of the coefficient embedding of the ciphertexts. This gives a much tighter
+    noise estimate for independent ciphertext input, but may give underestimation
+    for dependent ciphertext input. See [the paper](https://ia.cr/2023/600) for more details.
 
     This pass then generates the moduli chain consisting of primes
     of bits specified by the `mod-bits` field.

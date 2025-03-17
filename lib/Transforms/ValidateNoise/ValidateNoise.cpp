@@ -8,6 +8,7 @@
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
@@ -208,6 +209,9 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     } else if (model == "bfv-noise-by-bound-coeff-average-case" ||
                model == "bfv-noise-kpz21") {
       run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseModel>>();
+    } else if (model == "bfv-noise-by-variance-coeff" ||
+               model == "bfv-noise-bmcm23") {
+      run<NoiseAnalysis<bfv::NoiseByVarianceCoeffModel>>();
     } else {
       getOperation()->emitOpError() << "Unknown noise model.\n";
       signalPassFailure();

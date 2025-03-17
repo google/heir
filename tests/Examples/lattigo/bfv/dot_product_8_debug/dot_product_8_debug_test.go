@@ -1,4 +1,4 @@
-package dotproduct8bfv
+package main
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func TestBinops(t *testing.T) {
 	ct0 := dot_product__encrypt__arg0(evaluator, params, ecd, enc, arg0)
 	ct1 := dot_product__encrypt__arg1(evaluator, params, ecd, enc, arg1)
 
-	resultCt := dot_product(evaluator, params, ecd, ct0, ct1)
+	resultCt := dot_product(evaluator, params, ecd, dec, ct0, ct1)
 
 	result := dot_product__decrypt__result0(evaluator, params, ecd, dec, resultCt)
 
