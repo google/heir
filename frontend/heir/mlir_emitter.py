@@ -112,6 +112,49 @@ class Loop:
   range: RangeArgs
   inits: list[ir.Var]
 
+def get_ambient_vars(block):
+  # Get vars defined in the ambient scope.
+  vars = []
+  for instr in block.body:
+    match type(instr):
+      case ir.Assign:
+        if type(instr.value) == ir.Global:
+          continue
+        # Defined before the loop block
+        if not instr.target.is_temp:
+          if instr.target.loc.line < block.loc.line:
+            vars.add(instr.target)
+  return vars
+
+def get_vars_used_after(block, post_dominators, ssa_ir):
+  # Find any vars assigned in the block scopes used in the post dominators.
+  block_vars = set()
+  for instr in block.body:
+    match type(instr):
+      case ir.Assign:
+        if type(instr.value) == ir.Global:
+          continue
+        if not instr.target.is_temp:
+          block_vars.add(instr.target)
+
+  vars = set()
+  for id in post_dominators:
+    pblock = ssa_ir.blocks[id]
+    for instr in pblock.body:
+      match type(instr):
+        case ir.Assign:
+          if type(instr.value) == ir.Global:
+            continue
+          # Defined before the loop block
+          for var in instr.list_vars():
+            if var.is_temp:
+              continue
+            if var == instr.target:
+              continue
+            # var must be defined in the block 
+            if var in block_vars:
+              vars.add(var)
+  return list(vars)
 
 def build_loop_from_call(index, block_id, blocks, cfa):
   body = blocks[block_id].body
@@ -132,17 +175,8 @@ def build_loop_from_call(index, block_id, blocks, cfa):
 
   for id in loop_body_blocks:
     block = blocks[id]
-    for instr in blocks[id].body:
-      match type(instr):
-        case ir.Assign:
-          if type(instr.value) == ir.Global:
-            continue
-          if instr.target == iter_var:
-            continue
-          # not temp and defined outside before the loop block
-          if not instr.target.is_temp:
-            if instr.target.loc.line < block.loc.line:
-              inits.add(instr.target)
+    ambient_vars = get_ambient_vars(block)
+    inits.add([var for var in ambient_vars if var != iter_var])
 
   return Loop(
       header_id,
@@ -196,6 +230,7 @@ class TextualMlirEmitter:
     self.numba_names_to_ssa_var_names = {}
     self.globals_map = {}
     self.loops = {}
+    self.cfa = self.get_control_flow()
 
   def get_control_flow(self):
     bc = bytecode.ByteCode(self.ssa_ir.func_id)
@@ -229,11 +264,14 @@ class TextualMlirEmitter:
 
   def emit_blocks(self):
     blocks = self.ssa_ir.blocks
-    cfa = self.get_control_flow()
+    self.cfa.dump()
+    if len(self.cfa.graph.exit_points()) > 1:
+      raise ValueError("MLIR does not support early exits")
 
     # collect loops and block header needs
     block_ids_to_omit_header = set()
-    loop_entries = [list(l.entries)[0] for l in cfa.graph._loops.values()]
+    block_ids_to_omit_header.update(self.cfa.graph.backbone())
+    loop_entries = [list(l.entries)[0] for l in self.cfa.graph._loops.values()]
     for entry_id in loop_entries:
       block = blocks[entry_id]
       for i in range(len(block.body)):
@@ -244,7 +282,7 @@ class TextualMlirEmitter:
           self.loops[instr.target] = loop
           block_ids_to_omit_header.add(loop.header.next_id)
 
-    sorted_blocks = list(cfa.iterblocks())
+    sorted_blocks = list(self.cfa.iterblocks())
     # first block doesn't require a block header
     block_ids_to_omit_header.add(sorted_blocks[0].offset)
     blocks_to_print = deque(
@@ -456,17 +494,44 @@ class TextualMlirEmitter:
     raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
 
   def emit_branch(self, branch, blocks_to_print):
+    # We must ensure that both branches jump to the next execution. Do not
+    # support early exits.
     condvar = self.get_name(branch.cond)
-    branches = [branch.truebr, branch.falsebr]
-    branch_strs = [
-        f"cf.cond_br {condvar}, ^bb{branch.truebr}, ^bb{branch.falsebr}"
-    ]
+
+    branch_blocks = {}
     for _ in range(2):
       block_id, branch_block = blocks_to_print.popleft()
-      assert block_id in branches
-      body_str = self.emit_block(branch_block, blocks_to_print)
-      block_header = f"^bb{block_id}:\n"
-      branch_strs.append(block_header + textwrap.indent(body_str, "  "))
+      branch_blocks[block_id] = branch_block
+
+    # FIXME: postdoms for each branch can be different, take union
+    postdoms = self.cfa.graph.post_dominators()[branch.truebr]
+    postdoms.remove(branch.truebr)
+    # Variables to return from scf.if statement
+    retvars = get_vars_used_after(branch_blocks[branch.truebr], postdoms, self.ssa_ir)
+
+    assert branch.truebr in branch_blocks
+    true_str = self.emit_block(branch_blocks[branch.truebr], blocks_to_print)
+    false_str = self.emit_block(branch_blocks[branch.falsebr], blocks_to_print)
+
+    # FIXME: only for true_br right now.
+    yieldvars = [self.get_name(i) for i in retvars]
+    resulttypes = [mlirType(self.typemap.get(str(i))) for i in retvars]
+    true_str += f"\nscf.yield {", ".join(yieldvars)} : {", ".join(resulttypes)}"
+    false_str += f"\nscf.yield {", ".join(yieldvars)} : {", ".join(resulttypes)}"
+
+    branch_stmt = f"scf.if {condvar}"
+    resultvars = [self.forward_to_new_id(i) for i in retvars]
+    if retvars:
+      results = ", ".join(resultvars)
+      typestr = ", ".join([f"{ty}" for ty in resulttypes])
+      branch_stmt = f"{results} = {branch_stmt} -> ({typestr})"
+    branch_stmt += " {"
+    branch_strs = [branch_stmt]
+    branch_strs.append(textwrap.indent(true_str, "  "))
+    branch_strs.append("} else {")
+    branch_strs.append(textwrap.indent(false_str, "  "))
+    branch_strs.append("}")
+  
     return "\n".join(branch_strs)
 
   def emit_var_or_int(self, var_or_int):
