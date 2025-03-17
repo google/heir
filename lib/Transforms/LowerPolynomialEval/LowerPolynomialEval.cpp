@@ -121,25 +121,26 @@ struct LowerViaHorner : public LoweringBase {
   }
 };
 
+template <typename PolyAttrType>
 struct LowerViaPatersonStockmeyerMonomial : public LoweringBase {
   using LoweringBase::LoweringBase;
 
-  LogicalResult matchAndRewrite(polynomial::EvalOp op,
+  LogicalResult matchAndRewrite(EvalOp op,
                                 PatternRewriter &rewriter) const override {
     Dialect *dialect = getDialect(op);
     PolynomialEvalInterface interface(op.getContext());
 
-    // FIXME: if force, ignore heuristics on whether to use this method
     // FIXME: add lowering
 
     return success();
   }
 };
 
+template <typename PolyAttrType>
 struct LowerViaClenshaw : public LoweringBase {
   using LoweringBase::LoweringBase;
 
-  LogicalResult matchAndRewrite(polynomial::EvalOp op,
+  LogicalResult matchAndRewrite(EvalOp op,
                                 PatternRewriter &rewriter) const override {
     Dialect *dialect = getDialect(op);
     PolynomialEvalInterface interface(op.getContext());
@@ -147,10 +148,11 @@ struct LowerViaClenshaw : public LoweringBase {
   }
 };
 
+template <typename PolyAttrType>
 struct LowerViaPatersonStockmeyerChebyshev : public LoweringBase {
   using LoweringBase::LoweringBase;
 
-  LogicalResult matchAndRewrite(polynomial::EvalOp op,
+  LogicalResult matchAndRewrite(EvalOp op,
                                 PatternRewriter &rewriter) const override {
     Dialect *dialect = getDialect(op);
     PolynomialEvalInterface interface(op.getContext());
@@ -158,10 +160,11 @@ struct LowerViaPatersonStockmeyerChebyshev : public LoweringBase {
   }
 };
 
+template <typename PolyAttrType>
 struct LowerViaBabyStepGiantStep : public LoweringBase {
   using LoweringBase::LoweringBase;
 
-  LogicalResult matchAndRewrite(polynomial::EvalOp op,
+  LogicalResult matchAndRewrite(EvalOp op,
                                 PatternRewriter &rewriter) const override {
     Dialect *dialect = getDialect(op);
     PolynomialEvalInterface interface(op.getContext());
@@ -169,8 +172,22 @@ struct LowerViaBabyStepGiantStep : public LoweringBase {
   }
 };
 
+using LowerViaBabyStepGiantStepFloat =
+    LowerViaBabyStepGiantStep<TypedFloatPolynomialAttr>;
+using LowerViaBabyStepGiantStepInt =
+    LowerViaBabyStepGiantStep<TypedIntPolynomialAttr>;
+using LowerViaClenshawFloat = LowerViaClenshaw<TypedFloatPolynomialAttr>;
+using LowerViaClenshawInt = LowerViaClenshaw<TypedIntPolynomialAttr>;
 using LowerViaHornerFloat = LowerViaHorner<TypedFloatPolynomialAttr>;
 using LowerViaHornerInt = LowerViaHorner<TypedIntPolynomialAttr>;
+using LowerViaPatersonStockmeyerChebyshevFloat =
+    LowerViaPatersonStockmeyerChebyshev<TypedFloatPolynomialAttr>;
+using LowerViaPatersonStockmeyerChebyshevInt =
+    LowerViaPatersonStockmeyerChebyshev<TypedIntPolynomialAttr>;
+using LowerViaPatersonStockmeyerMonomialFloat =
+    LowerViaPatersonStockmeyerMonomial<TypedFloatPolynomialAttr>;
+using LowerViaPatersonStockmeyerMonomialInt =
+    LowerViaPatersonStockmeyerMonomial<TypedIntPolynomialAttr>;
 
 struct LowerPolynomialEval
     : impl::LowerPolynomialEvalBase<LowerPolynomialEval> {
@@ -185,16 +202,20 @@ struct LowerPolynomialEval
         patterns.add<LowerViaHornerInt, LowerViaHornerFloat>(
             context, /*force=*/true, dialect);
       } else if (method == "ps") {
-        patterns.add<LowerViaPatersonStockmeyerMonomial>(
+        patterns.add<LowerViaPatersonStockmeyerMonomialInt,
+                     LowerViaPatersonStockmeyerMonomialFloat>(
             context, /*force=*/true, dialect);
       } else if (method == "clenshaw") {
-        patterns.add<LowerViaClenshaw>(context, /*force=*/true, dialect);
+        patterns.add<LowerViaClenshawInt, LowerViaClenshawFloat>(
+            context, /*force=*/true, dialect);
       } else if (method == "ps-cheb") {
-        patterns.add<LowerViaPatersonStockmeyerChebyshev>(
+        patterns.add<LowerViaPatersonStockmeyerChebyshevInt,
+                     LowerViaPatersonStockmeyerChebyshevFloat>(
             context, /*force=*/true, dialect);
       } else if (method == "bsgs") {
-        patterns.add<LowerViaBabyStepGiantStep>(context, /*force=*/true,
-                                                dialect);
+        patterns
+            .add<LowerViaBabyStepGiantStepInt, LowerViaBabyStepGiantStepFloat>(
+                context, /*force=*/true, dialect);
       } else {
         getOperation()->emitError() << "Unknown lowering method: " << method;
         signalPassFailure();
@@ -203,8 +224,11 @@ struct LowerPolynomialEval
     } else {
       patterns
           .add<LowerViaHornerInt, LowerViaHornerFloat,
-               LowerViaBabyStepGiantStep, LowerViaPatersonStockmeyerChebyshev,
-               LowerViaClenshaw, LowerViaPatersonStockmeyerMonomial>(
+               LowerViaPatersonStockmeyerMonomialInt,
+               LowerViaPatersonStockmeyerMonomialFloat, LowerViaClenshawInt,
+               LowerViaClenshawFloat, LowerViaPatersonStockmeyerChebyshevInt,
+               LowerViaPatersonStockmeyerChebyshevFloat,
+               LowerViaBabyStepGiantStepInt, LowerViaBabyStepGiantStepFloat>(
               context,
               /*force=*/false, dialect);
     }
