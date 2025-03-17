@@ -3087,6 +3087,26 @@ operations by using a logarithmic number of reduction operations.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%3&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%2&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>_ext&lt;span style="color:#000;font-weight:bold">.&lt;/span>rotate &lt;span style="color:#000">%3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">%5&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000">%3&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">%4&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="-secret-add-debug-port">&lt;code>-secret-add-debug-port&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Add debug port to secret-arithmetic ops&lt;/em>&lt;/p>
+&lt;p>This pass adds debug ports to secret-arithmetic ops in the IR, namely operations
+wrapped by secret.generic. The debug ports are prefixed with &amp;ldquo;__heir_debug&amp;rdquo; and
+are invoked after each operation in the generic body. The debug ports are
+declarations and user should provide functions with the same name in their code.&lt;/p>
+&lt;p>For example, if the function is called &amp;ldquo;foo&amp;rdquo;, the debug port is called after
+each homomorphic operation:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// declaration of external debug function
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> private &lt;span style="color:#000">@__heir_debug_tensor_8xi16_&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">tensor&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8x&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@foo&lt;/span>&lt;span style="color:#000;font-weight:bold">(...)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// invoke external debug function
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> __heir_debug_tensor_8xi16_&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000;font-weight:bold">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> __heir_debug_tensor_8xi16_&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">%1&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="-secret-capture-generic-ambient-scope">&lt;code>-secret-capture-generic-ambient-scope&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Capture the ambient scope used in a secret.generic&lt;/em>&lt;/p>
 &lt;p>For each value used in the body of a &lt;code>secret.generic&lt;/code> op, which is defined
@@ -3131,7 +3151,28 @@ the &lt;code>generic&lt;/code> body.&lt;/p>
 &lt;p>&lt;em>Copy deallocs of internal memrefs into a secret.generic body&lt;/em>&lt;/p>
 &lt;p>For each memref allocated and used only within a body of a &lt;code>secret.generic&lt;/code>
 op, add it&amp;rsquo;s dealloc of the memref into its &lt;code>generic&lt;/code> body.&lt;/p>
-&lt;h3 id="-secret-insert-mgmt-bfv">&lt;code>-secret-insert-mgmt-bfv&lt;/code>&lt;/h3>
+&lt;h3 id="-secret-import-execution-result">&lt;code>-secret-import-execution-result&lt;/code>&lt;/h3>
+&lt;p>&lt;em>Annotate execution result to secret-arithmetic ops&lt;/em>&lt;/p>
+&lt;p>When the execution result of each op is known by &lt;code>secret-add-debug-port&lt;/code> pass,
+the result could be imported back to the IR.&lt;/p>
+&lt;p>This pass adds a new attribute &lt;code>secret.execution_result&lt;/code> to the secret-arithmetic ops.&lt;/p>
+&lt;p>This is useful when users want to compare the precision of the result between
+the plaintext and the ciphertext (especially the CKKS case).&lt;/p>
+&lt;p>For example, if you have a &lt;code>trace.log&lt;/code> that is generated by plaintext backend with
+&lt;code>--secret-add-debug-port&lt;/code> where the result is printed out like&lt;/p>
+&lt;pre tabindex="0">&lt;code>1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0
+2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
+&lt;/code>&lt;/pre>&lt;p>Each &lt;em>line&lt;/em> corresponds to one SSA value in the IR. You can then import the result
+back to the IR by using &lt;code>--secret-import-execution-result=file-name=trace.log&lt;/code>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">@foo&lt;/span>&lt;span style="color:#000;font-weight:bold">(...)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>generic &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>addi &lt;span style="color:#000;font-weight:bold">...&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">secret.execution_result =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">5.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">6.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">8.0&lt;/span>&lt;span style="color:#000;font-weight:bold">]}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">%1&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> arith&lt;span style="color:#000;font-weight:bold">.&lt;/span>muli &lt;span style="color:#000;font-weight:bold">...&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f57900">secret.execution_result =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">3.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">4.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">5.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">6.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">7.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">8.0&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">9.0&lt;/span>&lt;span style="color:#000;font-weight:bold">]}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-20">Options&lt;/h4>
+&lt;pre tabindex="0">&lt;code>-file-name : file name of the execution result
+&lt;/code>&lt;/pre>&lt;h3 id="-secret-insert-mgmt-bfv">&lt;code>-secret-insert-mgmt-bfv&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Place BFV ciphertext management operations&lt;/em>&lt;/p>
 &lt;p>This pass inserts relinearization operation for multiplication, and
 compute the multiplicative depth, or the level information.&lt;/p>
@@ -3204,7 +3245,7 @@ RNS Type.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">%0&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i16&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-20">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-21">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-insert-mgmt-ckks">&lt;code>-secret-insert-mgmt-ckks&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Place CKKS ciphertext management operations&lt;/em>&lt;/p>
@@ -3219,7 +3260,7 @@ where when all levels are consumed then a bootstrap is inserted.&lt;/p>
 handled by further lowering.
 TODO(#1207): handle it here so parameter selection can depend on it.
 TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed level).&lt;/p>
-&lt;h4 id="options-21">Options&lt;/h4>
+&lt;h4 id="options-22">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-include-first-mul : Modulus switching right before the first multiplication (default to false)
 -slot-number : Default number of slots use for ciphertext space.
 -bootstrap-waterline : Waterline for insert bootstrap op
@@ -3239,7 +3280,7 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-22">Options&lt;/h4>
+&lt;h4 id="options-23">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-to-cggi">&lt;code>-secret-to-cggi&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>secret&lt;/code> to &lt;code>cggi&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -3255,20 +3296,20 @@ non-secret values used are removed from the &lt;code>secret.generic&lt;/code>&am
 arguments.&lt;/p>
 &lt;p>The pass requires that all types are tensors of a uniform shape matching the
 dimension of the ciphertext space specified my &lt;code>poly-mod-degree&lt;/code>.&lt;/p>
-&lt;h4 id="options-23">Options&lt;/h4>
+&lt;h4 id="options-24">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-poly-mod-degree : Default degree of the cyclotomic polynomial modulus to use for ciphertext space.
 &lt;/code>&lt;/pre>&lt;h3 id="-secretize">&lt;code>-secretize&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Adds secret argument attributes to entry function&lt;/em>&lt;/p>
 &lt;p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
 This may be overridden with the option -function=func_name to apply to a single function only.&lt;/p>
-&lt;h4 id="options-24">Options&lt;/h4>
+&lt;h4 id="options-25">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-function : function to add secret annotations to
 &lt;/code>&lt;/pre>&lt;h3 id="-straight-line-vectorize">&lt;code>-straight-line-vectorize&lt;/code>&lt;/h3>
 &lt;p>&lt;em>A vectorizer for straight line programs.&lt;/em>&lt;/p>
 &lt;p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.&lt;/p>
-&lt;h4 id="options-25">Options&lt;/h4>
+&lt;h4 id="options-26">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 &lt;/code>&lt;/pre>&lt;h3 id="-tensor-ext-to-tensor">&lt;code>-tensor-ext-to-tensor&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Lower &lt;code>tensor_ext&lt;/code> to &lt;code>tensor&lt;/code> dialect.&lt;/em>&lt;/p>
@@ -3317,7 +3358,7 @@ this is done by the &lt;code>generate-param-&amp;lt;scheme&amp;gt;&lt;/code> pas
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic"># with commandline --debug-only=ValidateNoise&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Noise Bound: 29.27 Budget: 149.73 Total: 179.00 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> value: &amp;lt;block argument&amp;gt; of &lt;span style="color:#204a87">type&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tensor&amp;lt;8xi16&amp;gt;&amp;#39;&lt;/span> at index: &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-26">Options&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="options-27">Options&lt;/h4>
 &lt;pre tabindex="0">&lt;code>-model : Noise model to validate against.
 -annotate-noise-bound : Annotate the noise bound to the IR.
 &lt;/code>&lt;/pre>&lt;h3 id="-wrap-generic">&lt;code>-wrap-generic&lt;/code>&lt;/h3>
@@ -3365,37 +3406,30 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-09-19</title><link>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</link><pubDate>Thu, 19 Sep 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/09/19/heir-meeting-2024-09-19/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-02-20</title><link>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</link><pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1aGIiZPWpk7UMg5FD8ZYHmNhKVZ6NdhfmGMvyHrrlolM/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1i-HqUi8pb2ywUJ-OT4fWExYCmeRLu2Cn/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-09-19.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1Aza4s6Z0NCON9rQR70DOUkKSwBV6bHAmuYV8sIb8n7o/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/Y82A6BLAVtc">video recording&lt;/a> from the HEIR meeting on
+2025-02-20.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-11-26</title><link>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</link><pubDate>Tue, 26 Nov 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/10WTpdVaLz4mgmTwlJ3lVMGD4qmiNEl2Uvt3R3h0XFmc/edit?hl=en&amp;amp;forcehl=1&amp;amp;tab=t.0#heading=h.w3lar3vbuip1">notes&lt;/a>,
+&lt;a href="https://drive.google.com/file/d/13yvX_ap09tTqwJsdABDf3WDl79GF3bJx/view?usp=sharing">video recording&lt;/a>,
 and
-&lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
-from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-26</title><link>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</link><pubDate>Wed, 27 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1s5iXtOSpIDJX3JOEB5gQqUPm5lo1gLpRUM10pBfAdoo/edit?usp=sharing">a transcription of the recording&lt;/a>
+from the HEIR meeting on 2024-11-26.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1pkG8eaSUddAySJWjQHIFqe0hyYkO0wH9X0JtnR6wlWo/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1xaH-G3SZPVv_gEpUkfhFuvUTUwU2ZKLY/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-09-26.&lt;/p>
-&lt;p>Next meeting (Oct 10) is canceled for the MLIR workshop, and I&amp;rsquo;ll post an update
-from that workshop on this blog, hopefully also with a video of the talk that
-Alex Viand and I will be giving at the LLVM developers meeting.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-06-30</title><link>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</link><pubDate>Fri, 30 Jun 2023 12:42:22 -0700</pubDate><guid>https://heir.dev/blog/2023/06/30/heir-meeting-2023-06-30/</guid><description>
-&lt;p>The second HEIR meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1wxaEtpEDdO2yv5YKmFTc8FVlqHxm49gHzEdcnBFBKWs/edit?usp=sharing">notes&lt;/a>,
+&lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-27.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
+&lt;p>The fourth HEIR meeting was 2023-08-01
+(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1S893iJdeL08BAonLenmkUGNC34PX1qpg/view?usp=sharing">video recording&lt;/a>).&lt;/p>
-&lt;p>There are some initial design discussion threads started on
-&lt;a href="https://github.com/google/heir/discussions">GitHub Discussions&lt;/a> to get the
-design rolling.&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/53">High-Level FHE Dialect&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/54">Scheme Dialects&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/discussions/55">Poly/Math Dialects&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
+&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
+&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
+fun!&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
