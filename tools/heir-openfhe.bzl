@@ -4,7 +4,7 @@ load("@heir//bazel/openfhe:copts.bzl", "MAYBE_OPENFHE_LINKOPTS", "MAYBE_OPENMP_C
 load("@heir//tools:heir-opt.bzl", "heir_opt")
 load("@heir//tools:heir-translate.bzl", "heir_translate")
 
-def openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_opt_flags = [], heir_translate_flags = [], tags = [], deps = [], **kwargs):
+def openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_opt_flags = [], heir_translate_flags = [], data = [], tags = [], deps = [], **kwargs):
     """A rule for running generating OpenFHE and running a test on it.
 
     Args:
@@ -15,6 +15,7 @@ def openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_o
       cc_lib_target_name: The name of the generated cc_library target
       heir_opt_flags: Flags to pass to heir-opt before heir-translate
       heir_translate_flags: Flags to pass to heir-translate
+      data: Data dependencies to be passed to heir_opt
       tags: Tags to pass to cc_test and cc_library
       deps: Deps to pass to cc_test and cc_library
       **kwargs: Keyword arguments to pass to cc_library and cc_test.
@@ -33,6 +34,7 @@ def openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_o
             src = mlir_src,
             pass_flags = heir_opt_flags,
             generated_filename = generated_heir_opt_name,
+            data = data,
         )
     else:
         generated_heir_opt_name = mlir_src
@@ -55,6 +57,7 @@ def openfhe_lib(name, mlir_src, generated_lib_header, cc_lib_target_name, heir_o
         hdrs = [":" + generated_lib_header],
         deps = deps + ["@openfhe//:pke"],
         tags = tags,
+        data = data,
         copts = MAYBE_OPENMP_COPTS,
         linkopts = MAYBE_OPENFHE_LINKOPTS,
         **kwargs

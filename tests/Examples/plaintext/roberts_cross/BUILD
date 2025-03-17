@@ -8,6 +8,7 @@ glob_lit_tests(
         ":roberts_cross_mod_test",
         ":roberts_cross_test",
         "@heir//tests:test_utilities",
+        "@heir//tests/Examples/plaintext:memrefCopy",
         "@llvm-project//llvm:llc",
         "@llvm-project//mlir:mlir-translate",
     ],
@@ -28,7 +29,6 @@ glob_lit_tests(
 cc_library(
     name = "roberts_cross_test",
     srcs = [
-        "memrefCopy.cpp",
         "roberts_cross_test.c",
     ],
 )
@@ -36,7 +36,6 @@ cc_library(
 cc_library(
     name = "roberts_cross_mod_test",
     srcs = [
-        "memrefCopy.cpp",
         "roberts_cross_mod_test.c",
     ],
 )

@@ -2,7 +2,7 @@
 //
 // RUN: heir-opt %s --mlir-to-plaintext-backend \
 // RUN:   | mlir-translate --mlir-to-llvmir | llc -filetype=obj > %t
-// RUN: cc %t %S/libroberts_cross_test.a -o a.out
+// RUN: cc %t %S/libroberts_cross_test.a %S/../libmemrefCopy.a -o a.out
 // RUN: ./a.out | FileCheck %s --check-prefix=CHECK-INT
 // CHECK-INT: Test passed
 
@@ -10,7 +10,7 @@
 //
 // RUN: heir-opt %s --mlir-to-plaintext-backend=plaintext-modulus=536903681 \
 // RUN:   | mlir-translate --mlir-to-llvmir | llc -filetype=obj > %t
-// RUN: cc %t %S/libroberts_cross_mod_test.a -o a.out
+// RUN: cc %t %S/libroberts_cross_mod_test.a %S/../libmemrefCopy.a -o a.out
 // RUN: ./a.out | FileCheck %s
 // CHECK: Test passed
 
@@ -18,7 +18,7 @@
 //
 // RUN: heir-opt %s --mlir-to-plaintext-backend=plaintext-modulus=786433 \
 // RUN:   | mlir-translate --mlir-to-llvmir | llc -filetype=obj > %t
-// RUN: cc %t %S/libroberts_cross_mod_test.a -o a.out
+// RUN: cc %t %S/libroberts_cross_mod_test.a %S/../libmemrefCopy.a -o a.out
 // RUN: ./a.out | FileCheck %s --check-prefix=CHECK-SMALL
 // CHECK-SMALL: Test failed
 func.func @roberts_cross(%img: tensor<4096xi16> {secret.secret}) -> tensor<4096xi16> {
