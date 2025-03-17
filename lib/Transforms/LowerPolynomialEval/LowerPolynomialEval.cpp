@@ -6,11 +6,8 @@
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
-#include "llvm/include/llvm/Support/Debug.h"      // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 // IWYU pragma: end_keep
-
-#define DEBUG_TYPE "lower-polynomial-eval"
 
 namespace mlir {
 namespace heir {
@@ -37,7 +34,8 @@ struct LoweringBase : public OpRewritePattern<EvalOp> {
   }
 
   Attribute getAttribute(OpBuilder &b, Type type, const APInt &value) const {
-    return b.getIntegerAttr(type, value);
+    auto intType = IntegerType::get(type.getContext(), value.getBitWidth());
+    return b.getIntegerAttr(intType, value);
   }
 
   Attribute getAttribute(OpBuilder &b, Type type, const APFloat &value) const {
@@ -75,8 +73,8 @@ struct LowerViaHorner : public LoweringBase {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     b.setInsertionPoint(op);
 
-    auto terms = attr.getValue().getPolynomial().getTerms();
-    if (terms.empty()) {
+    auto polynomial = attr.getValue().getPolynomial();
+    if (polynomial.getDegree() == 0) {
       // Handle empty polynomial case
       Value zeroConst = interface.constructConstant(
           b, op.getLoc(), b.getZeroAttr(coeffType), evaluatedType, dialect);
@@ -84,33 +82,32 @@ struct LowerViaHorner : public LoweringBase {
       return success();
     }
 
-    // Get the highest degree
-    int64_t maxDegree = terms.back().getExponent().getSExtValue();
+    int64_t degree = polynomial.getDegree();
     const int degreeThreshold = 5;
-    if (!shouldForce() && maxDegree >= degreeThreshold) return failure();
+    if (!shouldForce() && degree >= degreeThreshold) return failure();
 
     // Create a map from exponent to coefficient for easy lookup
-    std::unordered_map<int64_t, Attribute> coeffMap;
-    for (auto term : terms) {
-      // FIXME: construct attribute generically
-      coeffMap[term.getExponent().getSExtValue()] =
-          getAttribute(b, coeffType, term.getCoefficient());
+    auto monomialMap = polynomial.getCoeffMap();
+    DenseMap<int64_t, Attribute> attributeMap;
+
+    for (auto &[key, monomial] : monomialMap) {
+      attributeMap[key] = getAttribute(b, coeffType, monomial.getCoefficient());
     }
 
     // Start with the coefficient of the highest degree term
     Value result = interface.constructConstant(
-        b, op.getLoc(), coeffMap[maxDegree], evaluatedType, dialect);
+        b, op.getLoc(), attributeMap[degree], evaluatedType, dialect);
 
     // Apply Horner's method, accounting for possible missing terms
     auto x = op.getOperand();
-    for (int64_t i = maxDegree - 1; i >= 0; i--) {
+    for (int64_t i = degree - 1; i >= 0; i--) {
       // Multiply by x
       result = interface.constructMul(b, op.getLoc(), result, x, dialect);
 
       // Add coefficient if this term exists, otherwise continue
-      if (coeffMap.find(i) != coeffMap.end()) {
+      if (attributeMap.find(i) != attributeMap.end()) {
         auto coeffConst = interface.constructConstant(
-            b, op.getLoc(), coeffMap[i], evaluatedType, dialect);
+            b, op.getLoc(), attributeMap[i], evaluatedType, dialect);
         result =
             interface.constructAdd(b, op.getLoc(), result, coeffConst, dialect);
       }
