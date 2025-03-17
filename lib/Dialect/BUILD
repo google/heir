@@ -14,6 +14,7 @@ cc_library(
     hdrs = ["HEIRInterfaces.h"],
     deps = [
         ":interfaces_inc_gen",
+        "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:IR",
     ],

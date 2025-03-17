@@ -109,6 +109,7 @@ class PolynomialEvalInterface
 };
 
 void registerOperandAndResultAttrInterface(DialectRegistry &registry);
+void registerPolynomialEvalInterface(DialectRegistry &registry);
 
 }  // namespace heir
 }  // namespace mlir

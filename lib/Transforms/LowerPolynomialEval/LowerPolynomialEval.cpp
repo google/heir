@@ -28,9 +28,13 @@ struct LoweringBase : public OpRewritePattern<EvalOp> {
         dialect(dialect) {}
 
   Dialect *getDialect(EvalOp op) const {
-    PolynomialEvalInterface evalInterface(op.getContext());
-    return dialect.empty() ? &op.getValue().getType().getDialect()
-                           : op.getContext()->getOrLoadDialect(dialect);
+    if (!dialect.empty()) return op.getContext()->getOrLoadDialect(dialect);
+
+    // Special cases for arith which has builtin types
+    Dialect *dialect = &op.getValue().getType().getDialect();
+    if (dialect->getNamespace() == "builtin")
+      return op.getContext()->getOrLoadDialect("arith");
+    return dialect;
   }
 
   Attribute getAttribute(OpBuilder &b, Type type, const APInt &value) const {
@@ -39,7 +43,18 @@ struct LoweringBase : public OpRewritePattern<EvalOp> {
   }
 
   Attribute getAttribute(OpBuilder &b, Type type, const APFloat &value) const {
-    return b.getFloatAttr(type, value);
+    FloatType floatType;
+    int width = type.getIntOrFloatBitWidth();
+    if (width == 16) {
+      floatType = b.getF16Type();
+    } else if (width == 32) {
+      floatType = b.getF32Type();
+    } else if (width == 64) {
+      floatType = b.getF64Type();
+    } else {
+      llvm_unreachable("unsupported floating point type");
+    }
+    return b.getFloatAttr(type, value.convertToDouble());
   }
 
   bool shouldForce() const { return force; }
@@ -62,6 +77,11 @@ struct LowerViaHorner : public LoweringBase {
                                 PatternRewriter &rewriter) const override {
     Dialect *dialect = getDialect(op);
     PolynomialEvalInterface interface(op.getContext());
+    if (!interface.supportsPolynomial(op.getPolynomialAttr(), dialect))
+      return op.emitError()
+             << "unsupported polynomial attribute " << op.getPolynomialAttr()
+             << " for chosen dialect " << dialect->getNamespace();
+
     Type evaluatedType = op.getValue().getType();
     auto attr = dyn_cast<PolyAttrType>(op.getPolynomialAttr());
     if (!attr) return failure();
