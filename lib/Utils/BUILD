@@ -125,6 +125,12 @@ cc_library(
 )
 
 cc_library(
+    name = "MathUtils",
+    srcs = ["MathUtils.cpp"],
+    hdrs = ["MathUtils.h"],
+)
+
+cc_library(
     name = "TargetUtils",
     srcs = ["TargetUtils.cpp"],
     hdrs = ["TargetUtils.h"],

@@ -69,5 +69,6 @@ cc_library(
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis:Noise",
         "@heir//lib/Parameters/BGV:Params",
+        "@heir//lib/Utils:MathUtils",
     ],
 )
