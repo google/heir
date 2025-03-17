@@ -52,6 +52,38 @@ class DialectPolynomialEvalInterface
                                   Attribute constantAttr,
                                   Type evaluatedType) const = 0;
 
+  // Construct one or more operations that implement a multiplication
+  // between two values of the appropriate type for this dialect.
+  //
+  // Inputs:
+  //
+  //   - builder: the OpBuilder to use for construction
+  //   - loc: the location to use for op construction
+  //   - lhs: the lhs of the multiplication
+  //   - rhs: the rhs of the multiplication
+  //
+  //  Returns:
+  //
+  //    a Value corresponding to the result of the multiplication
+  virtual Value constructMul(OpBuilder &builder, Location loc, Value lhs,
+                             Value rhs) const = 0;
+
+  // Construct one or more operations that implement an addition
+  // between two values of the appropriate type for this dialect.
+  //
+  // Inputs:
+  //
+  //   - builder: the OpBuilder to use for construction
+  //   - loc: the location to use for op construction
+  //   - lhs: the lhs of the addition
+  //   - rhs: the rhs of the addition
+  //
+  //  Returns:
+  //
+  //    a Value corresponding to the result of the addition
+  virtual Value constructAdd(OpBuilder &builder, Location loc, Value lhs,
+                             Value rhs) const = 0;
+
   // FIXME: add add, mul interface methods
 };
 
@@ -65,9 +97,15 @@ class PolynomialEvalInterface
 
   bool supportsPolynomial(Attribute polynomialAttr, Dialect *dialect);
 
-  FailureOr<Value> constructConstant(OpBuilder &builder, Location loc,
-                                     Attribute constantAttr, Type evaluatedType,
-                                     Dialect *dialect);
+  Value constructConstant(OpBuilder &builder, Location loc,
+                          Attribute constantAttr, Type evaluatedType,
+                          Dialect *dialect);
+
+  Value constructMul(OpBuilder &builder, Location loc, Value lhs, Value rhs,
+                     Dialect *dialect);
+
+  Value constructAdd(OpBuilder &builder, Location loc, Value lhs, Value rhs,
+                     Dialect *dialect);
 };
 
 void registerOperandAndResultAttrInterface(DialectRegistry &registry);
