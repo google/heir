@@ -2,6 +2,7 @@
 
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
@@ -17,18 +18,33 @@ namespace heir {
 #define GEN_PASS_DEF_LOWERPOLYNOMIALEVAL
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h.inc"
 
-struct LoweringBase : public OpRewritePattern<polynomial::EvalOp> {
+using polynomial::EvalOp;
+using polynomial::PolynomialType;
+using polynomial::TypedFloatPolynomialAttr;
+using polynomial::TypedIntPolynomialAttr;
+
+struct LoweringBase : public OpRewritePattern<EvalOp> {
   LoweringBase(mlir::MLIRContext *context, bool force = false,
                const std::string &dialect = "")
-      : mlir::OpRewritePattern<polynomial::EvalOp>(context),
+      : mlir::OpRewritePattern<EvalOp>(context),
         force(force),
         dialect(dialect) {}
 
-  Dialect *getDialect(polynomial::EvalOp op) const {
+  Dialect *getDialect(EvalOp op) const {
     PolynomialEvalInterface evalInterface(op.getContext());
     return dialect.empty() ? &op.getValue().getType().getDialect()
                            : op.getContext()->getOrLoadDialect(dialect);
   }
+
+  Attribute getAttribute(OpBuilder &b, Type type, const APInt &value) const {
+    return b.getIntegerAttr(type, value);
+  }
+
+  Attribute getAttribute(OpBuilder &b, Type type, const APFloat &value) const {
+    return b.getFloatAttr(type, value);
+  }
+
+  bool shouldForce() const { return force; }
 
  private:
   // Force the use of this pattern, ignoring any heuristics on whether to apply
@@ -40,17 +56,67 @@ struct LoweringBase : public OpRewritePattern<polynomial::EvalOp> {
   const std::string dialect;
 };
 
+template <typename PolyAttrType>
 struct LowerViaHorner : public LoweringBase {
   using LoweringBase::LoweringBase;
 
-  LogicalResult matchAndRewrite(polynomial::EvalOp op,
+  LogicalResult matchAndRewrite(EvalOp op,
                                 PatternRewriter &rewriter) const override {
     Dialect *dialect = getDialect(op);
     PolynomialEvalInterface interface(op.getContext());
+    Type evaluatedType = op.getValue().getType();
+    auto attr = dyn_cast<PolyAttrType>(op.getPolynomialAttr());
+    if (!attr) return failure();
 
-    // FIXME: if force, ignore heuristics on whether to use this method
-    // FIXME: add lowering
+    auto type = dyn_cast<PolynomialType>(attr.getType());
+    if (!type) return failure();
+    Type coeffType = type.getRing().getCoefficientType();
 
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    b.setInsertionPoint(op);
+
+    auto terms = attr.getValue().getPolynomial().getTerms();
+    if (terms.empty()) {
+      // Handle empty polynomial case
+      Value zeroConst = interface.constructConstant(
+          b, op.getLoc(), b.getZeroAttr(coeffType), evaluatedType, dialect);
+      rewriter.replaceOp(op, zeroConst);
+      return success();
+    }
+
+    // Get the highest degree
+    int64_t maxDegree = terms.back().getExponent().getSExtValue();
+    const int degreeThreshold = 5;
+    if (!shouldForce() && maxDegree >= degreeThreshold) return failure();
+
+    // Create a map from exponent to coefficient for easy lookup
+    std::unordered_map<int64_t, Attribute> coeffMap;
+    for (auto term : terms) {
+      // FIXME: construct attribute generically
+      coeffMap[term.getExponent().getSExtValue()] =
+          getAttribute(b, coeffType, term.getCoefficient());
+    }
+
+    // Start with the coefficient of the highest degree term
+    Value result = interface.constructConstant(
+        b, op.getLoc(), coeffMap[maxDegree], evaluatedType, dialect);
+
+    // Apply Horner's method, accounting for possible missing terms
+    auto x = op.getOperand();
+    for (int64_t i = maxDegree - 1; i >= 0; i--) {
+      // Multiply by x
+      result = interface.constructMul(b, op.getLoc(), result, x, dialect);
+
+      // Add coefficient if this term exists, otherwise continue
+      if (coeffMap.find(i) != coeffMap.end()) {
+        auto coeffConst = interface.constructConstant(
+            b, op.getLoc(), coeffMap[i], evaluatedType, dialect);
+        result =
+            interface.constructAdd(b, op.getLoc(), result, coeffConst, dialect);
+      }
+    }
+
+    rewriter.replaceOp(op, result);
     return success();
   }
 };
@@ -103,6 +169,9 @@ struct LowerViaBabyStepGiantStep : public LoweringBase {
   }
 };
 
+using LowerViaHornerFloat = LowerViaHorner<TypedFloatPolynomialAttr>;
+using LowerViaHornerInt = LowerViaHorner<TypedIntPolynomialAttr>;
+
 struct LowerPolynomialEval
     : impl::LowerPolynomialEvalBase<LowerPolynomialEval> {
   using LowerPolynomialEvalBase::LowerPolynomialEvalBase;
@@ -113,7 +182,8 @@ struct LowerPolynomialEval
 
     if (method.hasValue() && !method.empty()) {
       if (method == "horner") {
-        patterns.add<LowerViaHorner>(context, /*force=*/true, dialect);
+        patterns.add<LowerViaHornerInt, LowerViaHornerFloat>(
+            context, /*force=*/true, dialect);
       } else if (method == "ps") {
         patterns.add<LowerViaPatersonStockmeyerMonomial>(
             context, /*force=*/true, dialect);
@@ -131,11 +201,12 @@ struct LowerPolynomialEval
         return;
       }
     } else {
-      patterns.add<LowerViaHorner, LowerViaBabyStepGiantStep,
-                   LowerViaPatersonStockmeyerChebyshev, LowerViaClenshaw,
-                   LowerViaPatersonStockmeyerMonomial>(context,
-                                                       /*force=*/false,
-                                                       dialect);
+      patterns
+          .add<LowerViaHornerInt, LowerViaHornerFloat,
+               LowerViaBabyStepGiantStep, LowerViaPatersonStockmeyerChebyshev,
+               LowerViaClenshaw, LowerViaPatersonStockmeyerMonomial>(
+              context,
+              /*force=*/false, dialect);
     }
 
     walkAndApplyPatterns(getOperation(), std::move(patterns));
