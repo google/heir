@@ -115,7 +115,7 @@ class Loop:
 
 def get_ambient_vars(block):
   # Get vars defined in the ambient scope.
-  vars = []
+  vars = set()
   for instr in block.body:
     match type(instr):
       case ir.Assign:
@@ -179,7 +179,7 @@ def build_loop_from_call(index, block_id, blocks, cfa):
   for id in loop_body_blocks:
     block = blocks[id]
     ambient_vars = get_ambient_vars(block)
-    inits.add([var for var in ambient_vars if var != iter_var])
+    [inits.add(var) for var in ambient_vars if var != iter_var]
 
   return Loop(
       header_id,
@@ -267,6 +267,10 @@ class TextualMlirEmitter:
 
   def emit_blocks(self):
     blocks = self.ssa_ir.blocks
+    for block_id, block in blocks.items():
+      print(block_id)
+      for instr in block.body:
+        print("\t" + str(instr))
 
     # collect loops and block header needs
     block_ids_to_omit_header = set()
@@ -278,7 +282,7 @@ class TextualMlirEmitter:
         # Detect a range call
         instr = block.body[i]
         if is_start_of_loop(i, block.body, self.ssa_ir):
-          loop = build_loop_from_call(i, entry_id, blocks, cfa)
+          loop = build_loop_from_call(i, entry_id, blocks, self.cfa)
           self.loops[instr.target] = loop
           block_ids_to_omit_header.add(loop.header.next_id)
 
@@ -459,6 +463,9 @@ class TextualMlirEmitter:
       short, long = rhs, lhs
 
     tmp = self.get_next_name()
+    import ipdb
+
+    ipdb.set_trace()
     ext = (
         f"{tmp} = arith.extui {self.get_name(short)} : "
         f"{mlirType(self.typemap.get(str(short)))} "
@@ -622,7 +629,16 @@ class TextualMlirEmitter:
       if type(instr) == ir.Assign and instr.target in self.loops:
         raise NotImplementedError("Nested loops are not supported")
 
-    body_str = self.emit_block(loop_block, blocks_to_print)
+    body_str = ""
+    itvar = self.get_name(loop.header.phi_var)
+    it = self.ssa_ir.get_assignee(loop.header.phi_var)
+    var_name = self.get_or_create_name(it)
+    body_str += (
+        f"{var_name} = arith.index_cast {itvar} : index to"
+        f" {mlirType(self.typemap.get(it.name))}\n"
+    )
+    self.forward_name(loop.header.phi_var, it)
+    body_str += self.emit_block(loop_block, blocks_to_print)
     if len(loop.inits) > 1:
       # Yield the iter args
       yield_vars = ", ".join([self.get_name(init) for init in loop.inits])
