@@ -15,13 +15,34 @@ bool PolynomialEvalInterface::supportsPolynomial(Attribute polynomialAttr,
   return false;
 }
 
-FailureOr<Value> PolynomialEvalInterface::constructConstant(
-    OpBuilder &builder, Location loc, Attribute constantAttr,
-    Type evaluatedType, Dialect *dialect) {
+Value PolynomialEvalInterface::constructConstant(OpBuilder &builder,
+                                                 Location loc,
+                                                 Attribute constantAttr,
+                                                 Type evaluatedType,
+                                                 Dialect *dialect) {
   if (auto *handler = getInterfaceFor(dialect))
     return handler->constructConstant(builder, loc, constantAttr,
                                       evaluatedType);
-  return failure();
+  llvm_unreachable("unsupported dialect");
+  return Value();
+}
+
+Value PolynomialEvalInterface::constructMul(OpBuilder &builder, Location loc,
+                                            Value lhs, Value rhs,
+                                            Dialect *dialect) {
+  if (auto *handler = getInterfaceFor(dialect))
+    return handler->constructMul(builder, loc, lhs, rhs);
+  llvm_unreachable("unsupported dialect");
+  return Value();
+}
+
+Value PolynomialEvalInterface::constructAdd(OpBuilder &builder, Location loc,
+                                            Value lhs, Value rhs,
+                                            Dialect *dialect) {
+  if (auto *handler = getInterfaceFor(dialect))
+    return handler->constructAdd(builder, loc, lhs, rhs);
+  llvm_unreachable("unsupported dialect");
+  return Value();
 }
 
 void registerOperandAndResultAttrInterface(DialectRegistry &registry) {
