@@ -14,6 +14,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -63,6 +64,21 @@ LogicalResult verifyLayoutMatchesType(const AffineMap &layout, Type type,
   }
 
   return success();
+}
+
+OpFoldResult ConvertLayoutOp::fold(FoldAdaptor adaptor) {
+  auto tensor = getTensor();
+  auto fromLayout = getFromLayout();
+  auto toLayout = getToLayout();
+
+  if (fromLayout == toLayout) {
+    return tensor;
+  }
+
+  auto inputOp = tensor.getDefiningOp<ConvertLayoutOp>();
+  if (!inputOp || toLayout != inputOp.getFromLayout()) return OpFoldResult();
+
+  return inputOp.getTensor();
 }
 
 LogicalResult ConvertLayoutOp::verify() {

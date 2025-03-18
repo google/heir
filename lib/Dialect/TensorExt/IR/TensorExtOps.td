@@ -92,6 +92,7 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
   let arguments = (ins AnyRankedTensor:$tensor, Builtin_AffineMapAttr:$from_layout, Builtin_AffineMapAttr:$to_layout);
   let results = (outs AnyRankedTensor:$output);
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatch<["tensor", "output"]>]> {
