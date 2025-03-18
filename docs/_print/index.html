@@ -445,7 +445,20 @@ Based on what you&rsquo;re trying to do, this may require some extra steps.</p><
 HEIR you need to add new bazel targets in
 <code>llvm-project/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel</code>. This is
 required if, for example, a new dialect or pass is added in MLIR upstream.</li></ul><p>Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun) who
-has LLVM commit access and can also suggest additional MLIR reviewers.</p><h2 id=tips-for-building-dependencies--useful-external-libraries>Tips for building dependencies / useful external libraries</h2><h3 id=mlir>MLIR</h3><p>Instructions for building MLIR can be found on the
+has LLVM commit access and can also suggest additional MLIR reviewers.</p><h3 id=finding-the-right-dependency-targets>Finding the right dependency targets</h3><p>Whenever a new dependency is added in C++ or Tablegen, a new bazel BUILD
+dependency is required, which requires finding the path to the relevant target
+that provides the file you want. In HEIR the BUILD target should be defined in
+the same directory as the file in question, but upstream MLIR&rsquo;s bazel layout is
+different.</p><p>LLVM&rsquo;s bazel overlay for MLIR is contained in a
+<a href=https://github.com/llvm/llvm-project/blob/main/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel>single file</a>,
+and so you can manually look there to find the right target. With bazel, if you
+know the filepath of interested you can also run:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel query --keep_going <span style=color:#4e9a06>&#39;same_pkg_direct_rdeps(@llvm-project//mlir:&lt;path&gt;)&#39;</span>
+</span></span></code></pre></div><p>where <code>&lt;path></code> is the path relative to <code>mlir/</code> in the <code>llvm-project</code> project
+root. For example, to find the target that provides
+<code>mlir/include/mlir/Pass/PassBase.td</code>, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel query --keep_going <span style=color:#4e9a06>&#39;same_pkg_direct_rdeps(@llvm-project//mlir:include/mlir/Pass/PassBase.td)&#39;</span>
+</span></span></code></pre></div><p>And the output will be something like</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>@llvm-project//mlir:PassBaseTdFiles
+</span></span></code></pre></div><p>You can find more examples and alternative queries at the
+<a href=https://bazel.build/query/language#rdeps>Bazel query docs</a>.</p><h2 id=tips-for-building-dependencies--useful-external-libraries>Tips for building dependencies / useful external libraries</h2><h3 id=mlir>MLIR</h3><p>Instructions for building MLIR can be found on the
 <a href=https://mlir.llvm.org/getting_started/>Getting started</a> page of the MLIR
 website. The instructions there seem to work as written (tested on Ubuntu
 22.04). However, the command shown in <code>Unix-like compile/testing:</code> may require a
