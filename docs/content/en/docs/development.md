@@ -206,6 +206,40 @@ Based on what you're trying to do, this may require some extra steps.
 Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun) who
 has LLVM commit access and can also suggest additional MLIR reviewers.
 
+### Finding the right dependency targets
+
+Whenever a new dependency is added in C++ or Tablegen, a new bazel BUILD
+dependency is required, which requires finding the path to the relevant target
+that provides the file you want. In HEIR the BUILD target should be defined in
+the same directory as the file in question, but upstream MLIR's bazel layout is
+different.
+
+LLVM's bazel overlay for MLIR is contained in a
+[single file](https://github.com/llvm/llvm-project/blob/main/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel),
+and so you can manually look there to find the right target. With bazel, if you
+know the filepath of interested you can also run:
+
+```bash
+bazel query --keep_going 'same_pkg_direct_rdeps(@llvm-project//mlir:<path>)'
+```
+
+where `<path>` is the path relative to `mlir/` in the `llvm-project` project
+root. For example, to find the target that provides
+`mlir/include/mlir/Pass/PassBase.td`, run
+
+```bash
+bazel query --keep_going 'same_pkg_direct_rdeps(@llvm-project//mlir:include/mlir/Pass/PassBase.td)'
+```
+
+And the output will be something like
+
+```bash
+@llvm-project//mlir:PassBaseTdFiles
+```
+
+You can find more examples and alternative queries at the
+[Bazel query docs](https://bazel.build/query/language#rdeps).
+
 ## Tips for building dependencies / useful external libraries
 
 ### MLIR
