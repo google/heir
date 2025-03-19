@@ -153,6 +153,10 @@ ParseResult GenericOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 LogicalResult GenericOp::verify() {
+  Region &region = this->getOperation()->getRegion(0);
+  if (region.empty()) {
+    return emitOpError() << "requires a non-empty region";
+  }
   Block *body = getBody();
 
   // Verify that the operands of the body's basic block are the non-secret
