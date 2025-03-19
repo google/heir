@@ -150,12 +150,7 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
   );
 
   let assemblyFormat =  "`<` struct(params) `>`";
-
-  // FIXME: add verification:
-  // 1. in.size() + insertedDims.size() == out.size()
-  // 2. Unit dimensions doesn't repeat any indices
-  // 3. Padding.size() == out.size()
-  // 4. for each axis, input dim + padding divides or is divisibile by output dim
+  let genVerifyDecl = 1;
 }
 
 def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
@@ -167,15 +162,16 @@ def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
     where the trailing affine map's result expressions mark the slot index
     (or indices) of the ciphertext.
 
-    The layout may include optional padding and alignment of the
-    data-semantic tensor before the layout is applied. This would be required
-    if, for example, a `tensor<4xi32>` is to be laid out in a `tensor<16xi32>`
+    The layout may include optional padding and alignment of the data-semantic
+    tensor before the layout is applied. This would be required if, for
+    example, a `tensor<4xi32>` is to be laid out in a `tensor<16xi32>`
     ciphertext tensor. The data-semantic tensor must be extended somehow to
-    fill the 16 slots.
+    fill the 16 slots. If an alignment attribute is not provided, then
+    lowerings may raise errors if there is no unambiguous way to align the
+    tensor.
   }];
   let parameters = (ins
     "::mlir::AffineMap":$map,
-    // FIXME: describe the default, or leave it for the pass definition?
     OptionalParameter<"::mlir::heir::tensor_ext::AlignmentAttr">:$alignment
   );
   let assemblyFormat =  "`<` struct(params) `>`";
@@ -189,9 +185,7 @@ def TensorExt_LayoutAttr : TensorExt_Attr<"Layout", "layout"> {
       return $_get(map.getContext(), map, nullptr);
     }]>,
   ];
-  // FIXME: verifier:
-  // 1. The affine map's number of inputs matches the number of dimensions
-  //     of the aligned tensor.
+  let genVerifyDecl = 1;
 }
 
 def TensorExt_OriginalTypeAttr : TensorExt_Attr<"OriginalType", "original_type"> {
