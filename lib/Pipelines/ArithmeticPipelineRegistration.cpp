@@ -29,8 +29,11 @@
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
+#include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
@@ -98,28 +101,18 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
-  // Apply linalg kernels
+  // Simplify linalg ops for kernel lowering
   // Linalg canonicalization
-  // TODO(#1191): enable dropping unit dims to convert matmul to matvec/vecmat
-  // pm.addPass(createDropUnitDims());
+  pm.addPass(createDropUnitDims());
   pm.addPass(createLinalgCanonicalizations());
-  // Layout assignment and lowering
-  // TODO(#1191): enable layout propagation after implementing the rest
-  // of the layout lowering pipeline.
-  // pm.addPass(createLayoutPropagation());
-  // Note: LinalgToTensorExt requires that linalg.matmuls are the only operation
-  // within a secret.generic. This is to ensure that any tensor type conversions
-  // (padding a rectangular matrix to a square diagonalized matrix) can be
-  // performed without any type mismatches.
-  std::vector<std::string> opsToDistribute = {"linalg.matmul"};
-  auto distributeOpts = secret::SecretDistributeGenericOptions{
-      .opsToDistribute = llvm::to_vector(opsToDistribute)};
-  pm.addPass(createSecretDistributeGeneric(distributeOpts));
-  pm.addPass(createCanonicalizerPass());
-  auto linalgToTensorExtOptions = linalg::LinalgToTensorExtOptions{};
-  linalgToTensorExtOptions.tilingSize = options.ciphertextDegree;
-  pm.addPass(heir::linalg::createLinalgToTensorExt(linalgToTensorExtOptions));
-  pm.addPass(secret::createSecretMergeAdjacentGenerics());
+
+  // Layout assignment and optimization
+  pm.addPass(createLayoutPropagation());
+  // FIXME: enable
+  // pm.addPass(createLayoutOptimization());
+
+  // Linalg kernel implementation
+  pm.addPass(createConvertToCiphertextSemantics());
 
   // Vectorize and optimize rotations
   heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
