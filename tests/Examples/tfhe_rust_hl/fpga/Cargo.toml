@@ -1,0 +1,17 @@
+[package]
+name = "heir-tfhe-rust-fpga-test"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.1.8", features = ["derive"] }
+tfhe = { path = "../../../../../tfhe-rs/tfhe", features = [
+    "shortint",
+    "integer",
+    "fpga",
+    "experimental-force_fft_algo_dif4"
+] }
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
