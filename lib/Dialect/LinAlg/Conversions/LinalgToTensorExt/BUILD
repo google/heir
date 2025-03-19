@@ -18,6 +18,7 @@ cc_library(
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:ConversionUtils",
+        "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:Analysis",
