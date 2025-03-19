@@ -2,6 +2,7 @@
 
 #include "lib/Analysis/AddAndKeySwitchCountAnalysis/AddAndKeySwitchCountAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -19,6 +20,12 @@ struct CountAddAndKeySwitch
   using CountAddAndKeySwitchBase::CountAddAndKeySwitchBase;
 
   void runOnOperation() override {
+    // skip for Lattigo backend
+    // TODO(#1420): use moduleIsOpenfhe when all pipelines are ready
+    if (moduleIsLattigo(getOperation())) {
+      return;
+    }
+
     DataFlowSolver solver;
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();

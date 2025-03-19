@@ -53,6 +53,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Analysis/AddAndKeySwitchCountAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",

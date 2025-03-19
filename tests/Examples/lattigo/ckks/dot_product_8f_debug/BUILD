@@ -17,6 +17,7 @@ heir_lattigo_lib(
     extra_srcs = ["dot_product_8f_debug.go"],
     go_library_name = "dotproduct8fdebug",
     heir_opt_flags = [
+        "--annotate-module=backend=lattigo scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=8",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],

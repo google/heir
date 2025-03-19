@@ -4,9 +4,9 @@ package(
 )
 
 cc_library(
-    name = "MulResultAnalysis",
-    srcs = ["MulResultAnalysis.cpp"],
-    hdrs = ["MulResultAnalysis.h"],
+    name = "MulDepthAnalysis",
+    srcs = ["MulDepthAnalysis.cpp"],
+    hdrs = ["MulDepthAnalysis.h"],
     deps = [
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/SecretnessAnalysis",

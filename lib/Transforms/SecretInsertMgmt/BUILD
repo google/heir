@@ -19,7 +19,7 @@ cc_library(
         ":SecretInsertMgmtPatterns",
         ":pass_inc_gen",
         "@heir//lib/Analysis/LevelAnalysis",
-        "@heir//lib/Analysis/MulResultAnalysis",
+        "@heir//lib/Analysis/MulDepthAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
@@ -49,7 +49,7 @@ cc_library(
     ],
     deps = [
         "@heir//lib/Analysis/LevelAnalysis",
-        "@heir//lib/Analysis/MulResultAnalysis",
+        "@heir//lib/Analysis/MulDepthAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",

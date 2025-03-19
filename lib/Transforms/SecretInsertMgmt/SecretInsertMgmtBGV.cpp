@@ -1,7 +1,7 @@
 #include <utility>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
-#include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/Mgmt/Transforms/Passes.h"
@@ -31,6 +31,16 @@ struct SecretInsertMgmtBGV
   using SecretInsertMgmtBGVBase::SecretInsertMgmtBGVBase;
 
   void runOnOperation() override {
+    // for Openfhe, use B/FV style mgmt: only relinearize, no level management.
+    // still maintain the maximal level information though for lowering.
+    if (moduleIsOpenfhe(getOperation())) {
+      OpPassManager pipeline("builtin.module");
+      pipeline.addPass(createSecretInsertMgmtBFV());
+      (void)runPipeline(pipeline, getOperation());
+      moduleSetBGV(getOperation());
+      return;
+    }
+
     // Helper for future lowerings that want to know what scheme was used
     moduleSetBGV(getOperation());
 
@@ -38,7 +48,7 @@ struct SecretInsertMgmtBGV
     solver.load<dataflow::DeadCodeAnalysis>();
     solver.load<dataflow::SparseConstantPropagation>();
     solver.load<SecretnessAnalysis>();
-    solver.load<MulResultAnalysis>();
+    solver.load<MulDepthAnalysis>();
     solver.load<LevelAnalysis>();
 
     if (failed(solver.initializeAndRun(getOperation()))) {
