@@ -112,6 +112,11 @@ def to_numba_str(type) -> str:
 
   if get_origin(type) == Tensor:
     args = get_args(type)
+    if len(args) < 2:
+      raise TypeError(
+          "Tensor should contain a type and at least one dimension, but found"
+          f" {type}"
+      )
     inner_type = args[-1]
     if get_origin(inner_type) == Tensor:
       raise TypeError("Nested Tensors are not yet supported.")
