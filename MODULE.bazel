@@ -86,3 +86,11 @@ git_override(
     commit = "f5fbd4cee671d8d908f37c83abaf70fba5928fc7",
     remote = "https://github.com/mikael-s-persson/bazel-compile-commands-extractor",
 )
+
+# Workaround 2025-03-18: re2 has not created a new version yet. This solves an
+# issue with `bazel mod deps`. Cf. https://github.com/google/re2/issues/525
+git_override(
+    module_name = "re2",
+    commit = "c84a140c93352cdabbfb547c531be34515b12228",
+    remote = "https://github.com/google/re2",
+)
