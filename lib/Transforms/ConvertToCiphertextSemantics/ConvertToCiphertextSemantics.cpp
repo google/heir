@@ -20,11 +20,10 @@
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"      // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"     // from @llvm-project
-#include "llvm/include/llvm/ADT/StringExtras.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
@@ -411,18 +410,18 @@ class ConvertAssignLayout
     // this is not required. You could just waste slots, though there is a
     // concern that some kernels that rely on replication may not work as
     // expected. So in this case we emit a warning.
-    //
-    // FIXME: does it make sense to warn always?
-    if (mostRecentType.getNumElements() !=
-        ciphertextSemanticType.getNumElements()) {
-      op.emitWarning()
-          << "Data type (after replication and padding) " << mostRecentType
-          << " has fewer entries than ciphertext type "
-          << ciphertextSemanticType
-          << ". This may indicate unused slots, or may lead to unexpected "
-             "behavior for some kernels that require data replication to "
-             "operate properly.";
-    }
+    LLVM_DEBUG({
+      if (mostRecentType.getNumElements() !=
+          ciphertextSemanticType.getNumElements()) {
+        op.emitWarning()
+            << "Data type (after replication and padding) " << mostRecentType
+            << " has fewer entries than ciphertext type "
+            << ciphertextSemanticType
+            << ". This may indicate unused slots, or may lead to unexpected "
+               "behavior for some kernels that require data replication to "
+               "operate properly.";
+      }
+    });
 
     // 4. Apply the layout
     if (!layout.getMap().isIdentity()) {
@@ -844,6 +843,7 @@ class ConvertLinalgReduce
       result = nextOp->getResult(0);
     }
 
+    // TODO(#1591): post-process the layout properly for padding
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -941,7 +941,8 @@ struct ConvertLinalgMatvec
     // of operations in the loop.
     //
     // TODO(#744): determine how to balance the tradeoff of having many
-    // rotation keys vs overall latency for doing some rotations in parallel.
+    // rotation keys vs overall latency for doing some rotations in parallel
+    // (plus hoisting).
     //
     // TODO(#1569): consider emitting linalg ops and/or loops for the rotations
     // and reductions. Maybe branch on a pass option and support all three?
@@ -1021,23 +1022,22 @@ struct ConvertLinalgMatvec
     }
 
     // The result now has the values in the first n entries of the packed
-    // vector, however, the remaining entries are unused partial sums of other
-    // parts of the result. We could have a means to say "don't care" in the
-    // layout system, but until then we can add the overhead of properly
-    // zeroing out the trailing entries to maintain the integrity of the layout
-    // as padded.
-    TypedAttr scalarPadAttr = layoutAttr.getAlignment().getPaddingValue();
-    TypedAttr padAttr;
-    if (scalarPadAttr) {
-      padAttr = DenseElementsAttr::get(cast<ShapedType>(result.getType()),
-                                       scalarPadAttr);
-    } else {
-      if (isa<IntegerType>(elementType)) {
-        padAttr = b.getIntegerAttr(result.getType(), 0);
-      } else {
-        padAttr = b.getFloatAttr(result.getType(), 0.0);
-      }
+    // vector, and the remaining entries are naturally replicated copies
+    // of the first n entries. So if the output layout does not require
+    // a special padding, we can stop here.
+    if (!layoutAttr.getAlignment() ||
+        layoutAttr.getAlignment().getPadding().empty()) {
+      // TODO(#1569): also hit this branch if the padding value is dont_care
+      rewriter.replaceOp(op, summedShifts);
+      return;
     }
+
+    // Otherwise, the output layout requires a particular padding, and we
+    // need to force the replicated values to be zero. This is done by
+    // applying a plaintext-ciphertext mask.
+    TypedAttr padAttr =
+        DenseElementsAttr::get(cast<ShapedType>(result.getType()),
+                               layoutAttr.getAlignment().getPaddingValue());
     auto zeroOp = b.create<arith::ConstantOp>(result.getType(), padAttr);
 
     // insert a slice of 1's in the first n of the zeros tensor to make a mask
@@ -1078,12 +1078,7 @@ struct ConvertLinalgMatvec
       return success();
     }
 
-    // Otherwise options are:
-    //
-    // - insert layout conversion, but the optimizer was supposed to do this
-    // - do a naive matvec kernel, if the input is laid out row-major
-    //
-    // For now, return failure.
+    // TODO(#1589): implement row-major naive matvec kernel
     return op.emitError() << "unsupported layout for matrix in matvec: "
                           << getLayoutAttr(matrix);
   }
@@ -1118,11 +1113,6 @@ struct ConvertToCiphertextSemantics
                                                   std::move(patterns)))) {
       return signalPassFailure();
     }
-
-    // Hoist tensor.concat ops from constant layouts out of the generic
-    // RewritePatternSet cleanupPatterns(context);
-    // cleanupPatterns.add<secret::HoistPlaintextOps>(context);
-    // walkAndApplyPatterns(module, std::move(cleanupPatterns));
 
     // Decompose tensor.concat into repeated tensor.insert_slice ops.
     // Note ConvertAssignLayout generates tensor.concat
