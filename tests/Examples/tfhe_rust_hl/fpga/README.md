@@ -5,7 +5,7 @@ These tests generate Rust code for the
 compiling the generated Rust source and running the resulting binary on Belfort
 FPGAs. These target the integer plaintexts and the accompanying library.
 
-To avoid introducing these large dependencies into the entire project, 
+To avoid introducing these large dependencies into the entire project,
 tests are manual, and require the system they're running on to have
 [Cargo](https://doc.rust-lang.org/cargo/index.html) installed. During the test,
 cargo will fetch and build the required dependencies.
