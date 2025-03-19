@@ -12,8 +12,8 @@ func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
 
 // -----
 
-// expected-error@below {{padding must be non-negative}}
-#align = #tensor_ext.alignment<in = [16], out = [32], padding = [-5]>
+// expected-error@below {{paddingValue must be set if padding is set}}
+#align = #tensor_ext.alignment<in = [16], out = [32], padding = [16]>
 func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
 
 // -----

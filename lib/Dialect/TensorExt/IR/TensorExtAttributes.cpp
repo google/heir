@@ -13,9 +13,8 @@ LogicalResult AlignmentAttr::verify(
     ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
     mlir::detail::DenseArrayAttrImpl<long> in,
     mlir::detail::DenseArrayAttrImpl<long> out,
-    mlir::detail::DenseArrayAttrImpl<long> padding,
     mlir::detail::DenseArrayAttrImpl<long> insertedDims,
-    TypedAttr paddingValue) {
+    mlir::detail::DenseArrayAttrImpl<long> padding, TypedAttr paddingValue) {
   if (in.empty() || out.empty()) {
     return emitError() << "in and out may not be empty arrays";
   }
@@ -29,10 +28,8 @@ LogicalResult AlignmentAttr::verify(
     return emitError() << "padding.size() must equal out.size()";
   }
 
-  for (auto val : padding.asArrayRef()) {
-    if (val < 0) {
-      return emitError() << "padding must be non-negative";
-    }
+  if (!padding.empty() && !paddingValue) {
+    return emitError() << "paddingValue must be set if padding is set";
   }
 
   DenseSet<long> insertedDimsSet(insertedDims.asArrayRef().begin(),

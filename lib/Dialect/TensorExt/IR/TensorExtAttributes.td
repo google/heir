@@ -84,9 +84,10 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
        default no new dimensions are inserted.
     2. Padding is applied. The `padding` attribute is an array with the same
        size as the output tensor shape, which each entry denoting the number of
-       values to pad at the end of that axis. The `paddingValue` attribute,
-       defaulting to zero, describes the value used for padding.
+       values to pad at the end of that axis. The `paddingValue` attribute
+       describes the value used for padding, and must be set if `padding` is set.
     3. The padded result is replicated to fill the output tensor shape.
+
 
     Example:
 
@@ -94,13 +95,13 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
     #repl = #tensor_ext.alignment<
       in = [7],
       padding = [1],
-      paddingValue = 0,
+      paddingValue = 0:i32,
       out = [16],
     >
     ```
 
-    This indicates that the original input tensor is a `tensor<7x?>`, and it
-    is being padded and replicated into a `tensor<16x?>`. If the input tensor
+    This indicates that the original input tensor is a `tensor<7xi32>`, and it
+    is being padded and replicated into a `tensor<16xi32>`. If the input tensor
     has values `[1, 2, 3, 4, 5, 6, 7]` then the packed tensor contains the data
     `[1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0]`.
 
@@ -110,15 +111,15 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
     #repl = #tensor_ext.alignment<
       in = [3, 10],
       padding = [1, 6],
-      paddingValue = 0,
+      paddingValue = 0:i32,
       out = [32, 32],
     >
     ```
 
-    This indicates that the original input tensor is a `tensor<3x10x?>`, and it
-    is being padded and replicated into a `tensor<32x32x?>`. One row of zeros
-    and six columns of zeros are added to the input tensor, and then it is
-    repeated once along the column dimension and four times along the row
+    This indicates that the original input tensor is a `tensor<3x10xi32>`, and
+    it is being padded and replicated into a `tensor<32x32xi32>`. One row of
+    zeros and six columns of zeros are added to the input tensor, and then it
+    is repeated once along the column dimension and four times along the row
     dimension to fill the 32x32 output tensor.
 
     Example:
@@ -128,23 +129,24 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
       in = [10],
       insertedDims = [0],
       padding = [0, 6],
-      paddingValue = 0,
+      paddingValue = 0:i32,
       out = [32, 32],
     >
     ```
 
-    This indicates that the original input tensor is a `tensor<10x?>`, and it
-    is being padded and replicated into a `tensor<32x32x?>`. First a unit dimension
-    is inserted as the first axis, then zeros are padded along the second axis
-    to make a `tensor<1x16x?>`. Finally, it is replicated twice along the columns
-    and 32 times along the rows to fill the 32x32 output tensor.
+    This indicates that the original input tensor is a `tensor<10xi32>`, and it
+    is being padded and replicated into a `tensor<32x32xi32>`. First a unit
+    dimension is inserted as the first axis, then zeros are padded along the
+    second axis to make a `tensor<1x16xi32>`. Finally, it is replicated twice
+    along the columns and 32 times along the rows to fill the 32x32 output
+    tensor.
   }];
 
   let parameters = (ins
     "::mlir::DenseI64ArrayAttr":$in,
     "::mlir::DenseI64ArrayAttr":$out,
-    DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$padding,
     DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$insertedDims,
+    DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$padding,
     DefaultValuedParameter<"TypedAttr", "nullptr">:$paddingValue
   );
 
