@@ -50,7 +50,7 @@ void tosaToLinalg(OpPassManager &manager) {
 void oneShotBufferize(OpPassManager &manager) {
   // One-shot bufferize, from
   // https://mlir.llvm.org/docs/Bufferization/#ownership-based-buffer-deallocation
-  bufferization::OneShotBufferizationOptions bufferizationOptions;
+  bufferization::OneShotBufferizePassOptions bufferizationOptions;
   bufferizationOptions.bufferizeFunctionBoundaries = true;
   manager.addPass(
       bufferization::createOneShotBufferizePass(bufferizationOptions));
