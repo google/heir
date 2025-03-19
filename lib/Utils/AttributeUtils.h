@@ -25,6 +25,9 @@ namespace heir {
 FailureOr<Attribute> findAttributeAssociatedWith(Value value,
                                                  StringRef attrName);
 
+void setAttributeAssociatedWith(Value value, StringRef attrName,
+                                Attribute attr);
+
 // Remove attributes with a given name from a given op, taking into account
 // FunctionOpInterface's arg/result attrs as well as
 // OperandAndResultAttrInterface.
