@@ -289,6 +289,8 @@ class ConvertAssignLayout
                      ImplicitLocOpBuilder &b) const {
     RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
     tensor_ext::AlignmentAttr alignment = layout.getAlignment();
+    // Note padding is asserted to be present, and paddingValue is enforced
+    // to be present whenever padding is present due to attribute verifier.
     auto padValueOp = b.create<arith::ConstantOp>(alignment.getPaddingValue());
 
     SmallVector<int64_t> newSizes;
