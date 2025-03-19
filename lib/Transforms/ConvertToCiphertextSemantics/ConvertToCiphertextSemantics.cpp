@@ -541,8 +541,6 @@ class ConvertConvertLayout
     int64_t numSlots = ciphertextSemanticType.getShape().back();
     SmallVector<int64_t> permutation(numSlots, kUnset);
 
-    // FIXME: does this algorithm still make sense with the new alignment attr?
-
     // The algorithm here allows the permutation to be built up "cyclically"
     // in the following sense: after the original layout permutation is
     // exhausted, we then repeat that layout permutation with offsets
