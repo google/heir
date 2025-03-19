@@ -198,80 +198,8 @@ func.func @squat(
     // Now the Halevi-Shoup kernel
     // CHECK: [[c1:[^ ]*]] = arith.constant 1
 
-    // 16 iterations, unrolled
+    // 4 iterations, unrolled
     // CHECK-NEXT: ensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: tensor.collapse_shape
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
-    // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: tensor.collapse_shape
     // CHECK-NEXT: arith.muli

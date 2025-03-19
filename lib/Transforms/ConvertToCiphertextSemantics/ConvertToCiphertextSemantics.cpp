@@ -929,7 +929,7 @@ struct ConvertLinalgMatvec
     auto packedMatrixType = cast<RankedTensorType>(packedMatrix.getType());
     auto packedVectorType = cast<RankedTensorType>(packedVector.getType());
     Type elementType = packedVectorType.getElementType();
-    int64_t numRotations = packedVectorType.getShape()[0];
+    int64_t numRotations = packedMatrixType.getShape()[0];
     auto layoutAttr = cast<LayoutAttr>(op->getAttr(kLayoutAttrName));
 
     StringRef mulOpName =
