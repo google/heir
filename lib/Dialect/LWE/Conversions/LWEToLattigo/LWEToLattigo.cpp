@@ -394,11 +394,6 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
     Value params = result2.value();
 
     Value input = adaptor.getInput();
-    // if input is scalar, convert it to 1 dim tensor
-    if (!isa<RankedTensorType>(input.getType())) {
-      input = rewriter.create<tensor::FromElementsOp>(op.getLoc(), input);
-    }
-
     auto alloc = rewriter.create<AllocOp>(
         op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
         params);
@@ -428,13 +423,10 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
     if (failed(result)) return result;
     Value evaluator = result.value();
 
+    // With the new layout system, decoding for RLWE will always produce a
+    // tensor type.
     auto outputType = op.getOutput().getType();
     RankedTensorType outputTensorType = dyn_cast<RankedTensorType>(outputType);
-    bool isScalar = false;
-    if (!outputTensorType) {
-      isScalar = true;
-      outputTensorType = RankedTensorType::get({1}, outputType);
-    }
 
     auto zeroAttr = rewriter.getZeroAttr(outputTensorType);
     if (!zeroAttr) {
@@ -446,18 +438,7 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
     auto decodeOp = rewriter.create<LattigoDecodeOp>(
         op.getLoc(), outputTensorType, evaluator, adaptor.getInput(), alloc);
 
-    // TODO(#1174): the sin of lwe.reinterpret_application_data
-    if (isScalar) {
-      SmallVector<Value, 1> indices;
-      auto index = rewriter.create<arith::ConstantOp>(op.getLoc(),
-                                                      rewriter.getIndexAttr(0));
-      indices.push_back(index);
-      auto extract = rewriter.create<tensor::ExtractOp>(
-          op.getLoc(), decodeOp.getResult(), indices);
-      rewriter.replaceOp(op, extract.getResult());
-    } else {
-      rewriter.replaceOp(op, decodeOp.getResult());
-    }
+    rewriter.replaceOp(op, decodeOp.getResult());
     return success();
   }
 };

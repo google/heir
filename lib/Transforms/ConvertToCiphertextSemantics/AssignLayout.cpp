@@ -204,7 +204,7 @@ FailureOr<Value> implementAssignLayoutForTensor(
   LLVM_DEBUG({
     RankedTensorType mostRecentType =
         cast<RankedTensorType>(mostRecentOutput.getType());
-    if (mostRecentType.getNumElements() !=
+    if (mostRecentType.getNumElements() <
         ciphertextSemanticType.getNumElements()) {
       op.emitWarning()
           << "Data type (after replication and padding) " << mostRecentType
