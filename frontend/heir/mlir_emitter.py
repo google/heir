@@ -4,14 +4,16 @@ from collections import deque
 from dataclasses import dataclass
 import operator
 import textwrap
+from typing import Any
 
 from numba.core import ir
 from numba.core import types
 from numba.core import bytecode
 from numba.core import controlflow
+from numba.core.types import Type as NumbaType
 
 
-def mlirType(numba_type):
+def mlirType(numba_type: NumbaType) -> str:
   if isinstance(numba_type, types.Integer):
     # TODO (#1162): fix handling of signedness
     # Since `arith` only allows signless integers, we ignore signedness here.
@@ -32,13 +34,13 @@ def mlirType(numba_type):
   raise NotImplementedError("Unsupported type: " + str(numba_type))
 
 
-def mlirLoc(loc: ir.Loc):
+def mlirLoc(loc: ir.Loc) -> str:
   return (
       f"loc(\"{loc.filename or '<unknown>'}\":{loc.line or 0}:{loc.col or 0})"
   )
 
 
-def arithSuffix(numba_type):
+def arithSuffix(numba_type: NumbaType) -> str:
   if isinstance(numba_type, types.Integer):
     return "i"
   if isinstance(numba_type, types.Boolean):
@@ -469,7 +471,7 @@ class TextualMlirEmitter:
       branch_strs.append(block_header + textwrap.indent(body_str, "  "))
     return "\n".join(branch_strs)
 
-  def emit_var_or_int(self, var_or_int):
+  def emit_var_or_int(self, var_or_int: ir.Var | Any):
     if type(var_or_int) == ir.Var:
       # Create an index_cast operation
       var_name = self.get_name(var_or_int)
@@ -551,7 +553,7 @@ class TextualMlirEmitter:
     result = "\n".join([header, textwrap.indent(body_str, "  "), "}"])
     return result
 
-  def emit_return(self, ret):
+  def emit_return(self, ret: ir.Return):
     var = self.get_name(ret.value)
     return (
         f"func.return {var} :"
