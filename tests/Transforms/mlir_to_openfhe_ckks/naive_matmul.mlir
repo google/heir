@@ -28,7 +28,7 @@
 
 module {
   func.func @matmul(%arg0: tensor<1x2xf32> {secret.secret}, %arg1: tensor<1x2xf32> {secret.secret}) -> tensor<1x2xf32> {
-    %0 = "tosa.const"() <{value = dense<[[2.0, 3.0], [4.0, 6.0]]> : tensor<2x2xf32>}> : () -> tensor<2x2xf32>
+    %0 = "tosa.const"() <{values = dense<[[2.0, 3.0], [4.0, 6.0]]> : tensor<2x2xf32>}> : () -> tensor<2x2xf32>
     %1 = affine.for %arg2 = 0 to 1 iter_args(%arg3 = %arg1) -> (tensor<1x2xf32>) {
       %2 = affine.for %arg4 = 0 to 2 iter_args(%arg5 = %arg3) -> (tensor<1x2xf32>) {
         %3 = affine.for %arg6 = 0 to 2 iter_args(%arg7 = %arg5) -> (tensor<1x2xf32>) {

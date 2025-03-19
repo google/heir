@@ -23,9 +23,9 @@ module {
     %cst = arith.constant 0.000000e+00 : f32
     %0 = secret.generic ins(%arg0, %arg1, %arg2 : !secret.secret<tensor<28x28xf32>>, !secret.secret<tensor<784x10xf32>>, !secret.secret<tensor<1x10xf32>>) {
     ^bb0(%arg3: tensor<28x28xf32>, %arg4: tensor<784x10xf32>, %arg5: tensor<1x10xf32>):
-      %s_1 = "tosa.const_shape"() {value = dense<[1, 1, 784]> : tensor<3xindex>} : () -> !tosa.shape<3>
+      %s_1 = "tosa.const_shape"() {values = dense<[1, 1, 784]> : tensor<3xindex>} : () -> !tosa.shape<3>
       %1 = tosa.reshape %arg3, %s_1 : (tensor<28x28xf32>, !tosa.shape<3>) -> tensor<1x1x784xf32>
-      %s_2 = "tosa.const_shape"() {value = dense<[1, 784, 10]> : tensor<3xindex>} : () -> !tosa.shape<3>
+      %s_2 = "tosa.const_shape"() {values = dense<[1, 784, 10]> : tensor<3xindex>} : () -> !tosa.shape<3>
       %2 = tosa.reshape %arg4, %s_2 : (tensor<784x10xf32>, !tosa.shape<3>) -> tensor<1x784x10xf32>
       %3 = tensor.empty() : tensor<1x1x10xf32>
       %4 = affine.for %arg6 = 0 to 10 iter_args(%arg7 = %3) -> (tensor<1x1x10xf32>) {
@@ -44,7 +44,7 @@ module {
         }
         affine.yield %9 : tensor<1x1x10xf32>
       }
-      %s_6 = "tosa.const_shape"() {value = dense<[1, 10]> : tensor<2xindex>} : () -> !tosa.shape<2>
+      %s_6 = "tosa.const_shape"() {values = dense<[1, 10]> : tensor<2xindex>} : () -> !tosa.shape<2>
       %6 = tosa.reshape %5, %s_6 : (tensor<1x1x10xf32>, !tosa.shape<2>) -> tensor<1x10xf32>
       %7 = tensor.empty() : tensor<1x10xf32>
       %8 = affine.for %arg6 = 0 to 10 iter_args(%arg7 = %7) -> (tensor<1x10xf32>) {

@@ -20,9 +20,9 @@
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb>
 #ciphertext_space_L0_D10_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x1024_, encryption_type = lsb, size = 10>
 
-// CHECK: [[TY:!ct_L0_[0-9]*]]
+// CHECK: [[TY:!ct_L0[_0-9]*]]
 !ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
-// CHECK: [[TY1:!ct_L0_D10_[0-9]*]]
+// CHECK: [[TY1:!ct_L0_D10[_0-9]*]]
 !ct1 = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D10_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 // CHECK: @test_alias(%[[ARG0:.*]]: [[TY]], %[[ARG1:.*]]: [[TY1]]) -> [[TY]]
