@@ -129,7 +129,7 @@ def to_numba_str(type) -> str:
   raise TypeError(f"Unsupported type annotation: {type}, {get_origin(type)}")
 
 
-def parse_annotations(annotations):
+def parse_annotations(annotations) -> tuple[str, list[int], str | None]:
   if not annotations:
     raise TypeError("Function is missing type annotations.")
   signature = ""

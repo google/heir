@@ -51,7 +51,7 @@ def run_pipeline(
 
     # (Numba) Type Inference
     numba_signature = ""
-    secret_args = ""
+    secret_args = []
     try:
       numba_signature, secret_args, rettype = parse_annotations(
           function.__annotations__
