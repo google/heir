@@ -3,7 +3,7 @@
 #align = #tensor_ext.alignment<in = [16], out = [32]>
 #layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #align>
 
-// Test that a vector of size 16xi32 is replicated to 32xi32.
+// Test that a vector of size 16xi16 is replicated to 32xi16.
 // CHECK-LABEL: @repeat_vector
 func.func @repeat_vector() {
   %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
@@ -87,7 +87,7 @@ func.func @prefix_and_suffix_ones() {
 
 // -----
 
-#align = #tensor_ext.alignment<in = [16], out = [32], padding = [16], paddingValue = 0>
+#align = #tensor_ext.alignment<in = [16], out = [32], padding = [16], paddingValue = 0:i16>
 #layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #align>
 
 // CHECK-LABEL: @basic_padding
@@ -111,7 +111,7 @@ func.func @basic_padding() {
 #align = #tensor_ext.alignment<in = [4, 4], out = [4, 8]>
 #layout = #tensor_ext.layout<map = (d0, d1) -> (4 * d0 + d1), alignment = #align>
 
-// Test that a vector of size 16xi32 is replicated along columns to 4x8 before
+// Test that a vector of size 16xi16 is replicated along columns to 4x8 before
 // being laid out row major in a single 32-length ciphertext.
 // This results in:
 //

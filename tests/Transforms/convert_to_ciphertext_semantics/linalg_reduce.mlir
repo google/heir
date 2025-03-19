@@ -3,7 +3,7 @@
 #row_major_matrix = #tensor_ext.layout<map = (d0, d1) -> (d0 * 4 + d1)>
 #row_major_vec_align = #tensor_ext.alignment<in = [4], out = [16]>
 #row_major_vec = #tensor_ext.layout<map = (d0) -> (d0), alignment=#row_major_vec_align>
-#col_major_vec_align = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0>
+#col_major_vec_align = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0:i16>
 #col_major_vec = #tensor_ext.layout<map = (d0) -> (d0 * 4), alignment=#col_major_vec_align>
 
 // CHECK-LABEL: @convert_linalg_reduce

@@ -155,7 +155,7 @@ func.func @matvec_constant_matrix(
 // -----
 
 #input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0)>
-#output_alignment = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0>
+#output_alignment = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0:i16>
 #output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #output_alignment>
 #diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 4, (d0 + d1) mod 16)>
 
@@ -317,4 +317,44 @@ func.func @squat(
   } -> !secret.secret<tensor<4xi16>>
   // CHECK: return [[output]]
   return %0 : !secret.secret<tensor<4xi16>>
+}
+
+// -----
+
+// Test f32 padding values
+
+#input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0)>
+#output_alignment = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0.0:f32>
+#output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #output_alignment>
+#diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 4, (d0 + d1) mod 16)>
+
+// CHECK: @f32_padding
+// CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xf32>>]]
+// CHECK: [[cst:%[^ ]+]] = arith.constant dense<1.000000e+00> : tensor<4x16xf32>
+// CHECK: [[loop_init:%[^ ]+]] = arith.constant dense<0.000000e+00> : tensor<4xf32>
+// CHECK: [[enc_matrix_out:%[^ ]+]] = arith.constant dense<0.000000e+00> : tensor<4x16xf32>
+// CHECK: [[mask_zeros:%[^ ]*]] = arith.constant dense<0.000000e+00> : tensor<16xf32>
+// CHECK: [[mask_ones:%[^ ]*]] = arith.constant dense<1.000000e+00> : tensor<4xf32>
+func.func @f32_padding(
+    %arg0: !secret.secret<tensor<16xf32>> {tensor_ext.layout = #input_vec_layout}) ->
+       (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #output_vec_layout}) {
+  %cst = arith.constant dense<1.0> : tensor<4x16xf32>
+  %out = arith.constant dense<0.0> : tensor<4xf32>
+
+  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<16xf32>>)
+                      attrs = {
+                        __argattrs = [{tensor_ext.layout = #input_vec_layout}],
+                        __resattrs = [{tensor_ext.layout = #output_vec_layout}]
+                      } {
+  ^body(%input0: tensor<16xf32>):
+    %enc_out = tensor_ext.assign_layout %out {layout = #output_vec_layout, tensor_ext.layout = #output_vec_layout} : tensor<4xf32>
+
+    %enc_matrix = tensor_ext.assign_layout %cst {layout = #diagonal, tensor_ext.layout = #diagonal} : tensor<4x16xf32>
+    %3 = linalg.matvec {tensor_ext.layout = #output_vec_layout}
+          ins(%enc_matrix, %input0 : tensor<4x16xf32>, tensor<16xf32>)
+          outs(%enc_out : tensor<4xf32>) -> tensor<4xf32>
+
+    secret.yield %3 : tensor<4xf32>
+  } -> !secret.secret<tensor<4xf32>>
+  return %0 : !secret.secret<tensor<4xf32>>
 }

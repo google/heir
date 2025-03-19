@@ -145,8 +145,7 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
     "::mlir::DenseI64ArrayAttr":$out,
     DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$padding,
     DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$insertedDims,
-    // FIXME: support floating point padding with a TypedAttr
-    DefaultValuedParameter<"int64_t", "0">:$paddingValue
+    DefaultValuedParameter<"TypedAttr", "nullptr">:$paddingValue
   );
 
   let assemblyFormat =  "`<` struct(params) `>`";

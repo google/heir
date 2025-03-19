@@ -19,13 +19,13 @@ func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
 // -----
 
 // expected-error@below {{in.size() + insertedDims.size() must equal out.size()}}
-#align = #tensor_ext.alignment<in = [16], out = [32], insertedDims = [1], padding = [16], paddingValue = 0>
+#align = #tensor_ext.alignment<in = [16], out = [32], insertedDims = [1], padding = [16], paddingValue = 0:i32>
 func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
 
 // -----
 
 // expected-error@below {{padding.size() must equal out.size()}}
-#align = #tensor_ext.alignment<in = [16], out = [32], insertedDims = [], padding = [1, 2], paddingValue = 0>
+#align = #tensor_ext.alignment<in = [16], out = [32], insertedDims = [], padding = [1, 2], paddingValue = 0:i32>
 func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
 
 // -----
@@ -37,5 +37,5 @@ func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
 // -----
 
 // expected-error@below {{After inserting dims and padding, each axis must have size dividing or divisible by the corresponding output axis size}}
-#align = #tensor_ext.alignment<in = [16], out = [32], padding = [3], paddingValue = 0>
+#align = #tensor_ext.alignment<in = [16], out = [32], padding = [3], paddingValue = 0:i32>
 func.func private @test_fn(tensor<16xi32> {foo.bar = #align})

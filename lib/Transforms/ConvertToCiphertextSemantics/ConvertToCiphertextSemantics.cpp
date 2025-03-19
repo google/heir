@@ -290,9 +290,7 @@ class ConvertAssignLayout
                      ImplicitLocOpBuilder &b) const {
     RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
     tensor_ext::AlignmentAttr alignment = layout.getAlignment();
-    Type elementType = dataSemanticType.getElementType();
-    auto padValueOp = b.create<arith::ConstantIntOp>(
-        alignment.getPaddingValue(), elementType.getIntOrFloatBitWidth());
+    auto padValueOp = b.create<arith::ConstantOp>(alignment.getPaddingValue());
 
     SmallVector<int64_t> newSizes;
     SmallVector<OpFoldResult> lows;
@@ -1028,14 +1026,17 @@ struct ConvertLinalgMatvec
     // layout system, but until then we can add the overhead of properly
     // zeroing out the trailing entries to maintain the integrity of the layout
     // as padded.
+    TypedAttr scalarPadAttr = layoutAttr.getAlignment().getPaddingValue();
     TypedAttr padAttr;
-    if (layoutAttr.getAlignment() &&
-        layoutAttr.getAlignment().getPaddingValue()) {
-      // FIXME: support floating point padding value;
-      padAttr = b.getIntegerAttr(result.getType(),
-                                 layoutAttr.getAlignment().getPaddingValue());
+    if (scalarPadAttr) {
+      padAttr = DenseElementsAttr::get(cast<ShapedType>(result.getType()),
+                                       scalarPadAttr);
     } else {
-      padAttr = b.getZeroAttr(result.getType());
+      if (isa<IntegerType>(elementType)) {
+        padAttr = b.getIntegerAttr(result.getType(), 0);
+      } else {
+        padAttr = b.getFloatAttr(result.getType(), 0.0);
+      }
     }
     auto zeroOp = b.create<arith::ConstantOp>(result.getType(), padAttr);
 
@@ -1049,7 +1050,9 @@ struct ConvertLinalgMatvec
         oneOp, zeroOp, ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
         /*offsets=*/ArrayRef<int64_t>{0},
         /*sizes=*/ArrayRef{matrixNumRows}, /*strides=*/ArrayRef<int64_t>{1});
-    auto applyMaskOp = b.create<arith::MulIOp>(summedShifts, createMaskOp);
+    auto *applyMaskOp = b.create(OperationState(op->getLoc(), mulOpName,
+                                                {summedShifts, createMaskOp},
+                                                {summedShifts.getType()}));
 
     setMaterializedAttr(zeroOp);
     setMaterializedAttr(oneOp);

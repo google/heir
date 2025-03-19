@@ -14,7 +14,8 @@ LogicalResult AlignmentAttr::verify(
     mlir::detail::DenseArrayAttrImpl<long> in,
     mlir::detail::DenseArrayAttrImpl<long> out,
     mlir::detail::DenseArrayAttrImpl<long> padding,
-    mlir::detail::DenseArrayAttrImpl<long> insertedDims, long paddingValue) {
+    mlir::detail::DenseArrayAttrImpl<long> insertedDims,
+    TypedAttr paddingValue) {
   if (in.empty() || out.empty()) {
     return emitError() << "in and out may not be empty arrays";
   }
