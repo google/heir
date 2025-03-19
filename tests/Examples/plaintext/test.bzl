@@ -94,6 +94,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
 
     _llc_flags = [
         "-filetype=obj",
+        "-relocation-model=pic",
     ]
     if llc_flags != None:
         _llc_flags = llc_flags
@@ -111,6 +112,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
         name = cc_test_name,
         srcs = [":" + generated_llc_name],
         deps = deps,
+        copts = ["-fPIC"],
     )
 
     # the following part is for exporting the log for other tests
@@ -121,6 +123,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
             name = cc_binary_name,
             srcs = [":" + generated_llc_name],
             deps = deps,
+            copts = ["-fPIC"],
         )
 
         binary_rule_name = "%s_binary_rule" % name

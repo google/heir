@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -14,7 +15,7 @@ float dot_product(
     int64_t stride_2);
 
 // debug handler
-void __heir_debug_tensor_8xf32_(
+void __heir_debug_tensor_1024xf32_(
     /* arg 0*/
     float *allocated, float *aligned, int64_t offset, int64_t size,
     int64_t stride) {
@@ -25,6 +26,10 @@ void __heir_debug_tensor_8xf32_(
 }
 
 void __heir_debug_f32(float value) { fprintf(output, "%.15f \n", value); }
+
+void __heir_debug_i1(bool value) { fprintf(output, "%d \n", value); }
+
+void __heir_debug_index(int64_t value) { fprintf(output, "%ld \n", value); }
 
 int main(int argc, char **argv) {
   // the first argument is the output file

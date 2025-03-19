@@ -24,6 +24,9 @@ bool moduleIsBGVOrBFV(Operation *moduleOp);
 bool moduleIsCKKS(Operation *moduleOp);
 bool moduleIsCGGI(Operation *moduleOp);
 
+// Fetch the scheme parameter attribute from the parent module op.
+Attribute getSchemeParamAttr(Operation *op);
+
 void moduleClearScheme(Operation *moduleOp);
 
 void moduleSetBGV(Operation *moduleOp);
