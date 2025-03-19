@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --lwe-add-client-interface %s | FileCheck %s
+// RUN: heir-opt --lwe-add-client-interface %s | FileCheck %s
 
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
@@ -19,12 +19,26 @@
 
 // These two types differ only on their underlying_type. The IR stays as the !in_ty
 // for the entire computation until the final extract op.
+
+// CHECK-DAG: [[sk_ty:![^ ]*]] = !lwe.new_lwe_secret_key
+// CHECK-DAG: [[in_ty:![^ ]*]] = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>
+// CHECK-DAG: [[out_ty:![^ ]*]] = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>
 !in_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 !out_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
+#alignment = #tensor_ext.alignment<in = [32], out = [4096]>
+#layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #alignment>
+#original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #layout>
+
+#scalar_alignment = #tensor_ext.alignment<in = [], out = [1], insertedDims = [0]>
+#scalar_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #scalar_alignment>
+#scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
+
 // encryption type is sk
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [], P = [], plaintextModulus = 65537, encryptionType = sk>, scheme.bgv} {
-  func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
+  func.func @simple_sum(
+      %arg0: !in_ty {tensor_ext.original_type = #original_type}
+  ) -> (!out_ty {tensor_ext.original_type = #scalar_original_type}) {
     %c31 = arith.constant 31 : index
     %0 = bgv.rotate_cols %arg0 { offset = 16 } : !in_ty
     %1 = bgv.add %arg0, %0 : (!in_ty, !in_ty) -> !in_ty
@@ -42,21 +56,26 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [], P = []
 }
 
 // CHECK: @simple_sum
-// CHECK-SAME: (%[[original_input:[^:]*]]: [[in_ty:[^)]*]])
-// CHECK-SAME: -> [[out_ty:[^{]*]] {
+// CHECK-SAME: (%[[original_input:[^:]*]]: [[in_ty]] {tensor_ext.original_type
+// CHECK-SAME: -> ([[out_ty]]
 
 // CHECK: @simple_sum__encrypt
 // CHECK-SAME: (%[[arg0:[^:]*]]: tensor<32xi16>,
-// CHECK-SAME:     %[[sk:.*]]: !lwe.new_lwe_secret_key
+// CHECK-SAME:     %[[sk:.*]]: [[sk_ty]]
 // CHECK-SAME:     -> [[in_ty]] {
-// CHECK-NEXT:   %[[encoded:.*]] = lwe.rlwe_encode %[[arg0]]
+// CHECK-NEXT:   [[laidout:%[^ ]*]] = tensor.concat
+//               ...256 operands... omitted for brevity
+// CHECK-SAME:   %[[arg0]], %[[arg0]], %[[arg0]], %[[arg0]]
+// CHECK-SAME:   -> tensor<4096xi16>
+// CHECK-NEXT:   %[[encoded:.*]] = lwe.rlwe_encode [[laidout]]
 // CHECK-NEXT:   %[[encrypted:.*]] = lwe.rlwe_encrypt %[[encoded]], %[[sk]]
 // CHECK-NEXT:   return %[[encrypted]]
 
 // CHECK: @simple_sum__decrypt
 // CHECK-SAME: (%[[arg1:[^:]*]]: [[out_ty]]
-// CHECK-SAME:     %[[sk2:.*]]: !lwe.new_lwe_secret_key
+// CHECK-SAME:     %[[sk2:.*]]: [[sk_ty]]
 // CHECK-SAME:     -> i16 {
 // CHECK-NEXT:   %[[decrypted:.*]] = lwe.rlwe_decrypt %[[arg1]], %[[sk2]]
 // CHECK-NEXT:   %[[decoded:.*]] = lwe.rlwe_decode %[[decrypted]]
-// CHECK-NEXT:   return %[[decoded]]
+// CHECK:        %[[extracted:.*]] = tensor.extract %[[decoded]]
+// CHECK:        return %[[extracted]]
