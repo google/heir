@@ -57,36 +57,62 @@ bool isPermutation(ArrayRef<int64_t> materializedMapping) {
   return true;
 }
 
-bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
-                      const AffineMap &layout) {
-  // Row-major forces (a, b, c) -> (a * dims[1] * dims[2] + b * dims[2] + c)
-  // with an optional modulus of the output type size at the end.
-
-  // For now, only support 1D output; not sure what a "row major" multi-dim
-  // output would mean (the trailing input dims collapsed on the trailing
-  // output dim, with all other dims matching?).
-  if (outputType.getRank() != 1) return false;
-
-  SmallVector<AffineExpr> dims;
-  AffineExpr result;
+AffineMap getRowMajorLayoutMap(RankedTensorType inputType,
+                               RankedTensorType outputType) {
+  SmallVector<AffineExpr, 4> dims;
+  AffineExpr flattened;
   for (int dim = 0; dim < inputType.getRank(); ++dim) {
     dims.push_back(getAffineDimExpr(dim, inputType.getContext()));
   }
 
+  // First construct a single expression corresponding to the "flattened"
+  // row-major indexing order.
   for (int dim = dims.size() - 1; dim >= 0; --dim) {
     // iter 1: k
     // iter 2: k + size(k) * j
     // iter 3: k + size(k) * j + size(j) * size(k) * i
-    result =
-        result ? result + inputType.getDimSize(dim + 1) * dims[dim] : dims[dim];
+    flattened = flattened
+                    ? flattened + inputType.getDimSize(dim + 1) * dims[dim]
+                    : dims[dim];
   }
 
-  AffineMap expected = AffineMap::get(dims.size(), 0, {result});
-  AffineMap expected2 =
-      AffineMap::get(dims.size(), 0, {result % outputType.getNumElements()});
-  auto simplified = simplifyAffineMap(layout);
+  // Then "unflatten" with respect to the output type's shape.
+  SmallVector<AffineExpr, 4> results;
+  for (int dim = outputType.getRank() - 1; dim >= 0; --dim) {
+    results.push_back(flattened % outputType.getDimSize(dim));
+    flattened = flattened.floorDiv(outputType.getDimSize(dim));
+  }
+  std::reverse(results.begin(), results.end());
 
-  return (simplified == expected || simplified == expected2);
+  return simplifyAffineMap(
+      AffineMap::get(dims.size(), 0, results, inputType.getContext()));
+}
+
+bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
+                      const AffineMap &layout) {
+  AffineMap expected = getRowMajorLayoutMap(inputType, outputType);
+  auto simplified = simplifyAffineMap(layout);
+  return simplified == expected;
+}
+
+AffineMap getDiagonalLayoutMap(RankedTensorType inputType,
+                               RankedTensorType outputType) {
+  int64_t n = outputType.getDimSize(0);
+  int64_t m = outputType.getDimSize(1);
+  AffineExpr i, j;
+  bindDims(inputType.getContext(), i, j);
+  return AffineMap::get(2, 0, {j % n, (i + j) % m}, inputType.getContext());
+}
+
+bool isLayoutSquatDiagonal(RankedTensorType inputType,
+                           RankedTensorType outputType,
+                           const AffineMap &layout) {
+  // Squat diagonal forces (i, j) -> (j % n, (i+j) % m) where (n, m) are the
+  // dimensions of the output matrix.
+  if (outputType.getRank() != 2 || inputType.getRank() != 2) return false;
+  AffineMap expected = getDiagonalLayoutMap(inputType, outputType);
+  auto simplified = simplifyAffineMap(layout);
+  return simplified == expected;
 }
 
 inline Attribute getIndexAttr(MLIRContext *ctx, int64_t value) {

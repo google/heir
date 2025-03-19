@@ -34,7 +34,7 @@ struct FoldConvertLayout : public OpRewritePattern<AssignLayoutOp> {
         }
 
         auto newOp = rewriter.replaceOpWithNewOp<AssignLayoutOp>(
-            user, op.getTensor(), convertLayoutOp.getToLayout());
+            user, op.getValue(), convertLayoutOp.getToLayout());
         // Ensure the newOp has its layout attribute properly set
         setAttributeAssociatedWith(newOp.getResult(),
                                    TensorExtDialect::kLayoutAttrName,

@@ -2,7 +2,6 @@
 
 #include <cstdlib>
 #include <string>
-#include <vector>
 
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h"
 #include "lib/Dialect/BGV/Conversions/BGVToLWE/BGVToLWE.h"
@@ -13,7 +12,6 @@
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInplace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
-#include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h"
 #include "lib/Dialect/Openfhe/Transforms/ConfigureCryptoContext.h"
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
@@ -23,15 +21,19 @@
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Dialect/Secret/Transforms/ForgetSecrets.h"
 #include "lib/Dialect/Secret/Transforms/ImportExecutionResult.h"
-#include "lib/Dialect/Secret/Transforms/MergeAdjacentGenerics.h"
 #include "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "lib/Dialect/TensorExt/Transforms/CollapseInsertionChains.h"
+#include "lib/Dialect/TensorExt/Transforms/FoldConvertLayoutIntoAssignLayout.h"
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
+#include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
+#include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
@@ -40,12 +42,13 @@
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
+#include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
-#include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/PassManager.h"     // from @llvm-project
-#include "mlir/include/mlir/Pass/PassOptions.h"     // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"       // from @llvm-project
+#include "mlir/include/mlir/Pass/PassOptions.h"       // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"      // from @llvm-project
 
 namespace mlir::heir {
 
@@ -103,34 +106,44 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
-  // Apply linalg kernels
+  // Simplify linalg ops for kernel lowering
   // Linalg canonicalization
-  // TODO(#1191): enable dropping unit dims to convert matmul to matvec/vecmat
-  // pm.addPass(createDropUnitDims());
+  pm.addPass(createDropUnitDims());
   pm.addPass(createLinalgCanonicalizations());
-  // Layout assignment and lowering
-  // TODO(#1191): enable layout propagation after implementing the rest
-  // of the layout lowering pipeline.
-  // pm.addPass(createLayoutPropagation());
-  // Note: LinalgToTensorExt requires that linalg.matmuls are the only operation
-  // within a secret.generic. This is to ensure that any tensor type conversions
-  // (padding a rectangular matrix to a square diagonalized matrix) can be
-  // performed without any type mismatches.
-  std::vector<std::string> opsToDistribute = {"linalg.matmul"};
-  auto distributeOpts = secret::SecretDistributeGenericOptions{
-      .opsToDistribute = llvm::to_vector(opsToDistribute)};
-  pm.addPass(createSecretDistributeGeneric(distributeOpts));
-  pm.addPass(createCanonicalizerPass());
-  auto linalgToTensorExtOptions = linalg::LinalgToTensorExtOptions{};
-  linalgToTensorExtOptions.tilingSize = options.ciphertextDegree;
-  pm.addPass(heir::linalg::createLinalgToTensorExt(linalgToTensorExtOptions));
-  pm.addPass(secret::createSecretMergeAdjacentGenerics());
 
   // Vectorize and optimize rotations
+  // TODO(#1662): figure out where this fits in the new pipeline
   heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);
+
+  // Layout assignment and optimization
+  LayoutPropagationOptions layoutPropagationOptions;
+  layoutPropagationOptions.ciphertextSize = options.ciphertextDegree;
+  pm.addPass(createLayoutPropagation(layoutPropagationOptions));
+  pm.addPass(tensor_ext::createFoldConvertLayoutIntoAssignLayout());
+  pm.addPass(createLayoutOptimization());
+
+  // Linalg kernel implementation
+  ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
+  convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
+  pm.addPass(
+      createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
 
   // Balance Operations
   pm.addPass(createOperationBalancer());
+
+  // Lower linalg.generics produced by ConvertToCiphertextSemantics
+  // (assign_layout lowering) to affine loops.
+  pm.addPass(createTensorLinalgToAffineLoops());
+  pm.addNestedPass<func::FuncOp>(affine::createAffineExpandIndexOpsPass());
+  pm.addNestedPass<func::FuncOp>(affine::createSimplifyAffineStructuresPass());
+  pm.addNestedPass<func::FuncOp>(affine::createAffineLoopNormalizePass(true));
+
+  // The lowered assign_layout ops involve plaintext operations that are still
+  // inside secret.generic, and are not handled well by downstream noise models
+  // and parameter selection passes. Canonicalize to hoist them out of
+  // secret.generic.
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createCSEPass());
 }
 
 void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
@@ -336,6 +349,10 @@ RLWEPipelineBuilder mlirToRLWEPipelineBuilder(const RLWEScheme scheme) {
 
 BackendPipelineBuilder toOpenFhePipelineBuilder() {
   return [=](OpPassManager &pm, const BackendOptions &options) {
+    // Canonicalize to ensure the ciphertext operands are in the first operand
+    // of ct-pt ops.
+    pm.addPass(createCanonicalizerPass());
+
     // Convert the common trivial subset of CKKS/BGV to LWE
     pm.addPass(bgv::createBGVToLWE());
     pm.addPass(ckks::createCKKSToLWE());

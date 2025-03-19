@@ -11,6 +11,7 @@ cc_library(
     hdrs = ["TensorLinalgToAffineLoops.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Utils/RewriteUtils",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
