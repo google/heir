@@ -14,7 +14,7 @@ class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-// FIXME: remove and remove align-tensor-sizes
+// TODO(#1592): remove and remove align-tensor-sizes
 def TensorExt_SIMDPackingAttr : TensorExt_Attr<"SIMDPacking", "simd_packing",
       [DeclareAttrInterfaceMethods<VerifiableTensorEncoding>]> {
   let summary = "An attribute describing the SIMD packing of a tensor.";

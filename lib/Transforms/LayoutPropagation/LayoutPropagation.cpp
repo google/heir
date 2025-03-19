@@ -129,7 +129,7 @@ void debugAssignLayout(Value value, LayoutAttr layout) {
 // layout is equivalent to reducing the summed dimensions to 1 and then
 // dropping them.
 //
-// TODO(1352): Determine if/how to support repetition in the layout.
+// TODO(#1352): Determine if/how to support repetition in the layout.
 LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
                                   ArrayRef<int64_t> dimsToReduce) {
   unsigned numDims = inputLayout.getMap().getNumDims();
@@ -137,7 +137,8 @@ LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
   for (int dimToSum : dimsToReduce) dimsBV.set(dimToSum);
   AffineMap resultMap =
       projectDims(inputLayout.getMap(), dimsBV, /*compressDims=*/true);
-  // FIXME: check the replication can be passed along unchanged.
+  // TODO(#1590): the new alignment could replace explicit padding here
+  // with don't cares, which would make the kernel more efficient.
   return LayoutAttr::get(resultMap, inputLayout.getAlignment());
 }
 
@@ -331,7 +332,7 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
 
   AffineMap resultLayout =
       projectDims(inputLayout.getMap(), dimsBV, /*compressDims=*/true);
-  // FIXME: double check the replication is unchanged...
+  // TODO(#1593): Properly propagate alignment through CollapseShapeOp
   LayoutAttr resultLayoutAttr =
       LayoutAttr::get(resultLayout, inputLayout.getAlignment());
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
@@ -389,7 +390,7 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   // Then replace the old dimension identifier expressions with new ones
   AffineMap resultLayout = resLayout1.replace(oldDimsToNewDims);
 
-  // FIXME: double check the replication is unchanged...
+  // TODO(#1593): Properly propagate alignment through ExpandShapeOp
   LayoutAttr resultLayoutAttr =
       LayoutAttr::get(resultLayout, inputLayout.getAlignment());
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
