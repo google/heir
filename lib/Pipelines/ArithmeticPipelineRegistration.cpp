@@ -36,6 +36,7 @@
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
+#include "lib/Transforms/SelectRewrite/SelectRewrite.h"
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -95,6 +96,7 @@ void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
+  pm.addPass(createSelectRewrite());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 

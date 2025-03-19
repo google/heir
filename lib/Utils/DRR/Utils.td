@@ -11,6 +11,9 @@ include "mlir/IR/PatternBase.td"
 // a default.
 defvar DefOverflow = ConstantEnumCase<Arith_IntegerOverflowAttr, "none">;
 
+// Same as `DevOverflow` but for the fastmath setting required by float ops:
+defvar DefFastMath = ConstantEnumCase<Arith_FastMathAttr, "none">;
+
 // When constructing a new variadic op, and you want to pass it a single argument
 // as its variadic input, use this helper. To understand why this is needed, see
 // https://discourse.llvm.org/t/compilation-failure-with-drr-generated-pattern/77385
