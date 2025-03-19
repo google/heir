@@ -8,22 +8,19 @@
 #include <type_traits>
 #include <utility>
 
-#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/DenseMapInfo.h"    // from @llvm-project
 #include "llvm/include/llvm/ADT/Hashing.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/PointerIntPair.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"       // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"      // from @llvm-project
 #include "llvm/include/llvm/Support/RWMutex.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"    // from @llvm-project
-#include "mlir/include/mlir/IR/TypeRange.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"       // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
