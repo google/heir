@@ -1,9 +1,6 @@
 #ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_BFV_NOISEBYBOUNDCOEFFMODEL_H_
 #define INCLUDE_ANALYSIS_NOISEANALYSIS_BFV_NOISEBYBOUNDCOEFFMODEL_H_
 
-#include <cassert>
-#include <string>
-
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Parameters/BGV/Params.h"
 

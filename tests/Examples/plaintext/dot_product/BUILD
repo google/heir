@@ -29,6 +29,7 @@ plaintext_test(
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
     ],
 )
 
@@ -41,6 +42,7 @@ plaintext_test(
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
     ],
 )
 
@@ -53,6 +55,7 @@ plaintext_test(
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
     ],
 )
 
@@ -65,5 +68,6 @@ plaintext_test(
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_failure_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
     ],
 )

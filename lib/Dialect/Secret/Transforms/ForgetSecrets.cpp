@@ -6,6 +6,7 @@
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Utils/ConversionUtils.h"
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
@@ -79,44 +80,6 @@ struct ConvertGeneric : public OpConversionPattern<GenericOp> {
   }
 };
 
-struct ConvertConceal : public OpConversionPattern<ConcealOp> {
-  ConvertConceal(mlir::MLIRContext *context)
-      : OpConversionPattern<ConcealOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      ConcealOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    if (op.getOutput().use_empty()) {
-      rewriter.eraseOp(op);
-      return success();
-    }
-
-    rewriter.replaceOp(op, adaptor.getCleartext());
-    return success();
-  }
-};
-
-struct ConvertReveal : public OpConversionPattern<RevealOp> {
-  ConvertReveal(mlir::MLIRContext *context)
-      : OpConversionPattern<RevealOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      RevealOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    if (op.getCleartext().use_empty()) {
-      rewriter.eraseOp(op);
-      return success();
-    }
-
-    rewriter.replaceOp(op, adaptor.getInput());
-    return success();
-  }
-};
-
 struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
   using SecretForgetSecretsBase::SecretForgetSecretsBase;
 
@@ -138,8 +101,8 @@ struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
         [&](mlir::func::ReturnOp op) { return typeConverter.isLegal(op); });
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertGeneric, ConvertConceal, ConvertReveal>(typeConverter,
-                                                                context);
+    patterns.add<ConvertGeneric, DropOp<ConcealOp>, DropOp<RevealOp>>(
+        typeConverter, context);
     populateFunctionOpInterfaceTypeConversionPattern<FuncOp>(patterns,
                                                              typeConverter);
     populateReturnOpTypeConversionPattern(patterns, typeConverter);

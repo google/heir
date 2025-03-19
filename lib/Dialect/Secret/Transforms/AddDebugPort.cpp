@@ -4,7 +4,6 @@
 
 #include "lib/Dialect/FuncUtils.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project

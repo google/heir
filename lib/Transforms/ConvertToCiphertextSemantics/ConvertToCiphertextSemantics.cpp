@@ -773,7 +773,6 @@ struct ConvertLinalgMatvec
       auto shiftAmountOp = b.create<arith::ConstantIntOp>(shift, 64);
       auto rotateOp =
           b.create<tensor_ext::RotateOp>(summedShifts, shiftAmountOp);
-      setMaterializedAttr(rotateOp);
       auto *addOp = b.create(OperationState(
           op->getLoc(), addOpName, {summedShifts, rotateOp.getResult()},
           {rotateOp.getResult().getType()}));

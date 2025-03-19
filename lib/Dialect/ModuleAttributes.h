@@ -11,6 +11,9 @@ namespace heir {
 // Module Attributes for Scheme
 /*===----------------------------------------------------------------------===*/
 
+// These attributes are intended to be set early on in the compilation pipeline,
+// and checked by individual passes that need to know the target scheme. This
+// avoids threading CLI flags through pass and sub-pipeline options.
 constexpr const static ::llvm::StringLiteral kBGVSchemeAttrName = "scheme.bgv";
 constexpr const static ::llvm::StringLiteral kBFVSchemeAttrName = "scheme.bfv";
 constexpr const static ::llvm::StringLiteral kCKKSSchemeAttrName =
@@ -24,6 +27,10 @@ bool moduleIsBGVOrBFV(Operation *moduleOp);
 bool moduleIsCKKS(Operation *moduleOp);
 bool moduleIsCGGI(Operation *moduleOp);
 
+// Fetch the scheme parameter attribute from the parent module op. This
+// parameter is only set on the module after a parameter selection pass runs.
+Attribute getSchemeParamAttr(Operation *op);
+
 void moduleClearScheme(Operation *moduleOp);
 
 void moduleSetBGV(Operation *moduleOp);
@@ -35,6 +42,8 @@ void moduleSetCGGI(Operation *moduleOp);
 // Module Attributes for Backend
 /*===----------------------------------------------------------------------===*/
 
+// Similar to the scheme attributes, these indicate the target backend for
+// passes to branch behavior on.
 constexpr const static ::llvm::StringLiteral kOpenfheBackendAttrName =
     "backend.openfhe";
 constexpr const static ::llvm::StringLiteral kLattigoBackendAttrName =

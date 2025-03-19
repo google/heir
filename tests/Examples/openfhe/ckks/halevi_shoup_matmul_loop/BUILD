@@ -10,7 +10,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 #     generated_lib_header = "halevi_shoup_matmul_loop_lib.h",
 #     heir_opt_flags = [
 #         "--annotate-module=backend=openfhe scheme=ckks",
-#         "--mlir-to-ckks=ciphertext-degree=16 experimental-disable-loop-unroll=true",
+#         "--mlir-to-ckks=ciphertext-degree=8192 experimental-disable-loop-unroll=true",
 #         "--scheme-to-openfhe=entry-function=matmul",
 #     ],
 #     heir_translate_flags = [

@@ -1,11 +1,7 @@
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 
 #include <cmath>
-#include <iomanip>
-#include <ios>
 #include <numeric>
-#include <sstream>
-#include <string>
 
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project

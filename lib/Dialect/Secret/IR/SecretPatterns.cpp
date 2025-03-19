@@ -590,10 +590,7 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
     if (op.getNumRegions() != 0) {
       return false;
     }
-    LLVM_DEBUG(llvm::dbgs()
-               << "Considering whether " << op << " can be hoisted\n");
     if (!isSpeculatable(&op)) {
-      LLVM_DEBUG(llvm::dbgs() << "Op is not speculatable\n");
       return false;
     }
     for (Value operand : op.getOperands()) {
@@ -606,10 +603,6 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
             owningGeneric &&
             isa<SecretType>(
                 owningGeneric.getOperand(blockArg.getArgNumber()).getType());
-        LLVM_DEBUG(llvm::dbgs()
-                   << "operand " << operand << " is a "
-                   << (isEncryptedBlockArg ? "encrypted" : "plaintext")
-                   << " block arg\n");
         if (isEncryptedBlockArg) {
           return false;
         }
@@ -617,11 +610,6 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
         bool isPlaintextAmbient =
             operand.getDefiningOp()->getBlock() != op.getBlock() &&
             !mlir::isa<SecretType>(operand.getType());
-
-        LLVM_DEBUG(llvm::dbgs()
-                   << "operand " << operand << " is a "
-                   << (isPlaintextAmbient ? "plaintext" : "encrypted")
-                   << " ambient SSA value\n");
         if (!isPlaintextAmbient) {
           return false;
         }
@@ -630,9 +618,6 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
 
     return true;
   };
-
-  LLVM_DEBUG(
-      llvm::dbgs() << "Scanning generic body looking for ops to hoist...\n");
 
   // We can't hoist them as they are detected because the process of hoisting
   // alters the context generic op.
@@ -650,8 +635,6 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
   for (Operation *op : opsToHoist) {
     genericOp.extractOpBeforeGeneric(op, rewriter);
   }
-
-  LLVM_DEBUG(llvm::dbgs() << "Done hoisting\n");
 
   return hoistedAny ? success() : failure();
 }

@@ -9,7 +9,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "simple_sum_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bgv",
-        "--mlir-to-bgv=ciphertext-degree=32",
+        "--mlir-to-bgv=ciphertext-degree=8192",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",

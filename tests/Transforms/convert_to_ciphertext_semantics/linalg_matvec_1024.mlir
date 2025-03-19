@@ -4,10 +4,10 @@
 // rotate-and-reduce was being applied to square tensors incorrectly.
 
 #vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024)>
-#diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 16, (d0 + d1) mod 1024)>
+#diagonal = #tensor_ext.layout<map = (d0, d1) -> ((d1 - d0) mod 16, (d1 - (d1 - d0) mod 16) mod 1024)>
 
 // CHECK-DAG: [[row_major_indexing_map:#[^ ]*]] = affine_map<(d0, d1) -> (d0, d1)>
-// CHECK-DAG: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> (d1 mod 16, (d0 + d1) mod 1024)>
+// CHECK-DAG: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> ((d1 - d0) mod 16, (d1 - (d1 - d0) mod 16) mod 1024)>
 // CHECK-DAG: [[layout_rm_1d:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 1024)>
 // CHECK-DAG: [[orig_type:#[^ ]*]] = #tensor_ext.original_type<originalType = tensor<16xi16>, layout = [[layout_rm_1d]]>
 

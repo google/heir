@@ -62,3 +62,23 @@ func.func @test_modswitch_level_error(%x: !ct2) -> !ct {
   %relin_error = bgv.modulus_switch %x  {to_ring=#ring_rns_L0_1_x1024_}: !ct2 -> !ct
   return %relin_error : !ct
 }
+
+// -----
+
+!Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
+!Z65537_i64_ = !mod_arith.int<65537 : i64>
+!rns_L0_ = !rns.rns<!Z1095233372161_i64_>
+#ring_Z65537_i64_1_x32_ = #polynomial.ring<coefficientType = !Z65537_i64_, polynomialModulus = <1 + x**32>>
+#ring_rns_L0_1_x32_ = #polynomial.ring<coefficientType = !rns_L0_, polynomialModulus = <1 + x**32>>
+#inverse_canonical_encoding = #lwe.inverse_canonical_encoding<scaling_factor = 1024>
+#key = #lwe.key<>
+#plaintext_space = #lwe.plaintext_space<ring = #ring_Z65537_i64_1_x32_, encoding = #inverse_canonical_encoding>
+!pt_scalar = !lwe.new_lwe_plaintext<application_data = <message_type = i64>, plaintext_space = #plaintext_space>
+!pk = !lwe.new_lwe_public_key<ring = #ring_rns_L0_1_x32_, key = #key>
+
+func.func @encode_scalar(%arg0: i64, %arg1: !pk) -> !pt_scalar {
+  // expected-error@+2 {{Expected a tensor type for input; maybe assign_layout wasn't properly lowered?}}
+  // expected-error@+1 {{failed to legalize}}
+  %0 = lwe.rlwe_encode %arg0 {encoding = #inverse_canonical_encoding, ring = #ring_Z65537_i64_1_x32_} : i64 -> !pt_scalar
+  return %0 : !pt_scalar
+}

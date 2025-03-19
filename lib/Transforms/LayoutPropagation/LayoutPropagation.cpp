@@ -44,6 +44,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::MatvecOp;
 using linalg::ReduceOp;
 using linalg::VecmatOp;
 using secret::GenericOp;
@@ -82,6 +83,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(GenericOp op);
   LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(VecmatOp op);
+  LogicalResult visitOperation(MatvecOp op);
   LogicalResult visitOperation(YieldOp op);
   LogicalResult visitOperation(affine::AffineForOp op);
   LogicalResult visitOperation(func::FuncOp op);
@@ -97,6 +99,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Op-specific compatibility functions
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
 
   // Insert conversion ops to rectify incompatible operand layouts
   void rectifyIncompatibleOperandLayouts(Operation *op);
@@ -270,7 +273,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<VecmatOp, ReduceOp>([&](auto op) { return visitOperation(op); })
+      .Case<MatvecOp, VecmatOp, ReduceOp>(
+          [&](auto op) { return visitOperation(op); })
       // affine ops
       .Case<affine::AffineForOp>([&](auto op) { return visitOperation(op); })
       // tensor ops
@@ -496,6 +500,65 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
   return success();
 }
 
+LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
+  auto matvecOp = cast<linalg::ContractionOpInterface>(*op);
+  auto matrix = matvecOp.lhs();
+  auto matrixType = cast<RankedTensorType>(matrix.getType());
+
+  // TODO(#1597): a layout optimizer should really be selecting the diagonal
+  // layout instead of this pass.
+
+  LayoutAttr matrixLayout = assignedLayouts.at(matrix);
+  // The Halevi-Shoup kernel (all we support at this time) requires one
+  // ciphertext per matrix row.
+  int64_t numCiphertexts = matrixType.getShape()[0];
+  RankedTensorType alignedOutType = matrixType;
+  RankedTensorType ciphertextSemanticShape = RankedTensorType::get(
+      {numCiphertexts, ciphertextSize}, matrixType.getElementType());
+  if (!isLayoutSquatDiagonal(matrixType, ciphertextSemanticShape,
+                             matrixLayout.getMap())) {
+    // Insert a layout conversion op to make the matrix layout squat diagonal
+    mlir::IRRewriter builder(&getContext());
+    builder.setInsertionPoint(op);
+
+    AlignmentAttr alignment = AlignmentAttr::get(
+        &getContext(), builder.getDenseI64ArrayAttr(matrixType.getShape()),
+        builder.getDenseI64ArrayAttr(alignedOutType.getShape()),
+        builder.getDenseI64ArrayAttr({}), builder.getDenseI64ArrayAttr({}),
+        nullptr);
+    LayoutAttr squatDiagonalLayoutAttr = LayoutAttr::get(
+        getDiagonalLayoutMap(matrixType, ciphertextSemanticShape), alignment);
+
+    ConvertLayoutOp convertLayoutOp = builder.create<ConvertLayoutOp>(
+        op->getLoc(), matrix, matrixLayout, squatDiagonalLayoutAttr);
+    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                             squatDiagonalLayoutAttr);
+    Value toReplace = convertLayoutOp.getResult();
+    builder.replaceUsesWithIf(matrix, toReplace, [&](OpOperand &operand) {
+      return operand.getOwner() == op;
+    });
+    debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
+    assignedLayouts.insert({toReplace, squatDiagonalLayoutAttr});
+    matrix = toReplace;
+  }
+
+  // Always one result, and for the kernels we have right now it's always a
+  // row-major replicated vector. Since the matrix may be rectangular, the
+  // output layout may have different alignment from the input layout.
+  auto result = matvecOp->getResult(0);
+  RankedTensorType outputType = cast<RankedTensorType>(result.getType());
+  FailureOr<LayoutAttr> outputLayoutResult = defaultLayoutForType(outputType);
+  if (failed(outputLayoutResult)) {
+    return failure();
+  }
+  LayoutAttr resultLayout = outputLayoutResult.value();
+
+  assignedLayouts.insert({result, resultLayout});
+  setResultLayoutAttr(op);
+  debugAssignLayout(result, resultLayout);
+  return success();
+}
+
 LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
   for (const auto &[tensor, result] :
        llvm::zip(op.getInputs(), op.getResults())) {
@@ -570,7 +633,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
             affine::AffineYieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<ReduceOp, VecmatOp>(
+      .Case<ReduceOp, MatvecOp, VecmatOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation *op) {
@@ -630,6 +693,25 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
       cast<linalg::ContractionOpInterface>(op.getOperation());
   Value vec = vecmatOp.lhs();
   Value mat = vecmatOp.rhs();
+  if (isSecret(mat, solver) || !isSecret(vec, solver)) {
+    return {false,
+            op->emitError("Only secret vectors and plaintext matrices are "
+                          "supported for linalg.vecmat")};
+  }
+
+  if (!assignedLayouts.contains(vec)) {
+    return {false, op->emitError("vector operand has no assigned layout")};
+  }
+  return {true, std::nullopt};
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    MatvecOp op) {
+  // Currently only support secret vectors and plaintext matrices.
+  linalg::ContractionOpInterface matvecOp =
+      cast<linalg::ContractionOpInterface>(op.getOperation());
+  Value vec = matvecOp.rhs();
+  Value mat = matvecOp.lhs();
   if (isSecret(mat, solver) || !isSecret(vec, solver)) {
     return {false,
             op->emitError("Only secret vectors and plaintext matrices are "

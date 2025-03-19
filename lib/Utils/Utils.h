@@ -122,8 +122,8 @@ bool containsArgumentOfType(Operation *op) {
 // `process` with these fixed index values.
 //
 // E.g., if shape is {2, 3, 4}, fixedIndices is {1}, and fixedIndexValues is
-// {2}, then this will iterate over the first and third dimensions in the usual
-// order, but dimension 1 will always be 2.
+// {2}, then this will iterate over dimensions 0 and 2 in the usual order, but
+// dimension 1 will always be 2.
 void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
                     ArrayRef<int64_t> fixedIndices = {},
                     ArrayRef<int64_t> fixedIndexValues = {});

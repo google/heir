@@ -13,6 +13,7 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
@@ -20,6 +21,7 @@ cc_library(
         "@heir//lib/Dialect/ModArith/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Dialect/RNS/IR:RNSTypes",
+        "@heir//lib/Dialect/Secret/Conversions:Patterns",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",

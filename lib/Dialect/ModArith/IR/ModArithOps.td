@@ -97,7 +97,6 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
   let hasCustomAssemblyFormat = 1;
   let hasVerifier = 1;
   let hasFolder = 1;
-
 }
 
 

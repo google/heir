@@ -78,5 +78,4 @@ def PopulateScaleCKKS : Pass<"populate-scale-ckks"> {
   ];
 }
 
-
 #endif  // LIB_TRANSFORMS_POPULATESCALE_POPULATESCALE_TD_

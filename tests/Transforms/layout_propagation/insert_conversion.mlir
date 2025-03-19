@@ -10,9 +10,9 @@
 
 // CHECK-DAG: [[alignment1d:[^ ]*]] = #tensor_ext.alignment<in = [32], out = [32]>
 // CHECK-DAG: [[alignment2d:[^ ]*]] = #tensor_ext.alignment<in = [32, 32], out = [32, 32]>
-// CHECK-DAG: [[rm_layout:[^ ]*]] = #tensor_ext.layout<map = (d0, d1) -> (d0 * 32 + d1), alignment = [[alignment2d]]>
-// CHECK-DAG: [[rm_layout1:[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0), alignment = [[alignment1d]]>
-// CHECK-DAG: [[cm_layout:[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 * 32), alignment = [[alignment1d]]>
+// CHECK-DAG: [[rm_layout:[^ ]*]] = #tensor_ext.layout<map = (d0, d1) -> ((d0 * 32 + d1) mod 1024), alignment = [[alignment2d]]>
+// CHECK-DAG: [[rm_layout1:[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = [[alignment1d]]>
+// CHECK-DAG: [[cm_layout:[^ ]*]] = #tensor_ext.layout<map = (d0) -> ((d0 * 32) mod 1024), alignment = [[alignment1d]]>
 // CHECK: insert_conversion
 // CHECK-SAME: %[[arg0:[^:]+]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]}
 // CHECK-SAME: %[[arg1:[^:]+]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]}
