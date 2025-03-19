@@ -98,6 +98,7 @@ template <typename SourceOp>
 class ContextAwareOpConversionPattern : public ContextAwareConversionPattern {
  public:
   using OpAdaptor = typename SourceOp::Adaptor;
+  using ContextAwareConversionPattern::matchAndRewrite;
 
   ContextAwareOpConversionPattern(MLIRContext *context,
                                   PatternBenefit benefit = 1)
