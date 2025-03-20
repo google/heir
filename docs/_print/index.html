@@ -3498,7 +3498,9 @@ dimension of the ciphertext space specified my <code>poly-mod-degree</code>.</p>
 </code></pre><h3 id=-secretize><code>-secretize</code></h3><p><em>Adds secret argument attributes to entry function</em></p><p>Helper pass that adds a secret.secret attribute argument to each function argument.
 By default, the pass applies to all functions in the module.
 This may be overridden with the option -function=func_name to apply to a single function only.</p><h4 id=options-25>Options</h4><pre tabindex=0><code>-function : function to add secret annotations to
-</code></pre><h3 id=-straight-line-vectorize><code>-straight-line-vectorize</code></h3><p><em>A vectorizer for straight line programs.</em></p><p>This pass ignores control flow and only vectorizes straight-line programs
+</code></pre><h3 id=-select-rewrite><code>-select-rewrite</code></h3><p><em>Rewrites arith.select to a CMUX style expression</em></p><p>&ldquo;This pass rewrites arith.select %c, %t, %f to %c * %t + (1 - %c) * %f.
+It supports all three variants of arith.select: scalar, shaped, and mixed types.
+In the latter case, it will broadcast/splat the scalar condition value to the required shape.&rdquo;</p><h3 id=-straight-line-vectorize><code>-straight-line-vectorize</code></h3><p><em>A vectorizer for straight line programs.</em></p><p>This pass ignores control flow and only vectorizes straight-line programs
 within a given region.</p><h4 id=options-26>Options</h4><pre tabindex=0><code>-dialect : Use this to restrict the dialect whose ops should be vectorized.
 </code></pre><h3 id=-tensor-ext-to-tensor><code>-tensor-ext-to-tensor</code></h3><p><em>Lower <code>tensor_ext</code> to <code>tensor</code> dialect.</em></p><p>This pass lowers the <code>tensor_ext</code> dialect to the <code>tensor</code> dialect.</p><p>This pass is intended to be used for testing purpose where the
 secret arithmetic IR containing <code>tensor_ext</code> dialect is lowered
