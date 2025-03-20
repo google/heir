@@ -74,6 +74,7 @@
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
+#include "lib/Transforms/SelectRewrite/SelectRewrite.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
@@ -245,6 +246,7 @@ int main(int argc, char **argv) {
   registerSecretInsertMgmtPasses();
   registerFullLoopUnrollPasses();
   registerConvertIfToSelectPasses();
+  registerSelectRewritePasses();
   registerConvertSecretForToStaticForPasses();
   registerConvertSecretWhileToStaticForPasses();
   registerConvertSecretExtractToStaticExtractPasses();
