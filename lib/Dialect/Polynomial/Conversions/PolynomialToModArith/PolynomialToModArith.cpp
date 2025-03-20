@@ -1219,6 +1219,200 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
   }
 };
 
+struct ConvertEvaltoHorner : public OpConversionPattern<EvalOp> {
+  ConvertEvaltoHorner(mlir::MLIRContext *context)
+      : OpConversionPattern<EvalOp>(context) {}
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      EvalOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getPolynomialAttr());
+    if (!attr) return failure();
+
+    const IntPolynomial &poly = attr.getValue().getPolynomial();
+    auto x = op.getOperand();
+    auto terms = poly.getTerms();
+
+    auto type = dyn_cast<PolynomialType>(attr.getType());
+    if (!type) return failure();
+    IntegerType coeffType =
+        dyn_cast<IntegerType>(type.getRing().getCoefficientType());
+    if (!coeffType) return failure();
+
+    int bitWidth = coeffType.getWidth();
+
+    if (terms.empty()) {
+      // Handle empty polynomial case
+      auto zeroConst = b.create<arith::ConstantIntOp>(0, bitWidth);
+      rewriter.replaceOp(op, zeroConst);
+      return success();
+    }
+
+    // Get the highest degree
+    int64_t maxDegree = terms.back().getExponent().getSExtValue();
+    const int DEGREE_THRESHOLD = 5;
+    if (maxDegree >= DEGREE_THRESHOLD) return failure();
+
+    // Create a map from exponent to coefficient for easy lookup
+    std::unordered_map<int64_t, APInt> coeffMap;
+    for (auto term : terms) {
+      coeffMap[term.getExponent().getSExtValue()] = term.getCoefficient();
+    }
+
+    // Start with the coefficient of the highest degree term
+    Value result = b.create<arith::ConstantIntOp>(
+                        coeffMap[maxDegree].getSExtValue(), bitWidth)
+                       .getResult();
+
+    // Apply Horner's method, accounting for possible missing terms
+    for (int64_t i = maxDegree - 1; i >= 0; i--) {
+      // Multiply by x
+      result = b.create<arith::MulIOp>(result, x).getResult();
+
+      // Add coefficient if this term exists, otherwise continue
+      if (coeffMap.find(i) != coeffMap.end()) {
+        auto coeffConst = b.create<arith::ConstantIntOp>(
+            coeffMap[i].getSExtValue(), bitWidth);
+        result = b.create<arith::AddIOp>(result, coeffConst).getResult();
+      }
+    }
+
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+struct ConvertEvalToPatersonStockmeyer : public OpConversionPattern<EvalOp> {
+  ConvertEvalToPatersonStockmeyer(mlir::MLIRContext *context)
+      : OpConversionPattern<EvalOp>(context) {}
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      EvalOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto attr = dyn_cast<TypedIntPolynomialAttr>(op.getPolynomialAttr());
+    if (!attr) return failure();
+    const IntPolynomial &poly = attr.getValue().getPolynomial();
+
+    Value x = op.getOperand();
+    auto terms = poly.getTerms();
+
+    auto type = dyn_cast<PolynomialType>(attr.getType());
+    if (!type) return failure();
+    IntegerType coeffType =
+        dyn_cast<IntegerType>(type.getRing().getCoefficientType());
+    if (!coeffType) return failure();
+
+    int bitWidth = coeffType.getWidth();
+
+    if (terms.empty()) {
+      auto zeroConst = b.create<arith::ConstantIntOp>(0, bitWidth);
+      rewriter.replaceOp(op, zeroConst);
+      return success();
+    }
+
+    int64_t maxDegree = terms.back().getExponent().getSExtValue();
+    const int DEGREE_THRESHOLD = 5;
+    if (maxDegree < DEGREE_THRESHOLD) {
+      return failure();
+    }
+
+    std::map<int64_t, int64_t> coeffMap;
+    for (auto term : terms) {
+      coeffMap[term.getExponent().getSExtValue()] =
+          term.getCoefficient().getSExtValue();
+    }
+
+    // Choose k optimally - sqrt of maxDegree is typically a good choice
+    int64_t k = std::max(static_cast<int64_t>(std::ceil(std::sqrt(maxDegree))),
+                         static_cast<int64_t>(1));
+
+    // Precompute x^1, x^2, ..., x^k
+    std::vector<Value> xPowers(k + 1);
+    xPowers[0] = b.create<arith::ConstantIntOp>(1, bitWidth);
+    xPowers[1] = x;
+    for (int64_t i = 2; i <= k; i++) {
+      xPowers[i] = b.create<arith::MulIOp>(xPowers[i - 1], x).getResult();
+    }
+
+    // Number of chunks we'll need
+    int64_t m =
+        static_cast<int64_t>(std::ceil(static_cast<double>(maxDegree + 1) / k));
+    std::vector<Value> chunkValues(m, nullptr);
+
+    for (int64_t i = 0; i < m; i++) {
+      // Start with coefficient of degree (i+1)*k-1, if present
+      int64_t highestDegreeInChunk = std::min((i + 1) * k - 1, maxDegree);
+      int64_t lowestDegreeInChunk = i * k;
+
+      Value chunkValue = nullptr;
+      bool hasTerms = false;
+
+      for (int64_t j = lowestDegreeInChunk; j <= highestDegreeInChunk; j++) {
+        if (coeffMap.count(j)) {
+          // Get the power index relative to the chunk's starting point
+          int64_t powerIndex = j - lowestDegreeInChunk;
+
+          Value coeff = b.create<arith::ConstantIntOp>(coeffMap[j], bitWidth);
+          Value term;
+
+          if (powerIndex == 0) {
+            term = coeff;  // x^0 = 1
+          } else {
+            term = b.create<arith::MulIOp>(coeff, xPowers[powerIndex]);
+          }
+
+          if (!hasTerms) {
+            chunkValue = term;
+            hasTerms = true;
+          } else {
+            chunkValue = b.create<arith::AddIOp>(chunkValue, term);
+          }
+        }
+      }
+
+      if (hasTerms) {
+        chunkValues[i] = chunkValue;
+      } else {
+        chunkValues[i] = b.create<arith::ConstantIntOp>(
+            0, bitWidth);  // No terms in this chunk
+      }
+    }
+
+    // Combine chunks using Horner's method with x^k
+    Value result = nullptr;
+    bool hasNonEmptyChunk = false;
+
+    for (int64_t i = m - 1; i >= 0; i--) {
+      if (chunkValues[i]) {
+        if (!hasNonEmptyChunk) {
+          // First non-empty chunk encountered
+          result = chunkValues[i];
+          hasNonEmptyChunk = true;
+        } else {
+          // Multiply previous result by x^k and add this chunk
+          result = b.create<arith::MulIOp>(result, xPowers[k]);
+          result = b.create<arith::AddIOp>(result, chunkValues[i]);
+        }
+      } else if (hasNonEmptyChunk) {
+        // Empty chunk but we have previous chunks
+        result = b.create<arith::MulIOp>(result, xPowers[k]);
+      }
+    }
+
+    // Handle the case where no terms were found
+    if (!hasNonEmptyChunk) {
+      result = b.create<arith::ConstantIntOp>(0, bitWidth);
+    }
+
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 void PolynomialToModArith::runOnOperation() {
   MLIRContext *context = &getContext();
   // generateOpImplementations must be called before the conversion begins to
@@ -1243,6 +1437,7 @@ void PolynomialToModArith::runOnOperation() {
   patterns.add<ConvertFromTensor, ConvertToTensor,
                ConvertPolyBinop<AddOp, arith::AddIOp, mod_arith::AddOp>,
                ConvertPolyBinop<SubOp, arith::SubIOp, mod_arith::SubOp>,
+               ConvertEvaltoHorner, ConvertEvalToPatersonStockmeyer,
                ConvertLeadingTerm, ConvertMonomial, ConvertMonicMonomialMul,
                ConvertConstant, ConvertMulScalar, ConvertNTT, ConvertINTT>(
       typeConverter, context);
