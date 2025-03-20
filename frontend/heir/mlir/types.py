@@ -118,8 +118,8 @@ def to_numba_type(type: type) -> NumbaType:
     # This is slightly cursed, as numba constructs array types via slice syntax
     # Cf. https://numba.pydata.org/numba-doc/dev/reference/types.html#arrays
     ty = to_numba_type(inner_type)[(slice(None),) * (len(args) - 1)]
-    # We augment the type object with `dimensions` for the actual sizes
-    ty.dimensions = args[:-1]  # type: ignore
+    # We augment the type object with `shape` for the actual sizes
+    ty.shape = args[:-1]  # type: ignore
     return ty
 
   if issubclass(type, MLIRTypeAnnotation):

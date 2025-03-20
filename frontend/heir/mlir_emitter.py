@@ -30,7 +30,17 @@ def mlirType(numba_type: NumbaType) -> str:
     # TODO (#1162): implement support for statically sized tensors
     # this probably requires extending numba with a new type
     # See https://numba.readthedocs.io/en/stable/extending/index.html
-    return "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
+    shape = None
+    if hasattr(numba_type, "shape"):
+      shape = "x".join(str(s) for s in numba_type.shape)  # type: ignore
+    return (
+        "tensor<"
+        + "?x" * numba_type.ndim
+        + mlirType(numba_type.dtype)
+        ## This is, unfortunately, still enough to make the type different :(
+        #  + (", {shape=[" + shape + "]}" if shape else "")
+        + ">"
+    )
   raise NotImplementedError("Unsupported type: " + str(numba_type))
 
 
@@ -207,14 +217,25 @@ class TextualMlirEmitter:
 
   def emit(self):
     func_name = self.ssa_ir.func_id.func_name
-    secret_flag = " {secret.secret}"
     # probably should use unique name...
     # func_name = ssa_ir.func_id.unique_name
-    args_str = ", ".join([
-        f"%{name}:"
-        f" {mlirType(self.typemap.get(name))}{secret_flag if idx in self.secret_args else str()} {mlirLoc(self.ssa_ir.loc)}"
-        for idx, name in enumerate(self.ssa_ir.arg_names)
-    ])
+    args: list[str] = []
+    for idx, name in enumerate(self.ssa_ir.arg_names):
+      numba_type = self.typemap.get(name)
+      arg = f"%{name}: {mlirType(numba_type)} "
+      attrs: list[str] = []
+      if idx in self.secret_args:
+        attrs.append("secret.secret")
+      if hasattr(numba_type, "shape"):
+        # tensor.shape isn't *actually* a tensor dialect attribute in MLIR,
+        # but MLIR's func.func only accepts "dialect-attribute-looking" attributes
+        attrs.append(f"tensor.shape=[{','.join(map(str, numba_type.shape))}]")
+      if attrs:
+        arg += "{" + ", ".join(attrs) + "} "
+      arg += mlirLoc(self.ssa_ir.loc)
+      args.append(arg)
+
+    args_str = ", ".join(args)
 
     # TODO(#1162): support multiple return values!
     if len(self.return_types) > 1:
