@@ -67,6 +67,7 @@
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/LayoutOptimization/LayoutOptimization.h"
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
@@ -265,6 +266,7 @@ int main(int argc, char **argv) {
   registerOptimizeRelinearizationPasses();
   registerPolynomialApproximationPasses();
   registerLayoutPropagationPasses();
+  registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
   registerTensorToScalarsPasses();
   // Register yosys optimizer pipeline if configured.

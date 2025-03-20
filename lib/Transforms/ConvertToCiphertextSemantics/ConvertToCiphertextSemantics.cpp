@@ -48,10 +48,14 @@
 namespace mlir {
 namespace heir {
 
+namespace {
+
 auto &kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 auto &kMaterializedAttrName = "tensor_ext.layout_materialized";
 auto &kOriginalTypeAttrName =
     tensor_ext::TensorExtDialect::kOriginalTypeAttrName;
+
+}  // namespace
 
 // An unset value of a permutation as it's being built up.
 static constexpr int kUnset = -1;
