@@ -112,7 +112,10 @@ void mlirToSecretArithmeticPipelineBuilder(
   // pm.addPass(createLayoutOptimization());
 
   // Linalg kernel implementation
-  pm.addPass(createConvertToCiphertextSemantics());
+  ConvertToCiphertextSemanticsOptions convertToCiphertextSemanticsOptions;
+  convertToCiphertextSemanticsOptions.ciphertextSize = options.ciphertextDegree;
+  pm.addPass(
+      createConvertToCiphertextSemantics(convertToCiphertextSemanticsOptions));
 
   // Vectorize and optimize rotations
   heirSIMDVectorizerPipelineBuilder(pm, options.experimentalDisableLoopUnroll);

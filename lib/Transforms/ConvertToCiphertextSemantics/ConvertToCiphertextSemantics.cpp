@@ -849,26 +849,6 @@ class ConvertLinalgReduce
   }
 };
 
-bool isLayoutSquatDiagonal(RankedTensorType inputType,
-                           RankedTensorType outputType,
-                           const AffineMap &layout) {
-  // Squat diagonal forces (i, j) -> (j % n, (i+j) % m) where (n, m) are the
-  // dimensions of the output matrix.
-  if (outputType.getRank() != 2 || inputType.getRank() != 2) return false;
-
-  int64_t n = outputType.getDimSize(0);
-  int64_t m = outputType.getDimSize(1);
-  AffineExpr i, j;
-  bindDims(inputType.getContext(), i, j);
-  AffineMap expected =
-      AffineMap::get(2, 0, {j % n, (i + j) % m}, inputType.getContext());
-
-  auto simplified = simplifyAffineMap(layout);
-  LLVM_DEBUG(llvm::dbgs() << "isLayoutSquatDiagonal: " << "simplified="
-                          << simplified << " expected=" << expected << "\n");
-  return simplified == expected;
-}
-
 struct ConvertLinalgMatvec
     : public ContextAwareOpConversionPattern<linalg::MatvecOp> {
  public:

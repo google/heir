@@ -6,18 +6,18 @@
 #include "src/pke/include/key/keypair.h"  // from @openfhe
 
 // Generated headers (block clang-format from messing up order)
-#include "tests/Examples/openfhe/ckks/halevi_shoup_matmul/halevi_shoup_matmul_lib.h"
+#include "tests/Examples/openfhe/ckks/halevi_shoup_matvec/halevi_shoup_matvec_lib.h"
 
 namespace mlir {
 namespace heir {
 namespace openfhe {
 
 TEST(NaiveMatmulTest, RunTest) {
-  auto cryptoContext = matmul__generate_crypto_context();
+  auto cryptoContext = matvec__generate_crypto_context();
   auto keyPair = cryptoContext->KeyGen();
   auto publicKey = keyPair.publicKey;
   auto secretKey = keyPair.secretKey;
-  cryptoContext = matmul__configure_crypto_context(cryptoContext, secretKey);
+  cryptoContext = matvec__configure_crypto_context(cryptoContext, secretKey);
 
   std::vector<float> arg0Vals = {1.0, 0, 0, 0, 0, 0, 0, 0,
                                  0,   0, 0, 0, 0, 0, 0, 0};  // input
@@ -27,17 +27,17 @@ TEST(NaiveMatmulTest, RunTest) {
   float expected = -0.35219;
 
   auto arg0Encrypted =
-      matmul__encrypt__arg0(cryptoContext, arg0Vals, publicKey);
+      matvec__encrypt__arg0(cryptoContext, arg0Vals, publicKey);
 
   // Insert timing info
-  std::clock_t c_start = std::clock();
-  auto outputEncrypted = matmul(cryptoContext, arg0Encrypted);
-  std::clock_t c_end = std::clock();
-  double time_elapsed_ms = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
-  std::cout << "CPU time used: " << time_elapsed_ms << " ms\n";
+  std::clock_t cStart = std::clock();
+  auto outputEncrypted = matvec(cryptoContext, arg0Encrypted);
+  std::clock_t cEnd = std::clock();
+  double timeElapsedMs = 1000.0 * (cEnd - cStart) / CLOCKS_PER_SEC;
+  std::cout << "CPU time used: " << timeElapsedMs << " ms\n";
 
   auto actual =
-      matmul__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
+      matvec__decrypt__result0(cryptoContext, outputEncrypted, secretKey);
 
   EXPECT_NEAR(expected, actual.front(), 1e-6);
 }

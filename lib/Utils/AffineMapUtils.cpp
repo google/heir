@@ -88,6 +88,26 @@ bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
   return (simplified == expected || simplified == expected2);
 }
 
+AffineMap getDiagonalLayoutMap(RankedTensorType inputType,
+                               RankedTensorType outputType) {
+  int64_t n = outputType.getDimSize(0);
+  int64_t m = outputType.getDimSize(1);
+  AffineExpr i, j;
+  bindDims(inputType.getContext(), i, j);
+  return AffineMap::get(2, 0, {j % n, (i + j) % m}, inputType.getContext());
+}
+
+bool isLayoutSquatDiagonal(RankedTensorType inputType,
+                           RankedTensorType outputType,
+                           const AffineMap &layout) {
+  // Squat diagonal forces (i, j) -> (j % n, (i+j) % m) where (n, m) are the
+  // dimensions of the output matrix.
+  if (outputType.getRank() != 2 || inputType.getRank() != 2) return false;
+  AffineMap expected = getDiagonalLayoutMap(inputType, outputType);
+  auto simplified = simplifyAffineMap(layout);
+  return simplified == expected;
+}
+
 inline Attribute getIndexAttr(MLIRContext *ctx, int64_t value) {
   return IntegerAttr::get(IndexType::get(ctx), value);
 }

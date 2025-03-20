@@ -9,6 +9,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Utils/AffineMapUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
@@ -39,6 +40,7 @@
 namespace mlir {
 namespace heir {
 
+using linalg::MatvecOp;
 using linalg::ReduceOp;
 using linalg::VecmatOp;
 using ::mlir::arith::AddIOp;
@@ -80,6 +82,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   LogicalResult visitOperation(MulIOp op);
   LogicalResult visitOperation(ReduceOp op);
   LogicalResult visitOperation(VecmatOp op);
+  LogicalResult visitOperation(MatvecOp op);
   LogicalResult visitOperation(YieldOp op);
   LogicalResult visitOperation(func::FuncOp op);
   LogicalResult visitOperation(func::ReturnOp op);
@@ -93,6 +96,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   // Op-specific compatibility functions
   CompatibilityResult hasCompatibleArgumentLayouts(ReduceOp op);
   CompatibilityResult hasCompatibleArgumentLayouts(VecmatOp op);
+  CompatibilityResult hasCompatibleArgumentLayouts(MatvecOp op);
 
   // Insert conversion ops to rectify incompatible operand layouts
   void rectifyIncompatibleOperandLayouts(Operation *op);
@@ -205,7 +209,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
       // secret ops
       .Case<GenericOp, YieldOp>([&](auto op) { return visitOperation(op); })
       // linalg ops
-      .Case<VecmatOp, ReduceOp>([&](auto op) { return visitOperation(op); })
+      .Case<MatvecOp, VecmatOp, ReduceOp>(
+          [&](auto op) { return visitOperation(op); })
       // tensor ops
       .Case<CollapseShapeOp, ExpandShapeOp>(
           [&](auto op) { return visitOperation(op); })
@@ -419,6 +424,49 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
   return success();
 }
 
+LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
+  auto matvecOp = cast<linalg::ContractionOpInterface>(*op);
+  auto matrix = matvecOp.lhs();
+  auto vec = matvecOp.rhs();
+  auto matrixType = cast<RankedTensorType>(matrix.getType());
+
+  mlir::IRRewriter builder(&getContext());
+  // FIXME: the layout optimizer should really be selecting
+  // the diagonal layout instead of this pass.
+
+  LayoutAttr matrixLayout = assignedLayouts.at(matrix);
+  RankedTensorType outputType = RankedTensorType::get(
+      {matrixType.getShape()[0], ciphertextSize}, matrixType.getElementType());
+  if (!isLayoutSquatDiagonal(matrixType, outputType, matrixLayout.getMap())) {
+    // Insert a layout conversion op to make the matrix layout squat diagonal
+    // FIXME: construct layout attr
+    AffineMap diagonalMap = getDiagonalLayoutMap(matrixType, outputType);
+    ConvertLayoutOp convertLayoutOp = builder.create<ConvertLayoutOp>(
+        op->getLoc(), matrix, squatDiagonalLayoutAttr);
+    convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                             squatDiagonalLayoutAttr);
+    Value toReplace = convertLayoutOp.getResult();
+    builder.replaceUsesWithIf(matrix, toReplace, [&](OpOperand &operand) {
+      return operand.getOwner() == op;
+    });
+    debugAssignLayout(toReplace, squatDiagonalLayoutAttr);
+    assignedLayouts.insert({toReplace, squatDiagonalLayoutAttr});
+    matrix = toReplace;
+  }
+
+  LayoutAttr vecLayout = assignedLayouts.at(vec);
+
+  // Always one result, and it's a vector with the same layout
+  // as the input vector
+  auto result = matvecOp->getResult(0);
+  LayoutAttr resultLayout = vecLayout;
+
+  assignedLayouts.insert({result, resultLayout});
+  setResultLayoutAttr(op);
+  debugAssignLayout(result, resultLayout);
+  return success();
+}
+
 LogicalResult LayoutPropagation::visitOperation(AddIOp op) {
   passLayoutThroughOp(op);
   return success();
@@ -448,7 +496,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
       .Case<func::FuncOp, GenericOp, YieldOp>(
           [&](auto op) { return CompatibilityResult{true, std::nullopt}; })
       // Ops with special rules
-      .Case<ReduceOp, VecmatOp>(
+      .Case<ReduceOp, MatvecOp, VecmatOp>(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation *op) {
@@ -508,6 +556,25 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
       cast<linalg::ContractionOpInterface>(op.getOperation());
   Value vec = vecmatOp.lhs();
   Value mat = vecmatOp.rhs();
+  if (isSecret(mat, solver) || !isSecret(vec, solver)) {
+    return {false,
+            op->emitError("Only secret vectors and plaintext matrices are "
+                          "supported for linalg.vecmat")};
+  }
+
+  if (!assignedLayouts.contains(vec)) {
+    return {false, op->emitError("vector operand has no assigned layout")};
+  }
+  return {true, std::nullopt};
+}
+
+CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
+    MatvecOp op) {
+  // Currently only support secret vectors and plaintext matrices.
+  linalg::ContractionOpInterface matvecOp =
+      cast<linalg::ContractionOpInterface>(op.getOperation());
+  Value vec = matvecOp.rhs();
+  Value mat = matvecOp.lhs();
   if (isSecret(mat, solver) || !isSecret(vec, solver)) {
     return {false,
             op->emitError("Only secret vectors and plaintext matrices are "
@@ -645,6 +712,12 @@ void LayoutPropagation::setResultLayoutAttr(Operation *op) {
   SmallVector<Attribute> resultLayouts = llvm::map_to_vector(
       op->getResults(),
       [&](Value result) -> Attribute { return assignedLayouts.at(result); });
+
+  if (op->getNumResults() == 1) {
+    op->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
+                resultLayouts.front());
+    return;
+  }
   op->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
               builder.getArrayAttr(resultLayouts));
 }
