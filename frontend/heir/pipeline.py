@@ -212,7 +212,7 @@ def compile(
     return run_pipeline(
         func,
         heir_opt_options=heir_opt_options
-        or ["--canonicalize", f"--mlir-to-{scheme}"],
+        or ["--shape-inference", "--canonicalize", f"--mlir-to-{scheme}"],
         backend=backend or CleartextBackend(),
         heir_config=config or heir_cli_config.from_os_env(),
         debug=debug or False,
