@@ -6,6 +6,7 @@
 
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/AffineExpr.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
@@ -54,6 +55,38 @@ bool isPermutation(ArrayRef<int64_t> materializedMapping) {
     if (!seen.insert(i).second) return false;
   }
   return true;
+}
+
+bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
+                      const AffineMap &layout) {
+  // Row-major forces (a, b, c) -> (a * dims[1] * dims[2] + b * dims[2] + c)
+  // with an optional modulus of the output type size at the end.
+
+  // For now, only support 1D output; not sure what a "row major" multi-dim
+  // output would mean (the trailing input dims collapsed on the trailing
+  // output dim, with all other dims matching?).
+  if (outputType.getRank() != 1) return false;
+
+  SmallVector<AffineExpr> dims;
+  AffineExpr result;
+  for (int dim = 0; dim < inputType.getRank(); ++dim) {
+    dims.push_back(getAffineDimExpr(dim, inputType.getContext()));
+  }
+
+  for (int dim = dims.size() - 1; dim >= 0; --dim) {
+    // iter 1: k
+    // iter 2: k + size(k) * j
+    // iter 3: k + size(k) * j + size(j) * size(k) * i
+    result =
+        result ? result + inputType.getDimSize(dim + 1) * dims[dim] : dims[dim];
+  }
+
+  AffineMap expected = AffineMap::get(dims.size(), 0, {result});
+  AffineMap expected2 =
+      AffineMap::get(dims.size(), 0, {result % outputType.getNumElements()});
+  auto simplified = simplifyAffineMap(layout);
+
+  return (simplified == expected || simplified == expected2);
 }
 
 inline Attribute getIndexAttr(MLIRContext *ctx, int64_t value) {
