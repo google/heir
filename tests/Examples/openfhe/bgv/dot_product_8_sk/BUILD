@@ -8,6 +8,7 @@ openfhe_end_to_end_test(
     name = "dot_product_8_sk_test",
     generated_lib_header = "dot_product_8_sk_lib.h",
     heir_opt_flags = [
+        "--annotate-module=backend=openfhe scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=8 use-public-key=false",
         "--scheme-to-openfhe",
     ],

@@ -7,6 +7,10 @@
 namespace mlir {
 namespace heir {
 
+/*===----------------------------------------------------------------------===*/
+// Module Attributes for Scheme
+/*===----------------------------------------------------------------------===*/
+
 constexpr const static ::llvm::StringLiteral kBGVSchemeAttrName = "scheme.bgv";
 constexpr const static ::llvm::StringLiteral kBFVSchemeAttrName = "scheme.bfv";
 constexpr const static ::llvm::StringLiteral kCKKSSchemeAttrName =
@@ -26,6 +30,23 @@ void moduleSetBGV(Operation *moduleOp);
 void moduleSetBFV(Operation *moduleOp);
 void moduleSetCKKS(Operation *moduleOp);
 void moduleSetCGGI(Operation *moduleOp);
+
+/*===----------------------------------------------------------------------===*/
+// Module Attributes for Backend
+/*===----------------------------------------------------------------------===*/
+
+constexpr const static ::llvm::StringLiteral kOpenfheBackendAttrName =
+    "backend.openfhe";
+constexpr const static ::llvm::StringLiteral kLattigoBackendAttrName =
+    "backend.lattigo";
+
+bool moduleIsOpenfhe(Operation *moduleOp);
+bool moduleIsLattigo(Operation *moduleOp);
+
+void moduleClearBackend(Operation *moduleOp);
+
+void moduleSetOpenfhe(Operation *moduleOp);
+void moduleSetLattigo(Operation *moduleOp);
 
 }  // namespace heir
 }  // namespace mlir

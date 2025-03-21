@@ -8,6 +8,7 @@ openfhe_end_to_end_test(
     name = "halevi_shoup_matmul_test",
     generated_lib_header = "halevi_shoup_matmul_lib.h",
     heir_opt_flags = [
+        "--annotate-module=backend=openfhe scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=16",
         "--scheme-to-openfhe",
     ],

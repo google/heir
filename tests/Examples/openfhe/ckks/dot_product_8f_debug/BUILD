@@ -11,6 +11,7 @@ openfhe_end_to_end_test(
     ],
     generated_lib_header = "dot_product_8f_debug_lib.h",
     heir_opt_flags = [
+        "--annotate-module=backend=openfhe scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=8 plaintext-execution-result-file-name=tests/Examples/openfhe/ckks/dot_product_8f_debug/dot_product_8f_debug.log",
         "--debug",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",

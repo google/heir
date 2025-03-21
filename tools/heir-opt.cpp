@@ -53,6 +53,7 @@
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/ConvertIfToSelect/ConvertIfToSelect.h"
@@ -254,6 +255,7 @@ int main(int argc, char **argv) {
   registerConvertSecretInsertToStaticInsertPasses();
   registerConvertToCiphertextSemanticsPasses();
   registerDropUnitDims();
+  registerAnnotateModulePasses();
   registerAnnotateSecretnessPasses();
   registerApplyFoldersPasses();
   registerForwardInsertToExtractPasses();

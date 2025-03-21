@@ -1,5 +1,7 @@
 #include <utility>
 
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
@@ -9,8 +11,13 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
-#include "mlir/include/mlir/Support/LLVM.h"       // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 #include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 namespace mlir {
@@ -24,39 +31,33 @@ struct SecretInsertMgmtBFV
   using SecretInsertMgmtBFVBase::SecretInsertMgmtBFVBase;
 
   void runOnOperation() override {
-    OpPassManager pipeline("builtin.module");
-    SecretInsertMgmtBGVOptions options;
-    options.includeFirstMul = false;
-    pipeline.addPass(createSecretInsertMgmtBGV(options));
-    (void)runPipeline(pipeline, getOperation());
-
     // Helper for future lowerings that want to know what scheme was used.
-    // Should be called after the secret-insert-mgmt-bgv pass has been run.
     moduleSetBFV(getOperation());
 
-    // inherit mulDepth information from BGV pass.
-    mgmt::MgmtAttr mgmtAttr = nullptr;
-    getOperation()->walk([&](secret::GenericOp op) {
-      for (auto i = 0; i != op->getBlock()->getNumArguments(); ++i) {
-        if ((mgmtAttr = dyn_cast<mgmt::MgmtAttr>(
-                 op.getOperandAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName)))) {
-          break;
-        }
-      }
-    });
+    DataFlowSolver solver;
+    solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
+    solver.load<SecretnessAnalysis>();
+    solver.load<MulDepthAnalysis>();
 
-    if (!mgmtAttr) {
-      getOperation()->emitError("No mgmt attribute found in the module");
-      return signalPassFailure();
+    if (failed(solver.initializeAndRun(getOperation()))) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
     }
 
-    // Remove mgmt::ModReduceOp
-    RewritePatternSet patterns(&getContext());
-    patterns.add<RemoveOp<mgmt::ModReduceOp>>(&getContext());
-    (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
+    RewritePatternSet patternsRelinearize(&getContext());
+    patternsRelinearize.add<MultRelinearize<arith::MulIOp>>(
+        &getContext(), getOperation(), &solver);
+    // this line is not used by B/FV but used by CKKS.
+    patternsRelinearize.add<MultRelinearize<arith::MulFOp>>(
+        &getContext(), getOperation(), &solver);
+    (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
+
+    auto maxMulDepth = getMaxMulDepth(getOperation(), solver);
 
     // annotate mgmt attribute with all levels set to mulDepth
-    auto level = mgmtAttr.getLevel();
+    auto level = maxMulDepth;
     OpPassManager annotateMgmtPipeline("builtin.module");
     mgmt::AnnotateMgmtOptions annotateMgmtOptions;
     annotateMgmtOptions.baseLevel = level;

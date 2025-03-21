@@ -8,6 +8,7 @@ openfhe_end_to_end_test(
     name = "simple_sum_test",
     generated_lib_header = "simple_sum_lib.h",
     heir_opt_flags = [
+        "--annotate-module=backend=openfhe scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=32",
         "--scheme-to-openfhe",
     ],

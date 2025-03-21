@@ -87,9 +87,9 @@ struct OptimizeRelinearization
     // optimize-relinearization will invalidate mgmt attr
     // so re-annotate it
 
-    // temporary workaround for B/FV
+    // temporary workaround for B/FV and all schemes of Openfhe
     auto baseLevel = 0;
-    if (moduleIsBFV(getOperation())) {
+    if (moduleIsBFV(getOperation()) || moduleIsOpenfhe(getOperation())) {
       // inherit mulDepth information from existing mgmt attr.
       mgmt::MgmtAttr mgmtAttr = nullptr;
       getOperation()->walk([&](secret::GenericOp op) {

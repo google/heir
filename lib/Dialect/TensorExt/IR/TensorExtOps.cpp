@@ -3,12 +3,11 @@
 #include <cstdint>
 #include <string>
 
+#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Utils/AffineMapUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -20,6 +19,12 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"               // from @llvm-project
+// IWYU pragma: end_keep
 
 namespace mlir {
 namespace heir {
@@ -49,18 +54,29 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-LogicalResult verifyLayoutMatchesType(const AffineMap &layout, Type type,
+LogicalResult verifyLayoutMatchesType(const LayoutAttr &layout, ShapedType type,
                                       Operation *op) {
-  int64_t rank = cast<ShapedType>(type).getRank();
-  if (rank != layout.getNumDims()) {
-    std::string layoutStr;
-    llvm::raw_string_ostream os(layoutStr);
-    layout.print(os);
+  int64_t startingRank = cast<ShapedType>(type).getRank();
+  int64_t incRank = 0;
+  if (layout.getAlignment() && layout.getAlignment().getInsertedDims())
+    incRank = layout.getAlignment().getInsertedDims().size();
 
+  int64_t rank = startingRank + incRank;
+  if (rank != layout.getMap().getNumDims()) {
     return op->emitOpError()
-           << "requires tensor rank to match the layout map's dimension count"
-              " but found rank "
-           << rank << " and map " << os.str();
+           << "requires tensor rank (after alignment) to match the layout "
+              "map's dimension count but found rank "
+           << rank << " and layout " << layout;
+  }
+
+  if (layout.getAlignment() && layout.getAlignment().getOut()) {
+    if (layout.getAlignment().getOut().size() != rank) {
+      return op->emitOpError()
+             << "requires tensor rank (after alignment) to match the layout "
+                "alignment's `out` parameter but `out` rank was "
+             << layout.getAlignment().getOut().size() << " and tensor rank was "
+             << rank;
+    }
   }
 
   return success();
@@ -82,14 +98,14 @@ OpFoldResult ConvertLayoutOp::fold(FoldAdaptor adaptor) {
 }
 
 LogicalResult ConvertLayoutOp::verify() {
-  LogicalResult inputVerification = verifyLayoutMatchesType(
-      getFromLayout().getValue(), getTensor().getType(), *this);
+  LogicalResult inputVerification =
+      verifyLayoutMatchesType(getFromLayout(), getTensor().getType(), *this);
   if (failed(inputVerification)) {
     return inputVerification;
   }
 
-  LogicalResult outputVerification = verifyLayoutMatchesType(
-      getToLayout().getValue(), getResult().getType(), *this);
+  LogicalResult outputVerification =
+      verifyLayoutMatchesType(getToLayout(), getResult().getType(), *this);
   if (failed(outputVerification)) {
     return outputVerification;
   }
@@ -98,8 +114,7 @@ LogicalResult ConvertLayoutOp::verify() {
 }
 
 LogicalResult AssignLayoutOp::verify() {
-  return verifyLayoutMatchesType(getLayout().getValue(), getTensor().getType(),
-                                 *this);
+  return verifyLayoutMatchesType(getLayout(), getTensor().getType(), *this);
 }
 
 LogicalResult PermuteOp::verify() {

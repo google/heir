@@ -49,20 +49,6 @@ struct ModReduceBefore : public OpRewritePattern<Op> {
   DataFlowSolver *solver;
 };
 
-template <typename Op>
-struct RemoveOp : public OpRewritePattern<Op> {
-  using OpRewritePattern<Op>::OpRewritePattern;
-
-  RemoveOp(MLIRContext *context)
-      : OpRewritePattern<Op>(context, /*benefit=*/1) {}
-
-  LogicalResult matchAndRewrite(Op op,
-                                PatternRewriter &rewriter) const override;
-
- private:
-  Operation *top;
-};
-
 // when reached a certain depth (water line), bootstrap
 template <typename Op>
 struct BootstrapWaterLine : public OpRewritePattern<Op> {

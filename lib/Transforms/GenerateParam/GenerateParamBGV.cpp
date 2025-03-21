@@ -8,6 +8,7 @@
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
@@ -205,6 +206,16 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       getOperation()->emitRemark()
           << "Scheme parameters already exist. Skipping generation.\n";
       return;
+    }
+
+    if (moduleIsOpenfhe(getOperation())) {
+      generateFallbackParam();
+      return;
+    }
+
+    // for lattigo, defaults to extended encryption technique
+    if (moduleIsLattigo(getOperation())) {
+      encryptionTechniqueExtended = true;
     }
 
     if (model == "bgv-noise-by-bound-coeff-worst-case") {

@@ -11,12 +11,10 @@ cc_library(
     hdrs = ["LayoutOptimization.h"],
     deps = [
         ":pass_inc_gen",
-        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

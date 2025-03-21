@@ -2,9 +2,9 @@
 
 !s_ty = !secret.secret<tensor<32xi16>>
 
-#map = affine_map<(d0) -> (d0)>
-#map1 = affine_map<(d0) -> ((d0 + 1) mod 32)>
-#map2 = affine_map<(d0) -> ((d0 + 2) mod 32)>
+#map = #tensor_ext.layout<map = (d0) -> (d0)>
+#map1 = #tensor_ext.layout<map = (d0) -> ((d0 + 1) mod 32)>
+#map2 = #tensor_ext.layout<map = (d0) -> ((d0 + 2) mod 32)>
 
 module {
   // CHECK-LABEL: func @no_hoist

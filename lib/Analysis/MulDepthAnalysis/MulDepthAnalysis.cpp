@@ -1,5 +1,7 @@
-#include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <functional>
 
 #include "lib/Analysis/Utils.h"
@@ -17,10 +19,10 @@
 namespace mlir {
 namespace heir {
 
-LogicalResult MulResultAnalysis::visitOperation(
-    Operation *op, ArrayRef<const MulResultLattice *> operands,
-    ArrayRef<MulResultLattice *> results) {
-  auto propagate = [&](Value value, const MulResultState &state) {
+LogicalResult MulDepthAnalysis::visitOperation(
+    Operation *op, ArrayRef<const MulDepthLattice *> operands,
+    ArrayRef<MulDepthLattice *> results) {
+  auto propagate = [&](Value value, const MulDepthState &state) {
     auto *lattice = getLatticeElement(value);
     ChangeResult changed = lattice->join(state);
     propagateIfChanged(lattice, changed);
@@ -31,21 +33,21 @@ LogicalResult MulResultAnalysis::visitOperation(
         Block *body = genericOp.getBody();
         for (auto i = 0; i != body->getNumArguments(); ++i) {
           auto blockArg = body->getArgument(i);
-          propagate(blockArg, MulResultState(false));
+          propagate(blockArg, MulDepthState(0));
         }
       })
       .Default([&](auto &op) {
         // condition on result secretness
-        SmallVector<OpResult> secretResults;
-        getSecretResults(&op, secretResults);
-        if (secretResults.empty()) {
+        SmallVector<OpResult> secretDepths;
+        getSecretResults(&op, secretDepths);
+        if (secretDepths.empty()) {
           return;
         }
 
-        auto isMulResult = false;
+        auto isMul = false;
 
         if (isa<arith::MulIOp, arith::MulFOp>(op)) {
-          isMulResult = true;
+          isMul = true;
         }
 
         // NOTE: special case for ExtractOp... it is a mulconst+rotate
@@ -55,35 +57,59 @@ LogicalResult MulResultAnalysis::visitOperation(
         if (auto extractOp = dyn_cast<tensor::ExtractOp>(op)) {
           if (!extractOp->getAttr("slot_extract")) {
             // must be true
-            isMulResult = true;
+            isMul = true;
           }
         }
 
-        // inherit mul result from secret operands
+        // inherit mul depth from secret operands
+        int64_t operandsMulDepth = 0;
         SmallVector<OpOperand *> secretOperands;
         getSecretOperands(&op, secretOperands);
         for (auto *operand : secretOperands) {
-          auto &mulResultState = getLatticeElement(operand->get())->getValue();
-          if (!mulResultState.isInitialized()) {
+          auto &mulDepthState = getLatticeElement(operand->get())->getValue();
+          if (!mulDepthState.isInitialized()) {
             return;
           }
-          isMulResult = isMulResult || mulResultState.getIsMulResult();
+          operandsMulDepth =
+              std::max(operandsMulDepth, mulDepthState.getMulDepth());
         }
 
-        for (auto result : secretResults) {
-          propagate(result, MulResultState(isMulResult));
+        int64_t resultsMulDepth = operandsMulDepth + (isMul ? 1 : 0);
+
+        for (auto result : secretDepths) {
+          propagate(result, MulDepthState(resultsMulDepth));
         }
       });
   return success();
 }
 
-void MulResultAnalysis::visitExternalCall(
-    CallOpInterface call, ArrayRef<const MulResultLattice *> argumentLattices,
-    ArrayRef<MulResultLattice *> resultLattices) {
-  auto callback = std::bind(&MulResultAnalysis::propagateIfChangedWrapper, this,
+void MulDepthAnalysis::visitExternalCall(
+    CallOpInterface call, ArrayRef<const MulDepthLattice *> argumentLattices,
+    ArrayRef<MulDepthLattice *> resultLattices) {
+  auto callback = std::bind(&MulDepthAnalysis::propagateIfChangedWrapper, this,
                             std::placeholders::_1, std::placeholders::_2);
-  ::mlir::heir::visitExternalCall<MulResultState, MulResultLattice>(
+  ::mlir::heir::visitExternalCall<MulDepthState, MulDepthLattice>(
       call, argumentLattices, resultLattices, callback);
+}
+
+int64_t getMaxMulDepth(Operation *op, DataFlowSolver &solver) {
+  int64_t maxMulDepth = 0;
+  op->walk([&](Operation *op) {
+    if (op->getNumResults() == 0) {
+      return;
+    }
+    // the first result suffices as all results share the same mulDepth.
+    auto *lattice = solver.lookupState<MulDepthLattice>(op->getResult(0));
+    if (!lattice) {
+      return;
+    }
+    auto &state = lattice->getValue();
+    if (!state.isInitialized()) {
+      return;
+    }
+    maxMulDepth = std::max(maxMulDepth, state.getMulDepth());
+  });
+  return maxMulDepth;
 }
 
 }  // namespace heir

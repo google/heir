@@ -16,6 +16,7 @@
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
@@ -155,6 +156,11 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     if (!schemeParamAttr) {
       getOperation()->emitOpError() << "No scheme param found.\n";
       signalPassFailure();
+      return;
+    }
+
+    // skip validation for Openfhe anyway
+    if (moduleIsOpenfhe(getOperation())) {
       return;
     }
 

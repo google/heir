@@ -2,18 +2,17 @@
 
 #include <cstdint>
 #include <optional>
-#include <string>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -51,6 +50,7 @@ using tensor::CollapseShapeOp;
 using tensor::ExpandShapeOp;
 using tensor_ext::AssignLayoutOp;
 using tensor_ext::ConvertLayoutOp;
+using tensor_ext::LayoutAttr;
 
 #define GEN_PASS_DEF_LAYOUTPROPAGATION
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h.inc"
@@ -101,7 +101,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
   void rectifyIncompatibleOperandLayouts(ReduceOp op);
 
   // Return the default layout for a given type
-  FailureOr<AffineMap> defaultLayoutForType(Type type);
+  FailureOr<LayoutAttr> defaultLayoutForType(Type type);
 
   // Helper to pass layouts through generic ops
   void passLayoutThroughOp(Operation *op);
@@ -112,7 +112,7 @@ struct LayoutPropagation : impl::LayoutPropagationBase<LayoutPropagation> {
 
   void runOnOperation() override;
 
-  DenseMap<Value, AffineMap> assignedLayouts;
+  DenseMap<Value, LayoutAttr> assignedLayouts;
   DataFlowSolver *solver;
 };
 
@@ -120,7 +120,7 @@ void visitDebugInfo(Operation *op) {
   LLVM_DEBUG(llvm::dbgs() << "Visiting: " << op->getName() << "\n");
 }
 
-void debugAssignLayout(Value value, AffineMap layout) {
+void debugAssignLayout(Value value, LayoutAttr layout) {
   LLVM_DEBUG(llvm::dbgs() << "Assigning layout " << layout << " to value "
                           << value << "\n");
 }
@@ -129,13 +129,17 @@ void debugAssignLayout(Value value, AffineMap layout) {
 // layout is equivalent to reducing the summed dimensions to 1 and then
 // dropping them.
 //
-// TODO(1352): Determine if/how to support repetition in the layout.
-AffineMap convertLayoutForReduce(AffineMap inputLayout,
-                                 ArrayRef<int64_t> dimsToReduce) {
-  unsigned numDims = inputLayout.getNumDims();
+// TODO(#1352): Determine if/how to support repetition in the layout.
+LayoutAttr convertLayoutForReduce(LayoutAttr inputLayout,
+                                  ArrayRef<int64_t> dimsToReduce) {
+  unsigned numDims = inputLayout.getMap().getNumDims();
   llvm::SmallBitVector dimsBV(numDims, false);
   for (int dimToSum : dimsToReduce) dimsBV.set(dimToSum);
-  return projectDims(inputLayout, dimsBV, /*compressDims=*/true);
+  AffineMap resultMap =
+      projectDims(inputLayout.getMap(), dimsBV, /*compressDims=*/true);
+  // TODO(#1590): the new alignment could replace explicit padding here
+  // with don't cares, which would make the kernel more efficient.
+  return LayoutAttr::get(resultMap, inputLayout.getAlignment());
 }
 
 LogicalResult LayoutPropagation::visitOperation(Operation *op) {
@@ -159,16 +163,17 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
       if (isa<RankedTensorType>(operand.getType())) {
         LLVM_DEBUG(llvm::dbgs() << "tensor operand " << operand
                                 << " has no layout assigned\n");
-        FailureOr<AffineMap> layout = defaultLayoutForType(operand.getType());
+        FailureOr<LayoutAttr> layout = defaultLayoutForType(operand.getType());
         if (failed(layout)) {
           return failure();
         }
         mlir::IRRewriter builder(&getContext());
         builder.setInsertionPoint(op);
-        AssignLayoutOp assignLayoutOp = builder.create<AssignLayoutOp>(
-            op->getLoc(), operand, AffineMapAttr::get(layout.value()));
+        LayoutAttr layoutAttr = layout.value();
+        AssignLayoutOp assignLayoutOp =
+            builder.create<AssignLayoutOp>(op->getLoc(), operand, layoutAttr);
         assignLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
-                                AffineMapAttr::get(layout.value()));
+                                layoutAttr);
         Value toReplace = assignLayoutOp.getResult();
         // This may create duplicate layout assignment ops, and we expect CSE
         // to later clean them up. Otherwise we risk replacing a use of the
@@ -176,8 +181,8 @@ LogicalResult LayoutPropagation::visitOperation(Operation *op) {
         builder.replaceUsesWithIf(operand, toReplace, [&](OpOperand &operand) {
           return operand.getOwner() == op;
         });
-        debugAssignLayout(toReplace, layout.value());
-        assignedLayouts.insert({toReplace, layout.value()});
+        debugAssignLayout(toReplace, layoutAttr);
+        assignedLayouts.insert({toReplace, layoutAttr});
       }
     }
   }
@@ -211,14 +216,14 @@ LogicalResult LayoutPropagation::visitOperation(func::FuncOp op) {
   // Set a default value for each argument
   int argIndex = 0;
   for (Value arg : op.getArguments()) {
-    FailureOr<AffineMap> layout = defaultLayoutForType(arg.getType());
+    FailureOr<LayoutAttr> layout = defaultLayoutForType(arg.getType());
     if (failed(layout)) {
       return failure();
     }
     debugAssignLayout(arg, layout.value());
     assignedLayouts.insert({arg, layout.value()});
     op.setArgAttr(argIndex, tensor_ext::TensorExtDialect::kLayoutAttrName,
-                  AffineMapAttr::get(layout.value()));
+                  layout.value());
     ++argIndex;
   }
 
@@ -237,10 +242,9 @@ LogicalResult LayoutPropagation::visitOperation(func::ReturnOp op) {
       // It needs no layout.
       continue;
     }
-    AffineMap layout = assignedLayouts.at(operand.get());
+    LayoutAttr layout = assignedLayouts.at(operand.get());
     func.setResultAttr(operand.getOperandNumber(),
-                       tensor_ext::TensorExtDialect::kLayoutAttrName,
-                       AffineMapAttr::get(layout));
+                       tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
   }
   return success();
 }
@@ -252,13 +256,12 @@ LogicalResult LayoutPropagation::visitOperation(GenericOp op) {
       // Assume it is not a tensor type and doesn't need a layout.
       continue;
     }
-    AffineMap layout = assignedLayouts.at(operand.get());
+    LayoutAttr layout = assignedLayouts.at(operand.get());
     BlockArgument blockArg =
         op.getRegion().getArgument(operand.getOperandNumber());
     assignedLayouts.insert({blockArg, layout});
     op.setOperandAttr(operand.getOperandNumber(),
-                      tensor_ext::TensorExtDialect::kLayoutAttrName,
-                      AffineMapAttr::get(layout));
+                      tensor_ext::TensorExtDialect::kLayoutAttrName, layout);
     debugAssignLayout(blockArg, layout);
   }
 
@@ -280,18 +283,19 @@ LogicalResult LayoutPropagation::visitOperation(YieldOp op) {
       LLVM_DEBUG(llvm::dbgs() << "No layout assigned to operand "
                               << operand.get() << ", using default layout\n");
       if (isa<RankedTensorType>(operandType)) {
-        FailureOr<AffineMap> layout = defaultLayoutForType(operandType);
+        FailureOr<LayoutAttr> layout = defaultLayoutForType(operandType);
         if (failed(layout)) {
           return failure();
         }
-        debugAssignLayout(operand.get(), layout.value());
-        assignedLayouts.insert({operand.get(), layout.value()});
+        LayoutAttr layoutAttr = layout.value();
+        debugAssignLayout(operand.get(), layoutAttr);
+        assignedLayouts.insert({operand.get(), layoutAttr});
       } else {
         // Assume it is not a tensor type and doesn't need a layout.
         continue;
       }
     }
-    AffineMap layout = assignedLayouts.at(operand.get());
+    LayoutAttr layout = assignedLayouts.at(operand.get());
     Value result = generic.getResult(operand.getOperandNumber());
     assignedLayouts.insert({result, layout});
     debugAssignLayout(result, layout);
@@ -310,7 +314,7 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
         "Only rank-reduced types are supported for CollapseShapeOp");
 
   auto tensor = op.getSrc();
-  AffineMap inputLayout = assignedLayouts.at(tensor);
+  LayoutAttr inputLayout = assignedLayouts.at(tensor);
   unsigned numDims = tensor.getType().getRank();
   llvm::SmallBitVector dimsBV(numDims, false);
 
@@ -327,10 +331,13 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
   }
 
   AffineMap resultLayout =
-      projectDims(inputLayout, dimsBV, /*compressDims=*/true);
-  assignedLayouts.insert({op.getResult(), resultLayout});
+      projectDims(inputLayout.getMap(), dimsBV, /*compressDims=*/true);
+  // TODO(#1593): Properly propagate alignment through CollapseShapeOp
+  LayoutAttr resultLayoutAttr =
+      LayoutAttr::get(resultLayout, inputLayout.getAlignment());
+  assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);
-  debugAssignLayout(op.getResult(), resultLayout);
+  debugAssignLayout(op.getResult(), resultLayoutAttr);
   return success();
 }
 
@@ -345,7 +352,7 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
         "Only rank-reduced types are supported for ExpandShapeOp");
 
   auto tensor = op.getSrc();
-  AffineMap inputLayout = assignedLayouts.at(tensor);
+  LayoutAttr inputLayout = assignedLayouts.at(tensor);
 
   // tensor indices correspond to layout dimensions, and adding a dimension of
   // size 1 has no effect on the affine map expressions, so all we're doing is
@@ -377,15 +384,18 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   int resultNumDims = op.getResultType().getRank();
   // First create a larger-rank affine map, but using old dimension identifiers
   AffineMap resLayout1 =
-      AffineMap::get(resultNumDims, /*symbolCount=*/0, inputLayout.getResults(),
-                     &getContext());
+      AffineMap::get(resultNumDims, /*symbolCount=*/0,
+                     inputLayout.getMap().getResults(), &getContext());
 
   // Then replace the old dimension identifier expressions with new ones
   AffineMap resultLayout = resLayout1.replace(oldDimsToNewDims);
 
-  assignedLayouts.insert({op.getResult(), resultLayout});
+  // TODO(#1593): Properly propagate alignment through ExpandShapeOp
+  LayoutAttr resultLayoutAttr =
+      LayoutAttr::get(resultLayout, inputLayout.getAlignment());
+  assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);
-  debugAssignLayout(op.getResult(), resultLayout);
+  debugAssignLayout(op.getResult(), resultLayoutAttr);
   return success();
 }
 
@@ -396,12 +406,12 @@ LogicalResult LayoutPropagation::visitOperation(VecmatOp op) {
   // The matrix has no assigned layout because it is assumed to be
   // plaintext/static (this is intended to be enforced by
   // hasCompatibleArgumentLayouts).
-  AffineMap vecLayout = assignedLayouts.at(vec);
+  LayoutAttr vecLayout = assignedLayouts.at(vec);
 
   // Always one result, and it's a vector with the same layout
   // as the input vector
   auto result = vecmatOp->getResult(0);
-  AffineMap resultLayout = vecLayout;
+  LayoutAttr resultLayout = vecLayout;
 
   assignedLayouts.insert({result, resultLayout});
   setResultLayoutAttr(op);
@@ -422,7 +432,7 @@ LogicalResult LayoutPropagation::visitOperation(MulIOp op) {
 LogicalResult LayoutPropagation::visitOperation(ReduceOp op) {
   for (const auto &[tensor, result] :
        llvm::zip(op.getInputs(), op.getResults())) {
-    AffineMap resultLayout =
+    LayoutAttr resultLayout =
         convertLayoutForReduce(assignedLayouts.at(tensor), op.getDimensions());
     assignedLayouts.insert({result, resultLayout});
     debugAssignLayout(result, resultLayout);
@@ -442,7 +452,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
           [&](auto op) { return hasCompatibleArgumentLayouts(op); })
       // By default, assume operands must all have the same layout.
       .Default([&](Operation *op) {
-        std::optional<AffineMap> firstFoundLayout;
+        std::optional<LayoutAttr> firstFoundLayout;
 
         for (auto &operand : op->getOpOperands()) {
           if (isa<RankedTensorType>(operand.get().getType())) {
@@ -452,7 +462,7 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
               return CompatibilityResult{
                   false, op->emitError("operand has no assigned layout")};
             }
-            AffineMap layout = assignedLayouts.at(operand.get());
+            LayoutAttr layout = assignedLayouts.at(operand.get());
 
             if (!firstFoundLayout.has_value()) firstFoundLayout = layout;
             if (layout != firstFoundLayout.value()) {
@@ -478,9 +488,9 @@ CompatibilityResult LayoutPropagation::hasCompatibleArgumentLayouts(
               op->emitError("initializer tensor has no assigned layout")};
     }
 
-    AffineMap inputLayout = assignedLayouts.at(input);
-    AffineMap initLayout = assignedLayouts.at(init);
-    AffineMap reducedInputLayout =
+    LayoutAttr inputLayout = assignedLayouts.at(input);
+    LayoutAttr initLayout = assignedLayouts.at(init);
+    LayoutAttr reducedInputLayout =
         convertLayoutForReduce(inputLayout, op.getDimensions());
 
     if (reducedInputLayout != initLayout) {
@@ -516,13 +526,10 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation *op) {
                                     "disagreeing operand layouts";
     auto &note = diag.attachNote();
     for (auto operand : op->getOperands()) {
-      std::string mapStr;
-      llvm::raw_string_ostream os(mapStr);
-      AffineMap operandLayout;
+      LayoutAttr operandLayout;
       if (assignedLayouts.contains(operand))
         operandLayout = assignedLayouts.at(operand);
-      operandLayout.print(os);
-      note << "\n- Operand: " << operand << "; Layout: " << os.str();
+      note << "\n- Operand: " << operand << "; Layout: " << operandLayout;
     }
   });
 
@@ -538,17 +545,16 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation *op) {
         const auto it = llvm::find_if(op->getOperands(), [this](Value pair) {
           return assignedLayouts.contains(pair);
         });
-        AffineMap targetLayout = assignedLayouts.at(*it);
+        LayoutAttr targetLayout = assignedLayouts.at(*it);
 
         for (auto &opOperand : op->getOpOperands()) {
           if (!assignedLayouts.contains(opOperand.get())) continue;
-          AffineMap sourceLayout = assignedLayouts.at(opOperand.get());
+          LayoutAttr sourceLayout = assignedLayouts.at(opOperand.get());
 
           if (sourceLayout != targetLayout) {
             builder.setInsertionPoint(op);
             ConvertLayoutOp convertOp = builder.create<ConvertLayoutOp>(
-                op->getLoc(), opOperand.get(), AffineMapAttr::get(sourceLayout),
-                AffineMapAttr::get(targetLayout));
+                op->getLoc(), opOperand.get(), sourceLayout, targetLayout);
 
             // Layout of the result is the same as the target layout of the
             // conversion. Mostly this is done for consistency: all ops have an
@@ -567,15 +573,14 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
   builder.setInsertionPoint(op);
 
   for (const auto &[input, init] : llvm::zip(op.getInputs(), op.getInits())) {
-    AffineMap inputLayout = assignedLayouts.at(input);
-    AffineMap initLayout = assignedLayouts.at(init);
-    AffineMap reducedInputLayout =
+    LayoutAttr inputLayout = assignedLayouts.at(input);
+    LayoutAttr initLayout = assignedLayouts.at(init);
+    LayoutAttr reducedInputLayout =
         convertLayoutForReduce(inputLayout, op.getDimensions());
 
     if (reducedInputLayout != initLayout) {
       ConvertLayoutOp convertOp = builder.create<ConvertLayoutOp>(
-          op->getLoc(), init, AffineMapAttr::get(initLayout),
-          AffineMapAttr::get(reducedInputLayout));
+          op->getLoc(), init, initLayout, reducedInputLayout);
       Value toReplace = convertOp.getResult();
       builder.replaceUsesWithIf(init, toReplace, [&](OpOperand &operand) {
         return operand.getOwner() == op;
@@ -590,7 +595,7 @@ void LayoutPropagation::passLayoutThroughOp(Operation *op) {
   // All inputs have the same layout, so just propagate it to all results
   for (Value result : op->getResults()) {
     if (isa<RankedTensorType>(result.getType())) {
-      AffineMap layout = assignedLayouts.at(op->getOperand(0));
+      LayoutAttr layout = assignedLayouts.at(op->getOperand(0));
       assignedLayouts.insert({result, layout});
       debugAssignLayout(result, layout);
     }
@@ -598,7 +603,7 @@ void LayoutPropagation::passLayoutThroughOp(Operation *op) {
   setResultLayoutAttr(op);
 }
 
-FailureOr<AffineMap> LayoutPropagation::defaultLayoutForType(Type type) {
+FailureOr<LayoutAttr> LayoutPropagation::defaultLayoutForType(Type type) {
   Type ty = type;
   if (SecretType secretType = dyn_cast<SecretType>(type)) {
     ty = secretType.getValueType();
@@ -628,7 +633,8 @@ FailureOr<AffineMap> LayoutPropagation::defaultLayoutForType(Type type) {
       expr = expr * shape[i] + dims[i];
     }
 
-    return AffineMap::get(rank, /*symbolCount=*/0, expr);
+    auto map = AffineMap::get(rank, /*symbolCount=*/0, expr);
+    return LayoutAttr::get(map);
   }
 
   return failure();
@@ -636,11 +642,11 @@ FailureOr<AffineMap> LayoutPropagation::defaultLayoutForType(Type type) {
 
 void LayoutPropagation::setResultLayoutAttr(Operation *op) {
   OpBuilder builder(&getContext());
-  SmallVector<AffineMap> resultLayouts = llvm::map_to_vector(
+  SmallVector<Attribute> resultLayouts = llvm::map_to_vector(
       op->getResults(),
-      [&](Value result) { return assignedLayouts.at(result); });
+      [&](Value result) -> Attribute { return assignedLayouts.at(result); });
   op->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
-              builder.getAffineMapArrayAttr(resultLayouts));
+              builder.getArrayAttr(resultLayouts));
 }
 
 void LayoutPropagation::runOnOperation() {
