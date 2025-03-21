@@ -42,7 +42,6 @@ struct ConvertFuncArguments : public OpRewritePattern<func::FuncOp> {
       SmallVector<int64_t> shape = {};
       for (auto attr : dictattr) {
         if (attr.getName() == "shape.shape") {
-          llvm::dbgs() << "Found shape attribute: " << attr.getValue() << "\n";
           auto range =
               cast<ArrayAttr>(attr.getValue()).getAsValueRange<IntegerAttr>();
           for (auto x : range) {
@@ -83,17 +82,71 @@ struct ConvertFuncArguments : public OpRewritePattern<func::FuncOp> {
   }
 };
 
+struct ConvertFuncReturn : public OpRewritePattern<func::FuncOp> {
+  ConvertFuncReturn(MLIRContext *context)
+      : OpRewritePattern<func::FuncOp>(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(func::FuncOp funcOp,
+                                PatternRewriter &rewriter) const override {
+    bool changed = false;
+
+    // Get Function Signature return types
+    auto returnTypes = funcOp.getFunctionType().getResults();
+
+    // Get terminator (func.return) types
+    auto terminatorTypes =
+        funcOp.getBody().getBlocks().front().getTerminator()->getOperandTypes();
+
+    assert(returnTypes.size() == terminatorTypes.size() &&
+           "Expected same number of results in signature and terminator.");
+
+    for (size_t i = 0; i < terminatorTypes.size(); ++i) {
+      if (returnTypes[i] == terminatorTypes[i]) continue;
+      auto rankedReturnType = dyn_cast<RankedTensorType>(returnTypes[i]);
+      if (!rankedReturnType || rankedReturnType.hasStaticShape()) continue;
+      auto rankedTerminatorType =
+          dyn_cast<RankedTensorType>(terminatorTypes[i]);
+      // The first case should never happen,
+      // but the second case will happen until the body has been rewritten
+      if (!rankedTerminatorType || !rankedTerminatorType.hasStaticShape())
+        continue;
+      // FIXME: actually update the type!
+    }
+
+    return success(changed);
+  }
+};
+
+// FIXME: How to go about doing the "boring bit" body conversion????
+// struct InferReturnType : public RewritePattern {
+//   using RewritePattern::RewritePattern;
+
+//   LogicalResult matchAndRewrite(Operation *op,
+//                                 PatternRewriter &rewriter) const override {
+//     auto inferOp = dyn_cast<InferTypeOpInterface>(op);
+//     if (!inferOp) return failure();
+//     llvm::dbgs() << "Found inferable op " << op << "\n";
+
+//     SmallVector<Type> inferredReturnTypes;
+//     if (failed(inferOp.inferReturnTypes(
+//             rewriter.getContext(), op->getLoc(), op->getOperands(),
+//             op->getAttrDictionary(), op->getPropertiesStorage(),
+//             op->getRegions(), inferredReturnTypes)))
+//       return emitError(op->getLoc(), "Failed to infer return types");
+
+//     return failure();
+//   }
+// };
+
 struct ShapeInference : impl::ShapeInferenceBase<ShapeInference> {
   using ShapeInferenceBase::ShapeInferenceBase;
-
-  // pattern to rewrite arguments of function of rankedtensor-with-dynamic-shape
-  // type with an argument attribute "shape" that contains the desired shape
-  // into fuinction arguments with a statically sized ranked tensor type.
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     RewritePatternSet patterns(context);
     patterns.add<ConvertFuncArguments>(context);
+    // patterns.add<ConvertFuncReturn>(context);
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
