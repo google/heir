@@ -50,10 +50,10 @@ def run_pipeline(
     init(autoreset=True)
 
     # (Numba) Type Inference
-    numba_signature = ""
-    secret_args = ""
+    fn_args = []
+    secret_args = []
     try:
-      numba_signature, secret_args, rettype = parse_annotations(
+      fn_args, secret_args, rettype = parse_annotations(
           function.__annotations__
       )
     except Exception as e:
@@ -62,17 +62,6 @@ def run_pipeline(
           + Style.BRIGHT
           + "HEIR Error: Signature parsing failed for function"
           f" {func_name} with {type(e).__name__}: {e}"
-      )
-      raise
-    try:
-      fn_args, _ = sigutils.normalize_signature(numba_signature)
-    except Exception as e:
-      print(
-          Fore.RED
-          + Style.BRIGHT
-          + "HEIR Error: Signature normalization failed for  function"
-          f" {func_name} with signature {numba_signature} with"
-          f" {type(e).__name__}: {e}"
       )
       raise
     typingctx = cpu_target.typing_context

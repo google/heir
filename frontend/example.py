@@ -7,8 +7,10 @@ from heir.mlir import F32, I16, I64, Secret, Tensor
 
 
 ### Simple Example
-@compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
-def func(x: Secret[I16], y: Secret[I16]):
+@compile(
+    debug=True, backend=None
+)  # defaults to scheme="bgv", OpenFHE backend, and debug=False
+def func(x: Secret[Tensor[2, 3, 4, I16]], y: Tensor[2, 3, 4, I16]):
   sum = x + y
   diff = x - y
   mul = x * y
@@ -17,9 +19,20 @@ def func(x: Secret[I16], y: Secret[I16]):
   return expression
 
 
-print(
-    f"Expected result for `func`: {func.original(7,8)}, FHE result: {func(7,8)}"
-)
+# ### Simple Example
+# @compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
+# def func(x: Secret[I16], y: Secret[I16]):
+#   sum = x + y
+#   diff = x - y
+#   mul = x * y
+#   expression = sum * diff + mul
+#   deadcode = expression * mul
+#   return expression
+
+
+# print(
+#     f"Expected result for `func`: {func.original(7,8)}, FHE result: {func(7,8)}"
+# )
 
 
 # ### Manual setup/enc/dec example
