@@ -7,9 +7,9 @@
 module {
   // CHECK: func @push_conversion
   func.func @push_conversion(
-        %arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}, 
-        %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}, 
-        %arg2: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}) 
+        %arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1},
+        %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map},
+        %arg2: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1})
         -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) {
     // CHECK: secret.generic
     %0 = secret.generic ins(%arg0, %arg1, %arg2 : !secret.secret<tensor<32xi16>>, !secret.secret<tensor<32xi16>>, !secret.secret<tensor<32xi16>>)
