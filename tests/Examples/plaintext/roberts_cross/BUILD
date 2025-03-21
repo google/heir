@@ -1,30 +1,6 @@
-load("//bazel:lit.bzl", "glob_lit_tests")
+load("//tests/Examples/plaintext:test.bzl", "plaintext_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
-
-glob_lit_tests(
-    name = "all_tests",
-    data = [
-        ":roberts_cross_mod_test",
-        ":roberts_cross_test",
-        "@heir//tests:test_utilities",
-        "@heir//tests/Examples/plaintext:memrefCopy",
-        "@llvm-project//llvm:llc",
-        "@llvm-project//mlir:mlir-translate",
-    ],
-    driver = "@heir//tests:run_lit.sh",
-    size_override = {
-        "roberts_cross_64x64.mlir": "enormous",
-    },
-    tags_override = {
-        "roberts_cross_64x64.mlir": [
-            "manual",
-            "nofastbuild",
-            "notap",
-        ],
-    },
-    test_file_exts = ["mlir"],
-)
 
 cc_library(
     name = "roberts_cross_test",
@@ -37,5 +13,54 @@ cc_library(
     name = "roberts_cross_mod_test",
     srcs = [
         "roberts_cross_mod_test.c",
+    ],
+)
+
+cc_library(
+    name = "roberts_cross_mod_failure_test",
+    srcs = [
+        "roberts_cross_mod_test.c",
+    ],
+    defines = [
+        "EXPECT_FAILURE",
+    ],
+)
+
+# Secret arithmetic plaintext backend with original integer type semantic
+plaintext_test(
+    name = "roberts_cross",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend",
+    ],
+    mlir_src = "roberts_cross_64x64.mlir",
+    deps = [
+        ":roberts_cross_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
+    ],
+)
+
+# Secret arithmetic plaintext backend with plaintext modulus semantic
+plaintext_test(
+    name = "roberts_cross_mod_536903681",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend=plaintext-modulus=536903681",
+    ],
+    mlir_src = "roberts_cross_64x64.mlir",
+    deps = [
+        ":roberts_cross_mod_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
+    ],
+)
+
+# Secret arithmetic plaintext backend with plaintext modulus semantic
+plaintext_test(
+    name = "roberts_cross_mod_786433",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend=plaintext-modulus=786433",
+    ],
+    mlir_src = "roberts_cross_64x64.mlir",
+    deps = [
+        ":roberts_cross_mod_failure_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
     ],
 )

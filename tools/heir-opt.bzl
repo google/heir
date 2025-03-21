@@ -16,7 +16,8 @@ _HEIR_OPT = "@heir//tools:heir-opt"
 def _heir_opt_impl(ctx):
     generated_file = ctx.outputs.generated_filename
     args = ctx.actions.args()
-    args.add_all(ctx.attr.pass_flags)
+    pass_flags_location_expanded = [ctx.expand_location(flag, ctx.attr.data) for flag in ctx.attr.pass_flags]
+    args.add_all(pass_flags_location_expanded)
     args.add_all(["-o", generated_file.path])
     args.add(ctx.file.src)
     env_vars = {}
