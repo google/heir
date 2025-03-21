@@ -9,6 +9,7 @@ heir_lattigo_lib(
     name = "dot_product_8f",
     go_library_name = "dotproduct8f",
     heir_opt_flags = [
+        "--annotate-module=backend=lattigo scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=8",
         "--scheme-to-lattigo",
     ],

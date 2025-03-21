@@ -5,6 +5,7 @@
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
@@ -180,6 +181,18 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
       getOperation()->emitRemark()
           << "Scheme parameters already exist. Skipping generation.\n";
       return;
+    }
+
+    if (moduleIsOpenfhe(getOperation())) {
+      generateFallbackParam();
+      // no need to re-set level below as fallback parameter has
+      // the same level as the max level
+      return;
+    }
+
+    // for lattigo, defaults to extended encryption technique
+    if (moduleIsLattigo(getOperation())) {
+      encryptionTechniqueExtended = true;
     }
 
     if (model == "bfv-noise-by-bound-coeff-worst-case") {

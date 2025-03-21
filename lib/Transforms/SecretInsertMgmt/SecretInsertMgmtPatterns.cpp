@@ -1,9 +1,10 @@
 #include "lib/Transforms/SecretInsertMgmt/SecretInsertMgmtPatterns.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
-#include "lib/Analysis/MulResultAnalysis/MulResultAnalysis.h"
+#include "lib/Analysis/MulDepthAnalysis/MulDepthAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -74,7 +75,7 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   }
 
   auto maxLevel = 0;
-  auto isMulResult = false;
+  int64_t mulDepth = 0;
   // use map in case we have same operands
   DenseMap<Value, LevelState::LevelType> operandsInsertLevel;
   for (auto operand : op.getOperands()) {
@@ -86,28 +87,28 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     if (!levelLattice.isInitialized()) {
       return failure();
     }
-    auto isMulResultLattice =
-        solver->lookupState<MulResultLattice>(operand)->getValue();
-    if (!isMulResultLattice.isInitialized()) {
+    auto isMulDepthLattice =
+        solver->lookupState<MulDepthLattice>(operand)->getValue();
+    if (!isMulDepthLattice.isInitialized()) {
       return failure();
     }
 
     auto level = levelLattice.getLevel();
     operandsInsertLevel[operand] = level;
     maxLevel = std::max(maxLevel, level);
-    isMulResult |= isMulResultLattice.getIsMulResult();
+    mulDepth = std::max(mulDepth, isMulDepthLattice.getMulDepth());
 
     LLVM_DEBUG(llvm::dbgs() << "  ModReduceBefore: Operand: " << operand
-                            << " Level: " << level << " isMulresult "
-                            << isMulResultLattice.getIsMulResult() << "\n");
+                            << " Level: " << level << " MulDepth: "
+                            << isMulDepthLattice.getMulDepth() << "\n");
   }
 
   auto resultLevel = maxLevel;
   // for other op it is only mod reduce when operand mismatch level
   if (isMul) {
     // if includeFirstMul, we always mod reduce before
-    // else, check if it is a mul result
-    if (includeFirstMul || (!includeFirstMul && isMulResult)) {
+    // else, check if it is a mul result (i.e. mulDepth > 0)
+    if (includeFirstMul || (!includeFirstMul && mulDepth > 0)) {
       // Inserting mod reduce before mulOp means resultLevel = maxLevel +
       // 1
       resultLevel = maxLevel + 1;
@@ -136,14 +137,6 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     solver->eraseAllStates();
     return solver->initializeAndRun(top);
   }
-  return success();
-}
-
-template <typename Op>
-LogicalResult RemoveOp<Op>::matchAndRewrite(Op op,
-                                            PatternRewriter &rewriter) const {
-  rewriter.replaceAllUsesWith(op->getResult(0), op->getOperand(0));
-  rewriter.eraseOp(op);
   return success();
 }
 
@@ -193,9 +186,6 @@ template struct ModReduceBefore<secret::YieldOp>;
 // isMul = false
 template struct ModReduceBefore<arith::AddIOp>;
 template struct ModReduceBefore<arith::SubIOp>;
-
-// for B/FV
-template struct RemoveOp<mgmt::ModReduceOp>;
 
 // for CKKS
 template struct MultRelinearize<arith::MulFOp>;

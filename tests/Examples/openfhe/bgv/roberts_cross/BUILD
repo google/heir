@@ -8,6 +8,7 @@ openfhe_end_to_end_test(
     name = "roberts_cross_64x64_test",
     generated_lib_header = "roberts_cross_64x64_lib.h",
     heir_opt_flags = [
+        "--annotate-module=backend=openfhe scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681",
         "--scheme-to-openfhe",
     ],

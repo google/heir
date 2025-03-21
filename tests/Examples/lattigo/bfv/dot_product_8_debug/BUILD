@@ -17,7 +17,8 @@ heir_lattigo_lib(
     extra_srcs = ["dot_product_8_bfv_debug.go"],
     go_library_name = "dotproduct8bfvdebug",
     heir_opt_flags = [
-        "--mlir-to-bfv=ciphertext-degree=8 annotate-noise-bound=true encryption-technique-extended=true",
+        "--annotate-module=backend=lattigo scheme=bfv",
+        "--mlir-to-bfv=ciphertext-degree=8 annotate-noise-bound=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "dot_product_8.mlir",
