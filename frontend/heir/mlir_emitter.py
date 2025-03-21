@@ -227,9 +227,7 @@ class TextualMlirEmitter:
       if idx in self.secret_args:
         attrs.append("secret.secret")
       if hasattr(numba_type, "shape"):
-        # tensor.shape isn't *actually* a tensor dialect attribute in MLIR,
-        # but MLIR's func.func only accepts "dialect-attribute-looking" attributes
-        attrs.append(f"tensor.shape=[{','.join(map(str, numba_type.shape))}]")
+        attrs.append(f"shape.shape=[{','.join(map(str, numba_type.shape))}]")
       if attrs:
         arg += "{" + ", ".join(attrs) + "} "
       arg += mlirLoc(self.ssa_ir.loc)
