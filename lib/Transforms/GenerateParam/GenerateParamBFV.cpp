@@ -1,6 +1,7 @@
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -200,6 +201,9 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
     } else if (model == "bfv-noise-by-bound-coeff-average-case" ||
                model == "bfv-noise-kpz21") {
       run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseModel>>();
+    } else if (model == "bfv-noise-by-variance-coeff" ||
+               model == "bfv-noise-bmcm23") {
+      run<NoiseAnalysis<bfv::NoiseByVarianceCoeffModel>>();
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();

@@ -4,14 +4,15 @@ package(
 )
 
 cc_library(
-    name = "NoiseCoeffModelAnalysis",
+    name = "NoiseAnalysis",
     srcs = [
-        "NoiseCoeffModelAnalysis.cpp",
+        "NoiseAnalysis.cpp",
     ],
     hdrs = [
     ],
     deps = [
         ":NoiseByBoundCoeffModel",
+        ":NoiseByVarianceCoeffModel",
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
@@ -41,5 +42,20 @@ cc_library(
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis:Noise",
         "@heir//lib/Parameters/BGV:Params",
+    ],
+)
+
+cc_library(
+    name = "NoiseByVarianceCoeffModel",
+    srcs = [
+        "NoiseByVarianceCoeffModel.cpp",
+    ],
+    hdrs = [
+        "NoiseByVarianceCoeffModel.h",
+    ],
+    deps = [
+        "@heir//lib/Analysis/NoiseAnalysis:NoiseWithDegree",
+        "@heir//lib/Parameters/BGV:Params",
+        "@heir//lib/Utils:MathUtils",
     ],
 )

@@ -6,8 +6,8 @@ load("@rules_go//go:def.bzl", "go_test")
 package(default_applicable_licenses = ["@heir//:license"])
 
 heir_lattigo_lib(
-    name = "dot_product_8_bfv",
-    go_library_name = "dotproduct8bfv",
+    name = "dot_product_8",
+    go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bfv",
         "--mlir-to-bfv=ciphertext-degree=8",
@@ -20,7 +20,7 @@ heir_lattigo_lib(
 # above.
 
 go_test(
-    name = "dotproduct8bfv_test",
-    srcs = ["dot_product_8_bfv_test.go"],
-    embed = [":dotproduct8bfv"],
+    name = "dotproduct8_test",
+    srcs = ["dot_product_8_test.go"],
+    embed = [":main"],
 )
