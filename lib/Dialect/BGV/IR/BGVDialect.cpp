@@ -6,6 +6,8 @@
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVEnums.h"
 #include "lib/Dialect/BGV/IR/BGVOps.h"
+
+// IWYU pragma: begin_keep
 #include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
 // IWYU pragma: end_keep
 

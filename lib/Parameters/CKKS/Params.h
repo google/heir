@@ -33,6 +33,18 @@ class SchemeParam : public RLWESchemeParam {
   static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };
 
+// Parameter for each SSA ciphertext SSA value.
+class LocalParam : public RLWELocalParam {
+ public:
+  LocalParam(const SchemeParam *schemeParam, int currentLevel, int dimension)
+      : RLWELocalParam(schemeParam, currentLevel, dimension) {}
+
+ public:
+  const SchemeParam *getSchemeParam() const {
+    return static_cast<const SchemeParam *>(schemeParam);
+  }
+};
+
 }  // namespace ckks
 }  // namespace heir
 }  // namespace mlir

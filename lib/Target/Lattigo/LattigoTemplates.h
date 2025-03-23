@@ -17,6 +17,8 @@ import (
 
 constexpr std::string_view kModulePreludeCKKSTemplate = R"go(
 import (
+    "math"
+
     "github.com/tuneinsight/lattigo/v6/core/rlwe"
     "github.com/tuneinsight/lattigo/v6/schemes/ckks"
 )

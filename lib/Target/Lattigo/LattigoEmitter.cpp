@@ -385,7 +385,8 @@ LogicalResult LattigoEmitter::printOperation(BGVNewEvaluatorOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVNewPlaintextOp op) {
-  os << getName(op.getResult()) << " := " << "bgv.NewPlaintext(";
+  os << getName(op.getResult()) << " := "
+     << "bgv.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
   os << getName(op.getParams()) << ".MaxLevel()";
   os << ")\n";
@@ -416,11 +417,10 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   os << "}\n";
 
   // set the scale of plaintext
-  // Enable this part only when we have scale management
-  // auto scale = op.getScale();
-  // os << getName(op.getPlaintext()) << ".Scale = ";
-  // os << getName(newPlaintextOp.getParams()) << ".NewScale(";
-  // os << scale << ")\n";
+  auto scale = op.getScale();
+  os << getName(op.getPlaintext()) << ".Scale = ";
+  os << getName(newPlaintextOp.getParams()) << ".NewScale(";
+  os << scale << ")\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";
@@ -596,7 +596,8 @@ LogicalResult LattigoEmitter::printOperation(CKKSNewEvaluatorOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSNewPlaintextOp op) {
-  os << getName(op.getResult()) << " := " << "ckks.NewPlaintext(";
+  os << getName(op.getResult()) << " := "
+     << "ckks.NewPlaintext(";
   os << getName(op.getParams()) << ", ";
   os << getName(op.getParams()) << ".MaxLevel()";
   os << ")\n";
@@ -627,11 +628,10 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   os << "}\n";
 
   // set the scale of plaintext
-  // Enable this part only when we have scale management
-  // auto scale = op.getScale();
-  // os << getName(op.getPlaintext()) << ".Scale = ";
-  // os << getName(newPlaintextOp.getParams()) << ".NewScale(math.Pow(2, ";
-  // os << scale << "))\n";
+  auto scale = op.getScale();
+  os << getName(op.getPlaintext()) << ".Scale = ";
+  os << getName(newPlaintextOp.getParams()) << ".NewScale(math.Pow(2, ";
+  os << scale << "))\n";
 
   os << getName(op.getEncoder()) << ".Encode(";
   os << packedName << ", ";
