@@ -6,12 +6,17 @@
 #col_major_vec_align = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0:i16>
 #col_major_vec = #tensor_ext.layout<map = (d0) -> (d0 * 4), alignment=#col_major_vec_align>
 
-// CHECK-LABEL: @convert_linalg_reduce
+
+// CHECK: [[align:#[^ ]*]] = #tensor_ext.alignment<in = [4], out = [16]>
+// CHECK: [[layout:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0), alignment = [[align]]>
+// CHECK: [[orig_ty:#[^ ]*]] = #tensor_ext.original_type<originalType = !secret.secret<tensor<4xi16>>, layout = [[layout]]>
+
+// CHECK: @convert_linalg_reduce
 // CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xi16>>]]
 // CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4x4xi16>>, layout = <map = (d0, d1) -> (d0 * 4 + d1)>>}
 // CHECK-SAME: [[arg1:%[^:]*]]: [[materialized_ty]]
 // CHECK-SAME: tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4x4xi16>>, layout = <map = (d0, d1) -> (d0 * 4 + d1)>>
-// CHECK-SAME: -> ([[materialized_ty]] {tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<4xi16>>, layout = <map = (d0) -> (d0), alignment = <in = [4], out = [16]>>>})
+// CHECK-SAME: -> ([[materialized_ty]] {tensor_ext.original_type = [[orig_ty]]})
 func.func @convert_linalg_reduce(
     %arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix},
     %arg1: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix}) ->

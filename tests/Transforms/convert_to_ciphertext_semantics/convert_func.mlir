@@ -1,11 +1,13 @@
 // RUN: heir-opt %s --convert-to-ciphertext-semantics | FileCheck %s
 
 #row_major = #tensor_ext.layout<map = (d0, d1) -> (d0 * 32 + d1)>
+// CHECK-DAG: [[layout:[^ ]*]] = #tensor_ext.layout<map = (d0, d1) -> (d0 * 32 + d1)>
+// CHECK-DAG: [[orig_type:[^ ]*]] = #tensor_ext.original_type<originalType = !secret.secret<tensor<32x32xi16>>, layout = [[layout]]>
 
-// CHECK-LABEL: @convert_minimal_example(
+// CHECK: @convert_minimal_example(
 // CHECK-SAME: [[arg0:%[^:]*]]: !secret.secret<tensor<1024xi16>>
-// CHECK-SAME: {tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<32x32xi16>>, layout = <map = (d0, d1) -> (d0 * 32 + d1)>>
-// CHECK-SAME: -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = #tensor_ext.original_type<originalType = !secret.secret<tensor<32x32xi16>>, layout = <map = (d0, d1) -> (d0 * 32 + d1)>>})
+// CHECK-SAME: {tensor_ext.original_type = [[orig_type]]}
+// CHECK-SAME: -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = [[orig_type]]})
 func.func @convert_minimal_example(
     %arg0: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = #row_major}) ->
        (!secret.secret<tensor<32x32xi16>> {tensor_ext.layout = #row_major}) {
