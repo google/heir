@@ -111,6 +111,25 @@ TEST(CaratheodoryFejerTest, ApproximateReluDegree14) {
               DoubleNear(87.41796048301983, EPSILON));
 }
 
+TEST(CaratheodoryFejerTest, ReluDegree3) {
+  // Regression test for https://github.com/google/heir/issues/1609
+  auto relu = [](const APFloat& x) {
+    APFloat zero = APFloat::getZero(x.getSemantics());
+    return x > zero ? x : zero;
+  };
+  FloatPolynomial actual = caratheodoryFejerApproximation(relu, 3);
+
+  auto terms = actual.getTerms();
+  EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),
+              DoubleNear(0.06972184658933259, EPSILON));
+  EXPECT_THAT(terms[1].getCoefficient().convertToDouble(),
+              DoubleNear(0.5, EPSILON));
+  EXPECT_THAT(terms[2].getCoefficient().convertToDouble(),
+              DoubleNear(0.48793143684847234, EPSILON));
+  EXPECT_THAT(terms[3].getCoefficient().convertToDouble(),
+              DoubleNear(-2.7192355874675714e-17, EPSILON));
+}
+
 }  // namespace
 }  // namespace approximation
 }  // namespace heir

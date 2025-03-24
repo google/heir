@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
-#include <optional>
 
 #include "Eigen/Core"         // from @eigen
 #include "Eigen/Dense"        // from @eigen
@@ -59,7 +58,7 @@ FloatPolynomial caratheodoryFejerApproximationUnitInterval(
 
   // Extract the eigenvector for the (absolute value) largest eigenvalue.
   int32_t maxIndex = 0;
-  double maxEigenvalue = eigenvalues(0);
+  double maxEigenvalue = std::abs(eigenvalues(0));
   for (int32_t i = 1; i < eigenvalues.size(); ++i) {
     if (std::abs(eigenvalues(i)) > maxEigenvalue) {
       maxEigenvalue = std::abs(eigenvalues(i));
