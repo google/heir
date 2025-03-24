@@ -241,25 +241,33 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           llvm::map_range(clonedLoop->getResults().getTypes(),
                           [](Type t) -> Type { return SecretType::get(t); }));
 
-      // If the original loop's iter arg was a generic block argument, then
-      // the new generic should take as input the loop's corresponding iter
-      // arg.
+      // If a generic operand is used as a loop iter arg initializer, then the
+      // new generic needs to have the (now secret) iter arg as its operand.
       SmallVector<Value> newGenericOperands;
       for (OpOperand &oldGenericOperand : genericOp->getOpOperands()) {
         auto blockArg = genericOp.getBody()->getArgument(
             oldGenericOperand.getOperandNumber());
-        auto index = std::find(loop.getInits().begin(), loop.getInits().end(),
-                               blockArg) -
-                     loop.getInits().begin();
-        if (index < (long)loop.getInits().size()) {
-          newGenericOperands.push_back(clonedLoop.getRegionIterArgs()[index]);
-          continue;
+        // The loop may have more iter args than the original generic had
+        // operands, e.g., if one generic operand was repeated twice as an iter
+        // arg initializer. Those iter args must now be two distinct generic
+        // operands.
+        int initIndex = 0;
+        bool found = false;
+        for (auto oldInit : loop.getInits()) {
+          if (oldInit == blockArg) {
+            newGenericOperands.push_back(
+                clonedLoop.getRegionIterArgs()[initIndex]);
+            found = true;
+          }
+          ++initIndex;
         }
+
+        if (found) continue;
 
         newGenericOperands.push_back(oldGenericOperand.get());
       }
       // The new generic should also take any newly secretized initial values of
-      // iter_args as input..
+      // iter_args as input.
       for (auto [newInit, operand] : newInitsToOperands) {
         newGenericOperands.push_back(newInit);
       }
@@ -324,7 +332,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       rewriter.finalizeOpModification(genericOp);
 
       // To replace the original secret.generic, we need to find a suitable
-      // replacement for any of its result values. There are two cases:
+      // replacement for its result values. There are two cases:
       //
       // 1. The generic yielded result values from the contained loop, in
       // which case the loop now yields the secret generic's result. In this
@@ -332,24 +340,38 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       //
       // 2. The generic yielded values modified in the affine loop scope, in
       // which case we need to find the original secret operand and replace
-      // with that.
-      // Note: loop.getLoopResults() is not implemented for affine::ForOp
-      if (loop->getOpResults() == genericOp.getYieldOp().getValues()) {
-        // Case 1:
-        rewriter.replaceOp(genericOp, clonedLoop);
-      } else {
-        // Case 2:
-        SmallVector<Value> replacements;
-        for (Value value : genericOp.getYieldOp().getValues()) {
-          assert(isa<BlockArgument>(value) &&
-                 "not sure what to do here, file a bug");
-          replacements.push_back(
-              genericOp.getOperand(cast<BlockArgument>(value).getArgNumber()));
-          LLVM_DEBUG(llvm::dbgs() << "replacing value " << value << " with "
-                                  << replacements.back() << "\n");
+      // with that. In this case we're assuming there is only one op in the
+      // generic body (the loop), so another yielded value must be a block
+      // argument.
+      SmallVector<Value> replacements;
+      for (Value yieldedValue : genericOp.getYieldOp().getValues()) {
+        int loopResultIndex =
+            std::find(loop->getOpResults().begin(), loop->getOpResults().end(),
+                      yieldedValue) -
+            loop->getOpResults().begin();
+        // Case 1
+        if (loopResultIndex >= 0) {
+          replacements.push_back(clonedLoop->getOpResult(loopResultIndex));
+          LLVM_DEBUG(llvm::dbgs() << "replacing value " << yieldedValue
+                                  << " with " << replacements.back() << "\n");
+          continue;
         }
-        rewriter.replaceOp(genericOp, replacements);
+
+        // Case 2
+        if (isa<BlockArgument>(yieldedValue)) {
+          replacements.push_back(genericOp.getOperand(
+              cast<BlockArgument>(yieldedValue).getArgNumber()));
+          LLVM_DEBUG(llvm::dbgs() << "replacing value " << yieldedValue
+                                  << " with " << replacements.back() << "\n");
+          continue;
+        }
+
+        assert(false &&
+               "Expected a loop result or a block argument, since this"
+               " code path expects a generic with a single operation (a loop) "
+               "inside it.");
       }
+      rewriter.replaceOp(genericOp, replacements);
 
       LLVM_DEBUG(clonedLoop->getParentOp()->emitRemark()
                  << "after replacing original generic with appropriate values");
