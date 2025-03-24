@@ -28,8 +28,13 @@ heir_lattigo_lib(
 # For Google-internal reasons we must separate the go_test rules from the macro
 # above.
 
+# TODO(#1614): re-enable as non-manual
 go_test(
     name = "multindep16debug_test",
     srcs = ["mult_indep_16_debug_test.go"],
     embed = [":main"],
+    tags = [
+        "manual",
+        "notap",
+    ],
 )
