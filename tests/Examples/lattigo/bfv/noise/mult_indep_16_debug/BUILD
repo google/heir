@@ -13,22 +13,23 @@ glaze_ignore = [
 ]
 
 heir_lattigo_lib(
-    name = "dot_product_8_debug",
+    name = "mult_indep_16_debug",
     extra_srcs = ["bfv_debug.go"],
     go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bfv",
-        "--mlir-to-bfv=ciphertext-degree=8 annotate-noise-bound=true",
+        "--mlir-to-bfv=noise-model=bfv-noise-bmcm23 \
+          annotate-noise-bound=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "mult_indep_16.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
 # above.
 
 go_test(
-    name = "dotproduct8debug_test",
-    srcs = ["dot_product_8_debug_test.go"],
+    name = "multindep16debug_test",
+    srcs = ["mult_indep_16_debug_test.go"],
     embed = [":main"],
 )

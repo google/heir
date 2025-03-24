@@ -1,4 +1,4 @@
-#include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
 
 #include <cassert>
 #include <cmath>
@@ -12,14 +12,15 @@
 
 namespace mlir {
 namespace heir {
-namespace bgv {
+namespace bfv {
 
-// the formulae below are mainly taken from MP24
-// "A Central Limit Framework for Ring-LWE Noise Analysis"
-// https://ia.cr/2019/452
-// and CLP23
-// "Optimisations and tradeoffs for HElib"
-// https://ia.cr/2023/104
+// the formulae below are mainly taken from BMCM23
+// "Improving and Automating BFV Parameters Selection: An Average-Case Approach"
+// https://ia.cr/2023/600
+// with modification that it works on Var(e) instead of invariant noise
+// Reader may also refer to KPZ21
+// "Revisiting Homomorphic Encryption Schemes for Finite Fields"
+// to see how the formulae there are adapted to this model
 
 using Model = NoiseByVarianceCoeffModel;
 
@@ -42,10 +43,11 @@ double Model::toLogBudget(const LocalParamType &param, const StateType &noise) {
 double Model::toLogTotal(const LocalParamType &param) {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
-  for (auto i = 0; i <= param.getCurrentLevel(); ++i) {
+  for (auto i = 0; i <= param.getSchemeParam()->getLevel(); ++i) {
     total += logqi[i];
   }
-  return total - 1.0;
+  double logT = log2(param.getSchemeParam()->getPlaintextModulus());
+  return total - logT - 1.0;
 }
 
 std::string Model::toLogBoundString(const LocalParamType &param,
@@ -85,27 +87,27 @@ typename Model::StateType Model::evalEncryptPk(const LocalParamType &param) {
   auto varianceError = getVarianceErr(param);
   // uniform ternary
   auto varianceKey = getVarianceKey(param);
-  auto t = param.getSchemeParam()->getPlaintextModulus();
   auto n = param.getSchemeParam()->getRingDim();
-  // public key (-as + t * e, a)
-  // public key encryption (-aus + t(u * e + e_0) + m, au + e_1)
-  // v_fresh = m + t * (u * e + e_1 * s + e_0)
-  // var_fresh = t^2 * (2n * var_key + 1) * var_error
+  // public key (-as + e, a)
+  // public key encryption (-aus + (u * e + e_0) + (q/t) * m, au + e_1)
+  // v_fresh = u * e + e_1 * s + e_0
+  // var_fresh = (2n * var_key + 1) * var_error
   // for ringDim, see header comment for explanation
-  double fresh = t * t * varianceError * (2. * n * varianceKey + 1.);
-  return StateType::of(fresh);
+  double fresh = varianceError * (2. * n * varianceKey + 1.);
+  // max degree of 's' in v_fresh is 1.
+  return StateType::of(fresh, 1);
 }
 
 typename Model::StateType Model::evalEncryptSk(const LocalParamType &param) {
-  auto t = param.getSchemeParam()->getPlaintextModulus();
   auto varianceError = getVarianceErr(param);
 
   // secret key s
-  // secret key encryption (-as + m + t * e, a)
-  // v_fresh = t * e
-  // var_fresh = t^2 * var_error
-  double fresh = t * t * varianceError;
-  return StateType::of(fresh);
+  // secret key encryption (-as + (q/t) * m + e, a)
+  // v_fresh = e
+  // var_fresh = var_error
+  double fresh = varianceError;
+  // max degree of 's' in v_fresh is 0.
+  return StateType::of(fresh, 0);
 }
 
 typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
@@ -115,7 +117,13 @@ typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
   if (isEncryptionTechniqueExtended) {
     // for extended encryption technique, namely encrypt at Qp then mod reduce
     // back to Q, the noise is modreduce(encrypt)
-    return evalModReduce(param, evalEncryptPk(param));
+    auto ringDim = param.getSchemeParam()->getRingDim();
+    auto varianceKey = getVarianceKey(param);
+    // the error has the form tau_0 + tau_1 * s, where tau_i is uniform in
+    // [-1/2, 1/2].
+    auto added = (1.0 + ringDim * varianceKey) / 12.0;
+    // max degree of 's' is 1.
+    return StateType::of(added, 1);
   }
   if (usePublicKey) {
     return evalEncryptPk(param);
@@ -124,18 +132,17 @@ typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
 }
 
 typename Model::StateType Model::evalConstant(const LocalParamType &param) {
-  auto t = param.getSchemeParam()->getPlaintextModulus();
-  // constant is v = m + t * 0
-  // assume m is uniform from [-t/2, t/2]
-  // var_constant = t * t / 12
-  return StateType::of(t * t / 12.0);
+  // constant is v = (q/t)m + 0
+  return StateType::of(0, 0);
 }
 
 typename Model::StateType Model::evalAdd(const StateType &lhs,
                                          const StateType &rhs) {
   // v_add = v_0 + v_1
-  // assuming independent of course
-  return StateType::of(lhs.getValue() + rhs.getValue());
+  // assuming independence of course
+  // max degree of 's' in v_add is max(d_0, d_1)
+  return StateType::of(lhs.getValue() + rhs.getValue(),
+                       std::max(lhs.getDegree(), rhs.getDegree()));
 }
 
 typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
@@ -143,41 +150,61 @@ typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
                                          const StateType &rhs) {
   auto ringDim = resultParam.getSchemeParam()->getRingDim();
   auto v0 = lhs.getValue();
+  auto d0 = lhs.getDegree();
   auto v1 = rhs.getValue();
+  auto d1 = rhs.getDegree();
+  auto newDegree = std::max(d0, d1);
+  auto t = resultParam.getSchemeParam()->getPlaintextModulus();
 
-  // v_mul = v_0 * v_1
-  // for ringDim, see header comment for explanation
-  return StateType::of(ringDim * v0 * v1);
-}
+  auto logqi = resultParam.getSchemeParam()->getLogqi();
+  auto logQ = std::accumulate(logqi.begin(), logqi.end(), 0.0);
+  // we hope double is big enough...
+  // if logQ > 1024... we may have a problem
+  auto Q = pow(2.0, logQ);
 
-typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
-                                               const StateType &input) {
-  [[maybe_unused]] auto cv = inputParam.getDimension();
-  // for cv > 2 the rounding error term is different!
-  // like (tau_0, tau_1, tau_2) and the error becomes
-  // tau_0 + tau_1 s + tau_2 s^2
-  assert(cv == 2);
+  auto varianceKey = getVarianceKey(resultParam);
 
-  auto currentLogqi =
-      inputParam.getSchemeParam()->getLogqi()[inputParam.getCurrentLevel()];
-
-  double modulus = pow(2.0, currentLogqi);
-
-  auto ringDim = inputParam.getSchemeParam()->getRingDim();
-  auto varianceKey = getVarianceKey(inputParam);
-
-  // modulus switching is essentially a scaling operation
-  // so the original error is scaled by the modulus
-  // v_scaled = v_input / modulus
-  // var_scaled = var_input / (modulus * modulus)
-  auto scaled = input.getValue() / (modulus * modulus);
-  // in the meantime, it will introduce an rounding error
-  // (tau_0, tau_1) to the (ct_0, ct_1) where ||tau_i|| < t / 2
-  // so tau_0 + tau_1 * s has the variance
-  // var_added = var_const * (1.0 + var_key * ringDim)
-  auto varianceConst = evalConstant(inputParam).getValue();
-  auto added = varianceConst * (1.0 + ringDim * varianceKey);
-  return StateType::of(scaled + added);
+  // ((q/t)m_0 + e_0 + k_0 * q) * ((q/t)m_1 + e_1 + k_1 * q)
+  // = (q/t)^2 m_0 * m_1
+  //   + (q/t)(m_0 * e_1 + m_1 * e_0
+  //      + t(e_0 * k_1 + e_1 * k_0) + (t/q)e_0 * e_1)
+  //   + some q^2/t
+  //
+  // after scaling by (q/t) we get
+  //
+  // (q/t) m_0 * m_1
+  //    + (m_0 * e_1 + m_1 * e_0 +
+  //    + t(e_0 * k_1 + e_1 * k_0) + (t/q)e_0 * e_1)
+  //    + some q
+  //
+  // v_mul = v_0 * v_1 * (t/q)
+  //    + v_0 * m_1 + v_1 * m_0
+  //    + t(v_0 * k_1 + v_1 * k_0)
+  //
+  // k_i * Q is the not rounded part when we compute c(s) = c_0 + c_1 * s
+  // so we have k_i = (c(s) - round(c(s))) / Q
+  // so _heuristically_ we have k_i = tau_0 + tau_1 * s
+  // where tau_i is uniformly in [-1/2, 1/2]
+  // then Var(k_i) = 1/12(1 + ringDim * var_key)
+  auto term1 = t * t * (ringDim * v0 * v1) / Q / Q;
+  auto term2 = ringDim * t * t * (v0 + v1) / 12.;
+  auto term3 = 0.;
+  // only ct-ct mul has this term
+  // as pt does not have k_i * Q
+  if (v0 != 0 && v1 != 0) {
+    // Key part of BMCM23 is that, for v_0 * k_1 where v_0 is of degree d0
+    // and k_1 is of degree 1, the degree of the resulting term is d0 + 1.
+    // Then we need a correction factor f(d0 + 1) multiplied to v_0.
+    // BMCM has an approximation for it, but for low degree we can just
+    // use f(d0 + 1) = d0 + 1.
+    // CAUTION: this formula won't work for high degree like 20, which means
+    // the circuit is 20-level deep.
+    term3 = (1 + ringDim * varianceKey) / 12.0 * ringDim * t * t *
+            (v0 * (d0 + 1) + v1 * (d1 + 1));
+    // the degree of the resulting term is max(d0 + 1, d1 + 1)
+    newDegree += 1;
+  }
+  return StateType::of(term1 + term2 + term3, newDegree);
 }
 
 typename Model::StateType Model::evalRelinearizeHYBRID(
@@ -198,26 +225,25 @@ typename Model::StateType Model::evalRelinearizeHYBRID(
   auto ringDim = inputParam.getSchemeParam()->getRingDim();
   auto t = inputParam.getSchemeParam()->getPlaintextModulus();
 
-  auto currentLevel = inputParam.getCurrentLevel();
-  // modup from Ql to QlP, so one more digit
-  auto currentNumDigit = ceil(static_cast<double>(currentLevel + 1) / dnum) + 1;
+  auto level = inputParam.getSchemeParam()->getLevel();
+  // modup from Q to QP, so one more digit
+  auto numDigit = ceil(static_cast<double>(level + 1) / dnum) + 1;
 
   // log(qiq_{i+1}...), the digit size for a certain digit
   // we use log(pip_{i+1}...) as an approximation,
   // as we often choose P > each digit
-  auto logqi = inputParam.getSchemeParam()->getLogqi();
-  auto logDigitSize = std::accumulate(logqi.begin(), logqi.end(), 0.0);
+  auto logpi = inputParam.getSchemeParam()->getLogpi();
+  double logDigitSize = std::accumulate(logpi.begin(), logpi.end(), 0.0);
   // omega in literature
   auto digitSize = pow(2.0, logDigitSize);
 
-  // the critical quantity for HYBRID key switching error is
+  // the error for HYBRID key switching error is
   // t * sum over all digit (ct_2 * e_ksk)
-  // there are "currentNumDigit" digits
+  // there are "numDigit" digits
   // and c_2 uniformly from [-digitSize / 2, digitSize / 2]
   // for ringDim, see header comment for explanation
-  auto varianceKeySwitch = t * t * currentNumDigit *
-                           (digitSize * digitSize / 12.0) * ringDim *
-                           varianceErr;
+  auto varianceKeySwitch =
+      t * t * numDigit * (digitSize * digitSize / 12.0) * ringDim * varianceErr;
 
   // moddown by P
   auto scaled = varianceKeySwitch / (digitSize * digitSize);
@@ -225,12 +251,12 @@ typename Model::StateType Model::evalRelinearizeHYBRID(
   // Some papers just say hey we mod down by P so the error added is just mod
   // reduce, but the error for mod reduce is different for approximate mod down.
   // Anyway, this term is not the major term.
-  auto varianceConst = evalConstant(inputParam).getValue();
-  auto added = varianceConst * (1.0 + ringDim * varianceKey);
+  // moddown added noise, similar to modreduce.
+  auto added = (1.0 + ringDim * varianceKey) / 12.0;
 
   // for relinearization after multiplication, often scaled + added is far less
   // than input.
-  return StateType::of(input.getValue() + scaled + added);
+  return StateType::of(input.getValue() + scaled + added, input.getDegree());
 }
 
 typename Model::StateType Model::evalRelinearize(
@@ -241,6 +267,6 @@ typename Model::StateType Model::evalRelinearize(
   return evalRelinearizeHYBRID(inputParam, input);
 }
 
-}  // namespace bgv
+}  // namespace bfv
 }  // namespace heir
 }  // namespace mlir
