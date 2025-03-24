@@ -3036,12 +3036,15 @@ to tensor.extract ops.</p><p>Does not support complex control flow within a bloc
 arbitrary subregions.</p><h3 id=-forward-store-to-load><code>-forward-store-to-load</code></h3><p><em>Forward stores to loads within a single block</em></p><p>This pass is a simplified version of mem2reg and similar passes.
 It analyzes an operation, finding all basic blocks within that op
 that have memrefs whose stores can be forwarded to loads.</p><p>Does not support complex control flow within a block, nor ops
-with arbitrary subregions.</p><h3 id=-full-loop-unroll><code>-full-loop-unroll</code></h3><p><em>Fully unroll all loops</em></p><p>Scan the IR for affine.for loops and unroll them all.</p><h3 id=-generate-param-bfv><code>-generate-param-bfv</code></h3><p><em>Generate BFV Scheme Parameter</em></p><p>The pass generates the BFV scheme parameter using a given noise model.</p><p>There are three noise models available:</p><ul><li><code>bfv-noise-by-bound-coeff-average-case</code></li><li><code>bfv-noise-by-bound-coeff-worst-case</code> or <code>bfv-noise-kpz21</code></li></ul><p>To use public-key encryption/secret-key encryption in the model, the option
+with arbitrary subregions.</p><h3 id=-full-loop-unroll><code>-full-loop-unroll</code></h3><p><em>Fully unroll all loops</em></p><p>Scan the IR for affine.for loops and unroll them all.</p><h3 id=-generate-param-bfv><code>-generate-param-bfv</code></h3><p><em>Generate BFV Scheme Parameter</em></p><p>The pass generates the BFV scheme parameter using a given noise model.</p><p>There are three noise models available:</p><ul><li><code>bfv-noise-by-bound-coeff-average-case</code></li><li><code>bfv-noise-by-bound-coeff-worst-case</code> or <code>bfv-noise-kpz21</code></li><li><code>bfv-noise-by-variance-coeff</code> or <code>bfv-noise-bmcm23</code></li></ul><p>To use public-key encryption/secret-key encryption in the model, the option
 <code>usePublicKey</code> could be set accordingly.</p><p>The first two models are taken from KPZ21, and they work by bounding
 the coefficient embedding of the ciphertexts. The difference
 of the two models is expansion factor used for multiplication
 of the coefficients, the first being $2 \sqrt{N}$ and the second
-being $N$.</p><p>This pass then generates the moduli chain consisting of primes
+being $N$.</p><p>The third model is taken from BMCM23. It works by tracking the variance
+of the coefficient embedding of the ciphertexts. This gives a much tighter
+noise estimate for independent ciphertext input, but may give underestimation
+for dependent ciphertext input. See <a href=https://ia.cr/2023/600>the paper</a> for more details.</p><p>This pass then generates the moduli chain consisting of primes
 of bits specified by the <code>mod-bits</code> field.</p><p>Usually for B/FV <code>mod-bits</code> is set to 60. But when machine word size is
 small, users may also want to set it to 57.</p><p>This pass relies on the presence of the <code>mgmt</code> dialect ops to model
 relinearize, and it relies on <code>mgmt.mgmt</code> attribute to determine
