@@ -1,8 +1,10 @@
 #ifndef LIB_DIALECT_TENSOREXT_IR_TENSOREXTATTRIBUTES_H_
 #define LIB_DIALECT_TENSOREXT_IR_TENSOREXTATTRIBUTES_H_
 
-// NOLINTNEXTLINE(misc-include-cleaner): Required to define TensorExt Attributes
-#include "mlir/include/mlir/IR/TensorEncoding.h"  // from @llvm-project
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/IR/OpImplementation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/TensorEncoding.h"    // from @llvm-project
+// IWYU pragma: end_keep
 
 #define GET_ATTRDEF_CLASSES
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h.inc"

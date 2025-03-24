@@ -4,14 +4,23 @@
 include "lib/Dialect/TensorExt/IR/TensorExtDialect.td"
 
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/IR/DialectBase.td"
-include "mlir/IR/TensorEncoding.td"
 include "mlir/IR/CommonAttrConstraints.td"
+include "mlir/IR/DialectBase.td"
+include "mlir/IR/OpAsmInterface.td"
+include "mlir/IR/TensorEncoding.td"
 
 class TensorExt_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<TensorExt_Dialect, name, traits> {
+    : AttrDef<TensorExt_Dialect, name, traits # [OpAsmAttrInterface]> {
   let mnemonic = attrMnemonic;
   let assemblyFormat = "`<` struct(params) `>`";
+
+  let extraClassDeclaration = [{
+    // OpAsmAttrInterface methods.
+    ::mlir::OpAsmDialectInterface::AliasResult getAlias(::llvm::raw_ostream &os) const {
+      os << "}] # attrMnemonic # [{";
+      return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+  }];
 }
 
 // TODO(#1592): remove and remove align-tensor-sizes
