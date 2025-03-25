@@ -36,13 +36,20 @@ class SchemeParam : public RLWESchemeParam {
 // Parameter for each SSA ciphertext SSA value.
 class LocalParam : public RLWELocalParam {
  public:
-  LocalParam(const SchemeParam *schemeParam, int currentLevel, int dimension)
-      : RLWELocalParam(schemeParam, currentLevel, dimension) {}
+  LocalParam(const SchemeParam *schemeParam, int currentLevel, int dimension,
+             int64_t scale)
+      : RLWELocalParam(schemeParam, currentLevel, dimension), scale(scale) {}
 
  public:
   const SchemeParam *getSchemeParam() const {
     return static_cast<const SchemeParam *>(schemeParam);
   }
+
+ public:
+  int64_t getScale() const { return scale; }
+
+ private:
+  int64_t scale;
 };
 
 }  // namespace ckks

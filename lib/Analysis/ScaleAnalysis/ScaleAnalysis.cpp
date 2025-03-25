@@ -113,7 +113,12 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
   auto getLocalParam = [&](Value value) {
     auto level = getLevelFromMgmtAttr(value);
     auto dimension = getDimensionFromMgmtAttr(value);
-    return LocalParamType(&schemeParam, level, dimension);
+    [[maybe_unused]] auto scale = getScaleFromMgmtAttr(value);
+    if constexpr (std::is_same_v<LocalParamType, ckks::LocalParam>) {
+      return LocalParamType(&schemeParam, level, dimension, scale);
+    } else {
+      return LocalParamType(&schemeParam, level, dimension);
+    }
   };
 
   auto propagate = [&](Value value, const ScaleState &state) {
@@ -258,7 +263,12 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
   auto getLocalParam = [&](Value value) {
     auto level = getLevelFromMgmtAttr(value);
     auto dimension = getDimensionFromMgmtAttr(value);
-    return LocalParamType(&schemeParam, level, dimension);
+    [[maybe_unused]] auto scale = getScaleFromMgmtAttr(value);
+    if constexpr (std::is_same_v<LocalParamType, ckks::LocalParam>) {
+      return LocalParamType(&schemeParam, level, dimension, scale);
+    } else {
+      return LocalParamType(&schemeParam, level, dimension);
+    }
   };
 
   auto propagate = [&](Value value, const ScaleState &state) {
