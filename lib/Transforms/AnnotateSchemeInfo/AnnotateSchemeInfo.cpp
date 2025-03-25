@@ -30,7 +30,7 @@ struct AnnotateSchemeInfo : impl::AnnotateSchemeInfoBase<AnnotateSchemeInfo> {
       return;
     }
 
-    annotateSecretness(getOperation(), &solver, verbose);
+    annotateNatureOfComputation(getOperation(), &solver, verbose);
   }
 };
 
