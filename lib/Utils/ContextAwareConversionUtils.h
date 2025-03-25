@@ -6,6 +6,7 @@
 #include <numeric>
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -231,38 +232,39 @@ class SecretGenericOpCipherPlainConversion
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    auto ciphertextValues =
-        llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
+    // Verify that exactly one of the two inputs is a ciphertext.
+    if (inputs.size() != 2 ||
+        llvm::count_if(inputs, [&](Value input) {
           return isa<lwe::NewLWECiphertextType>(input.getType());
-        }));
-    if (ciphertextValues.size() != 1) {
-      return failure();
-    }
-    auto ciphertext =
-        dyn_cast<TypedValue<lwe::NewLWECiphertextType>>(ciphertextValues[0]);
-    if (!ciphertext) {
+        }) != 1) {
       return failure();
     }
 
-    auto cleartextValues =
-        llvm::to_vector(llvm::make_filter_range(inputs, [&](Value input) {
-          // The cleartext value could be a tensor of values or a scalar.
-          return !isa<lwe::NewLWECiphertextType>(input.getType());
-        }));
-    if (cleartextValues.size() != 1) {
-      return failure();
-    }
-    Value cleartext = cleartextValues[0];
-    lwe::NewLWECiphertextType ciphertextTy = ciphertext.getType();
-    auto plaintextTy = lwe::NewLWEPlaintextType::get(
-        op.getContext(), ciphertextTy.getApplicationData(),
-        ciphertextTy.getPlaintextSpace());
-    auto plaintext = rewriter.create<lwe::RLWEEncodeOp>(
-        op.getLoc(), plaintextTy, cleartext,
-        ciphertextTy.getPlaintextSpace().getEncoding(),
-        ciphertextTy.getPlaintextSpace().getRing());
+    auto encodeCleartext =
+        [&](Value cleartext, lwe::NewLWECiphertextType ciphertextTy) -> Value {
+      auto plaintextTy = lwe::NewLWEPlaintextType::get(
+          op.getContext(), ciphertextTy.getApplicationData(),
+          ciphertextTy.getPlaintextSpace());
+      return rewriter.create<lwe::RLWEEncodeOp>(
+          op.getLoc(), plaintextTy, cleartext,
+          ciphertextTy.getPlaintextSpace().getEncoding(),
+          ciphertextTy.getPlaintextSpace().getRing());
+    };
 
-    auto newOp = rewriter.replaceOpWithNewOp<Y>(op, ciphertext, plaintext);
+    Value input0 = inputs[0];
+    Value input1 = inputs[1];
+    if (auto ciphertextTy =
+            dyn_cast<lwe::NewLWECiphertextType>(input0.getType())) {
+      auto newOp = rewriter.replaceOpWithNewOp<Y>(
+          op, input0, encodeCleartext(input1, ciphertextTy));
+      return newOp.getOperation();
+    }
+
+    auto newOp = rewriter.replaceOpWithNewOp<Y>(
+        op,
+        encodeCleartext(input0,
+                        cast<lwe::NewLWECiphertextType>(input1.getType())),
+        input1);
     return newOp.getOperation();
   }
 };

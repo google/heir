@@ -21,10 +21,10 @@ class BGV_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 class BGV_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []>
-      : BGV_Op<mnemonic, traits> {
+      : BGV_Op<mnemonic, traits # [IsCiphertextPlaintextOp, InferTypeOpAdaptor]> {
   let arguments = (ins
-    NewLWECiphertext:$ciphertextInput,
-    NewLWEPlaintext:$plaintextInput
+    NewLWEPlaintextOrCiphertext:$lhs,
+    NewLWEPlaintextOrCiphertext:$rhs
   );
 
   let results = (outs
@@ -46,8 +46,8 @@ def BGV_AddOp : BGV_Op<"add", [Commutative,
   );
 }
 
-def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain", [AllTypesMatch<["ciphertextInput", "output"]>,
-        SameOperandsAndResultPlaintextTypes]> {
+def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain", [AllCiphertextTypesMatch,
+        SameOperandsAndResultPlaintextTypes, Commutative]> {
   let summary = "Addition operation between ciphertext-plaintext.";
 }
 
@@ -65,7 +65,7 @@ def BGV_SubOp : BGV_Op<"sub", [SameOperandsAndResultRings,
   );
 }
 
-def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain", [AllTypesMatch<["ciphertextInput", "output"]>,
+def BGV_SubPlainOp : BGV_CiphertextPlaintextOp<"sub_plain", [AllCiphertextTypesMatch,
         SameOperandsAndResultPlaintextTypes]> {
   let summary = "Subtraction operation between ciphertext-plaintext.";
 }
@@ -85,7 +85,7 @@ def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTyp
   let hasVerifier = 1;
 }
 
-def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor]> {
+def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, AllCiphertextTypesMatch, Commutative]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
   let hasVerifier = 1;
 }

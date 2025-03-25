@@ -41,6 +41,7 @@
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
@@ -251,8 +252,9 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           .Case<affine::AffineForOp, affine::AffineYieldOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
-          .Case<arith::ConstantOp, arith::ExtSIOp, arith::IndexCastOp,
-                arith::ExtFOp>([&](auto op) { return printOperation(op); })
+          .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
+                arith::IndexCastOp, arith::ExtFOp>(
+              [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::EmptyOp, tensor::InsertOp, tensor::ExtractOp,
                 tensor::ExtractSliceOp, tensor::SplatOp>(
@@ -562,7 +564,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(AddPlainOp op) {
   // OpenFHE defines an overload for EvalAdd to work on both plaintext and
   // ciphertext inputs.
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
-                         {op.getCiphertext(), op.getPlaintext()}, "EvalAdd");
+                         {op.getLhs(), op.getRhs()}, "EvalAdd");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(SubOp op) {
@@ -574,7 +576,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(SubPlainOp op) {
   // OpenFHE defines an overload for EvalSub to work on both plaintext and
   // ciphertext inputs.
   return printEvalMethod(op.getResult(), op.getCryptoContext(),
-                         {op.getCiphertext(), op.getPlaintext()}, "EvalSub");
+                         {op.getLhs(), op.getRhs()}, "EvalSub");
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(MulNoRelinOp op) {
@@ -752,6 +754,29 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
 LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtSIOp op) {
   // OpenFHE has a convention that all inputs to MakePackedPlaintext are
   // std::vector<int64_t>, so earlier stages in the pipeline emit typecasts
+
+  std::string inputVarName = variableNames->getNameForValue(op.getOperand());
+  std::string resultVarName = variableNames->getNameForValue(op.getResult());
+
+  // If it's a vector<int**_t>, we can use a copy constructor to upcast.
+  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getOperand().getType())) {
+    os << "std::vector<int64_t> " << resultVarName << "(std::begin("
+       << inputVarName << "), std::end(" << inputVarName << "));\n";
+  } else {
+    return op.emitOpError() << "Unsupported input type";
+  }
+
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::ExtUIOp op) {
+  // OpenFHE has a convention that all inputs to MakePackedPlaintext are
+  // std::vector<int64_t>, so earlier stages in the pipeline emit typecasts.
+  // Unsigned extension should only be used for booleans.
+  assert(
+      getElementTypeOrSelf(op.getOperand().getType()).getIntOrFloatBitWidth() ==
+          1 &&
+      "expected boolean type for extui");
 
   std::string inputVarName = variableNames->getNameForValue(op.getOperand());
   std::string resultVarName = variableNames->getNameForValue(op.getResult());
