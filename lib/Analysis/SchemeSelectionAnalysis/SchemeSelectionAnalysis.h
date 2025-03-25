@@ -28,10 +28,11 @@ class NatureOfComputation {
         numRealArithOps(0),
         numCmpOps(0),
         numNonLinOps(0) {}
+
   explicit NatureOfComputation(int numBoolOps, int numBitOps,
                                int numIntArithOps, int numRealArithOps,
                                int numCmpOps, int numNonLinOps)
-      : initialized(false),
+      : initialized(true),
         numBoolOps(numBoolOps),
         numBitOps(numBitOps),
         numIntArithOps(numIntArithOps),
