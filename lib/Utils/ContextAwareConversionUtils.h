@@ -180,6 +180,9 @@ class SecretGenericOpConversion
       if (namedAttr.getName().getValue() == "alignment") {
         attrsToPreserve.push_back(namedAttr);
       }
+      if (namedAttr.getName().getValue() == "reassociation") {
+        attrsToPreserve.push_back(namedAttr);
+      }
     }
 
     FailureOr<Operation *> newOpResult = matchAndRewriteInner(
