@@ -111,30 +111,32 @@ LogicalResult MacOp::verify() {
   return verifyModArithType(*this, getResultModArithType(*this));
 }
 
-LogicalResult BarrettReduceOp::verify() {
-  auto inputType = getInput().getType();
-  unsigned bitWidth;
-  if (auto tensorType = dyn_cast<RankedTensorType>(inputType)) {
-    bitWidth = tensorType.getElementTypeBitWidth();
-  } else {
-    auto integerType = dyn_cast<IntegerType>(inputType);
-    assert(integerType &&
-           "expected input to be a ranked tensor type or integer type");
-    bitWidth = integerType.getWidth();
-  }
-  auto expectedBitWidth = (getModulus() - 1).getActiveBits();
-  if (bitWidth < expectedBitWidth || 2 * expectedBitWidth < bitWidth) {
-    return emitOpError()
-           << "input bitwidth is required to be in the range [w, 2w], where w "
-              "is the smallest bit-width that contains the range [0, modulus). "
-              "Got "
-           << bitWidth << " but w is " << expectedBitWidth << ".";
-  }
-  if (getModulus().slt(0))
-    return emitOpError() << "provided modulus " << getModulus().getSExtValue()
-                         << " is not a positive integer.";
-  return success();
-}
+// LogicalResult BarrettReduceOp::verify() {
+//   auto inputType = getInput().getType();
+//   unsigned bitWidth;
+//   if (auto tensorType = dyn_cast<RankedTensorType>(inputType)) {
+//     bitWidth = tensorType.getElementTypeBitWidth();
+//   } else {
+//     auto integerType = dyn_cast<IntegerType>(inputType);
+//     assert(integerType &&
+//            "expected input to be a ranked tensor type or integer type");
+//     bitWidth = integerType.getWidth();
+//   }
+//   auto expectedBitWidth = (getModulus() - 1).getActiveBits();
+//   if (bitWidth < expectedBitWidth || 2 * expectedBitWidth < bitWidth) {
+//     return emitOpError()
+//            << "input bitwidth is required to be in the range [w, 2w], where w
+//            "
+//               "is the smallest bit-width that contains the range [0,
+//               modulus). " "Got "
+//            << bitWidth << " but w is " << expectedBitWidth << ".";
+//   }
+//   if (getModulus().slt(0))
+//     return emitOpError() << "provided modulus " <<
+//     getModulus().getSExtValue()
+//                          << " is not a positive integer.";
+//   return success();
+// }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
   unsigned minBitwidth = 4;  // bitwidth assigned by parser to integer `1`
