@@ -55,6 +55,7 @@ cc_binary(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Jaxite/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
         "@heir//lib/Dialect/LWE/Conversions/LWEToLattigo",
         "@heir//lib/Dialect/LWE/Conversions/LWEToOpenfhe",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
@@ -193,6 +194,7 @@ cc_binary(
     deps = [
         "@heir//lib/Source/AutoHog:AutoHogImporter",
         "@heir//lib/Target/Jaxite:JaxiteEmitter",
+        "@heir//lib/Target/JaxiteWord:JaxiteWordEmitter",
         "@heir//lib/Target/Lattigo:LattigoEmitter",
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFheRegistration",
@@ -215,6 +217,7 @@ cc_binary(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Jaxite/IR:Dialect",
+        "@heir//lib/Dialect/JaxiteWord/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
