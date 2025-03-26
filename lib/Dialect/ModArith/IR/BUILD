@@ -23,6 +23,8 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Dialect/Polynomial/IR:PolynomialAttributes",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:CommonFolders",
