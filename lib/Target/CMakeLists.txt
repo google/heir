@@ -2,6 +2,7 @@
 add_library(HEIRTarget INTERFACE)
 
 add_subdirectory(Jaxite)
+add_subdirectory(JaxiteWord)
 add_subdirectory(Metadata)
 add_subdirectory(OpenFhePke)
 add_subdirectory(TfheRust)

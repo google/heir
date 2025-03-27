@@ -3,6 +3,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Jaxite/IR/JaxiteDialect.h"
+#include "lib/Dialect/JaxiteWord/IR/JaxiteWordDialect.h"
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/Lattigo/IR/LattigoDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
@@ -42,6 +43,7 @@ int main(int argc, char **argv) {
   registry.insert<cggi::CGGIDialect>();
   registry.insert<comb::CombDialect>();
   registry.insert<jaxite::JaxiteDialect>();
+  registry.insert<jaxiteword::JaxiteWordDialect>();
   registry.insert<lattigo::LattigoDialect>();
   registry.insert<lwe::LWEDialect>();
   registry.insert<mod_arith::ModArithDialect>();
