@@ -46,4 +46,18 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
     } -> !eui1
     return %0 : !eui1
   }
+
+  // CHECK-LABEL: func @test_sub_plaintext_ciphertext
+  // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
+  // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
+  func.func @test_sub_plaintext_ciphertext(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
+    %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
+    // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
+    // CHECK: bgv.sub_plain %[[v0]], %[[arg0]]
+      ^bb0(%ARG0 : tensor<1024xi1>):
+        %1 = arith.subi %arg1, %ARG0 : tensor<1024xi1>
+        secret.yield %1 : tensor<1024xi1>
+    } -> !eui1
+    return %0 : !eui1
+  }
 }

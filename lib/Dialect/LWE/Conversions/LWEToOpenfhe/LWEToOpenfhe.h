@@ -73,9 +73,9 @@ struct ConvertCiphertextPlaintextOp : public OpConversionPattern<BinOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOpWithNewOp<OpenfheOp>(
-        op, op.getOutput().getType(), cryptoContext,
-        adaptor.getCiphertextInput(), adaptor.getPlaintextInput());
+    rewriter.replaceOpWithNewOp<OpenfheOp>(op, op.getOutput().getType(),
+                                           cryptoContext, adaptor.getLhs(),
+                                           adaptor.getRhs());
     return success();
   }
 };
