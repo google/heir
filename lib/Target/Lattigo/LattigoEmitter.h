@@ -71,6 +71,8 @@ class LattigoEmitter {
   LogicalResult printOperation(RLWEDecryptOp op);
   LogicalResult printOperation(RLWEDropLevelNewOp op);
   LogicalResult printOperation(RLWEDropLevelOp op);
+  LogicalResult printOperation(RLWENegateNewOp op);
+  LogicalResult printOperation(RLWENegateOp op);
   // BGV
   LogicalResult printOperation(BGVNewParametersFromLiteralOp op);
   LogicalResult printOperation(BGVNewEncoderOp op);

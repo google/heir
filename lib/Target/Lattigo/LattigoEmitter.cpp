@@ -65,7 +65,8 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
               RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
               RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp, RLWEGenGaloisKeyOp,
               RLWENewEvaluationKeySetOp, RLWEEncryptOp, RLWEDecryptOp,
-              RLWEDropLevelNewOp, RLWEDropLevelOp,
+              RLWEDropLevelNewOp, RLWEDropLevelOp, RLWENegateNewOp,
+              RLWENegateOp,
               // BGV
               BGVNewParametersFromLiteralOp, BGVNewEncoderOp, BGVNewEvaluatorOp,
               BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddNewOp,
@@ -213,41 +214,104 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
   return success();
 }
 
+namespace {
+
+template <typename T>
+FailureOr<std::string> getStringForConstant(T value) {
+  if constexpr (std::is_same_v<T, APInt>) {
+    if (value.getBitWidth() == 1) {
+      return std::string(value.getBoolValue() ? "true" : "false");
+    }
+    return std::to_string(value.getSExtValue());
+  } else if constexpr (std::is_same_v<T, APFloat>) {
+    // care about precision...see OpenfhePkeEmitter when we encounter problem
+    return std::to_string(value.convertToDouble());
+  }
+  return failure();
+}
+
+FailureOr<std::string> getStringForDenseElementAttr(
+    DenseElementsAttr denseAttr) {
+  // Splat is also handled in getValues
+  std::string valueString;
+  if (succeeded(denseAttr.tryGetValues<APInt>())) {
+    for (auto value : denseAttr.getValues<APInt>()) {
+      auto constantString = getStringForConstant(value);
+      if (failed(constantString)) {
+        return failure();
+      }
+      valueString += *constantString + ", ";
+    }
+  } else if (succeeded(denseAttr.tryGetValues<APFloat>())) {
+    for (auto value : denseAttr.getValues<APFloat>()) {
+      auto constantString = getStringForConstant(value);
+      if (failed(constantString)) {
+        return failure();
+      }
+      valueString += *constantString + ", ";
+    }
+  } else {
+    return failure();
+  }
+  // remove the trailing ", "
+  if (valueString.size() > 1) {
+    valueString.pop_back();
+    valueString.pop_back();
+  }
+  return valueString;
+}
+
+}  // namespace
+
 LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   auto valueAttr = op.getValue();
+  auto type = valueAttr.getType();
+  // GO use () for scalar: int64()
+  std::string left = "(";
+  std::string right = ")";
+  if (isa<RankedTensorType>(type)) {
+    // GO use {} for slice: []int64{}
+    left = "{";
+    right = "}";
+  }
+  auto typeString = convertType(valueAttr.getType());
+  if (failed(typeString)) {
+    return failure();
+  }
   std::string valueString;
+  valueString = *typeString + left;
   auto res =
       llvm::TypeSwitch<Attribute, LogicalResult>(valueAttr)
           .Case<IntegerAttr>([&](IntegerAttr intAttr) {
-            valueString = std::to_string(intAttr.getInt());
+            auto constantString = getStringForConstant(intAttr.getValue());
+            if (failed(constantString)) {
+              return failure();
+            }
+            valueString += *constantString;
+            return success();
+          })
+          .Case<FloatAttr>([&](FloatAttr floatAttr) {
+            auto constantString = getStringForConstant(floatAttr.getValue());
+            if (failed(constantString)) {
+              return failure();
+            }
+            valueString += *constantString;
             return success();
           })
           .Case<DenseElementsAttr>([&](DenseElementsAttr denseAttr) {
-            if (succeeded(denseAttr.tryGetValues<APInt>())) {
-              valueString = "[]int64{";
-              for (auto value : denseAttr.getValues<APInt>()) {
-                valueString += std::to_string(value.getSExtValue()) + ", ";
-              }
-            } else if (succeeded(denseAttr.tryGetValues<APFloat>())) {
-              valueString = "[]float64{";
-              for (auto value : denseAttr.getValues<APFloat>()) {
-                valueString += std::to_string(value.convertToFloat()) + ", ";
-              }
-            } else {
+            // fill in the values
+            auto constString = getStringForDenseElementAttr(denseAttr);
+            if (failed(constString)) {
               return failure();
             }
-            // remote the trailing ", "
-            if (valueString.size() > 1) {
-              valueString.pop_back();
-              valueString.pop_back();
-            }
-            valueString += "}";
+            valueString += *constString;
             return success();
           })
           .Default([&](auto) { return failure(); });
   if (failed(res)) {
     return res;
   }
+  valueString += right;
   os << getName(op.getResult()) << " := " << valueString << "\n";
   return success();
 }
@@ -357,6 +421,38 @@ LogicalResult LattigoEmitter::printOperation(RLWEDropLevelOp op) {
   return success();
 }
 
+namespace {
+const auto *negateTemplate = R"GO(
+  for {0} := 0; {0} < len({1}.Value); {0}++ {
+    {2}.GetRLWEParameters().RingQ().AtLevel({1}.LevelQ()).Neg({1}.Value[{0}], {1}.Value[{0}])
+  }
+)GO";
+}  // namespace
+
+LogicalResult LattigoEmitter::printOperation(RLWENegateNewOp op) {
+  // there is no NegateNew method in Lattigo, manually create new
+  // ciphertext
+  os << getName(op.getOutput()) << " := " << getName(op.getInput())
+     << ".CopyNew()\n";
+  auto indexName = getName(op.getOutput()) + "_index";
+  auto res = llvm::formatv(negateTemplate, indexName, getName(op.getOutput()),
+                           getName(op.getEvaluator()));
+  os << res;
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(RLWENegateOp op) {
+  if (getName(op.getOutput()) != getName(op.getInput())) {
+    os << getName(op.getOutput()) << ".Copy(" << getName(op.getInput())
+       << ")\n";
+  }
+  auto indexName = getName(op.getOutput()) + "_index";
+  auto res = llvm::formatv(negateTemplate, indexName, getName(op.getOutput()),
+                           getName(op.getEvaluator()));
+  os << res;
+  return success();
+}
+
 // BGV
 
 LogicalResult LattigoEmitter::printOperation(BGVNewEncoderOp op) {
@@ -402,14 +498,32 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
   }
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
 
+  // EncodeOp requires its argument to be a slice of int64
+  // so besides cyclic full packing behavior, we are also doing type conversion
   auto packedName =
       getName(op.getValue()) + "_" + getName(op.getPlaintext()) + "_packed";
   os << packedName << " := make([]int64, ";
   os << maxSlotsName << ")\n";
   os << "for i := range " << packedName << " {\n";
+  auto valueNameAtI =
+      getName(op.getValue()) + "[i % len(" + getName(op.getValue()) + ")]";
+  auto packedNameAtI = packedName + "[i]";
   os.indent();
-  os << packedName << "[i] = int64(" << getName(op.getValue()) << "[i % len("
-     << getName(op.getValue()) << ")])\n";
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+      1) {
+    const auto *boolToInt64Template = R"GO(
+      if {0} {
+        {1} = 1
+      } else {
+        {1} = 0
+      }
+    )GO";
+    auto res = llvm::formatv(boolToInt64Template, valueNameAtI, packedNameAtI);
+    os << res;
+  } else {
+    // packedName[i] = int64(value[i % len(value)])
+    os << packedNameAtI << " = int64(" << valueNameAtI << ")\n";
+  }
   os.unindent();
   os << "}\n";
 
@@ -427,9 +541,15 @@ LogicalResult LattigoEmitter::printOperation(BGVEncodeOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(BGVDecodeOp op) {
+  // Value itself may be []int16, so make a []int64 slice for the decoded value,
+  // as Decode only accepts []int64
+  auto valueInt64Name = getName(op.getValue()) + "_int64";
+  os << valueInt64Name << " := make([]int64, " << "len("
+     << getName(op.getValue()) << "))\n";
+
   os << getName(op.getEncoder()) << ".Decode(";
   os << getName(op.getPlaintext()) << ", ";
-  os << getName(op.getValue()) << ")\n";
+  os << valueInt64Name << ")\n";
 
   // type conversion from value to decoded
   auto convertedName = getName(op.getDecoded()) + "_converted";
@@ -439,7 +559,7 @@ LogicalResult LattigoEmitter::printOperation(BGVDecodeOp op) {
   os.indent();
   os << convertedName
      << "[i] = " << convertType(getElementTypeOrSelf(op.getDecoded().getType()))
-     << "(" << getName(op.getValue()) << "[i])\n";
+     << "(" << valueInt64Name << "[i])\n";
   os.unindent();
   os << "}\n";
   os << getName(op.getDecoded()) << " := " << convertedName << "\n";
@@ -613,14 +733,33 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
   }
   auto maxSlotsName = getName(newPlaintextOp.getParams()) + ".MaxSlots()";
 
+  // EncodeOp requires its argument to be a slice of float64
+  // so besides cyclic full packing behavior, we are also doing type conversion
   auto packedName =
       getName(op.getValue()) + "_" + getName(op.getPlaintext()) + "_packed";
   os << packedName << " := make([]float64, ";
   os << maxSlotsName << ")\n";
   os << "for i := range " << packedName << " {\n";
+  auto valueNameAtI =
+      getName(op.getValue()) + "[i % len(" + getName(op.getValue()) + ")]";
+  auto packedNameAtI = packedName + "[i]";
   os.indent();
-  os << packedName << "[i] = float64(" << getName(op.getValue()) << "[i \% len("
-     << getName(op.getValue()) << ")])\n";
+  if (getElementTypeOrSelf(op.getValue().getType()).getIntOrFloatBitWidth() ==
+      1) {
+    const auto *boolToFloat64Template = R"GO(
+      if {0} {
+        {1} = 1.0
+      } else {
+        {1} = 0.0
+      }
+    )GO";
+    auto res =
+        llvm::formatv(boolToFloat64Template, valueNameAtI, packedNameAtI);
+    os << res;
+  } else {
+    // packedName[i] = float64(value[i % len(value)])
+    os << packedNameAtI << " = float64(" << valueNameAtI << ")\n";
+  }
   os.unindent();
   os << "}\n";
 
@@ -638,9 +777,15 @@ LogicalResult LattigoEmitter::printOperation(CKKSEncodeOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(CKKSDecodeOp op) {
+  // Value itself may be []float32, so make a []float64 slice for the decoded
+  // value, as Decode only accepts []float64
+  auto valueFloat64Name = getName(op.getValue()) + "_float64";
+  os << valueFloat64Name << " := make([]float64, " << "len("
+     << getName(op.getValue()) << "))\n";
+
   os << getName(op.getEncoder()) << ".Decode(";
   os << getName(op.getPlaintext()) << ", ";
-  os << getName(op.getValue()) << ")\n";
+  os << valueFloat64Name << ")\n";
 
   // type conversion from value to decoded
   auto convertedName = getName(op.getDecoded()) + "_converted";
@@ -650,7 +795,7 @@ LogicalResult LattigoEmitter::printOperation(CKKSDecodeOp op) {
   os.indent();
   os << convertedName
      << "[i] = " << convertType(getElementTypeOrSelf(op.getDecoded().getType()))
-     << "(" << getName(op.getValue()) << "[i])\n";
+     << "(" << valueFloat64Name << "[i])\n";
   os.unindent();
   os << "}\n";
   os << getName(op.getDecoded()) << " := " << convertedName << "\n";
@@ -859,6 +1004,9 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           [&](auto ty) { return std::string("ckks.Parameters"); })
       .Case<IntegerType>([&](auto ty) -> FailureOr<std::string> {
         auto width = ty.getWidth();
+        if (width == 1) {
+          return std::string("bool");
+        }
         if (width != 8 && width != 16 && width != 32 && width != 64) {
           return failure();
         }
@@ -876,6 +1024,10 @@ FailureOr<std::string> LattigoEmitter::convertType(Type type) {
           return failure();
         }
         return "float" + std::to_string(width);
+      })
+      .Case<IndexType>([&](auto ty) -> FailureOr<std::string> {
+        // Translate IndexType to int64 in GO
+        return std::string("int64");
       })
       .Case<RankedTensorType>([&](auto ty) -> FailureOr<std::string> {
         auto eltTyResult = convertType(ty.getElementType());

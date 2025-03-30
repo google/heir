@@ -151,4 +151,31 @@ def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InplaceOpInterface]>
   let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
 }
 
+def Lattigo_RLWENegateNewOp : Lattigo_RLWEOp<"negate_new"> {
+  let summary = "Negate a ciphertext";
+  let arguments = (ins
+    Lattigo_RLWEEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+}
+
+def Lattigo_RLWENegateOp : Lattigo_RLWEOp<"negate", [InplaceOpInterface]> {
+  let summary = "Negate of a ciphertext";
+  let description = [{
+    This operation negates a ciphertext
+
+    The result will be written to the `inplace` operand. The `output` result is
+    a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
+  }];
+  let arguments = (ins
+    Lattigo_RLWEEvaluator:$evaluator,
+    Lattigo_RLWECiphertext:$input,
+    Lattigo_RLWECiphertext:$inplace
+  );
+  let results = (outs Lattigo_RLWECiphertext:$output);
+
+  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
+}
+
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGORLWEOPS_TD_
