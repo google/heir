@@ -122,16 +122,17 @@ def Lattigo_RLWEDecryptOp : Lattigo_RLWEOp<"decrypt"> {
   let results = (outs Lattigo_RLWEPlaintext:$plaintext);
 }
 
-def Lattigo_RLWELevelReduceNewOp : Lattigo_RLWEOp<"level_reduce_new"> {
+def Lattigo_RLWEDropLevelNewOp : Lattigo_RLWEOp<"drop_level_new"> {
   let summary = "Drop level of a ciphertext";
   let arguments = (ins
+    Lattigo_RLWEEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
     DefaultValuedAttr<I64Attr, "1">:$levelToDrop
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 }
 
-def Lattigo_RLWELevelReduceOp : Lattigo_RLWEOp<"level_reduce", [InplaceOpInterface]> {
+def Lattigo_RLWEDropLevelOp : Lattigo_RLWEOp<"drop_level", [InplaceOpInterface]> {
   let summary = "Drop level of a ciphertext";
   let description = [{
     This operation drops the level of a ciphertext
@@ -140,13 +141,14 @@ def Lattigo_RLWELevelReduceOp : Lattigo_RLWEOp<"level_reduce", [InplaceOpInterfa
     a transitive reference to the `inplace` operand for sake of the MLIR SSA form.
   }];
   let arguments = (ins
+    Lattigo_RLWEEvaluator:$evaluator,
     Lattigo_RLWECiphertext:$input,
     Lattigo_RLWECiphertext:$inplace,
     DefaultValuedAttr<I64Attr, "1">:$levelToDrop
   );
   let results = (outs Lattigo_RLWECiphertext:$output);
 
-  let extraClassDeclaration = "int getInplaceOperandIndex() { return 1; }";
+  let extraClassDeclaration = "int getInplaceOperandIndex() { return 2; }";
 }
 
 #endif  // LIB_DIALECT_LATTIGO_IR_LATTIGORLWEOPS_TD_

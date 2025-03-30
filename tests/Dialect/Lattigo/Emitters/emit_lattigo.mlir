@@ -184,3 +184,16 @@ module attributes {scheme.bgv} {
     return %ct : !lattigo.rlwe.ciphertext
   }
 }
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK-LABEL: func test_drop_level
+  // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext)
+  func.func @test_drop_level(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
+    // CHECK: [[ct1:[^, ]*]] := ct.CopyNew()
+    // CHECK: evaluator.DropLevel([[ct1]], 2)
+    %ct1 = lattigo.rlwe.drop_level_new %evaluator, %ct {levelToDrop = 2}: (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    return %ct1 : !lattigo.rlwe.ciphertext
+  }
+}

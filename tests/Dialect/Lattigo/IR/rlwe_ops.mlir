@@ -18,6 +18,8 @@
 
 !params = !lattigo.bgv.parameter
 
+!evaluator = !lattigo.bgv.evaluator
+
 module {
   // CHECK-LABEL: func @test_rlwe_new_key_generator
   func.func @test_rlwe_new_key_generator(%params: !params) {
@@ -86,6 +88,20 @@ module {
   func.func @test_rlwe_decrypt(%decryptor: !decryptor, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.rlwe.decrypt
     %pt = lattigo.rlwe.decrypt %decryptor, %ct : (!decryptor, !ct) -> !pt
+    return
+  }
+
+  // CHECK-LABEL: func @test_rlwe_drop_level_new
+  func.func @test_rlwe_drop_level_new(%evaluator : !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.rlwe.drop_level_new
+    %ct1 = lattigo.rlwe.drop_level_new %evaluator, %ct : (!evaluator, !ct) -> !ct
+    return
+  }
+
+  // CHECK-LABEL: func @test_rlwe_drop_level
+  func.func @test_rlwe_drop_level(%evaluator : !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.rlwe.drop_level
+    %ct1 = lattigo.rlwe.drop_level %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return
   }
 }

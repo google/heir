@@ -306,18 +306,24 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
   }
 };
 
-template <typename LevelReduceOp, typename LattigoLevelReduceOp>
+template <typename EvaluatorType, typename LevelReduceOp,
+          typename LattigoLevelReduceOp>
 struct ConvertRlweLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
   using OpConversionPattern<LevelReduceOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
       LevelReduceOp op, typename LevelReduceOp::Adaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result)) return result;
+
+    Value evaluator = result.value();
     rewriter.replaceOp(
         op, rewriter.create<LattigoLevelReduceOp>(
                 op.getLoc(),
                 this->typeConverter->convertType(op.getOutput().getType()),
-                adaptor.getInput(), op.getLevelToDrop()));
+                evaluator, adaptor.getInput(), op.getLevelToDrop()));
     return success();
   }
 };
@@ -485,7 +491,8 @@ using ConvertBGVDecodeOp =
                         /*UsingFloat*/ false>;
 
 using ConvertBGVLevelReduceOp =
-    ConvertRlweLevelReduceOp<bgv::LevelReduceOp, lattigo::RLWELevelReduceNewOp>;
+    ConvertRlweLevelReduceOp<lattigo::BGVEvaluatorType, bgv::LevelReduceOp,
+                             lattigo::RLWEDropLevelNewOp>;
 
 // CKKS
 using ConvertCKKSAddOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
@@ -531,8 +538,8 @@ using ConvertCKKSDecodeOp =
                         /*UsingFloat*/ true>;
 
 using ConvertCKKSLevelReduceOp =
-    ConvertRlweLevelReduceOp<ckks::LevelReduceOp,
-                             lattigo::RLWELevelReduceNewOp>;
+    ConvertRlweLevelReduceOp<lattigo::CKKSEvaluatorType, ckks::LevelReduceOp,
+                             lattigo::RLWEDropLevelNewOp>;
 
 #define GEN_PASS_DEF_LWETOLATTIGO
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h.inc"
