@@ -18,6 +18,7 @@
 #include "lib/Dialect/Openfhe/Transforms/CountAddAndKeySwitch.h"
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
+#include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Dialect/Secret/Transforms/ForgetSecrets.h"
@@ -34,6 +35,7 @@
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
+#include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -170,8 +172,6 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   mlirToSecretArithmeticPipelineBuilder(pm, options);
 
   // Only for debugging purpose.
-  // Note that optimization-relinearization below won't preserve the attribute
-  // in relin op.
   if (!options.plaintextExecutionResultFileName.empty()) {
     // Import execution result from file
     secret::SecretImportExecutionResultOptions
@@ -215,7 +215,17 @@ void mlirToRLWEPipeline(OpPassManager &pm,
   optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
   pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
 
-  // IR is stable now, compute scheme param
+  // IR is stable now
+
+  // if we want to import execution result from file, propagate them to mgmt ops
+  if (!options.plaintextExecutionResultFileName.empty()) {
+    PropagateAnnotationOptions propagateAnnotationOptions;
+    propagateAnnotationOptions.attrName =
+        secret::SecretDialect::kArgExecutionResultAttrName;
+    pm.addPass(createPropagateAnnotation(propagateAnnotationOptions));
+  }
+
+  // compute scheme param
   switch (scheme) {
     case RLWEScheme::bgvScheme: {
       auto generateParamOptions = GenerateParamBGVOptions{};
