@@ -17,11 +17,9 @@ namespace heir {
 namespace tensor_ext {
 
 LogicalResult AlignmentAttr::verify(
-    function_ref<InFlightDiagnostic()> emitError,
-    mlir::detail::DenseArrayAttrImpl<long> in,
-    mlir::detail::DenseArrayAttrImpl<long> out,
-    mlir::detail::DenseArrayAttrImpl<long> insertedDims,
-    mlir::detail::DenseArrayAttrImpl<long> padding, TypedAttr paddingValue) {
+    function_ref<InFlightDiagnostic()> emitError, mlir::DenseI64ArrayAttr in,
+    mlir::DenseI64ArrayAttr out, mlir::DenseI64ArrayAttr insertedDims,
+    mlir::DenseI64ArrayAttr padding, TypedAttr paddingValue) {
   if (in.empty() || out.empty()) {
     return emitError() << "in and out may not be empty arrays";
   }
@@ -45,8 +43,8 @@ LogicalResult AlignmentAttr::verify(
     return emitError() << "paddingValue must be set if padding is set";
   }
 
-  DenseSet<long> insertedDimsSet(insertedDims.asArrayRef().begin(),
-                                 insertedDims.asArrayRef().end());
+  DenseSet<int64_t> insertedDimsSet(insertedDims.asArrayRef().begin(),
+                                    insertedDims.asArrayRef().end());
   if (insertedDimsSet.size() != insertedDims.size()) {
     return emitError() << "insertedDims must all be unique";
   }

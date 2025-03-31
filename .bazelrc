@@ -22,9 +22,18 @@ build:linux --linkopt="-fuse-ld=lld"
 
 # macos specific options
 build:macos --apple_platform_type=macos
-build:macos --macos_minimum_os=10.13
-build:macos --macos_sdk_version=10.13
+build:macos --macos_minimum_os=10.15
+build:macos --macos_sdk_version=10.15
+# https://github.com/bazelbuild/apple_support
+build:macos --apple_crosstool_top=@local_config_apple_cc//:toolchain
+build:macos --crosstool_top=@local_config_apple_cc//:toolchain
+build:macos --host_crosstool_top=@local_config_apple_cc//:toolchain
+# Avoid hitting command line argument limit
+build:macos --features=archive_param_file
+
+# MacOS arm64 config
 build:macos_arm64 --cpu=darwin_arm64
+build:macos_arm64 --macos_minimum_os=11.0
 
 # run with --config=gcc to force use of gcc
 # (and the default linker, usually ld) instead
