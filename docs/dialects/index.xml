@@ -6546,12 +6546,106 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h3 id="lattigorlwedrop_level_new-heirlattigorlwedroplevelnewop">&lt;code>lattigo.rlwe.drop_level_new&lt;/code> (heir::lattigo::RLWEDropLevelNewOp)&lt;/h3>
+&lt;p>&lt;em>Drop level of a ciphertext&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.drop_level_new` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;h4 id="attributes-9">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-37">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>or&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-39">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="lattigorlwedrop_level-heirlattigorlwedroplevelop">&lt;code>lattigo.rlwe.drop_level&lt;/code> (heir::lattigo::RLWEDropLevelOp)&lt;/h3>
+&lt;p>&lt;em>Drop level of a ciphertext&lt;/em>&lt;/p>
+&lt;p>Syntax:&lt;/p>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.drop_level` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation drops the level of a ciphertext&lt;/p>
+&lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
+a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
+&lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
+&lt;h4 id="attributes-10">Attributes:&lt;/h4>
+&lt;table>
+&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
+&lt;/table>
+&lt;h4 id="operands-38">Operands:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Operand&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>evaluator&lt;/code>&lt;/td>
+&lt;td>or&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>inplace&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h4 id="results-40">Results:&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Result&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h3 id="lattigorlweencrypt-heirlattigorlweencryptop">&lt;code>lattigo.rlwe.encrypt&lt;/code> (heir::lattigo::RLWEEncryptOp)&lt;/h3>
 &lt;p>&lt;em>Encrypts a plaintext using RLWE&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.encrypt` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation encrypts a plaintext using RLWE&lt;/p>
-&lt;h4 id="operands-37">Operands:&lt;/h4>
+&lt;h4 id="operands-39">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6570,7 +6664,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="results-39">Results:&lt;/h4>
+&lt;h4 id="results-41">Results:&lt;/h4>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -6591,89 +6685,11 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_galois_key` operands attr-dict `:` functional-type(operands, results)
 &lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE Galois key&lt;/p>
 &lt;p>galoisElement: Enabling the automorphism X -&amp;gt; X^{galoisElement}.&lt;/p>
-&lt;h4 id="attributes-9">Attributes:&lt;/h4>
+&lt;h4 id="attributes-11">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
 &lt;tr>&lt;td>&lt;code>galoisElement&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>An Attribute containing a integer value&lt;/td>&lt;/tr>
 &lt;/table>
-&lt;h4 id="operands-38">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>keyGenerator&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>secretKey&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-40">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>galoisKey&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="lattigorlwegen_key_pair-heirlattigorlwegenkeypairop">&lt;code>lattigo.rlwe.gen_key_pair&lt;/code> (heir::lattigo::RLWEGenKeyPairOp)&lt;/h3>
-&lt;p>&lt;em>Generates a new RLWE key pair&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_key_pair` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key pair&lt;/p>
-&lt;h4 id="operands-39">Operands:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Operand&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>keyGenerator&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h4 id="results-41">Results:&lt;/h4>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Result&lt;/th>
-&lt;th>Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>secretKey&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">&lt;code>publicKey&lt;/code>&lt;/td>
-&lt;td>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;h3 id="lattigorlwegen_relinearization_key-heirlattigorlwegenrelinearizationkeyop">&lt;code>lattigo.rlwe.gen_relinearization_key&lt;/code> (heir::lattigo::RLWEGenRelinearizationKeyOp)&lt;/h3>
-&lt;p>&lt;em>Generates a new RLWE relinearization key&lt;/em>&lt;/p>
-&lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_relinearization_key` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE relinearization key&lt;/p>
 &lt;h4 id="operands-40">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -6703,20 +6719,16 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>relinearizationKey&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>galoisKey&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="lattigorlwelevel_reduce_new-heirlattigorlwelevelreducenewop">&lt;code>lattigo.rlwe.level_reduce_new&lt;/code> (heir::lattigo::RLWELevelReduceNewOp)&lt;/h3>
-&lt;p>&lt;em>Drop level of a ciphertext&lt;/em>&lt;/p>
+&lt;h3 id="lattigorlwegen_key_pair-heirlattigorlwegenkeypairop">&lt;code>lattigo.rlwe.gen_key_pair&lt;/code> (heir::lattigo::RLWEGenKeyPairOp)&lt;/h3>
+&lt;p>&lt;em>Generates a new RLWE key pair&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.level_reduce_new` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;h4 id="attributes-10">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
-&lt;/table>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_key_pair` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE key pair&lt;/p>
 &lt;h4 id="operands-41">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -6727,7 +6739,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>keyGenerator&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -6742,24 +6754,20 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>secretKey&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>publicKey&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h3 id="lattigorlwelevel_reduce-heirlattigorlwelevelreduceop">&lt;code>lattigo.rlwe.level_reduce&lt;/code> (heir::lattigo::RLWELevelReduceOp)&lt;/h3>
-&lt;p>&lt;em>Drop level of a ciphertext&lt;/em>&lt;/p>
+&lt;h3 id="lattigorlwegen_relinearization_key-heirlattigorlwegenrelinearizationkeyop">&lt;code>lattigo.rlwe.gen_relinearization_key&lt;/code> (heir::lattigo::RLWEGenRelinearizationKeyOp)&lt;/h3>
+&lt;p>&lt;em>Generates a new RLWE relinearization key&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.level_reduce` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>This operation drops the level of a ciphertext&lt;/p>
-&lt;p>The result will be written to the &lt;code>inplace&lt;/code> operand. The &lt;code>output&lt;/code>result is
-a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the MLIR SSA form.&lt;/p>
-&lt;p>Interfaces: &lt;code>InplaceOpInterface&lt;/code>&lt;/p>
-&lt;h4 id="attributes-11">Attributes:&lt;/h4>
-&lt;table>
-&lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>levelToDrop&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>64-bit signless integer attribute&lt;/td>&lt;/tr>
-&lt;/table>
+&lt;pre tabindex="0">&lt;code>operation ::= `lattigo.rlwe.gen_relinearization_key` operands attr-dict `:` functional-type(operands, results)
+&lt;/code>&lt;/pre>&lt;p>This operation generates a new RLWE relinearization key&lt;/p>
 &lt;h4 id="operands-42">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -6770,11 +6778,11 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>keyGenerator&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>inplace&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>secretKey&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
@@ -6789,7 +6797,7 @@ a transitive reference to the &lt;code>inplace&lt;/code> operand for sake of the
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
+&lt;td style="text-align:center">&lt;code>relinearizationKey&lt;/code>&lt;/td>
 &lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
