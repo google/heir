@@ -65,7 +65,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
               RLWENewEncryptorOp, RLWENewDecryptorOp, RLWENewKeyGeneratorOp,
               RLWEGenKeyPairOp, RLWEGenRelinearizationKeyOp, RLWEGenGaloisKeyOp,
               RLWENewEvaluationKeySetOp, RLWEEncryptOp, RLWEDecryptOp,
-              RLWELevelReduceNewOp, RLWELevelReduceOp,
+              RLWEDropLevelNewOp, RLWEDropLevelOp,
               // BGV
               BGVNewParametersFromLiteralOp, BGVNewEncoderOp, BGVNewEvaluatorOp,
               BGVNewPlaintextOp, BGVEncodeOp, BGVDecodeOp, BGVAddNewOp,
@@ -337,25 +337,23 @@ LogicalResult LattigoEmitter::printOperation(RLWEDecryptOp op) {
                             {op.getCiphertext()}, "DecryptNew", false);
 }
 
-LogicalResult LattigoEmitter::printOperation(RLWELevelReduceNewOp op) {
-  // there is no LevelReduceNew method in Lattigo, manually create new
-  // ciphertext
+LogicalResult LattigoEmitter::printOperation(RLWEDropLevelNewOp op) {
+  // there is no DropLevelNew method in Lattigo BGV Evaluator, manually create
+  // new ciphertext
   os << getName(op.getOutput()) << " := " << getName(op.getInput())
      << ".CopyNew()\n";
-  os << getName(op.getOutput()) << ".Resize(" << getName(op.getOutput())
-     << ".Degree(), " << getName(op.getOutput()) << ".Level()-"
-     << op.getLevelToDrop() << ")\n";
+  os << getName(op.getEvaluator()) << ".DropLevel(" << getName(op.getOutput())
+     << ", " << op.getLevelToDrop() << ")\n";
   return success();
 }
 
-LogicalResult LattigoEmitter::printOperation(RLWELevelReduceOp op) {
+LogicalResult LattigoEmitter::printOperation(RLWEDropLevelOp op) {
   if (getName(op.getOutput()) != getName(op.getInput())) {
-    os << getName(op.getInput()) << ".Copy(" << getName(op.getOutput())
+    os << getName(op.getOutput()) << ".Copy(" << getName(op.getInput())
        << ")\n";
   }
-  os << getName(op.getOutput()) << ".Resize(" << getName(op.getOutput())
-     << ".Degree(), " << getName(op.getOutput()) << ".Level()-"
-     << op.getLevelToDrop() << ")\n";
+  os << getName(op.getEvaluator()) << ".DropLevel(" << getName(op.getOutput())
+     << ", " << op.getLevelToDrop() << ")\n";
   return success();
 }
 

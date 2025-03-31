@@ -230,17 +230,17 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
   DenseMap<Block *, StorageInfo> *blockToStorageInfo;
 };
 
-template <typename LevelReduceOp, typename InplaceOp>
-struct ConvertLevelReduceOp : public OpRewritePattern<LevelReduceOp> {
-  using OpRewritePattern<LevelReduceOp>::OpRewritePattern;
+template <typename DropLevelOp, typename InplaceOp>
+struct ConvertDropLevelOp : public OpRewritePattern<DropLevelOp> {
+  using OpRewritePattern<DropLevelOp>::OpRewritePattern;
 
-  ConvertLevelReduceOp(mlir::MLIRContext *context, Liveness *liveness,
-                       DenseMap<Block *, StorageInfo> *blockToStorageInfo)
-      : OpRewritePattern<LevelReduceOp>(context),
+  ConvertDropLevelOp(mlir::MLIRContext *context, Liveness *liveness,
+                     DenseMap<Block *, StorageInfo> *blockToStorageInfo)
+      : OpRewritePattern<DropLevelOp>(context),
         liveness(liveness),
         blockToStorageInfo(blockToStorageInfo) {}
 
-  LogicalResult matchAndRewrite(LevelReduceOp op,
+  LogicalResult matchAndRewrite(DropLevelOp op,
                                 PatternRewriter &rewriter) const override {
     auto &storageInfo = (*blockToStorageInfo)[op->getBlock()];
     auto storage = storageInfo.getAvailableStorage(op, liveness);
@@ -248,12 +248,12 @@ struct ConvertLevelReduceOp : public OpRewritePattern<LevelReduceOp> {
       return failure();
     }
 
-    // InplaceOp has the form: output = InplaceOp(lhs, inplace) {levelToDrop}
-    // where inplace is the actual output but for SSA form we need to return a
-    // new value
+    // InplaceOp has the form: output = InplaceOp(evaluator, lhs, inplace)
+    // {levelToDrop} where inplace is the actual output but for SSA form we need
+    // to return a new value
     auto inplaceOp = rewriter.create<InplaceOp>(
-        op.getLoc(), op.getOperand().getType(), op.getOperand(), storage,
-        op.getLevelToDrop());
+        op.getLoc(), op.getOperand(1).getType(), op.getOperand(0),
+        op.getOperand(1), storage, op.getLevelToDrop());
 
     // update storage info
     storageInfo.replaceAllocWithInplace(op, inplaceOp, storage);
@@ -331,9 +331,9 @@ struct AllocToInplace : impl::AllocToInplaceBase<AllocToInplace> {
         ConvertUnaryOp<lattigo::CKKSRescaleNewOp, lattigo::CKKSRescaleOp>,
         ConvertRotateOp<lattigo::CKKSRotateNewOp, lattigo::CKKSRotateOp>,
         // RLWE
-        ConvertLevelReduceOp<lattigo::RLWELevelReduceNewOp,
-                             lattigo::RLWELevelReduceOp>>(context, &liveness,
-                                                          &blockToStorageInfo);
+        ConvertDropLevelOp<lattigo::RLWEDropLevelNewOp,
+                           lattigo::RLWEDropLevelOp>>(context, &liveness,
+                                                      &blockToStorageInfo);
 
     // The greedy policy relies on the order of processing the operations.
     walkAndApplyPatterns(getOperation(), std::move(patterns));
