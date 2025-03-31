@@ -75,6 +75,7 @@
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
+#include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
@@ -269,6 +270,7 @@ int main(int argc, char **argv) {
   registerValidateNoisePasses();
   registerOptimizeRelinearizationPasses();
   registerPolynomialApproximationPasses();
+  registerPropagateAnnotationPasses();
   registerLayoutPropagationPasses();
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
