@@ -17,6 +17,7 @@ namespace {
 using ::llvm::APFloat;
 using ::mlir::heir::polynomial::FloatPolynomial;
 using ::testing::DoubleEq;
+using ::testing::DoubleNear;
 using ::testing::ElementsAre;
 
 TEST(ChebyshevTest, TestGetChebyshevPointsSingle) {
@@ -98,7 +99,14 @@ TEST(ChebyshevTest, TestInterpolateChebyshevExpDegree3) {
   // This test is slightly off from what numpy produces (up to ~10^{-15}), not
   // sure why.
   // EXPECT_THAT(actual[3].convertToDouble(), DoubleEq(0.04433686088543568));
-  EXPECT_THAT(actual[3].convertToDouble(), DoubleEq(0.044336860885435536));
+  //
+  // This is also slightly off from what is produced on MacOS platforms by the
+  // same code. EXPECT_THAT(actual[3].convertToDouble(),
+  // DoubleEq(0.044336860885435571));
+  //
+  // EXPECT_THAT(actual[3].convertToDouble(), DoubleEq(0.044336860885435536));
+  EXPECT_THAT(actual[3].convertToDouble(),
+              DoubleNear(0.044336860885435536, 1e-14));
 }
 
 TEST(ChebyshevTest, ExpAutoSelectDegree) {
@@ -122,7 +130,7 @@ TEST(ChebyshevTest, ExpAutoSelectDegree) {
     }
     error = std::max(error, std::abs(expected - actual));
   }
-  EXPECT_LT(error, 1e-15);
+  EXPECT_LT(error, 1e-14);
 }
 
 }  // namespace
