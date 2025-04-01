@@ -28,7 +28,9 @@ std::string getModulePrelude(OpenfheScheme scheme,
                              OpenfheImportType importType) {
   auto import = importType == OpenfheImportType::SOURCE_RELATIVE
                     ? kSourceRelativeOpenfheImport
-                    : kInstallationRelativeOpenfheImport;
+                    : (importType == OpenfheImportType::INSTALL_RELATIVE
+                           ? kInstallationRelativeOpenfheImport
+                           : kEmbeddedOpenfheImport);
   auto prelude = std::string(
       llvm::formatv(kModulePreludeTemplate.data(),
                     scheme == OpenfheScheme::CKKS

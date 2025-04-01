@@ -42,7 +42,11 @@ struct TranslateOptions {
           clEnumValN(mlir::heir::openfhe::OpenfheImportType::SOURCE_RELATIVE,
                      "source-relative",
                      "Emit OpenFHE with source-relative import paths (default "
-                     "for HEIR-internal development)"))};
+                     "for HEIR-internal development)"),
+          clEnumValN(mlir::heir::openfhe::OpenfheImportType::EMBEDDED,
+                     "embedded",
+                     "Emit OpenFHE with embedded import paths (default "
+                     "for code to be included in OpenFHE source files)"))};
   llvm::cl::opt<std::string> weightsFile{
       "weights-file",
       llvm::cl::desc("Emit all dense elements attributes to this binary file")};
