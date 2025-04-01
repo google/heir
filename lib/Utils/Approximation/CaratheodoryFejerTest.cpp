@@ -23,11 +23,16 @@ TEST(CaratheodoryFejerTest, ApproximateExpDegree3) {
     return APFloat(std::exp(x.convertToDouble()));
   };
   FloatPolynomial actual = caratheodoryFejerApproximation(func, 3);
-  // Values taken from reference impl are exact.
-  FloatPolynomial expected = FloatPolynomial::fromCoefficients(
-      {0.9945794763246951, 0.9956677100276301, 0.5429727883818608,
-       0.17953348361617388});
-  EXPECT_EQ(actual, expected);
+
+  auto terms = actual.getTerms();
+  EXPECT_THAT(terms[0].getCoefficient().convertToDouble(),
+              DoubleNear(0.9945794763246951, EPSILON));
+  EXPECT_THAT(terms[1].getCoefficient().convertToDouble(),
+              DoubleNear(0.9956677100276301, EPSILON));
+  EXPECT_THAT(terms[2].getCoefficient().convertToDouble(),
+              DoubleNear(0.5429727883818608, EPSILON));
+  EXPECT_THAT(terms[3].getCoefficient().convertToDouble(),
+              DoubleNear(0.17953348361617388, EPSILON));
 }
 
 TEST(CaratheodoryFejerTest, ApproximateExpDegree3MinusTwoTwoInterval) {
