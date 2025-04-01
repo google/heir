@@ -54,8 +54,13 @@ int main() {
   for (int i = 0; i != 4096; ++i) {
     if (res[i] != expected[i]) {
       printf("Test failed at %d: %ld != %ld\n", i, res[i], expected[i]);
+#ifdef EXPECT_FAILURE
       return 0;
+#endif
     }
   }
   printf("Test passed\n");
+#ifdef EXPECT_FAILURE
+  return 1;
+#endif
 }

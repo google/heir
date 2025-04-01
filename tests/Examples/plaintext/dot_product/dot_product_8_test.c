@@ -23,7 +23,13 @@ int main() {
 
   if (res == expected) {
     printf("Test passed\n");
+#ifdef EXPECT_FAILURE
+    return 1;
+#endif
   } else {
     printf("Test failed %d != %d\n", res, expected);
+#ifndef EXPECT_FAILURE
+    return 1;
+#endif
   }
 }

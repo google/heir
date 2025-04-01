@@ -32,6 +32,7 @@ def heir_lattigo_lib(name, mlir_src, go_library_name = None, heir_opt_flags = []
             src = mlir_src,
             pass_flags = heir_opt_flags,
             generated_filename = generated_heir_opt_name,
+            data = data,
         )
     else:
         generated_heir_opt_name = mlir_src

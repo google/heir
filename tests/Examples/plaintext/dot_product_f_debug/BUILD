@@ -1,29 +1,23 @@
-load("//bazel:lit.bzl", "glob_lit_tests")
+load("@heir//tests/Examples/plaintext:test.bzl", "plaintext_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
-
-glob_lit_tests(
-    name = "all_tests",
-    data = [
-        ":dot_product_8f_debug_test",
-        "@heir//tests:test_utilities",
-        "@heir//tests/Examples/plaintext:memrefCopy",
-        "@llvm-project//llvm:llc",
-        "@llvm-project//mlir:mlir-translate",
-    ],
-    driver = "@heir//tests:run_lit.sh",
-    tags_override = {
-        "dot_product_8f.mlir": [
-            "notap",
-            # It is a failing test on purpose.
-            # When failure the debug output could be dumped.
-            "manual",
-        ],
-    },
-    test_file_exts = ["mlir"],
-)
 
 cc_library(
     name = "dot_product_8f_debug_test",
     srcs = ["dot_product_8f_debug_test.c"],
+)
+
+plaintext_test(
+    name = "dot_product_8f_debug",
+    heir_opt_flags = [
+        "--mlir-to-plaintext-backend=insert-debug-handler-calls=true",
+    ],
+    # log is visible to crypto backend
+    log_file_name = "dot_product_8f_debug.log",
+    log_file_visibility = ["@heir//tests/Examples:__subpackages__"],
+    mlir_src = "dot_product_8f.mlir",
+    deps = [
+        ":dot_product_8f_debug_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
+    ],
 )

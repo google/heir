@@ -24,7 +24,13 @@ int main() {
 
   if (fabs(res - expected) < 1e-3) {
     printf("Test passed\n");
+#ifdef EXPECT_FAILURE
+    return 1;
+#endif
   } else {
     printf("Test failed %f != %f\n", res, expected);
+#ifndef EXPECT_FAILURE
+    return 1;
+#endif
   }
 }

@@ -1,5 +1,4 @@
 # HEIR tools
-
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(
@@ -279,4 +278,16 @@ bzl_library(
         ":heir_opt_bzl",
         ":heir_translate_bzl",
     ],
+)
+
+bzl_library(
+    name = "llc_bzl",
+    srcs = ["llc.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "mlir_translate_bzl",
+    srcs = ["mlir-translate.bzl"],
+    visibility = ["//visibility:public"],
 )
