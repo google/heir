@@ -111,6 +111,7 @@ cc_library(
         "@heir//lib/Dialect/TOSA/Conversions/TosaToSecretArith",
         "@heir//lib/Dialect/TensorExt/Conversions/TensorExtToTensor",
         "@heir//lib/Dialect/TensorExt/Transforms:CollapseInsertionChains",
+        "@heir//lib/Dialect/TensorExt/Transforms:FoldConvertLayoutIntoAssignLayout",
         "@heir//lib/Dialect/TensorExt/Transforms:InsertRotate",
         "@heir//lib/Dialect/TensorExt/Transforms:RotateAndReduce",
         "@heir//lib/Transforms/ApplyFolders",

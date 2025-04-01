@@ -268,4 +268,19 @@ def ImplementShiftNetwork : Pass<"implement-shift-network"> {
   ];
 }
 
+def FoldConvertLayoutIntoAssignLayout : Pass<"fold-convert-layout-into-assign-layout"> {
+  let summary = "Merges tensor_ext.convert_layout ops into preceding tensor_ext.assign_layout ops";
+  let description = [{
+  A `tensor_ext.assign_layout` op corresponds to an encoding of a cleartext
+  into a plaintext or ciphertext. If this is immediately followed by a
+  `tensor_ext.convert_layout` op, then one can just change the initial encoding
+  to correspond to the result of the conversion.
+
+  If the result of an `assign_layout` has multiple subsequent `convert_layout`
+  ops, then they are folded into multiple `assign_layout` ops applied to the
+  same cleartext.
+  }];
+  let dependentDialects = ["mlir::heir::tensor_ext::TensorExtDialect"];
+}
+
 #endif  // LIB_DIALECT_TENSOREXT_TRANSFORMS_PASSES_TD_
