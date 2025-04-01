@@ -74,16 +74,35 @@ def GenParamsOp : Openfhe_Op<"gen_params"> {
     are using CKKS, this is 0.
 
     `insecure` is a flag that determines whether the parameters
-    are generated securely or not. This is mainly used for
-    testing purposes.
+    are generated securely or not. In Openfhe, this means setting
+    HEStd_NotSet for security level.
+
+    For other flags, see the OpenFHE documentation in
+    https://github.com/openfheorg/openfhe-development/blob/main/src/pke/examples/README.md#description-of-the-cryptocontext-parameters-and-their-restrictions
   }];
   let arguments = (ins
+    // Essential parameters
     I64Attr:$mulDepth,
     I64Attr:$plainMod,
-    BoolAttr:$insecure,
-    I64Attr:$evalAddCount,
-    I64Attr:$keySwitchCount,
-    BoolAttr:$encryptionTechniqueExtended
+    // Optional parameters
+    DefaultValuedAttr<I64Attr, "0">:$ringDim,
+    DefaultValuedAttr<I64Attr, "0">:$batchSize,
+    // Modulus chain parameters
+    DefaultValuedAttr<I64Attr, "0">:$firstModSize,
+    DefaultValuedAttr<I64Attr, "0">:$scalingModSize,
+    // KPZ21 way of noise estimation
+    DefaultValuedAttr<I64Attr, "0">:$evalAddCount,
+    DefaultValuedAttr<I64Attr, "0">:$keySwitchCount,
+    // Key switching technique parameters
+    DefaultValuedAttr<I64Attr, "0">:$digitSize,
+    DefaultValuedAttr<I64Attr, "0">:$numLargeDigits,
+    // Relinearization parameters
+    DefaultValuedAttr<I64Attr, "0">:$maxRelinSkDeg,
+    // Option switches
+    DefaultValuedAttr<BoolAttr, "false">:$insecure,
+    DefaultValuedAttr<BoolAttr, "false">:$encryptionTechniqueExtended,
+    DefaultValuedAttr<BoolAttr, "false">:$keySwitchingTechniqueBV,
+    DefaultValuedAttr<BoolAttr, "false">:$scalingTechniqueFixedManual
   );
   let results = (outs Openfhe_CCParams:$params);
 }

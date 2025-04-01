@@ -253,3 +253,29 @@ module attributes {scheme.ckks} {
     return %1 : tensor<1024xf32>
   }
 }
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK-LABEL: test_gen_params_op
+  func.func @test_gen_params_op() -> !openfhe.cc_params {
+    // CHECK: CCParamsT [[PARAMS:.*]];
+    // CHECK: [[PARAMS]].SetMultiplicativeDepth(2);
+    // CHECK: [[PARAMS]].SetPlaintextModulus(17);
+    // CHECK: [[PARAMS]].SetRingDim(16384);
+    // CHECK: [[PARAMS]].SetBatchSize(8);
+    // CHECK: [[PARAMS]].SetFirstModSize(59);
+    // CHECK: [[PARAMS]].SetScalingModSize(59);
+    // CHECK: [[PARAMS]].SetEvalAddCount(2);
+    // CHECK: [[PARAMS]].SetKeySwitchCount(1);
+    // CHECK: [[PARAMS]].SetDigitSize(16);
+    // CHECK: [[PARAMS]].SetNumLargeDigits(2);
+    // CHECK: [[PARAMS]].SetMaxRelinSkDeg(3);
+    // CHECK: [[PARAMS]].SetSecurityLevel(lbcrypto::HEStd_NotSet);
+    // CHECK: [[PARAMS]].SetEncryptionTechnique(EXTENDED);
+    // CHECK: [[PARAMS]].SetKeySwitchTechnique(BV);
+    // CHECK: [[PARAMS]].SetScalingTechnique(FIXEDMANUAL);
+    %0 = openfhe.gen_params  {mulDepth = 2 : i64, plainMod = 17 : i64, ringDim = 16384, batchSize = 8, firstModSize = 59, scalingModSize = 59, evalAddCount = 2 : i64, keySwitchCount = 1 : i64, digitSize = 16, numLargeDigits = 2, maxRelinSkDeg = 3, insecure = true, encryptionTechniqueExtended = true, keySwitchingTechniqueBV = true, scalingTechniqueFixedManual = true} : () -> !openfhe.cc_params
+    return %0 : !openfhe.cc_params
+  }
+}

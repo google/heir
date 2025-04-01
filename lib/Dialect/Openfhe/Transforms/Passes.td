@@ -8,6 +8,9 @@ def ConfigureCryptoContext : Pass<"openfhe-configure-crypto-context"> {
   let description = [{
     This pass generates helper functions to generate and configure the OpenFHE crypto context for the given function. Generating the crypto context sets the appropriate encryption parameters, while the configuration generates the necessary evaluation keys (relinearization and rotation keys).
 
+    For the options, reader can refer to the OpenFHE documentation at
+    https://github.com/openfheorg/openfhe-development/blob/main/src/pke/examples/README.md#description-of-the-cryptocontext-parameters-and-their-restrictions
+
     For example, for an MLIR function `@my_func`, the generated helpers have the following signatures
     ```mlir
     func.func  @my_func__generate_crypto_context() -> !openfhe.crypto_context
@@ -20,13 +23,35 @@ def ConfigureCryptoContext : Pass<"openfhe-configure-crypto-context"> {
     Option<"entryFunction", "entry-function", "std::string",
            /*default=*/"", "Default entry function "
            "name of entry function.">,
+    Option<"mulDepth", "mul-depth", "int",
+           /*default=*/"0", "Manually specify the mul depth">,
+    // Options for GenParamsOp
+    Option<"ringDim", "ring-dim", "int",
+           /*default=*/"0", "Manually specify the ring dimension (insecure is implied)">,
+    // plaintext modulus is from IR
+    Option<"batchSize", "batch-size", "int",
+           /*default=*/"0", "Manually specify the batch size">,
+    Option<"firstModSize", "first-mod-size", "int",
+           /*default=*/"0", "Manually specify the first mod size">,
+    Option<"scalingModSize", "scaling-mod-size", "int",
+           /*default=*/"0", "Manually specify the scaling mod size">,
+    Option<"digitSize", "digit-size", "int",
+           /*default=*/"0", "Manually specify the digit size for relinearization">,
+    Option<"numLargeDigits", "num-large-digits", "int",
+           /*default=*/"0", "Manually specify the number of large digits for HYBRID relinearization">,
+    Option<"maxRelinSkDeg", "max-relin-sk-deg", "int",
+           /*default=*/"0", "Manually specify the max number of relin sk deg">,
+    Option<"insecure", "insecure", "bool",
+           /*default=*/"false", "Whether to use insecure parameter (defaults to false)">,
+    Option<"keySwitchingTechniqueBV", "key-switching-technique-bv", "bool",
+           /*default=*/"false", "Whether to use BV key switching technique (defaults to false)">,
+    Option<"scalingTechniqueFixedManual", "scaling-technique-fixed-manual", "bool",
+           /*default=*/"false", "Whether to use fixed manual scaling technique (defaults to false)">,
+    // For bootstrapping
     Option<"levelBudgetEncode", "level-budget-encode", "int",
            /*default=*/"3", "Level budget for CKKS bootstrap encode (s2c) phase">,
     Option<"levelBudgetDecode", "level-budget-decode", "int",
            /*default=*/"3", "Level budget for CKKS bootstrap decode (c2s) phase">,
-    Option<"insecure", "insecure", "bool",
-           /*default=*/"false", "Whether to use insecure parameter for faster evaluation"
-           "(should only be used in test) (defaults to false)">
   ];
 }
 
