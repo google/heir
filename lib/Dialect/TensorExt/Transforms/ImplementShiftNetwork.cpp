@@ -379,9 +379,6 @@ struct ImplementShiftNetwork
   using ImplementShiftNetworkBase::ImplementShiftNetworkBase;
 
   void runOnOperation() override {
-    MLIRContext *context = &getContext();
-    RewritePatternSet patterns(context);
-
     VosVosErkinShiftNetworks shiftNetworks{ciphertextSize};
 
     getOperation()->walk([&](PermuteOp op) {
