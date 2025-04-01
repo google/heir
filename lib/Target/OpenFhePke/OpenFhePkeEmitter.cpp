@@ -933,7 +933,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   os << "auto " << inputVarFilledName << " = " << inputVarName << ";\n";
   os << inputVarFilledName << ".clear();\n";
   os << inputVarFilledName << ".reserve(" << inputVarFilledLengthName << ");\n";
-  os << "for (auto i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
+  // inputVarFilledLengthName is unsigned
+  os << "for (unsigned i = 0; i < " << inputVarFilledLengthName << "; ++i) {\n";
   os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
      << inputVarName << ".size()]);\n";
   os << "}\n";

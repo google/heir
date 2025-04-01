@@ -13,6 +13,9 @@ constexpr std::string_view kSourceRelativeOpenfheImport = R"cpp(
 constexpr std::string_view kInstallationRelativeOpenfheImport = R"cpp(
 #include "openfhe/pke/openfhe.h"  // from @openfhe
 )cpp";
+constexpr std::string_view kEmbeddedOpenfheImport = R"cpp(
+#include "openfhe.h"
+)cpp";
 
 // clang-format off
 constexpr std::string_view kModulePreludeTemplate = R"cpp(

@@ -28,7 +28,13 @@ enum class OpenfheImportType {
   // like #include "openfhe/pke/openfhe.h". This is useful for user-facing code
   // generation, where the openfhe backend is installed by the user or shipped
   // as a shared library dependency of a heir frontend.
-  INSTALL_RELATIVE
+  INSTALL_RELATIVE,
+
+  // Import paths are embedded directly in the generated code, i.e., paths like
+  // #include "openfhe.h". This is useful for generating code that is intended
+  // to be put in openfhe source files, where the openfhe headers are already
+  // handled by the build system.
+  EMBEDDED,
 };
 
 std::string getModulePrelude(OpenfheScheme scheme,
