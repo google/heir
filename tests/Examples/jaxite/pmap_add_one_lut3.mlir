@@ -1,4 +1,4 @@
-// RUN: heir-opt --tosa-to-boolean-jaxite="parallelism=4" %s | heir-translate --emit-jaxite | FileCheck %s
+// RUN: heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-jaxite="parallelism=4" %s | heir-translate --emit-jaxite | FileCheck %s
 
 module {
   // CHECK-LABEL: def test_add_one_lut3(

@@ -1,4 +1,4 @@
-// RUN: heir-opt --convert-if-to-select --tosa-to-boolean-tfhe %s | FileCheck %s
+// RUN: heir-opt --convert-if-to-select --mlir-to-cggi=abc-fast=true --scheme-to-tfhe-rs %s | FileCheck %s
 
 // def mul_gf256_2(x: int, y: int) -> int :
 //     '''Rinjdael multiplication in the ring GF(256) with RHS limited to 2 bits'''

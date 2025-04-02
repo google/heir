@@ -9,7 +9,10 @@ package(
 
 fhe_jaxite_lib(
     name = "add_one_lut3",
-    heir_opt_pass_flags = ["--tosa-to-boolean-jaxite"],
+    heir_opt_pass_flags = [
+        "--mlir-to-cggi",
+        "--scheme-to-jaxite",
+    ],
     mlir_src = "add_one_lut3.mlir",
     py_lib_target_name = "add_one_lut3_py_lib",
 )

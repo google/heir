@@ -1,4 +1,4 @@
-// RUN: heir-opt --tosa-to-boolean-tfhe=abc-fast=true %s | FileCheck %s
+// RUN: heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-tfhe-rs %s | FileCheck %s
 
 // A reduced dimension version of hello world to speed Yosys up.
 

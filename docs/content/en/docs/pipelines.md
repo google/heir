@@ -61,12 +61,13 @@ location of the Yosys' techlib files that are needed to execute the path.
 This pass can be disabled by defining `HEIR_NO_YOSYS`; this will avoid Yosys
 library and ABC binary compilation, and avoid registration of this pass.
 
-### `--tosa-to-boolean-tfhe`
+### `--mlir-to-cggi`
 
-This is an experimental pipeline for end-to-end private inference.
+This is an experimental pipeline for lowering standard MLIR (including TOSA) to
+CGGI.
 
 Converts a TOSA MLIR model to tfhe_rust dialect defined by HEIR. It converts a
-tosa model to optimized boolean circuit using Yosys ABC optimizations. The
+TOSA model to optimized boolean circuit using Yosys ABC optimizations. The
 resultant optimized boolean circuit in comb dialect is then converted to cggi
 and then to tfhe_rust exit dialect. This pipeline can be used with
 heir-translate --emit-tfhe-rust to generate code for

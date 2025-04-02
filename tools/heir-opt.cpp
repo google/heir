@@ -53,6 +53,7 @@
 #include "lib/Dialect/TfheRust/IR/TfheRustDialect.h"
 #include "lib/Dialect/TfheRustBool/IR/TfheRustBoolDialect.h"
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
+#include "lib/Pipelines/BooleanPipelineRegistration.h"
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
@@ -127,7 +128,6 @@
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 
 #ifndef HEIR_NO_YOSYS
-#include "lib/Pipelines/BooleanPipelineRegistration.h"
 #include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #endif
 
@@ -295,10 +295,12 @@ int main(int argc, char **argv) {
   if (overriddenYosysRunfilesEnvPath != nullptr)
     yosysRunfilesEnvPath = overriddenYosysRunfilesEnvPath;
   mlir::heir::registerYosysOptimizerPipeline(yosysRunfilesEnvPath, abcEnvPath);
-  registerTosaToBooleanTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
-  registerTosaToBooleanFpgaTfhePipeline(yosysRunfilesEnvPath, abcEnvPath);
-  registerTosaToJaxitePipeline(yosysRunfilesEnvPath, abcEnvPath);
-  // Register internal pipeline
+
+  PassPipelineRegistration<mlir::heir::MLIRToCGGIPipelineOptions>(
+      "mlir-to-cggi",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "CGGI.",
+      mlirToCGGIPipelineBuilder(yosysRunfilesEnvPath, abcEnvPath));
 #endif
 
   // Dialect conversion passes in HEIR
@@ -401,6 +403,24 @@ int main(int argc, char **argv) {
       "scheme-to-lattigo",
       "Convert code expressed at FHE scheme level to Lattigo Go code.",
       toLattigoPipelineBuilder());
+
+  // TODO(#1645): Add backend options for tfhe-rs, fpt, jaxite.
+  PassPipelineRegistration<>(
+      "scheme-to-tfhe-rs",
+      "Convert code expressed at FHE scheme level to tfhe-rs code.",
+      toTfheRsPipelineBuilder());
+
+  PassPipelineRegistration<>(
+      "scheme-to-fpt",
+      "Convert code expressed at FHE scheme level to Lattigo Go code.",
+      toFptPipelineBuilder());
+
+  PassPipelineRegistration<mlir::heir::CGGIBackendOptions>(
+      "scheme-to-jaxite",
+      "Convert code expressed at FHE scheme level to jaxite code.",
+      toJaxitePipelineBuilder());
+
+  // Register internal pipeline
 
   PassPipelineRegistration<>(
       "convert-to-data-oblivious",

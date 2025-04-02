@@ -1,6 +1,5 @@
 #include "lib/Pipelines/BooleanPipelineRegistration.h"
 
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,11 +39,17 @@ namespace mlir::heir {
 static std::vector<std::string> opsToDistribute = {"secret.separator"};
 static std::vector<unsigned> bitWidths = {1, 2, 4, 8, 16};
 
-void tosaToCGGIPipelineBuilder(OpPassManager &pm,
-                               const TosaToBooleanTfheOptions &options,
-                               const std::string &yosysFilesPath,
-                               const std::string &abcPath,
-                               bool abcBooleanGates) {
+CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string &yosysFilesPath,
+                                              const std::string &abcPath) {
+  return [=](OpPassManager &pm, const MLIRToCGGIPipelineOptions &options) {
+    mlirToCGGIPipeline(pm, options, yosysFilesPath, abcPath);
+  };
+}
+
+void mlirToCGGIPipeline(OpPassManager &pm,
+                        const MLIRToCGGIPipelineOptions &options,
+                        const std::string &yosysFilesPath,
+                        const std::string &abcPath) {
   // TOSA to linalg
   ::mlir::heir::tosaToLinalg(pm);
 
@@ -89,9 +94,9 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
   pm.addPass(createCanonicalizerPass());
 
   // Booleanize and Yosys Optimize
-  pm.addPass(createYosysOptimizer(
-      yosysFilesPath, abcPath, options.abcFast, options.unrollFactor,
-      /*useSubmodules=*/true, abcBooleanGates ? Mode::Boolean : Mode::LUT));
+  pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast,
+                                  options.unrollFactor, options.useSubmodules,
+                                  options.mode));
 
   // Cleanup
   pm.addPass(mlir::createCSEPass());
@@ -115,99 +120,77 @@ void tosaToCGGIPipelineBuilder(OpPassManager &pm,
   pm.addPass(createSCCPPass());
 }
 
-void registerTosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
-                                       const std::string &abcPath) {
-  PassPipelineRegistration<TosaToBooleanTfheOptions>(
-      "tosa-to-boolean-tfhe", "Arithmetic modules to boolean tfhe-rs pipeline.",
-      [yosysFilesPath, abcPath](OpPassManager &pm,
-                                const TosaToBooleanTfheOptions &options) {
-        tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
-                                  /*abcBooleanGates=*/false);
+CGGIBackendPipelineBuilder toTfheRsPipelineBuilder() {
+  return [=](OpPassManager &pm) {
+    // CGGI to Tfhe-Rust exit dialect
+    pm.addPass(createCGGIToTfheRust());
+    // CSE must be run before canonicalizer, so that redundant ops are
+    // cleared before the canonicalizer hoists TfheRust ops.
+    pm.addPass(createCSEPass());
+    pm.addPass(createCanonicalizerPass());
 
-        // CGGI to Tfhe-Rust exit dialect
-        pm.addPass(createCGGIToTfheRust());
-        // CSE must be run before canonicalizer, so that redundant ops are
-        // cleared before the canonicalizer hoists TfheRust ops.
-        pm.addPass(createCSEPass());
-        pm.addPass(createCanonicalizerPass());
-
-        // Cleanup loads and stores
-        pm.addPass(createExpandCopyPass(
-            ExpandCopyPassOptions{.disableAffineLoop = true}));
-        pm.addPass(memref::createFoldMemRefAliasOpsPass());
-        pm.addPass(createForwardStoreToLoad());
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(createCSEPass());
-        pm.addPass(createSCCPPass());
-      });
+    // Cleanup loads and stores
+    pm.addPass(
+        createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop = true}));
+    pm.addPass(memref::createFoldMemRefAliasOpsPass());
+    pm.addPass(createForwardStoreToLoad());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+    pm.addPass(createSCCPPass());
+  };
 }
 
-void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
-                                           const std::string &abcPath) {
-  PassPipelineRegistration<TosaToBooleanTfheOptions>(
-      "tosa-to-boolean-fpga-tfhe",
-      "Arithmetic modules to boolean tfhe-rs for FPGA backend pipeline.",
-      [yosysFilesPath, abcPath](OpPassManager &pm,
-                                const TosaToBooleanTfheOptions &options) {
-        tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
-                                  /*abcBooleanGates=*/true);
+CGGIBackendPipelineBuilder toFptPipelineBuilder() {
+  return [=](OpPassManager &pm) {
+    // Vectorize CGGI operations
+    pm.addPass(cggi::createBooleanVectorizer());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+    pm.addPass(createSCCPPass());
 
-        // Vectorize CGGI operations
-        pm.addPass(cggi::createBooleanVectorizer());
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(createCSEPass());
-        pm.addPass(createSCCPPass());
+    // CGGI to Tfhe-Rust exit dialect
+    pm.addPass(createCGGIToTfheRustBool());
+    // CSE must be run before canonicalizer, so that redundant ops are
+    // cleared before the canonicalizer hoists TfheRust ops.
+    pm.addPass(createCSEPass());
+    pm.addPass(createCanonicalizerPass());
 
-        // CGGI to Tfhe-Rust exit dialect
-        pm.addPass(createCGGIToTfheRustBool());
-        // CSE must be run before canonicalizer, so that redundant ops are
-        // cleared before the canonicalizer hoists TfheRust ops.
-        pm.addPass(createCSEPass());
-        pm.addPass(createCanonicalizerPass());
-
-        // Cleanup loads and stores
-        pm.addPass(createExpandCopyPass(
-            ExpandCopyPassOptions{.disableAffineLoop = true}));
-        pm.addPass(memref::createFoldMemRefAliasOpsPass());
-        pm.addPass(createForwardStoreToLoad());
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(createCSEPass());
-        pm.addPass(createSCCPPass());
-      });
+    // Cleanup loads and stores
+    pm.addPass(
+        createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop = true}));
+    pm.addPass(memref::createFoldMemRefAliasOpsPass());
+    pm.addPass(createForwardStoreToLoad());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+    pm.addPass(createSCCPPass());
+  };
 }
 
-void registerTosaToJaxitePipeline(const std::string &yosysFilesPath,
-                                  const std::string &abcPath) {
-  PassPipelineRegistration<TosaToBooleanJaxiteOptions>(
-      "tosa-to-boolean-jaxite", "Arithmetic modules to jaxite pipeline.",
-      [yosysFilesPath, abcPath](OpPassManager &pm,
-                                const TosaToBooleanJaxiteOptions &options) {
-        tosaToCGGIPipelineBuilder(pm, options, yosysFilesPath, abcPath,
-                                  /*abcBooleanGates=*/false);
-        if (options.parallelism > 0) {
-          pm.addPass(
-              cggi::createBooleanVectorizer(cggi::BooleanVectorizerOptions{
-                  .parallelism = options.parallelism}));
-          pm.addPass(createCSEPass());
-          pm.addPass(createRemoveDeadValuesPass());
-        }
+JaxiteBackendPipelineBuilder toJaxitePipelineBuilder() {
+  return [=](OpPassManager &pm, const CGGIBackendOptions &options) {
+    if (options.parallelism > 0) {
+      pm.addPass(cggi::createBooleanVectorizer(
+          cggi::BooleanVectorizerOptions{.parallelism = options.parallelism}));
+      pm.addPass(createCSEPass());
+      pm.addPass(createRemoveDeadValuesPass());
+    }
 
-        // CGGI to Jaxite exit dialect
-        pm.addPass(createCGGIToJaxite());
-        // CSE must be run before canonicalizer, so that redundant ops are
-        // cleared before the canonicalizer hoists TfheRust ops.
-        pm.addPass(createCSEPass());
-        pm.addPass(createCanonicalizerPass());
+    // CGGI to Jaxite exit dialect
+    pm.addPass(createCGGIToJaxite());
+    // CSE must be run before canonicalizer, so that redundant ops are
+    // cleared before the canonicalizer hoists TfheRust ops.
+    pm.addPass(createCSEPass());
+    pm.addPass(createCanonicalizerPass());
 
-        // Cleanup loads and stores
-        pm.addPass(createExpandCopyPass(
-            ExpandCopyPassOptions{.disableAffineLoop = true}));
-        pm.addPass(memref::createFoldMemRefAliasOpsPass());
-        pm.addPass(createForwardStoreToLoad());
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(createCSEPass());
-        pm.addPass(createSCCPPass());
-      });
+    // Cleanup loads and stores
+    pm.addPass(
+        createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop = true}));
+    pm.addPass(memref::createFoldMemRefAliasOpsPass());
+    pm.addPass(createForwardStoreToLoad());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+    pm.addPass(createSCCPPass());
+  };
 }
 
 }  // namespace mlir::heir

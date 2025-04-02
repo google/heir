@@ -1,4 +1,4 @@
-// RUN: heir-opt --tosa-to-boolean-tfhe=abc-fast=true %s | FileCheck %s
+// RUN: heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-tfhe-rs %s | FileCheck %s
 
 #map = affine_map<(d0, d1) -> (0)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>

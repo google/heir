@@ -208,9 +208,9 @@ func.func @dot_product(%arg0: !ty1, %arg1: !ty1) -> !ty2 {
 
 ## Differences for CGGI-style pipeline
 
-The `tosa-to-boolean-tfhe` and related pipelines add a few additional steps. The
-main goal here is to apply a hardware circuit optimizer to blocks of standard
-MLIR code (inside `secret.generic` ops) which converts the computation to an
+The `mlir-to-cggi` and related pipelines add a few additional steps. The main
+goal here is to apply a hardware circuit optimizer to blocks of standard MLIR
+code (inside `secret.generic` ops) which converts the computation to an
 optimized boolean circuit with a desired set of gates. Only then is
 `-secret-distribute-generic` applied to split the ops up and lower them to the
 `cggi` dialect. In particular, because passing an IR through the circuit
@@ -245,9 +245,9 @@ func.func @main(%arg0: tensor<1x1xi8> {secret.secret}) -> tensor<1x16xi32> {
 }
 ```
 
-After running `--tosa-to-boolean-tfhe` and dumping the IR after the linalg ops
-are lowered to loops, we can see the `secret.separator` ops enclose the lowered
-ops, with the exception of some pure ops that are speculatively executed.
+After running `--mlir-to-cggi` and dumping the IR after the linalg ops are
+lowered to loops, we can see the `secret.separator` ops enclose the lowered ops,
+with the exception of some pure ops that are speculatively executed.
 
 ```mlir
 func.func @main(%arg0: memref<1x1xi8, strided<[?, ?], offset: ?>> {secret.secret}) -> memref<1x16xi32> {

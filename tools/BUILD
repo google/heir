@@ -100,6 +100,7 @@ cc_binary(
         "@heir//lib/Dialect/TfheRust/IR:Dialect",
         "@heir//lib/Dialect/TfheRustBool/IR:Dialect",
         "@heir//lib/Pipelines:ArithmeticPipelineRegistration",
+        "@heir//lib/Pipelines:BooleanPipelineRegistration",
         "@heir//lib/Pipelines:PipelineRegistration",
         "@heir//lib/Transforms/AnnotateModule",
         "@heir//lib/Transforms/AnnotateSecretness",
@@ -179,7 +180,6 @@ cc_binary(
         "@llvm-project//mlir:VectorToLLVM",
     ] + select({
         "@heir//:config_enable_yosys": [
-            "@heir//lib/Pipelines:BooleanPipelineRegistration",
             "@heir//lib/Transforms/YosysOptimizer",
         ],
         "//conditions:default": [],

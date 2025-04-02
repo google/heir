@@ -1,8 +1,10 @@
 #ifndef LIB_PIPELINES_BOOLEANPIPELINEREGISTRATION_H_
 #define LIB_PIPELINES_BOOLEANPIPELINEREGISTRATION_H_
 
+#include <functional>
 #include <string>
 
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "llvm/include/llvm/Support/CommandLine.h"  // from @llvm-project
 #include "mlir/include/mlir/Pass/PassManager.h"     // from @llvm-project
 #include "mlir/include/mlir/Pass/PassOptions.h"     // from @llvm-project
@@ -10,42 +12,38 @@
 
 namespace mlir::heir {
 
-struct TosaToBooleanTfheOptions
-    : public PassPipelineOptions<TosaToBooleanTfheOptions> {
-  PassOptions::Option<bool> abcFast{*this, "abc-fast",
-                                    llvm::cl::desc("Run abc in fast mode."),
-                                    llvm::cl::init(false)};
+struct MLIRToCGGIPipelineOptions : public YosysOptimizerPipelineOptions {};
 
-  PassOptions::Option<int> unrollFactor{
-      *this, "unroll-factor",
-      llvm::cl::desc("Unroll loops by a given factor before optimizing. A "
-                     "value of zero (default) prevents unrolling."),
-      llvm::cl::init(0)};
-};
-
-struct TosaToBooleanJaxiteOptions : public TosaToBooleanTfheOptions {
+struct CGGIBackendOptions : public PassPipelineOptions<CGGIBackendOptions> {
   PassOptions::Option<int> parallelism{
       *this, "parallelism",
       llvm::cl::desc(
-          "batching size for parallel execution on tpu. A value of 0 is no "
+          "batching size for parallelism. A value of -1 (default) is infinite "
           "parallelism"),
-      llvm::cl::init(0)};
+      llvm::cl::init(-1)};
 };
 
-void tosaToCGGIPipelineBuilder(OpPassManager &pm,
-                               const TosaToBooleanTfheOptions &options,
-                               const std::string &yosysFilesPath,
-                               const std::string &abcPath,
-                               bool abcBooleanGates);
+using CGGIPipelineBuilder =
+    std::function<void(OpPassManager &, const MLIRToCGGIPipelineOptions &)>;
 
-void registerTosaToBooleanTfhePipeline(const std::string &yosysFilesPath,
-                                       const std::string &abcPath);
+using CGGIBackendPipelineBuilder = std::function<void(OpPassManager &)>;
 
-void registerTosaToBooleanFpgaTfhePipeline(const std::string &yosysFilesPath,
-                                           const std::string &abcPath);
+using JaxiteBackendPipelineBuilder =
+    std::function<void(OpPassManager &, const CGGIBackendOptions &)>;
 
-void registerTosaToJaxitePipeline(const std::string &yosysFilesPath,
-                                  const std::string &abcPath);
+CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string &yosysFilesPath,
+                                              const std::string &abcPath);
+
+void mlirToCGGIPipeline(OpPassManager &pm,
+                        const MLIRToCGGIPipelineOptions &options,
+                        const std::string &yosysFilesPath,
+                        const std::string &abcPath);
+
+CGGIBackendPipelineBuilder toTfheRsPipelineBuilder();
+
+CGGIBackendPipelineBuilder toFptPipelineBuilder();
+
+JaxiteBackendPipelineBuilder toJaxitePipelineBuilder();
 
 }  // namespace mlir::heir
 

@@ -1,6 +1,4 @@
-// RUN: heir-opt --tosa-to-boolean-tfhe %s | FileCheck %s
-
-// While this is not a TOSA model, it should still lower through the pipeline.
+// RUN: heir-opt --mlir-to-cggi --scheme-to-tfhe-rs %s | FileCheck %s
 
 module {
   // CHECK: @add_one([[sks:.*]]: !tfhe_rust.server_key, [[arg:.*]]: memref<8x!tfhe_rust.eui3>)

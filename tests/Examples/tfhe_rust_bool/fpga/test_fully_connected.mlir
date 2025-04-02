@@ -1,4 +1,4 @@
-// RUN: heir-opt --tosa-to-boolean-fpga-tfhe="abc-fast=true" %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
+// RUN: heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-fpt %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
 // RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 | FileCheck %s
 
 // This takes takes the input x and outputs a FC layer operation.
