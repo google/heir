@@ -4,7 +4,6 @@
 #include "lib/Dialect/LWE/IR/LWEDialect.h"
 #include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
-#include "lib/Dialect/LWE/Transforms/SetDefaultParameters.h"
 
 namespace mlir {
 namespace heir {
