@@ -101,4 +101,6 @@ def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext"> {
 
 def NewLWECiphertextLike : TypeOrValueSemanticsContainer<NewLWECiphertext, "new-lwe-ciphertext-like">;
 
+def NewLWEPlaintextOrCiphertext : AnyTypeOf<[NewLWECiphertext, NewLWEPlaintext]>;
+
 #endif  // LIB_DIALECT_LWE_IR_NEWLWETYPES_TD_

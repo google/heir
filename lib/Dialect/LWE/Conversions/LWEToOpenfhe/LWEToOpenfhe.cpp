@@ -207,14 +207,20 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
       if (intTy.getWidth() > 64)
         return op.emitError() << "No supported packing technique for integers "
                                  "bigger than 64 bits.";
-
+      // OpenFHE has a convention that all inputs to MakePackedPlaintext are
+      // std::vector<int64_t>, so we need to cast the input to that type.
       if (intTy.getWidth() < 64) {
-        // OpenFHE has a convention that all inputs to MakePackedPlaintext are
-        // std::vector<int64_t>, so we need to cast the input to that type.
         auto int64Ty = rewriter.getIntegerType(64);
         auto newTensorTy = RankedTensorType::get(tensorTy.getShape(), int64Ty);
-        input =
-            rewriter.create<arith::ExtSIOp>(op.getLoc(), newTensorTy, input);
+        if (intTy.getWidth() == 1) {
+          // Sign extending an i1 results in a -1 i64, so ensure that booleans
+          // are unsigned.
+          input =
+              rewriter.create<arith::ExtUIOp>(op.getLoc(), newTensorTy, input);
+        } else {
+          input =
+              rewriter.create<arith::ExtSIOp>(op.getLoc(), newTensorTy, input);
+        }
       }
     } else {
       auto floatTy = cast<FloatType>(elementTy);

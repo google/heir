@@ -11,6 +11,7 @@
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "mlir/include/mlir/IR/BuiltinOps.h"    // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
 #include "mlir/include/mlir/Interfaces/InferTypeOpInterface.h"  // from @llvm-project
@@ -51,19 +52,26 @@ LogicalResult verifyMulOp(Op* op) {
 
 template <typename Op>
 LogicalResult verifyMulPlainOp(Op* op) {
-  auto x = op->getCiphertextInput().getType();
-  auto y = op->getPlaintextInput().getType();
+  lwe::NewLWECiphertextType ct;
+  lwe::NewLWEPlaintextType pt;
+  if (isa<lwe::NewLWECiphertextType>(op->getLhs().getType())) {
+    ct = cast<lwe::NewLWECiphertextType>(op->getLhs().getType());
+    pt = cast<lwe::NewLWEPlaintextType>(op->getRhs().getType());
+  } else {
+    ct = cast<lwe::NewLWECiphertextType>(op->getRhs().getType());
+    pt = cast<lwe::NewLWEPlaintextType>(op->getLhs().getType());
+  }
   auto out = op->getOutput().getType();
   // verify dimension matches
-  if (x.getCiphertextSpace().getSize() != out.getCiphertextSpace().getSize()) {
+  if (ct.getCiphertextSpace().getSize() != out.getCiphertextSpace().getSize()) {
     return op->emitOpError() << "output.dim == x.dim does not hold";
   }
   // verify plaintext space matches
-  auto xPlaintext = x.getPlaintextSpace();
-  auto yPlaintext = y.getPlaintextSpace();
+  auto ctPlaintext = ct.getPlaintextSpace();
+  auto ptPlaintext = pt.getPlaintextSpace();
   auto outPlaintext = out.getPlaintextSpace();
-  if (outPlaintext !=
-      inferMulOpPlaintextSpaceAttr(op->getContext(), xPlaintext, yPlaintext)) {
+  if (outPlaintext != inferMulOpPlaintextSpaceAttr(op->getContext(),
+                                                   ctPlaintext, ptPlaintext)) {
     return op->emitOpError() << "output plaintext space does not match";
   }
   return success();
@@ -251,6 +259,24 @@ LogicalResult inferAddOpReturnTypes(
 }
 
 template <typename Adaptor>
+LogicalResult inferPlainOpReturnTypes(
+    MLIRContext* ctx, Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  if (auto ct =
+          dyn_cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType())) {
+    inferredReturnTypes.push_back(ct);
+  } else if (auto ct = dyn_cast<lwe::NewLWECiphertextType>(
+                 adaptor.getRhs().getType())) {
+    inferredReturnTypes.push_back(ct);
+  } else {
+    emitError(adaptor.getLhs().getLoc())
+        << "expected lhs or rhs to be a ciphertext type";
+    return failure();
+  }
+  return success();
+}
+
+template <typename Adaptor>
 LogicalResult inferMulOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
@@ -277,19 +303,24 @@ template <typename Adaptor>
 LogicalResult inferMulPlainOpReturnTypes(
     MLIRContext* ctx, Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
-  auto x =
-      cast<lwe::NewLWECiphertextType>(adaptor.getCiphertextInput().getType());
-  auto y =
-      cast<lwe::NewLWEPlaintextType>(adaptor.getPlaintextInput().getType());
-  auto xPlaintextSpace = x.getPlaintextSpace();
-  auto yPlaintextSpace = y.getPlaintextSpace();
+  lwe::NewLWECiphertextType ct;
+  lwe::NewLWEPlaintextType pt;
+  if (isa<lwe::NewLWECiphertextType>(adaptor.getLhs().getType())) {
+    ct = cast<lwe::NewLWECiphertextType>(adaptor.getLhs().getType());
+    pt = cast<lwe::NewLWEPlaintextType>(adaptor.getRhs().getType());
+  } else {
+    ct = cast<lwe::NewLWECiphertextType>(adaptor.getRhs().getType());
+    pt = cast<lwe::NewLWEPlaintextType>(adaptor.getLhs().getType());
+  }
+  auto ctPlaintextSpace = ct.getPlaintextSpace();
+  auto ptPlaintextSpace = pt.getPlaintextSpace();
 
   lwe::PlaintextSpaceAttr newPlaintextSpaceAttr =
-      inferMulOpPlaintextSpaceAttr(ctx, xPlaintextSpace, yPlaintextSpace);
+      inferMulOpPlaintextSpaceAttr(ctx, ctPlaintextSpace, ptPlaintextSpace);
 
   inferredReturnTypes.push_back(lwe::NewLWECiphertextType::get(
-      ctx, x.getApplicationData(), newPlaintextSpaceAttr,
-      x.getCiphertextSpace(), x.getKey(), x.getModulusChain()));
+      ctx, ct.getApplicationData(), newPlaintextSpaceAttr,
+      ct.getCiphertextSpace(), ct.getKey(), ct.getModulusChain()));
   return success();
 }
 

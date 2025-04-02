@@ -67,15 +67,18 @@ FailureOr<std::string> convertType(Type type, Location loc, bool constant) {
       .Case<openfhe::PublicKeyType>(
           [&](auto ty) { return std::string("PublicKeyT"); })
       .Case<IndexType>([&](auto ty) { return std::string("size_t"); })
-      .Case<IntegerType>([&](auto ty) {
+      .Case<IntegerType>([&](auto ty) -> FailureOr<std::string> {
         auto width = ty.getWidth();
+        if (width == 1) {
+          return std::string("bool");
+        }
         if (width != 8 && width != 16 && width != 32 && width != 64) {
-          return FailureOr<std::string>();
+          return failure();
         }
         SmallString<8> result;
         llvm::raw_svector_ostream os(result);
         os << "int" << width << "_t";
-        return FailureOr<std::string>(std::string(result));
+        return std::string(result);
       })
       .Case<FloatType>([&](auto ty) -> FailureOr<std::string> {
         auto width = ty.getWidth();

@@ -262,8 +262,36 @@ struct ConvertRlweBinOp : public OpConversionPattern<BinOp> {
   }
 };
 
+// Lattigo API enforces ciphertext, plaintext ordering.
 template <typename EvaluatorType, typename PlainOp, typename LattigoPlainOp>
-struct ConvertRlwePlainOp : public OpConversionPattern<PlainOp> {
+struct ConvertRlweCommutativePlainOp : public OpConversionPattern<PlainOp> {
+  using OpConversionPattern<PlainOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      PlainOp op, typename PlainOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    FailureOr<Value> result =
+        getContextualEvaluator<EvaluatorType>(op.getOperation());
+    if (failed(result)) return result;
+
+    Value ciphertext = adaptor.getLhs();
+    Value plaintext = adaptor.getRhs();
+    if (!isa<lattigo::RLWECiphertextType>(adaptor.getLhs().getType())) {
+      ciphertext = adaptor.getRhs();
+      plaintext = adaptor.getLhs();
+    }
+
+    Value evaluator = result.value();
+    rewriter.replaceOpWithNewOp<LattigoPlainOp>(
+        op, this->typeConverter->convertType(op.getOutput().getType()),
+        evaluator, ciphertext, plaintext);
+    return success();
+  }
+};
+
+// Lattigo API enforces ciphertext, plaintext ordering.
+template <typename EvaluatorType, typename PlainOp, typename LattigoPlainOp>
+struct ConvertRlweSubPlainOp : public OpConversionPattern<PlainOp> {
   using OpConversionPattern<PlainOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
@@ -274,10 +302,21 @@ struct ConvertRlwePlainOp : public OpConversionPattern<PlainOp> {
     if (failed(result)) return result;
 
     Value evaluator = result.value();
-    rewriter.replaceOpWithNewOp<LattigoPlainOp>(
-        op, this->typeConverter->convertType(op.getOutput().getType()),
-        evaluator, adaptor.getCiphertextInput(), adaptor.getPlaintextInput());
-    return success();
+    Value ciphertext = adaptor.getLhs();
+    Value plaintext = adaptor.getRhs();
+    if (isa<lattigo::RLWECiphertextType>(adaptor.getLhs().getType())) {
+      // Lattigo API enforces ciphertext, plaintext ordering, so we can use
+      // LattigoPlainOp directly.
+      rewriter.replaceOpWithNewOp<LattigoPlainOp>(
+          op, this->typeConverter->convertType(op.getOutput().getType()),
+          evaluator, ciphertext, plaintext);
+      return success();
+    }
+
+    // TODO(#1623): Support this case by lowering it to Add(Negate(ciphertext),
+    // plaintext).
+    return op.emitOpError() << "subplain op does not support plaintext, "
+                               "ciphertext operand ordering";
   }
 };
 
@@ -455,14 +494,14 @@ using ConvertBGVSubOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp,
 using ConvertBGVMulOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp,
                                          lattigo::BGVMulNewOp>;
 using ConvertBGVAddPlainOp =
-    ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::AddPlainOp,
-                       lattigo::BGVAddNewOp>;
+    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, bgv::AddPlainOp,
+                                  lattigo::BGVAddNewOp>;
 using ConvertBGVSubPlainOp =
-    ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::SubPlainOp,
-                       lattigo::BGVSubNewOp>;
+    ConvertRlweSubPlainOp<lattigo::BGVEvaluatorType, bgv::SubPlainOp,
+                          lattigo::BGVSubNewOp>;
 using ConvertBGVMulPlainOp =
-    ConvertRlwePlainOp<lattigo::BGVEvaluatorType, bgv::MulPlainOp,
-                       lattigo::BGVMulNewOp>;
+    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, bgv::MulPlainOp,
+                                  lattigo::BGVMulNewOp>;
 
 using ConvertBGVRelinOp =
     ConvertRlweUnaryOp<lattigo::BGVEvaluatorType, bgv::RelinearizeOp,
@@ -502,14 +541,14 @@ using ConvertCKKSSubOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
 using ConvertCKKSMulOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
                                           lwe::RMulOp, lattigo::CKKSMulNewOp>;
 using ConvertCKKSAddPlainOp =
-    ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::AddPlainOp,
-                       lattigo::CKKSAddNewOp>;
+    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, ckks::AddPlainOp,
+                                  lattigo::CKKSAddNewOp>;
 using ConvertCKKSSubPlainOp =
-    ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::SubPlainOp,
-                       lattigo::CKKSSubNewOp>;
+    ConvertRlweSubPlainOp<lattigo::CKKSEvaluatorType, ckks::SubPlainOp,
+                          lattigo::CKKSSubNewOp>;
 using ConvertCKKSMulPlainOp =
-    ConvertRlwePlainOp<lattigo::CKKSEvaluatorType, ckks::MulPlainOp,
-                       lattigo::CKKSMulNewOp>;
+    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, ckks::MulPlainOp,
+                                  lattigo::CKKSMulNewOp>;
 
 using ConvertCKKSRelinOp =
     ConvertRlweUnaryOp<lattigo::CKKSEvaluatorType, ckks::RelinearizeOp,

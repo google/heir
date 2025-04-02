@@ -186,26 +186,28 @@ def SubInPlaceOp : Openfhe_BinaryInPlaceOp<"sub_inplace"> {
 
 def AddPlainOp : Openfhe_Op<"add_plain",[
     Pure,
-    AllTypesMatch<["ciphertext", "output"]>
+    AllCiphertextTypesMatch,
+    InferTypeOpAdaptor
 ]> {
   let summary = "OpenFHE add operation of a ciphertext and a plaintext.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    NewLWECiphertext:$ciphertext,
-    NewLWEPlaintext:$plaintext
+    NewLWEPlaintextOrCiphertext:$lhs,
+    NewLWEPlaintextOrCiphertext:$rhs
   );
   let results = (outs NewLWECiphertext:$output);
 }
 
 def SubPlainOp : Openfhe_Op<"sub_plain",[
     Pure,
-    AllTypesMatch<["ciphertext", "output"]>
+    AllCiphertextTypesMatch,
+    InferTypeOpAdaptor
 ]> {
   let summary = "OpenFHE sub operation of a ciphertext and a plaintext.";
   let arguments = (ins
     Openfhe_CryptoContext:$cryptoContext,
-    NewLWECiphertext:$ciphertext,
-    NewLWEPlaintext:$plaintext
+    NewLWEPlaintextOrCiphertext:$lhs,
+    NewLWEPlaintextOrCiphertext:$rhs
   );
   let results = (outs NewLWECiphertext:$output);
 }
