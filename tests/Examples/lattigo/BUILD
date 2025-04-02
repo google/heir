@@ -7,7 +7,6 @@ bzl_library(
     srcs = ["test.bzl"],
     visibility = ["//visibility:private"],
     deps = [
-        "//tools/build_defs/go:go_library_bzl",
         "@heir//tools:heir_opt_bzl",
         "@heir//tools:heir_translate_bzl",
     ],
