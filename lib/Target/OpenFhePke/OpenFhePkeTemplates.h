@@ -80,18 +80,22 @@ using namespace lbcrypto;
 namespace py = pybind11;
 
 // Minimal bindings required for generated functions to run.
+// Cf. https://pybind11.readthedocs.io/en/stable/advanced/classes.html#module-local-class-bindings
+// which is a temporary workaround to allow us to have multiple compilations in
+// the same python program. Better would be to cache the pybind11 module across
+// calls.
 void bind_common(py::module &m)
 {
-    py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(m, "PublicKey")
+    py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(m, "PublicKey", py::module_local())
         .def(py::init<>());
-    py::class_<PrivateKeyImpl<DCRTPoly>, std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey")
+    py::class_<PrivateKeyImpl<DCRTPoly>, std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey", py::module_local())
         .def(py::init<>());
-    py::class_<KeyPair<DCRTPoly>>(m, "KeyPair")
+    py::class_<KeyPair<DCRTPoly>>(m, "KeyPair", py::module_local())
         .def_readwrite("publicKey", &KeyPair<DCRTPoly>::publicKey)
         .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey);
-    py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext")
+    py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext", py::module_local())
         .def(py::init<>());
-    py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext")
+    py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext", py::module_local())
         .def(py::init<>())
         .def("KeyGen", &CryptoContextImpl<DCRTPoly>::KeyGen);
 }

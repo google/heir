@@ -12,18 +12,18 @@
 // CHECK: namespace py = pybind11;
 // CHECK: void bind_common(py::module &m)
 // CHECK: {
-// CHECK:     py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(m, "PublicKey")
-// CHECK:         .def(py::init<>());
-// CHECK:     py::class_<PrivateKeyImpl<DCRTPoly>, std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey")
-// CHECK:         .def(py::init<>());
-// CHECK:     py::class_<KeyPair<DCRTPoly>>(m, "KeyPair")
-// CHECK:         .def_readwrite("publicKey", &KeyPair<DCRTPoly>::publicKey)
-// CHECK:         .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey);
-// CHECK:     py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext")
-// CHECK:         .def(py::init<>());
-// CHECK:     py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext")
-// CHECK:         .def(py::init<>())
-// CHECK:         .def("KeyGen", &CryptoContextImpl<DCRTPoly>::KeyGen);
+// CHECK:    py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(m, "PublicKey", py::module_local())
+// CHECK:        .def(py::init<>());
+// CHECK:    py::class_<PrivateKeyImpl<DCRTPoly>, std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey", py::module_local())
+// CHECK:        .def(py::init<>());
+// CHECK:    py::class_<KeyPair<DCRTPoly>>(m, "KeyPair", py::module_local())
+// CHECK:        .def_readwrite("publicKey", &KeyPair<DCRTPoly>::publicKey)
+// CHECK:        .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey);
+// CHECK:    py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext", py::module_local())
+// CHECK:        .def(py::init<>());
+// CHECK:    py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext", py::module_local())
+// CHECK:        .def(py::init<>())
+// CHECK:        .def("KeyGen", &CryptoContextImpl<DCRTPoly>::KeyGen);
 // CHECK: }
 
 // CHECK: PYBIND11_MODULE(_heir_foo, m) {

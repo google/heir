@@ -533,7 +533,7 @@ class TextualMlirEmitter:
         raise NotImplementedError("Nested loops are not supported")
 
     body_str = self.emit_block(loop_block, blocks_to_print)
-    if len(loop.inits) > 1:
+    if loop.inits:
       # Yield the iter args
       yield_vars = ", ".join([self.get_name(init) for init in loop.inits])
       ret_types = ", ".join(
