@@ -116,7 +116,7 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;p>&lt;em>Addition operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.add_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
@@ -129,12 +129,12 @@ BGVEncryptionTechnique # encryptionTechnique
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -331,7 +331,7 @@ that tensor type.&lt;/p>
 &lt;p>&lt;em>Multiplication operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.mul_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
@@ -344,12 +344,12 @@ that tensor type.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -595,7 +595,7 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `bgv.sub_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-12">Operands:&lt;/h4>
@@ -608,12 +608,12 @@ this case, the plaintext slots can be viewed as a &lt;code>2 x N/2&lt;/code> mat
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2159,7 +2159,7 @@ CKKSEncryptionType # encryptionType
 &lt;p>&lt;em>Addition operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.add_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
@@ -2172,12 +2172,12 @@ CKKSEncryptionType # encryptionType
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2371,7 +2371,7 @@ that tensor type.&lt;/p>
 &lt;p>&lt;em>Multiplication operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.mul_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-6">Operands:&lt;/h4>
@@ -2384,12 +2384,12 @@ that tensor type.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2623,7 +2623,7 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;p>&lt;em>Subtraction operation between ciphertext-plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `ckks.sub_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>, &lt;code>IsCiphertextPlaintextOp&lt;/code>, &lt;code>SameOperandsAndResultPlaintextTypes&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-12">Operands:&lt;/h4>
@@ -2636,12 +2636,12 @@ listing the powers of &lt;code>s&lt;/code> at each position of the array. For ex
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertextInput&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintextInput&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9262,7 +9262,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>&lt;em>OpenFHE add operation of a ciphertext and a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.add_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
@@ -9279,12 +9279,12 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -10282,7 +10282,7 @@ testing purposes.&lt;/p>
 &lt;p>&lt;em>OpenFHE sub operation of a ciphertext and a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `openfhe.sub_plain` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AllCiphertextTypesMatch&lt;/code>, &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>InferTypeOpAdaptor&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-27">Operands:&lt;/h4>
@@ -10299,12 +10299,12 @@ testing purposes.&lt;/p>
 &lt;td>The CryptoContext required to perform homomorphic operations in OpenFHE.&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>A ciphertext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>plaintext&lt;/code>&lt;/td>
-&lt;td>A plaintext type&lt;/td>
+&lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
+&lt;td>A ciphertext type or A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
