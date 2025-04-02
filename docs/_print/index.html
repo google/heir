@@ -3389,12 +3389,7 @@ arguments, and the debug port is called after each homomorphic operation:</p><di
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>...</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><h4 id=options-17>Options</h4><pre tabindex=0><code>-entry-function : Default entry function name of entry function.
-</code></pre><h3 id=-lwe-set-default-parameters><code>-lwe-set-default-parameters</code></h3><p><em>Set default parameters for LWE ops</em></p><p>This pass adds default parameters to all <code>lwe</code> types as the <code>lwe_params</code>
-attribute, and for <code>lwe</code> ops as the <code>params</code> attribute, overriding any
-existing attributes set with those names.</p><p>This pass is primarily for testing purposes, and as a parameter provider
-before a proper parameter selection mechanism is added. This pass should not
-be used in production.</p><p>The specific parameters are hard-coded in
-<code>lib/Dialect/LWE/Transforms/SetDefaultParameters.cpp</code>.</p><h3 id=-lwe-to-lattigo><code>-lwe-to-lattigo</code></h3><p><em>Lower <code>lwe</code> to <code>lattigo</code> dialect.</em></p><p>This pass lowers the <code>lwe</code> dialect to <code>Lattigo</code> dialect.</p><h3 id=-lwe-to-openfhe><code>-lwe-to-openfhe</code></h3><p><em>Lower <code>lwe</code> to <code>openfhe</code> dialect.</em></p><p>This pass lowers the <code>lwe</code> dialect to <code>Openfhe</code> dialect.
+</code></pre><h3 id=-lwe-to-lattigo><code>-lwe-to-lattigo</code></h3><p><em>Lower <code>lwe</code> to <code>lattigo</code> dialect.</em></p><p>This pass lowers the <code>lwe</code> dialect to <code>Lattigo</code> dialect.</p><h3 id=-lwe-to-openfhe><code>-lwe-to-openfhe</code></h3><p><em>Lower <code>lwe</code> to <code>openfhe</code> dialect.</em></p><p>This pass lowers the <code>lwe</code> dialect to <code>Openfhe</code> dialect.
 Currently, this also includes patterns that apply directly to <code>ckks</code> and <code>bgv</code> dialect operations.
 TODO (#1193): investigate if the need for <code>ckks/bgv</code> patterns in <code>--lwe-to-openfhe</code> is permanent.</p><h3 id=-lwe-to-polynomial><code>-lwe-to-polynomial</code></h3><p><em>Lower <code>lwe</code> to <code>polynomial</code> dialect.</em></p><p>This pass lowers the <code>lwe</code> dialect to <code>polynomial</code> dialect.</p><h3 id=-memref-global-replace><code>-memref-global-replace</code></h3><p><em>MemrefGlobalReplacePass forwards global memrefs accessors to arithmetic values</em></p><p>This pass forwards constant global MemRef values to referencing affine
 loads. This pass requires that the MemRef global values are initialized as
