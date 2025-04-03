@@ -30,6 +30,9 @@ func __heir_debug(evaluator *ckks.Evaluator, param ckks.Parameters, encoder *ckk
 	pt := decryptor.DecryptNew(ct)
 	encoder.Decode(pt, value)
 
+	// Print the scale
+	fmt.Printf("  Scale: %v\n", ct.Scale.Log2())
+
 	// calculate the precision
 	if secretExecutionResult, ok := debugAttrMap["secret.execution_result"]; ok {
 		// secretExecutionResult has the form "[1.0, 2.0, 3.0]", parse it into a slice of float64
@@ -52,5 +55,22 @@ func __heir_debug(evaluator *ckks.Evaluator, param ckks.Parameters, encoder *ckk
 		}
 
 		fmt.Printf("  Precision lost: 2^%3.1f\n", maxError)
+
+		// full packed pt
+		// Note that packing behavior is different in LattigoEmitter
+		// and plaintext backend, care should be taken...
+		packed := make([]float64, param.MaxSlots())
+		for i := range packed {
+			packed[i] = float64(plaintextResult[i%len(plaintextResult)])
+		}
+		// set the level and scale of the plaintext
+		ptPlain := ckks.NewPlaintext(param, ct.Level())
+		ptPlain.Scale = ct.Scale
+		encoder.Encode(packed, ptPlain)
+		// subtract the message from the ciphertext
+		vec, _ := evaluator.SubNew(ct, ptPlain)
+		// get infty norm of the noise
+		_, _, max := rlwe.Norm(vec, decryptor)
+		fmt.Printf("  Noise: %.2f\n", max)
 	}
 }

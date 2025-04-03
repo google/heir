@@ -59,6 +59,9 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
     result.push_back(ptxt->GetRealPackedValue()[i]);
   }
 
+  // print the scale
+  std::cout << "  Scale: " << log2(ct->GetScalingFactor()) << std::endl;
+
 #ifdef PRECISION
   if (debugAttrMap.find("secret.execution_result") != debugAttrMap.end()) {
     auto plaintextResultStr = debugAttrMap.at("secret.execution_result");
@@ -85,6 +88,24 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
 
     std::cout << "  Precision lost: 2^" << std::setprecision(3) << maxError
               << std::endl;
+
+    // full packed pt
+    // Note that packing behavior is different in OpenfhePkeEmitter
+    // and plaintext backend, care should be taken...
+    std::vector<double> packed;
+    for (size_t i = 0;
+         i <
+         cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() / 2;
+         i++) {
+      packed.push_back(plaintextResult[i % plaintextResult.size()]);
+    }
+    auto packedPt = cc->MakeCKKSPackedPlaintext(packed);
+    // EvalSub itself will adjust the scale of packedPt
+    auto zeroCt = cc->EvalSub(ct, packedPt);
+    auto b = DecryptCore(zeroCt->GetElements(), sk);
+    b.SetFormat(Format::COEFFICIENT);
+    double noise = (log2(b.Norm()));
+    std::cout << "  Noise: 2^" << std::setprecision(3) << noise << std::endl;
   }
 #endif
 #endif
