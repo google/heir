@@ -1100,26 +1100,62 @@ LogicalResult OpenFhePkeEmitter::printOperation(GenParamsOp op) {
   int64_t keySwitchCount = op.getKeySwitchCountAttr().getValue().getSExtValue();
 
   os << "CCParamsT " << paramsName << ";\n";
+  // Essential parameters
   os << paramsName << ".SetMultiplicativeDepth(" << mulDepth << ");\n";
   if (plainMod != 0) {
     os << paramsName << ".SetPlaintextModulus(" << plainMod << ");\n";
   }
-  if (op.getInsecure()) {
-    os << paramsName << ".SetSecurityLevel(lbcrypto::HEStd_NotSet);\n";
-    os << paramsName << ".SetRingDim(128);\n";
+  // Optional parameters
+  if (op.getRingDim() != 0) {
+    os << paramsName << ".SetRingDim(" << op.getRingDim() << ");\n";
   }
+  if (op.getBatchSize() != 0) {
+    os << paramsName << ".SetBatchSize(" << op.getBatchSize() << ");\n";
+  }
+  // Modulus chain parameters
+  if (op.getFirstModSize() != 0) {
+    os << paramsName << ".SetFirstModSize(" << op.getFirstModSize() << ");\n";
+  }
+  if (op.getScalingModSize() != 0) {
+    os << paramsName << ".SetScalingModSize(" << op.getScalingModSize()
+       << ");\n";
+  }
+  // Advanced parameters
   if (evalAddCount != 0) {
     os << paramsName << ".SetEvalAddCount(" << evalAddCount << ");\n";
   }
   if (keySwitchCount != 0) {
     os << paramsName << ".SetKeySwitchCount(" << keySwitchCount << ");\n";
   }
-  // B/FV defaults to BV, to match HEIR parameter generation we need to
-  // set it to HYBRID. Other schemes defaults to HYBRID.
-  os << paramsName << ".SetKeySwitchTechnique(HYBRID);\n";
+  // Key switching technique parameters
+  if (op.getDigitSize() != 0) {
+    os << paramsName << ".SetDigitSize(" << op.getDigitSize() << ");\n";
+  }
+  if (op.getNumLargeDigits() != 0) {
+    os << paramsName << ".SetNumLargeDigits(" << op.getNumLargeDigits()
+       << ");\n";
+  }
+  // Relinearization technique parameters
+  if (op.getMaxRelinSkDeg() != 0) {
+    os << paramsName << ".SetMaxRelinSkDeg(" << op.getMaxRelinSkDeg() << ");\n";
+  }
+  // Option switches
+  if (op.getInsecure()) {
+    os << paramsName << ".SetSecurityLevel(lbcrypto::HEStd_NotSet);\n";
+  }
   // For B/FV, OpenFHE supports EXTENDED encryption technique.
   if (op.getEncryptionTechniqueExtended()) {
     os << paramsName << ".SetEncryptionTechnique(EXTENDED);\n";
+  }
+  if (!op.getKeySwitchingTechniqueBV()) {
+    // B/FV defaults to BV, to match HEIR parameter generation we need to
+    // set it to HYBRID. Other schemes defaults to HYBRID.
+    os << paramsName << ".SetKeySwitchTechnique(HYBRID);\n";
+  } else {
+    os << paramsName << ".SetKeySwitchTechnique(BV);\n";
+  }
+  if (op.getScalingTechniqueFixedManual()) {
+    os << paramsName << ".SetScalingTechnique(FIXEDMANUAL);\n";
   }
   return success();
 }
