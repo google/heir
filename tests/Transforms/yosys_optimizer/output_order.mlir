@@ -4,7 +4,7 @@
 // an input results in a final zero bit.
 
 module {
-  // CHECK-LABEL: @output_order
+  // CHECK: @output_order
   func.func @output_order(%in: !secret.secret<i2>) -> (!secret.secret<i2>) {
     // CHECK: [[C0:%.*]] = arith.constant 0 : index
     // CHECK: [[FALSE:%.*]] = arith.constant false

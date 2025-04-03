@@ -1,6 +1,6 @@
 // RUN: heir-opt --collapse-insertion-chains --canonicalize %s | FileCheck %s
 
-// CHECK-LABEL: @test_collapse_insertion_chains
+// CHECK: @test_collapse_insertion_chains
 // CHECK-SAME: (%[[in:.*]]: tensor<4xi32>, %[[out:.*]]: tensor<4xi32>) -> tensor<4xi32> {
 // CHECK: %[[c2:.*]] = arith.constant 2 : index
 // CHECK: %[[res:.*]] = tensor_ext.rotate %[[in]], %[[c2]] : tensor<4xi32>, index

@@ -4,7 +4,7 @@
 !ct_ty = !lwe.lwe_ciphertext<encoding = #unspecified_encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
 
-// CHECK-LABEL: test_add_one_lut3
+// CHECK: test_add_one_lut3
 // CHECK-COUNT-1: jaxite.pmap_lut3
 func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) {
     %c7 = arith.constant 7 : index

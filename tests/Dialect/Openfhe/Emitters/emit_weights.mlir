@@ -3,7 +3,7 @@
 // Tests emitting dense elements attributes to a weights file.
 
 module attributes {scheme.ckks} {
-  // CHECK-LABEL: test_external_weights
+  // CHECK: test_external_weights
   // CHECK-SAME: size_t [[v0:.*]]) {
   // CHECK-NEXT: Weights weights = GetWeightModule("[[FILE:.*]]");
   // CHECK-NEXT: std::vector<int8_t> [[v1:.*]] =

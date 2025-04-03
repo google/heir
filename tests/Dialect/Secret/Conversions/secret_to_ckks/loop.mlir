@@ -1,7 +1,7 @@
 // RUN: heir-opt --secret-insert-mgmt-ckks=include-first-mul=false --generate-param-ckks --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
 
 module {
-// CHECK-LABEL: func @hv_matmul
+// CHECK: func @hv_matmul
 // CHECK-SAME:    %[[ct:.*]]: !ct_L1
 // CHECK:      %[[pt:.*]] = lwe.rlwe_encode
 // CHECK-NEXT: %[[ct2:.*]] = ckks.mul_plain %[[ct]], %[[pt]]

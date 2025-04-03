@@ -3,7 +3,7 @@
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 // Sum all entries of a tensor into a single scalar
-// CHECK-LABEL: @simple_sum
+// CHECK: @simple_sum
 // CHECK: secret.generic
 // CHECK-COUNT-5: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate
@@ -19,7 +19,7 @@ func.func @simple_sum(%arg0: tensor<32xi16>) -> i16 {
 }
 
 // Sum all entries of 4 tensors into a single scalar
-// CHECK-LABEL: @simple_sum_nested
+// CHECK: @simple_sum_nested
 // CHECK: secret.generic
 // CHECK-COUNT-20: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate

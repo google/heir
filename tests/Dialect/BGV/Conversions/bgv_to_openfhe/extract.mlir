@@ -20,7 +20,7 @@
 !ty1 = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 !ty2 = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-// CHECK-LABEL: @test_lower_extract
+// CHECK: @test_lower_extract
 // CHECK-SAME: %[[arg0:.*]]:
 func.func @test_lower_extract(%arg0: !ty1) -> !ty2 {
   // CHECK: arith.constant dense<[0, 0, 0, 0, 1, [[unused:[0 ,]*]]]> : tensor<32xi16>

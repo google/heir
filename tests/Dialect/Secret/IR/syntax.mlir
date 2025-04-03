@@ -4,12 +4,12 @@
 // This simply tests for syntax.
 
 module {
-  // CHECK-LABEL: func @fooFunc
+  // CHECK: func @fooFunc
   func.func @fooFunc(%arg0: !secret.secret<i32>) -> !secret.secret<i32> {
     return %arg0 : !secret.secret<i32>
   }
 
-  // CHECK-LABEL: noInputs
+  // CHECK: noInputs
   func.func @noInputs() -> !secret.secret<memref<1x16xi8>> {
     // CHECK: secret.generic
     %Z = secret.generic {

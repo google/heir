@@ -29,7 +29,7 @@
 
 // CHECK: module
 module attributes {scheme.bgv} {
-  // CHECK-LABEL: @test_ops
+  // CHECK: @test_ops
   // CHECK-SAME: ([[C:%.+]]: [[S:.*evaluator]], [[X:%.+]]: [[T:!lattigo.rlwe.ciphertext]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) {
     // CHECK: %[[v1:.*]] = lattigo.bgv.add_new [[C]], %[[x:.*]], %[[y:.*]]: ([[S]], [[T]], [[T]]) -> [[T]]

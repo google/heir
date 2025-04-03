@@ -3,7 +3,7 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
-// CHECK-LABEL: @quadratic_polynomial
+// CHECK: @quadratic_polynomial
 // CHECK: secret.generic
 // CHECK-NOT: tensor_ext.rotate
 func.func @quadratic_polynomial(%a: tensor<64xi16>, %b: tensor<64xi16>, %c: tensor<64xi16>, %x: tensor<64xi16>, %y: tensor<64xi16>) -> tensor<64xi16> {

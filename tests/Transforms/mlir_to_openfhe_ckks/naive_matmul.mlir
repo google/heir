@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-to-ckks='ciphertext-degree=16' --scheme-to-openfhe='entry-function=matmul' %s | heir-translate --emit-openfhe-pke | FileCheck %s
 
-// CHECK-LABEL: std::vector<CiphertextT> matmul(
+// CHECK: std::vector<CiphertextT> matmul(
 // CHECK-SAME:    CryptoContextT [[v0:[^,]*]],
 // CHECK-SAME:    std::vector<CiphertextT> [[v1:[^,]*]],
 // CHECK-SAME:    std::vector<CiphertextT> [[v2:[^,]*]])
@@ -22,9 +22,9 @@
 // CHECK-COUNT-2:  [[v0]]->ModReduce
 // CHECK:          return
 
-// CHECK-LABEL: matmul__generate_crypto_context
+// CHECK: matmul__generate_crypto_context
 // CHECK:          SetMultiplicativeDepth(1)
-// CHECK-LABEL: matmul__configure_crypto_context
+// CHECK: matmul__configure_crypto_context
 
 module {
   func.func @matmul(%arg0: tensor<1x2xf32> {secret.secret}, %arg1: tensor<1x2xf32> {secret.secret}) -> tensor<1x2xf32> {

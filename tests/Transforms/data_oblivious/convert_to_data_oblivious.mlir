@@ -1,6 +1,6 @@
 // RUN: heir-opt --secretize --wrap-generic --convert-to-data-oblivious %s | FileCheck %s
 
-// CHECK-LABEL: test
+// CHECK: test
 func.func @test(%secretUpperBound : index{secret.secret}, %secretIndex : index {secret.secret}, %secretTensor : tensor<32xi16>{secret.secret}) -> i16{
     %i0 = arith.constant 0 : index
     %i1 = arith.constant 1 : index

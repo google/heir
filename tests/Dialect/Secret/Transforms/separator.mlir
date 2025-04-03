@@ -2,12 +2,12 @@
 
 // RUN: heir-opt --one-shot-bufferize %s | FileCheck %s
 
-// CHECK-LABEL: module
+// CHECK: module
 #map = affine_map<(d0, d1) -> (d1)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>
 #map2 = affine_map<(d0, d1) -> (0, d1)>
 module attributes {tf_saved_model.semantics} {
-  // CHECK-LABEL: @bufferize
+  // CHECK: @bufferize
   func.func @bufferize(%arg0: tensor<1x1xi8> {iree.identifier = "serving_default_dense_input:0", secret.secret, tf_saved_model.index_path = ["dense_input"]}) -> (tensor<1x16xi8> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {
     %cst = arith.constant dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]> : tensor<16x1xi8>
     %cst_0 = arith.constant dense<[0, 0, -5438, -5515, -1352, -1500, -4152, -84, 3396, 0, 1981, -5581, 0, -6964, 3407, -7217]> : tensor<16xi32>

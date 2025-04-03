@@ -8,7 +8,7 @@
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
 
 module {
-  //CHECK-LABEL: test_syntax
+  //CHECK: test_syntax
   func.func @test_syntax(%arg0 : !ciphertext) -> !ciphertext {
     %0 = arith.constant 0 : i1
     %1 = arith.constant 1 : i1

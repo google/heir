@@ -1,7 +1,7 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
-// CHECK-LABEL: func @dot_product
+// CHECK: func @dot_product
 // CHECK-COUNT-3: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate
 func.func @dot_product(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> i16 {

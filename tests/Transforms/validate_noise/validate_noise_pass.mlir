@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-bgv --generate-param-bgv --validate-noise=model=bgv-noise-by-bound-coeff-average-case %s | FileCheck %s
 
-// CHECK-LABEL: @dot_product
+// CHECK: @dot_product
 func.func @dot_product(%arg0: tensor<8xi16> {secret.secret}, %arg1: tensor<8xi16> {secret.secret}) -> i16 {
   %c0 = arith.constant 0 : index
   %c0_si16 = arith.constant 0 : i16

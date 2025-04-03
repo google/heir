@@ -4,7 +4,7 @@
 module attributes {tf_saved_model.semantics} {
   memref.global "private" constant @__constant_16xi32 : memref<16xi32> = dense<[0, 0, -5438, -5515, -1352, -1500, -4152, -84, 3396, 0, 1981, -5581, 0, -6964, 3407, -7217]>
   memref.global "private" constant @__constant_16x1xi8 : memref<16x1xi8> = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]>
-  // CHECK-LABEL: @memref_ops
+  // CHECK: @memref_ops
   // CHECK-SAME: ([[ARG:%.*]]: [[LWET:memref<1x1x8x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:memref<1x16x32x!lwe.lwe_ciphertext<.*>>]]
   func.func @memref_ops(%arg0: !secret.secret<memref<1x1xi8>>) -> !secret.secret<memref<1x16xi32>> {
     %c0 = arith.constant 0 : index
@@ -74,7 +74,7 @@ module attributes {tf_saved_model.semantics} {
     return %4 : !secret.secret<memref<1x16xi32>>
   }
 
-  // CHECK-LABEL: @affine_ops
+  // CHECK: @affine_ops
   // CHECK-SAME: ([[ARG:%.*]]: [[LWET:memref<1x1x32x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:memref<1x1x32x!lwe.lwe_ciphertext<.*>>]]
   func.func @affine_ops(%arg0: !secret.secret<memref<1x1xi32>>) -> !secret.secret<memref<1x1xi32>> {
     // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : [[OUT]]
@@ -101,7 +101,7 @@ module attributes {tf_saved_model.semantics} {
     return %6 : !secret.secret<memref<1x1xi32>>
   }
 
-  // CHECK-LABEL: @single_bit_memref
+  // CHECK: @single_bit_memref
   // CHECK-SAME: ([[ARG:%.*]]: [[LWET:memref<1x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:memref<1x!lwe.lwe_ciphertext<.*>>]]
   func.func @single_bit_memref(%arg0: !secret.secret<memref<1xi1>>) -> !secret.secret<memref<1xi1>> {
     // CHECK: [[c0:%.*]] = arith.constant 0
@@ -126,7 +126,7 @@ module attributes {tf_saved_model.semantics} {
     return %6 : !secret.secret<memref<1xi1>>
   }
 
-  // CHECK-LABEL: @single_bit_plaintext_memref
+  // CHECK: @single_bit_plaintext_memref
   // CHECK-SAME: () -> [[OUT:memref<1x!lwe.lwe_ciphertext<.*>>]]
   func.func @single_bit_plaintext_memref() -> !secret.secret<memref<1xi1>> {
     // CHECK: [[c0:%.*]] = arith.constant 0 : index

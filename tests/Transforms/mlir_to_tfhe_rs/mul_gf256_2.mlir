@@ -11,7 +11,7 @@
 //             x = (x & 255) ^ 27
 //     return z
 
-// CHECK-LABEL: func @main
+// CHECK: func @main
 func.func @main(%x: i8 {secret.secret}, %y: i8) -> (i8) {
     %z = arith.constant 0 : i8
     %2:2 = affine.for %4 = 0 to 2 iter_args(%5 = %x, %6 = %z) -> (i8, i8) {

@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-generic-absorb-dealloc %s | FileCheck %s
 
-// CHECK-LABEL: test_absorb_dealloc
+// CHECK: test_absorb_dealloc
 // CHECK-SAME: %[[Y:.*]]: !secret.secret<memref<1xi32>>) {
 func.func @test_absorb_dealloc(%memref : !secret.secret<memref<1xi32>>) {
   // CHECK: %[[C0:.*]] = arith.constant 7

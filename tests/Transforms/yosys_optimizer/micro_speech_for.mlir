@@ -1,6 +1,6 @@
 // RUN: heir-opt --yosys-optimizer='abc-fast=true' %s | FileCheck %s
 
-// CHECK-LABEL: @for_25_20_8
+// CHECK: @for_25_20_8
 func.func @for_25_20_8(
     %c98: !secret.secret<i32>, %c99: !secret.secret<i32>, %c100: !secret.secret<i8>) -> (!secret.secret<i8>) {
   // convert three args

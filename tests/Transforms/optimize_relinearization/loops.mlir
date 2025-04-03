@@ -2,7 +2,7 @@
 
 // Ensure that optimize-relinearization handles operations with multiple results.
 module {
-  // CHECK-LABEL: func @loop
+  // CHECK: func @loop
   // CHECK: affine.for
   // CHECK-NOT: mgmt.relinearize
   // CHECK: affine.yield

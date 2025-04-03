@@ -4,7 +4,7 @@
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
-// CHECK-LABEL: arith_and_cggi
+// CHECK: arith_and_cggi
 // CHECK-COUNT-1: cggi.and
 // CHECK-COUNT-2: arith.andi
 // CHECK-NOT: cggi.and

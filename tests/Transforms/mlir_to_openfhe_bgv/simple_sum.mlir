@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-to-bgv='ciphertext-degree=32' --scheme-to-openfhe='entry-function=simple_sum' %s | FileCheck %s
 
-// CHECK-LABEL: @simple_sum
+// CHECK: @simple_sum
 // CHECK: openfhe
 func.func @simple_sum(%arg0: tensor<32xi16> {secret.secret}) -> i16 {
   %c0 = arith.constant 0 : index

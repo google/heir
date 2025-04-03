@@ -7,7 +7,7 @@
 #mgmt1 = #mgmt.mgmt<level = 0, dimension = 3>
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
-  // CHECK-LABEL: func @test_arith_ops
+  // CHECK: func @test_arith_ops
   func.func @test_arith_ops(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : !eui1 {mgmt.mgmt = #mgmt}, %arg2 : !eui1 {mgmt.mgmt = #mgmt}) -> (!eui1 {mgmt.mgmt = #mgmt1}) {
     %0 = secret.generic ins(%arg0, %arg1 :  !eui1, !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: ckks.add
@@ -28,7 +28,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     return %1 : !eui1
   }
 
-  // CHECK-LABEL: func @test_arith_float_ops
+  // CHECK: func @test_arith_float_ops
   func.func @test_arith_float_ops(%arg0 : !efi1 {mgmt.mgmt = #mgmt}, %arg1 : !efi1 {mgmt.mgmt = #mgmt}, %arg2 : !efi1 {mgmt.mgmt = #mgmt}) -> (!efi1 {mgmt.mgmt = #mgmt1}) {
     %0 = secret.generic ins(%arg0, %arg1 :  !efi1, !efi1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: ckks.add
@@ -49,7 +49,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     return %1 : !efi1
   }
 
-  // CHECK-LABEL: func @test_extract
+  // CHECK: func @test_extract
   func.func @test_extract(%arg0 : !efi1 {mgmt.mgmt = #mgmt}) -> (!secret.secret<f32> {mgmt.mgmt = #mgmt}) {
     %0 = secret.generic ins(%arg0 :  !efi1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: ckks.extract
@@ -66,7 +66,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
 
   // Tests that a 2-D tensor is treated as a 1-D tensor along the non-unit dimension.
   // TODO(#913): Blocked on a layout representation.
-  // CHECK-LABEL: func @test_mul_2d
+  // CHECK: func @test_mul_2d
   func.func @test_mul_2d(%arg0 : !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) {
     %0 = secret.generic ins(%arg0 :  !secret.secret<tensor<1x1024xf32>>) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: ckks.mul_plain
@@ -81,8 +81,8 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     return %0 : !secret.secret<tensor<1x1024xf32>>
   }
 
-  // CHECK-LABEL: func.func private @callee_secret
-  // CHECK-LABEL: func @test_call
+  // CHECK: func.func private @callee_secret
+  // CHECK: func @test_call
   func.func private @callee(tensor<1x1024xf32>) -> tensor<1x1024xf32>
   func.func @test_call(%arg0: !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) {
     // CHECK: call @callee_secret

@@ -1,6 +1,6 @@
 // RUN: heir-opt %s | FileCheck %s
 
-// CHECK-LABEL: test_add_secret_and_plaintext_passed_through_block
+// CHECK: test_add_secret_and_plaintext_passed_through_block
 func.func @test_add_secret_and_plaintext_passed_through_block(%value : i32) {
   %X = arith.constant 7 : i32
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
@@ -14,7 +14,7 @@ func.func @test_add_secret_and_plaintext_passed_through_block(%value : i32) {
   func.return
 }
 
-// CHECK-LABEL: test_add_secret_and_plaintext_in_enclosing_scope
+// CHECK: test_add_secret_and_plaintext_in_enclosing_scope
 func.func @test_add_secret_and_plaintext_in_enclosing_scope(%value : i32) {
   %X = arith.constant 7 : i32
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
@@ -28,7 +28,7 @@ func.func @test_add_secret_and_plaintext_in_enclosing_scope(%value : i32) {
   func.return
 }
 
-// CHECK-LABEL: test_memref_store
+// CHECK: test_memref_store
 func.func @test_memref_store(%value : i32) -> !secret.secret<memref<1xi32>> {
   %0 = secret.generic {
     %alloc = memref.alloc() {alignment = 64 : i64} : memref<1xi32>

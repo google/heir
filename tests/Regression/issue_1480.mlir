@@ -1,6 +1,6 @@
 // RUN: heir-opt %s --mlir-to-bgv | FileCheck %s
 
-// CHECK-LABEL: @func
+// CHECK: @func
 func.func @func(%x: i16 {secret.secret}, %y: i16 {secret.secret}) -> (i16) {
     %0 = arith.addi %x, %y : i16
     %1 = arith.subi %x, %y : i16

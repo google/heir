@@ -1,7 +1,7 @@
 // RUN: heir-opt --forward-store-to-load %s | FileCheck %s
 
 module {
-  // CHECK-LABEL: @add_one
+  // CHECK: @add_one
   func.func @add_one(%arg0: !tfhe_rust.server_key, %arg1: memref<8x!tfhe_rust.eui3>) -> memref<8x!tfhe_rust.eui3> {
     %c1_i8 = arith.constant 1 : i8
     %c2_i8 = arith.constant 2 : i8

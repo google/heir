@@ -3,7 +3,7 @@
 // When the permutation is itself a cyclic shift, the resulting shift network
 // should also have a single shift.
 #map1 = affine_map<(d0) -> ((d0 - 1) mod 64)>
-// CHECK-LABEL: @test_no_conflicts
+// CHECK: @test_no_conflicts
 // CHECK-SAME: [[arg0:%[^:]*]]: tensor<64xi32>
 // CHECK-NEXT: [[mask:%[^:]*]] = arith.constant dense<1>
 // CHECK-NEXT: [[mul_mask:%[^:]*]] = arith.muli [[arg0]], [[mask]]
@@ -22,7 +22,7 @@ func.func @test_no_conflicts(%0: tensor<64xi32>) -> tensor<64xi32> {
 // all power-of-two components to be used.
 //
 // TODO(#744): perhaps this test should only produce one rotation.
-// CHECK-LABEL: @test_no_conflicts_2
+// CHECK: @test_no_conflicts_2
 // CHECK-SAME: [[arg0:%[^:]*]]: tensor<64xi32>
 
 // Rot by 1
@@ -80,7 +80,7 @@ func.func @test_no_conflicts_2(%0: tensor<64xi32>) -> tensor<64xi32> {
 // passing through many indices that are fixed points. I think it makes for a
 // nice example that exercises many of the edge cases of the algorithm.
 //
-// CHECK-LABEL: @figure3
+// CHECK: @figure3
 //
 // Group:  2 4 6 7 10 12 14 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 37 38 39 40 41 42 45 47 48 49 50 51 53 54 55 56 57 58 61 63
 // Shifts: 0 0 62 0 57 0 56 2 0 0 62 0 2 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -180,7 +180,7 @@ func.func @figure3(%0: tensor<64xi32>) -> tensor<64xi32> {
 }
 
 
-// CHECK-LABEL: func.func @identity
+// CHECK: func.func @identity
 // CHECK-NEXT: return
 #identityperm = dense<[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]> : tensor<64xi64>
 func.func @identity(%0: tensor<64xi32>) -> tensor<64xi32> {

@@ -29,7 +29,7 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
   return %0 : !out_ty
 }
 
-// CHECK-LABEL: func.func @basic_example(
+// CHECK: func.func @basic_example(
 // CHECK-SAME: %[[arg0:.*]]: [[secret_ty:!secret.secret<memref<2xi8>>]]
 //   CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
 //   CHECK-DAG: %[[c1:.*]] = arith.constant 1 : index

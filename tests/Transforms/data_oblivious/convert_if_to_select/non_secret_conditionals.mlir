@@ -1,6 +1,6 @@
 // RUN: heir-opt --convert-if-to-select %s | FileCheck %s
 
-// CHECK-LABEL: @non_secret_condition_outside_of_secret_generic_with_secret_tensor
+// CHECK: @non_secret_condition_outside_of_secret_generic_with_secret_tensor
 func.func @non_secret_condition_outside_of_secret_generic_with_secret_tensor(%inp: !secret.secret<tensor<16xi16>>, %cond: i1) -> !secret.secret<tensor<16xi16>> {
   // CHECK-NOT: arith.select
   %0 = secret.generic ins(%inp : !secret.secret<tensor<16xi16>>) {
@@ -16,7 +16,7 @@ func.func @non_secret_condition_outside_of_secret_generic_with_secret_tensor(%in
   return %0 : !secret.secret<tensor<16xi16>>
 }
 
-// CHECK-LABEL: @non_secret_condition_with_secret_tensor
+// CHECK: @non_secret_condition_with_secret_tensor
 func.func @non_secret_condition_with_secret_tensor(%inp: !secret.secret<tensor<16xi16>>, %cond: i1) -> !secret.secret<tensor<16xi16>> {
   // CHECK-NOT: arith.select
   %0 = secret.generic ins(%inp : !secret.secret<tensor<16xi16>>) {

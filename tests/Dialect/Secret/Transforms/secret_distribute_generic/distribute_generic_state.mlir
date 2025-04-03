@@ -5,7 +5,7 @@
 // must have been re-run after each operation is split to ensure that the
 // secretness state for a loop-carried variable is correct.
 
-// CHECK-LABEL: test
+// CHECK: test
 // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> {
 module {
   func.func @test(%arg0: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> {
@@ -41,7 +41,7 @@ module {
 
 // -----
 
-// CHECK-LABEL: test
+// CHECK: test
 // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> {
 module {
   func.func @test(%arg0: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> {
@@ -77,7 +77,7 @@ module {
 
 // -----
 
-// CHECK-LABEL: test
+// CHECK: test
 // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> {
 module {
   func.func @test(%arg0: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> {

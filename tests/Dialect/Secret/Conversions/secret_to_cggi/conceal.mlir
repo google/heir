@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-distribute-generic --secret-to-cggi %s | FileCheck %s
 
-// CHECK-LABEL: @conceal
+// CHECK: @conceal
 // CHECK-SAME: ([[ARG:%.*]]: i3) -> [[TY:memref<3x!lwe.lwe_ciphertext<.*>>]]
 // CHECK-NEXT: [[C1:%.*]] = arith.constant 1 : i3
 // CHECK-NEXT: [[ALLOC:%.*]] = memref.alloc() : [[TY]]

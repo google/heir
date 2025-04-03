@@ -5,7 +5,7 @@
 !sks = !tfhe_rust.server_key
 
 module {
-  // CHECK-LABEL: func @test_create_trivial
+  // CHECK: func @test_create_trivial
   // RS-LABEL: pub fn test_create_trivial
   func.func @test_create_trivial(%sks : !sks) {
     %0 = arith.constant 1 : i8
@@ -17,7 +17,7 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_bitand
+  // CHECK: func @test_bitand
   // RS-LABEL: pub fn test_bitand
   func.func @test_bitand(%sks : !sks) {
     %0 = arith.constant 1 : i1
@@ -30,7 +30,7 @@ module {
   }
 
 
-  // CHECK-LABEL: func @test_apply_lookup_table
+  // CHECK: func @test_apply_lookup_table
   // RS-LABEL: pub fn test_apply_lookup_table
   func.func @test_apply_lookup_table(%sks : !sks, %lut: !tfhe_rust.lookup_table) {
     %0 = arith.constant 1 : i3

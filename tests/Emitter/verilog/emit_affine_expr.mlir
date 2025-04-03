@@ -2,7 +2,7 @@
 
 module {
   memref.global "private" constant @__constant_2x2xi8 : memref<2x2xi8> = dense<"0xF41AED09"> {alignment = 64 : i64}
-  // CHECK-LABEL: module multidimensional
+  // CHECK: module multidimensional
   func.func @multidimensional() -> memref<1x2xi8> {
     // CHECK: assign [[V0:.*]] = 32'h09ED1AF4;
     %0 = memref.get_global @__constant_2x2xi8 : memref<2x2xi8>

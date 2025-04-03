@@ -1,6 +1,6 @@
 // RUN: heir-opt --wrap-generic --secret-distribute-generic="distribute-through=affine.for,scf.for" --split-input-file %s | FileCheck %s
 
-// CHECK-LABEL: simple_sum
+// CHECK: simple_sum
 // CHECK-SAME: %[[data:.*]]: !secret.secret<tensor<32xi16>>
 // CHECK-SAME: -> !secret.secret<i16>
 func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
@@ -26,7 +26,7 @@ func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
 
 // -----
 
-// CHECK-LABEL: simple_sum
+// CHECK: simple_sum
 // CHECK-SAME: %[[data:.*]]: !secret.secret<tensor<32xi16>>
 // CHECK-SAME: -> !secret.secret<i16>
 func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
@@ -54,7 +54,7 @@ func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
 
 // -----
 
-// CHECK-LABEL: simple_sum_bound
+// CHECK: simple_sum_bound
 // CHECK-SAME: %[[data:.*]]: !secret.secret<tensor<32xi16>>
 // CHECK-SAME: %[[arg1:.*]]: index
 // CHECK-SAME: -> !secret.secret<i16>
@@ -80,7 +80,7 @@ func.func @simple_sum_bound(%arg0: tensor<32xi16> { secret.secret }, %arg1: inde
 // Tests a loop with a secret bound - in this case the distribute pattern does
 // not match and the generic is not distributed through the region.
 
-// CHECK-LABEL: simple_sum_secret_bound
+// CHECK: simple_sum_secret_bound
 // CHECK-SAME: %[[data:.*]]: !secret.secret<tensor<32xi16>>
 // CHECK-SAME: %[[arg1:.*]]: !secret.secret<index>
 // CHECK-SAME: -> !secret.secret<i16>

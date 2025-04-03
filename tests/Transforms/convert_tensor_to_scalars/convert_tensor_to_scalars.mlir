@@ -2,7 +2,7 @@
 // RUN: heir-opt --convert-tensor-to-scalars=max-size=0 %s | FileCheck --check-prefix=COMMONCHECK --check-prefix=NOOPCHECK %s
 !t = tensor<2xi32>
 
-//COMMONCHECK-LABEL: @test_fn
+//COMMONCHECK: @test_fn
 //CHECK: [[ARG0:%.+]]: i32, [[ARG1:%.+]]: i32
 //NOOPCHECK: [[ARG0:%.+]]: tensor<2xi32>
 func.func @test_fn(%arg0: tensor<2xi32>) -> tensor<2xi32> {
@@ -11,7 +11,7 @@ func.func @test_fn(%arg0: tensor<2xi32>) -> tensor<2xi32> {
     return %arg0 : tensor<2xi32>
 }
 
-//COMMONCHECK-LABEL: @test_scf
+//COMMONCHECK: @test_scf
 //CHECK: [[ARG0:%.+]]: i32, [[ARG1:%.+]]: i32, [[ARG2:%.+]]: i32, [[ARG3:%.+]]: i32, [[COND:%.+]]: i1
 //NOOPCHECK: [[ARG0:%.+]]: tensor<2xi32>, [[ARG1:%.+]]: tensor<2xi32>, [[COND:%.+]]: i1
 func.func @test_scf(%arg0: tensor<2xi32>, %arg1 : tensor<2xi32>, %cond : i1) -> tensor<2xi32> {
@@ -31,14 +31,14 @@ func.func @test_scf(%arg0: tensor<2xi32>, %arg1 : tensor<2xi32>, %cond : i1) -> 
     return %0 : tensor<2xi32>
 }
 
-//COMMONCHECK-LABEL: @test_dyn_noop
+//COMMONCHECK: @test_dyn_noop
 //COMMONCHECK: [[ARG0:%.+]]: tensor<?xi32>
 func.func @test_dyn_noop(%arg0: tensor<?xi32>) -> tensor<?xi32> {
     //COMMONCHECK: return [[ARG0]] : tensor<?xi32>
     return %arg0 : tensor<?xi32>
 }
 
-//COMMONCHECK-LABEL: @test_extract_insert
+//COMMONCHECK: @test_extract_insert
 //CHECK: [[ARG0:%.+]]: i32, [[ARG1:%.+]]: i32, [[ARG2:%.+]]: i32, [[ARG3:%.+]]: i32
 //NOOPCHECK: [[ARG0:%.+]]: tensor<2xi32>, [[ARG1:%.+]]: tensor<2xi32>
 func.func @test_extract_insert(%arg0: tensor<2xi32>, %arg1 : tensor<2xi32>) -> tensor<2xi32> {
@@ -77,7 +77,7 @@ func.func @test_extract_insert(%arg0: tensor<2xi32>, %arg1 : tensor<2xi32>) -> t
     return %ttt : tensor<2xi32>
 }
 
-//COMMONCHECK-LABEL: @test_materialize
+//COMMONCHECK: @test_materialize
 //CHECK: [[ARG0:%.+]]: i32, [[ARG1:%.+]]: i32, [[ARG2:%.+]]: i32, [[ARG3:%.+]]: i32
 //NOOPCHECK: [[ARG0:%.+]]: tensor<2xi32>, [[ARG1:%.+]]: tensor<2xi32>
 func.func @test_materialize(%arg0: tensor<2xi32>, %arg1: tensor<2xi32>) -> tensor<2xi32> {

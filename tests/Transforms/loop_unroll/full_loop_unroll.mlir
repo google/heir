@@ -2,7 +2,7 @@
 
 !sks = !tfhe_rust.server_key
 
-// CHECK-LABEL: func @test_move_out_of_loop
+// CHECK: func @test_move_out_of_loop
 func.func @test_move_out_of_loop(%sks : !sks, %lut: !tfhe_rust.lookup_table) -> memref<10x!tfhe_rust.eui3> {
   // CHECK-NOT: affine.for
   %0 = arith.constant 1 : i3

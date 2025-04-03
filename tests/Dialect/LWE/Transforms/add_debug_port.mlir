@@ -38,7 +38,7 @@ func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
   return %10 : !out_ty
 }
 
-// CHECK-LABEL: @simple_sum
+// CHECK: @simple_sum
 // CHECK-SAME: (%[[sk:[^:]*]]: [[sk_ty:[^,]*]],
 // CHECK-SAME: %[[original_input:[^:]*]]: [[in_ty:[^)]*]])
 // CHECK-SAME: -> [[out_ty:[^{]*]] {

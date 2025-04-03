@@ -4,7 +4,7 @@
 !eb = !tfhe_rust_bool.eb
 
 module{
-// CHECK-LABEL: pub fn test_and(
+// CHECK: pub fn test_and(
 // CHECK-NEXT:   [[bsks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &Vec<Ciphertext>,
 // CHECK-NEXT:   [[input2:v[0-9]+]]: &Vec<Ciphertext>,
@@ -23,7 +23,7 @@ func.func @test_and(%bsks : !bsks, %input1 : tensor<4x!eb>, %input2 : tensor<4x!
   return %out : tensor<4x!eb>
 }
 
-// CHECK-LABEL: pub fn test_not(
+// CHECK: pub fn test_not(
 // CHECK-NEXT:   [[bsks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &Vec<Ciphertext>,
 // CHECK-NEXT: ) -> Vec<Ciphertext> {

@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-merge-adjacent-generics --split-input-file %s | FileCheck %s
 
-// CHECK-LABEL: test_chained_input_output
+// CHECK: test_chained_input_output
 // CHECK-SAME: (%[[value:.*]]: !secret.secret<i32>
 !ty = !secret.secret<i32>
 func.func @test_chained_input_output(%value : !ty) -> !ty {
@@ -27,7 +27,7 @@ func.func @test_chained_input_output(%value : !ty) -> !ty {
 
 // -----
 
-// CHECK-LABEL: test_shared_input
+// CHECK: test_shared_input
 // CHECK-SAME: (%[[v1:.*]]: !secret.secret<i32>, %[[v2:.*]]: !secret.secret<i32>, %[[v3:.*]]: !secret.secret<i32>
 !ty = !secret.secret<i32>
 func.func @test_shared_input(%v1: !ty, %v2: !ty, %v3: !ty) -> !ty {
@@ -52,7 +52,7 @@ func.func @test_shared_input(%v1: !ty, %v2: !ty, %v3: !ty) -> !ty {
 
 // -----
 
-// CHECK-LABEL: test_unshared_input
+// CHECK: test_unshared_input
 // CHECK-SAME: (%[[v1:.*]]: !secret.secret<i32>, %[[v2:.*]]: !secret.secret<i32>, %[[v3:.*]]: !secret.secret<i32>
 !ty = !secret.secret<i32>
 func.func @test_unshared_input(%v1: !ty, %v2: !ty, %v3: !ty) -> !ty {

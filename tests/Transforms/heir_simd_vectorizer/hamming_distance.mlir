@@ -1,7 +1,7 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
-// CHECK-LABEL: @hamming
+// CHECK: @hamming
 // CHECK: secret.generic
 // CHECK: arith.subi
 // CHECK-NEXT: arith.muli

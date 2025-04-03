@@ -2,7 +2,7 @@
 
 module {
   memref.global "private" constant @__constant_256xi8 : memref<256xi8> = dense<2> {alignment = 64 : i64}
-  // CHECK-LABEL: module variable_index
+  // CHECK: module variable_index
   // CHECK-NEXT:   input wire signed [7:0] [[ARG:.*]],
   func.func @variable_index(%arg : i8) -> i8 {
     %c128 = arith.constant 128 : index

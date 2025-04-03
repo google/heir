@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-distribute-generic="distribute-through=affine.for" %s | FileCheck %s
 
-// CHECK-LABEL: test_affine_for
+// CHECK: test_affine_for
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi32>>
 func.func @test_affine_for(
@@ -28,7 +28,7 @@ func.func @test_affine_for(
   func.return %data : !secret.secret<memref<10xi32>>
 }
 
-// CHECK-LABEL: test_affine_for_split_end
+// CHECK: test_affine_for_split_end
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi32>>
 func.func @test_affine_for_split_end(
@@ -73,7 +73,7 @@ func.func @test_affine_for_split_end(
   func.return %data : !secret.secret<memref<10xi32>>
 }
 
-// CHECK-LABEL: test_affine_for_split_middle
+// CHECK: test_affine_for_split_middle
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi32>>
 func.func @test_affine_for_split_middle(
@@ -128,7 +128,7 @@ func.func @test_affine_for_split_middle(
   func.return %data : !secret.secret<memref<10xi32>>
 }
 
-// CHECK-LABEL: affine_for_yielding_memref
+// CHECK: affine_for_yielding_memref
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi8>>
 func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !secret.secret<memref<10xi8>> {
   %0 = secret.generic ins(%arg0 : !secret.secret<memref<10xi8>>) {
@@ -153,7 +153,7 @@ func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !
   return %0 : !secret.secret<memref<10xi8>>
 }
 
-// CHECK-LABEL: affine_for_hello_world_reproducer
+// CHECK: affine_for_hello_world_reproducer
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<1x80xi8>>
 func.func @affine_for_hello_world_reproducer(%arg0: !secret.secret<memref<1x80xi8>>) -> !secret.secret<memref<1x80xi8>> {
   %0 = secret.generic ins(%arg0 : !secret.secret<memref<1x80xi8>>) {

@@ -1,7 +1,7 @@
 // RUN: heir-opt --yosys-optimizer %s | FileCheck %s
 
 module {
-  // CHECK-LABEL: @capture
+  // CHECK: @capture
   // CHECK-SAME: %[[arr:.*]]: !secret.secret<memref<8xi8>>, %[[i:.*]]: index
   func.func @capture(%arr: !secret.secret<memref<8xi8>>, %i: index) -> !secret.secret<i8> {
     // CHECK-DAG: %[[v0:.*]] = secret.cast %[[arr]] : !secret.secret<memref<8xi8>> to !secret.secret<memref<64xi1>>

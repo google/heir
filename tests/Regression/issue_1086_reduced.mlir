@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-to-cggi %s | FileCheck %s
 
-// CHECK-LABEL: @trivial_loop
+// CHECK: @trivial_loop
 // CHECK-NOT: secret
 func.func @trivial_loop(%arg0: !secret.secret<memref<2xi3>>, %arg1: !secret.secret<i3>) -> !secret.secret<i3> {
   %c0 = arith.constant 0 : index
@@ -20,7 +20,7 @@ func.func @trivial_loop(%arg0: !secret.secret<memref<2xi3>>, %arg1: !secret.secr
   return %0 : !secret.secret<i3>
 }
 
-// CHECK-LABEL: @sum
+// CHECK: @sum
 // CHECK-NOT: secret
 func.func @sum(%arg0: !secret.secret<memref<2xi3>>) -> !secret.secret<i3> {
   %true = arith.constant true

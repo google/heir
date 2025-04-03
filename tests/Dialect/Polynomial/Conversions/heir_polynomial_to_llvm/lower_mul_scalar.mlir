@@ -3,7 +3,7 @@
 !coeff_ty = !mod_arith.int<4294967296:i64>
 !poly_ty = !polynomial.polynomial<ring=<coefficientType=!coeff_ty, polynomialModulus=#polynomial.int_polynomial<-1 + x**2047>>>
 
-// CHECK-LABEL: func.func @test_lower_mul_scalar
+// CHECK: func.func @test_lower_mul_scalar
 // CHECK-SAME: (%[[ARG:[^:]*]]: [[T:.*]])
 func.func @test_lower_mul_scalar(%arg0: !poly_ty) -> !poly_ty {
   // CHECK: %[[C2:.*]] = mod_arith.constant 2

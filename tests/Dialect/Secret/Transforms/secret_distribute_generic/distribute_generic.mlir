@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-distribute-generic %s | FileCheck %s
 
-// CHECK-LABEL: test_distribute_generic
+// CHECK: test_distribute_generic
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>, %[[cond:.*]]: i1) -> !secret.secret<i32> {
 func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !secret.secret<i32> {
   // CHECK-DAG: %[[c7:.*]] = arith.constant 7 : i32
@@ -49,7 +49,7 @@ func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !s
 }
 
 
-// CHECK-LABEL: test_scf_for
+// CHECK: test_scf_for
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>) -> !secret.secret<i32> {
 func.func @test_scf_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
   // CHECK-DAG: %[[c1i32:.*]] = arith.constant 1 : i32
@@ -88,7 +88,7 @@ func.func @test_scf_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
   func.return %Z : !secret.secret<i32>
 }
 
-// CHECK-LABEL: test_affine_for
+// CHECK: test_affine_for
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi32>>
 func.func @test_affine_for(

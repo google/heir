@@ -30,3 +30,9 @@
   replacement: '#endif  // \1_'
 - search: '/^#endif *\/\/ THIRD_PARTY_HEIR_(.*)_$/'
   replacement: '#endif  // \1_'
+
+# Don't use CHECK-LABEL because google internal testing shards test files
+# across CHECK-LABEL lines, resulting in errors when variable capture and use
+# crosses a CHECK-LABEL.
+- search: '// CHECK-LABEL:'
+  replacement: '// CHECK:'

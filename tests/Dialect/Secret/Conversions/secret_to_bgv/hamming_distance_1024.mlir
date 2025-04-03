@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-insert-mgmt-bgv=include-first-mul=false --generate-param-bgv --secret-distribute-generic --secret-to-bgv %s | FileCheck %s
 
-// CHECK-LABEL: @hamming
+// CHECK: @hamming
 // CHECK: bgv.sub
 // CHECK-NEXT: bgv.mul
 // CHECK-NEXT: bgv.relinearize

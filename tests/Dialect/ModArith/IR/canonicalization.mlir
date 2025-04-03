@@ -2,7 +2,7 @@
 
 !Zp = !mod_arith.int<42 : i64>
 
-// CHECK-LABEL: @test_add_fold
+// CHECK: @test_add_fold
 // CHECK: () -> [[T:.*]] {
 func.func @test_add_fold() -> !Zp {
   // CHECK: %[[RESULT:.+]] = mod_arith.constant 18 : [[T]]
@@ -15,7 +15,7 @@ func.func @test_add_fold() -> !Zp {
   return %add2 : !Zp
 }
 
-// CHECK-LABEL: @test_sub_fold
+// CHECK: @test_sub_fold
 // CHECK: () -> [[T:.*]] {
 func.func @test_sub_fold() -> !Zp {
   // CHECK: %[[RESULT:.+]] = mod_arith.constant 6 : [[T]]
@@ -28,7 +28,7 @@ func.func @test_sub_fold() -> !Zp {
   return %sub2 : !Zp
 }
 
-// CHECK-LABEL: @test_mul_fold
+// CHECK: @test_mul_fold
 // CHECK: () -> [[T:.*]] {
 func.func @test_mul_fold() -> !Zp {
   // CHECK: %[[RESULT:.+]] = mod_arith.constant 0 : [[T]]
@@ -40,7 +40,7 @@ func.func @test_mul_fold() -> !Zp {
   return %mul2 : !Zp
 }
 
-// CHECK-LABEL: @test_add_zero_rhs
+// CHECK: @test_add_zero_rhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_add_zero_rhs(%x: !Zp) -> !Zp {
   %zero = mod_arith.constant 0 : !Zp
@@ -49,7 +49,7 @@ func.func @test_add_zero_rhs(%x: !Zp) -> !Zp {
   return %add : !Zp
 }
 
-// CHECK-LABEL: @test_add_zero_lhs
+// CHECK: @test_add_zero_lhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_add_zero_lhs(%x: !Zp) -> !Zp {
   %zero = mod_arith.constant 0 : !Zp
@@ -58,7 +58,7 @@ func.func @test_add_zero_lhs(%x: !Zp) -> !Zp {
   return %add : !Zp
 }
 
-// CHECK-LABEL: @test_sub_zero
+// CHECK: @test_sub_zero
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_sub_zero(%x: !Zp) -> !Zp {
   %zero = mod_arith.constant 0 : !Zp
@@ -67,7 +67,7 @@ func.func @test_sub_zero(%x: !Zp) -> !Zp {
   return %sub : !Zp
 }
 
-// CHECK-LABEL: @test_mul_zero_rhs
+// CHECK: @test_mul_zero_rhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_mul_zero_rhs(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 0 : [[T]]
@@ -77,7 +77,7 @@ func.func @test_mul_zero_rhs(%x: !Zp) -> !Zp {
   return %mul : !Zp
 }
 
-// CHECK-LABEL: @test_mul_zero_lhs
+// CHECK: @test_mul_zero_lhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_mul_zero_lhs(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 0 : [[T]]
@@ -87,7 +87,7 @@ func.func @test_mul_zero_lhs(%x: !Zp) -> !Zp {
   return %mul : !Zp
 }
 
-// CHECK-LABEL: @test_mul_one_rhs
+// CHECK: @test_mul_one_rhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_mul_one_rhs(%x: !Zp) -> !Zp {
   %one = mod_arith.constant 1 : !Zp
@@ -96,7 +96,7 @@ func.func @test_mul_one_rhs(%x: !Zp) -> !Zp {
   return %mul : !Zp
 }
 
-// CHECK-LABEL: @test_mul_one_lhs
+// CHECK: @test_mul_one_lhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_mul_one_lhs(%x: !Zp) -> !Zp {
   %one = mod_arith.constant 1 : !Zp
@@ -105,7 +105,7 @@ func.func @test_mul_one_lhs(%x: !Zp) -> !Zp {
   return %mul : !Zp
 }
 
-// CHECK-LABEL: @test_add_add_const
+// CHECK: @test_add_add_const
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_add_add_const(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 4 : [[T]]
@@ -118,7 +118,7 @@ func.func @test_add_add_const(%x: !Zp) -> !Zp {
   return %add2 : !Zp
 }
 
-// CHECK-LABEL: @test_add_sub_const_rhs
+// CHECK: @test_add_sub_const_rhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_add_sub_const_rhs(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 22 : [[T]]
@@ -131,7 +131,7 @@ func.func @test_add_sub_const_rhs(%x: !Zp) -> !Zp {
   return %add : !Zp
 }
 
-// CHECK-LABEL: @test_add_sub_const_lhs
+// CHECK: @test_add_sub_const_lhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_add_sub_const_lhs(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 4 : [[T]]
@@ -144,7 +144,7 @@ func.func @test_add_sub_const_lhs(%x: !Zp) -> !Zp {
   return %add : !Zp
 }
 
-// CHECK-LABEL: @test_add_mul_neg_one_rhs
+// CHECK: @test_add_mul_neg_one_rhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]], %[[arg1:.*]]: [[T]]) -> [[T]]
 func.func @test_add_mul_neg_one_rhs(%x: !Zp, %y: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.sub %[[arg0]], %[[arg1]] : [[T]]
@@ -155,7 +155,7 @@ func.func @test_add_mul_neg_one_rhs(%x: !Zp, %y: !Zp) -> !Zp {
   return %add : !Zp
 }
 
-// CHECK-LABEL: @test_add_mul_neg_one_lhs
+// CHECK: @test_add_mul_neg_one_lhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]], %[[arg1:.*]]: [[T]]) -> [[T]]
 func.func @test_add_mul_neg_one_lhs(%x: !Zp, %y: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.sub %[[arg1]], %[[arg0]] : [[T]]
@@ -166,7 +166,7 @@ func.func @test_add_mul_neg_one_lhs(%x: !Zp, %y: !Zp) -> !Zp {
   return %add : !Zp
 }
 
-// CHECK-LABEL: @test_sub_mul_neg_one_rhs
+// CHECK: @test_sub_mul_neg_one_rhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]], %[[arg1:.*]]: [[T]]) -> [[T]]
 func.func @test_sub_mul_neg_one_rhs(%x: !Zp, %y: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.add %[[arg0]], %[[arg1]] : [[T]]
@@ -177,7 +177,7 @@ func.func @test_sub_mul_neg_one_rhs(%x: !Zp, %y: !Zp) -> !Zp {
   return %sub : !Zp
 }
 
-// CHECK-LABEL: @test_sub_mul_neg_one_lhs
+// CHECK: @test_sub_mul_neg_one_lhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]], %[[arg1:.*]]: [[T]]) -> [[T]]
 func.func @test_sub_mul_neg_one_lhs(%x: !Zp, %y: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 0 : [[T]]
@@ -190,7 +190,7 @@ func.func @test_sub_mul_neg_one_lhs(%x: !Zp, %y: !Zp) -> !Zp {
   return %sub : !Zp
 }
 
-// CHECK-LABEL: @test_mul_mul_const
+// CHECK: @test_mul_mul_const
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_mul_mul_const(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 30 : [[T]]
@@ -203,7 +203,7 @@ func.func @test_mul_mul_const(%x: !Zp) -> !Zp {
   return %mul2 : !Zp
 }
 
-// CHECK-LABEL: @test_sub_rhs_add_const
+// CHECK: @test_sub_rhs_add_const
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_sub_rhs_add_const(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 20 : [[T]]
@@ -216,7 +216,7 @@ func.func @test_sub_rhs_add_const(%x: !Zp) -> !Zp {
   return %sub : !Zp
 }
 
-// CHECK-LABEL: @test_sub_lhs_add_const
+// CHECK: @test_sub_lhs_add_const
 // CHECK: (%[[arg0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_sub_lhs_add_const(%x: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 22 : [[T]]
@@ -229,7 +229,7 @@ func.func @test_sub_lhs_add_const(%x: !Zp) -> !Zp {
   return %sub : !Zp
 }
 
-// CHECK-LABEL: @test_sub_sub_lhs_rhs_lhs
+// CHECK: @test_sub_sub_lhs_rhs_lhs
 // CHECK: (%[[arg0:.*]]: [[T:.*]], %[[arg1:.*]]: [[T]]) -> [[T]]
 func.func @test_sub_sub_lhs_rhs_lhs(%a: !Zp, %b: !Zp) -> !Zp {
   // CHECK: %[[res0:.+]] = mod_arith.constant 0 : [[T]]

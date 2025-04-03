@@ -4,7 +4,7 @@
 // This verifies that --expand-copy removes memref.copy and rewrites with affine
 // loads and stores.
 
-// CHECK-LABEL: func @memref_copy
+// CHECK: func @memref_copy
 func.func @memref_copy() -> i32 {
   %c_42 = arith.constant 42 : i32
   %c0 = arith.constant 0 : index

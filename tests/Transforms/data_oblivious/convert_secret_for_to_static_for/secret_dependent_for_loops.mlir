@@ -1,6 +1,6 @@
 // RUN: heir-opt --convert-secret-for-to-static-for %s | FileCheck %s
 
-// CHECK-LABEL: @for_loop_with_data_dependent_upper_bound
+// CHECK: @for_loop_with_data_dependent_upper_bound
 func.func @for_loop_with_data_dependent_upper_bound(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK-NEXT: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[ARG1:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
@@ -34,7 +34,7 @@ func.func @for_loop_with_data_dependent_upper_bound(%arg0: !secret.secret<tensor
     return %0 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @for_loop_with_data_dependent_lower_bound
+// CHECK: @for_loop_with_data_dependent_lower_bound
 func.func @for_loop_with_data_dependent_lower_bound(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK-NEXT: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[ARG1:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
@@ -68,7 +68,7 @@ func.func @for_loop_with_data_dependent_lower_bound(%arg0: !secret.secret<tensor
     return %0 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @for_loop_with_data_dependent_upper_and_lower_bounds
+// CHECK: @for_loop_with_data_dependent_upper_and_lower_bounds
 func.func @for_loop_with_data_dependent_upper_and_lower_bounds(%arg0: !secret.secret<tensor<32xi16>>, %lower: !secret.secret<index>, %upper: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK-NEXT: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[LOWER:.*]], %[[UPPER:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>, !secret.secret<index>) {
@@ -103,7 +103,7 @@ func.func @for_loop_with_data_dependent_upper_and_lower_bounds(%arg0: !secret.se
     return %0 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @for_loop_with_data_dependent_upper_bound_multiple_iter_args
+// CHECK: @for_loop_with_data_dependent_upper_bound_multiple_iter_args
 func.func @for_loop_with_data_dependent_upper_bound_multiple_iter_args(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     // CHECK: %[[C0_I16:.*]] = arith.constant 0 : i16
     // CHECK: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]], %[[ARG1:.*]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
@@ -141,7 +141,7 @@ func.func @for_loop_with_data_dependent_upper_bound_multiple_iter_args(%arg0: !s
     return %0 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @partial_sum_with_secret_threshold
+// CHECK: @partial_sum_with_secret_threshold
 func.func @partial_sum_with_secret_threshold(%secretInput :!secret.secret<tensor<16xi16>>, %secretIndex: !secret.secret<index>, %secretThreshold: !secret.secret<i16>) -> (!secret.secret<i16>, !secret.secret<i16>) {
   // CHECK: %[[C0:.*]] = arith.constant 0 : i16
   // CHECK: %[[RESULT:.*]]:2 = secret.generic ins(%[[SECRET_INPUT:.*]], %[[SECRET_INDEX:.*]], %[[SECRET_THRESHOLD:.*]] : !secret.secret<tensor<16xi16>>, !secret.secret<index>, !secret.secret<i16>) {

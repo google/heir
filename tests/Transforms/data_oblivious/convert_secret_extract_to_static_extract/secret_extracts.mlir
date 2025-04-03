@@ -1,6 +1,6 @@
 // RUN: heir-opt --convert-secret-extract-to-static-extract %s | FileCheck %s
 
-// CHECK-LABEL: @extract_at_secret_index
+// CHECK: @extract_at_secret_index
 func.func @extract_at_secret_index(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     %c0_i16 = arith.constant 0 : i16
     %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
@@ -20,7 +20,7 @@ func.func @extract_at_secret_index(%arg0: !secret.secret<tensor<32xi16>>, %arg1:
 }
 
 
-// CHECK-LABEL: @extract_and_sum
+// CHECK: @extract_and_sum
 func.func @extract_and_sum(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     %c0_i16 = arith.constant 0 : i16
     %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {

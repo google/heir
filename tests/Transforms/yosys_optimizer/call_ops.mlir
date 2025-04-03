@@ -6,7 +6,7 @@ module {
     %0 = arith.addi %arg0, %c1 : i8
     return %0 : i8
   }
-  // CHECK-LABEL: @main
+  // CHECK: @main
   // CHECK: secret.generic
   // CHECK-NOT: submod
   // CHECK: secret.yield

@@ -3,7 +3,7 @@
 
 // RUN: heir-opt --secret-distribute-generic="distribute-through=secret.separator" %s | FileCheck %s
 
-// CHECK-LABEL: test_separator
+// CHECK: test_separator
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32>
 func.func @test_separator(
     %value: !secret.secret<i32>) -> !secret.secret<memref<10xi32>> {
@@ -28,7 +28,7 @@ func.func @test_separator(
   func.return %0 : !secret.secret<memref<10xi32>>
 }
 
-// CHECK-LABEL: test_operand_defined_in_region
+// CHECK: test_operand_defined_in_region
 // CHECK-SAME: %[[value:.*]]: !secret.secret<memref<10xi32>>
 func.func @test_operand_defined_in_region(
     %value: !secret.secret<memref<10xi32>>) -> !secret.secret<memref<10xi32>> {

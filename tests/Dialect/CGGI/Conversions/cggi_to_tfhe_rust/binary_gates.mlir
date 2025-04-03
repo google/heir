@@ -3,7 +3,7 @@
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
-// CHECK-LABEL: @binary_gates
+// CHECK: @binary_gates
 // CHECK-SAME: %[[sks:.*]]: [[sks_ty:!tfhe_rust.server_key]], %[[arg1:.*]]: [[ct_ty:!tfhe_rust.eui3]], %[[arg2:.*]]: [[ct_ty]]
 func.func @binary_gates(%arg1: !ct_ty, %arg2: !ct_ty) -> (!ct_ty) {
   // CHECK: %[[v0:.*]] = tfhe_rust.generate_lookup_table %[[sks]] {truthTable = 8 : ui4}

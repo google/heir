@@ -23,7 +23,7 @@
 !pt = !lwe.new_lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
 !ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-// CHECK-LABEL: CiphertextT test_basic_emitter(
+// CHECK: CiphertextT test_basic_emitter(
 // CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
 // CHECK-SAME:    CiphertextT [[ARG1:[^,]*]],
 // CHECK-SAME:    CiphertextT [[ARG2:[^,]*]],
@@ -94,12 +94,12 @@ module attributes {scheme.bgv} {
 !tensor_ct_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 !scalar_ct_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-// CHECK-LABEL: simple_sum(
+// CHECK: simple_sum(
 // CHECK-COUNT-6: EvalRotate
-// CHECK-LABEL: simple_sum__encrypt(
+// CHECK: simple_sum__encrypt(
 // CHECK: MakePackedPlaintext
 // CHECK: Encrypt
-// CHECK-LABEL: simple_sum__decrypt(
+// CHECK: simple_sum__decrypt(
 // CHECK: PlaintextT
 // CHECK: Decrypt
 // CHECK: int16_t
@@ -133,7 +133,7 @@ module attributes {scheme.ckks} {
     %1 = lwe.rlwe_decode %0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : !scalar_pt_ty -> i16
     return %1 : i16
   }
-  // CHECK-LABEL: CiphertextT test_sub_plain(
+  // CHECK: CiphertextT test_sub_plain(
   // CHECK-SAME:    CryptoContextT [[CC:[^,]*]],
   // CHECK-SAME:    Plaintext [[ARG1:[^,]*]],
   // CHECK-SAME:    CiphertextT [[ARG2:[^,]*]]) {
@@ -148,7 +148,7 @@ module attributes {scheme.ckks} {
 
 // -----
 
-// CHECK-LABEL: test_constant
+// CHECK: test_constant
 // CHECK-NEXT:  std::vector<float> [[splat:.*]](2, 1.5);
 // CHECK-NEXT:  std::vector<int32_t> [[ints:.*]] = {1, 2};
 // CHECK-NEXT:  std::vector<float> [[floats:.*]] = {1.5, 2.5};
@@ -170,7 +170,7 @@ module attributes {scheme.bgv} {
 
 // -----
 
-// CHECK-LABEL: test_ckks_no_plaintext_modulus
+// CHECK: test_ckks_no_plaintext_modulus
 // CHECK-NOT: SetPlaintextModulus
 module attributes {scheme.ckks} {
   func.func @test_ckks_no_plaintext_modulus() -> !openfhe.crypto_context {
@@ -232,7 +232,7 @@ module attributes {scheme.bgv} {
 !ct_L0_ = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 module attributes {scheme.ckks} {
-  // CHECK-LABEL: test_func_call
+  // CHECK: test_func_call
   // CHECK: const auto& [[v0:.*]] = callee_secret
   func.func private @callee_secret(!openfhe.crypto_context, !ct_L0_) -> !ct_L0_
   func.func @test_func_call(%cc: !openfhe.crypto_context, %arg0: !ct_L0_) -> !ct_L0_ {
@@ -245,7 +245,7 @@ module attributes {scheme.ckks} {
 // -----
 
 module attributes {scheme.ckks} {
-  // CHECK-LABEL: test_extract_slice
+  // CHECK: test_extract_slice
   // CHECK-SAME: std::vector<float> [[v0:.*]], size_t [[v1:.*]]) {
   // CHECK: std::vector<float> [[v2:.*]](std::begin([[v0]]) + [[v1]] * 1, std::end([[v0]]) + [[v1]] * 1 + 1024);
   func.func @test_extract_slice(%arg0: tensor<1x1024xf32>, %arg1: index) -> tensor<1024xf32> {
@@ -257,7 +257,7 @@ module attributes {scheme.ckks} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK-LABEL: test_gen_params_op
+  // CHECK: test_gen_params_op
   func.func @test_gen_params_op() -> !openfhe.cc_params {
     // CHECK: CCParamsT [[PARAMS:.*]];
     // CHECK: [[PARAMS]].SetMultiplicativeDepth(2);

@@ -3,7 +3,7 @@
 // This pipeline fully loop unrolls the matmul.
 
 module {
-  // CHECK-LABEL: func @main
+  // CHECK: func @main
   // CHECK-SAME: %[[arg0:.*]]: tensor<1x16x!lwe.new_lwe_ciphertext<{{.*}}message_type = f32{{.*}}>>, %[[arg1:.*]]: tensor<1x16x!lwe.new_lwe_ciphertext<{{.*}}message_type = f32{{.*}}>>
   func.func @main(%arg0: tensor<1x16xf32> {secret.secret}, %arg1: tensor<1x16xf32> {secret.secret}) -> tensor<1x16xf32> {
     // CHECK-NOT: secret

@@ -1,6 +1,6 @@
 // RUN: heir-opt --convert-secret-extract-to-static-extract --split-input-file --verify-diagnostics %s
 
-// CHECK-LABEL: @multi_dimensional_extract
+// CHECK: @multi_dimensional_extract
 func.func @multi_dimensional_extract(%arg0: !secret.secret<tensor<32x32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     %c0_i16 = arith.constant 0 : i16
     %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32x32xi16>>, !secret.secret<index>) {

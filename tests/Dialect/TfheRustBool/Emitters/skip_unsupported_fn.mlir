@@ -11,7 +11,7 @@ module {
     return %0 : i32
   }
 
-  // CHECK-LABEL: pub fn fn_under_test(
+  // CHECK: pub fn fn_under_test(
   // CHECK-NEXT:   [[bsks:v[0-9]+]]: &ServerKey,
   // CHECK-NEXT:   [[input1:v[0-9]+]]: &Vec<Ciphertext>,
   // CHECK-NEXT:   [[input2:v[0-9]+]]: &Vec<Ciphertext>,

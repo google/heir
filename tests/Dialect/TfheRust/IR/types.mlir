@@ -2,7 +2,7 @@
 
 // This simply tests for syntax.
 module {
-  // CHECK-LABEL: func @test
+  // CHECK: func @test
   func.func @test(
      %arg_eui2: !tfhe_rust.eui2,
      %arg_eui3: !tfhe_rust.eui3,

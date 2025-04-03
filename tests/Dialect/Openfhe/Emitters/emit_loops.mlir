@@ -19,7 +19,7 @@
 !ct_L0_ = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
 module attributes {scheme.ckks} {
-  // CHECK-LABEL: test_affine_for
+  // CHECK: test_affine_for
   // CHECK-SAME: CryptoContextT [[cc:.*]], CiphertextT [[ct:.*]]) {
   // CHECK: MutableCiphertextT [[ct1:.*]] = [[ct]]->Clone();
   // CHECK: for (auto [[v0:.*]] = 1; [[v0]] < 2; ++[[v0]]) {

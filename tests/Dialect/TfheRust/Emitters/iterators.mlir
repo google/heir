@@ -5,7 +5,7 @@
 // CHECK: enum OpType
 
 module {
-  // CHECK-LABEL: pub fn generate_cleartext_ops
+  // CHECK: pub fn generate_cleartext_ops
   // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
   // CHECK-NEXT:   [[input:v[0-9]+]]: &[i16; 2],
   // CHECK-NEXT: ) -> {{[[][[]}}i8; 8]; 2] {
@@ -36,7 +36,7 @@ module {
   }
 
   // A memref is stored with an initial value and then iteratively summed
-  // CHECK-LABEL: pub fn iterative
+  // CHECK: pub fn iterative
   // CHECK-NEXT:   [[input1:v[0-9]+]]: &{{[[][[]}}i8; 16]; 1],
   // CHECK-NEXT:   [[input2:v[0-9]+]]: &{{[[][[]}}i8; 1]; 16],
   // CHECK-NEXT: ) -> {{[[][[]}}i8; 1]; 1] {

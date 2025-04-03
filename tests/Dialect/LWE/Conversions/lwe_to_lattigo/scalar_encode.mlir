@@ -15,7 +15,7 @@
 #ciphertext_space_L1_ = #lwe.ciphertext_space<ring = #ring_rns_L1_1_x1024_, encryption_type = lsb>
 !ct_L1_ = !lwe.new_lwe_ciphertext<application_data = <message_type = i64>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L1_, key = #key, modulus_chain = #modulus_chain_L5_C1_>
 module attributes {scheme.bgv} {
-  // CHECK-LABEL: func @foo__encrypt__arg0
+  // CHECK: func @foo__encrypt__arg0
   func.func @foo__encrypt__arg0(%arg0: i64, %pk: !pkey_L1_) -> !ct_L1_ {
     // CHECK: tensor.from_elements
     // CHECK-NEXT: lattigo.bgv.new_plaintext

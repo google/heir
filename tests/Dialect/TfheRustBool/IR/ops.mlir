@@ -6,7 +6,7 @@
 !eb = !tfhe_rust_bool.eb
 
 module {
-  // CHECK-LABEL: func @test_create_trivial_bool
+  // CHECK: func @test_create_trivial_bool
   func.func @test_create_trivial_bool(%bsks : !bsks) {
     %0 = arith.constant 1 : i1
     %1 = arith.constant 0 : i1
@@ -16,7 +16,7 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_and
+  // CHECK: func @test_and
   func.func @test_and(%bsks : !bsks) {
     %0 = arith.constant 1 : i1
     %1 = arith.constant 1 : i1
@@ -27,7 +27,7 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_not
+  // CHECK: func @test_not
   func.func @test_not(%bsks : !bsks) {
     %0 = arith.constant 1 : i1
 

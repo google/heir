@@ -5,7 +5,7 @@
 #mgmt1 = #mgmt.mgmt<level = 0, dimension = 3>
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937, 17179967489, 17180262401, 17180295169, 17180393473, 70368744210433], P = [70368744570881, 70368744701953], plaintextModulus = 65537>} {
-  // CHECK-LABEL: func @test_arith_ops
+  // CHECK: func @test_arith_ops
   func.func @test_arith_ops(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : !eui1 {mgmt.mgmt = #mgmt}, %arg2 : !eui1 {mgmt.mgmt = #mgmt}) -> (!eui1 {mgmt.mgmt = #mgmt1}) {
     %0 = secret.generic ins(%arg0, %arg1 :  !eui1, !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: bgv.add

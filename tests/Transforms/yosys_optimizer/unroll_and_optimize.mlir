@@ -26,7 +26,7 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
   return %0 : !out_ty
 }
 
-// CHECK-LABEL: func.func @basic_example(
+// CHECK: func.func @basic_example(
 // CHECK-SAME: %[[arg0:.*]]: [[secret_ty:!secret.secret<memref<10xi8>>]]
 //   CHECK-DAG: %[[c0:.*]] = arith.constant 0
 //   CHECK-DAG: %[[c1:.*]] = arith.constant 1
@@ -152,7 +152,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
   return %0 : !out_ty
 }
 
-// CHECK-LABEL: func.func @cumulative_sums
+// CHECK: func.func @cumulative_sums
 // CHECK-SAME: %[[arg0:.*]]: [[secret_ty:!secret.secret<memref<10xi8>>]]
 //   CHECK-DAG: %[[c0:.*]] = arith.constant 0
 //   CHECK-DAG: %[[c1:.*]] = arith.constant 1

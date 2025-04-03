@@ -21,7 +21,7 @@
 !pk = !lwe.new_lwe_public_key<ring = #ring_rns_L0_1_x32_, key = #key>
 
 //The function is adapted from the BGV form of the simple_sum.mlir test
-// CHECK-LABEL: @encode_i16
+// CHECK: @encode_i16
 // CHECK-SAME: %[[cc:.*]]: !openfhe.crypto_context
 // CHECK-SAME: %[[arg16:.*]]: tensor<32xi16>
 func.func @encode_i16(%arg0: tensor<32xi16>, %arg1: !pk) -> !pt_i16 {
@@ -32,7 +32,7 @@ func.func @encode_i16(%arg0: tensor<32xi16>, %arg1: !pk) -> !pt_i16 {
   return %0 : !pt_i16
 }
 
-// CHECK-LABEL: @encode_i32
+// CHECK: @encode_i32
 // CHECK-SAME: %[[cc:.*]]: !openfhe.crypto_context
 // CHECK-SAME: %[[arg0:.*]]: tensor<32xi32>
 func.func @encode_i32(%arg0: tensor<32xi32>, %arg1: !pk) -> !pt_i32 {
@@ -43,14 +43,14 @@ func.func @encode_i32(%arg0: tensor<32xi32>, %arg1: !pk) -> !pt_i32 {
   return %0 : !pt_i32
 }
 
-// CHECK-LABEL: @encode_i64
+// CHECK: @encode_i64
 func.func @encode_i64(%arg0: tensor<32xi64>, %arg1: !pk) -> !pt_i64 {
   %0 = lwe.rlwe_encode %arg0 {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi64> -> !pt_i64
   // CHECK:     openfhe.make_packed_plaintext {{.*}} tensor<32xi64>) -> !lwe.new_lwe_plaintext{{.*}} tensor<32xi64>
   return %0 : !pt_i64
 }
 
-// CHECK-LABEL: @encode_scalar
+// CHECK: @encode_scalar
 // CHECK-SAME: %[[cc:.*]]: !openfhe.crypto_context
 // CHECK-SAME: %[[arg0:.*]]: i64
 func.func @encode_scalar(%arg0: i64, %arg1: !pk) -> !pt_scalar {

@@ -33,28 +33,28 @@
   ciphertext_space=#post_mul_ciphertext_space,
   key=#lwe.key<>>
 
-// CHECK-LABEL: test_radd
+// CHECK: test_radd
 func.func @test_radd(%0: !ct, %1: !ct) -> !ct {
   // CHECK: lwe.radd
   %2 = lwe.radd %0, %1 : (!ct, !ct) -> !ct
   return %2 : !ct
 }
 
-// CHECK-LABEL: test_rsub
+// CHECK: test_rsub
 func.func @test_rsub(%0: !ct, %1: !ct) -> !ct {
   // CHECK: lwe.rsub
   %2 = lwe.rsub %0, %1 : (!ct, !ct) -> !ct
   return %2 : !ct
 }
 
-// CHECK-LABEL: test_rmul
+// CHECK: test_rmul
 func.func @test_rmul(%0: !ct, %1: !ct) -> !post_mul_ct {
   // CHECK: lwe.rmul
   %2 = lwe.rmul %0, %1 : (!ct, !ct) -> !post_mul_ct
   return %2 : !post_mul_ct
 }
 
-// CHECK-LABEL: test_rnegate
+// CHECK: test_rnegate
 func.func @test_rnegate(%0: !ct) -> !ct {
   // CHECK: lwe.rnegate
   %1 = lwe.rnegate %0 : !ct

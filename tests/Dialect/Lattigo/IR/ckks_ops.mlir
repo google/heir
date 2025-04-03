@@ -37,7 +37,7 @@
 >
 
 module {
-  // CHECK-LABEL: func @test_new_params_from_literal
+  // CHECK: func @test_new_params_from_literal
   func.func @test_new_params_from_literal() {
     // CHECK: %[[v1:.*]] = lattigo.ckks.new_parameters_from_literal
     %params = lattigo.ckks.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
@@ -46,133 +46,133 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_new_encoder
+  // CHECK: func @test_ckks_new_encoder
   func.func @test_ckks_new_encoder(%params: !params) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.new_encoder
     %encoder = lattigo.ckks.new_encoder %params : (!params) -> !encoder
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_new_evaluator_no_key_set
+  // CHECK: func @test_ckks_new_evaluator_no_key_set
   func.func @test_ckks_new_evaluator_no_key_set(%params: !params) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.new_evaluator
     %evaluator = lattigo.ckks.new_evaluator %params : (!params) -> !evaluator
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_new_evaluator
+  // CHECK: func @test_ckks_new_evaluator
   func.func @test_ckks_new_evaluator(%params: !params, %eval_key_set: !eval_key_set) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.new_evaluator
     %evaluator = lattigo.ckks.new_evaluator %params, %eval_key_set : (!params, !eval_key_set) -> !evaluator
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_new_plaintext
+  // CHECK: func @test_ckks_new_plaintext
   func.func @test_ckks_new_plaintext(%params: !params) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.new_plaintext
     %pt = lattigo.ckks.new_plaintext %params : (!params) -> !pt
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_encode
+  // CHECK: func @test_ckks_encode
   func.func @test_ckks_encode(%encoder: !encoder, %value : !value, %pt: !pt) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.encode
     %encoded = lattigo.ckks.encode %encoder, %value, %pt : (!encoder, !value, !pt) -> !pt
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_encode_complex
+  // CHECK: func @test_ckks_encode_complex
   func.func @test_ckks_encode_complex(%encoder: !encoder, %value : !value_complex, %pt: !pt) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.encode
     %encoded = lattigo.ckks.encode %encoder, %value, %pt : (!encoder, !value_complex, !pt) -> !pt
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_add_new
+  // CHECK: func @test_ckks_add_new
   func.func @test_ckks_add_new(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.add_new
     %output = lattigo.ckks.add_new %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_sub_new
+  // CHECK: func @test_ckks_sub_new
   func.func @test_ckks_sub_new(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.sub_new
     %output = lattigo.ckks.sub_new %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_mul_new
+  // CHECK: func @test_ckks_mul_new
   func.func @test_ckks_mul_new(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.mul
     %output = lattigo.ckks.mul_new %evaluator, %lhs, %rhs : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_add
+  // CHECK: func @test_ckks_add
   func.func @test_ckks_add(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.add
     %output = lattigo.ckks.add %evaluator, %lhs, %rhs, %lhs : (!evaluator, !ct, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_sub
+  // CHECK: func @test_ckks_sub
   func.func @test_ckks_sub(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.sub
     %output = lattigo.ckks.sub %evaluator, %lhs, %rhs, %lhs : (!evaluator, !ct, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_mul
+  // CHECK: func @test_ckks_mul
   func.func @test_ckks_mul(%evaluator: !evaluator, %lhs: !ct, %rhs: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.mul
     %output = lattigo.ckks.mul %evaluator, %lhs, %rhs, %lhs : (!evaluator, !ct, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_decode
+  // CHECK: func @test_ckks_decode
   func.func @test_ckks_decode(%encoder: !encoder, %value : !value, %pt: !pt) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.decode
     %decoded = lattigo.ckks.decode %encoder, %pt, %value : (!encoder, !pt, !value) -> !value
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_relinearize_new
+  // CHECK: func @test_ckks_relinearize_new
   func.func @test_ckks_relinearize_new(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.relinearize_new
     %output = lattigo.ckks.relinearize_new %evaluator, %ct : (!evaluator, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_rescale_new
+  // CHECK: func @test_ckks_rescale_new
   func.func @test_ckks_rescale_new(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rescale_new
     %output = lattigo.ckks.rescale_new %evaluator, %ct : (!evaluator, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_rotate_new
+  // CHECK: func @test_ckks_rotate_new
   func.func @test_ckks_rotate_new(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rotate_new
     %output = lattigo.ckks.rotate_new %evaluator, %ct {offset = 1} : (!evaluator, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_relinearize
+  // CHECK: func @test_ckks_relinearize
   func.func @test_ckks_relinearize(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.relinearize
     %output = lattigo.ckks.relinearize %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_rescale
+  // CHECK: func @test_ckks_rescale
   func.func @test_ckks_rescale(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rescale
     %output = lattigo.ckks.rescale %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return
   }
 
-  // CHECK-LABEL: func @test_ckks_rotate
+  // CHECK: func @test_ckks_rotate
   func.func @test_ckks_rotate(%evaluator: !evaluator, %ct: !ct) {
     // CHECK: %[[v1:.*]] = lattigo.ckks.rotate
     %output = lattigo.ckks.rotate %evaluator, %ct, %ct {offset = 1} : (!evaluator, !ct, !ct) -> !ct

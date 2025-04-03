@@ -2,7 +2,7 @@
 
 // A reduced dimension version of hello world to speed Yosys up.
 
-// CHECK-LABEL: module
+// CHECK: module
 #map = affine_map<(d0, d1) -> (d1)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>
 #map2 = affine_map<(d0, d1) -> (0)>

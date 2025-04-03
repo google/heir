@@ -3,7 +3,7 @@
 !Zp = !mod_arith.int<65537 : i32>
 !Zpv = tensor<4x!Zp>
 
-// CHECK-LABEL: @test_lower_encapsulate
+// CHECK: @test_lower_encapsulate
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_encapsulate(%lhs : i32) -> !Zp {
   // CHECK-NOT: mod_arith.encapsulate
@@ -12,7 +12,7 @@ func.func @test_lower_encapsulate(%lhs : i32) -> !Zp {
   return %res : !Zp
 }
 
-// CHECK-LABEL: @test_lower_encapsulate_vec
+// CHECK: @test_lower_encapsulate_vec
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_encapsulate_vec(%lhs : tensor<4xi32>) -> !Zpv {
   // CHECK-NOT: mod_arith.encapsulate
@@ -21,7 +21,7 @@ func.func @test_lower_encapsulate_vec(%lhs : tensor<4xi32>) -> !Zpv {
   return %res : !Zpv
 }
 
-// CHECK-LABEL: @test_lower_extract
+// CHECK: @test_lower_extract
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_extract(%lhs : !Zp) -> i32 {
   // CHECK-NOT: mod_arith.extract
@@ -30,7 +30,7 @@ func.func @test_lower_extract(%lhs : !Zp) -> i32 {
   return %res : i32
 }
 
-// CHECK-LABEL: @test_lower_extract_vec
+// CHECK: @test_lower_extract_vec
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_extract_vec(%lhs : !Zpv) -> tensor<4xi32> {
   // CHECK-NOT: mod_arith.extract
@@ -39,7 +39,7 @@ func.func @test_lower_extract_vec(%lhs : !Zpv) -> tensor<4xi32> {
   return %res : tensor<4xi32>
 }
 
-// CHECK-LABEL: @test_lower_reduce
+// CHECK: @test_lower_reduce
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_reduce(%lhs : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.reduce
@@ -52,7 +52,7 @@ func.func @test_lower_reduce(%lhs : !Zp) -> !Zp {
   return %res : !Zp
 }
 
-// CHECK-LABEL: @test_lower_reduce_vec
+// CHECK: @test_lower_reduce_vec
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_reduce_vec(%lhs : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.reduce
@@ -65,7 +65,7 @@ func.func @test_lower_reduce_vec(%lhs : !Zpv) -> !Zpv {
   return %res : !Zpv
 }
 
-// CHECK-LABEL: @test_lower_add
+// CHECK: @test_lower_add
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_add(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.add
@@ -77,7 +77,7 @@ func.func @test_lower_add(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   return %res : !Zp
 }
 
-// CHECK-LABEL: @test_lower_add_vec
+// CHECK: @test_lower_add_vec
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_add_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.add
@@ -89,7 +89,7 @@ func.func @test_lower_add_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   return %res : !Zpv
 }
 
-// CHECK-LABEL: @test_lower_sub
+// CHECK: @test_lower_sub
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_sub(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.sub
@@ -102,7 +102,7 @@ func.func @test_lower_sub(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   return %res : !Zp
 }
 
-// CHECK-LABEL: @test_lower_sub_vec
+// CHECK: @test_lower_sub_vec
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_sub_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.sub
@@ -115,7 +115,7 @@ func.func @test_lower_sub_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   return %res : !Zpv
 }
 
-// CHECK-LABEL: @test_lower_mul
+// CHECK: @test_lower_mul
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_mul(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.mul
@@ -130,7 +130,7 @@ func.func @test_lower_mul(%lhs : !Zp, %rhs : !Zp) -> !Zp {
   return %res : !Zp
 }
 
-// CHECK-LABEL: @test_lower_mul_vec
+// CHECK: @test_lower_mul_vec
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_mul_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.mul
@@ -145,7 +145,7 @@ func.func @test_lower_mul_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   return %res : !Zpv
 }
 
-// CHECK-LABEL: @test_lower_mac
+// CHECK: @test_lower_mac
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]], %[[ACC:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_mac(%lhs : !Zp, %rhs : !Zp, %acc : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.mac
@@ -162,7 +162,7 @@ func.func @test_lower_mac(%lhs : !Zp, %rhs : !Zp, %acc : !Zp) -> !Zp {
   return %res : !Zp
 }
 
-// CHECK-LABEL: @test_lower_mac_vec
+// CHECK: @test_lower_mac_vec
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]], %[[ACC:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_mac_vec(%lhs : !Zpv, %rhs : !Zpv, %acc : !Zpv) -> !Zpv {
   // CHECK-NOT: mod_arith.mac
@@ -181,7 +181,7 @@ func.func @test_lower_mac_vec(%lhs : !Zpv, %rhs : !Zpv, %acc : !Zpv) -> !Zpv {
 
 // -----
 
-// CHECK-LABEL: @test_lower_subifge
+// CHECK: @test_lower_subifge
 // CHECK-SAME: (%[[LHS:.*]]: [[TENSOR_TYPE:.*]], %[[RHS:.*]]: [[TENSOR_TYPE]]) -> [[TENSOR_TYPE]] {
 func.func @test_lower_subifge(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tensor<4xi8> {
 
@@ -194,7 +194,7 @@ func.func @test_lower_subifge(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tenso
 
 // -----
 
-// CHECK-LABEL: @test_lower_subifge_int
+// CHECK: @test_lower_subifge_int
 // CHECK-SAME: (%[[LHS:.*]]: [[INT_TYPE:.*]], %[[RHS:.*]]: [[INT_TYPE]]) -> [[INT_TYPE]] {
 func.func @test_lower_subifge_int(%lhs : i8, %rhs : i8) -> i8 {
 
@@ -207,7 +207,7 @@ func.func @test_lower_subifge_int(%lhs : i8, %rhs : i8) -> i8 {
 
 // -----
 
-// CHECK-LABEL: @test_lower_barrett_reduce
+// CHECK: @test_lower_barrett_reduce
 
 // CHECK-SAME: (%[[ARG:.*]]: [[TENSOR_TYPE:.*]]) -> [[TENSOR_TYPE]] {
 func.func @test_lower_barrett_reduce(%arg : tensor<4xi10>) -> tensor<4xi10> {
@@ -230,7 +230,7 @@ func.func @test_lower_barrett_reduce(%arg : tensor<4xi10>) -> tensor<4xi10> {
 
 // -----
 
-// CHECK-LABEL: @test_lower_barrett_reduce_int
+// CHECK: @test_lower_barrett_reduce_int
 // CHECK-SAME: (%[[ARG:.*]]: [[INT_TYPE:.*]]) -> [[INT_TYPE]] {
 func.func @test_lower_barrett_reduce_int(%arg : i10) -> i10 {
 

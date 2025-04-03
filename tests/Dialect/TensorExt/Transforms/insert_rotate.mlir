@@ -16,7 +16,7 @@ func.func @test_insert_rotation_for_add(%arg1: tensor<16xi32>) -> i32 {
     return %2 : i32
 }
 
-// CHECK-LABEL: func @test_insert_rotation_for_add
+// CHECK: func @test_insert_rotation_for_add
 // CHECK-SAME: (%[[arg0:.*]]: tensor<16xi32>) -> i32 {
 // CHECK-NEXT:    %[[c11:.*]] = arith.constant 11
 // CHECK-NEXT:    %[[c4:.*]] = arith.constant 4
@@ -30,7 +30,7 @@ func.func @test_insert_rotation_for_add(%arg1: tensor<16xi32>) -> i32 {
 
 // This test should be applying the new patterns InsertRotations_SplatRHSToTensor,
 // but the splats themselves should be elided.
-// CHECK-LABEL: @test_splat
+// CHECK: @test_splat
 // CHECK-NOT: tensor_ext.splat
 func.func @test_splat(%arg1: tensor<16xi32>) -> tensor<16xi32> {
     %c0 = arith.constant 1 : index

@@ -3,7 +3,7 @@
 module {
   memref.global "private" constant @__constant : memref<2xi8> = dense<[-1, -2]> {alignment = 64 : i64}
   memref.global "private" constant @__constant_i32 : memref<1xi32> = dense<-7217> {alignment = 64 : i64}
-  // CHECK-LABEL: module negative_constant(
+  // CHECK: module negative_constant(
   func.func @negative_constant(%in: i8) -> (i32) {
     // CHECK: assign [[V0:.*]] = 16'hFEFF;
     // CHECK: assign [[V1:.*]] = 32'hFFFFE3CF;

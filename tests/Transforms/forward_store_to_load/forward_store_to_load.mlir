@@ -1,6 +1,6 @@
 // RUN: heir-opt --forward-store-to-load %s | FileCheck %s
 
-// CHECK-LABEL: func.func @single_store
+// CHECK: func.func @single_store
 // CHECK-SAME: %[[ARG0:.*]]: memref<10xi8>
 func.func @single_store(%arg0: memref<10xi8>) -> i8 {
   // CHECK-NEXT: %[[VAL:.*]] = arith.constant 7
@@ -14,7 +14,7 @@ func.func @single_store(%arg0: memref<10xi8>) -> i8 {
   return %1: i8
 }
 
-// CHECK-LABEL: func.func @block_arg
+// CHECK: func.func @block_arg
 // CHECK-SAME: %[[ARG1:.*]]: i8
 func.func @block_arg(%arg0: i8) -> i8 {
   %c0 = arith.constant 0 : index
@@ -27,7 +27,7 @@ func.func @block_arg(%arg0: i8) -> i8 {
 }
 
 
-// CHECK-LABEL: func.func @inside_region
+// CHECK: func.func @inside_region
 // CHECK-SAME: (%[[MEMREF0:.*]]: memref<10xi8>, %[[MEMREF1:.*]]: memref<10xi8>)
 func.func @inside_region(%memref0: memref<10xi8>, %memref1: memref<10xi8>) -> memref<10xi8> {
   // CHECK: %[[OUT:.*]] = memref.alloc() : memref<10xi8>
@@ -47,7 +47,7 @@ func.func @inside_region(%memref0: memref<10xi8>, %memref1: memref<10xi8>) -> me
 }
 
 // Two possibilities to forward to, always use the latest
-// CHECK-LABEL: func.func @forward_latest
+// CHECK: func.func @forward_latest
 // CHECK-SAME: (%[[MEMREF0:.*]]: memref<10xi8>)
 func.func @forward_latest(%memref0: memref<10xi8>) -> i8 {
   // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : index
@@ -68,7 +68,7 @@ func.func @forward_latest(%memref0: memref<10xi8>) -> i8 {
 }
 
 
-// CHECK-LABEL: func.func @skip_different_blocks
+// CHECK: func.func @skip_different_blocks
 // CHECK-SAME: (%[[MEMREF0:.*]]: memref<10xi8>)
 func.func @skip_different_blocks(%memref0: memref<10xi8>) -> i8 {
   // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : index
@@ -90,7 +90,7 @@ func.func @skip_different_blocks(%memref0: memref<10xi8>) -> i8 {
 }
 
 
-// CHECK-LABEL: func.func @skip_intermediate_region_holding_op
+// CHECK: func.func @skip_intermediate_region_holding_op
 // CHECK-SAME: (%[[MEMREF0:.*]]: memref<10xi8>)
 func.func @skip_intermediate_region_holding_op(%memref0: memref<10xi8>) -> i8 {
   // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : index
@@ -122,7 +122,7 @@ func.func @skip_intermediate_region_holding_op(%memref0: memref<10xi8>) -> i8 {
 }
 
 
-// CHECK-LABEL: func.func @wrong_indices
+// CHECK: func.func @wrong_indices
 // CHECK-SAME: (%[[MEMREF0:.*]]: memref<10xi8>)
 func.func @wrong_indices(%memref0: memref<10xi8>) -> i8 {
   // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : index
@@ -139,7 +139,7 @@ func.func @wrong_indices(%memref0: memref<10xi8>) -> i8 {
   return %2: i8
 }
 
-// CHECK-LABEL: func.func @cf_between_stores
+// CHECK: func.func @cf_between_stores
 // CHECK-SAME: (%[[MEMREF0:.*]]: memref<10xi8>)
 func.func @cf_between_stores(%memref0: memref<10xi8>) -> i8 {
   // CHECK-NEXT: %[[TRUE:.*]] = arith.constant true
@@ -170,7 +170,7 @@ func.func @cf_between_stores(%memref0: memref<10xi8>) -> i8 {
   return %1: i8
 }
 
-// CHECK-LABEL: func.func @affine_ops
+// CHECK: func.func @affine_ops
 // CHECK-SAME: %[[ARG1:.*]]: i8, %[[ARG2:.*]]: i8
 func.func @affine_ops(%arg0: i8, %arg1: i8) -> (i8, i8) {
   %c0 = arith.constant 0 : index

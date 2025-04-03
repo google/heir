@@ -4,7 +4,7 @@
 // operations do not collapse.
 
 module {
-  // CHECK-LABEL: @tensor_empty
+  // CHECK: @tensor_empty
   func.func @tensor_empty() -> !secret.secret<tensor<1x10xf32>> {
     // CHECK-NEXT: %[[v1:.*]] = secret.generic
     // CHECK-NEXT: %[[v0:.*]] = tensor.empty() : tensor<1x10xf32>
@@ -17,7 +17,7 @@ module {
     return %0 : !secret.secret<tensor<1x10xf32>>
   }
 
-  // CHECK-LABEL: @main
+  // CHECK: @main
   func.func @main(%arg0: !secret.secret<tensor<28x28xf32>>, %arg1: !secret.secret<tensor<784x10xf32>>, %arg2: !secret.secret<tensor<1x10xf32>>) -> !secret.secret<tensor<1x10xf32>> {
     %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32

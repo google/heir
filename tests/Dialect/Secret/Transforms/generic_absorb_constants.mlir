@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-generic-absorb-constants %s | FileCheck %s
 
-// CHECK-LABEL: test_copy_single_constant
+// CHECK: test_copy_single_constant
 // CHECK-SAME: %[[Y:.*]]: !secret.secret<i32>) {
 func.func @test_copy_single_constant(%value : !secret.secret<i32>) {
   // CHECK: %[[X:.*]] = arith.constant 7
@@ -17,7 +17,7 @@ func.func @test_copy_single_constant(%value : !secret.secret<i32>) {
   func.return
 }
 
-// CHECK-LABEL: test_copy_two_constant
+// CHECK: test_copy_two_constant
 // CHECK-SAME: %[[Y:.*]]: !secret.secret<i32>) {
 func.func @test_copy_two_constant(%value : !secret.secret<i32>) {
   // CHECK: %[[C0:.*]] = arith.constant 7
@@ -39,7 +39,7 @@ func.func @test_copy_two_constant(%value : !secret.secret<i32>) {
   func.return
 }
 
-// CHECK-LABEL: test_block_arg
+// CHECK: test_block_arg
 // CHECK-SAME: %[[Y:.*]]: !secret.secret<i32>) {
 func.func @test_block_arg(%value : !secret.secret<i32>) {
   // CHECK: %[[C0:.*]] = arith.constant 7

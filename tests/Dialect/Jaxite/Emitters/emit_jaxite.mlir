@@ -8,7 +8,7 @@
 !eb = !lwe.lwe_ciphertext<encoding = #unspecified_encoding, lwe_params = #params>
 
 
-// CHECK-LABEL: def test_return_multiple_values(
+// CHECK: def test_return_multiple_values(
 // CHECK-NEXT:   [[input:ct]]: types.LweCiphertext,
 // CHECK-NEXT:   [[v1:.*]]: jaxite_bool.ServerKeySet,
 // CHECK-NEXT:   [[v2:.*]]: jaxite_bool.Parameters,
@@ -19,7 +19,7 @@ func.func @test_return_multiple_values(%input: !eb, %bsks : !bsks, %params : !pa
 }
 
 
-// CHECK-LABEL: def test_memref_load(
+// CHECK: def test_memref_load(
 // CHECK-NEXT:   [[input:v[0-9]+]]: list[types.LweCiphertext],
 // CHECK-NEXT:   [[v1:.*]]: jaxite_bool.ServerKeySet,
 // CHECK-NEXT:   [[v2:.*]]: jaxite_bool.Parameters,
@@ -33,7 +33,7 @@ func.func @test_memref_load(%input: memref<8x!eb>, %bsks : !bsks, %params : !par
   return %0 : !eb
 }
 
-// CHECK-LABEL: def test_memref_alloc_store(
+// CHECK: def test_memref_alloc_store(
 // CHECK-NEXT:   [[input:v[0-9]+]]: list[types.LweCiphertext],
 // CHECK-NEXT:   [[v1:.*]]: jaxite_bool.ServerKeySet,
 // CHECK-NEXT:   [[v2:.*]]: jaxite_bool.Parameters,
@@ -56,7 +56,7 @@ func.func @test_memref_alloc_store(%input: memref<8x!eb>, %bsks : !bsks, %params
   return %alloc : memref<2x!eb>
 }
 
-// CHECK-LABEL: def test_packed_lut3(
+// CHECK: def test_packed_lut3(
 // CHECK-NEXT:   [[sk:.*]]: jaxite_bool.ServerKeySet,
 // CHECK-NEXT:   [[params:.*]]: jaxite_bool.Parameters
 // CHECK-NEXT: ):

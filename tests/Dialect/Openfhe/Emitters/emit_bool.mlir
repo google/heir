@@ -27,7 +27,7 @@
 !ct_L1_D3 = !lwe.new_lwe_ciphertext<application_data = <message_type = i64>, plaintext_space = <ring = #ring_Z65537_i64_1_x1024, encoding = #full_crt_packing_encoding>, ciphertext_space = #ciphertext_space_L1_D3, key = #key, modulus_chain = #modulus_chain_L1_C1>
 
 module attributes {scheme.bgv} {
-  // CHECK-LABEL: CiphertextT emit_bool
+  // CHECK: CiphertextT emit_bool
   // CHECK-SAME: CryptoContextT [[cc:.*]], bool [[v0:.*]], PublicKeyT [[pk:.*]]) {
   func.func @emit_bool(%cc: !cc, %arg0: i1, %pk: !pk) -> !ct_L1_1 {
     // CHECK: std::vector<bool> [[v1:.*]](1024, [[v0]]);

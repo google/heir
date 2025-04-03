@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-extract-generic-body --split-input-file %s | FileCheck %s
 
-// CHECK-LABEL: test_add
+// CHECK: test_add
 // CHECK-SAME:     %[[ARG:.*]]: i32
 // CHECK-SAME:  ) {
 // CHECK-NEXT:    secret.conceal %[[ARG]]
@@ -25,7 +25,7 @@ module {
 
 // -----
 
-// CHECK-LABEL: test_multiple
+// CHECK: test_multiple
 // CHECK-SAME:     %[[ARG:.*]]: i32
 // CHECK-SAME:  ) {
 // CHECK-NEXT:    secret.conceal %[[ARG]]
@@ -60,9 +60,9 @@ module {
 
 // -----
 
-// CHECK-LABEL: module
+// CHECK: module
 
-// CHECK-LABEL: generic_
+// CHECK: generic_
 // CHECK-SAME:    %[[GARG:.*]]: memref<1xi32>
 // CHECK:         affine.for
 // CHECK-NEXT:      affine.load
@@ -70,7 +70,7 @@ module {
 // CHECK-NEXT:      affine.store
 // CHECK:      return
 
-// CHECK-LABEL: test_region
+// CHECK: test_region
 // CHECK-SAME:     %[[ARG:.*]]: memref<1xi32>
 // CHECK-SAME:  ) {
 // CHECK-NEXT:    secret.conceal %[[ARG]]

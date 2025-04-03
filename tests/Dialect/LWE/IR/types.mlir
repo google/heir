@@ -9,7 +9,7 @@
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
 
 
-// CHECK-LABEL: test_valid_lwe_ciphertext
+// CHECK: test_valid_lwe_ciphertext
 func.func @test_valid_lwe_ciphertext(%arg0 : !ciphertext) -> !ciphertext {
   return %arg0 : !ciphertext
 }
@@ -17,7 +17,7 @@ func.func @test_valid_lwe_ciphertext(%arg0 : !ciphertext) -> !ciphertext {
 
 !ciphertext_noparams = !lwe.lwe_ciphertext<encoding = #encoding>
 
-// CHECK-LABEL: test_valid_lwe_ciphertext_unspecified
+// CHECK: test_valid_lwe_ciphertext_unspecified
 func.func @test_valid_lwe_ciphertext_unspecified(%arg0 : !ciphertext_noparams) -> !ciphertext_noparams {
   return %arg0 : !ciphertext_noparams
 }
@@ -28,7 +28,7 @@ func.func @test_valid_lwe_ciphertext_unspecified(%arg0 : !ciphertext_noparams) -
 #rlwe_params = #lwe.rlwe_params<dimension=10, ring=#ring>
 !ciphertext_rlwe = !lwe.rlwe_ciphertext<encoding = #encoding, rlwe_params = #rlwe_params, underlying_type=i3>
 
-// CHECK-LABEL: test_valid_rlwe_ciphertext
+// CHECK: test_valid_rlwe_ciphertext
 func.func @test_valid_rlwe_ciphertext(%arg0 : !ciphertext_rlwe) -> !ciphertext_rlwe {
   return %arg0 : !ciphertext_rlwe
 }
@@ -36,14 +36,14 @@ func.func @test_valid_rlwe_ciphertext(%arg0 : !ciphertext_rlwe) -> !ciphertext_r
 #key = #lwe.key<>
 !secret_key = !lwe.new_lwe_secret_key<key = #key, ring = #ring>
 
-// CHECK-LABEL: test_new_lwe_secret_key
+// CHECK: test_new_lwe_secret_key
 func.func @test_new_lwe_secret_key(%arg0 : !secret_key) -> !secret_key {
   return %arg0 :!secret_key
 }
 
 !public_key = !lwe.new_lwe_public_key<key = #key, ring = #ring>
 
-// CHECK-LABEL: test_new_lwe_public_key
+// CHECK: test_new_lwe_public_key
 func.func @test_new_lwe_public_key(%arg0 : !public_key) -> !public_key {
   return %arg0 : !public_key
 }
@@ -56,7 +56,7 @@ func.func @test_new_lwe_public_key(%arg0 : !public_key) -> !public_key {
 
 !new_lwe_plaintext = !lwe.new_lwe_plaintext<application_data = #application_data, plaintext_space = #plaintext_space>
 
-// CHECK-LABEL: test_new_lwe_plaintext
+// CHECK: test_new_lwe_plaintext
 func.func @test_new_lwe_plaintext(%arg0 : !new_lwe_plaintext) -> !new_lwe_plaintext {
   return %arg0 : !new_lwe_plaintext
 }
@@ -66,7 +66,7 @@ func.func @test_new_lwe_plaintext(%arg0 : !new_lwe_plaintext) -> !new_lwe_plaint
 
 !new_lwe_ciphertext = !lwe.new_lwe_ciphertext<application_data = #application_data, plaintext_space = #plaintext_space, key = #key, ciphertext_space = #ciphertext_space, modulus_chain = #modulus_chain>
 
-// CHECK-LABEL: test_new_lwe_ciphertext
+// CHECK: test_new_lwe_ciphertext
 func.func @test_new_lwe_ciphertext(%arg0 : !new_lwe_ciphertext) -> !new_lwe_ciphertext {
   return %arg0 : !new_lwe_ciphertext
 }

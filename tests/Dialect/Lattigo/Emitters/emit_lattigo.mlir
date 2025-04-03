@@ -34,7 +34,7 @@
 >
 
 module attributes {scheme.bgv} {
-  // CHECK-LABEL: func compute
+  // CHECK: func compute
   // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext, [[ct1:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[evaluator]].AddNew([[ct]], [[ct1]])
   // CHECK: [[ct3:[^, ].*]], [[err:.*]] := [[evaluator]].MulNew([[ct2]], [[ct1]])
@@ -52,7 +52,7 @@ module attributes {scheme.bgv} {
     return %rotate : !ct
   }
 
-  // CHECK-LABEL: func test_basic_emitter
+  // CHECK: func test_basic_emitter
   // CHECK: [[param:[^, ].*]], [[err:.*]] := bgv.NewParametersFromLiteral
   // CHECK: bgv.ParametersLiteral
   // CHECK: LogN
@@ -125,7 +125,7 @@ module attributes {scheme.bgv} {
 // -----
 
 
-// CHECK-LABEL: test_constant
+// CHECK: test_constant
 // CHECK: [[v1:.*]] := 1
 // CHECK: [[v2:.*]] := []int64{1, 2}
 // CHECK: [[v3:.*]] := []int64{2, 2, 2, 2}
@@ -144,7 +144,7 @@ module attributes {scheme.bgv} {
 !gk = !lattigo.rlwe.galois_key<galoisElement = 5>
 !ekset = !lattigo.rlwe.evaluation_key_set
 
-// CHECK-LABEL: test_new_evaluation_key_set_no_relin_key
+// CHECK: test_new_evaluation_key_set_no_relin_key
 // CHECK: rlwe.NewMemEvaluationKeySet(nil, [[gk:[^, ].*]])
 module attributes {scheme.bgv} {
   func.func @test_new_evaluation_key_set_no_relin_key(%gk : !gk) -> (!ekset) {
@@ -158,7 +158,7 @@ module attributes {scheme.bgv} {
 !params = !lattigo.bgv.parameter
 !evaluator = !lattigo.bgv.evaluator
 
-// CHECK-LABEL: test_new_evaluator_no_key_set
+// CHECK: test_new_evaluator_no_key_set
 // CHECK: bgv.NewEvaluator([[params:[^, ].*]], nil, false)
 module attributes {scheme.bgv} {
   func.func @test_new_evaluator_no_key_set(%params : !params) -> (!evaluator) {
@@ -169,7 +169,7 @@ module attributes {scheme.bgv} {
 
 // -----
 
-// CHECK-LABEL: func dot_product
+// CHECK: func dot_product
 // CHECK: ["bound"] = "50"
 // CHECK: ["complex"] = "{test = 1.200000e+00 : f64}"
 // CHECK: ["random"] = "3 : i64"
@@ -188,7 +188,7 @@ module attributes {scheme.bgv} {
 // -----
 
 module attributes {scheme.bgv} {
-  // CHECK-LABEL: func test_drop_level
+  // CHECK: func test_drop_level
   // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext)
   func.func @test_drop_level(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
     // CHECK: [[ct1:[^, ]*]] := ct.CopyNew()

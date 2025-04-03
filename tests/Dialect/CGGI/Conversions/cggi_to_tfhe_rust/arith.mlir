@@ -3,7 +3,7 @@
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 32>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 
-// CHECK-LABEL: @test_affine
+// CHECK: @test_affine
 // CHECK-SAME: (%[[ARG0:.*]]: !tfhe_rust.server_key, %[[ARG1:.*]]: memref<1x1x!tfhe_rust.eui32>) -> [[T:.*]] {
 func.func @test_affine(%arg0: memref<1x1x!ct_ty>) -> memref<1x1x!ct_ty> {
   // CHECK: return %[[OUT:.*]] : [[T]]

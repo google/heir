@@ -1,6 +1,6 @@
 // RUN: heir-opt --canonicalize %s | FileCheck %s
 
-// CHECK-LABEL: func @func
+// CHECK: func @func
 // CHECK-SAME: (%arg0: !secret.secret<i16>) -> i16
 func.func @func(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
     // CHECK-NOT: secret.generic

@@ -40,7 +40,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [], P = []
   }
 }
 
-// CHECK-LABEL: @simple_sum
+// CHECK: @simple_sum
 // CHECK-SAME: (%[[original_input:[^:]*]]: [[in_ty:[^)]*]])
 // CHECK-SAME: -> [[out_ty:[^{]*]] {
 

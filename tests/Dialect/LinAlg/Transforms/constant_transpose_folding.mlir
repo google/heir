@@ -2,7 +2,7 @@
 
 func.func @transpose_constant_fold(%init1: tensor<3x4x2xi16>,
                                    %init2: tensor<2x3xf16>) -> (tensor<3x4x2xi16>, tensor<2x3xf16>) {
-  //         CHECK-LABEL: @transpose_constant_fold
+  //         CHECK: @transpose_constant_fold
   //               CHECK: %[[FOLDED_CONSTANT1:[a-zA-Z0-9_]+]] = arith.constant dense
   // CHECK-SAME{LITERAL}: <[[[1, 13], [2, 14], [3, 15], [4, 16]], [[5, 17], [6, 18], [7, 19], [8, 20]], [[9, 21], [10, 22], [11, 23], [12, 24]]]> : tensor<3x4x2xi16>
   //           CHECK-NOT: linalg.transpose

@@ -7,7 +7,7 @@
 #map2 = #tensor_ext.layout<map = (d0) -> ((d0 + 2) mod 32)>
 
 module {
-  // CHECK-LABEL: func @no_hoist
+  // CHECK: func @no_hoist
   // CHECK: arith.addi
   // CHECK-COUNT-1: tensor_ext.convert_layout
   // CHECK-NOT: tensor_ext.convert_layout

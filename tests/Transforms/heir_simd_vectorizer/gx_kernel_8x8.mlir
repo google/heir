@@ -1,7 +1,7 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
-// CHECK-LABEL: @gx_kernel
+// CHECK: @gx_kernel
 // CHECK: secret.generic
 // CHECK-COUNT-6: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate

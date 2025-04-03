@@ -1,6 +1,6 @@
 // RUN: heir-opt --annotate-secretness='verbose=true'  %s | FileCheck %s
 
-// CHECK-LABEL: @annotated_secretness
+// CHECK: @annotated_secretness
 // CHECK-SAME:([[S:%.*]]: [[T:.*]] {secret.secret}, [[P:%.*]]: [[T]] {secret.public})
 func.func @annotated_secretness(%s: i32 {secret.secret}, %p: i32) {
     //CHECK-NEXT: arith.addi  [[P]], [[P]] {secret.public} : [[T]]
@@ -10,7 +10,7 @@ func.func @annotated_secretness(%s: i32 {secret.secret}, %p: i32) {
     return
 }
 
-// CHECK-LABEL: @typed_secretness
+// CHECK: @typed_secretness
 // CHECK-SAME: ([[S:%.*]]: [[ST:.*]], [[P:%.*]]: [[PT:.*]] {secret.public})
 func.func @typed_secretness(%s: !secret.secret<i32>, %p: i32) {
     %0 = secret.generic ins(%s , %p : !secret.secret<i32>, i32) {
@@ -25,7 +25,7 @@ func.func @typed_secretness(%s: !secret.secret<i32>, %p: i32) {
     return
 }
 
-// CHECK-LABEL: @multi_result_secretness
+// CHECK: @multi_result_secretness
 // CHECK-SAME: ([[S:%.*]]: [[T:.*]] {secret.secret}, [[P:%.*]]: [[T]] {secret.public})
 func.func @multi_result_secretness(%s: i32 {secret.secret}, %p: i32) {
     //CHECK-NEXT: arith.addui_extended [[P]], [[P]] {secretness = [{secret.public}, {secret.public}]} : [[T]], i1
@@ -35,7 +35,7 @@ func.func @multi_result_secretness(%s: i32 {secret.secret}, %p: i32) {
     return
 }
 
-// CHECK-LABEL: @return_secretness
+// CHECK: @return_secretness
 // CHECK-SAME: ([[S:%.*]]: [[T:.*]] {secret.secret}, [[P:%.*]]: [[T]] {secret.public}) -> ([[T]] {secret.secret})
 func.func @return_secretness(%s: i32 {secret.secret}, %p: i32) -> (i32) {
     //CHECK-NEXT: arith.addi  [[S]], [[P]] {secret.secret} : i32

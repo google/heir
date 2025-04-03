@@ -5,7 +5,7 @@
 !pt_ty = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
 
 
-// CHECK-LABEL: test_add_one_lut3
+// CHECK: test_add_one_lut3
 // CHECK-COUNT-2: cggi.packed_lut3
 func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %c7 = arith.constant 7 : index
@@ -52,7 +52,7 @@ func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   return %from_elements : tensor<8x!ct_ty>
 }
 
-// CHECK-LABEL: test_no_packing_lut2
+// CHECK: test_no_packing_lut2
 // CHECK-COUNT-4: cggi.lut2
 func.func @test_no_packing_lut2(%arg0: tensor<8x!ct_ty>) {
   %c0 = arith.constant 7 : index
@@ -71,7 +71,7 @@ func.func @test_no_packing_lut2(%arg0: tensor<8x!ct_ty>) {
   return
 }
 
-// CHECK-LABEL: test_no_packing_gates_and_lut3
+// CHECK: test_no_packing_gates_and_lut3
 // CHECK-COUNT-2: cggi.lut2
 // CHECK-COUNT-1: cggi.lut3
 // CHECK-COUNT-1: cggi.and

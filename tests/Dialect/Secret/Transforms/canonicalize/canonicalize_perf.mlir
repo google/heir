@@ -8,7 +8,7 @@
 // via lit, so I will just leave this note here and if the test starts running slow we will
 // hopefully notice it.
 
-// CHECK-LABEL: func @fast_unrolled_loop
+// CHECK: func @fast_unrolled_loop
 func.func @fast_unrolled_loop(
     %arg1 : !secret.secret<memref<1024xi32>>) -> !secret.secret<memref<1024xi32>> {
   %c5 = arith.constant 5 : i32

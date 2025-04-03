@@ -3,7 +3,7 @@
 !bsks = !tfhe_rust_bool.server_key
 !eb = !tfhe_rust_bool.eb
 
-// CHECK-LABEL: pub fn fn_under_test(
+// CHECK: pub fn fn_under_test(
 // CHECK-NEXT:   [[bsks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &Vec<Ciphertext>,
 // CHECK-NEXT:   [[input2:v[0-9]+]]: &Vec<Ciphertext>,

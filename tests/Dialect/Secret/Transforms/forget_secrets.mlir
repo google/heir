@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-forget-secrets --split-input-file %s | FileCheck %s
 
-// CHECK-LABEL: test_erase_unused_conceal
+// CHECK: test_erase_unused_conceal
 func.func @test_erase_unused_conceal(%value : i32) {
   // CHECK-NOT: secret
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
@@ -9,7 +9,7 @@ func.func @test_erase_unused_conceal(%value : i32) {
 
 // -----
 
-// CHECK-LABEL: test_conceal_then_generic
+// CHECK: test_conceal_then_generic
 // CHECK-SAME:     %[[ARG:.*]]: i32
 // CHECK-SAME:  ) {
 // CHECK:         %[[C7:.*]] = arith.constant 7 : i32
@@ -29,7 +29,7 @@ func.func @test_conceal_then_generic(%value : i32) {
 
 // -----
 
-// CHECK-LABEL: func.func @test_function_signature(
+// CHECK: func.func @test_function_signature(
 // CHECK-SAME:     %[[ARG:.*]]: i32
 // CHECK-SAME:  ) -> i32 {
 // CHECK: return %[[ARG]] : i32
@@ -39,7 +39,7 @@ func.func @test_function_signature(%Y : !secret.secret<i32>) -> !secret.secret<i
 
 // -----
 
-// CHECK-LABEL: func.func @test_add_two_secrets(
+// CHECK: func.func @test_add_two_secrets(
 // CHECK-SAME:     %[[S1:.*]]: i32,
 // CHECK-SAME:     %[[S2:.*]]: i32
 // CHECK-SAME:  ) -> i32 {
@@ -58,7 +58,7 @@ func.func @test_add_two_secrets(
 
 // -----
 
-// CHECK-LABEL: func.func @test_compose_generic(
+// CHECK: func.func @test_compose_generic(
 // CHECK-SAME:     %[[S1:.*]]: i32,
 // CHECK-SAME:     %[[S2:.*]]: i32
 // CHECK-SAME:  ) -> i32 {
@@ -92,7 +92,7 @@ func.func @test_convert_call() {
 
 // -----
 
-// CHECK-LABEL: test_convert_call_2
+// CHECK: test_convert_call_2
 // CHECK-NOT: secret
 func.func @example_fn(
     %s1 : !secret.secret<i32>,

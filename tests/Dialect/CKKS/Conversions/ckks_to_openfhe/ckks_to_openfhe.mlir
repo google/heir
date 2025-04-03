@@ -33,7 +33,7 @@
 
 // CHECK: module
 module {
-  // CHECK-LABEL: @test_ops
+  // CHECK: @test_ops
   // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]], [[Y:%.+]]: [[T]])
   func.func @test_ops(%x : !ct, %y : !ct) -> (!ct, !ct, !ct, !ct_D3, !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
@@ -50,7 +50,7 @@ module {
     return %negate, %add, %sub, %mul, %rot : !ct, !ct, !ct, !ct_D3, !ct
   }
 
-  // CHECK-LABEL: @test_relin
+  // CHECK: @test_relin
   // CHECK-SAME: ([[C:.*]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]])
   func.func @test_relin(%x : !ct_D4) -> !ct {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]

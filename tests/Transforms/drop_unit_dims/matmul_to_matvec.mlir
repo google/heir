@@ -1,6 +1,6 @@
 // RUN: heir-opt %s --drop-unit-dims | FileCheck %s
 
-// CHECK-LABEL: collapse_matmul_rhs
+// CHECK: collapse_matmul_rhs
 // CHECK-NOT: linalg.matmul
 // CHECK: tensor.collapse_shape
 // CHECK: linalg.matvec
@@ -15,7 +15,7 @@ func.func @collapse_matmul_rhs(%vec : !secret.secret<tensor<4x1xi16>>) -> !secre
   return %out : !secret.secret<tensor<4x1xi16>>
 }
 
-// CHECK-LABEL: collapse_matmul_lhs
+// CHECK: collapse_matmul_lhs
 // CHECK-NOT: linalg.matmul
 // CHECK: tensor.collapse_shape
 // CHECK: linalg.vecmat

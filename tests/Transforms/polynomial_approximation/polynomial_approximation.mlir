@@ -1,6 +1,6 @@
 // RUN: heir-opt --polynomial-approximation %s | FileCheck %s
 
-// CHECK-LABEL: @test_exp
+// CHECK: @test_exp
 func.func @test_exp(%x: f32) -> f32 {
   // Don't assert the quality of the approximation, just that it was applied
   // and has the right degree. Leave quality-of-approximation for unit testing.
@@ -11,7 +11,7 @@ func.func @test_exp(%x: f32) -> f32 {
   return %0 : f32
 }
 
-// CHECK-LABEL: @test_sin_default_params
+// CHECK: @test_sin_default_params
 func.func @test_sin_default_params(%x: f32) -> f32 {
   // CHECK: polynomial.eval
   // CHECK-SAME: x**5

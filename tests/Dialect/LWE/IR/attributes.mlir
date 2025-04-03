@@ -7,7 +7,7 @@
   cleartext_bitwidth=3>
 !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
 
-// CHECK-LABEL: test_valid_lwe_encode
+// CHECK: test_valid_lwe_encode
 func.func @test_valid_lwe_encode() {
     %0 = arith.constant 0 : i1
     // CHECK: bit_field_encoding
@@ -21,7 +21,7 @@ func.func @test_valid_lwe_encode() {
   cleartext_bitwidth=3>
 !plaintext_unspecified = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
 
-// CHECK-LABEL: test_valid_lwe_unspecified_encode
+// CHECK: test_valid_lwe_unspecified_encode
 func.func @test_valid_lwe_unspecified_encode() {
     %0 = arith.constant 0 : i1
     // CHECK: unspecified_bit_field_encoding
@@ -34,7 +34,7 @@ func.func @test_valid_lwe_unspecified_encode() {
 #encoding0 = #lwe.unspecified_bit_field_encoding<
   cleartext_bitwidth=3>
 
-// CHECK-LABEL: test_valid_unspecified_lwe_attribute
+// CHECK: test_valid_unspecified_lwe_attribute
 func.func @test_valid_unspecified_lwe_attribute() -> tensor<2xi16, #encoding0> {
   %c0 = arith.constant 0 : index
   %two = arith.constant 2 : i16
@@ -49,7 +49,7 @@ func.func @test_valid_unspecified_lwe_attribute() -> tensor<2xi16, #encoding0> {
   cleartext_start=14,
   cleartext_bitwidth=3>
 
-// CHECK-LABEL: test_valid_lwe_attribute
+// CHECK: test_valid_lwe_attribute
 func.func @test_valid_lwe_attribute() -> tensor<2xi16, #encoding1> {
   %c0 = arith.constant 0 : index
   %two = arith.constant 2 : i16
@@ -63,7 +63,7 @@ func.func @test_valid_lwe_attribute() -> tensor<2xi16, #encoding1> {
 #preserve_overflow = #lwe.preserve_overflow<>
 #application = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
 
-// CHECK-LABEL: test_fn
+// CHECK: test_fn
 func.func @test_fn() {
   return
 }
@@ -72,7 +72,7 @@ func.func @test_fn() {
 
 #application = #lwe.application_data<message_type = i1>
 
-// CHECK-LABEL: test_fn
+// CHECK: test_fn
 func.func @test_fn() {
   return
 }
@@ -85,7 +85,7 @@ func.func @test_fn() {
 
 #plaintext_space = #lwe.plaintext_space<ring = #ring4, encoding = #inverse_canonical_enc>
 
-// CHECK-LABEL: test_fn
+// CHECK: test_fn
 func.func @test_fn() {
   return
 }
@@ -97,7 +97,7 @@ func.func @test_fn() {
 #crt = #lwe.full_crt_packing_encoding<scaling_factor = 10000>
 #plaintext_space = #lwe.plaintext_space<ring = #ring, encoding = #crt>
 
-// CHECK-LABEL: test_fn
+// CHECK: test_fn
 func.func @test_fn() {
   return
 }
@@ -108,7 +108,7 @@ func.func @test_fn() {
 #key_rlwe_rotate = #lwe.key<slot_index = 2>
 #key_rlwe_2 = #lwe.key<slot_index = 0>
 
-// CHECK-LABEL: test_fn
+// CHECK: test_fn
 func.func @test_fn() {
   return
 }
@@ -120,7 +120,7 @@ func.func @test_fn() {
 
 #ciphertext_space = #lwe.ciphertext_space<ring = #ring4, encryption_type = msb>
 
-// CHECK-LABEL: test_fn
+// CHECK: test_fn
 func.func @test_fn() {
   return
 }
@@ -128,7 +128,7 @@ func.func @test_fn() {
 
 #modulus_chain = #lwe.modulus_chain<elements = <463187969 : i32, 33538049 : i32>, current = 0>
 
-// CHECK-LABEL: test_fn
+// CHECK: test_fn
 func.func @test_fn() {
   return
 }

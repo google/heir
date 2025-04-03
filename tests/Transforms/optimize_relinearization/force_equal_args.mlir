@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-print-local-scope --secretize --mlir-to-secret-arithmetic --optimize-relinearization='allow-mixed-degree-operands=false' %s | FileCheck %s
 
-// CHECK-LABEL: func.func @relinearize_both_add_operands
+// CHECK: func.func @relinearize_both_add_operands
 // CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: mgmt.relinearize

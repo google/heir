@@ -4,7 +4,7 @@
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
-// CHECK-LABEL: add_one
+// CHECK: add_one
 // CHECK-COUNT-15: {{%.*}} = cggi.packed_gates {{%.*}}, {{%.*}}
 func.func @add_one(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %true = arith.constant true

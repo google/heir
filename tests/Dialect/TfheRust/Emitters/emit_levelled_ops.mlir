@@ -5,7 +5,7 @@
 !lut = !tfhe_rust.lookup_table
 !eui3 = !tfhe_rust.eui3
 
-// CHECK-LABEL: pub fn test_levelled_op(
+// CHECK: pub fn test_levelled_op(
 // CHECK: ) -> Ciphertext {
 // CHECK-COUNT-4: static LEVEL_
 // CHECK-NOT: static LEVEL_
@@ -22,7 +22,7 @@ func.func @test_levelled_op(%sks : !sks, %lut: !lut, %input1 : !eui3, %input2 : 
   return %v4 : !eui3
 }
 
-// CHECK-LABEL: pub fn test_levelled_op_break(
+// CHECK: pub fn test_levelled_op_break(
 // CHECK: ) -> Ciphertext {
 // CHECK-COUNT-2: static LEVEL_
 // CHECK-NOT: static LEVEL_

@@ -3,7 +3,7 @@
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 
-// CHECK-LABEL: @lut2
+// CHECK: @lut2
 // CHECK-SAME: %[[arg0:.*]]: ![[ct:.*]], %[[arg1:.*]]: ![[ct]]
 func.func @lut2(%arg0: !ct_ty, %arg1: !ct_ty) -> !ct_ty {
   // CHECK-DAG: %[[const2:.*]] = arith.constant 2 : i3
@@ -15,7 +15,7 @@ func.func @lut2(%arg0: !ct_ty, %arg1: !ct_ty) -> !ct_ty {
   return %r1 : !ct_ty
 }
 
-// CHECK-LABEL: @lut3
+// CHECK: @lut3
 // CHECK-SAME: %[[arg0:.*]]: ![[ct:.*]], %[[arg1:.*]]: ![[ct]], %[[arg2:.*]]: ![[ct]]
 func.func @lut3(%arg0: !ct_ty, %arg1: !ct_ty, %arg2: !ct_ty) -> !ct_ty {
   // CHECK-DAG: %[[const4:.*]] = arith.constant -4 : i3
@@ -30,7 +30,7 @@ func.func @lut3(%arg0: !ct_ty, %arg1: !ct_ty, %arg2: !ct_ty) -> !ct_ty {
   return %r1 : !ct_ty
 }
 
-// CHECK-LABEL: @lut_lincomb
+// CHECK: @lut_lincomb
 // CHECK-SAME: %[[arg0:.*]]: ![[ct:.*]], %[[arg1:.*]]: ![[ct]]
 func.func @lut_lincomb(%arg0: !ct_ty, %arg1: !ct_ty) -> !ct_ty {
   // CHECK-DAG: %[[const3:.*]] = arith.constant 3 : i3
@@ -47,7 +47,7 @@ func.func @lut_lincomb(%arg0: !ct_ty, %arg1: !ct_ty) -> !ct_ty {
 #encoding4 = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 4>
 !ct_ty4 = !lwe.lwe_ciphertext<encoding = #encoding4>
 
-// CHECK-LABEL: @lut_bitwidth_4
+// CHECK: @lut_bitwidth_4
 // CHECK-SAME: %[[arg0:.*]]: ![[ct:.*]], %[[arg1:.*]]: ![[ct]]
 func.func @lut_bitwidth_4(%arg0: !ct_ty4, %arg1: !ct_ty4) -> !ct_ty4 {
   // CHECK-DAG: %[[const3:.*]] = arith.constant 3 : i4

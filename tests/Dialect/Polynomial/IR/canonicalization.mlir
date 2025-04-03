@@ -7,7 +7,7 @@
 !ntt_poly_ty = !polynomial.polynomial<ring=#ntt_ring>
 !tensor_ty = tensor<8x!coeff_ty, #ntt_ring>
 
-// CHECK-LABEL: @test_canonicalize_intt_after_ntt
+// CHECK: @test_canonicalize_intt_after_ntt
 // CHECK: (%[[P:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_canonicalize_intt_after_ntt(%p0 : !ntt_poly_ty) -> !ntt_poly_ty {
   // CHECK-NOT: polynomial.ntt
@@ -20,7 +20,7 @@ func.func @test_canonicalize_intt_after_ntt(%p0 : !ntt_poly_ty) -> !ntt_poly_ty 
   return %p2 : !ntt_poly_ty
 }
 
-// CHECK-LABEL: @test_canonicalize_ntt_after_intt
+// CHECK: @test_canonicalize_ntt_after_intt
 // CHECK: (%[[X:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_canonicalize_ntt_after_intt(%t0 : !tensor_ty) -> !tensor_ty {
   // CHECK-NOT: polynomial.intt

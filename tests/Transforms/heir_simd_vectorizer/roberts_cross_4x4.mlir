@@ -4,7 +4,7 @@
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 module{
-  // CHECK-LABEL: @roberts_cross
+  // CHECK: @roberts_cross
   // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<16xi16>>) -> !secret.secret<tensor<16xi16>> {
   // CHECK-DAG:  %[[c15:.*]] = arith.constant 15 : index
   // CHECK-DAG:  %[[c11:.*]] = arith.constant 11 : index

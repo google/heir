@@ -36,7 +36,7 @@
 
 // CHECK: module
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>} {
-  // CHECK-LABEL: @test_multiply
+  // CHECK: @test_multiply
   func.func @test_multiply(%arg0 : !ct, %arg1: !ct) -> !ct {
     %add = ckks.add %arg0, %arg1 : (!ct, !ct) -> !ct
     %sub = ckks.sub %arg0, %arg1 : (!ct, !ct) -> !ct
@@ -51,7 +51,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     return %arg0 : !ct
   }
 
-  // CHECK-LABEL: @test_ciphertext_plaintext
+  // CHECK: @test_ciphertext_plaintext
   func.func @test_ciphertext_plaintext(%arg0: !pt, %arg1: !pt, %arg2: !pt, %arg3: !ct) -> !ct {
     %add = ckks.add_plain %arg3, %arg0 : (!ct, !pt) -> !ct
     %sub = ckks.sub_plain %add, %arg1 : (!ct, !pt) -> !ct
@@ -60,7 +60,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     return %mul : !ct
   }
 
-  // CHECK-LABEL: @test_rotate_extract
+  // CHECK: @test_rotate_extract
   func.func @test_rotate_extract(%arg3: !ct_tensor) -> !ct_scalar {
     %c0 = arith.constant 0 : index
     %add = ckks.rotate %arg3 { offset = 1 } : !ct_tensor

@@ -7,7 +7,7 @@
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
-// CHECK-LABEL: add_one
+// CHECK: add_one
 // CHECK-COUNT-9: cggi.lut3
 // CHECK: cggi.lut3 %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {lookup_table = 105 : ui8} : tensor<6x!lwe.lwe_ciphertext
 // CANONICAL: cggi.lut_lincomb %[[arg1:.*]], %[[arg2:.*]], %[[arg3:.*]] {coefficients = array<i32: 4, 2, 1>, lookup_table = 105 : ui8} : tensor<6x!lwe.lwe_ciphertext
@@ -53,7 +53,7 @@ func.func @add_one(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   return %from_elements : tensor<8x!ct_ty>
 }
 
-// CHECK-LABEL: require_post_pass_toposort
+// CHECK: require_post_pass_toposort
 func.func @require_post_pass_toposort(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
@@ -101,7 +101,7 @@ func.func @require_post_pass_toposort(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_t
   return %from_elements : tensor<8x!ct_ty>
 }
 
-// CHECK-LABEL: transitive_dep_splits_level
+// CHECK: transitive_dep_splits_level
 func.func @transitive_dep_splits_level(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index

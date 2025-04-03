@@ -3,7 +3,7 @@
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 
-// CHECK-LABEL: main
+// CHECK: main
 // CHECK-NOT: cggi
 // CHECK-NOT: lwe
 // CHECK: [[ALLOC:%.*]] = memref.alloc

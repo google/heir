@@ -1,6 +1,6 @@
 // RUN: heir-opt --convert-secret-while-to-static-for %s | FileCheck %s
 
-// CHECK-LABEL: @basic_while_loop_with_secret_condition
+// CHECK: @basic_while_loop_with_secret_condition
 func.func @basic_while_loop_with_secret_condition(%input: !secret.secret<i16>) -> !secret.secret<i16> {
   // CHECK-NOT: scf.while
   // CHECK: %[[RESULT:.*]] = secret.generic ins(%[[SECRET_INPUT:.*]]: !secret.secret<i16>)
@@ -24,7 +24,7 @@ func.func @basic_while_loop_with_secret_condition(%input: !secret.secret<i16>) -
   return %0 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @while_loop_with_joint_secret_condition
+// CHECK: @while_loop_with_joint_secret_condition
 func.func @while_loop_with_joint_secret_condition(%input: !secret.secret<i16>) -> !secret.secret<i16> {
   // CHECK-NOT: scf.while
   // CHECK: %[[RESULT:.*]] = secret.generic ins(%[[SECRET_INPUT:.*]]: !secret.secret<i16>)

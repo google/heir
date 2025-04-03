@@ -4,7 +4,7 @@
 // RUN: heir-opt --yosys-optimizer="mode=Boolean abc-fast=True" --canonicalize --cse %s | FileCheck --check-prefix=CHECK --check-prefix=BOOL-FAST %s
 
 module {
-  // CHECK-LABEL: @add_one
+  // CHECK: @add_one
   func.func @add_one(%in: !secret.secret<i8>) -> (!secret.secret<i8>) {
     %one = arith.constant 1 : i8
     // Generic to convert the i8 to a memref

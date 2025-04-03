@@ -5,7 +5,7 @@
 !pt_ty = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
 
 
-// CHECK-LABEL: test_add_one_lut3
+// CHECK: test_add_one_lut3
 // CHECK-COUNT-3: jaxite.lut3
 // CHECK-COUNT-8: jaxite.lut3_args
 // CHECK-COUNT-2: jaxite.pmap_lut3

@@ -1,7 +1,7 @@
 // RUN: heir-opt --yosys-optimizer --canonicalize --cse %s | FileCheck %s
 
 module {
-  // CHECK-LABEL: @mul
+  // CHECK: @mul
   func.func @mul(%x: !secret.secret<i64>, %y: !secret.secret<i64>) -> (!secret.secret<i64>) {
     // Generic to convert the i64 to a memref
     // CHECK: secret.cast

@@ -5,7 +5,7 @@
 !lut = !tfhe_rust.lookup_table
 !eui3 = !tfhe_rust.eui3
 
-// CHECK-LABEL: pub fn test_bitand(
+// CHECK: pub fn test_bitand(
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT:   [[input2:v[0-9]+]]: &Ciphertext,
@@ -18,7 +18,7 @@ func.func @test_bitand(%sks : !sks, %input1 : !eui3, %input2 : !eui3) -> !eui3 {
   return %out : !eui3
 }
 
-// CHECK-LABEL: pub fn test_apply_lookup_table(
+// CHECK: pub fn test_apply_lookup_table(
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[lut:v[0-9]+]]: &LookupTableOwned,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
@@ -31,7 +31,7 @@ func.func @test_apply_lookup_table(%sks : !sks, %lut: !lut, %input : !eui3) -> !
   return %out : !eui3
 }
 
-// CHECK-LABEL: pub fn test_apply_lookup_table2(
+// CHECK: pub fn test_apply_lookup_table2(
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[lut:v[0-9]+]]: &LookupTableOwned,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
@@ -50,7 +50,7 @@ func.func @test_apply_lookup_table2(%sks : !sks, %lut: !lut, %input : !eui3) -> 
   return %v4 : !eui3
 }
 
-// CHECK-LABEL: pub fn test_return_multiple_values(
+// CHECK: pub fn test_return_multiple_values(
 // CHECK-NEXT:   [[input:v[0-9]+]]: &Ciphertext,
 // CHECK-NEXT: ) -> (Ciphertext, Ciphertext) {
 // CHECK:   ([[input]].clone(), [[input]].clone())
@@ -59,7 +59,7 @@ func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
   return %input, %input : !eui3, !eui3
 }
 
-// CHECK-LABEL: pub fn test_memref(
+// CHECK: pub fn test_memref(
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input:v[0-9]+]]: &[Ciphertext; 1],
 // CHECK-NEXT: ) -> [Ciphertext; 1] {
@@ -86,7 +86,7 @@ func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3
   return %5 : memref<1x!eui3>
 }
 
-// CHECK-LABEL: pub fn test_plaintext_arith_ops(
+// CHECK: pub fn test_plaintext_arith_ops(
 // CHECK-NEXT:   [[sks:v[0-9]+]]: &ServerKey,
 // CHECK-NEXT:   [[input:v[0-9]+]]: i64,
 // CHECK-NEXT: ) -> Ciphertext {

@@ -1,6 +1,6 @@
 // RUN: heir-opt --convert-if-to-select  %s | FileCheck %s
 
-// CHECK-LABEL: @secret_condition_with_non_secret_int
+// CHECK: @secret_condition_with_non_secret_int
 func.func @secret_condition_with_non_secret_int(%inp: i16, %cond: !secret.secret<i1>) -> !secret.secret<i16> {
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : [[T:.*]], !secret.secret<i1>) {
   // CHECK-NEXT:   ^[[bb0:.*]](%[[CPY_INP:.*]]: [[T]], %[[SCRT_COND:.*]]: i1):
@@ -23,7 +23,7 @@ func.func @secret_condition_with_non_secret_int(%inp: i16, %cond: !secret.secret
 }
 
 
-// CHECK-LABEL: @secret_condition_with_secret_int
+// CHECK: @secret_condition_with_secret_int
 func.func @secret_condition_with_secret_int(%inp: !secret.secret<i16>, %cond: !secret.secret<i1>) -> !secret.secret<i16> {
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : !secret.secret<[[T:.*]]>, !secret.secret<i1>) {
   // CHECK-NEXT:   ^[[bb0:.*]](%[[SCRT_INP:.*]]: [[T]], %[[SCRT_COND:.*]]: i1):
@@ -46,7 +46,7 @@ func.func @secret_condition_with_secret_int(%inp: !secret.secret<i16>, %cond: !s
 }
 
 
-// CHECK-LABEL: @secret_condition_with_secret_int_and_multiple_yields
+// CHECK: @secret_condition_with_secret_int_and_multiple_yields
 func.func @secret_condition_with_secret_int_and_multiple_yields(%inp: !secret.secret<i16>, %cond: !secret.secret<i1>) -> !secret.secret<i16> {
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : !secret.secret<[[T:.*]]>, !secret.secret<i1>) {
   // CHECK-NEXT:  ^[[bb0:.*]](%[[SCRT_INP:.*]]: [[T]], %[[SCRT_COND:.*]]: i1):
@@ -74,7 +74,7 @@ func.func @secret_condition_with_secret_int_and_multiple_yields(%inp: !secret.se
   }
 
 
-// CHECK-LABEL: @secret_condition_with_secret_tensor
+// CHECK: @secret_condition_with_secret_tensor
 func.func @secret_condition_with_secret_tensor(%inp: !secret.secret<tensor<16xi16>>, %cond: !secret.secret<i1>) -> !secret.secret<tensor<16xi16>> {
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : !secret.secret<tensor<[[T:.*]]>>, !secret.secret<i1>)
   // CHECK-NEXT:  ^[[bb0:.*]](%[[SCRT_INP:.*]]: tensor<[[T:.*]]>, %[[SCRT_COND:.*]]: i1):
@@ -99,7 +99,7 @@ func.func @secret_condition_with_secret_tensor(%inp: !secret.secret<tensor<16xi1
 }
 
 
-// CHECK-LABEL: @secret_condition_with_secret_vector
+// CHECK: @secret_condition_with_secret_vector
 func.func @secret_condition_with_secret_vector(%inp: !secret.secret<vector<4xf32>>, %cond: !secret.secret<i1>) -> !secret.secret<vector<4xf32>> {
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : !secret.secret<vector<[[T:.*]]>>, !secret.secret<i1>) {
   // CHECK-NEXT:  ^[[bb0:.*]](%[[SCRT_INP:.*]]: vector<[[T]]>, %[[SCRT_COND:.*]]: i1):
@@ -121,7 +121,7 @@ func.func @secret_condition_with_secret_vector(%inp: !secret.secret<vector<4xf32
   return %0 : !secret.secret<vector<4xf32>>
 }
 
-// CHECK-LABEL: @tainted_condition
+// CHECK: @tainted_condition
 func.func @tainted_condition(%inp: !secret.secret<i16>) -> !secret.secret<i16>{
   // CHECK-NEXT: %[[ZERO:.*]] = arith.constant 0 : [[T:.*]]
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]] : !secret.secret<[[T]]>) {
@@ -148,7 +148,7 @@ func.func @tainted_condition(%inp: !secret.secret<i16>) -> !secret.secret<i16>{
     return %1 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @speculatable_divison
+// CHECK: @speculatable_divison
 func.func @speculatable_divison(%inp: !secret.secret<i16>, %cond :!secret.secret<i1>) -> !secret.secret<i16> {
   // CHECK-NEXT: %[[DIVISOR:.*]] = arith.constant 2 : i16
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : !secret.secret<[[T:.*]]>, !secret.secret<i1>) {
@@ -172,7 +172,7 @@ func.func @speculatable_divison(%inp: !secret.secret<i16>, %cond :!secret.secret
   return %0 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @nested_secret_condition_with_secret_int
+// CHECK: @nested_secret_condition_with_secret_int
 func.func @nested_secret_condition_with_secret_int(%inp: !secret.secret<i16>, %cond: !secret.secret<i1>) -> !secret.secret<i16> {
   // CHECK-NEXT: %[[C_2:.*]] = arith.constant 2 : i16
   // CHECK-NEXT: %[[C_10:.*]] = arith.constant 10 : i16
@@ -214,7 +214,7 @@ func.func @nested_secret_condition_with_secret_int(%inp: !secret.secret<i16>, %c
   } -> !secret.secret<i16>
   return %0 : !secret.secret<i16>
 }
-// CHECK-LABEL: @set_secretness_for_constant
+// CHECK: @set_secretness_for_constant
 func.func @set_secretness_for_constant(%arg0: !secret.secret<tensor<32xi16>>) -> !secret.secret<i16> {
   // CHECK-NEXT: %[[TEMP:.*]] = arith.constant 0 : [[C_T:.*]]
   // CHECK-NEXT: %[[RESULT:.*]] = secret.generic ins(%[[ARG0:.*]] : !secret.secret<tensor<[[T:.*]]>>) {
@@ -249,7 +249,7 @@ func.func @set_secretness_for_constant(%arg0: !secret.secret<tensor<32xi16>>) ->
 }
 
 
-// CHECK-LABEL: @test_mixed_conditionals
+// CHECK: @test_mixed_conditionals
 // CHECK-SAME: ([[P:%.+]]: i1, [[S:%.+]]: !secret.secret<i1>, [[COND:%.+]]: i1)
 func.func @test_mixed_conditionals(%p: i1, %s: !secret.secret<i1>, %cond: i1) -> !secret.secret<i1> {
   //CHECK: secret.generic ins([[S]]
@@ -287,7 +287,7 @@ func.func @test_mixed_conditionals(%p: i1, %s: !secret.secret<i1>, %cond: i1) ->
   return %0 : !secret.secret<i1>
 }
 
-// CHECK-LABEL: @unknown_region
+// CHECK: @unknown_region
 // CHECK-SAME: ([[P:%.+]]: i1, [[S:%.+]]: !secret.secret<i1>)
 func.func @unknown_region(%p : i1, %s: !secret.secret<i1>) -> !secret.secret<i1> {
   %c0 = arith.constant 0 : index
@@ -319,7 +319,7 @@ func.func @unknown_region(%p : i1, %s: !secret.secret<i1>) -> !secret.secret<i1>
   return %0 : !secret.secret<i1>
 }
 
-// CHECK-LABEL: @secret_condition_with_two_if
+// CHECK: @secret_condition_with_two_if
 func.func @secret_condition_with_two_if(%inp: i16, %cond: !secret.secret<i1>) -> !secret.secret<i16> {
   // CHECK:      %[[RESULT:.*]] = secret.generic ins(%[[INP:.*]], %[[COND:.*]] : [[T:.*]], !secret.secret<i1>) {
   // CHECK-NEXT:   ^[[bb0:.*]](%[[CPY_INP:.*]]: [[T]], %[[SCRT_COND:.*]]: i1):

@@ -5,7 +5,7 @@
 #mgmt = #mgmt.mgmt<level = 0, dimension = 2>
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937, 17179967489, 17180262401, 17180295169, 17180393473, 70368744210433], P = [70368744570881, 70368744701953], plaintextModulus = 65537>} {
-  // CHECK-LABEL: func @test_add_plain
+  // CHECK: func @test_add_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_add_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
@@ -19,7 +19,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
     return %0 : !eui1
   }
 
-  // CHECK-LABEL: func @test_mul_plain
+  // CHECK: func @test_mul_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_mul_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
@@ -33,7 +33,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
     return %0 : !eui1
   }
 
-  // CHECK-LABEL: func @test_sub_plain
+  // CHECK: func @test_sub_plain
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_sub_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
@@ -47,7 +47,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
     return %0 : !eui1
   }
 
-  // CHECK-LABEL: func @test_sub_plaintext_ciphertext
+  // CHECK: func @test_sub_plaintext_ciphertext
   // CHECK-SAME: %[[arg0:.*]]: !lwe.new_lwe_ciphertext
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_sub_plaintext_ciphertext(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {

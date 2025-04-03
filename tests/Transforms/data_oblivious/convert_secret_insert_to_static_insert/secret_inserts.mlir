@@ -4,7 +4,7 @@
 // already matched for op's induction variable as secret and causes the pattern
 // to be re-matched.
 
-// CHECK-LABEL: @insert_to_secret_index
+// CHECK: @insert_to_secret_index
 func.func @insert_to_secret_index(%arg0: !secret.secret<tensor<16xi32>>, %arg1: !secret.secret<index>) -> !secret.secret<tensor<16xi32>> {
   %c10_i32 = arith.constant 10 : i32
   %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<16xi32>>, !secret.secret<index>) {
@@ -22,7 +22,7 @@ func.func @insert_to_secret_index(%arg0: !secret.secret<tensor<16xi32>>, %arg1: 
   return %0 : !secret.secret<tensor<16xi32>>
 }
 
-// CHECK-LABEL: @insert_and_sum
+// CHECK: @insert_and_sum
 func.func @insert_and_sum(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<tensor<32xi16>> {
     %c0_i16 = arith.constant 0 : i16
     %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {

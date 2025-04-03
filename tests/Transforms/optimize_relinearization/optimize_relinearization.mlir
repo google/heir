@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-print-local-scope --secretize --mlir-to-secret-arithmetic --optimize-relinearization %s | FileCheck %s
 
-// CHECK-LABEL: func.func @two_muls_followed_by_add
+// CHECK: func.func @two_muls_followed_by_add
 // CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
@@ -20,7 +20,7 @@ func.func @two_muls_followed_by_add(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>, 
   func.return %z : tensor<8xi16>
 }
 
-// CHECK-LABEL: func.func @two_muls_followed_by_add_f16
+// CHECK: func.func @two_muls_followed_by_add_f16
 // CHECK: secret.generic
 // CHECK: arith.mulf
 // CHECK-NEXT: arith.mulf
@@ -40,7 +40,7 @@ func.func @two_muls_followed_by_add_f16(%arg0: tensor<8xf16>, %arg1: tensor<8xf1
   func.return %z : tensor<8xf16>
 }
 
-// CHECK-LABEL: func.func @six_muls_with_add
+// CHECK: func.func @six_muls_with_add
 // CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
@@ -84,7 +84,7 @@ func.func @six_muls_with_add(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>, %arg2: 
   func.return %add5 : tensor<8xi16>
 }
 
-// CHECK-LABEL: func.func @six_muls_with_add_f16
+// CHECK: func.func @six_muls_with_add_f16
 // CHECK: secret.generic
 // CHECK: arith.mulf
 // CHECK-NEXT: arith.mulf
@@ -130,7 +130,7 @@ func.func @six_muls_with_add_f16(%arg0: tensor<8xf16>, %arg1: tensor<8xf16>, %ar
 
 // Test for a max key basis degree of 3, i.e., cannot do more than one repeated
 // mul op before relinearizing.
-// CHECK-LABEL: func.func @repeated_mul
+// CHECK: func.func @repeated_mul
 // CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: mgmt.relinearize
@@ -166,7 +166,7 @@ func.func @repeated_mul(%arg0: tensor<8xi16>) -> tensor<8xi16> {
 }
 
 // Test that non mul/add ops work well with generic op handling in the analysis
-// CHECK-LABEL: func.func @smoke_test
+// CHECK: func.func @smoke_test
 // CHECK-NEXT: arith.constant
 // CHECK-NEXT: arith.constant
 // CHECK-NEXT: secret.generic
@@ -192,7 +192,7 @@ func.func @smoke_test(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> tensor<8xi1
   func.return %8 : tensor<8xi16>
 }
 
-// CHECK-LABEL: func.func @rotation_needs_linear_inputs
+// CHECK: func.func @rotation_needs_linear_inputs
 // CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
@@ -214,7 +214,7 @@ func.func @rotation_needs_linear_inputs(%arg0: tensor<8xi16>, %arg1: tensor<8xi1
   func.return %7 : tensor<8xi16>
 }
 
-// CHECK-LABEL: func.func @modreduce_needs_linear_inputs
+// CHECK: func.func @modreduce_needs_linear_inputs
 // CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli

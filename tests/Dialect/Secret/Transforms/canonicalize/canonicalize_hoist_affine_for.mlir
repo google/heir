@@ -4,7 +4,7 @@
 // mistakenly extract complex op before secret.generic
 // which may cause assertion fail in RemoveUnusedGenericArgs
 
-// CHECK-LABEL: @simple_sum_with_thick_body
+// CHECK: @simple_sum_with_thick_body
 func.func @simple_sum_with_thick_body(%arg0: !secret.secret<tensor<32xi16>>) -> !secret.secret<i16> {
   %c0_i16 = arith.constant 0 : i16
   %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) {
@@ -23,7 +23,7 @@ func.func @simple_sum_with_thick_body(%arg0: !secret.secret<tensor<32xi16>>) -> 
   return %0 : !secret.secret<i16>
 }
 
-// CHECK-LABEL: @simple_sum_tiled_with_thick_body
+// CHECK: @simple_sum_tiled_with_thick_body
 func.func @simple_sum_tiled_with_thick_body(%arg0: !secret.secret<tensor<32xi16>>) -> !secret.secret<i16> {
   %c0_i16 = arith.constant 0 : i16
   %c8 = arith.constant 8 : index

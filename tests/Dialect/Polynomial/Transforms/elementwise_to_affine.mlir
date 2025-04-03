@@ -60,7 +60,7 @@
 !coeff_ty = !mod_arith.int<33538049:i32>
 !poly = !polynomial.polynomial<ring=<coefficientType=!coeff_ty, polynomialModulus=#polynomial.int_polynomial<1 + x**1024>>>
 
-// CHECK-LABEL:  @test_elementwise
+// CHECK:  @test_elementwise
 // CHECK: {{.*}} -> [[T:tensor<2x!polynomial.*33538049.*]] {
 func.func @test_elementwise(%arg0: tensor<2x!poly>, %arg1: tensor<2x!poly>) ->  tensor<2x!poly> {
   // CHECK_NOTADD: polynomial.add{{.*}} : [[T]]
@@ -77,7 +77,7 @@ func.func @test_elementwise(%arg0: tensor<2x!poly>, %arg1: tensor<2x!poly>) ->  
   // CHECK_ADD: return [[LOOP]] : [[T]]
 }
 
-// CHECK-LABEL:  @test_partially_elementwise
+// CHECK:  @test_partially_elementwise
 // CHECK: ([[ARG0:%.+]]: [[T:tensor<2x!polynomial.*33538049.*]], [[ARG1:%[^:]+]]: [[MOD_ARITH_TY:[^)]*]]) -> [[T]] {
 func.func @test_partially_elementwise(%arg0: tensor<2x!poly>, %arg1: !coeff_ty) ->  tensor<2x!poly> {
   // CHECK_NOTMUL: polynomial.mul_scalar{{.*}} : [[T]], [[MOD_ARITH_TY]]
@@ -93,7 +93,7 @@ func.func @test_partially_elementwise(%arg0: tensor<2x!poly>, %arg1: !coeff_ty) 
   // CHECK_MUL: return [[LOOP]] : [[T]]
 }
 
-// CHECK-LABEL:  @test_elementwise_multidim
+// CHECK:  @test_elementwise_multidim
 // CHECK: {{.*}} -> [[T:tensor<2x3x!polynomial.*33538049.*]] {
 func.func @test_elementwise_multidim(%arg0: tensor<2x3x!poly>, %arg1: tensor<2x3x!poly>) ->  tensor<2x3x!poly> {
   // CHECK_NOTADD: polynomial.add{{.*}} : [[T]]

@@ -10,7 +10,7 @@
 !ciphertext = !lwe.lwe_ciphertext<encoding = #unspecified_encoding, lwe_params = #params>
 
 module {
-  // CHECK-LABEL: func @test_create_trivial_bool
+  // CHECK: func @test_create_trivial_bool
   func.func @test_create_trivial_bool(%params : !params) {
     %0 = arith.constant 1 : i1
     %1 = arith.constant 0 : i1
@@ -20,7 +20,7 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_lut3
+  // CHECK: func @test_lut3
   func.func @test_lut3(%bsks : !bsks, %params : !params) {
     %0 = arith.constant 1 : i1
     %1 = arith.constant 1 : i1
@@ -35,7 +35,7 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @test_packed_lut3
+  // CHECK: func @test_packed_lut3
   func.func @test_packed_lut3(%bsks : !bsks, %params : !params) {
     %0 = arith.constant 1 : i1
     %1 = arith.constant 1 : i1

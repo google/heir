@@ -7,7 +7,7 @@
 // CHECK: !Z65536_i32 = !mod_arith.int<65536 : i32>
 !Zp2 = !mod_arith.int<65536 : i32>
 
-// CHECK-LABEL: @test_alias
+// CHECK: @test_alias
 func.func @test_alias(%0 : !Zp, %1 : !Zp1, %2 : !Zp2) -> !Zp {
     return %0 : !Zp
 }

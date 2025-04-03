@@ -9,7 +9,7 @@
 #int_ring = #polynomial.ring<coefficientType=!int_coeff_ty, polynomialModulus=#cycl_2048>
 !int_poly_ty = !polynomial.polynomial<ring=#int_ring>
 
-// CHECK-LABEL: @lower_mod_arith_coeffs
+// CHECK: @lower_mod_arith_coeffs
 func.func @lower_mod_arith_coeffs() -> !poly_ty {
   // CHECK-DAG: [[X:%.+]] = arith.constant dense<"0x01
   // CHECK-DAG: [[Y:%.+]] = arith.constant dense<"0x02
@@ -23,7 +23,7 @@ func.func @lower_mod_arith_coeffs() -> !poly_ty {
   return %poly2 : !polynomial.polynomial<ring=#ring>
 }
 
-// CHECK-LABEL: @lower_int_coeffs
+// CHECK: @lower_int_coeffs
 func.func @lower_int_coeffs() -> !int_poly_ty {
   // CHECK-DAG: [[X:%.+]] = arith.constant dense<"0x01
   // CHECK-DAG: [[Y:%.+]] = arith.constant dense<"0x02
@@ -35,7 +35,7 @@ func.func @lower_int_coeffs() -> !int_poly_ty {
   return %poly2 : !int_poly_ty
 }
 
-// CHECK-LABEL: @test_lower_add_tensor
+// CHECK: @test_lower_add_tensor
 func.func @test_lower_add_tensor() -> tensor<2x!poly_ty> {
   // 2 + 2x + 2x^2 + ... + 2x^{1023}
   // CHECK-DAG: [[A:%.+]] = arith.constant dense<2> : [[T:tensor<1024xi64>]]

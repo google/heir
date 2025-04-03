@@ -8,12 +8,12 @@
 //
 // See https://github.com/tensorflow/tflite-micro/tree/main/tensorflow/lite/micro/examples/hello_world/models
 
-// CHECK-LABEL: module
+// CHECK: module
 #map = affine_map<(d0, d1) -> (d1)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>
 #map2 = affine_map<(d0, d1) -> (0)>
 module {
-  // CHECK-LABEL: func.func @main
+  // CHECK: func.func @main
   // CHECK-NOT: memref.global
   // CHECK-NOT: memref.copy
   func.func @main(%arg0: tensor<1x1xi8> {iree.identifier = "serving_default_dense_input:0", secret.secret, tf_saved_model.index_path = ["dense_input"]}) -> (tensor<1x1xi8> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {

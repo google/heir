@@ -1,6 +1,6 @@
 // RUN: heir-opt --arith-to-mod-arith --mod-arith-to-mac %s | FileCheck %s --enable-var-scope
 
-// CHECK-LABEL: @double_mac
+// CHECK: @double_mac
 // CHECK-SAME: (%[[ARG:.*]]: !Z32768_i17) -> [[T:.*]] {
 func.func @double_mac(%arg0: i16) -> i16 {
   %c1 = arith.constant 1: i16

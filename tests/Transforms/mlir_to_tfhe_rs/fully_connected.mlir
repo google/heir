@@ -2,7 +2,7 @@
 
 #map = affine_map<(d0, d1) -> (0)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>
-// CHECK-LABEL: module
+// CHECK: module
 module {
   // CHECK: @main([[sks:.*]]: !tfhe_rust.server_key, [[arg:.*]]: memref<1x1x8x!tfhe_rust.eui3>) -> memref<1x1x32x!tfhe_rust.eui3>
   func.func @main(%arg0: tensor<1x1xi8> {secret.secret}) -> tensor<1x1xi32> {

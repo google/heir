@@ -4,7 +4,7 @@
 #layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #align>
 
 // Test that a vector of size 16xi16 is replicated to 32xi16.
-// CHECK-LABEL: @repeat_vector
+// CHECK: @repeat_vector
 func.func @repeat_vector() {
   %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
@@ -27,7 +27,7 @@ func.func @repeat_vector() {
 // to account for them.
 #layout = #tensor_ext.layout<map = (d0, d1, d2, d3) -> (d3), alignment = #align>
 
-// CHECK-LABEL: @prefix_ones
+// CHECK: @prefix_ones
 func.func @prefix_ones() {
   %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
@@ -46,7 +46,7 @@ func.func @prefix_ones() {
 #align = #tensor_ext.alignment<in = [32], out = [32, 1, 1, 1], insertedDims = [1, 2, 3]>
 #layout = #tensor_ext.layout<map = (d0, d1, d2, d3) -> (d0), alignment = #align>
 
-// CHECK-LABEL: @suffix_ones
+// CHECK: @suffix_ones
 func.func @suffix_ones() {
   %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
@@ -70,7 +70,7 @@ func.func @suffix_ones() {
 // layout.
 #layout = #tensor_ext.layout<map = (d0, d1, d2, d3, d4, d5, d6) -> (d2, d4), alignment = #align>
 
-// CHECK-LABEL: @prefix_and_suffix_ones
+// CHECK: @prefix_and_suffix_ones
 func.func @prefix_and_suffix_ones() {
   %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
@@ -90,7 +90,7 @@ func.func @prefix_and_suffix_ones() {
 #align = #tensor_ext.alignment<in = [16], out = [32], padding = [16], paddingValue = 0:i16>
 #layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #align>
 
-// CHECK-LABEL: @basic_padding
+// CHECK: @basic_padding
 func.func @basic_padding() {
   %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
@@ -124,7 +124,7 @@ func.func @basic_padding() {
 //
 // (1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 5, 6, 7, 8, ...)
 //
-// CHECK-LABEL: @column_alignment
+// CHECK: @column_alignment
 func.func @column_alignment() {
   %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:

@@ -18,7 +18,7 @@
 // CHECK: !poly1 = !polynomial.polynomial<ring = #ring_Z65536_i32_1_x2048>
 !poly1 = !polynomial.polynomial<ring = #ring2>
 
-// CHECK-LABEL: @test_alias
+// CHECK: @test_alias
 func.func @test_alias(%0 : !poly, %1 : !poly1) -> !poly {
     return %0 : !poly
 }

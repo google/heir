@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-to-bgv %s | FileCheck %s
 
-// CHECK-LABEL: @hamming
+// CHECK: @hamming
 // CHECK: bgv.add
 // CHECK-NEXT: bgv.extract
 // CHECK-NEXT: bgv.modulus_switch

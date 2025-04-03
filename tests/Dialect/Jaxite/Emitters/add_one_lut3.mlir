@@ -8,7 +8,7 @@
 !eb = !lwe.lwe_ciphertext<encoding = #unspecified_encoding, lwe_params = #params>
 
 
-// CHECK-LABEL: def test_add_one_lut3(
+// CHECK: def test_add_one_lut3(
 // CHECK-NEXT:   [[v0:.*]]: list[types.LweCiphertext],
 // CHECK-NEXT:   [[v1:.*]]: jaxite_bool.ServerKeySet,
 // CHECK-NEXT:   [[v2:.*]]: jaxite_bool.Parameters,

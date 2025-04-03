@@ -4,7 +4,7 @@
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
-// CHECK-LABEL: add_bool
+// CHECK: add_bool
 // CHECK-NOT: cggi
 // CHECK-NOT: lwe
 // CHECK-COUNT-1: tfhe_rust_bool.gates_packed %arg0, {{%.*}}, {{%.*}} {gates = #tfhe_rust_bool.tfhe_rust_bool_gates<0 : i32, 4 : i32>} : (!tfhe_rust_bool.server_key_enum, tensor<2x!tfhe_rust_bool.eb

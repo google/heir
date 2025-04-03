@@ -1,6 +1,6 @@
 // RUN: heir-opt --canonicalize %s | FileCheck %s
 
-// CHECK-LABEL: func @remove_unused_yielded_values
+// CHECK: func @remove_unused_yielded_values
 func.func @remove_unused_yielded_values(%arg0: !secret.secret<i32>) -> !secret.secret<i32> {
   %X = arith.constant 7 : i32
   %Y = secret.conceal %X : i32 -> !secret.secret<i32>
@@ -15,7 +15,7 @@ func.func @remove_unused_yielded_values(%arg0: !secret.secret<i32>) -> !secret.s
   return %Z : !secret.secret<i32>
 }
 
-// CHECK-LABEL: func @remove_pass_through_args
+// CHECK: func @remove_pass_through_args
 func.func @remove_pass_through_args(
 // CHECK: %[[arg1:.*]]: !secret.secret<i32>, %[[arg2:.*]]: !secret.secret<i32>
     %arg1 : !secret.secret<i32>, %arg2 : !secret.secret<i32>) -> (!secret.secret<i32>, !secret.secret<i32>) {

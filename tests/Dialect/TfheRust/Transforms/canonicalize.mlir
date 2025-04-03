@@ -3,7 +3,7 @@
 !sks = !tfhe_rust.server_key
 
 module {
-  // CHECK-LABEL: func @test_move_create_trivial
+  // CHECK: func @test_move_create_trivial
   func.func @test_move_create_trivial(%sks : !sks, %lut: !tfhe_rust.lookup_table) -> !tfhe_rust.eui3 {
     // CHECK: arith.constant
     // CHECK-NEXT: tfhe_rust.create_trivial
@@ -17,7 +17,7 @@ module {
     return %out : !tfhe_rust.eui3
   }
 
-  // CHECK-LABEL: func @test_move_out_of_loop
+  // CHECK: func @test_move_out_of_loop
   func.func @test_move_out_of_loop(%sks : !sks, %lut: !tfhe_rust.lookup_table) -> memref<10x!tfhe_rust.eui3> {
     // CHECK: arith.constant
     // CHECK-NEXT: tfhe_rust.create_trivial
@@ -39,7 +39,7 @@ module {
     return %memref : memref<10x!tfhe_rust.eui3>
   }
 
-  // CHECK-LABEL: func @test_move_to_front_of_block
+  // CHECK: func @test_move_to_front_of_block
   func.func @test_move_to_front_of_block(%sks : !sks, %value : i3) -> (!tfhe_rust.eui3, i3, i3) {
     // CHECK-NEXT: arith.constant
     // CHECK-NEXT: arith.constant

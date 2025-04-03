@@ -3,7 +3,7 @@
 !evaluator = !lattigo.bgv.evaluator
 !ct = !lattigo.rlwe.ciphertext
 
-// CHECK-LABEL: func.func @drop_level
+// CHECK: func.func @drop_level
 func.func @drop_level(%evaluator : !evaluator, %ct : !ct) -> !ct {
     // CHECK: lattigo.rlwe.drop_level
     // CHECK-NOT: lattigo.rlwe.drop_level_new

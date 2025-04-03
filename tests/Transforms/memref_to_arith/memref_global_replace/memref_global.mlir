@@ -41,7 +41,7 @@
 // CHECK_PREPASS-NOT: MISMATCH
 // CHECK_POSTPASS-NOT: MISMATCH
 
-// CHECK-LABEL: module
+// CHECK: module
 module {
   // CHECK-NOT: memref.global
   memref.global "private" constant @__constant_8xi16 : memref<8xi16> = dense<[-10, 20, 3, 4, 5, 6, 7, 8]>
@@ -66,7 +66,7 @@ module {
     return
   }
 
-  // CHECK-LABEL: func @main
+  // CHECK: func @main
   func.func @main() -> () {
     %c0 = arith.constant 0 : index
     %c1 = arith.constant 1 : index

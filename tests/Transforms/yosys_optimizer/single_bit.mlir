@@ -3,7 +3,7 @@
 // Tests Yosys Optimizer on single-bit secret inputs and outputs.
 
 module {
-  // CHECK-LABEL: @bits
+  // CHECK: @bits
   func.func @bits(%in: !secret.secret<i1>) -> (!secret.secret<i1>) {
     %one = arith.constant 1 : i1
     // CHECK: [[V1:%.*]] = secret.generic

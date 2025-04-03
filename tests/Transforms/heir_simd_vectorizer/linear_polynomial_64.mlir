@@ -3,7 +3,7 @@
 // RUN: heir-opt --secretize --wrap-generic --canonicalize --cse \
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
-// CHECK-LABEL: @linear_polynomial
+// CHECK: @linear_polynomial
 // CHECK: secret.generic
 // CHECK-NOT: tensor_ext.rotate
 // CHECK-NOT: insert

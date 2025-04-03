@@ -7,7 +7,7 @@
 // - Second Fully connected layer with 10 neurons without bias and weights of 4bit integers
 // Accuracy: 97.87%
 
-// CHECK-LABEL: module
+// CHECK: module
 #map = affine_map<(d0, d1) -> (d0, d1)>
 module {
   func.func @main(%arg0: tensor<1x784xi4>) -> tensor<1x10xi32> {

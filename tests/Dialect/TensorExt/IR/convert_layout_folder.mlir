@@ -3,7 +3,7 @@
 #map = #tensor_ext.layout<map = (d0) -> (d0 * 32)>
 #map1 = #tensor_ext.layout<map = (d0) -> (d0)>
 
-// CHECK-LABEL: func @fold
+// CHECK: func @fold
 // CHECK-NOT: tensor_ext.convert_layout
 // CHECK: return
 func.func @fold(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) {
@@ -20,7 +20,7 @@ func.func @fold(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1
 
 #map = #tensor_ext.layout<map = (d0) -> (d0 * 32)>
 
-// CHECK-LABEL: func @noop
+// CHECK: func @noop
 // CHECK-NOT: tensor_ext.convert_layout
 // CHECK: return
 func.func @noop(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) {

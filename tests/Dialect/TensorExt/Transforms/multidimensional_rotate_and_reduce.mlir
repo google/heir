@@ -5,7 +5,7 @@
 #map = affine_map<(d0, d1) -> (d1)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>
 module {
-  // CHECK-LABEL: @matmul
+  // CHECK: @matmul
   // CHECK-COUNT-15: tensor_ext.rotate
   // CHECK: return
   func.func @matmul(%arg0: !secret.secret<tensor<1x16xf32>>) -> !secret.secret<tensor<1x16xf32>> {

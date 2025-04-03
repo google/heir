@@ -1,6 +1,6 @@
 // RUN: heir-opt --yosys-optimizer %s | FileCheck %s
 
-// CHECK-LABEL: @ops
+// CHECK: @ops
 func.func @ops(
     %arg0: !secret.secret<i3>,
     %arg1: !secret.secret<i3>,
@@ -35,7 +35,7 @@ func.func @ops(
   // CHECK: return
 }
 
-// CHECK-LABEL: @truth_table
+// CHECK: @truth_table
 func.func @truth_table(
     %arg0: !secret.secret<i1>, %arg1: !secret.secret<i1>) -> (!secret.secret<i1>) {
   %1 = secret.generic ins(%arg0, %arg1:

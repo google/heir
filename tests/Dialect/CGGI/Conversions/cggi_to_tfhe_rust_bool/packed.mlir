@@ -4,7 +4,7 @@
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
-// CHECK-LABEL: packed
+// CHECK: packed
 // CHECK-NOT: cggi
 // CHECK-NOT: lwe
 func.func @packed(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {

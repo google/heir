@@ -3,7 +3,7 @@
 !Zp = !mod_arith.int<17 : i10>
 !Zp_vec = tensor<4x!Zp>
 
-// CHECK-LABEL: @test_arith_syntax
+// CHECK: @test_arith_syntax
 func.func @test_arith_syntax() {
   %zero = arith.constant 1 : i10
   %c4 = arith.constant 4 : i10

@@ -2,7 +2,7 @@
 
 // This function computes add_one to an i8 input split into bits and returns
 // the resulting i8 split into bits.
-// CHECK-LABEL: add_one
+// CHECK: add_one
 // CHECK-NOT: cggi
 // CHECK-NOT: lwe
 // CHECK-COUNT-11: tfhe_rust.apply_lookup_table

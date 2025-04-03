@@ -20,7 +20,7 @@
 !pt = !lwe.new_lwe_plaintext<application_data = <message_type = i3>, plaintext_space = #plaintext_space>
 !ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i3>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-// CHECK-LABEL: test_encrypt
+// CHECK: test_encrypt
 // CHECK-SAME:  !polynomial.polynomial<ring = <coefficientType = !mod_arith.int<65537 : i64>, polynomialModulus = <1 + x**1024>>>
 // CHECK-SAME:  tensor<2x!polynomial.polynomial<ring = <coefficientType = !rns.rns<!mod_arith.int<1095233372161 : i64>>, polynomialModulus = <1 + x**1024>>>>
 func.func @test_encrypt(%arg0: !pt, %arg1: !ct) {

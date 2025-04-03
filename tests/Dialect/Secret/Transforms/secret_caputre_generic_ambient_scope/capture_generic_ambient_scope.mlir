@@ -1,6 +1,6 @@
 // RUN: heir-opt --secret-capture-generic-ambient-scope %s | FileCheck %s
 
-// CHECK-LABEL: test_capture_ambient_scope
+// CHECK: test_capture_ambient_scope
 func.func @test_capture_ambient_scope(%value : i32) {
   // CHECK: %[[X:.*]] = arith.constant 7
   %X = arith.constant 7 : i32
@@ -22,7 +22,7 @@ func.func @test_capture_ambient_scope(%value : i32) {
 // newly captured block argument since the operation's parent was different than
 // (but strictly contained in) the generic, causing an infinite loop of added
 // block arguments for the operand.
-// CHECK-LABEL: test_capture_within_region
+// CHECK: test_capture_within_region
 func.func @test_capture_within_region(%value : i32) {
   // CHECK: %[[X:.*]] = arith.constant 7
   %X = arith.constant 7 : i32

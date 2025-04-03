@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-to-ckks='ciphertext-degree=8' --scheme-to-openfhe='entry-function=dot_product' %s | FileCheck %s
 
-// CHECK-LABEL: @dot_product
+// CHECK: @dot_product
 // CHECK-COUNT-3: openfhe.rot
 // CHECK: return
 func.func @dot_product(%arg0: tensor<8xf16> {secret.secret}, %arg1: tensor<8xf16> {secret.secret}) -> f16 {

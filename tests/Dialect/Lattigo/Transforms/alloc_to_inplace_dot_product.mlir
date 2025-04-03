@@ -1,6 +1,6 @@
 // RUN: heir-opt --lattigo-alloc-to-inplace %s | FileCheck %s
 
-// CHECK-LABEL: func.func @dot_product
+// CHECK: func.func @dot_product
 func.func @dot_product(%evaluator: !lattigo.bgv.evaluator, %param: !lattigo.bgv.parameter, %encoder: !lattigo.bgv.encoder, %ct: !lattigo.rlwe.ciphertext, %ct_0: !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
   // no new allocation found as the two ciphertexts in function argument are enough to store the imtermediate results
   // CHECK-NOT: _new

@@ -1,6 +1,6 @@
 // RUN: heir-opt --yosys-optimizer="abc-fast=true" %s | FileCheck %s
 
-// CHECK-LABEL: @for_loop
+// CHECK: @for_loop
 func.func @for_loop(%ARG0: !secret.secret<i8>, %ARG1: !secret.secret<i8>) -> !secret.secret<i32> {
   // convert two ARGs
   // CHECK: secret.cast

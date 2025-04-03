@@ -4,7 +4,7 @@
 #eval_poly_for_horner = #polynomial.typed_int_polynomial<4+x+x**2> : !eval_poly_ty
 #eval_poly_for_paterson = #polynomial.typed_int_polynomial<x+x**2+x**3+x**4+x**6> : !eval_poly_ty
 
-// CHECK-LABEL: @test_eval_for_horner
+// CHECK: @test_eval_for_horner
 func.func @test_eval_for_horner() -> i64 {
     // CHECK-NOT: polynomial.eval
     %c6 = arith.constant 6 : i64
@@ -21,7 +21,7 @@ func.func @test_eval_for_horner() -> i64 {
     return %0 : i64
 }
 
-// CHECK-LABEL: @test_eval_for_paterson
+// CHECK: @test_eval_for_paterson
 func.func @test_eval_for_paterson() -> i64 {
     // CHECK-NOT: polynomial.eval
     %c6 = arith.constant 6 : i64

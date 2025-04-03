@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-to-bgv --bgv-to-lwe --lwe-to-lattigo --lattigo-alloc-to-inplace %s | FileCheck %s
 
-// CHECK-LABEL: func.func @add
+// CHECK: func.func @add
 func.func @add(%arg0 : i16 {secret.secret}) -> i16 {
     // CHECK-COUNT-3: lattigo.bgv.add
     // CHECK-NOT: lattigo.bgv.add_new

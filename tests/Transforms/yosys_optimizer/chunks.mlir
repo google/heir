@@ -7,7 +7,7 @@
 //   connect { \_out_0 [30:17] \_out_0 [13] \_out_0 [11:10] } { \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [31] \_out_0 [14] \_out_0 [14] \_out_0 [12] }
 
 
-// CHECK-LABEL: @chunks
+// CHECK: @chunks
 func.func @chunks(%ARG0: !secret.secret<i8>) -> !secret.secret<i32> {
   // CHECK: secret.cast
   // CHECK: secret.generic

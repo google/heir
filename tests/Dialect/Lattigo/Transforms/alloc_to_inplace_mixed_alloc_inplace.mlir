@@ -8,7 +8,7 @@
 !param = !lattigo.bgv.parameter
 !pt = !lattigo.rlwe.plaintext
 
-// CHECK-LABEL: func.func @add
+// CHECK: func.func @add
 func.func @add(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct) -> !ct {
   // no new allocation found
   // CHECK-NOT: _new

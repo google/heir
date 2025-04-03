@@ -43,7 +43,7 @@
 // CHECK_PREPASS-NOT: MISMATCH
 // CHECK_POSTPASS-NOT: MISMATCH
 
-// CHECK-LABEL: module
+// CHECK: module
 module {
   // CHECK-NOT: memref.global
   memref.global "private" constant @__constant_4x4xi16 : memref<4x4xi16> = dense<"0xFFF9FD0A0708070307F2D109F0E92809DF05FAF0E8E3130E08EFD3EE0FE8EB14">

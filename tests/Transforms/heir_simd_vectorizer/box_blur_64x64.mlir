@@ -2,7 +2,7 @@
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 module  {
-  // CHECK-LABEL: @box_blur
+  // CHECK: @box_blur
   // CHECK-SAME: %[[arg0:.*]]: !secret.secret<tensor<4096xi16>>) -> !secret.secret<tensor<4096xi16>> {
   // CHECK-DAG:    %[[c127:.*]] = arith.constant 127 : index
   // CHECK-DAG:    %[[c3968:.*]] = arith.constant 3968 : index

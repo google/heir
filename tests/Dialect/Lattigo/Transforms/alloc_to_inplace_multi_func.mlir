@@ -9,7 +9,7 @@
 !pt = !lattigo.rlwe.plaintext
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [33832961, 34062337, 281474977349633], P = [281474977595393, 281474978185217], plaintextModulus = 65537>, scheme.bgv} {
-  // CHECK-LABEL: func.func @dot_product
+  // CHECK: func.func @dot_product
   func.func @dot_product(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct, %ct_0: !ct) -> !ct attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
     // no new allocation found as the two ciphertexts in function argument are enough to store the imtermediate results
     // CHECK-NOT: _new
@@ -34,7 +34,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [33832961,
     %ct_13 = lattigo.bgv.rescale_new %evaluator, %ct_12 : (!evaluator, !ct) -> !ct
     return %ct_13 : !ct
   }
-  // CHECK-LABEL: func.func @dot_product23
+  // CHECK: func.func @dot_product23
   func.func @dot_product23(%evaluator: !evaluator, %param: !param, %encoder: !encoder, %ct: !ct, %ct_0: !ct) -> !ct attributes {mgmt.openfhe_params = #mgmt.openfhe_params<evalAddCount = 8, keySwitchCount = 15>} {
     // no new allocation found as the two ciphertexts in function argument are enough to store the imtermediate results
     // CHECK-NOT: _new

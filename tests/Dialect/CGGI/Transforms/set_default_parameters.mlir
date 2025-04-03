@@ -6,7 +6,7 @@
 !plaintext = !lwe.lwe_plaintext<encoding = #encoding>
 !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
 
-// CHECK-LABEL: @test_adds_attribute
+// CHECK: @test_adds_attribute
 func.func @test_adds_attribute(%arg0 : !ciphertext) -> !ciphertext {
   %0 = arith.constant 0 : i1
   %1 = arith.constant 1 : i1

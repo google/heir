@@ -1,6 +1,6 @@
 // RUN: heir-opt --arith-to-cggi %s | FileCheck %s
 
-// CHECK-LABEL: @main
+// CHECK: @main
 // CHECK-SAME: (%[[ARG:.*]]: memref<1x52x!lwe.lwe_ciphertext<encoding = #unspecified_bit_field_encoding>, strided<[?, ?], offset: ?>>) -> [[T:.*]] {
 module attributes {tf_saved_model.semantics} {
   // CHECK: return %[[ADD:.*]] : [[T]]

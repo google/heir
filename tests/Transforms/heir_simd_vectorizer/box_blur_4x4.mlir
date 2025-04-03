@@ -2,7 +2,7 @@
 // RUN:   --heir-simd-vectorizer %s | FileCheck %s
 
 module  {
-  // CHECK-LABEL: @box_blur
+  // CHECK: @box_blur
   // CHECK-NOT: tensor.extract
   // CHECK-COUNT-7: tensor_ext.rotate
   func.func @box_blur(%arg0: tensor<16xi16>) -> tensor<16xi16> {

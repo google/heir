@@ -1,7 +1,7 @@
 // RUN: heir-opt --mlir-print-local-scope -affine-loop-normalize='promote-single-iter=1' --secretize --wrap-generic --secret-insert-mgmt-ckks=include-first-mul=false --secret-distribute-generic --canonicalize --secret-to-ckks %s | FileCheck %s
 
 module {
-  // CHECK-LABEL: func @main
+  // CHECK: func @main
   // CHECK-SAME: %[[arg0:.*]]: tensor<1x16x!lwe.rlwe_ciphertext<{{.*}}, underlying_type = f32>>, %[[arg1:.*]]: tensor<1x16x!lwe.rlwe_ciphertext<{{.*}}, underlying_type = f32>>
   func.func @main(%arg0: tensor<1x16xf32>, %arg1: tensor<1x16xf32>) -> tensor<1x16xf32> {
     // CHECK-NOT: secret
