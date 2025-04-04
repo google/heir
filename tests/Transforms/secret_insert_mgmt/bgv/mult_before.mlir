@@ -2,7 +2,7 @@
 
 // CHECK: module attributes {scheme.bgv}
 module {
-  // CHECK-LABEL: func @mult
+  // CHECK: func @mult
   func.func @mult(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
     // CHECK: level = 2
     %0 = secret.generic ins(%arg0 : !secret.secret<i16>) {
@@ -31,7 +31,7 @@ module {
 
 // CHECK: module attributes {scheme.bgv}
 module {
-  // CHECK-LABEL: func @mul
+  // CHECK: func @mul
   func.func @mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
     // CHECK: level = 1
     %0 = secret.generic ins(%arg0 : !secret.secret<i16>) {

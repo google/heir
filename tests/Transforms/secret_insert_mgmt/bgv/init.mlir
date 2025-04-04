@@ -25,7 +25,7 @@
 // }
 
 module {
-  // CHECK-LABEL: @init
+  // CHECK: @init
   func.func @init(%arg0: !secret.secret<i32>) -> !secret.secret<i32> {
     // CHECK: %c4_i32 = arith.constant 4 : i32
     // CHECK: %c3_i32 = arith.constant 3 : i32
