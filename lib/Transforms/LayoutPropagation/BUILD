@@ -10,6 +10,7 @@ cc_library(
     srcs = ["LayoutPropagation.cpp"],
     hdrs = ["LayoutPropagation.h"],
     deps = [
+        ":Utils",
         ":pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -24,6 +25,25 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "Utils",
+    srcs = ["Utils.cpp"],
+    hdrs = ["Utils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_test(
+    name = "UtilsTest",
+    srcs = ["UtilsTest.cpp"],
+    deps = [
+        ":Utils",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
     ],
 )
 
