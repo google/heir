@@ -54,9 +54,14 @@ LogicalResult RotateOp::verify() {
   return success();
 }
 
-LogicalResult verifyLayoutMatchesType(const LayoutAttr &layout, ShapedType type,
+LogicalResult verifyLayoutMatchesType(const LayoutAttr &layout, Type type,
                                       Operation *op) {
-  int64_t startingRank = cast<ShapedType>(type).getRank();
+  auto shapedType = dyn_cast<ShapedType>(type);
+  int64_t startingRank = 0;
+  if (shapedType) {
+    startingRank = shapedType.getRank();
+  }
+
   int64_t incRank = 0;
   if (layout.getAlignment() && layout.getAlignment().getInsertedDims())
     incRank = layout.getAlignment().getInsertedDims().size();
@@ -83,7 +88,7 @@ LogicalResult verifyLayoutMatchesType(const LayoutAttr &layout, ShapedType type,
 }
 
 OpFoldResult ConvertLayoutOp::fold(FoldAdaptor adaptor) {
-  auto tensor = getTensor();
+  auto tensor = getValue();
   auto fromLayout = getFromLayout();
   auto toLayout = getToLayout();
 
@@ -94,12 +99,12 @@ OpFoldResult ConvertLayoutOp::fold(FoldAdaptor adaptor) {
   auto inputOp = tensor.getDefiningOp<ConvertLayoutOp>();
   if (!inputOp || toLayout != inputOp.getFromLayout()) return OpFoldResult();
 
-  return inputOp.getTensor();
+  return inputOp.getValue();
 }
 
 LogicalResult ConvertLayoutOp::verify() {
   LogicalResult inputVerification =
-      verifyLayoutMatchesType(getFromLayout(), getTensor().getType(), *this);
+      verifyLayoutMatchesType(getFromLayout(), getValue().getType(), *this);
   if (failed(inputVerification)) {
     return inputVerification;
   }
@@ -114,7 +119,7 @@ LogicalResult ConvertLayoutOp::verify() {
 }
 
 LogicalResult AssignLayoutOp::verify() {
-  return verifyLayoutMatchesType(getLayout(), getTensor().getType(), *this);
+  return verifyLayoutMatchesType(getLayout(), getValue().getType(), *this);
 }
 
 LogicalResult PermuteOp::verify() {

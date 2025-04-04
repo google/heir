@@ -373,12 +373,12 @@ class ConvertAssignLayout
     // The input hence needs to be reshaped to fit the output layout, and
     // by default we assume all values are repeated cyclically according
     // to the layout.
-    RankedTensorType dataSemanticType = op.getResult().getType();
+    Type dataSemanticType = op.getResult().getType();
     RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
         getTypeConverter()->convertType(dataSemanticType, op.getLayout()));
     LLVM_DEBUG(llvm::dbgs() << "Converting AssignLayoutOp to use result type "
                             << ciphertextSemanticType << "\n");
-    Value input = adaptor.getTensor();
+    Value input = adaptor.getValue();
     LayoutAttr layout = op.getLayout();
 
     // Not all aspects of a replication attribute may be applied. In some rare
@@ -531,9 +531,9 @@ class ConvertConvertLayout
   LogicalResult matchAndRewrite(
       tensor_ext::ConvertLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const final {
-    RankedTensorType dataSemanticType = op.getTensor().getType();
+    Type dataSemanticType = op.getValue().getType();
     RankedTensorType ciphertextSemanticType =
-        cast<RankedTensorType>(adaptor.getTensor().getType());
+        cast<RankedTensorType>(adaptor.getValue().getType());
     LLVM_DEBUG(llvm::dbgs()
                << "ConvertConvertLayout: dataSemanticType=" << dataSemanticType
                << ", ciphertextSemanticType=" << ciphertextSemanticType
@@ -588,13 +588,21 @@ class ConvertConvertLayout
                 (minUnusedTarget + toResults[toResults.size() - 1]) % numSlots;
             permutation[input] = output;
           };
-      iterateIndices(dataSemanticType.getShape(), evaluateNextIndex);
+
+      SmallVector<int64_t> dataSemanticShape;
+      if (auto tensorTy = dyn_cast<RankedTensorType>(dataSemanticType)) {
+        dataSemanticShape = SmallVector<int64_t>(tensorTy.getShape());
+      } else {
+        // assumed to be a scalar
+        dataSemanticShape = {1};
+      }
+      iterateIndices(dataSemanticShape, evaluateNextIndex);
       minUnusedTarget = getMinUnusedTarget(permutation);
       minUnusedInput = getMinUnusedInput(permutation);
     }
 
     auto permuteOp = rewriter.create<tensor_ext::PermuteOp>(
-        op.getLoc(), adaptor.getTensor(),
+        op.getLoc(), adaptor.getValue(),
         rewriter.getI64TensorAttr(permutation));
     permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
     setMaterializedAttr(permuteOp);
