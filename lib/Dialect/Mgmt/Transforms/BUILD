@@ -23,6 +23,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
+        "@heir//lib/Analysis/ScaleAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",

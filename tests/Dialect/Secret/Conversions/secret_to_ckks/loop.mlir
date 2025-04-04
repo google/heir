@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks=include-first-mul=false --generate-param-ckks --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --secret-insert-mgmt-ckks=slot-number=1024 --generate-param-ckks --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
 
 module {
 // CHECK: func @hv_matmul
@@ -7,15 +7,14 @@ module {
 // CHECK-NEXT: %[[ct2:.*]] = ckks.mul_plain %[[ct]], %[[pt]]
 // CHECK:      %[[pt3:.*]] = lwe.rlwe_encode
 // CHECK-NEXT: %[[ct4:.*]] = ckks.add_plain %[[ct2]], %[[pt3]]
-// CHECK:      %[[ct5:.*]], %[[ct6:.*]] = affine.for %[[arg0:.*]] = 1 to 1024 iter_args(%[[ct8:.*]] = %[[ct4]], %[[ct9:.*]] = %[[ct]])
-// CHECK-NEXT:   %[[ct10:.*]] = ckks.rotate %[[ct9]] {offset = 1
+// CHECK:      %[[ct5:.*]], %[[ct6:.*]] = affine.for %[[arg0:.*]] = 1 to 1024 iter_args(%[[ct7:.*]] = %[[ct4]], %[[ct8:.*]] = %[[ct]])
+// CHECK-NEXT:   %[[ct9:.*]] = ckks.rotate %[[ct8]] {offset = 1
 // CHECK-NEXT:   %[[extracted_slice:.*]] = tensor.extract_slice
-// CHECK-NEXT:   %[[pt11:.*]] = lwe.rlwe_encode %[[extracted_slice]]
-// CHECK-NEXT:   %[[ct12:.*]] = ckks.mul_plain %[[ct10]], %[[pt11]]
-// CHECK-NEXT:   %[[ct13:.*]] = ckks.add %[[ct8]], %[[ct12]]
-// CHECK-NEXT:   affine.yield %[[ct13]], %[[ct10]]
-// CHECK:      %[[ct7:.*]] = ckks.rescale %[[ct5]]
-// CHECK-NEXT: return %[[ct7]]
+// CHECK:        %[[pt10:.*]] = lwe.rlwe_encode %[[extracted_slice]]
+// CHECK-NEXT:   %[[ct11:.*]] = ckks.mul_plain %[[ct9]], %[[pt10]]
+// CHECK-NEXT:   %[[ct12:.*]] = ckks.add %[[ct7]], %[[ct11]]
+// CHECK-NEXT:   affine.yield %[[ct12]], %[[ct9]]
+// CHECK:      return %[[ct5]]
   func.func @hv_matmul(%arg0: !secret.secret<tensor<1x1024xf32>>) -> !secret.secret<tensor<1x1024xf32>> attributes {llvm.emit_c_interface} {
     %cst = arith.constant dense_resource<__elided__> : tensor<1x1024xf32>
     %c1 = arith.constant 1 : index

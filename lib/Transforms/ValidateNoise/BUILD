@@ -24,6 +24,7 @@ cc_library(
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FuncDialect",

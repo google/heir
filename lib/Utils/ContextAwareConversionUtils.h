@@ -5,9 +5,11 @@
 #include <functional>
 #include <numeric>
 
+#include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETraits.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
@@ -241,30 +243,59 @@ class SecretGenericOpCipherPlainConversion
     }
 
     auto encodeCleartext =
-        [&](Value cleartext, lwe::NewLWECiphertextType ciphertextTy) -> Value {
+        [&](Value cleartext,
+            lwe::NewLWECiphertextType ciphertextTy) -> FailureOr<Value> {
+      auto initOp = dyn_cast_or_null<mgmt::InitOp>(cleartext.getDefiningOp());
+      if (!initOp) {
+        return failure();
+      }
+      auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(initOp);
+      if (!mgmtAttr) {
+        return failure();
+      }
+
+      Attribute ciphertextEncoding =
+          ciphertextTy.getPlaintextSpace().getEncoding();
+      Attribute plaintextEncoding = lwe::getEncodingAttrWithNewScalingFactor(
+          ciphertextEncoding, mgmtAttr.getScale());
+
+      if (!plaintextEncoding) {
+        return failure();
+      }
+
+      // TODO(#1643): inherit level information to plaintext type from init-op
+      // mgmt attr. This actually needs to make NewLWEPlaintextType RNS aware.
       auto plaintextTy = lwe::NewLWEPlaintextType::get(
           op.getContext(), ciphertextTy.getApplicationData(),
-          ciphertextTy.getPlaintextSpace());
-      return rewriter.create<lwe::RLWEEncodeOp>(
-          op.getLoc(), plaintextTy, cleartext,
-          ciphertextTy.getPlaintextSpace().getEncoding(),
-          ciphertextTy.getPlaintextSpace().getRing());
+          lwe::PlaintextSpaceAttr::get(
+              op.getContext(), ciphertextTy.getPlaintextSpace().getRing(),
+              plaintextEncoding));
+      Value realCleartext = initOp.getInput();
+      return rewriter
+          .create<lwe::RLWEEncodeOp>(op.getLoc(), plaintextTy, realCleartext,
+                                     plaintextEncoding,
+                                     ciphertextTy.getPlaintextSpace().getRing())
+          .getResult();
     };
 
     Value input0 = inputs[0];
     Value input1 = inputs[1];
     if (auto ciphertextTy =
             dyn_cast<lwe::NewLWECiphertextType>(input0.getType())) {
-      auto newOp = rewriter.replaceOpWithNewOp<Y>(
-          op, input0, encodeCleartext(input1, ciphertextTy));
+      auto encoded = encodeCleartext(input1, ciphertextTy);
+      if (failed(encoded)) {
+        return failure();
+      }
+      auto newOp = rewriter.replaceOpWithNewOp<Y>(op, input0, *encoded);
       return newOp.getOperation();
     }
 
-    auto newOp = rewriter.replaceOpWithNewOp<Y>(
-        op,
-        encodeCleartext(input0,
-                        cast<lwe::NewLWECiphertextType>(input1.getType())),
-        input1);
+    auto encoded = encodeCleartext(
+        input0, cast<lwe::NewLWECiphertextType>(input1.getType()));
+    if (failed(encoded)) {
+      return failure();
+    }
+    auto newOp = rewriter.replaceOpWithNewOp<Y>(op, *encoded, input1);
     return newOp.getOperation();
   }
 };
@@ -376,6 +407,27 @@ class SecretGenericOpModulusSwitchConversion
 
     auto newOp = rewriter.replaceOpWithNewOp<Y>(op, outputTypes[0], inputs[0],
                                                 outputRing);
+    return newOp.getOperation();
+  }
+};
+
+template <typename T>
+class SecretGenericOpLevelReduceConversion
+    : public SecretGenericOpConversion<mgmt::LevelReduceOp, T> {
+ public:
+  using SecretGenericOpConversion<mgmt::LevelReduceOp,
+                                  T>::SecretGenericOpConversion;
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter &rewriter) const override {
+    auto innerOp =
+        cast<mgmt::LevelReduceOp>(op.getBody()->getOperations().front());
+    auto levelToDrop = innerOp.getLevelToDrop();
+
+    auto newOp =
+        rewriter.replaceOpWithNewOp<T>(op, outputTypes, inputs[0], levelToDrop);
     return newOp.getOperation();
   }
 };

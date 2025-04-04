@@ -22,6 +22,8 @@ cc_library(
         "@heir//lib/Analysis/MulDepthAnalysis",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
+        "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/Transforms",
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",

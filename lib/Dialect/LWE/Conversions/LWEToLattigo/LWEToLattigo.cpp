@@ -19,7 +19,6 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/APFloat.h"               // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -408,7 +407,7 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
 };
 
 template <typename EvaluatorType, typename DecodeOp, typename LattigoDecodeOp,
-          typename AllocOp, bool UsingFloat>
+          typename AllocOp>
 struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
   using OpConversionPattern<DecodeOp>::OpConversionPattern;
 
@@ -428,29 +427,12 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
       outputTensorType = RankedTensorType::get({1}, outputType);
     }
 
-    DenseElementsAttr constant;
-
-    if constexpr (UsingFloat) {
-      llvm::APFloatBase::Semantics floatEnum;
-      if (outputTensorType.getElementType().isF64()) {
-        floatEnum = llvm::APFloatBase::S_IEEEdouble;
-      } else if (outputTensorType.getElementType().isF32()) {
-        floatEnum = llvm::APFloatBase::S_IEEEsingle;
-      } else if (outputTensorType.getElementType().isF16()) {
-        floatEnum = llvm::APFloatBase::S_IEEEhalf;
-      } else {
-        return op.emitOpError()
-               << "Unsupported floating point type for decoding";
-      }
-      APFloat zero(llvm::APFloatBase::EnumToSemantics(floatEnum), "0.0");
-      constant = DenseElementsAttr::get(outputTensorType, {zero});
-    } else {
-      APInt zero(getElementTypeOrSelf(outputType).getIntOrFloatBitWidth(), 0);
-      constant = DenseElementsAttr::get(outputTensorType, zero);
+    auto zeroAttr = rewriter.getZeroAttr(outputTensorType);
+    if (!zeroAttr) {
+      return op.emitOpError() << "Unsupported type for lowering";
     }
-
     auto alloc =
-        rewriter.create<AllocOp>(op.getLoc(), outputTensorType, constant);
+        rewriter.create<AllocOp>(op.getLoc(), outputTensorType, zeroAttr);
 
     auto decodeOp = rewriter.create<LattigoDecodeOp>(
         op.getLoc(), outputTensorType, evaluator, adaptor.getInput(), alloc);
@@ -526,8 +508,7 @@ using ConvertBGVEncodeOp =
                         lattigo::BGVNewPlaintextOp>;
 using ConvertBGVDecodeOp =
     ConvertRlweDecodeOp<lattigo::BGVEncoderType, lwe::RLWEDecodeOp,
-                        lattigo::BGVDecodeOp, arith::ConstantOp,
-                        /*UsingFloat*/ false>;
+                        lattigo::BGVDecodeOp, arith::ConstantOp>;
 
 using ConvertBGVLevelReduceOp =
     ConvertRlweLevelReduceOp<lattigo::BGVEvaluatorType, bgv::LevelReduceOp,
@@ -573,8 +554,7 @@ using ConvertCKKSEncodeOp =
                         lattigo::CKKSNewPlaintextOp>;
 using ConvertCKKSDecodeOp =
     ConvertRlweDecodeOp<lattigo::CKKSEncoderType, lwe::RLWEDecodeOp,
-                        lattigo::CKKSDecodeOp, arith::ConstantOp,
-                        /*UsingFloat*/ true>;
+                        lattigo::CKKSDecodeOp, arith::ConstantOp>;
 
 using ConvertCKKSLevelReduceOp =
     ConvertRlweLevelReduceOp<lattigo::CKKSEvaluatorType, ckks::LevelReduceOp,

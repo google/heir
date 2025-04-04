@@ -120,6 +120,7 @@ cc_library(
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/OperationBalancer",
         "@heir//lib/Transforms/OptimizeRelinearization",
+        "@heir//lib/Transforms/PopulateScale",
         "@heir//lib/Transforms/PropagateAnnotation",
         "@heir//lib/Transforms/SecretInsertMgmt",
         "@heir//lib/Transforms/Secretize",

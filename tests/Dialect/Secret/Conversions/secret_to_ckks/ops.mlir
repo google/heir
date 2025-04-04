@@ -68,11 +68,12 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // TODO(#913): Blocked on a layout representation.
   // CHECK: func @test_mul_2d
   func.func @test_mul_2d(%arg0 : !secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) -> (!secret.secret<tensor<1x1024xf32>> {mgmt.mgmt = #mgmt}) {
+    %c0 = arith.constant dense<2.0> : tensor<1x1024xf32>
+    %c0_attr = mgmt.init %c0 {mgmt.mgmt = #mgmt} : tensor<1x1024xf32>
     %0 = secret.generic ins(%arg0 :  !secret.secret<tensor<1x1024xf32>>) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: ckks.mul_plain
       ^bb0(%ARG0 : tensor<1x1024xf32>):
-        %c0 = arith.constant dense<2.0> : tensor<1x1024xf32>
-        %1 = arith.mulf %ARG0, %c0: tensor<1x1024xf32>
+        %1 = arith.mulf %ARG0, %c0_attr : tensor<1x1024xf32>
         secret.yield %1 : tensor<1x1024xf32>
     } -> !secret.secret<tensor<1x1024xf32>>
     // CHECK: return

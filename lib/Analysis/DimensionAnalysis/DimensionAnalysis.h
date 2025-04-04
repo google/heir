@@ -103,6 +103,8 @@ DimensionState::DimensionType getDimension(Value value, DataFlowSolver *solver);
 
 DimensionState::DimensionType getDimensionFromMgmtAttr(Value value);
 
+constexpr StringRef kArgDimensionAttrName = "mgmt.dimension";
+
 void annotateDimension(Operation *top, DataFlowSolver *solver);
 
 }  // namespace heir

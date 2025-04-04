@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-ckks='ciphertext-degree=16' --scheme-to-openfhe='entry-function=matmul' %s | heir-translate --emit-openfhe-pke | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --mlir-to-ckks='ciphertext-degree=16' --scheme-to-openfhe='entry-function=matmul' %s | heir-translate --emit-openfhe-pke | FileCheck %s
 
 // CHECK: std::vector<CiphertextT> matmul(
 // CHECK-SAME:    CryptoContextT [[v0:[^,]*]],
@@ -19,14 +19,13 @@
 // CHECK-NEXT:     const auto& [[v13:.*]] = [[v0]]->EvalAdd([[v10]], [[v12]]);
 // CHECK-NEXT:     [[v2]][0 + 2 * (0)] = [[v13]];
 // CHECK-COUNT-3:                  [[v0]]->EvalMult
-// CHECK-COUNT-2:  [[v0]]->ModReduce
 // CHECK:          return
 
 // CHECK: matmul__generate_crypto_context
 // CHECK:          SetMultiplicativeDepth(1)
 // CHECK: matmul__configure_crypto_context
 
-module {
+module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>} {
   func.func @matmul(%arg0: tensor<1x2xf32> {secret.secret}, %arg1: tensor<1x2xf32> {secret.secret}) -> tensor<1x2xf32> {
     %0 = "tosa.const"() <{values = dense<[[2.0, 3.0], [4.0, 6.0]]> : tensor<2x2xf32>}> : () -> tensor<2x2xf32>
     %1 = affine.for %arg2 = 0 to 1 iter_args(%arg3 = %arg1) -> (tensor<1x2xf32>) {

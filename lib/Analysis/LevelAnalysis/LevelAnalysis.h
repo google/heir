@@ -70,6 +70,25 @@ class LevelLattice : public dataflow::Lattice<LevelState> {
   using Lattice::Lattice;
 };
 
+/// Forward Analyse the level of each secret Value
+///
+/// Note that the value stored in LevelState is from 0 to L
+/// instead of the L-to-0 FHE convention. This is because at
+/// the beginning we have no information of L and we rely on
+/// this analysis to get L (getMaxLevel). In annotateLevel
+/// we will convert the level to L - level.
+///
+/// This forward analysis roots from user input as 0, and
+/// after each modulus switching operation, the level will
+/// increase by 1, until the output.
+///
+/// Special case is the bootstrapping operation, where the level
+/// will be set back to 0 (input level).
+///
+/// This analysis is expected to determine all the levels of
+/// the secret Value, or ciphertext in the program.
+/// The level of plaintext Value should be determined by the
+/// Backward Analysis below.
 class LevelAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<LevelLattice>,
       public SecretnessAnalysisDependent<LevelAnalysis> {
@@ -94,7 +113,38 @@ class LevelAnalysis
   }
 };
 
+/// Backward Analyse the level of plaintext Value
+///
+/// This analysis should be run after the (forward) LevelAnalysis
+/// where the level of all the secret Value is determined.
+/// Then, this analysis will find ct-pt pair and determine the
+/// level of the pt Value.
+class LevelAnalysisBackward
+    : public dataflow::SparseBackwardDataFlowAnalysis<LevelLattice>,
+      public SecretnessAnalysisDependent<LevelAnalysis> {
+ public:
+  using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
+  friend class SecretnessAnalysisDependent<LevelAnalysis>;
+
+  void setToExitState(LevelLattice *lattice) override {
+    propagateIfChanged(lattice, lattice->join(LevelState()));
+  }
+
+  LogicalResult visitOperation(Operation *op, ArrayRef<LevelLattice *> operands,
+                               ArrayRef<const LevelLattice *> results) override;
+
+  // dummy impl
+  void visitBranchOperand(OpOperand &operand) override {}
+  void visitCallOperand(OpOperand &operand) override {}
+};
+
+//===----------------------------------------------------------------------===//
+// Utils
+//===----------------------------------------------------------------------===//
+
 LevelState::LevelType getLevelFromMgmtAttr(Value value);
+
+constexpr StringRef kArgLevelAttrName = "mgmt.level";
 
 /// baseLevel is for B/FV scheme, where all the analysis result would be 0
 void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel = 0);

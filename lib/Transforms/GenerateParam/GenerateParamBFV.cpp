@@ -179,8 +179,6 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
     if (auto schemeParamAttr =
             getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
                 bgv::BGVDialect::kSchemeParamAttrName)) {
-      getOperation()->emitRemark()
-          << "Scheme parameters already exist. Skipping generation.\n";
       return;
     }
 

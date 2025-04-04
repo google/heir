@@ -85,7 +85,7 @@ def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTyp
   let hasVerifier = 1;
 }
 
-def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, AllCiphertextTypesMatch, Commutative]> {
+def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
   let hasVerifier = 1;
 }

@@ -43,9 +43,6 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
     if (auto schemeParamAttr =
             getOperation()->getAttrOfType<ckks::SchemeParamAttr>(
                 ckks::CKKSDialect::kSchemeParamAttrName)) {
-      getOperation()->emitRemark()
-          << "Scheme parameters already exist. Skipping generation.\n";
-
       // TODO: put this in validate-noise once CKKS noise model is in
       auto schemeParam =
           ckks::SchemeParam::getSchemeParamFromAttr(schemeParamAttr);

@@ -15,10 +15,13 @@
 // CHECK:    %[[v10:.*]]  = arith.addf %[[v9]], %[[v9]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : f16
 // CHECK:    %[[v11:.*]]  = mgmt.modreduce %[[v10]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
 // CHECK:    %[[v12:.*]]  = arith.addf %[[v11]], %[[v11]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
-// CHECK:    %[[v13:.*]]  = mgmt.modreduce %[[input0]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : f16
-// CHECK:    %[[v14:.*]]  = mgmt.modreduce %[[v13]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
-// CHECK:    %[[v15:.*]]  = arith.addf %[[v12]], %[[v14]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
-// CHECK:    secret.yield %[[v15]] : f16
+// cross level op
+// CHECK:    %[[v13:.*]]  = mgmt.level_reduce %[[input0]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : f16
+// CHECK:    %[[v14:.*]]  = mgmt.adjust_scale %[[v13]] {id = 0 : i64, mgmt.mgmt = #mgmt.mgmt<level = 2>} : f16
+// CHECK:    %[[v15:.*]]  = mgmt.modreduce %[[v14]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
+// CHECK:    %[[v16:.*]]  = mgmt.adjust_scale %[[v12]] {id = 1 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
+// CHECK:    %[[v17:.*]]  = arith.addf %[[v16]], %[[v15]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
+// CHECK:    secret.yield %[[v17]] : f16
 
 
 func.func @bootstrap_waterline(
