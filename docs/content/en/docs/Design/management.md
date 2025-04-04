@@ -1,8 +1,7 @@
---------------------------------------------------------------------------------
-
-title: Ciphertext Management
-
-## weight: 9
+---
+title: Ciphertext management
+weight: 9
+---
 
 To lower from user specified computation to FHE scheme operations, a compiler
 must insert *ciphertext management* operations to satisfy various requirements
