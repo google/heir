@@ -79,10 +79,10 @@ def TensorExt_PermuteOp : TensorExt_Op<"permute", [Pure, AllTypesMatch<["input",
   let hasVerifier = 1;
 }
 
-def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMatch<["tensor", "output"]>]> {
+def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMatch<["value", "output"]>]> {
   let summary = "Convert from one layout to another.";
   let description = [{
-    This op represents the conversion of a tensor from one packed layout to
+    This op represents the conversion of a value from one packed layout to
     another. This is implemented via a "shift network" of ciphertext rotations,
     plaintext masks (ciphertext-plaintext multiplications), and additions.
 
@@ -90,16 +90,16 @@ def TensorExt_ConvertLayoutOp : TensorExt_Op<"convert_layout", [Pure, AllTypesMa
   }];
 
   let assemblyFormat = "operands attr-dict `:` type($output)";
-  let arguments = (ins AnyRankedTensor:$tensor, TensorExt_LayoutAttr:$from_layout, TensorExt_LayoutAttr:$to_layout);
-  let results = (outs AnyRankedTensor:$output);
+  let arguments = (ins AnyType:$value, TensorExt_LayoutAttr:$from_layout, TensorExt_LayoutAttr:$to_layout);
+  let results = (outs AnyType:$output);
   let hasVerifier = 1;
   let hasFolder = 1;
 }
 
-def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatch<["tensor", "output"]>]> {
-  let summary = "Assign a layout to a plaintext tensor.";
+def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatch<["value", "output"]>]> {
+  let summary = "Assign a layout to a plaintext tensor or scalar.";
   let description = [{
-    This op allows the ingestion of a plaintext tensor into the layout system.
+    This op allows the ingestion of a plaintext value into the layout system.
     For example, ops like `linalg.reduce`, require a tensor input to represent
     initial values. These will generally be created by an `arith.constant` or
     `tensor.empty` op, which does not have secret results. Lowerings will
@@ -110,8 +110,8 @@ def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatc
   }];
 
   let assemblyFormat = "operands attr-dict `:` type($output)";
-  let arguments = (ins AnyRankedTensor:$tensor, TensorExt_LayoutAttr:$layout);
-  let results = (outs AnyRankedTensor:$output);
+  let arguments = (ins AnyType:$value, TensorExt_LayoutAttr:$layout);
+  let results = (outs AnyType:$output);
   let hasVerifier = 1;
 }
 

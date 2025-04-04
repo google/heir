@@ -1,12 +1,12 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s
 
-// expected-error@below {{in and out may not be empty arrays}}
-#align = #tensor_ext.alignment<in = [], out = [32]>
-func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
+// in == [] implies the input is a scalar
+#align = #tensor_ext.alignment<in = [], out = [32], insertedDims = [0]>
+func.func private @test_fn(i32 {foo.bar = #align})
 
 // -----
 
-// expected-error@below {{in and out may not be empty arrays}}
+// expected-error@below {{out may not be an empty array}}
 #align = #tensor_ext.alignment<in = [16], out = []>
 func.func private @test_fn(tensor<16xi32> {foo.bar = #align})
 
