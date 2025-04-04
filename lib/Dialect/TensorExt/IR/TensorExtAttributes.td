@@ -78,13 +78,14 @@ def TensorExt_SIMDPackingAttr : TensorExt_Attr<"SIMDPacking", "simd_packing",
 def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
   let summary = "An attribute describing padding and alignment of a tensor.";
   let description = [{
-    This attribute is used to describe how a data-semantic tensor is padded
+    This attribute is used to describe how a data-semantic value is padded
     and replicated to align its size before applying a ciphertext layout
     (see `tensor_ext.layout`).
 
-    It describes transformations to be applied to an input tensor.
+    It describes transformations to be applied to an input tensor or scalar.
 
-    The `in` attribute describes the shape of the original tensor.
+    The `in` attribute describes the shape of the original value. An empty list
+    for `in` indicates a scalar value that must be materialized as a tensor.
     The following transformations are applied to the input tensor.
 
     1. New unit dimensions are inserted to match the number of dimensions
@@ -149,6 +150,20 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
     second axis to make a `tensor<1x16xi32>`. Finally, it is replicated twice
     along the columns and 32 times along the rows to fill the 32x32 output
     tensor.
+
+    Example:
+
+    ```mlir
+    #repl = #tensor_ext.alignment<
+      in = [],
+      insertedDims = [0],
+      out = [1],
+    >
+    ```
+
+    This indicates that the original input is a scalar such as `i32`, and it is
+    elevated to a `tensor<1xi32>` before being replicated to fill the
+    ciphertext shape.
   }];
 
   let parameters = (ins
@@ -158,6 +173,31 @@ def TensorExt_AlignmentAttr : TensorExt_Attr<"Alignment", "alignment"> {
     DefaultValuedParameter<"::mlir::DenseI64ArrayAttr", "$_builder.getDenseI64ArrayAttr({})">:$padding,
     DefaultValuedParameter<"TypedAttr", "nullptr">:$paddingValue
   );
+
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "::mlir::DenseI64ArrayAttr":$in,
+                                        "::mlir::DenseI64ArrayAttr":$out), [{
+      return $_get(
+        in.getContext(),
+        in,
+        out,
+        DenseI64ArrayAttr::get(in.getContext(), {}),
+        DenseI64ArrayAttr::get(in.getContext(), {}),
+        nullptr);
+    }]>,
+
+    AttrBuilder<(ins "::llvm::ArrayRef<int64_t>":$in,
+                     "::llvm::ArrayRef<int64_t>":$out), [{
+      return $_get(
+        $_ctxt,
+        DenseI64ArrayAttr::get($_ctxt, in),
+        DenseI64ArrayAttr::get($_ctxt, out),
+        DenseI64ArrayAttr::get($_ctxt, {}),
+        DenseI64ArrayAttr::get($_ctxt, {}),
+        nullptr
+      );
+    }]>,
+  ];
 
   let assemblyFormat =  "`<` struct(params) `>`";
   let genVerifyDecl = 1;

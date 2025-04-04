@@ -195,7 +195,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
   // Replace uses of the convert layout op with its input.
   builder.replaceAllUsesWith(minHoistingResult->convertLayoutOp.getResult(),
-                             minHoistingResult->convertLayoutOp.getTensor());
+                             minHoistingResult->convertLayoutOp.getValue());
 
   // Ensure that any other convert_layout ops have their from_layouts updated.
   // Update downstream ops.
