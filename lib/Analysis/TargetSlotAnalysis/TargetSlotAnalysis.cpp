@@ -37,9 +37,8 @@ LogicalResult TargetSlotAnalysis::visitOperation(
 
         Value insertIndexValue = insertOp.getIndices()[0];
         const dataflow::Lattice<dataflow::ConstantValue> *insertIndexLattice =
-            sccpAnalysis
-                ->lookupState<dataflow::Lattice<dataflow::ConstantValue>>(
-                    insertIndexValue);
+            getOrCreate<dataflow::Lattice<dataflow::ConstantValue>>(
+                insertIndexValue);
 
         if (insertIndexLattice) {
           LLVM_DEBUG(llvm::dbgs()

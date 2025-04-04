@@ -118,16 +118,9 @@ class TargetSlotLattice : public dataflow::Lattice<TargetSlot> {
 class TargetSlotAnalysis
     : public dataflow::SparseBackwardDataFlowAnalysis<TargetSlotLattice> {
  public:
-  explicit TargetSlotAnalysis(
-      DataFlowSolver &solver, SymbolTableCollection &symbolTable,
-      // The dataflow solver is a private member of the base analysis
-      // class, so if we want to access it we have to get it explicitly from
-      // the caller. It's required that this solver is pre-loaded with a
-      // SparseConstantPropagation analysis. I'd like a better way to do
-      // this: maybe pass a callback?
-      const DataFlowSolver *sccpAnalysis)
-      : SparseBackwardDataFlowAnalysis(solver, symbolTable),
-        sccpAnalysis(sccpAnalysis) {}
+  explicit TargetSlotAnalysis(DataFlowSolver &solver,
+                              SymbolTableCollection &symbolTable)
+      : SparseBackwardDataFlowAnalysis(solver, symbolTable) {}
   ~TargetSlotAnalysis() override = default;
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
 
@@ -140,9 +133,6 @@ class TargetSlotAnalysis
   void visitBranchOperand(OpOperand &operand) override {};
   void visitCallOperand(OpOperand &operand) override {};
   void setToExitState(TargetSlotLattice *lattice) override {};
-
- private:
-  const DataFlowSolver *sccpAnalysis;
 };
 
 }  // namespace target_slot_analysis
