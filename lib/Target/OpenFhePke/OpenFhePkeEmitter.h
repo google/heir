@@ -87,11 +87,15 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::affine::AffineForOp op);
   LogicalResult printOperation(::mlir::affine::AffineYieldOp op);
+  LogicalResult printOperation(::mlir::arith::AddIOp op);
+  LogicalResult printOperation(::mlir::arith::CmpIOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  LogicalResult printOperation(::mlir::arith::ExtFOp op);
   LogicalResult printOperation(::mlir::arith::ExtSIOp op);
   LogicalResult printOperation(::mlir::arith::ExtUIOp op);
-  LogicalResult printOperation(::mlir::arith::ExtFOp op);
   LogicalResult printOperation(::mlir::arith::IndexCastOp op);
+  LogicalResult printOperation(::mlir::arith::RemSIOp op);
+  LogicalResult printOperation(::mlir::arith::SelectOp op);
   LogicalResult printOperation(::mlir::tensor::EmptyOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
@@ -136,6 +140,8 @@ class OpenFhePkeEmitter {
                                 ::mlir::Value cryptoContext,
                                 ::mlir::ValueRange nonEvalOperands,
                                 std::string_view op);
+  LogicalResult printBinaryOp(Operation *op, ::mlir::Value lhs,
+                              ::mlir::Value rhs, std::string_view opName);
 
   // Emit an OpenFhe type, using a const specifier.
   LogicalResult emitType(::mlir::Type type, ::mlir::Location loc,
