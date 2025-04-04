@@ -70,6 +70,15 @@ frontend_test(
     ],
 )
 
+frontend_test(
+    name = "tensor_test",
+    srcs = ["tensor_test.py"],
+    tags = [
+        # copybara: manual
+        "notap",
+    ],
+)
+
 bzl_library(
     name = "testing_bzl",
     srcs = ["testing.bzl"],

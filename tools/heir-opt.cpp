@@ -81,6 +81,7 @@
 #include "lib/Transforms/SecretInsertMgmt/Passes.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/SelectRewrite/SelectRewrite.h"
+#include "lib/Transforms/ShapeInference/ShapeInference.h"
 #include "lib/Transforms/StraightLineVectorizer/StraightLineVectorizer.h"
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
@@ -277,6 +278,7 @@ int main(int argc, char **argv) {
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
   registerTensorToScalarsPasses();
+  registerShapeInferencePasses();
   // Register yosys optimizer pipeline if configured.
 #ifndef HEIR_NO_YOSYS
 #ifndef HEIR_ABC_BINARY
