@@ -7,6 +7,7 @@ package(default_applicable_licenses = ["@heir//:license"])
 openfhe_end_to_end_test(
     name = "dot_product_8f_debug_test",
     data = [
+        "@heir//tests/Examples/common",
         "@heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log",
     ],
     generated_lib_header = "dot_product_8f_debug_lib.h",
@@ -17,7 +18,7 @@ openfhe_end_to_end_test(
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
     ],
     heir_translate_flags = [],
-    mlir_src = "dot_product_8f.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
     tags = ["notap"],
     test_src = "dot_product_8f_debug_test.cpp",
 )

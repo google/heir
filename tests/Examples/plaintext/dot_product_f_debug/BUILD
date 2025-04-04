@@ -9,13 +9,14 @@ cc_library(
 
 plaintext_test(
     name = "dot_product_8f_debug",
+    data = ["@heir//tests/Examples/common"],
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=insert-debug-handler-calls=true",
     ],
     # log is visible to crypto backend
     log_file_name = "dot_product_8f_debug.log",
     log_file_visibility = ["@heir//tests/Examples:__subpackages__"],
-    mlir_src = "dot_product_8f.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
     deps = [
         ":dot_product_8f_debug_test",
         "@heir//tests/Examples/plaintext:memrefCopy",

@@ -6,13 +6,14 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 openfhe_end_to_end_test(
     name = "dot_product_8_test",
+    data = ["@heir//tests/Examples/common"],
     generated_lib_header = "dot_product_8_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=8",
         "--scheme-to-openfhe",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     tags = ["notap"],
     test_src = "dot_product_8_test.cpp",
 )

@@ -7,13 +7,14 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 heir_lattigo_lib(
     name = "dot_product_8",
+    data = ["@heir//tests/Examples/common"],
     go_library_name = "dotproduct8",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=8",
         "--scheme-to-lattigo",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro

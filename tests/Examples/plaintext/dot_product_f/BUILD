@@ -9,10 +9,11 @@ cc_library(
 
 plaintext_test(
     name = "dot_product_8f",
+    data = ["@heir//tests/Examples/common"],
     heir_opt_flags = [
         "--mlir-to-plaintext-backend",
     ],
-    mlir_src = "dot_product_8f.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
     deps = [
         ":dot_product_8f_test",
     ],

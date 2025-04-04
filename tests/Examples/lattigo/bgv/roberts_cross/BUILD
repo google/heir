@@ -7,13 +7,14 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 heir_lattigo_lib(
     name = "roberts_cross",
+    data = ["@heir//tests/Examples/common"],
     go_library_name = "robertscross",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=536903681",
         "--scheme-to-lattigo",
     ],
-    mlir_src = "roberts_cross_64x64.mlir",
+    mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro

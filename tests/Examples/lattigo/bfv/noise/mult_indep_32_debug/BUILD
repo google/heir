@@ -14,6 +14,7 @@ glaze_ignore = [
 
 heir_lattigo_lib(
     name = "mult_indep_32_debug",
+    data = ["@heir//tests/Examples/common"],
     extra_srcs = ["bfv_debug.go"],
     go_library_name = "main",
     heir_opt_flags = [
@@ -21,7 +22,7 @@ heir_lattigo_lib(
         "--mlir-to-bfv=noise-model=bfv-noise-bmcm23 annotate-noise-bound=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
-    mlir_src = "mult_indep_32.mlir",
+    mlir_src = "@heir//tests/Examples/common:mult_indep_32.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro

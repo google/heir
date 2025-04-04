@@ -15,6 +15,7 @@ glaze_ignore = [
 heir_lattigo_lib(
     name = "dot_product_8f_debug",
     data = [
+        "@heir//tests/Examples/common",
         "@heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log",
     ],
     extra_srcs = ["dot_product_8f_debug.go"],
@@ -26,7 +27,7 @@ heir_lattigo_lib(
           plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
-    mlir_src = "dot_product_8f.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
