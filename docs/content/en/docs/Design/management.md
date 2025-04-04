@@ -1,8 +1,7 @@
---------------------------------------------------------------------------------
-
+---
 title: Ciphertext Management
-
-## weight: 9
+weight: 9
+---
 
 To lower from user specified computation to FHE scheme operations, a compiler
 must insert *ciphertext management* operations to satisfy various requirements
@@ -46,12 +45,12 @@ There are several techniques to insert modulus switching ops.
 For the example circuit `input -> mult -> mult -> output`, the insertion result
 could be one of
 
-1.  After multiplication: `input -> (mult -> ms) -> (mult -> ms) -> output`
+1. After multiplication: `input -> (mult -> ms) -> (mult -> ms) -> output`
 
-1.  Before multiplication: `input -> (mult) -> (ms -> mult) -> (ms -> output)`
+1. Before multiplication: `input -> (mult) -> (ms -> mult) -> (ms -> output)`
 
-1.  Before multiplication (including the first multiplication): `input -> (ms ->
-    mult) -> (ms -> mult) -> (ms -> output)`
+1. Before multiplication (including the first multiplication):
+   `input -> (ms -> mult) -> (ms -> mult) -> (ms -> output)`
 
 The first strategy is from the BGV paper, the second and third strategies are
 from OpenFHE, which correspond to the `FLEXIBLEAUTO` mode and `FLEXIBLEAUTOEXT`
@@ -104,18 +103,18 @@ As one may expect, different modulus switching insertion strategies affect
 message scale differently. For $m_0$ with scale $a$ and $m_1$ with scale $b$,
 the result scale would be
 
-1.  After multiplication: $\[ab / qi\]\_t$.
+1. After multiplication: $\[ab / qi\]\_t$.
 
-1.  Before multiplication: $\[a / qi \\cdot b / qi\]\_t = \[ab / (qi^2)\]\_t$.
+1. Before multiplication: $\[a / qi \\cdot b / qi\]\_t = \[ab / (qi^2)\]\_t$.
 
 This is messy enough. To ease the burden, we can impose additional requirement:
 mandate a constant scale $\\Delta_i$ for all ciphertext at level $i$. This is
 called the *level-specific scaling factor*. With this in mind, addition within
 one level can happen without caring about the scale.
 
-1.  After multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / qi\]\_t$
+1. After multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / qi\]\_t$
 
-1.  Before multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / (qi^2)\]\_t$
+1. Before multiplication: $\\Delta\_{i-1} = \[\\Delta_i^2 / (qi^2)\]\_t$
 
 ### BGV: Cross Level Operation
 
@@ -127,17 +126,17 @@ The level can be easily adjusted by dropping the extra limbs, and scale can be
 adjusted by multiplying a constant, but because multiplying a constant will
 incur additional noise, the procedure becomes the following:
 
-1.  Assume the level and scale of two ciphertexts are $l_1$ and $l_2$, $s_1$ and
-    $s_2$ respectively. WLOG assume $l_1 > l_2$.
+1. Assume the level and scale of two ciphertexts are $l_1$ and $l_2$, $s_1$ and
+   $s_2$ respectively. WLOG assume $l_1 > l_2$.
 
-1.  Drop $l_1 - l_2 - 1$ limbs for the first ciphertext to make it at level $l_2
-    \+ 1$, if those extra limbs exist.
+1. Drop $l_1 - l_2 - 1$ limbs for the first ciphertext to make it at level $l_2
+   \+ 1$, if those extra limbs exist.
 
-1.  Adjust scale from $s_1$ to $s_2 \\cdot q\_{l_2 + 1}$ by multiplying $\[s_2
-    \\cdot q\_{l_2 + 1} / s1\]\_t$ for the first ciphertext.
+1. Adjust scale from $s_1$ to $s_2 \\cdot q\_{l_2 + 1}$ by multiplying $\[s_2
+   \\cdot q\_{l_2 + 1} / s1\]\_t$ for the first ciphertext.
 
-1.  Modulus switch from $l_2 + 1$ to $l_2$, producing scale $s_2$ for the first
-    ciphertext and its noise is controlled.
+1. Modulus switch from $l_2 + 1$ to $l_2$, producing scale $s_2$ for the first
+   ciphertext and its noise is controlled.
 
 ### BGV: Implementation in HEIR
 

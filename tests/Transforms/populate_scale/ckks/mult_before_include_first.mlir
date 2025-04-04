@@ -1,7 +1,7 @@
 // RUN: heir-opt %s --split-input-file --secret-insert-mgmt-ckks=before-mul-include-first-mul --populate-scale-ckks=before-mul-include-first-mul | FileCheck %s
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193, 35184373006337], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>, scheme.ckks} {
-  // CHECK-LABEL: func @mult
+  // CHECK: func @mult
   func.func @mult(%arg0: !secret.secret<f32>) -> !secret.secret<f32> {
     // check that argument are encrypted in double degree: 45 * 2 = 90
     // CHECK: __argattrs
@@ -26,7 +26,7 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
 // MatchCrossLevel
 
 module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [36028797019389953, 35184372121601, 35184372744193], P = [36028797019488257, 36028797020209153], logDefaultScale = 45>, scheme.ckks} {
-  // CHECK-LABEL: func @mul
+  // CHECK: func @mul
   func.func @mul(%arg0: !secret.secret<f32>) -> !secret.secret<f32> {
     // adjust_scale needs plaintext input encoded in specified scale
     // CHECK: %cst = arith.constant 1.000000e+00
