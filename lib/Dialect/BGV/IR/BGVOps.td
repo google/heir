@@ -49,6 +49,7 @@ def BGV_AddOp : BGV_Op<"add", [Commutative,
 def BGV_AddPlainOp : BGV_CiphertextPlaintextOp<"add_plain", [AllCiphertextTypesMatch,
         SameOperandsAndResultPlaintextTypes, Commutative]> {
   let summary = "Addition operation between ciphertext-plaintext.";
+  let hasCanonicalizer = 1;
 }
 
 def BGV_SubOp : BGV_Op<"sub", [SameOperandsAndResultRings,
@@ -88,6 +89,7 @@ def BGV_MulOp : BGV_Op<"mul", [Commutative, SameOperandsAndResultRings, InferTyp
 def BGV_MulPlainOp : BGV_CiphertextPlaintextOp<"mul_plain", [InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplication operation between ciphertext-plaintext.";
   let hasVerifier = 1;
+  let hasCanonicalizer = 1;
 }
 
 def BGV_RotateColumnsOp : BGV_Op<"rotate_cols", [AllTypesMatch<["input", "output"]>]> {
