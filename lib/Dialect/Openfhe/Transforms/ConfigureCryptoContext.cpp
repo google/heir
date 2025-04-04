@@ -302,6 +302,8 @@ struct ConfigureCryptoContext
     }
 
     // get evalAddCount/KeySwitchCount from func attribute, if present
+    config.evalAddCount = 0;
+    config.keySwitchCount = 0;
     if (auto openfheParamsAttr = op->getAttrOfType<mgmt::OpenfheParamsAttr>(
             mgmt::MgmtDialect::kArgOpenfheParamsAttrName)) {
       config.evalAddCount = openfheParamsAttr.getEvalAddCount();
