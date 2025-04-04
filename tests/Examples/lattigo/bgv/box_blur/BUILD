@@ -7,13 +7,14 @@ package(default_applicable_licenses = ["@heir//:license"])
 
 heir_lattigo_lib(
     name = "box_blur",
+    data = ["@heir//tests/Examples/common"],
     go_library_name = "boxblur",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
         "--mlir-to-bgv=ciphertext-degree=4096 plaintext-modulus=786433",
         "--scheme-to-lattigo",
     ],
-    mlir_src = "box_blur_64x64.mlir",
+    mlir_src = "@heir//tests/Examples/common:box_blur_64x64.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
