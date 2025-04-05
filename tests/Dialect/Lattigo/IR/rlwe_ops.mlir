@@ -104,4 +104,18 @@ module {
     %ct1 = lattigo.rlwe.drop_level %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> !ct
     return
   }
+
+  // CHECK: func @test_rlwe_negate_new
+  func.func @test_rlwe_negate_new(%evaluator : !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.rlwe.negate_new
+    %ct1 = lattigo.rlwe.negate_new %evaluator, %ct : (!evaluator, !ct) -> !ct
+    return
+  }
+
+  // CHECK: func @test_rlwe_negate
+  func.func @test_rlwe_negate(%evaluator : !evaluator, %ct: !ct) {
+    // CHECK: %[[v1:.*]] = lattigo.rlwe.negate
+    %0 = lattigo.rlwe.negate %evaluator, %ct, %ct : (!evaluator, !ct, !ct) -> (!ct)
+    return
+  }
 }

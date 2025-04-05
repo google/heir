@@ -331,6 +331,7 @@ struct AllocToInplace : impl::AllocToInplaceBase<AllocToInplace> {
         ConvertUnaryOp<lattigo::CKKSRescaleNewOp, lattigo::CKKSRescaleOp>,
         ConvertRotateOp<lattigo::CKKSRotateNewOp, lattigo::CKKSRotateOp>,
         // RLWE
+        ConvertUnaryOp<lattigo::RLWENegateNewOp, lattigo::RLWENegateOp>,
         ConvertDropLevelOp<lattigo::RLWEDropLevelNewOp,
                            lattigo::RLWEDropLevelOp>>(context, &liveness,
                                                       &blockToStorageInfo);
