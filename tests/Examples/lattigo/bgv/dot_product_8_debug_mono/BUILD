@@ -14,6 +14,7 @@ glaze_ignore = [
 
 heir_lattigo_lib(
     name = "dot_product_8_debug",
+    data = ["@heir//tests/Examples/common"],
     extra_srcs = ["dot_product_8_debug.go"],
     go_library_name = "dotproduct8debug",
     heir_opt_flags = [
@@ -21,7 +22,7 @@ heir_lattigo_lib(
         "--mlir-to-bgv=ciphertext-degree=8 noise-model=bgv-noise-mono annotate-noise-bound=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro
