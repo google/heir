@@ -209,3 +209,21 @@ module attributes {scheme.ckks} {
     return %v : f32
   }
 }
+
+// -----
+
+module attributes {scheme.ckks} {
+  // CHECK: func tensor_insert
+  func.func @tensor_insert(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
+    // CHECK:  [[v0:[^ ]*]] := 5
+    // CHECK:  [[v1:[^ ]*]] := 7.5
+    // CHECK:  [[v2:[^ ]*]] := []float64{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000}
+    // CHECK:  [[v2]]{{\[}}[[v0]]] = [[v1]]
+    // CHECK:  return [[v1]]
+    %c5 = arith.constant 5 : index
+    %v = arith.constant 7.5 : f32
+    %tensor = arith.constant dense<0.0> : tensor<8xf32>
+    %tensor2 = tensor.insert %v into %tensor[%c5] : tensor<8xf32>
+    return %v : f32
+  }
+}
