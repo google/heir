@@ -144,6 +144,9 @@ void mlirToSecretArithmeticPipelineBuilder(
   // secret.generic.
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
+
+  // TODO(#1181): remove the need to loop unroll
+  pm.addPass(createFullLoopUnroll());
 }
 
 void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
