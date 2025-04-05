@@ -197,3 +197,15 @@ module attributes {scheme.bgv} {
     return %ct1 : !lattigo.rlwe.ciphertext
   }
 }
+
+// -----
+
+module attributes {scheme.ckks} {
+  // CHECK: func float_constant
+  func.func @float_constant(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
+    // CHECK: [[v:[^, ]*]] := 7.5
+    // CHECK: return v
+    %v = arith.constant 7.5 : f32
+    return %v : f32
+  }
+}

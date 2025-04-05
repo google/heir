@@ -223,6 +223,11 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
             valueString = std::to_string(intAttr.getInt());
             return success();
           })
+          .Case<FloatAttr>([&](FloatAttr floatAttr) {
+            llvm::raw_string_ostream os(valueString);
+            floatAttr.getValue().print(os);
+            return success();
+          })
           .Case<DenseElementsAttr>([&](DenseElementsAttr denseAttr) {
             if (succeeded(denseAttr.tryGetValues<APInt>())) {
               valueString = "[]int64{";
