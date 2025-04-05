@@ -224,8 +224,12 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
             return success();
           })
           .Case<FloatAttr>([&](FloatAttr floatAttr) {
+            std::string floatLiteral;
+            llvm::raw_string_ostream literalOs(floatLiteral);
+            floatAttr.getValue().print(literalOs);
             llvm::raw_string_ostream os(valueString);
-            floatAttr.getValue().print(os);
+            os << "float" << floatAttr.getType().getIntOrFloatBitWidth() << "("
+               << literalOs.str() << ")";
             return success();
           })
           .Case<DenseElementsAttr>([&](DenseElementsAttr denseAttr) {

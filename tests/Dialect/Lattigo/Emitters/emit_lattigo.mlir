@@ -203,7 +203,7 @@ module attributes {scheme.bgv} {
 module attributes {scheme.ckks} {
   // CHECK: func float_constant
   func.func @float_constant(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
-    // CHECK: [[v:[^, ]*]] := 7.5
+    // CHECK: [[v:[^, ]*]] := float32(7.5)
     // CHECK: return v
     %v = arith.constant 7.5 : f32
     return %v : f32
@@ -216,7 +216,7 @@ module attributes {scheme.ckks} {
   // CHECK: func tensor_insert
   func.func @tensor_insert(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
     // CHECK:  [[v0:[^ ]*]] := 5
-    // CHECK:  [[v1:[^ ]*]] := 7.5
+    // CHECK:  [[v1:[^, ]*]] := float32(7.5)
     // CHECK:  [[v2:[^ ]*]] := []float64{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000}
     // CHECK:  [[v2]]{{\[}}[[v0]]] = [[v1]]
     // CHECK:  return [[v1]]
