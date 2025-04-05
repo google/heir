@@ -10,6 +10,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -922,8 +923,8 @@ void registerToLattigoTranslation() {
       },
       [](DialectRegistry &registry) {
         registry.insert<rns::RNSDialect, arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, lattigo::LattigoDialect,
-                        mgmt::MgmtDialect>();
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, mgmt::MgmtDialect>();
       });
 }
 
