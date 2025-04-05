@@ -195,11 +195,11 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
   // Replace uses of the convert layout op with its input.
   builder.replaceAllUsesWith(minHoistingResult->convertLayoutOp.getResult(),
-                             minHoistingResult->convertLayoutOp.getTensor());
+                             minHoistingResult->convertLayoutOp.getValue());
 
   // Ensure that any other convert_layout ops have their from_layouts updated.
   // Update downstream ops.
-  for (auto user : op->getResult(0).getUsers()) {
+  for (auto *user : op->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
       // Update any convert_layout uses of the op result.
       convertLayoutOp.setFromLayoutAttr(newOutputLayout);

@@ -10,6 +10,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -57,7 +58,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::FromElementsOp>(
+          .Case<tensor::ExtractOp, tensor::InsertOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
@@ -222,6 +223,15 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
             valueString = std::to_string(intAttr.getInt());
             return success();
           })
+          .Case<FloatAttr>([&](FloatAttr floatAttr) {
+            std::string floatLiteral;
+            llvm::raw_string_ostream literalOs(floatLiteral);
+            floatAttr.getValue().print(literalOs);
+            llvm::raw_string_ostream os(valueString);
+            os << "float" << floatAttr.getType().getIntOrFloatBitWidth() << "("
+               << literalOs.str() << ")";
+            return success();
+          })
           .Case<DenseElementsAttr>([&](DenseElementsAttr denseAttr) {
             if (succeeded(denseAttr.tryGetValues<APInt>())) {
               valueString = "[]int64{";
@@ -253,9 +263,18 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
-  // only support 1-dim tensor for now
+  assert(op.getIndices().size() == 1 &&
+         "LattigoEmitter only supports 1-dim tensor for now");
   os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
   os << getName(op.getIndices()[0]) << "]\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
+  assert(op.getIndices().size() == 1 &&
+         "LattigoEmitter only supports 1-dim tensor for now");
+  os << getName(op.getDest()) << "[" << getName(op.getIndices()[0])
+     << "] = " << getName(op.getScalar()) << "\n";
   return success();
 }
 
@@ -922,8 +941,8 @@ void registerToLattigoTranslation() {
       },
       [](DialectRegistry &registry) {
         registry.insert<rns::RNSDialect, arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, lattigo::LattigoDialect,
-                        mgmt::MgmtDialect>();
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, mgmt::MgmtDialect>();
       });
 }
 

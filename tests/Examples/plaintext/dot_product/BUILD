@@ -23,10 +23,11 @@ cc_library(
 # Secret arithmetic plaintext backend with original integer type semantic
 plaintext_test(
     name = "dot_product_8",
+    data = ["@heir//tests/Examples/common"],
     heir_opt_flags = [
         "--mlir-to-plaintext-backend",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_test",
     ],
@@ -35,10 +36,11 @@ plaintext_test(
 # Secret arithmetic plaintext backend with plaintext modulus semantic
 plaintext_test(
     name = "dot_product_8_mod_257",
+    data = ["@heir//tests/Examples/common"],
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=257",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_test",
     ],
@@ -47,10 +49,11 @@ plaintext_test(
 # Secret arithmetic plaintext backend with plaintext modulus semantic
 plaintext_test(
     name = "dot_product_8_mod_65537",
+    data = ["@heir//tests/Examples/common"],
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=65537",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_test",
     ],
@@ -59,10 +62,11 @@ plaintext_test(
 # Secret arithmetic plaintext backend with plaintext modulus semantic
 plaintext_test(
     name = "dot_product_8_mod_17",
+    data = ["@heir//tests/Examples/common"],
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=17",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_failure_test",
     ],

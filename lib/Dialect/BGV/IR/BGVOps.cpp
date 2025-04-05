@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEOps.h"
+#include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
@@ -79,6 +80,15 @@ LogicalResult RelinearizeOp::inferReturnTypes(
     MLIRContext *ctx, std::optional<Location>, RelinearizeOp::Adaptor adaptor,
     SmallVectorImpl<Type> &inferredReturnTypes) {
   return lwe::inferRelinearizeOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+void MulPlainOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                             MLIRContext *context) {
+  results.add<lwe::PutCiphertextInFirstOperand<MulPlainOp>>(context);
+}
+void AddPlainOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                             MLIRContext *context) {
+  results.add<lwe::PutCiphertextInFirstOperand<AddPlainOp>>(context);
 }
 
 }  // namespace bgv

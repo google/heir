@@ -8,6 +8,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkeHeaderEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFhePkePybindEmitter.h"
@@ -82,6 +83,7 @@ void registerToOpenFhePkeTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         openfhe::OpenfheDialect, lwe::LWEDialect,
+                        tensor_ext::TensorExtDialect,
                         ::mlir::heir::polynomial::PolynomialDialect,
                         tensor::TensorDialect, mod_arith::ModArithDialect,
                         rns::RNSDialect, affine::AffineDialect>();
@@ -99,11 +101,12 @@ void registerToOpenFhePkeHeaderTranslation() {
                                            options->openfheImportType);
       },
       [](DialectRegistry &registry) {
-        registry.insert<
-            arith::ArithDialect, affine::AffineDialect, func::FuncDialect,
-            tensor::TensorDialect, openfhe::OpenfheDialect, lwe::LWEDialect,
-            rns::RNSDialect, ::mlir::heir::polynomial::PolynomialDialect,
-            mod_arith::ModArithDialect>();
+        registry.insert<arith::ArithDialect, affine::AffineDialect,
+                        func::FuncDialect, tensor::TensorDialect,
+                        tensor_ext::TensorExtDialect, openfhe::OpenfheDialect,
+                        lwe::LWEDialect, rns::RNSDialect,
+                        ::mlir::heir::polynomial::PolynomialDialect,
+                        mod_arith::ModArithDialect>();
         rns::registerExternalRNSTypeInterfaces(registry);
       });
 }
@@ -122,7 +125,7 @@ void registerToOpenFhePkePybindTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect, openfhe::OpenfheDialect,
-                        lwe::LWEDialect,
+                        lwe::LWEDialect, tensor_ext::TensorExtDialect,
                         ::mlir::heir::polynomial::PolynomialDialect,
                         mod_arith::ModArithDialect, rns::RNSDialect>();
         rns::registerExternalRNSTypeInterfaces(registry);

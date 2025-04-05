@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --secretize --mlir-to-secret-arithmetic --optimize-relinearization %s | FileCheck %s
+// RUN: heir-opt --mlir-print-local-scope --secretize --mlir-to-secret-arithmetic=ciphertext-degree=8 --optimize-relinearization %s | FileCheck %s
 
 // CHECK: func.func @two_muls_followed_by_add
 // CHECK: secret.generic
@@ -166,16 +166,15 @@ func.func @repeated_mul(%arg0: tensor<8xi16>) -> tensor<8xi16> {
 }
 
 // Test that non mul/add ops work well with generic op handling in the analysis
-// CHECK: func.func @smoke_test
-// CHECK-NEXT: arith.constant
-// CHECK-NEXT: arith.constant
-// CHECK-NEXT: secret.generic
+// CHECK-LABEL: func.func @smoke_test
+// CHECK-COUNT-5: arith.constant
+// CHECK: secret.generic
 // CHECK: arith.muli
-// CHECK-NEXT: arith.muli
-// CHECK-NEXT: arith.subi
-// CHECK-NEXT: arith.muli
-// CHECK-NEXT: arith.addi
-// CHECK-NEXT: mgmt.relinearize
+// CHECK: arith.muli
+// CHECK: arith.subi
+// CHECK: arith.muli
+// CHECK: arith.addi
+// CHECK: mgmt.relinearize
 // CHECK-NEXT: secret.yield
 func.func @smoke_test(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> tensor<8xi16> {
   %cst = arith.constant dense<3> : tensor<8xi16>

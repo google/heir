@@ -58,6 +58,8 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
+  LogicalResult printOperation(::mlir::tensor::InsertOp op);
+
   // Lattigo ops
   // RLWE
   LogicalResult printOperation(RLWENewEncryptorOp op);

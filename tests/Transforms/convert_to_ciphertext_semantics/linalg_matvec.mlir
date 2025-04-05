@@ -1,12 +1,12 @@
 // RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
 
-#vec_layout = #tensor_ext.layout<map = (d0) -> (d0)>
+#vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
 #diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 16, (d0 + d1) mod 16)>
 
 // CHECK-DAG: [[row_major_indexing_map:#[^ ]*]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-DAG: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> (d1 mod 16, (d0 + d1) mod 16)>
-// CHECK-DAG: [[layout_rm_1d:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0)>
-// CHECK-DAG: [[orig_type:#[^ ]*]] = #tensor_ext.original_type<originalType = !secret.secret<tensor<16xi16>>, layout = [[layout_rm_1d]]>
+// CHECK-DAG: [[layout_rm_1d:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
+// CHECK-DAG: [[orig_type:#[^ ]*]] = #tensor_ext.original_type<originalType = tensor<16xi16>, layout = [[layout_rm_1d]]>
 
 // CHECK: @matvec_constant_matrix
 // CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xi16>>]]
@@ -29,8 +29,10 @@ func.func @matvec_constant_matrix(
                       } {
   // CHECK: ^body([[clear_arg0:%[^ ]+]]: tensor<16xi16>):
   ^body(%input0: tensor<16xi16>):
-    // Nb. this op is just replaced with its input since the input happens to
-    // already be materialized properly.
+    // Apply the row-major encoding
+    // CHECK: [[enc_vec_out:%[^ ]+]] = arith.constant dense<0> : tensor<16xi16>
+    // CHECK: [[enc_vec:%[^ ]+]] = linalg.generic
+    // CHECK-SAME: [[loop_init]]
     %enc_out = tensor_ext.assign_layout %out {layout = #vec_layout, tensor_ext.layout = #vec_layout} : tensor<16xi16>
 
     // Apply the diagonal encoding
@@ -46,84 +48,99 @@ func.func @matvec_constant_matrix(
     %enc_matrix = tensor_ext.assign_layout %cst {layout = #diagonal, tensor_ext.layout = #diagonal} : tensor<16x16xi16>
 
     // Now the Halevi-Shoup kernel
-    // CHECK: [[c1:[^ ]*]] = arith.constant 1
 
     // 16 iterations, unrolled
-    // CHECK-NEXT: [[rotated:[^ ]*]] = tensor_ext.rotate [[clear_arg0]], [[c1]]
+    // CHECK: [[c0:[^ ]*]] = arith.constant 0
+    // CHECK-NEXT: [[rotated:[^ ]*]] = tensor_ext.rotate [[clear_arg0]], [[c0]]
     // CHECK-NEXT: [[row:[^ ]*]] = tensor.extract_slice
     // CHECK-NEXT: [[muled:[^ ]*]] = arith.muli [[rotated]], [[row]]
-    // CHECK-NEXT: [[added:[^ ]*]] = arith.addi [[loop_init]], [[muled]]
+    // CHECK-NEXT: [[added:[^ ]*]] = arith.addi [[enc_vec]], [[muled]]
 
+    // CHECK: [[c1:[^ ]*]] = arith.constant 1
+    // CHECK-NEXT: tensor_ext.rotate [[clear_arg0]], [[c1]]
+    // CHECK-NEXT: tensor.extract_slice
+    // CHECK-NEXT: arith.muli
+    // CHECK-NEXT: arith.addi
+
+    // CHECK: arith.constant 2
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 3
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 4
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 5
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 6
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 7
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 8
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 9
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 10
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 11
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 12
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 13
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
+    // CHECK: arith.constant 14
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK-NEXT: tensor_ext.rotate
-    // CHECK-NEXT: tensor.extract_slice
-    // CHECK-NEXT: arith.muli
-    // CHECK-NEXT: arith.addi
-
+    // CHECK: arith.constant 15
     // CHECK-NEXT: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
@@ -140,9 +157,9 @@ func.func @matvec_constant_matrix(
 
 // -----
 
-#input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0)>
+#input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
 #output_alignment = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0:i16>
-#output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #output_alignment>
+#output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16), alignment = #output_alignment>
 #diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 4, (d0 + d1) mod 16)>
 
 // CHECK: [[row_major_indexing_map:#[^ ]*]] = affine_map<(d0, d1) -> (d0, d1)>
@@ -182,25 +199,23 @@ func.func @squat(
     %enc_matrix = tensor_ext.assign_layout %cst {layout = #diagonal, tensor_ext.layout = #diagonal} : tensor<4x16xi16>
 
     // Now the Halevi-Shoup kernel
-    // CHECK: [[c1:[^ ]*]] = arith.constant 1
-
     // 4 iterations, unrolled
-    // CHECK-NEXT: ensor_ext.rotate
+    // CHECK: ensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK-NEXT: tensor_ext.rotate
+    // CHECK: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK-NEXT: tensor_ext.rotate
+    // CHECK: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: arith.addi
 
-    // CHECK-NEXT: tensor_ext.rotate
+    // CHECK: tensor_ext.rotate
     // CHECK-NEXT: tensor.extract_slice
     // CHECK-NEXT: arith.muli
     // CHECK-NEXT: [[loop_output:%[^ ]*]] = arith.addi
@@ -233,9 +248,9 @@ func.func @squat(
 
 // Test f32 padding values
 
-#input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0)>
+#input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
 #output_alignment = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0.0:f32>
-#output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #output_alignment>
+#output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16), alignment = #output_alignment>
 #diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 4, (d0 + d1) mod 16)>
 
 // CHECK: @f32_padding
