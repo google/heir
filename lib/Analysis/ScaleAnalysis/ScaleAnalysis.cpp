@@ -271,18 +271,38 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  auto getSecretOrInittedOperands =
+      [&](Operation *op, SmallVectorImpl<OpOperand *> &secretOperands) {
+        this->getSecretOperands(op, secretOperands);
+        for (auto &opOperand : op->getOpOperands()) {
+          if (!this->isSecretInternal(op, opOperand.get()) &&
+              opOperand.get().getDefiningOp() &&
+              isa<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
+            // Treat it as if it were secret for the purpose of scale
+            // propagation
+            secretOperands.push_back(&opOperand);
+          }
+        }
+      };
+
   auto getOperandScales =
       [&](Operation *op, SmallVectorImpl<int64_t> &operandWithoutScaleIndices,
           SmallVectorImpl<int64_t> &scales) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Operand scales for " << op->getName() << ": ");
         SmallVector<OpOperand *> secretOperands;
-        this->getSecretOperands(op, secretOperands);
+        getSecretOrInittedOperands(op, secretOperands);
 
         for (auto *operand : secretOperands) {
           auto operandState = getLatticeElement(operand->get())->getValue();
           if (!operandState.isInitialized()) {
+            LLVM_DEBUG(llvm::dbgs()
+                       << "o" << operand->getOperandNumber() << "(uninit), ");
             operandWithoutScaleIndices.push_back(operand->getOperandNumber());
             continue;
           }
+          LLVM_DEBUG(llvm::dbgs() << "o" << operand->getOperandNumber() << "("
+                                  << operandState.getScale() << "), ");
           scales.push_back(operandState.getScale());
         }
         if (scales.size() > 1) {
@@ -291,9 +311,11 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
                                     << scales[1] << " for " << *op << "\n");
           }
         }
+        LLVM_DEBUG(llvm::dbgs() << "\n");
       };
 
   auto getResultScales = [&](Operation *op, SmallVectorImpl<int64_t> &scales) {
+    LLVM_DEBUG(llvm::dbgs() << "Result scales for " << op->getName() << ": ");
     SmallVector<OpResult> secretResults;
     this->getSecretResults(op, secretResults);
 
@@ -302,10 +324,15 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
       if (!resultState.isInitialized()) {
         continue;
       }
+      LLVM_DEBUG(llvm::dbgs() << "r" << cast<OpResult>(result).getResultNumber()
+                              << "(" << resultState.getScale() << "), ");
       scales.push_back(resultState.getScale());
     }
+    LLVM_DEBUG(llvm::dbgs() << "\n");
   };
 
+  LLVM_DEBUG(llvm::dbgs() << "Backward analysis visiting: " << op->getName()
+                          << "\n");
   llvm::TypeSwitch<Operation &>(*op)
       .template Case<arith::MulIOp, arith::MulFOp>([&](auto mulOp) {
         SmallVector<int64_t> resultScales;
@@ -326,13 +353,13 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
         if (operandScales.size() > 1) {
           return;
         }
-        auto scaleLhs = operandScales[0];
+        auto presentScale = operandScales[0];
 
-        // propagate scale to rhs
-        auto scaleRhs = ScaleModelT::evalMulScaleBackward(
-            getLocalParam(mulOp.getResult()), resultScales[0], scaleLhs);
+        // propagate scale to other operand
+        auto scaleOther = ScaleModelT::evalMulScaleBackward(
+            getLocalParam(mulOp.getResult()), resultScales[0], presentScale);
         propagate(mulOp->getOperand(operandWithoutScaleIndices[0]),
-                  ScaleState(scaleRhs));
+                  ScaleState(scaleOther));
       })
       .template Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         SmallVector<int64_t> resultScales;
@@ -349,7 +376,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
           return;
         }
 
-        // propagate scale to result
+        // propagate scale to operand
         auto resultScale = resultScales[0];
         // get level of the operand.
         auto newScale = ScaleModelT::evalModReduceScaleBackward(
