@@ -32,9 +32,10 @@ namespace lwe {
 #define GEN_PASS_DEF_ADDCLIENTINTERFACE
 #include "lib/Dialect/LWE/Transforms/Passes.h.inc"
 
-FailureOr<mlir::heir::polynomial::RingAttr> getEncRingFromFuncOp(
-    func::FuncOp op) {
-  mlir::heir::polynomial::RingAttr ring = nullptr;
+using ::mlir::heir::polynomial::RingAttr;
+
+FailureOr<RingAttr> getEncRingFromFuncOp(func::FuncOp op) {
+  RingAttr ring = nullptr;
   auto argTypes = op.getArgumentTypes();
   for (auto argTy : argTypes) {
     // Strip containers (tensor/etc)
@@ -54,9 +55,8 @@ FailureOr<mlir::heir::polynomial::RingAttr> getEncRingFromFuncOp(
   return ring;
 }
 
-FailureOr<mlir::heir::polynomial::RingAttr> getDecRingFromFuncOp(
-    func::FuncOp op) {
-  mlir::heir::polynomial::RingAttr ring = nullptr;
+FailureOr<RingAttr> getDecRingFromFuncOp(func::FuncOp op) {
+  RingAttr ring = nullptr;
   auto resultTypes = op.getFunctionType().getResults();
   for (auto resultTy : resultTypes) {
     // Strip containers (tensor/etc)
@@ -77,10 +77,12 @@ FailureOr<mlir::heir::polynomial::RingAttr> getDecRingFromFuncOp(
 }
 
 /// Generates an encryption func for one or more types.
-LogicalResult generateEncryptionFunc(
-    func::FuncOp op, const std::string &encFuncName, TypeRange encFuncArgTypes,
-    TypeRange encFuncResultTypes, bool usePublicKey,
-    mlir::heir::polynomial::RingAttr ring, ImplicitLocOpBuilder &builder) {
+LogicalResult generateEncryptionFunc(func::FuncOp op,
+                                     const std::string &encFuncName,
+                                     TypeRange encFuncArgTypes,
+                                     TypeRange encFuncResultTypes,
+                                     bool usePublicKey, RingAttr ring,
+                                     ImplicitLocOpBuilder &builder) {
   // The enryption function converts each plaintext operand to its encrypted
   // form. We also have to add a public/secret key arg, and we put it at the
   // end to maintain zippability of the non-key args.
@@ -134,7 +136,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
                                      const std::string &decFuncName,
                                      TypeRange decFuncArgTypes,
                                      TypeRange decFuncResultTypes,
-                                     mlir::heir::polynomial::RingAttr ring,
+                                     RingAttr ring,
                                      ImplicitLocOpBuilder &builder) {
   Type decryptionKeyType = lwe::NewLWESecretKeyType::get(
       op.getContext(), KeyAttr::get(op.getContext(), 0), ring);
@@ -191,8 +193,8 @@ LogicalResult convertFunc(func::FuncOp op, bool usePublicKey) {
   if (failed(ringEncResult) || failed(ringDecResult)) {
     return failure();
   }
-  mlir::heir::polynomial::RingAttr ringEnc = ringEncResult.value();
-  mlir::heir::polynomial::RingAttr ringDec = ringDecResult.value();
+  RingAttr ringEnc = ringEncResult.value();
+  RingAttr ringDec = ringDecResult.value();
   ImplicitLocOpBuilder builder =
       ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
 
@@ -269,13 +271,14 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   }
 
   void runOnOperation() override {
+    bool usePk = getUsePublicKey();
     auto result =
         getOperation()->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
           if (op.isDeclaration()) {
             op->emitWarning("Skipping client interface for external func");
             return WalkResult::advance();
           }
-          if (failed(convertFunc(op, getUsePublicKey()))) {
+          if (failed(convertFunc(op, usePk))) {
             op->emitError("Failed to add client interface for func");
             return WalkResult::interrupt();
           }
