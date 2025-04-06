@@ -58,7 +58,7 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::FromElementsOp>(
+          .Case<tensor::ExtractOp, tensor::InsertOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
@@ -226,7 +226,10 @@ FailureOr<std::string> getStringForConstant(T value) {
     return std::to_string(value.getSExtValue());
   } else if constexpr (std::is_same_v<T, APFloat>) {
     // care about precision...see OpenfhePkeEmitter when we encounter problem
-    return std::to_string(value.convertToDouble());
+    std::string literalStr;
+    llvm::raw_string_ostream literalOs(literalStr);
+    value.print(literalOs);
+    return literalOs.str();
   }
   return failure();
 }
@@ -234,14 +237,14 @@ FailureOr<std::string> getStringForConstant(T value) {
 FailureOr<std::string> getStringForDenseElementAttr(
     DenseElementsAttr denseAttr) {
   // Splat is also handled in getValues
-  std::string valueString;
+  SmallVector<std::string> values;
   if (succeeded(denseAttr.tryGetValues<APInt>())) {
     for (auto value : denseAttr.getValues<APInt>()) {
       auto constantString = getStringForConstant(value);
       if (failed(constantString)) {
         return failure();
       }
-      valueString += *constantString + ", ";
+      values.push_back(*constantString);
     }
   } else if (succeeded(denseAttr.tryGetValues<APFloat>())) {
     for (auto value : denseAttr.getValues<APFloat>()) {
@@ -249,17 +252,12 @@ FailureOr<std::string> getStringForDenseElementAttr(
       if (failed(constantString)) {
         return failure();
       }
-      valueString += *constantString + ", ";
+      values.push_back(*constantString);
     }
   } else {
     return failure();
   }
-  // remove the trailing ", "
-  if (valueString.size() > 1) {
-    valueString.pop_back();
-    valueString.pop_back();
-  }
-  return valueString;
+  return llvm::join(values, ", ");
 }
 
 }  // namespace
@@ -318,9 +316,22 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
-  // only support 1-dim tensor for now
   os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
-  os << getName(op.getIndices()[0]) << "]\n";
+  os << flattenIndexExpression(op.getTensor().getType(), op.getIndices(),
+                               [&](Value value) { return getName(value); });
+  os << "]\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
+  os << variableNames->getNameForValue(op.getDest());
+  os << "[";
+  os << flattenIndexExpression(
+      op.getResult().getType(), op.getIndices(),
+      [&](Value value) { return variableNames->getNameForValue(value); });
+  os << "]";
+  os << " = " << variableNames->getNameForValue(op.getScalar()) << "\n";
+  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
   return success();
 }
 

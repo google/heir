@@ -6,6 +6,7 @@
 #include <numeric>
 #include <string>
 
+#include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
