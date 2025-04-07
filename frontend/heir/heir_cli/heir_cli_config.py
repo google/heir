@@ -5,6 +5,7 @@ import os
 import pathlib
 from pathlib import Path
 import shutil
+from heir.backends.util.common import get_repo_root
 
 dataclass = dataclasses.dataclass
 
@@ -15,26 +16,14 @@ class HEIRConfig:
   heir_translate_path: str | Path
 
 
-def find_above(dirname: str) -> Path | None:
-  path = pathlib.Path(__file__).resolve()
-  matching = [p / dirname for p in path.parents if (p / dirname).exists()]
-  return matching[-1] if matching else None
-
-
-def get_repo_root() -> Path | None:
-  default = find_above("bazel-bin")
-  found = os.getenv("HEIR_REPO_ROOT_MARKER")
-  return Path(found) if found else default
-
-
 def development_heir_config() -> HEIRConfig:
   repo_root = get_repo_root()
   if not repo_root:
     raise RuntimeError("Could not build development config. Did you run bazel?")
 
   return HEIRConfig(
-      heir_opt_path=repo_root / "tools" / "heir-opt",
-      heir_translate_path=repo_root / "tools" / "heir-translate",
+      heir_opt_path=repo_root / "bazel-bin" / "tools" / "heir-opt",
+      heir_translate_path=repo_root / "bazel-bin" / "tools" / "heir-translate",
   )
 
 
