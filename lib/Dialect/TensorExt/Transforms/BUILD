@@ -13,6 +13,7 @@ cc_library(
     deps = [
         ":AlignTensorSizes",
         ":CollapseInsertionChains",
+        ":FoldConvertLayoutIntoAssignLayout",
         ":ImplementShiftNetwork",
         ":InsertRotate",
         ":RotateAndReduce",
@@ -123,6 +124,23 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "FoldConvertLayoutIntoAssignLayout",
+    srcs = ["FoldConvertLayoutIntoAssignLayout.cpp"],
+    hdrs = [
+        "FoldConvertLayoutIntoAssignLayout.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils:AttributeUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 
