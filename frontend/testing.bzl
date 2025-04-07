@@ -38,7 +38,7 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
             "OPENFHE_INCLUDE_TYPE": "source-relative",
             "OPENFHE_LINK_LIBS": ":".join(libs),
             "OPENFHE_INCLUDE_DIR": ":".join(include_dirs),
-            "HEIR_REPO_ROOT_MARKER": "bazel-bin",
+            "HEIR_REPO_ROOT_MARKER": ".",
             "HEIR_OPT_PATH": "tools/heir-opt",
             "HEIR_TRANSLATE_PATH": "tools/heir-translate",
             "PYBIND11_INCLUDE_PATH": "pybind11/include",

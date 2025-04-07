@@ -2,6 +2,7 @@
 
 import dataclasses
 import os
+from heir.backends.util.common import get_repo_root
 
 dataclass = dataclasses.dataclass
 
@@ -12,17 +13,17 @@ class OpenFHEConfig:
 
   Attributes:
     include_dirs: The include paths for OpenFHE headers
+    include_type: The type of include paths to use during codegen. Options are:
+      - "install-relative": use paths relative to the installed OpenFHE
+      - "source-relative": relative to the openfhe development repository.
     lib_dir: The directory containing libOPENFHEbinfhe.so, etc.
     link_libs: The libraries to link against (without lib prefix or .so suffix)
-    include_type: The type of include paths to use during codegen. Options are:
-      - "install-relative": use paths relative to the installed OpenFHE -
-      "source-relative": relative to the openfhe development repository.
   """
 
   include_dirs: list[str]
+  include_type: str
   lib_dir: str
   link_libs: list[str]
-  include_type: str = "install-relative"
 
 
 DEFAULT_INSTALLED_OPENFHE_CONFIG = OpenFHEConfig(
@@ -32,6 +33,7 @@ DEFAULT_INSTALLED_OPENFHE_CONFIG = OpenFHEConfig(
         "/usr/local/include/openfhe/core",
         "/usr/local/include/openfhe/pke",
     ],
+    include_type="install-relative",
     lib_dir="/usr/local/lib",
     link_libs=[
         "OPENFHEbinfhe",
@@ -41,12 +43,36 @@ DEFAULT_INSTALLED_OPENFHE_CONFIG = OpenFHEConfig(
 )
 
 
+def development_openfhe_config() -> OpenFHEConfig:
+  repo_root = get_repo_root()
+  if not repo_root:
+    raise RuntimeError("Could not build development config. Did you run bazel?")
+
+  return OpenFHEConfig(
+      include_dirs=[
+          str(repo_root / "external" / "openfhe"),
+          str(
+              repo_root / "external" / "openfhe" / "src" / "binfhe" / "include"
+          ),
+          str(repo_root / "external" / "openfhe" / "src" / "core" / "include"),
+          str(repo_root / "external" / "openfhe" / "src" / "pke" / "include"),
+          str(repo_root / "external" / "cereal" / "include"),
+      ],
+      include_type="source-relative",
+      lib_dir=str(repo_root / "bazel-bin" / "external" / "openfhe"),
+      link_libs=[
+          "binfhe",
+          "core",
+          "pke",
+      ],
+  )
+
+
 def from_os_env(debug=False) -> OpenFHEConfig:
   """Create an OpenFHEConfig from environment variables.
 
   Note, this is required for running tests under bazel, as the openfhe
-  libraries,
-  headers, and locations are not in the default locations.
+  libraries, headers, and locations are not in the default locations.
 
   Environment variables and meanings:
 
@@ -74,11 +100,12 @@ def from_os_env(debug=False) -> OpenFHEConfig:
       if "OPENFHE" in k:
         print(f"{k}: {v}")
 
-  lib_dir = os.environ.get("OPENFHE_LIB_DIR", "")
   include_dirs = os.environ.get("OPENFHE_INCLUDE_DIR", "").split(":")
+  include_type = os.environ.get("OPENFHE_INCLUDE_TYPE", "")
+  lib_dir = os.environ.get("OPENFHE_LIB_DIR", "")
   link_libs = os.environ.get("OPENFHE_LINK_LIBS", "").split(":")
 
-  # remove empty strings
+  # remove empty strings from lists
   include_dirs = [dir for dir in include_dirs if dir]
   link_libs = [lib for lib in link_libs if lib]
 
@@ -99,10 +126,31 @@ def from_os_env(debug=False) -> OpenFHEConfig:
           f'Warning: OpenFHE include directory "{include_dir}" does not exist'
       )
 
-  return OpenFHEConfig(
-      include_dirs=include_dirs
-      or DEFAULT_INSTALLED_OPENFHE_CONFIG.include_dirs,
-      lib_dir=lib_dir or DEFAULT_INSTALLED_OPENFHE_CONFIG.lib_dir,
-      link_libs=link_libs or DEFAULT_INSTALLED_OPENFHE_CONFIG.link_libs,
-      include_type=os.environ.get("OPENFHE_INCLUDE_TYPE", "install-relative"),
-  )
+  # If something has been found from the environment variables, return it
+  if include_dirs:
+    return OpenFHEConfig(
+        include_dirs=include_dirs,
+        lib_dir=lib_dir,
+        link_libs=link_libs,
+        include_type=include_type,
+    )
+
+  # if nothing is found, check the default installed config
+  if debug:
+    print(
+        f"HEIRpy Debug (OpenFHE Backend): No valid OpenFHE config found in"
+        f" environment variables, trying default install location."
+    )
+  if os.path.exists(DEFAULT_INSTALLED_OPENFHE_CONFIG.include_dirs[0]):
+    return DEFAULT_INSTALLED_OPENFHE_CONFIG
+
+  # if nothing is found still, check the development config
+  if debug:
+    print(
+        f"HEIRpy Debug (OpenFHE Backend): No valid OpenFHE config found in"
+        f" environment variables or default install location, trying"
+        f" development location."
+    )
+  return (
+      development_openfhe_config()
+  )  # will raise a RuntimeError if repo_root not found

@@ -1,4 +1,19 @@
 from heir.interfaces import CompilationResult, EncValue
+import os
+import pathlib
+from pathlib import Path
+
+
+def find_above(dirname: str) -> Path | None:
+  path = pathlib.Path(__file__).resolve()
+  matching = [p for p in path.parents if (p / dirname).exists()]
+  return matching[-1] if matching else None
+
+
+def get_repo_root() -> Path | None:
+  default = find_above("bazel-bin")
+  found = os.getenv("HEIR_REPO_ROOT_MARKER")
+  return Path(found) if found else default
 
 
 def strip_and_verify_eval_arg_consistency(
