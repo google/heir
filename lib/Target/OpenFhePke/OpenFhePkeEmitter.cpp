@@ -55,7 +55,7 @@ namespace openfhe {
 namespace {
 
 FailureOr<std::string> printFloatAttr(FloatAttr floatAttr) {
-  if (!floatAttr.getType().isF32() || !floatAttr.getType().isF64()) {
+  if (!floatAttr.getType().isF32() && !floatAttr.getType().isF64()) {
     return failure();
   }
 
@@ -253,7 +253,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                arith::IndexCastOp, arith::ExtFOp>(
+                arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
+                arith::AddIOp, arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::EmptyOp, tensor::InsertOp, tensor::ExtractOp,
@@ -475,27 +476,38 @@ LogicalResult OpenFhePkeEmitter::printOperation(affine::AffineForOp op) {
   for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
     // Assign the loop's results to use as initial iter args. We must use
     // non-const types so that the loop body can modify them.
-    if (failed(emitTypedAssignPrefix(op.getResults()[i], op.getLoc(),
+    Value result = op.getResults()[i];
+    Value operand = op.getOperands()[i];
+    Value iterArg = op.getRegionIterArgs()[i];
+    Value yieldedValue = op.getYieldedValues()[i];
+
+    // Map the region's iter args to the result names.
+    // Map the yielded value names to the result names.
+    variableNames->mapValueNameToValue(iterArg, result);
+    variableNames->mapValueNameToValue(yieldedValue, result);
+    mutableValues.insert(op.getRegionIterArgs()[i]);
+    mutableValues.insert(op.getYieldedValues()[i]);
+
+    if (variableNames->contains(result) && variableNames->contains(operand) &&
+        variableNames->getNameForValue(result) ==
+            variableNames->getNameForValue(operand)) {
+      // This occurs in cases where the loop is inserting into a tensor and
+      // passing it along as an inter arg.
+      continue;
+    }
+
+    if (failed(emitTypedAssignPrefix(result, op.getLoc(),
                                      /*constant=*/false))) {
       return emitError(
           op.getLoc(),
-          llvm::formatv("Failed to emit typed assign prefix for {}",
-                        op.getResults()[i]));
+          llvm::formatv("Failed to emit typed assign prefix for {}", result));
     }
-    os << variableNames->getNameForValue(op.getOperands()[i]);
-    if (!isa<ShapedType>(op.getResults()[i].getType())) {
+    os << variableNames->getNameForValue(operand);
+    if (!isa<ShapedType>(result.getType())) {
       // Note that for vector types we don't need to clone.
       os << "->Clone()";
     }
     os << ";\n";
-    // Map the region's iter args to the result names.
-    variableNames->mapValueNameToValue(op.getRegionIterArgs()[i],
-                                       op.getResults()[i]);
-    mutableValues.insert(op.getRegionIterArgs()[i]);
-    // Map the yielded value names to the result names.
-    variableNames->mapValueNameToValue(op.getYieldedValues()[i],
-                                       op.getResults()[i]);
-    mutableValues.insert(op.getYieldedValues()[i]);
   }
 
   os << llvm::formatv("for (auto {0} = {1}; {0} < {2}; ++{0}) {{\n",
@@ -702,7 +714,9 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::ConstantOp op) {
     }
     auto floatStr = printFloatAttr(floatAttr);
     if (failed(floatStr)) {
-      return failure();
+      return emitError(
+          op.getLoc(),
+          llvm::formatv("Failed to print floatAttr {0}", floatAttr));
     }
     os << floatStr.value() << ";\n";
   } else if (auto denseElementsAttr = dyn_cast<DenseElementsAttr>(valueAttr)) {
@@ -823,6 +837,58 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::IndexCastOp op) {
   return success();
 }
 
+LogicalResult OpenFhePkeEmitter::printBinaryOp(Operation *op, ::mlir::Value lhs,
+                                               ::mlir::Value rhs,
+                                               std::string_view opName) {
+  assert(op->getNumResults() == 1 && "Expected single-result op!");
+  if (failed(emitTypedAssignPrefix(op->getResult(0), op->getLoc(), true)))
+    return failure();
+  os << variableNames->getNameForValue(lhs) << " " << opName << " "
+     << variableNames->getNameForValue(rhs) << ";\n";
+  return success();
+}
+
+// Lowerings of ops like affine.apply involve scalar cleartext types
+LogicalResult OpenFhePkeEmitter::printOperation(arith::AddIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::RemSIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "%");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::SelectOp op) {
+  if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+    return failure();
+
+  os << variableNames->getNameForValue(op.getCondition()) << " ? "
+     << variableNames->getNameForValue(op.getTrueValue()) << " : "
+     << variableNames->getNameForValue(op.getFalseValue()) << ";\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::CmpIOp op) {
+  switch (op.getPredicate()) {
+    case arith::CmpIPredicate::eq:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "==");
+    case arith::CmpIPredicate::ne:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "!=");
+    case arith::CmpIPredicate::slt:
+    case arith::CmpIPredicate::ult:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<");
+    case arith::CmpIPredicate::sle:
+    case arith::CmpIPredicate::ule:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<=");
+    case arith::CmpIPredicate::sgt:
+    case arith::CmpIPredicate::ugt:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">");
+    case arith::CmpIPredicate::sge:
+    case arith::CmpIPredicate::uge:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
+  }
+  llvm_unreachable("unknown cmpi predicate kind");
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
   // std::vector<std::vector<CiphertextT>> result(dim0,
   // std::vector<CiphertextT>(dim1)); initStr = (dim1) initStr = (dim0,
@@ -848,7 +914,13 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   // const auto& v1 = in[0, 1];
-  emitAutoAssignPrefix(op.getResult());
+  if (isa<lwe::NewLWECiphertextType, lwe::LWECiphertextType>(
+          op.getResult().getType())) {
+    emitAutoAssignPrefix(op.getResult());
+  } else {
+    if (failed(emitTypedAssignPrefix(op.getResult(), op.getLoc(), true)))
+      return failure();
+  }
   os << variableNames->getNameForValue(op.getTensor());
   os << "[";
   os << flattenIndexExpression(
@@ -861,6 +933,11 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   return success();
 }
 
+// Support input mlir like
+//
+// tensor.extract_slice %0[0, 0] [1, 16] [1, 1]
+//  : tensor<16x16xf32> to tensor<16xf32>
+//
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
   // Must be single contiguous slice with constant sizes and strides.
   if (llvm::any_of(op.getStaticSizes(),
@@ -889,14 +966,20 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
     return failure();
   }
 
-  auto flattenStart = llvm::formatv(
-      "{0} * {1}", variableNames->getNameForValue(op.getDynamicOffset(0)),
-      op.getSourceType().getShape()[0]);
+  std::string flattenStart;
+  if (op.isDynamicOffset(0)) {
+    flattenStart = llvm::formatv(
+        "{0} * {1}", variableNames->getNameForValue(op.getDynamicOffset(0)),
+        op.getSourceType().getShape()[0]);
+  } else {
+    flattenStart = llvm::formatv("{0} * {1}", op.getStaticOffset(0),
+                                 op.getSourceType().getShape()[0]);
+  }
   auto flattenEnd = llvm::formatv("{0} + {1}", flattenStart,
                                   op.getResultType().getNumElements());
   os << "std::vector<" << elementType.value() << "> " << resultVarName
      << "(std::begin(" << inputVarName << ") + " << flattenStart
-     << ", std::end(" << inputVarName << ") + " << flattenEnd << ");\n";
+     << ", std::begin(" << inputVarName << ") + " << flattenEnd << ");\n";
   return success();
 }
 

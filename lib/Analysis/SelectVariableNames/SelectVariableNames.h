@@ -39,6 +39,8 @@ class SelectVariableNames {
     variableToInteger[fromValue] = variableToInteger[toValue];
   }
 
+  bool contains(Value value) const { return variableNames.contains(value); }
+
  private:
   std::string suggestNameForValue(Value value);
 

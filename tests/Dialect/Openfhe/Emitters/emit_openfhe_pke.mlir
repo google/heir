@@ -247,7 +247,7 @@ module attributes {scheme.ckks} {
 module attributes {scheme.ckks} {
   // CHECK: test_extract_slice
   // CHECK-SAME: std::vector<float> [[v0:.*]], size_t [[v1:.*]]) {
-  // CHECK: std::vector<float> [[v2:.*]](std::begin([[v0]]) + [[v1]] * 1, std::end([[v0]]) + [[v1]] * 1 + 1024);
+  // CHECK: std::vector<float> [[v2:.*]](std::begin([[v0]]) + [[v1]] * 1, std::begin([[v0]]) + [[v1]] * 1 + 1024);
   func.func @test_extract_slice(%arg0: tensor<1x1024xf32>, %arg1: index) -> tensor<1024xf32> {
     %1 = tensor.extract_slice %arg0[%arg1, 0] [1, 1024] [1, 1] : tensor<1x1024xf32> to tensor<1024xf32>
     return %1 : tensor<1024xf32>
@@ -277,5 +277,27 @@ module attributes {scheme.bgv} {
     // CHECK: [[PARAMS]].SetScalingTechnique(FIXEDMANUAL);
     %0 = openfhe.gen_params  {mulDepth = 2 : i64, plainMod = 17 : i64, ringDim = 16384, batchSize = 8, firstModSize = 59, scalingModSize = 59, evalAddCount = 2 : i64, keySwitchCount = 1 : i64, digitSize = 16, numLargeDigits = 2, maxRelinSkDeg = 3, insecure = true, encryptionTechniqueExtended = true, keySwitchingTechniqueBV = true, scalingTechniqueFixedManual = true} : () -> !openfhe.cc_params
     return %0 : !openfhe.cc_params
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: test_cleartext_binops
+  func.func @test_cleartext_binops() -> i64 {
+    // CHECK: int64_t [[c0:[^ ]*]] = 0;
+    // CHECK: int64_t [[c1:[^ ]*]] = 1;
+    %c0 = arith.constant 0 : i64
+    %c1 = arith.constant 1 : i64
+
+    // CHECK: int64_t [[v2:[^ ]*]] = [[c0]] + [[c1]];
+    // CHECK: int64_t [[v3:[^ ]*]] = [[c0]] % [[c1]];
+    // CHECK: bool [[v4:[^ ]*]] = [[c0]] >= [[c1]];
+    // CHECK: int64_t [[v5:[^ ]*]] = [[v4]] ? [[c0]] : [[c1]];
+    %0 = arith.addi %c0, %c1 : i64
+    %1 = arith.remsi %c0, %c1 : i64
+    %2 = arith.cmpi sge, %c0, %c1 : i64
+    %3 = arith.select %2, %c0, %c1 : i64
+    return %3 : i64
   }
 }
