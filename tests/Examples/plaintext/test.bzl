@@ -47,7 +47,7 @@ binary_rule = rule(
     },
 )
 
-def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, llc_flags = None, deps = [], log_file_name = None, log_file_visibility = None):
+def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, llc_flags = None, deps = [], log_file_name = None, log_file_visibility = None, data = []):
     """Define a lit test for the Plaintext Backend.
 
     Args:
@@ -59,6 +59,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
       deps: Deps to pass to cc_test.
       log_file_name: The name of the log file.
       log_file_visibility: Visibility of the log file.
+      data: Data deps to pass to heir_opt
     """
 
     heir_opt_name = "%s_heir_opt" % name
@@ -69,6 +70,7 @@ def plaintext_test(name, mlir_src, heir_opt_flags, mlir_translate_flags = None, 
         src = mlir_src,
         pass_flags = heir_opt_flags,
         generated_filename = generated_heir_opt_name,
+        data = data,
     )
 
     mlir_translate_name = "%s_mlir_translate" % name

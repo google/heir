@@ -26,7 +26,7 @@ plaintext_test(
     heir_opt_flags = [
         "--mlir-to-plaintext-backend",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_test",
     ],
@@ -38,7 +38,7 @@ plaintext_test(
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=257",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_test",
     ],
@@ -50,7 +50,7 @@ plaintext_test(
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=65537",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_test",
     ],
@@ -62,7 +62,7 @@ plaintext_test(
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=17",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     deps = [
         ":dot_product_8_mod_failure_test",
     ],

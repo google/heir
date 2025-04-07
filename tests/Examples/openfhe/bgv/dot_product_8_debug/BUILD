@@ -12,7 +12,7 @@ openfhe_end_to_end_test(
         "--mlir-to-bgv=ciphertext-degree=8 annotate-noise-bound=true",
         "--scheme-to-openfhe=insert-debug-handler-calls=true",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     tags = ["notap"],
     test_src = "dot_product_8_debug_test.cpp",
 )

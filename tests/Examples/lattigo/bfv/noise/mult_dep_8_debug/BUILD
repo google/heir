@@ -22,7 +22,7 @@ heir_lattigo_lib(
           annotate-noise-bound=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
-    mlir_src = "mult_dep_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:mult_dep_8.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro

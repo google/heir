@@ -15,7 +15,7 @@ openfhe_end_to_end_test(
     heir_translate_flags = [
         "--openfhe-include-type=source-relative",
     ],
-    mlir_src = "halevi_shoup_matmul.mlir",
+    mlir_src = "@heir//tests/Examples/common:halevi_shoup_matmul.mlir",
     tags = ["notap"],
     test_src = "halevi_shoup_matmul_test.cpp",
 )

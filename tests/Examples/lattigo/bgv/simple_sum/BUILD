@@ -22,5 +22,5 @@ heir_lattigo_lib(
         "--mlir-to-bgv=ciphertext-degree=32",
         "--scheme-to-lattigo",
     ],
-    mlir_src = "simple_sum.mlir",
+    mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",
 )

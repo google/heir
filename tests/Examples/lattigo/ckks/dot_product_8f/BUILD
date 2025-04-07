@@ -13,7 +13,7 @@ heir_lattigo_lib(
         "--mlir-to-ckks=ciphertext-degree=8",
         "--scheme-to-lattigo",
     ],
-    mlir_src = "dot_product_8f.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro

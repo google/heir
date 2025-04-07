@@ -12,7 +12,7 @@ openfhe_end_to_end_test(
         "--mlir-to-bfv=ciphertext-degree=8",
         "--scheme-to-openfhe",
     ],
-    mlir_src = "dot_product_8.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",
     tags = ["notap"],
     test_src = "dot_product_8_test.cpp",
 )

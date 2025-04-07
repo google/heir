@@ -12,7 +12,7 @@ openfhe_end_to_end_test(
         "--mlir-to-bgv=ciphertext-degree=32",
         "--scheme-to-openfhe",
     ],
-    mlir_src = "simple_sum.mlir",
+    mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",
     tags = ["notap"],
     test_src = "simple_sum_test.cpp",
 )

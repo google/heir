@@ -26,7 +26,7 @@ heir_lattigo_lib(
           plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
-    mlir_src = "dot_product_8f.mlir",
+    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro

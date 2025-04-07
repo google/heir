@@ -32,7 +32,7 @@ plaintext_test(
     heir_opt_flags = [
         "--mlir-to-plaintext-backend",
     ],
-    mlir_src = "roberts_cross_64x64.mlir",
+    mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
     deps = [
         ":roberts_cross_test",
         "@heir//tests/Examples/plaintext:memrefCopy",
@@ -45,7 +45,7 @@ plaintext_test(
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=536903681",
     ],
-    mlir_src = "roberts_cross_64x64.mlir",
+    mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
     deps = [
         ":roberts_cross_mod_test",
         "@heir//tests/Examples/plaintext:memrefCopy",
@@ -58,7 +58,7 @@ plaintext_test(
     heir_opt_flags = [
         "--mlir-to-plaintext-backend=plaintext-modulus=786433",
     ],
-    mlir_src = "roberts_cross_64x64.mlir",
+    mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
     deps = [
         ":roberts_cross_mod_failure_test",
         "@heir//tests/Examples/plaintext:memrefCopy",
