@@ -124,9 +124,16 @@ MLIR like in that file. The program is below:</p><div class=highlight><pre tabin
 </span></span><span style=display:flex><span>  <span style=color:#000;font-weight:700>}</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><p>Next, we use the <code>heir-translate</code> tool to run code generation for the OpenFHE
-<code>pke</code> API.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel run //tools:heir-translate -- --emit-openfhe-pke-header <span style=color:#000>$PWD</span>/output.mlir &gt; heir_output.h
-</span></span><span style=display:flex><span>bazel run //tools:heir-translate -- --emit-openfhe-pke <span style=color:#000>$PWD</span>/output.mlir &gt; heir_output.cpp
-</span></span></code></pre></div><p>The results:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8f5902;font-style:italic>// heir_output.h
+<code>pke</code> API.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel run //tools:heir-translate -- --emit-openfhe-pke-header --openfhe-include-type<span style=color:#ce5c00;font-weight:700>=</span>source-relative <span style=color:#000>$PWD</span>/output.mlir &gt; heir_output.h
+</span></span><span style=display:flex><span>bazel run //tools:heir-translate -- --emit-openfhe-pke --openfhe-include-type<span style=color:#ce5c00;font-weight:700>=</span>source-relative <span style=color:#000>$PWD</span>/output.mlir &gt; heir_output.cpp
+</span></span></code></pre></div><p>The <code>openfhe-include-type</code> indicates which include path for OpenFHE is used. It
+has three possible values: <code>install-relative</code>, <code>source-relative</code> and <code>embedded</code>.
+In this example we use <code>source-relative</code> as we are compiling against an
+(unoptimized) OpenFHE managed by bazel in HEIR source. To compile against an
+installed (and possibly optimized) OpenFHE, you could use <code>install-relative</code> and
+compile it on your own. Or you could just put the generated file in OpenFHE
+source directory <code>src/pke/examples</code> and let OpenFHE find and compile it for you
+with the <code>embedded</code> option.</p><p>The results:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8f5902;font-style:italic>// heir_output.h
 </span></span></span><span style=display:flex><span><span style=color:#8f5902;font-style:italic></span><span style=color:#8f5902;font-style:italic>#include</span> <span style=color:#8f5902;font-style:italic>&#34;src/pke/include/openfhe.h&#34; // from @openfhe</span><span style=color:#8f5902;font-style:italic>
 </span></span></span><span style=display:flex><span><span style=color:#8f5902;font-style:italic></span>
 </span></span><span style=display:flex><span><span style=color:#204a87;font-weight:700>using</span> <span style=color:#204a87;font-weight:700>namespace</span> <span style=color:#000>lbcrypto</span><span style=color:#000;font-weight:700>;</span>
