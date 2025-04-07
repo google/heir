@@ -3156,7 +3156,12 @@ function&rsquo;s output.</p><p>Input</p><pre tabindex=0><code>module {
 }
 </code></pre><h4 id=options-10>Options</h4><pre tabindex=0><code>-min-loop-size : Use this to control the minimum loop size to apply this pass
 -min-body-size : Use this to control the minimum loop body size to apply this pass
-</code></pre><h3 id=-forward-insert-to-extract><code>-forward-insert-to-extract</code></h3><p><em>Forward inserts to extracts within a single block</em></p><p>This pass is similar to forward-store-to-load pass where store ops
+</code></pre><h3 id=-fold-convert-layout-into-assign-layout><code>-fold-convert-layout-into-assign-layout</code></h3><p><em>Merges tensor_ext.convert_layout ops into preceding tensor_ext.assign_layout ops</em></p><p>A <code>tensor_ext.assign_layout</code> op corresponds to an encoding of a cleartext
+into a plaintext or ciphertext. If this is immediately followed by a
+<code>tensor_ext.convert_layout</code> op, then one can just change the initial encoding
+to correspond to the result of the conversion.</p><p>If the result of an <code>assign_layout</code> has multiple subsequent <code>convert_layout</code>
+ops, then they are folded into multiple <code>assign_layout</code> ops applied to the
+same cleartext.</p><h3 id=-forward-insert-to-extract><code>-forward-insert-to-extract</code></h3><p><em>Forward inserts to extracts within a single block</em></p><p>This pass is similar to forward-store-to-load pass where store ops
 are forwarded load ops; here instead tensor.insert ops are forwarded
 to tensor.extract ops.</p><p>Does not support complex control flow within a block, nor ops with
 arbitrary subregions.</p><h3 id=-forward-store-to-load><code>-forward-store-to-load</code></h3><p><em>Forward stores to loads within a single block</em></p><p>This pass is a simplified version of mem2reg and similar passes.
