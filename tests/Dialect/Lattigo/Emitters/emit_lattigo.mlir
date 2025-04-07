@@ -69,8 +69,8 @@ module attributes {scheme.bgv} {
   // CHECK: [[encSk:[^, ].*]] := rlwe.NewEncryptor([[param]], [[sk]])
   // CHECK: [[dec:[^, ].*]] := rlwe.NewDecryptor([[param]], [[sk]])
   // CHECK: [[eval:[^, ].*]] := bgv.NewEvaluator([[param]], [[evalKeySet]], false)
-  // CHECK: [[value1:[^, ].*]] := []int64
-  // CHECK: [[value2:[^, ].*]] := []int64
+  // CHECK: [[value1:[^, ].*]] := []int32
+  // CHECK: [[value2:[^, ].*]] := []int32
   // CHECK: [[pt1:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
   // CHECK: [[pt2:[^, ].*]] := bgv.NewPlaintext([[param]], [[param]].MaxLevel())
   // CHECK: [[value1Packed:[^, ].*]][i] = int64([[value1]][i % len([[value1]])])
@@ -81,11 +81,13 @@ module attributes {scheme.bgv} {
   // CHECK: [[ct2:[^, ].*]], [[err:.*]] := [[enc]].EncryptNew([[pt2]])
   // CHECK: [[res:[^, ].*]] := compute([[eval]], [[ct1]], [[ct2]])
   // CHECK: [[pt5:[^, ].*]] := [[dec]].DecryptNew([[res]])
-  // CHECK: [[value3:[^, ].*]] := []int64
-  // CHECK: [[encoder]].Decode([[pt5]], [[value3]])
-  // CHECK: [[value3Converted:[^, ].*]][i] = int64([[value3]][i])
+  // CHECK: [[value3:[^, ].*]] := []int32
+  // CHECK: [[value3Int64:[^, ].*]] := make([]int64, len([[value3]]))
+  // CHECK: [[encoder]].Decode([[pt5]], [[value3Int64]])
+  // CHECK: [[value3Converted:[^, ].*]][i] = int32([[value3Int64]][i])
   // CHECK: [[value4:[^, ].*]] := [[value3Converted]]
-  func.func @test_basic_emitter() -> () {
+  // CHECK: return [[value4]]
+  func.func @test_basic_emitter() -> tensor<4xi32> {
     %param = lattigo.bgv.new_parameters_from_literal {paramsLiteral = #paramsLiteral} : () -> !params
     %encoder = lattigo.bgv.new_encoder %param : (!params) -> !encoder
     %kgen = lattigo.rlwe.new_key_generator %param : (!params) -> !key_generator
@@ -99,14 +101,14 @@ module attributes {scheme.bgv} {
 
     %evaluator = lattigo.bgv.new_evaluator %param, %eval_key_set : (!params, !eval_key_set) -> !evaluator
 
-    %value1 = arith.constant dense<[1, 2, 3, 10]> : tensor<4xi64>
-    %value2 = arith.constant dense<[10, 2, 3, 1]> : tensor<4xi64>
+    %value1 = arith.constant dense<[1, 2, 3, 10]> : tensor<4xi32>
+    %value2 = arith.constant dense<[10, 2, 3, 1]> : tensor<4xi32>
 
     %pt_raw1 = lattigo.bgv.new_plaintext %param : (!params) -> !pt
     %pt_raw2 = lattigo.bgv.new_plaintext %param : (!params) -> !pt
 
-    %pt1 = lattigo.bgv.encode %encoder, %value1, %pt_raw1 : (!encoder, tensor<4xi64>, !pt) -> !pt
-    %pt2 = lattigo.bgv.encode %encoder, %value2, %pt_raw2 : (!encoder, tensor<4xi64>, !pt) -> !pt
+    %pt1 = lattigo.bgv.encode %encoder, %value1, %pt_raw1 : (!encoder, tensor<4xi32>, !pt) -> !pt
+    %pt2 = lattigo.bgv.encode %encoder, %value2, %pt_raw2 : (!encoder, tensor<4xi32>, !pt) -> !pt
     %ct1 = lattigo.rlwe.encrypt %encryptor, %pt1 : (!encryptor, !pt) -> !ct
     %ct2 = lattigo.rlwe.encrypt %encryptor, %pt2 : (!encryptor, !pt) -> !ct
 
@@ -114,11 +116,11 @@ module attributes {scheme.bgv} {
 
     %dec = lattigo.rlwe.decrypt %decryptor, %mul : (!decryptor, !ct) -> !pt
 
-    %result = arith.constant dense<0> : tensor<4xi64>
+    %result = arith.constant dense<0> : tensor<4xi32>
 
-    %updated = lattigo.bgv.decode %encoder, %dec, %result : (!encoder, !pt, tensor<4xi64>) -> tensor<4xi64>
+    %updated = lattigo.bgv.decode %encoder, %dec, %result : (!encoder, !pt, tensor<4xi32>) -> tensor<4xi32>
 
-    return
+    return %updated : tensor<4xi32>
   }
 }
 
@@ -126,9 +128,9 @@ module attributes {scheme.bgv} {
 
 
 // CHECK: test_constant
-// CHECK: [[v1:.*]] := 1
-// CHECK: [[v2:.*]] := []int64{1, 2}
-// CHECK: [[v3:.*]] := []int64{2, 2, 2, 2}
+// CHECK: [[v1:.*]] := int32(1)
+// CHECK: [[v2:.*]] := []int32{1, 2}
+// CHECK: [[v3:.*]] := []int32{2, 2, 2, 2}
 module attributes {scheme.bgv} {
   func.func @test_constant() -> () {
     %int = arith.constant 1 : i32
@@ -195,5 +197,20 @@ module attributes {scheme.bgv} {
     // CHECK: evaluator.DropLevel([[ct1]], 2)
     %ct1 = lattigo.rlwe.drop_level_new %evaluator, %ct {levelToDrop = 2}: (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
     return %ct1 : !lattigo.rlwe.ciphertext
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func test_negate_new
+  // CHECK-SAME: ([[evaluator:.*]] *bgv.Evaluator, [[ct:.*]] *rlwe.Ciphertext) (*rlwe.Ciphertext)
+  func.func @test_negate_new(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> (!lattigo.rlwe.ciphertext) {
+    // CHECK: [[ct1:[^, ]*]] := [[ct]].CopyNew()
+    // CHECK: for [[i:[^, ]*]] := 0; [[i]] < len([[ct1]].Value); [[i]]++ {
+    // CHECK:   [[evaluator]].GetRLWEParameters().RingQ().AtLevel([[ct1]].LevelQ()).Neg([[ct1]].Value[[[i]]], [[ct1]].Value[[[i]]])
+    // CHECK: }
+    %negated = lattigo.rlwe.negate_new %evaluator, %ct : (!lattigo.bgv.evaluator, !lattigo.rlwe.ciphertext) -> !lattigo.rlwe.ciphertext
+    return %negated : !lattigo.rlwe.ciphertext
   }
 }

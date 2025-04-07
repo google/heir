@@ -289,7 +289,8 @@ struct ConvertRlweCommutativePlainOp : public OpConversionPattern<PlainOp> {
 };
 
 // Lattigo API enforces ciphertext, plaintext ordering.
-template <typename EvaluatorType, typename PlainOp, typename LattigoPlainOp>
+template <typename EvaluatorType, typename PlainOp, typename LattigoPlainOp,
+          typename LattigoAddOp, typename LattigoNegateOp>
 struct ConvertRlweSubPlainOp : public OpConversionPattern<PlainOp> {
   using OpConversionPattern<PlainOp>::OpConversionPattern;
 
@@ -301,21 +302,28 @@ struct ConvertRlweSubPlainOp : public OpConversionPattern<PlainOp> {
     if (failed(result)) return result;
 
     Value evaluator = result.value();
-    Value ciphertext = adaptor.getLhs();
-    Value plaintext = adaptor.getRhs();
     if (isa<lattigo::RLWECiphertextType>(adaptor.getLhs().getType())) {
       // Lattigo API enforces ciphertext, plaintext ordering, so we can use
       // LattigoPlainOp directly.
+      Value ciphertext = adaptor.getLhs();
+      Value plaintext = adaptor.getRhs();
       rewriter.replaceOpWithNewOp<LattigoPlainOp>(
           op, this->typeConverter->convertType(op.getOutput().getType()),
           evaluator, ciphertext, plaintext);
       return success();
     }
 
-    // TODO(#1623): Support this case by lowering it to Add(Negate(ciphertext),
-    // plaintext).
-    return op.emitOpError() << "subplain op does not support plaintext, "
-                               "ciphertext operand ordering";
+    // handle plaintext - ciphertext using (-ciphertext) + plaintext
+    Value plaintext = adaptor.getLhs();
+    Value ciphertext = adaptor.getRhs();
+
+    auto negated = rewriter.create<LattigoNegateOp>(
+        op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
+        evaluator, ciphertext);
+    rewriter.replaceOpWithNewOp<LattigoAddOp>(
+        op, this->typeConverter->convertType(op.getOutput().getType()),
+        evaluator, negated, plaintext);
+    return success();
   }
 };
 
@@ -460,8 +468,10 @@ struct ConvertLWEReinterpretApplicationData
   LogicalResult matchAndRewrite(
       lwe::ReinterpretApplicationDataOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    // erase reinterpret underlying
-    rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
+    // Erase reinterpret application data.
+    // If operand has no defining op, we can not replace it with defining op.
+    rewriter.replaceAllOpUsesWith(op, adaptor.getOperands()[0]);
+    rewriter.eraseOp(op);
     return success();
   }
 };
@@ -480,7 +490,8 @@ using ConvertBGVAddPlainOp =
                                   lattigo::BGVAddNewOp>;
 using ConvertBGVSubPlainOp =
     ConvertRlweSubPlainOp<lattigo::BGVEvaluatorType, bgv::SubPlainOp,
-                          lattigo::BGVSubNewOp>;
+                          lattigo::BGVSubNewOp, lattigo::BGVAddNewOp,
+                          lattigo::RLWENegateNewOp>;
 using ConvertBGVMulPlainOp =
     ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, bgv::MulPlainOp,
                                   lattigo::BGVMulNewOp>;
@@ -526,7 +537,8 @@ using ConvertCKKSAddPlainOp =
                                   lattigo::CKKSAddNewOp>;
 using ConvertCKKSSubPlainOp =
     ConvertRlweSubPlainOp<lattigo::CKKSEvaluatorType, ckks::SubPlainOp,
-                          lattigo::CKKSSubNewOp>;
+                          lattigo::CKKSSubNewOp, lattigo::CKKSAddNewOp,
+                          lattigo::RLWENegateNewOp>;
 using ConvertCKKSMulPlainOp =
     ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, ckks::MulPlainOp,
                                   lattigo::CKKSMulNewOp>;
