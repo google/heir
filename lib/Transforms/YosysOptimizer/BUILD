@@ -98,6 +98,7 @@ cc_library(
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Target/Verilog:VerilogEmitter",
+        "@heir//lib/Utils/RewriteUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",

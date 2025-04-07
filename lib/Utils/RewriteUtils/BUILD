@@ -9,6 +9,9 @@ cc_library(
     hdrs = ["RewriteUtils.h"],
     deps = [
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )

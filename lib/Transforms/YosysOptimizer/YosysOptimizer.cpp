@@ -20,6 +20,7 @@
 #include "lib/Transforms/YosysOptimizer/BooleanGateImporter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
+#include "lib/Utils/RewriteUtils/RewriteUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Statistic.h"           // from @llvm-project
@@ -330,23 +331,6 @@ class FrontloadAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
 
  private:
   affine::AffineForOp parentOp;
-};
-
-/// Convert an "affine.apply" operation into a sequence of arithmetic
-/// operations using the StandardOps dialect.
-class ExpandAffineApply : public OpRewritePattern<affine::AffineApplyOp> {
- public:
-  using OpRewritePattern<affine::AffineApplyOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(affine::AffineApplyOp op,
-                                PatternRewriter &rewriter) const override {
-    auto maybeExpandedMap =
-        affine::expandAffineMap(rewriter, op.getLoc(), op.getAffineMap(),
-                                llvm::to_vector<8>(op.getOperands()));
-    if (!maybeExpandedMap) return failure();
-    rewriter.replaceOp(op, *maybeExpandedMap);
-    return success();
-  }
 };
 
 LogicalResult unrollAndMergeGenerics(Operation *op, int unrollFactor,
