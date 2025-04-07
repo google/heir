@@ -26,6 +26,7 @@ cc_library(
         ":enums_inc_gen",
         ":ops_inc_gen",
         "@heir//lib/Dialect/LWE/IR:Dialect",
+        "@heir//lib/Dialect/LWE/IR:Patterns",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",

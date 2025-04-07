@@ -103,6 +103,31 @@ struct ConvertExtract : public OpRewritePattern<ExtractOp> {
   }
 };
 
+// A pattern to canonicalize scheme ops that are ciphertext-plaintext ops, but
+// which allow the ciphertext to be in either operand. This is necessary
+// because lower-level ops like openfhe may require the ciphertext to be in a
+// specific operand.
+template <typename Op>
+struct PutCiphertextInFirstOperand : public OpRewritePattern<Op> {
+ public:
+  using OpRewritePattern<Op>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(Op op, PatternRewriter &rewriter) const final {
+    auto lhs = op->getOperand(0);
+    auto rhs = op->getOperand(1);
+
+    if (isa<lwe::NewLWEPlaintextType>(lhs.getType()) &&
+        isa<lwe::NewLWECiphertextType>(rhs.getType())) {
+      rewriter.modifyOpInPlace(op, [&] {
+        op->setOperand(0, rhs);
+        op->setOperand(1, lhs);
+      });
+      return success();
+    }
+    return failure();
+  }
+};
+
 }  // namespace mlir::heir::lwe
 
 #endif  // LIB_DIALECT_LWE_IR_LWEPATTERNS_H_
