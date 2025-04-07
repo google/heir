@@ -111,17 +111,17 @@ LogicalResult CountAnalysis::visitOperation(
       })
       .Default(
           [&](auto &op) {
-            if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
-                           arith::ExtFOp, mgmt::InitOp>(op)) {
-              op.emitError()
-                  << "Unsupported operation for count analysis encountered.";
-            }
-
             // condition on result secretness
             SmallVector<OpResult> secretResults;
             getSecretResults(&op, secretResults);
             if (secretResults.empty()) {
               return;
+            }
+
+            if (!mlir::isa<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
+                           arith::ExtFOp, mgmt::InitOp>(op)) {
+              op.emitError()
+                  << "Unsupported operation for count analysis encountered.";
             }
 
             SmallVector<OpOperand *> secretOperands;
