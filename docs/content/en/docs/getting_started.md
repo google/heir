@@ -232,9 +232,18 @@ Next, we use the `heir-translate` tool to run code generation for the OpenFHE
 `pke` API.
 
 ```bash
-bazel run //tools:heir-translate -- --emit-openfhe-pke-header $PWD/output.mlir > heir_output.h
-bazel run //tools:heir-translate -- --emit-openfhe-pke $PWD/output.mlir > heir_output.cpp
+bazel run //tools:heir-translate -- --emit-openfhe-pke-header --openfhe-include-type=source-relative $PWD/output.mlir > heir_output.h
+bazel run //tools:heir-translate -- --emit-openfhe-pke --openfhe-include-type=source-relative $PWD/output.mlir > heir_output.cpp
 ```
+
+The `openfhe-include-type` indicates which include path for OpenFHE is used. It
+has three possible values: `install-relative`, `source-relative` and `embedded`.
+In this example we use `source-relative` as we are compiling against an
+(unoptimized) OpenFHE managed by bazel in HEIR source. To compile against an
+installed (and possibly optimized) OpenFHE, you could use `install-relative` and
+compile it on your own. Or you could just put the generated file in OpenFHE
+source directory `src/pke/examples` and let OpenFHE find and compile it for you
+with the `embedded` option.
 
 The results:
 
