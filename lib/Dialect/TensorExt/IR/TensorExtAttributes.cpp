@@ -20,8 +20,8 @@ LogicalResult AlignmentAttr::verify(
     function_ref<InFlightDiagnostic()> emitError, mlir::DenseI64ArrayAttr in,
     mlir::DenseI64ArrayAttr out, mlir::DenseI64ArrayAttr insertedDims,
     mlir::DenseI64ArrayAttr padding, TypedAttr paddingValue) {
-  if (in.empty() || out.empty()) {
-    return emitError() << "in and out may not be empty arrays";
+  if (out.empty()) {
+    return emitError() << "out may not be an empty array";
   }
 
   if (in.size() + insertedDims.size() != out.size()) {
@@ -32,6 +32,20 @@ LogicalResult AlignmentAttr::verify(
   for (auto dim : insertedDims.asArrayRef()) {
     if (dim < 0 || dim >= out.size()) {
       return emitError() << "insertedDims must be in the range [0, out.size())";
+    }
+  }
+
+  for (int i = 0; i < out.size(); i++) {
+    if (out[i] <= 0) {
+      return emitError() << "out dimension " << i
+                         << " must be positive, but was " << out[i];
+    }
+  }
+
+  for (int i = 0; i < in.size(); i++) {
+    if (in[i] <= 0) {
+      return emitError() << "in dimension " << i
+                         << " must be positive, but was " << in[i];
     }
   }
 
