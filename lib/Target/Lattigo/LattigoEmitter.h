@@ -40,6 +40,15 @@ class LattigoEmitter {
 
   LogicalResult translate(::mlir::Operation &operation);
 
+  void emitPrelude(raw_ostream &os) const {
+    os << "package " << packageName << "\n";
+    os << "import (\n";
+    for (const auto &import : imports) {
+      os << "    " << import << "\n";
+    }
+    os << ")\n";
+  }
+
  private:
   /// Output stream to emit to.
   raw_indented_ostream os;
@@ -50,6 +59,11 @@ class LattigoEmitter {
 
   const std::string &packageName;
 
+  // go treats unused imports as compile-time errors, so any extra imports that
+  // are unused for some programs need to be dynamically added at the end.
+  std::string prelude;
+  std::set<std::string> imports;
+
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
@@ -57,7 +71,11 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::func::CallOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
+  LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);
+  LogicalResult printOperation(::mlir::tensor::InsertOp op);
+  LogicalResult printOperation(::mlir::tensor::SplatOp op);
+
   // Lattigo ops
   // RLWE
   LogicalResult printOperation(RLWENewEncryptorOp op);
@@ -155,14 +173,15 @@ class LattigoEmitter {
   }
 
   // helper on name and type
-  std::string getName(::mlir::Value value) {
+  std::string getName(::mlir::Value value, bool force = false) {
     // special case for 'nil' emission
     if (value == Value()) {
       return "nil";
     }
-    // when the value has no uses, we can not assign it a name
-    // otherwise GO would complain "declared and not used"
-    if (value.use_empty()) {
+    // When the value has no uses, we can not assign it a name otherwise GO
+    // would complain "declared and not used." Force in cases when the
+    // generated code ensures the variable is referenced.
+    if (value.use_empty() && !force) {
       return "_";
     }
     return variableNames->getNameForValue(getStorageValue(value));
