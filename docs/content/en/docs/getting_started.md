@@ -106,7 +106,7 @@ Some passes in this repository require Yosys as a dependency
 speed up builds, use the following build setting:
 
 ```bash
-bazel build --//:enable_yosys=0 @heir//tools:heir-opt
+bazel build --//:enable_yosys=0 --build_tag_filters=-yosys @heir//tools:heir-opt
 ```
 
 #### Optional: Run the tests
