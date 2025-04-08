@@ -3779,28 +3779,31 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p></description></item><item><title>Blog: HEIR as a Platform for Research (and new YouTube Channel)</title><link>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</link><pubDate>Thu, 05 Dec 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/12/05/heir-as-a-platform-for-research-and-new-youtube-channel/</guid><description>
 &lt;p>On 2024-12-05, the HEIR team presented a talk aimed at giving researchers a
 high-level overview of the HEIR project, brainstorming where new research might
 be needed, and discussing how the HEIR team could help with research projects.&lt;/p>
 &lt;p>The &lt;a href="https://youtu.be/t_XHw7LVy8s">video recording of this talk&lt;/a> is on YouTube,
 and this is the first video posted on the
-&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-30</title><link>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/30/heir-meeting-2024-05-30/</guid><description>
+&lt;a href="https://www.youtube.com/@HEIRCompiler">new HEIR YouTube channel&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-10-31</title><link>https://heir.dev/blog/2024/10/31/heir-meeting-2024-10-31/</link><pubDate>Thu, 31 Oct 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/10/31/heir-meeting-2024-10-31/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1mvigwMRTeVQvdpm2hwiewfU8jcJT94ArQBNvngvgkTc/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1QUxT00gd1ZSayzdtxY5T5-Wiod-eNnCFGoqVceWQ83Y/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1CTIyd7HRiNV857VO2EonquWZZlBhysLM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-30.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-12</title><link>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</link><pubDate>Wed, 13 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/13/heir-meeting-2023-09-12/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1Q9a7O7HwxKMDqI23l3154KIOw1ofANkX/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-10-31.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1gOH1V6ORQwJDDo6I4jrDgCqqNFTsfcQbfpdUR6tv_60/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1zFtpBcCCq5d6UD8Nm8r3rfg3sgy-guz7/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-09-12.&lt;/p></description></item><item><title>Blog: Hello, World!</title><link>https://heir.dev/blog/2023/06/13/hello-world/</link><pubDate>Tue, 13 Jun 2023 13:15:10 -0700</pubDate><guid>https://heir.dev/blog/2023/06/13/hello-world/</guid><description>
-&lt;p>Hello, world! We&amp;rsquo;re starting a project to unify homomorphic encryption compiler
-IRs.&lt;/p>
-&lt;p>Our initial meeting was 2023-05-30
-(&lt;a href="https://docs.google.com/document/d/1iyiHfseoVkA1qaP3Ig47kqVC-J1_AIidPaj61jvj2KM/edit?usp=sharing">read-only copy of the minutes&lt;/a>).
-Stay tuned for future updates while we work out a meeting schedule.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-13.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
+from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
+there is no video recording this week.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
@@ -15922,11 +15925,12 @@ unlikely to be upstreamed to MLIR due to their specificity to FHE.&lt;/p>
 ::mlir::DenseI64ArrayAttr, # padding
 TypedAttr # paddingValue
 &amp;gt;
-&lt;/code>&lt;/pre>&lt;p>This attribute is used to describe how a data-semantic tensor is padded
+&lt;/code>&lt;/pre>&lt;p>This attribute is used to describe how a data-semantic value is padded
 and replicated to align its size before applying a ciphertext layout
 (see &lt;code>tensor_ext.layout&lt;/code>).&lt;/p>
-&lt;p>It describes transformations to be applied to an input tensor.&lt;/p>
-&lt;p>The &lt;code>in&lt;/code> attribute describes the shape of the original tensor.
+&lt;p>It describes transformations to be applied to an input tensor or scalar.&lt;/p>
+&lt;p>The &lt;code>in&lt;/code> attribute describes the shape of the original value. An empty list
+for &lt;code>in&lt;/code> indicates a scalar value that must be materialized as a tensor.
 The following transformations are applied to the input tensor.&lt;/p>
 &lt;ol>
 &lt;li>New unit dimensions are inserted to match the number of dimensions
@@ -15976,6 +15980,15 @@ dimension is inserted as the first axis, then zeros are padded along the
 second axis to make a &lt;code>tensor&amp;lt;1x16xi32&amp;gt;&lt;/code>. Finally, it is replicated twice
 along the columns and 32 times along the rows to fill the 32x32 output
 tensor.&lt;/p>
+&lt;p>Example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-mlir" data-lang="mlir">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">#repl&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">#tensor_ext.alignment&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">in =&lt;/span> &lt;span style="color:#000;font-weight:bold">[],&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">insertedDims =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f57900">out =&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This indicates that the original input is a scalar such as &lt;code>i32&lt;/code>, and it is
+elevated to a &lt;code>tensor&amp;lt;1xi32&amp;gt;&lt;/code> before being replicated to fill the
+ciphertext shape.&lt;/p>
 &lt;h4 id="parameters">Parameters:&lt;/h4>
 &lt;table>
 &lt;thead>
@@ -16162,10 +16175,10 @@ data &lt;code>[1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0]&lt;/code>.&lt;/p>
 &lt;h2 id="tensorext-ops">TensorExt ops&lt;/h2>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h3 id="tensor_extassign_layout-heirtensor_extassignlayoutop">&lt;code>tensor_ext.assign_layout&lt;/code> (heir::tensor_ext::AssignLayoutOp)&lt;/h3>
-&lt;p>&lt;em>Assign a layout to a plaintext tensor.&lt;/em>&lt;/p>
+&lt;p>&lt;em>Assign a layout to a plaintext tensor or scalar.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.assign_layout` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>This op allows the ingestion of a plaintext tensor into the layout system.
+&lt;/code>&lt;/pre>&lt;p>This op allows the ingestion of a plaintext value into the layout system.
 For example, ops like &lt;code>linalg.reduce&lt;/code>, require a tensor input to represent
 initial values. These will generally be created by an &lt;code>arith.constant&lt;/code> or
 &lt;code>tensor.empty&lt;/code> op, which does not have secret results. Lowerings will
@@ -16190,8 +16203,8 @@ lowered as ciphertext-plaintext ops.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16206,7 +16219,7 @@ lowered as ciphertext-plaintext ops.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16214,7 +16227,7 @@ lowered as ciphertext-plaintext ops.&lt;/p>
 &lt;p>&lt;em>Convert from one layout to another.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tensor_ext.convert_layout` operands attr-dict `:` type($output)
-&lt;/code>&lt;/pre>&lt;p>This op represents the conversion of a tensor from one packed layout to
+&lt;/code>&lt;/pre>&lt;p>This op represents the conversion of a value from one packed layout to
 another. This is implemented via a &amp;ldquo;shift network&amp;rdquo; of ciphertext rotations,
 plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;p>This op is inserted by layout selection passes.&lt;/p>
@@ -16237,8 +16250,8 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td style="text-align:center">&lt;code>tensor&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td style="text-align:center">&lt;code>value&lt;/code>&lt;/td>
+&lt;td>any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -16253,7 +16266,7 @@ plaintext masks (ciphertext-plaintext multiplications), and additions.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ranked tensor of any type values&lt;/td>
+&lt;td>any type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
