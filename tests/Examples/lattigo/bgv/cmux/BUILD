@@ -13,7 +13,7 @@ heir_lattigo_lib(
         "--mlir-to-bgv",
         "--scheme-to-lattigo",
     ],
-    mlir_src = "cmux.mlir",
+    mlir_src = "@heir//tests/Examples/common:cmux.mlir",
 )
 
 # For Google-internal reasons we must separate the go_test rules from the macro

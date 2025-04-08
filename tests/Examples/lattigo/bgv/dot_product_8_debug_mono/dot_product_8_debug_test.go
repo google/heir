@@ -1,4 +1,4 @@
-package dotproduct8debug
+package main
 
 import (
 	"testing"

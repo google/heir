@@ -1,3 +1,4 @@
+// Debug func implementation for testing
 package main
 
 import (

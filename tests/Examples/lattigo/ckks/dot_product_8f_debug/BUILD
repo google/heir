@@ -5,20 +5,13 @@ load("@rules_go//go:def.bzl", "go_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
-# This is a Google-internal hack to avoid issues with automated tooling that
-# expects very specific go package layout with respect to build targets.
-# @unused
-glaze_ignore = [
-    "dot_product_8f_debug.go",
-]
-
 heir_lattigo_lib(
     name = "dot_product_8f_debug",
     data = [
         "@heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log",
     ],
-    extra_srcs = ["dot_product_8f_debug.go"],
-    go_library_name = "dotproduct8fdebug",
+    extra_srcs = ["@heir//tests/Examples/lattigo/ckks:ckks_debug.go"],
+    go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
         "--mlir-to-ckks=ciphertext-degree=8 \
@@ -35,5 +28,5 @@ heir_lattigo_lib(
 go_test(
     name = "dotproduct8fdebug_test",
     srcs = ["dot_product_8f_debug_test.go"],
-    embed = [":dotproduct8fdebug"],
+    embed = [":main"],
 )

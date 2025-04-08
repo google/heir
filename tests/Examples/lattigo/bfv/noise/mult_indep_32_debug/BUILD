@@ -5,16 +5,9 @@ load("@rules_go//go:def.bzl", "go_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
-# This is a Google-internal hack to avoid issues with automated tooling that
-# expects very specific go package layout with respect to build targets.
-# @unused
-glaze_ignore = [
-    "bfv_debug.go",
-]
-
 heir_lattigo_lib(
     name = "mult_indep_32_debug",
-    extra_srcs = ["bfv_debug.go"],
+    extra_srcs = ["@heir//tests/Examples/lattigo/bfv:bfv_debug.go"],
     go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bfv",
