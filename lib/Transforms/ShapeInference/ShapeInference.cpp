@@ -5,7 +5,7 @@
 #include "llvm/include/llvm/Support/FormatVariadic.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
-#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -177,9 +177,8 @@ struct ShapeInference : impl::ShapeInferenceBase<ShapeInference> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     RewritePatternSet patterns(context);
-    // FIXME: This probably shouldn't even be a pattern anymore...
     patterns.add<InferShape>(context);
-    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
+    walkAndApplyPatterns(getOperation(), std::move(patterns));
   }
 };
 
