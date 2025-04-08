@@ -1,4 +1,4 @@
-package dotproduct8fdebug
+package main
 
 import (
 	"math"

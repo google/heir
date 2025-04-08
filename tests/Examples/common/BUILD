@@ -2,12 +2,11 @@
 
 package(
     default_applicable_licenses = ["@heir//:license"],
-    default_visibility = ["//visibility:public"],
 )
 
 exports_files(
     glob([
         "*.mlir",
     ]),
-    visibility = ["//visibility:public"],
+    visibility = ["@heir//tests/Examples:__subpackages__"],
 )

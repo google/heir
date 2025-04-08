@@ -12,7 +12,7 @@ openfhe_end_to_end_test(
         "--mlir-to-bgv",
         "--scheme-to-openfhe",
     ],
-    mlir_src = "cmux.mlir",
+    mlir_src = "@heir//tests/Examples/common:cmux.mlir",
     tags = ["notap"],
     test_src = "cmux_test.cpp",
 )
