@@ -29,6 +29,7 @@ jaxite_end_to_end_test(
         "--scheme-to-jaxite",
     ],
     mlir_src = "add_one_lut3.mlir",
+    tags = ["yosys"],
     test_src = "add_one_lut3_test.py",
     deps = [":test_utils"],
 )

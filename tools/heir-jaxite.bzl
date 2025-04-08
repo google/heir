@@ -31,6 +31,7 @@ def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name 
             generated_filename = generated_heir_opt_name,
             HEIR_YOSYS = True,
             data = ["@heir//lib/Transforms/YosysOptimizer/yosys:share_files"],
+            tags = tags,
         )
     else:
         generated_heir_opt_name = mlir_src
@@ -40,6 +41,7 @@ def fhe_jaxite_lib(name, mlir_src, heir_opt_pass_flags = [], py_lib_target_name 
         src = generated_heir_opt_name,
         pass_flags = ["--emit-jaxite"],
         generated_filename = generated_py_filename,
+        tags = tags,
     )
     py_library(
         name = py_lib_target_name,

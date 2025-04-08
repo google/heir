@@ -15,4 +15,5 @@ fhe_jaxite_lib(
     ],
     mlir_src = "add_one_lut3.mlir",
     py_lib_target_name = "add_one_lut3_py_lib",
+    tags = ["yosys"],
 )
