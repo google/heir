@@ -29,19 +29,13 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=TosaToSecretArith",
-            ],
-            "TosaToSecretArith.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "TosaToSecretArith.md",
-        ),
-    ],
+    tbl_outs = {
+        "TosaToSecretArith.h.inc": [
+            "-gen-pass-decls",
+            "-name=TosaToSecretArith",
+        ],
+        "TosaToSecretArith.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "TosaToSecretArith.td",
     deps = [

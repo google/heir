@@ -38,19 +38,13 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=SecretToCGGI",
-            ],
-            "SecretToCGGI.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "SecretToCGGI.md",
-        ),
-    ],
+    tbl_outs = {
+        "SecretToCGGI.h.inc": [
+            "-gen-pass-decls",
+            "-name=SecretToCGGI",
+        ],
+        "SecretToCGGI.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "SecretToCGGI.td",
     deps = [

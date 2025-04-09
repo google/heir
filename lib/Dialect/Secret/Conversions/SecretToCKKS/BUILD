@@ -41,19 +41,13 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=SecretToCKKS",
-            ],
-            "SecretToCKKS.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "SecretToCKKS.md",
-        ),
-    ],
+    tbl_outs = {
+        "SecretToCKKS.h.inc": [
+            "-gen-pass-decls",
+            "-name=SecretToCKKS",
+        ],
+        "SecretToCKKS.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "SecretToCKKS.td",
     deps = [

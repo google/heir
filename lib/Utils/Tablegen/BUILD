@@ -30,20 +30,11 @@ cc_library(
 
 gentbl_cc_library(
     name = "inplace_op_interface_inc_gen",
-    tbl_outs = [
-        (
-            ["--gen-op-interface-decls"],
-            "InplaceOpInterface.h.inc",
-        ),
-        (
-            ["--gen-op-interface-defs"],
-            "InplaceOpInterface.cpp.inc",
-        ),
-        (
-            ["-gen-op-interface-docs"],
-            "InplaceOpInterface.md",
-        ),
-    ],
+    tbl_outs = {
+        "InplaceOpInterface.h.inc": ["--gen-op-interface-decls"],
+        "InplaceOpInterface.cpp.inc": ["--gen-op-interface-defs"],
+        "InplaceOpInterface.md": ["-gen-op-interface-docs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "InplaceOpInterface.td",
     deps = [

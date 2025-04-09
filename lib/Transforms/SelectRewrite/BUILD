@@ -23,23 +23,14 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=SelectRewrite",
-            ],
-            "SelectRewrite.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "SelectRewritePasses.md",
-        ),
-        (
-            ["-gen-rewriters"],
-            "SelectRewrite.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "SelectRewrite.h.inc": [
+            "-gen-pass-decls",
+            "-name=SelectRewrite",
+        ],
+        "SelectRewritePasses.md": ["-gen-pass-doc"],
+        "SelectRewrite.cpp.inc": ["-gen-rewriters"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "SelectRewrite.td",
     deps = [

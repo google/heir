@@ -62,16 +62,10 @@ td_library(
 
 gentbl_cc_library(
     name = "interfaces_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-op-interface-decls"],
-            "HEIRInterfaces.h.inc",
-        ),
-        (
-            ["-gen-op-interface-defs"],
-            "HEIRInterfaces.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "HEIRInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "HEIRInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "HEIRInterfaces.td",
     deps = [

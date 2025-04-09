@@ -148,19 +148,13 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=TensorExt",
-            ],
-            "Passes.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "TensorExtPasses.md",
-        ),
-    ],
+    tbl_outs = {
+        "Passes.h.inc": [
+            "-gen-pass-decls",
+            "-name=TensorExt",
+        ],
+        "TensorExtPasses.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Passes.td",
     deps = [
@@ -171,12 +165,7 @@ gentbl_cc_library(
 
 gentbl_cc_library(
     name = "insert_rotate_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-rewriters"],
-            "InsertRotate.cpp.inc",
-        ),
-    ],
+    tbl_outs = {"InsertRotate.cpp.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "InsertRotate.td",
     deps = [

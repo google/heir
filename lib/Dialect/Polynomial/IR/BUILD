@@ -88,12 +88,7 @@ add_heir_dialect_library(
 
 gentbl_cc_library(
     name = "canonicalization_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-rewriters"],
-            "PolynomialCanonicalization.cpp.inc",
-        ),
-    ],
+    tbl_outs = {"PolynomialCanonicalization.cpp.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "PolynomialCanonicalization.td",
     deps = [
