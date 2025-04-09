@@ -10,6 +10,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -42,8 +43,15 @@ namespace lattigo {
 LogicalResult translateToLattigo(Operation *op, llvm::raw_ostream &os,
                                  const std::string &packageName) {
   SelectVariableNames variableNames(op);
-  LattigoEmitter emitter(os, &variableNames, packageName);
+  std::string bufferedStr;
+  llvm::raw_string_ostream strOs(bufferedStr);
+  raw_indented_ostream bufferedOs(strOs);
+  LattigoEmitter emitter(bufferedOs, &variableNames, packageName);
   LogicalResult result = emitter.translate(*op);
+
+  // Now write the materialized prelude and body to the outstream.
+  emitter.emitPrelude(os);
+  os << strOs.str();
   return result;
 }
 
@@ -58,7 +66,8 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::FromElementsOp>(
+          .Case<tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertOp,
+                tensor::FromElementsOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
@@ -94,12 +103,16 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(ModuleOp moduleOp) {
-  os << "package " << packageName << "\n";
+  prelude = "package " + packageName + "\n";
 
+  // Defer prelude and imports until the end, since some ops may need extra
+  // imports injected to the `imports` list dynamically as they are emitted.
+  imports.insert(std::string(kRlweImport));
   if (moduleIsBGVOrBFV(moduleOp)) {
-    os << kModulePreludeBGVTemplate;
+    imports.insert(std::string(kBgvImport));
   } else if (moduleIsCKKS(moduleOp)) {
-    os << kModulePreludeCKKSTemplate;
+    imports.insert(std::string(kMathImport));
+    imports.insert(std::string(kCkksImport));
   } else {
     return moduleOp.emitError("Unknown scheme");
   }
@@ -226,7 +239,10 @@ FailureOr<std::string> getStringForConstant(T value) {
     return std::to_string(value.getSExtValue());
   } else if constexpr (std::is_same_v<T, APFloat>) {
     // care about precision...see OpenfhePkeEmitter when we encounter problem
-    return std::to_string(value.convertToDouble());
+    std::string literalStr;
+    llvm::raw_string_ostream literalOs(literalStr);
+    value.print(literalOs);
+    return literalOs.str();
   }
   return failure();
 }
@@ -234,14 +250,14 @@ FailureOr<std::string> getStringForConstant(T value) {
 FailureOr<std::string> getStringForDenseElementAttr(
     DenseElementsAttr denseAttr) {
   // Splat is also handled in getValues
-  std::string valueString;
+  SmallVector<std::string> values;
   if (succeeded(denseAttr.tryGetValues<APInt>())) {
     for (auto value : denseAttr.getValues<APInt>()) {
       auto constantString = getStringForConstant(value);
       if (failed(constantString)) {
         return failure();
       }
-      valueString += *constantString + ", ";
+      values.push_back(*constantString);
     }
   } else if (succeeded(denseAttr.tryGetValues<APFloat>())) {
     for (auto value : denseAttr.getValues<APFloat>()) {
@@ -249,17 +265,12 @@ FailureOr<std::string> getStringForDenseElementAttr(
       if (failed(constantString)) {
         return failure();
       }
-      valueString += *constantString + ", ";
+      values.push_back(*constantString);
     }
   } else {
     return failure();
   }
-  // remove the trailing ", "
-  if (valueString.size() > 1) {
-    valueString.pop_back();
-    valueString.pop_back();
-  }
-  return valueString;
+  return llvm::join(values, ", ");
 }
 
 }  // namespace
@@ -318,9 +329,93 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
-  // only support 1-dim tensor for now
   os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
-  os << getName(op.getIndices()[0]) << "]\n";
+  os << flattenIndexExpression(
+      op.getTensor().getType(), op.getIndices(),
+      [&](Value value) { return variableNames->getNameForValue(value); });
+  os << "]\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
+  // Not sure if golang has a strided slice operation like python,
+  // so do it as a loop
+  RankedTensorType resultType = op.getResult().getType();
+
+  if (resultType.getRank() != op.getSourceType().getRank()) {
+    return op.emitError(
+        "Lattigo emitter for ExtractSliceOp only supports "
+        "result rank equal to source rank");
+  }
+
+  // make an array to store the output
+  //
+  //   v := [5][6][7]int32{}
+  //
+  SmallVector<std::string> arrays;
+  for (auto dim : resultType.getShape()) {
+    arrays.push_back("[" + std::to_string(dim) + "]");
+  }
+  std::string resultName = getName(op.getResult(), /*force=*/true);
+  std::string tmpName = resultName + "_array";
+  os << tmpName << " := " << llvm::join(arrays, "")
+     << convertType(resultType.getElementType()) << "{}";
+
+  if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
+      op.getStaticStrides().empty()) {
+    return op.emitError() << "expected static offsets, sizes, and strides";
+  }
+
+  SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
+  SmallVector<int64_t> sizes = SmallVector<int64_t>(op.getStaticSizes());
+  SmallVector<int64_t> strides = SmallVector<int64_t>(op.getStaticStrides());
+
+  // Loop nest to copy the right values
+  SmallVector<std::string> sourceIndexNames;
+  SmallVector<std::string> destIndexNames;
+  for (int nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
+    std::string sourceIndexName =
+        resultName + "_source_" + std::to_string(nestLevel);
+    std::string destIndexName =
+        resultName + "_dest_" + std::to_string(nestLevel);
+    sourceIndexNames.push_back(sourceIndexName);
+    destIndexNames.push_back(destIndexName);
+    os << "\nfor " << sourceIndexName << " := " << offsets[nestLevel] << "; "
+       << sourceIndexName << " < "
+       << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
+       << sourceIndexName << " += " << strides[nestLevel] << " {\n";
+    os.indent();
+    // Also initialise the destination index to zero
+    os << destIndexName << " := 0\n";
+  }
+
+  // Now we're in the innermost loop nest, do the assignment
+  os << tmpName << "[" << llvm::join(destIndexNames, "][")
+     << "] = " << getName(op.getSource()) << "["
+     << llvm::join(sourceIndexNames, "][") << "]\n";
+
+  // Now unindent and close the loop nest
+  for (int nestLevel = offsets.size() - 1; nestLevel >= 0; nestLevel--) {
+    // Also increment the destination indices
+    os << destIndexNames[nestLevel] << " += 1\n";
+    os.unindent();
+    os << "}\n";
+  }
+
+  // convert to slice
+  os << getName(op.getResult()) << " := " << tmpName << "[:]\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
+  os << variableNames->getNameForValue(op.getDest());
+  os << "[";
+  os << flattenIndexExpression(
+      op.getResult().getType(), op.getIndices(),
+      [&](Value value) { return variableNames->getNameForValue(value); });
+  os << "]";
+  os << " = " << variableNames->getNameForValue(op.getScalar()) << "\n";
+  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
   return success();
 }
 
@@ -329,6 +424,29 @@ LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
      << convertType(getElementTypeOrSelf(op.getResult().getType())) << "{";
   os << getCommaSeparatedNames(op.getOperands());
   os << "}\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
+  imports.insert(std::string(kSlicesImport));
+  std::string tmpVar = getName(op.getResult()) + "_0";
+  auto scalarTypeString = convertType(op.getInput().getType());
+
+  RankedTensorType resultType = op.getResult().getType();
+  if (resultType.getRank() != 1) {
+    return op.emitError("Lattigo emitter for SplatOp only supports rank 1");
+  }
+
+  // golang requires a slice input to slices.Repeat
+  //
+  //     numbers := []int{v}
+  //   repeat := slices.Repeat(numbers, 50)
+  //
+  int tensorSize = resultType.getNumElements();
+  os << tmpVar << " := []" << scalarTypeString << "{" << getName(op.getInput())
+     << "}\n";
+  os << getName(op.getResult()) << " := slices.Repeat(" << tmpVar << ", "
+     << tensorSize << ")\n";
   return success();
 }
 
@@ -1075,8 +1193,8 @@ void registerToLattigoTranslation() {
       },
       [](DialectRegistry &registry) {
         registry.insert<rns::RNSDialect, arith::ArithDialect, func::FuncDialect,
-                        tensor::TensorDialect, lattigo::LattigoDialect,
-                        mgmt::MgmtDialect>();
+                        tensor::TensorDialect, tensor_ext::TensorExtDialect,
+                        lattigo::LattigoDialect, mgmt::MgmtDialect>();
       });
 }
 

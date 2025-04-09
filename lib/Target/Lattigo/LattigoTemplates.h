@@ -7,23 +7,18 @@ namespace mlir {
 namespace heir {
 namespace lattigo {
 
+// prevent format mangling
 // clang-format off
-constexpr std::string_view kModulePreludeBGVTemplate = R"go(
-import (
-    "github.com/tuneinsight/lattigo/v6/core/rlwe"
-    "github.com/tuneinsight/lattigo/v6/schemes/bgv"
-)
-)go";
-
-constexpr std::string_view kModulePreludeCKKSTemplate = R"go(
-import (
-    "math"
-
-    "github.com/tuneinsight/lattigo/v6/core/rlwe"
-    "github.com/tuneinsight/lattigo/v6/schemes/ckks"
-)
-)go";
+constexpr std::string_view kRlweImport =
+    "\"github.com/tuneinsight/lattigo/v6/core/rlwe\"";
+constexpr std::string_view kBgvImport =
+    "\"github.com/tuneinsight/lattigo/v6/schemes/bgv\"";
+constexpr std::string_view kCkksImport =
+    "\"github.com/tuneinsight/lattigo/v6/schemes/ckks\"";
 // clang-format on
+//
+constexpr std::string_view kMathImport = "\"math\"";
+constexpr std::string_view kSlicesImport = "\"slices\"";
 
 }  // namespace lattigo
 }  // namespace heir

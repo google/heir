@@ -301,3 +301,20 @@ module attributes {scheme.bgv} {
     return %3 : i64
   }
 }
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: test_concat
+  func.func @test_concat() -> tensor<64xi16> {
+    // CHECK: std::vector<int16_t> [[v0:.*]] =
+    %cst = arith.constant dense<[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]> : tensor<32xi16>
+    // CHECK: std::vector<int16_t> [[v1:.*]];
+    // CHECK: for (int i = 0; i < 2; ++i) {
+    // CHECK:   v1.insert([[v1]].end(), [[v0]].begin(), [[v0]].end());
+    // CHECK: }
+    %v = tensor.concat dim(0) %cst, %cst : (tensor<32xi16>, tensor<32xi16>) -> tensor<64xi16>
+
+    return %v : tensor<64xi16>
+  }
+}

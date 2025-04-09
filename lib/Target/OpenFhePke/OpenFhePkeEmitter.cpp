@@ -257,8 +257,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
                 arith::AddIOp, arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::EmptyOp, tensor::InsertOp, tensor::ExtractOp,
-                tensor::ExtractSliceOp, tensor::SplatOp>(
+          .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
+                tensor::ExtractOp, tensor::ExtractSliceOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
@@ -887,6 +887,45 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::CmpIOp op) {
       return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
   }
   llvm_unreachable("unknown cmpi predicate kind");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::ConcatOp op) {
+  // concat dim(0) %foo, %foo, ...
+  // lower to a loop
+  auto operandType = cast<RankedTensorType>(op.getOperands()[0].getType());
+  auto resultType = op.getResult().getType();
+  std::string varName = variableNames->getNameForValue(op.getResult());
+  if (resultType.getRank() != 1 || operandType.getRank() != 1) {
+    return failure();
+  }
+  // std::vector<8192> result;
+  if (failed(emitType(resultType, op->getLoc()))) {
+    return failure();
+  }
+  os << " " << varName << ";\n";
+
+  if (llvm::all_equal(op.getOperands())) {
+    std::string operandName =
+        variableNames->getNameForValue(op.getOperands()[0]);
+    int64_t numRepeats =
+        resultType.getNumElements() / operandType.getNumElements();
+    // for (int i = 0; i < numRepeats; ++i) {
+    os << "for (int i = 0; i < " << numRepeats << "; ++i) {\n";
+    os.indent();
+
+    // result.insert(result.end(), foo.begin(), foo.end());
+    os << varName << ".insert(" << varName << ".end(), " << operandName
+       << ".begin(), " << operandName << ".end());\n";
+
+    os.unindent();
+    os << "}\n";
+    return success();
+  }
+
+  // More complicated concat ops are not supported yet. The earlier lowerings
+  // should just produce concat for lack of a "repeat" op. Maybe we should make
+  // a tensor_ext.repeat op?
+  return failure();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(tensor::EmptyOp op) {
