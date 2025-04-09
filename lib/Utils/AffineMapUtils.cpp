@@ -101,8 +101,11 @@ AffineMap getDiagonalLayoutMap(RankedTensorType inputType,
   int64_t m = outputType.getDimSize(1);
   AffineExpr i, j;
   bindDims(inputType.getContext(), i, j);
-  AffineMap layout =
-      AffineMap::get(2, 0, {j % n, (i + j) % m}, inputType.getContext());
+  // This is the inverse mapping of the more familiar mapping from ciphertext
+  // slot to matrix (i, j) -> (j % n, (i+j)%m). Only works for powers of two n
+  // <= m.
+  AffineMap layout = AffineMap::get(2, 0, {(j - i) % n, (j - (j - i) % n) % m},
+                                    inputType.getContext());
   return simplifyAffineMap(layout);
 }
 

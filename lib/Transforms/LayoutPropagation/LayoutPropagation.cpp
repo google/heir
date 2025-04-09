@@ -505,12 +505,13 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
   auto matrix = matvecOp.lhs();
   auto matrixType = cast<RankedTensorType>(matrix.getType());
 
-  // FIXME: the layout optimizer should really be selecting
-  // the diagonal layout instead of this pass.
+  // TODO(#1695): a layout optimizer should really be selecting the diagonal
+  // layout instead of this pass.
 
   LayoutAttr matrixLayout = assignedLayouts.at(matrix);
-  int64_t numCiphertexts = matrixType.getNumElements() / ciphertextSize;
-  numCiphertexts = numCiphertexts == 0 ? 1 : numCiphertexts;
+  // The Halevi-Shoup kernel (all we support at this time) requires one
+  // ciphertext per matrix row.
+  int64_t numCiphertexts = matrixType.getShape()[0];
   RankedTensorType alignedOutType = RankedTensorType::get(
       {numCiphertexts, ciphertextSize}, matrixType.getElementType());
   if (!isLayoutSquatDiagonal(matrixType, alignedOutType,
