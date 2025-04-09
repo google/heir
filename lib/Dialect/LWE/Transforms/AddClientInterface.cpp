@@ -49,17 +49,21 @@ using ::mlir::heir::tensor_ext::OriginalTypeAttr;
 auto &kOriginalTypeAttrName =
     tensor_ext::TensorExtDialect::kOriginalTypeAttrName;
 
-int64_t getNumSlots(Operation *op) {
-  return llvm::TypeSwitch<Attribute, int64_t>(getSchemeParamAttr(op))
+FailureOr<int64_t> getNumSlots(Operation *op) {
+  return llvm::TypeSwitch<Attribute, FailureOr<int64_t>>(getSchemeParamAttr(op))
       .Case<bgv::SchemeParamAttr>(
           // The numSlots is multiplied by 2 to get the param degree
           // so we have to halve it.
-          [](auto attr) -> int64_t { return (1L << attr.getLogN()) / 2; })
-      .Case<ckks::SchemeParamAttr>(
-          [](auto attr) -> int64_t { return (1L << attr.getLogN()) / 2; })
-      .Default([](Attribute attr) -> int64_t {
-        assert(false && "Unsupported scheme parame attribute");
-        return 0;
+          [](auto attr) -> FailureOr<int64_t> {
+            return (1L << attr.getLogN()) / 2;
+          })
+      .Case<ckks::SchemeParamAttr>([](auto attr) -> FailureOr<int64_t> {
+        return (1L << attr.getLogN()) / 2;
+      })
+      .Default([&](Attribute attr) -> FailureOr<int64_t> {
+        return op->emitError()
+               << "Unable to determine slot count because module had no "
+                  "supported scheme param attribute";
       });
 }
 
@@ -186,7 +190,10 @@ LogicalResult generateDecryptionFunc(
   builder.setInsertionPointToEnd(decFuncOp.addEntryBlock());
   Value secretKey = decFuncOp.getArgument(decFuncOp.getNumArguments() - 1);
 
-  int64_t numSlots = getNumSlots(op);
+  auto numSlotsResult = getNumSlots(op);
+  if (failed(numSlotsResult)) return failure();
+
+  int64_t numSlots = numSlotsResult.value();
   SmallVector<Value> decValuesToReturn;
   // Use result types because arg types has the secret key at the end, but
   // result types does not
@@ -336,18 +343,19 @@ class LowerAssignLayout : public OpRewritePattern<tensor_ext::AssignLayoutOp> {
 struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   using AddClientInterfaceBase::AddClientInterfaceBase;
 
-  bool getUsePublicKey() {
-    return llvm::TypeSwitch<Attribute, bool>(getSchemeParamAttr(getOperation()))
-        .Case<bgv::SchemeParamAttr>([](auto attr) {
+  FailureOr<bool> getUsePublicKey() {
+    return llvm::TypeSwitch<Attribute, FailureOr<bool>>(
+               getSchemeParamAttr(getOperation()))
+        .Case<bgv::SchemeParamAttr>([](auto attr) -> FailureOr<bool> {
           return attr.getEncryptionType() == bgv::BGVEncryptionType::pk;
         })
-        .Case<ckks::SchemeParamAttr>([](auto attr) {
+        .Case<ckks::SchemeParamAttr>([](auto attr) -> FailureOr<bool> {
           return attr.getEncryptionType() == ckks::CKKSEncryptionType::pk;
         })
-        .Default([this](Attribute attr) {
-          assert(false && "Unsupported scheme parame attribute");
-          signalPassFailure();
-          return false;
+        .Default([this](Attribute attr) -> FailureOr<bool> {
+          return getOperation()->emitError()
+                 << "Unable to determine encryption type due to missing or "
+                    "unsupported scheme param attribute";
         });
   }
 
@@ -355,7 +363,13 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
     MLIRContext *context = &getContext();
     Operation *root = getOperation();
 
-    bool usePk = getUsePublicKey();
+    FailureOr<bool> usePkResult = getUsePublicKey();
+    if (failed(usePkResult)) {
+      signalPassFailure();
+      return;
+    }
+    bool usePk = usePkResult.value();
+
     auto result = root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
       if (op.isDeclaration()) {
         op->emitWarning("Skipping client interface for external func");
@@ -369,11 +383,16 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
     });
     if (result.wasInterrupted()) signalPassFailure();
 
-    int ciphertextSize = getNumSlots(getOperation());
-    LLVM_DEBUG(llvm::dbgs()
-                   << "Detected num slots=" << ciphertextSize << "\n";);
+    auto numSlotsResult = getNumSlots(root);
+    if (failed(numSlotsResult)) {
+      signalPassFailure();
+      return;
+    }
+
+    int64_t numSlots = numSlotsResult.value();
+    LLVM_DEBUG(llvm::dbgs() << "Detected num slots=" << numSlots << "\n";);
     RewritePatternSet patterns(context);
-    patterns.add<LowerAssignLayout>(context, ciphertextSize);
+    patterns.add<LowerAssignLayout>(context, numSlots);
     walkAndApplyPatterns(root, std::move(patterns));
   }
 };

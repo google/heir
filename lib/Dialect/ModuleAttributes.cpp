@@ -51,7 +51,7 @@ Attribute getSchemeParamAttr(Operation *op) {
     }
   }
 
-  return nullptr;
+  return UnitAttr::get(op->getContext());
 }
 
 void moduleClearScheme(Operation *moduleOp) {
