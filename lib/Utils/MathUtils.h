@@ -22,6 +22,8 @@ inline uint64_t nextPowerOfTwo(uint64_t v) {
   return v;
 }
 
+inline bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
+
 }  // namespace heir
 }  // namespace mlir
 
