@@ -43,8 +43,18 @@ void printPermutation(::llvm::ArrayRef<int64_t> permutation, T &os) {
   os << "\n";
 }
 
+AffineMap getRowMajorLayoutMap(RankedTensorType inputType,
+                               RankedTensorType outputType);
+
 bool isLayoutRowMajor(RankedTensorType inputType, RankedTensorType outputType,
                       const AffineMap &layout);
+
+AffineMap getDiagonalLayoutMap(RankedTensorType inputType,
+                               RankedTensorType outputType);
+
+bool isLayoutSquatDiagonal(RankedTensorType inputType,
+                           RankedTensorType outputType,
+                           const AffineMap &layout);
 
 template void printPermutation(::llvm::ArrayRef<int64_t>,
                                ::llvm::raw_ostream &);
