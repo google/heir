@@ -29,23 +29,14 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=ModArithToArith",
-            ],
-            "ModArithToArith.h.inc",
-        ),
-        (
-            ["-gen-rewriters"],
-            "ModArithToArith.cpp.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "ModArithToArith.md",
-        ),
-    ],
+    tbl_outs = {
+        "ModArithToArith.h.inc": [
+            "-gen-pass-decls",
+            "-name=ModArithToArith",
+        ],
+        "ModArithToArith.cpp.inc": ["-gen-rewriters"],
+        "ModArithToArith.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ModArithToArith.td",
     deps = [

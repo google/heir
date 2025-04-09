@@ -193,19 +193,13 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=Secret",
-            ],
-            "Passes.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "SecretPasses.md",
-        ),
-    ],
+    tbl_outs = {
+        "Passes.h.inc": [
+            "-gen-pass-decls",
+            "-name=Secret",
+        ],
+        "SecretPasses.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Passes.td",
     deps = [

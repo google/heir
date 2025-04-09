@@ -117,12 +117,7 @@ add_heir_dialect_library(
 
 gentbl_cc_library(
     name = "canonicalize_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-rewriters"],
-            "MgmtCanonicalization.cpp.inc",
-        ),
-    ],
+    tbl_outs = {"MgmtCanonicalization.cpp.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "MgmtCanonicalization.td",
     deps = [

@@ -51,29 +51,20 @@ td_library(
 gentbl_cc_library(
     name = "dialect_inc_gen",
     includes = ["include"],
-    tbl_outs = [
-        (
-            [
-                "-gen-dialect-decls",
-                "-dialect=comb",
-            ],
-            "CombDialect.h.inc",
-        ),
-        (
-            [
-                "-gen-dialect-defs",
-                "-dialect=comb",
-            ],
-            "CombDialect.cpp.inc",
-        ),
-        (
-            [
-                "-gen-dialect-doc",
-                "-dialect=comb",
-            ],
-            "CombDialect.md",
-        ),
-    ],
+    tbl_outs = {
+        "CombDialect.h.inc": [
+            "-gen-dialect-decls",
+            "-dialect=comb",
+        ],
+        "CombDialect.cpp.inc": [
+            "-gen-dialect-defs",
+            "-dialect=comb",
+        ],
+        "CombDialect.md": [
+            "-gen-dialect-doc",
+            "-dialect=comb",
+        ],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",
     deps = [
@@ -85,24 +76,15 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "ops_inc_gen",
     includes = ["include"],
-    tbl_outs = [
-        (
-            [
-                "-gen-op-decls",
-            ],
-            "Comb.h.inc",
-        ),
-        (
-            [
-                "-gen-op-defs",
-            ],
-            "Comb.cpp.inc",
-        ),
-        (
-            ["-gen-op-doc"],
-            "CombOps.md",
-        ),
-    ],
+    tbl_outs = {
+        "Comb.h.inc": [
+            "-gen-op-decls",
+        ],
+        "Comb.cpp.inc": [
+            "-gen-op-defs",
+        ],
+        "CombOps.md": ["-gen-op-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",
     deps = [
@@ -114,24 +96,15 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "type_inc_gen",
     includes = ["include"],
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-            ],
-            "CombTypes.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-            ],
-            "CombTypes.cpp.inc",
-        ),
-        (
-            ["-gen-typedef-doc"],
-            "CombTypes.md",
-        ),
-    ],
+    tbl_outs = {
+        "CombTypes.h.inc": [
+            "-gen-typedef-decls",
+        ],
+        "CombTypes.cpp.inc": [
+            "-gen-typedef-defs",
+        ],
+        "CombTypes.md": ["-gen-typedef-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",
     deps = [
@@ -142,24 +115,15 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "enum_inc_gen",
     includes = ["include"],
-    tbl_outs = [
-        (
-            [
-                "-gen-enum-decls",
-            ],
-            "CombEnums.h.inc",
-        ),
-        (
-            [
-                "-gen-enum-defs",
-            ],
-            "CombEnums.cpp.inc",
-        ),
-        (
-            ["-gen-enum-doc"],
-            "CombEnums.md",
-        ),
-    ],
+    tbl_outs = {
+        "CombEnums.h.inc": [
+            "-gen-enum-decls",
+        ],
+        "CombEnums.cpp.inc": [
+            "-gen-enum-defs",
+        ],
+        "CombEnums.md": ["-gen-enum-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Comb.td",
     deps = [

@@ -39,19 +39,13 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=Polynomial",
-            ],
-            "Passes.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "PolynomialPasses.md",
-        ),
-    ],
+    tbl_outs = {
+        "Passes.h.inc": [
+            "-gen-pass-decls",
+            "-name=Polynomial",
+        ],
+        "PolynomialPasses.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Passes.td",
     deps = [
@@ -63,12 +57,7 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "ntt_rewrites_inc_gen",
     includes = ["../../../.."],
-    tbl_outs = [
-        (
-            ["-gen-rewriters"],
-            "NTTRewrites.cpp.inc",
-        ),
-    ],
+    tbl_outs = {"NTTRewrites.cpp.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "NTTRewrites.td",
     deps = [

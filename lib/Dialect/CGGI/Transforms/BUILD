@@ -92,12 +92,7 @@ add_heir_transforms(
 
 gentbl_cc_library(
     name = "expand_lut_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-rewriters"],
-            "ExpandLUT.cpp.inc",
-        ),
-    ],
+    tbl_outs = {"ExpandLUT.cpp.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ExpandLUT.td",
     deps = [

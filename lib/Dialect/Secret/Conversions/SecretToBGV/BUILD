@@ -40,19 +40,13 @@ cc_library(
 
 gentbl_cc_library(
     name = "pass_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=SecretToBGV",
-            ],
-            "SecretToBGV.h.inc",
-        ),
-        (
-            ["-gen-pass-doc"],
-            "SecretToBGV.md",
-        ),
-    ],
+    tbl_outs = {
+        "SecretToBGV.h.inc": [
+            "-gen-pass-decls",
+            "-name=SecretToBGV",
+        ],
+        "SecretToBGV.md": ["-gen-pass-doc"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "SecretToBGV.td",
     deps = [

@@ -127,12 +127,7 @@ add_heir_dialect_library(
 
 gentbl_cc_library(
     name = "canonicalize_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-rewriters"],
-            "TensorExtCanonicalization.cpp.inc",
-        ),
-    ],
+    tbl_outs = {"TensorExtCanonicalization.cpp.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "TensorExtCanonicalization.td",
     deps = [
