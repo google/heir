@@ -10,6 +10,8 @@ cc_library(
     srcs = ["ConvertToCiphertextSemantics.cpp"],
     hdrs = ["ConvertToCiphertextSemantics.h"],
     deps = [
+        ":AssignLayout",
+        ":TypeConversion",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
@@ -19,6 +21,7 @@ cc_library(
         "@heir//lib/Utils:ContextAwareConversionUtils",
         "@heir//lib/Utils:ContextAwareDialectConversion",
         "@heir//lib/Utils:ContextAwareTypeConversion",
+        "@heir//lib/Utils:MathUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DialectUtils",
@@ -30,6 +33,38 @@ cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TensorTransforms",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "TypeConversion",
+    srcs = ["TypeConversion.cpp"],
+    hdrs = ["TypeConversion.h"],
+    deps = [
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils",
+        "@heir//lib/Utils:AffineMapUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "AssignLayout",
+    srcs = ["AssignLayout.cpp"],
+    hdrs = ["AssignLayout.h"],
+    deps = [
+        ":TypeConversion",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils",
+        "@heir//lib/Utils:AffineMapUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
     ],
 )
 

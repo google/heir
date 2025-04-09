@@ -1,6 +1,5 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <numeric>
@@ -15,23 +14,25 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/TypeConversion.h"
 #include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
+#include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Utils.h"
-#include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/ADT/StringExtras.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/ArrayRef.h"      // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"    // from @llvm-project
@@ -69,12 +70,6 @@ static constexpr int kUnset = -1;
 #define GEN_PASS_DEF_CONVERTTOCIPHERTEXTSEMANTICS
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h.inc"
 
-bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
-
-bool containsDim(ArrayRef<int64_t> dims, int64_t dim) {
-  return llvm::any_of(dims, [dim](int64_t d) { return d == dim; });
-}
-
 // This type converter converts types like tensor<NxMxi16> where the dimensions
 // represent tensor-semantic data to tensor<ciphertext_count x num_slots x
 // i16>, where the last dimension represents the ciphertext or plaintext slot
@@ -96,69 +91,44 @@ struct LayoutMaterializationTypeConverter
   LayoutMaterializationTypeConverter(int ciphertextSize)
       : UniquelyNamedAttributeAwareTypeConverter(kLayoutAttrName),
         ciphertextSize(ciphertextSize) {
+    // For some reason, directly capturing ciphertextSize here leads to memory
+    // corruption on that int. Instead, pass the value to a member variable and
+    // query it at call time. I have no idea why C++ does this. Debugging it
+    // felt like having a stroke.
     addConversion([&](Type type, Attribute attr) { return std::nullopt; });
+    addConversion([this](secret::SecretType type,
+                         LayoutAttr attr) -> std::optional<Type> {
+      FailureOr<Type> convertedInnerType;
+      auto innerType = type.getValueType();
+
+      if (auto rankedTensorType = dyn_cast<RankedTensorType>(innerType)) {
+        convertedInnerType =
+            materializeLayout(rankedTensorType, attr, getCiphertextSize());
+      } else {
+        convertedInnerType =
+            materializeScalarLayout(innerType, attr, getCiphertextSize());
+      }
+
+      if (failed(convertedInnerType)) return std::nullopt;
+      return secret::SecretType::get(convertedInnerType.value());
+    });
     addConversion(
-        [&](secret::SecretType type, LayoutAttr attr) -> std::optional<Type> {
-          auto innerType = type.getValueType();
-          auto rankedTensorType = dyn_cast<RankedTensorType>(innerType);
-          if (!rankedTensorType) return std::nullopt;
-
-          auto convertedInnerType = materializeLayout(rankedTensorType, attr);
-          if (failed(convertedInnerType)) return std::nullopt;
-
-          return secret::SecretType::get(convertedInnerType.value());
+        [this](RankedTensorType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeLayout(type, attr, getCiphertextSize());
         });
     addConversion(
-        [&](RankedTensorType type, LayoutAttr attr) -> std::optional<Type> {
-          return materializeLayout(type, attr);
+        [this](IntegerType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarLayout(type, attr, getCiphertextSize());
+        });
+    addConversion(
+        [this](FloatType type, LayoutAttr attr) -> std::optional<Type> {
+          return materializeScalarLayout(type, attr, getCiphertextSize());
         });
   }
 
-  FailureOr<Type> materializeLayout(RankedTensorType type,
-                                    LayoutAttr attr) const {
-    AffineMap layout = attr.getMap();
-    MLIRContext *ctx = type.getContext();
-    OpBuilder b(ctx);
-    LLVM_DEBUG(llvm::dbgs() << "Unaligned type: " << type << "\n");
-
-    // First extract the tensor type as expanded according to the
-    // alignment attribute.
-    tensor_ext::AlignmentAttr alignment = attr.getAlignment();
-    if (alignment) {
-      type = RankedTensorType::get(alignment.getOut(), type.getElementType());
-    }
-    LLVM_DEBUG(llvm::dbgs() << "Aligned type: " << type << "\n");
-
-    // Each ciphertext will always have ciphertextSize many slots, so the main
-    // goal is to determine how many ciphertexts are needed. We do this by
-    // iterating over the input type's index domain, and apply the layout
-    // affine map to each index, and keep track of the maximum value of each
-    // index of the map results. These maxima (plus 1 for zero indexing)
-    // will be the shape of the new type.
-    SmallVector<int64_t> outputTensorShape(layout.getNumResults(), 0);
-    outputTensorShape[layout.getNumResults() - 1] = ciphertextSize;
-
-    // Evaluate the affine map on the input indices and update the
-    // outputTensorShape to be a max over visited indices.
-    IndexTupleConsumer evaluateNextIndex =
-        [&](const std::vector<int64_t> &indices) {
-          SmallVector<int64_t> results;
-          evaluateStatic(layout, indices, results);
-
-          // minus 1 to skip the last dimension (ciphertext dimension)
-          for (int i = 0; i < layout.getNumResults() - 1; ++i) {
-            // 1 + to account for zero indexing
-            outputTensorShape[i] =
-                std::max(outputTensorShape[i], 1 + results[i]);
-          }
-        };
-
-    iterateIndices(type.getShape(), evaluateNextIndex);
-    return RankedTensorType::get(outputTensorShape, type.getElementType());
-  }
+  int getCiphertextSize() const { return ciphertextSize; }
 
  private:
-  // The number of slots available in each ciphertext.
   int ciphertextSize;
 };
 
@@ -168,6 +138,19 @@ bool hasMaterializedAttr(Operation *op) {
 
 void setMaterializedAttr(Operation *op) {
   op->setAttr(kMaterializedAttrName, UnitAttr::get(op->getContext()));
+}
+
+void setMaterializedAttr(ArrayRef<Operation *> ops) {
+  for (auto *op : ops) {
+    setMaterializedAttr(op);
+  }
+}
+
+Type maybeExtractSecretType(Type type) {
+  if (auto secretType = dyn_cast<secret::SecretType>(type)) {
+    return secretType.getValueType();
+  }
+  return type;
 }
 
 struct ConvertFunc : public ContextAwareFuncConversion {
@@ -190,7 +173,8 @@ struct ConvertFunc : public ContextAwareFuncConversion {
 
         op.setArgAttr(i, kOriginalTypeAttrName,
                       tensor_ext::OriginalTypeAttr::get(
-                          getContext(), oldArgTypes[i], layoutAttr));
+                          getContext(), maybeExtractSecretType(oldArgTypes[i]),
+                          layoutAttr));
       }
 
       for (int i = 0; i < op.getNumResults(); ++i) {
@@ -198,9 +182,11 @@ struct ConvertFunc : public ContextAwareFuncConversion {
             dyn_cast_or_null<LayoutAttr>(op.getResultAttr(i, kLayoutAttrName));
         if (!layoutAttr) continue;
 
-        op.setResultAttr(i, kOriginalTypeAttrName,
-                         tensor_ext::OriginalTypeAttr::get(
-                             getContext(), oldResultTypes[i], layoutAttr));
+        op.setResultAttr(
+            i, kOriginalTypeAttrName,
+            tensor_ext::OriginalTypeAttr::get(
+                getContext(), maybeExtractSecretType(oldResultTypes[i]),
+                layoutAttr));
       }
     });
     return success();
@@ -244,246 +230,36 @@ struct ConvertAnyAddingMaterializedAttr : public ConvertAnyContextAware<> {
 class ConvertAssignLayout
     : public ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp> {
  public:
-  using ContextAwareOpConversionPattern<
-      tensor_ext::AssignLayoutOp>::ContextAwareOpConversionPattern;
-
-  Value expandDims(Value value, LayoutAttr layout,
-                   ImplicitLocOpBuilder &b) const {
-    RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
-    tensor_ext::AlignmentAttr alignment = layout.getAlignment();
-
-    // It's a bit weird, but to make an expand shape op we have to group the
-    // output indices in dataSemanticType.getRank() many groups where the 1's
-    // are all grouped with axes from the dataSemanticType. But the 1's can
-    // show up before or after the data semantic tensor's dims, so we
-    // eagerly consume unit dims before and after each data semantic dim.
-    SmallVector<int64_t> newSizes;
-    SmallVector<ReassociationIndices> reassociation;
-    ReassociationIndices nextGroup;
-    int64_t ciphertextIndex = 0, groupIndex = 0;
-    while (groupIndex < dataSemanticType.getRank()) {
-      // Process all the unit dims.
-      while (containsDim(alignment.getInsertedDims(), ciphertextIndex)) {
-        newSizes.push_back(1);
-        nextGroup.push_back(ciphertextIndex);
-        ++ciphertextIndex;
-      }
-
-      // Now process exactly one data dim.
-      newSizes.push_back(dataSemanticType.getDimSize(groupIndex));
-      nextGroup.push_back(ciphertextIndex);
-      ++ciphertextIndex;
-
-      // Now process any more unit dims.
-      while (containsDim(alignment.getInsertedDims(), ciphertextIndex)) {
-        newSizes.push_back(1);
-        nextGroup.push_back(ciphertextIndex);
-        ++ciphertextIndex;
-      }
-
-      reassociation.push_back(nextGroup);
-      nextGroup.clear();
-      ++groupIndex;
-    }
-    RankedTensorType expandedType =
-        RankedTensorType::get(newSizes, dataSemanticType.getElementType());
-    auto expandOp =
-        b.create<tensor::ExpandShapeOp>(expandedType, value, reassociation);
-    setMaterializedAttr(expandOp);
-    expandOp->setAttr(kLayoutAttrName, layout);
-    return expandOp.getResult();
-  }
-
-  Value applyPadding(Value value, LayoutAttr layout,
-                     ImplicitLocOpBuilder &b) const {
-    RankedTensorType dataSemanticType = cast<RankedTensorType>(value.getType());
-    tensor_ext::AlignmentAttr alignment = layout.getAlignment();
-    // Note padding is asserted to be present, and paddingValue is enforced
-    // to be present whenever padding is present due to attribute verifier.
-    auto padValueOp = b.create<arith::ConstantOp>(alignment.getPaddingValue());
-
-    SmallVector<int64_t> newSizes;
-    SmallVector<OpFoldResult> lows;
-    SmallVector<OpFoldResult> highs;
-    for (int i = 0; i < dataSemanticType.getRank(); ++i) {
-      newSizes.push_back(dataSemanticType.getDimSize(i) +
-                         alignment.getPadding()[i]);
-      lows.push_back(b.getIndexAttr(0));
-      highs.push_back(b.getIndexAttr(alignment.getPadding()[i]));
-    }
-    RankedTensorType expandedType =
-        RankedTensorType::get(newSizes, dataSemanticType.getElementType());
-    auto padOp = b.create<tensor::PadOp>(expandedType, value, lows, highs,
-                                         padValueOp, /*nofold=*/false);
-
-    setMaterializedAttr(padOp);
-    setMaterializedAttr(padValueOp);
-    padOp->setAttr(kLayoutAttrName, layout);
-    b.setInsertionPointAfter(padOp);
-    return padOp.getResult();
-  }
-
-  FailureOr<Value> maybeReplicateAlongAxis(tensor_ext::AssignLayoutOp op,
-                                           Value value, int axis,
-                                           int64_t outputAxisSize,
-                                           ImplicitLocOpBuilder &b) const {
-    RankedTensorType mostRecentType = cast<RankedTensorType>(value.getType());
-    int64_t dataDimSize = mostRecentType.getDimSize(axis);
-
-    if (outputAxisSize % dataDimSize != 0 &&
-        dataDimSize % outputAxisSize != 0) {
-      auto diag = op.emitError()
-                  << "Before replication, tensor size must divide or be a "
-                     "multiple of data "
-                     "size, or else repetition will not make sense!";
-      diag.attachNote()
-          << "For dim " << axis << ", target dim size was " << outputAxisSize
-          << ", but input size (after optional dim insertion and padding) was "
-          << dataDimSize;
-      return diag;
-    }
-
-    if (dataDimSize < outputAxisSize) {
-      // Concatenate appropriately
-      SmallVector<int64_t> newSizes =
-          SmallVector<int64_t>(mostRecentType.getShape());
-      newSizes[axis] = outputAxisSize;
-      RankedTensorType expandedShape =
-          RankedTensorType::get(newSizes, mostRecentType.getElementType());
-
-      int64_t numIters = outputAxisSize / dataDimSize;
-      SmallVector<Value> repeatedInputs(numIters, value);
-      auto concatOp = b.create<tensor::ConcatOp>(op.getLoc(), expandedShape,
-                                                 /*axis=*/axis, repeatedInputs);
-      setMaterializedAttr(concatOp);
-      concatOp->setAttr(kLayoutAttrName, op.getLayout());
-      return concatOp.getResult();
-    }
-    return value;
-  }
+  ConvertAssignLayout(const ContextAwareTypeConverter &typeConverter,
+                      mlir::MLIRContext *context, int64_t ciphertextSize)
+      : ContextAwareOpConversionPattern<tensor_ext::AssignLayoutOp>(
+            typeConverter, context),
+        ciphertextSize(ciphertextSize) {}
 
   LogicalResult matchAndRewrite(
       tensor_ext::AssignLayoutOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const final {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    // This pattern is different because its inputs do not have a layout,
-    // so the type converter fails to find attributes for the input types.
-    // Instead, the result's layout is defined by this op.
-    //
-    // The input hence needs to be reshaped to fit the output layout, and
-    // by default we assume all values are repeated cyclically according
-    // to the layout.
-    Type dataSemanticType = op.getResult().getType();
-    RankedTensorType ciphertextSemanticType = cast<RankedTensorType>(
-        getTypeConverter()->convertType(dataSemanticType, op.getLayout()));
-    LLVM_DEBUG(llvm::dbgs() << "Converting AssignLayoutOp to use result type "
-                            << ciphertextSemanticType << "\n");
-    Value input = adaptor.getValue();
-    LayoutAttr layout = op.getLayout();
 
-    // Not all aspects of a replication attribute may be applied. In some rare
-    // cases, the input type may already be materialized and no work is
-    // required. So this tracks the value that is the result of the most
-    // recently applied operation in the process, and the final output value to
-    // replace this op with.
-    Value mostRecentOutput = input;
+    auto res =
+        implementAssignLayout(op, ciphertextSize, b, [&](Operation *createdOp) {
+          setMaterializedAttr(createdOp);
+          createdOp->setAttr(kLayoutAttrName, op.getLayout());
+        });
+    if (failed(res)) return failure();
 
-    // Apply the semantics of the replication attribute in order before
-    // applying the layout.
-    tensor_ext::AlignmentAttr alignment = layout.getAlignment();
-
-    if (alignment) {
-      // 1. Insert unit dimensions via tensor.expand_shape
-      if (alignment.getInsertedDims() && !alignment.getInsertedDims().empty()) {
-        mostRecentOutput = expandDims(mostRecentOutput, layout, b);
-      }
-
-      // 2. Add padding to the end of each axis via tensor.pad
-      if (alignment.getPadding() && !alignment.getPadding().empty()) {
-        mostRecentOutput = applyPadding(mostRecentOutput, layout, b);
-      }
-
-      // 3. Replicate the input tensor along each axis via tensor.concat
-      for (int i = 0; i < alignment.getOut().size(); ++i) {
-        FailureOr<Value> res = maybeReplicateAlongAxis(
-            op, mostRecentOutput, i, alignment.getOut()[i], b);
-        if (failed(res)) return res;
-        mostRecentOutput = res.value();
-      }
-    }
-
-    // At this point, we could try to guarantee that the replicated data tensor
-    // has the same number of elements as the ciphertext tensor, but in general
-    // this is not required. You could just waste slots, though there is a
-    // concern that some kernels that rely on replication may not work as
-    // expected. So in this case we emit a warning.
-    LLVM_DEBUG({
-      RankedTensorType mostRecentType =
-          cast<RankedTensorType>(mostRecentOutput.getType());
-      if (mostRecentType.getNumElements() !=
-          ciphertextSemanticType.getNumElements()) {
-        op.emitWarning()
-            << "Data type (after replication and padding) " << mostRecentType
-            << " has fewer entries than ciphertext type "
-            << ciphertextSemanticType
-            << ". This may indicate unused slots, or may lead to unexpected "
-               "behavior for some kernels that require data replication to "
-               "operate properly.";
-      }
-    });
-
-    // 4. Apply the layout
-    if (!layout.getMap().isIdentity()) {
-      // Materialize encoding via linalg.generic.
-      //
-      // Nb., rather than use tensor.empty(), start with constant zeros which
-      // plays better with secret.generic lowerings. This implies that any
-      // unused values in the layout will default to zero, which seems both
-      // like a safe default and the kind of thing that a user could
-      // unexpectedly become dependent on.
-      auto emptyOp = b.create<mlir::arith::ConstantOp>(
-          b.getZeroAttr(ciphertextSemanticType));
-      setMaterializedAttr(emptyOp);
-      emptyOp->setAttr(kLayoutAttrName, layout);
-
-      SmallVector<utils::IteratorType> iteratorTypes(
-          op.getLayout().getMap().getNumDims(), utils::IteratorType::parallel);
-      SmallVector<AffineMap> indexingMaps = {
-          // The first map corresponds to how the iteration indices map to the
-          // input tensor indices. This is the identity because the loop is
-          // mapping the input values to ciphertext slots.
-          AffineMap::getMultiDimIdentityMap(layout.getMap().getNumDims(),
-                                            op.getContext()),
-          // The first map is the actual layout, mapping input tensor indices
-          // to ciphertext slots.
-          layout.getMap()};
-      auto materializeLayoutOp = b.create<linalg::GenericOp>(
-          /*resultTypes=*/emptyOp.getResult().getType(),
-          /*inputs=*/mostRecentOutput,
-          /*outputs=*/emptyOp.getResult(), indexingMaps, iteratorTypes,
-          /*bodyBuilder=*/
-          [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
-            // Do nothing, which just assigns the input to the output slot.
-            auto yieldOp =
-                nestedBuilder.create<linalg::YieldOp>(nestedLoc, args[0]);
-            setMaterializedAttr(yieldOp);
-          });
-
-      setMaterializedAttr(materializeLayoutOp);
-      materializeLayoutOp->setAttr(kLayoutAttrName,
-                                   op->getAttr(kLayoutAttrName));
-      mostRecentOutput = materializeLayoutOp.getResult(0);
-    }
-
-    if (mostRecentOutput == input) {
-      setAttributeAssociatedWith(mostRecentOutput, kLayoutAttrName, layout);
+    if (res.value() == op.getValue()) {
+      setAttributeAssociatedWith(res.value(), kLayoutAttrName, op.getLayout());
       LLVM_DEBUG(llvm::dbgs()
                  << "No materialization needed, passing input through\n");
     }
 
-    rewriter.replaceOp(op, mostRecentOutput);
+    rewriter.replaceOp(op, res.value());
     return success();
   };
+
+ private:
+  int64_t ciphertextSize;
 };
 
 // Return the first output index not mapped to by the partial permutation.
@@ -853,8 +629,7 @@ class ConvertLinalgReduce
                          operands, newResultTypes));
       permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
       nextOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
-      setMaterializedAttr(permuteOp);
-      setMaterializedAttr(nextOp);
+      setMaterializedAttr({permuteOp, nextOp});
       result = nextOp->getResult(0);
     }
 
@@ -944,12 +719,10 @@ struct ConvertLinalgMatvec
     // Need to determine how noise analysis will handle an ambiguous linalg op
     // before doing this by default.
     Value accumulator = result;
-    Value incrementallyRotatedVector = packedVector;
-    auto constantOne = b.create<arith::ConstantIntOp>(1, 64);
     for (int index = 0; index < numRotations; ++index) {
       // construct vector.rotate(i)
-      auto rotateOp = b.create<tensor_ext::RotateOp>(incrementallyRotatedVector,
-                                                     constantOne);
+      auto rotateOp = b.create<tensor_ext::RotateOp>(
+          packedVector, b.create<arith::ConstantIntOp>(index, 64));
 
       // get the corresponding element of the ciphertext tensor,
       // which is row i
@@ -970,13 +743,8 @@ struct ConvertLinalgMatvec
           op->getLoc(), addOpName, {accumulator, mulOp->getResult(0)},
           {packedVectorType}));
 
-      setMaterializedAttr(rotateOp);
-      setMaterializedAttr(extractRowOp);
-      setMaterializedAttr(mulOp);
-      setMaterializedAttr(addOp);
-
+      setMaterializedAttr({rotateOp, extractRowOp, mulOp, addOp});
       accumulator = addOp->getResult(0);
-      incrementallyRotatedVector = rotateOp.getResult();
     }
     // Only the last op will need its layout set for later ops to reference.
     setAttributeAssociatedWith(accumulator, kLayoutAttrName, layoutAttr);
@@ -1041,10 +809,7 @@ struct ConvertLinalgMatvec
                                                 {summedShifts, createMaskOp},
                                                 {summedShifts.getType()}));
 
-    setMaterializedAttr(zeroOp);
-    setMaterializedAttr(oneOp);
-    setMaterializedAttr(createMaskOp);
-    setMaterializedAttr(applyMaskOp);
+    setMaterializedAttr({zeroOp, oneOp, createMaskOp, applyMaskOp});
     applyMaskOp->setAttr(kLayoutAttrName, layoutAttr);
 
     rewriter.replaceOp(op, applyMaskOp);
@@ -1071,6 +836,237 @@ struct ConvertLinalgMatvec
   }
 };
 
+Value makeMask(ContextAwareConversionPatternRewriter &rewriter, Location loc,
+               Value index, RankedTensorType ciphertextSemanticType) {
+  // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
+  // single value we can use to build a mask.
+  // A tensor of zeros
+  auto maskHolder = rewriter.create<arith::ConstantOp>(
+      loc, ciphertextSemanticType,
+      rewriter.getZeroAttr(ciphertextSemanticType));
+  // A scalar 1
+  auto one = rewriter.create<arith::ConstantOp>(
+      loc, ciphertextSemanticType.getElementType(),
+      rewriter.getOneAttr(ciphertextSemanticType.getElementType()));
+  // insert 1 into the right index
+  auto mask = rewriter.create<tensor::InsertOp>(loc, one, maskHolder, index);
+  setMaterializedAttr({maskHolder, one, mask});
+  return mask.getResult();
+}
+
+Value makeInverseMask(ContextAwareConversionPatternRewriter &rewriter,
+                      Location loc, Value index,
+                      RankedTensorType ciphertextSemanticType) {
+  // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
+  // single value we can use to build a mask.
+  // A tensor of ones
+  auto maskHolder = rewriter.create<arith::ConstantOp>(
+      loc, ciphertextSemanticType, rewriter.getOneAttr(ciphertextSemanticType));
+  // A scalar 0
+  auto one = rewriter.create<arith::ConstantOp>(
+      loc, ciphertextSemanticType.getElementType(),
+      rewriter.getZeroAttr(ciphertextSemanticType.getElementType()));
+  // insert 0 into the right index
+  auto mask = rewriter.create<tensor::InsertOp>(loc, one, maskHolder, index);
+  setMaterializedAttr({maskHolder, one, mask});
+  return mask.getResult();
+}
+
+class ConvertTensorExtract
+    : public ContextAwareOpConversionPattern<tensor::ExtractOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::ExtractOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor::ExtractOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter &rewriter) const final {
+    // This is not a good op to have a kernel for, but we have it for
+    // completeness.
+    //
+    // The kernel is implemented by masking the tensor at the given index,
+    // rotating it to the first position, and then (depending on the
+    // replication attribute) replicating it throughout the rest of the tensor.
+
+    FailureOr<Attribute> tensorLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getTensor());
+    if (failed(tensorLayoutResult)) {
+      // If the tensor has no layout, it is a cleartext operation and
+      // can be skipped.
+      setMaterializedAttr(op);
+      return success();
+    }
+    LayoutAttr tensorLayout = cast<LayoutAttr>(tensorLayoutResult.value());
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    if (failed(resultLayoutResult)) {
+      return op.emitError() << "failed to fetch layout attribute for input";
+    }
+    // TODO(#1692) properly handle result layout alignment
+    LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
+
+    // The indices to extract must be materialized via the layout mapping, which
+    // corresponds to inserting an affine.apply.
+    if (adaptor.getIndices().size() != tensorLayout.getMap().getNumDims()) {
+      std::string mapStr;
+      llvm::raw_string_ostream os(mapStr);
+      tensorLayout.getMap().print(os);
+      return op.emitError()
+             << "mismatching number of indices (" << adaptor.getIndices().size()
+             << ") for map " << mapStr;
+    }
+    auto applyOp = rewriter.create<affine::AffineApplyOp>(
+        op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
+
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getTensor().getType());
+
+    // TODO(#1542): support multi-packed ciphertexts
+    if (ciphertextSemanticType.getRank() != 1) {
+      return op.emitError()
+             << "Does not support packing into multiple ciphertexts yet";
+    }
+
+    // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
+    // single value we can use to build a mask.
+    // A tensor of zeros
+    Value mask = makeMask(rewriter, op.getLoc(), applyOp.getResult(),
+                          ciphertextSemanticType);
+
+    // multiply the mask by the converted value
+    StringRef mulOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.muli"
+            : "arith.mulf";
+    Operation *mulOp = rewriter.create(
+        OperationState(op->getLoc(), mulOpName, {mask, adaptor.getTensor()},
+                       {ciphertextSemanticType}));
+
+    // Rotate left to the first position
+    auto rotateOp = rewriter.create<tensor_ext::RotateOp>(
+        op.getLoc(), mulOp->getResult(0), applyOp.getResult());
+    Operation *result = rotateOp;
+
+    // TODO(#1662): improve scalar layout materialization
+
+    setMaterializedAttr({applyOp, mulOp, rotateOp});
+    setAttributeAssociatedWith(result->getResult(0), kLayoutAttrName,
+                               resultLayout);
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+class ConvertTensorInsert
+    : public ContextAwareOpConversionPattern<tensor::InsertOp> {
+ public:
+  using ContextAwareOpConversionPattern<
+      tensor::InsertOp>::ContextAwareOpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor::InsertOp op, OpAdaptor adaptor,
+      ContextAwareConversionPatternRewriter &rewriter) const final {
+    // This is not a good op to have a kernel for, but we have it for
+    // completeness.
+    //
+    // The kernel is implemented by masking the input at index 0, rotating it
+    // to the needed (materialized) index of the dest ciphertext, masking a
+    // zero in the dest at the same index, and then adding the two masked
+    // tensors.
+
+    FailureOr<Attribute> tensorLayoutResult =
+        getTypeConverter()->getContextualAttr(adaptor.getDest());
+    if (failed(tensorLayoutResult)) {
+      // If the tensor has no layout, it is a cleartext operation and
+      // can be skipped.
+      setMaterializedAttr(op);
+      return success();
+    }
+    LayoutAttr tensorLayout = cast<LayoutAttr>(tensorLayoutResult.value());
+    FailureOr<Attribute> resultLayoutResult =
+        getTypeConverter()->getContextualAttr(op.getResult());
+    if (failed(resultLayoutResult)) {
+      return op.emitError() << "failed to fetch layout attribute for input";
+    }
+    LayoutAttr resultLayout = cast<LayoutAttr>(resultLayoutResult.value());
+
+    // The indices at which to insert must be materialized via the layout
+    // mapping, which corresponds to inserting an affine.apply.
+    auto applyOp = rewriter.create<affine::AffineApplyOp>(
+        op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
+
+    RankedTensorType ciphertextSemanticType =
+        cast<RankedTensorType>(adaptor.getDest().getType());
+
+    // TODO(#1542): support multi-packed ciphertexts
+    if (ciphertextSemanticType.getRank() != 1) {
+      return op.emitError()
+             << "Does not support packing into multiple ciphertexts yet";
+    }
+
+    StringRef mulOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.muli"
+            : "arith.mulf";
+    StringRef addOpName =
+        isa<IntegerType>(ciphertextSemanticType.getElementType())
+            ? "arith.addi"
+            : "arith.addf";
+
+    // TODO(#1662): support more sophisticated scalar layouts
+    //
+    // The scalar to insert is materialized to a tensor like
+    //
+    //   [v, v, v, ..., v]
+    //
+    // Mask the materialized tensor for the scalar to insert at index zero
+    //
+    //   [v, 0, 0, ..., 0]
+    //
+    auto zero = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
+    Value mask = makeMask(rewriter, op.getLoc(), zero.getResult(),
+                          ciphertextSemanticType);
+    Operation *scalarMul = rewriter.create(
+        OperationState(op->getLoc(), mulOpName, {mask, adaptor.getScalar()},
+                       {ciphertextSemanticType}));
+
+    // Rotate to the (materialized) index to insert
+    //
+    //   [0, ..., 0, v, 0, ..., 0]
+    //
+    auto rotateOp = rewriter.create<tensor_ext::RotateOp>(
+        op.getLoc(), scalarMul->getResult(0), applyOp.getResult());
+
+    // Inverse-mask the destination tensor so there's a zero at the target
+    // value
+    //
+    //   [a1, a2, ..., an] --> [a1, ..., a_{k-1}, 0, a_{k+1}, ..., an]
+    //
+    Value inverseMask = makeInverseMask(
+        rewriter, op.getLoc(), applyOp.getResult(), ciphertextSemanticType);
+    Operation *destMul = rewriter.create(OperationState(
+        op->getLoc(), mulOpName, {inverseMask, adaptor.getDest()},
+        {ciphertextSemanticType}));
+
+    // Add the two masked tensors together
+    // value
+    //
+    //     [a1, ..., a_{k-1}, 0, a_{k+1}, ..., an]
+    //   + [ 0, ...,       0, 0,       v, ...,  0]
+    //
+    Operation *finalAdd = rewriter.create(
+        OperationState(op->getLoc(), addOpName,
+                       {scalarMul->getResult(0), destMul->getResult(0)},
+                       {ciphertextSemanticType}));
+    Value result = finalAdd->getResult(0);
+
+    setMaterializedAttr({applyOp, zero, scalarMul, rotateOp, destMul});
+    setAttributeAssociatedWith(result, kLayoutAttrName, resultLayout);
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 struct ConvertToCiphertextSemantics
     : impl::ConvertToCiphertextSemanticsBase<ConvertToCiphertextSemantics> {
   using ConvertToCiphertextSemanticsBase::ConvertToCiphertextSemanticsBase;
@@ -1079,8 +1075,9 @@ struct ConvertToCiphertextSemantics
     MLIRContext *context = &getContext();
     auto *module = getOperation();
 
+    int64_t ctSize = ciphertextSize;
     LayoutMaterializationTypeConverter typeConverter =
-        LayoutMaterializationTypeConverter(ciphertextSize);
+        LayoutMaterializationTypeConverter(ctSize);
 
     RewritePatternSet patterns(context);
     ConversionTarget target(*context);
@@ -1090,11 +1087,14 @@ struct ConvertToCiphertextSemantics
 
     patterns.add<ConvertFunc, ConvertGeneric,
                  // tensor_ext ops
-                 ConvertAssignLayout, ConvertConvertLayout,
+                 ConvertConvertLayout,
                  // linalg ops
                  ConvertLinalgReduce, ConvertLinalgMatvec,
+                 // tensor ops
+                 ConvertTensorExtract, ConvertTensorInsert,
                  // default
                  ConvertAnyAddingMaterializedAttr>(typeConverter, context);
+    patterns.add<ConvertAssignLayout>(typeConverter, context, ciphertextSize);
 
     if (failed(applyContextAwarePartialConversion(module, target,
                                                   std::move(patterns)))) {

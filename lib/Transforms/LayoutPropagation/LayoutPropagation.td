@@ -107,6 +107,16 @@ def LayoutPropagation : Pass<"layout-propagation"> {
   }
   ```
   }];
+  let options = [
+    Option<
+      "ciphertextSize",
+      "ciphertext-size",
+      "int",
+      /*default=*/"1024",
+      "Power of two length of the ciphertexts the data is packed in."
+    >
+  ];
+
   let dependentDialects = [
     "mlir::arith::ArithDialect",
     "mlir::func::FuncDialect",
