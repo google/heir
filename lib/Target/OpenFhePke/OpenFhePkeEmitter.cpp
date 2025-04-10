@@ -258,7 +258,8 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
-                tensor::ExtractOp, tensor::ExtractSliceOp, tensor::SplatOp>(
+                tensor::InsertSliceOp, tensor::ExtractOp,
+                tensor::ExtractSliceOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
@@ -1019,6 +1020,78 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
   os << "std::vector<" << elementType.value() << "> " << resultVarName
      << "(std::begin(" << inputVarName << ") + " << flattenStart
      << ", std::begin(" << inputVarName << ") + " << flattenEnd << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
+  RankedTensorType resultType = op.getResult().getType();
+  if (resultType.getRank() != op.getSourceType().getRank()) {
+    return op.emitError(
+        "OpenFHE emitter for ExtractSliceOp only supports "
+        "result rank equal to source rank");
+  }
+
+  // We could relax this by using previously declared SSA values for dynamic
+  // offsets, sizes, and strides. But we have no use for it yet and I'm facing
+  // a deadline, baby!
+  if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
+      op.getStaticStrides().empty()) {
+    return op.emitError() << "expected static offsets, sizes, and strides";
+  }
+
+  std::string destName = variableNames->getNameForValue(op.getDest());
+  std::string sourceName = variableNames->getNameForValue(op.getSource());
+  // The result tensor is materialized to the destination of the insert
+  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
+
+  // If we have a 1D source and target tensor, and the strides are 1,
+  // we can use std::copy
+  //
+  // std::copy(source.begin(), source.end(), dest.begin() + offset);
+  if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
+      llvm::all_of(op.getStaticStrides(),
+                   [](int64_t stride) { return stride == 1; })) {
+    os << "std::copy(";
+    os << sourceName << ".begin(), ";
+    os << sourceName << ".end(), ";
+    os << destName << ".begin() + " << op.getStaticOffsets()[0] << ");\n";
+    return success();
+  }
+
+  SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
+  SmallVector<int64_t> sizes = SmallVector<int64_t>(op.getStaticSizes());
+  SmallVector<int64_t> strides = SmallVector<int64_t>(op.getStaticStrides());
+
+  // Loop nest to copy the right values
+  SmallVector<std::string> sourceIndexNames;
+  SmallVector<std::string> destIndexNames;
+  for (int nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
+    std::string sourceIndexName = sourceName + "_" + std::to_string(nestLevel);
+    std::string destIndexName = destName + "_" + std::to_string(nestLevel);
+    sourceIndexNames.push_back(sourceIndexName);
+    destIndexNames.push_back(destIndexName);
+    os << "\nfor (int64_t " << destIndexName << " = " << offsets[nestLevel]
+       << "; " << destIndexName << " < "
+       << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
+       << destIndexName << " += " << strides[nestLevel] << ") {\n";
+    os.indent();
+    // Also initialise the source index to zero, since it is simple
+    os << "int64_t " << sourceIndexName << " = 0;\n";
+  }
+
+  // Now we're in the innermost loop nest, do the assignment
+  os << destName << "[" << llvm::join(destIndexNames, "][")
+     << "] = " << sourceName << "[" << llvm::join(sourceIndexNames, "][")
+     << "];\n";
+
+  // Now unindent and close the loop nest
+  for (int nestLevel = offsets.size() - 1; nestLevel >= 0; nestLevel--) {
+    // Also increment the destination indices
+    os << sourceIndexNames[nestLevel] << " += 1;\n";
+    os.unindent();
+    os << "}\n";
+  }
+
   return success();
 }
 

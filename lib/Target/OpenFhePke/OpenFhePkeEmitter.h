@@ -101,6 +101,7 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
   LogicalResult printOperation(::mlir::tensor::InsertOp op);
+  LogicalResult printOperation(::mlir::tensor::InsertSliceOp op);
   LogicalResult printOperation(::mlir::tensor::SplatOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
