@@ -149,6 +149,26 @@ struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
     if (failed(applyPartialConversion(func, target, std::move(patterns)))) {
       signalPassFailure();
     }
+
+    // Clear any tensor_ext attributes from the func
+    getOperation()->walk([&](FunctionOpInterface funcOp) {
+      for (int i = 0; i < funcOp.getNumArguments(); ++i) {
+        for (auto attr : funcOp.getArgAttrs(i)) {
+          // the attr name is tensor_ext.foo, so just check for the prefix
+          if (attr.getName().getValue().starts_with("tensor_ext")) {
+            funcOp.removeArgAttr(i, attr.getName());
+          }
+        }
+      }
+
+      for (int i = 0; i < funcOp.getNumResults(); ++i) {
+        for (auto attr : funcOp.getResultAttrs(i)) {
+          if (attr.getName().getValue().starts_with("tensor_ext")) {
+            funcOp.removeResultAttr(i, attr.getName());
+          }
+        }
+      }
+    });
   }
 };
 
