@@ -14,11 +14,10 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Interfaces/SideEffectInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 #define DEBUG_TYPE "secret-insert-mgmt"
 
@@ -265,11 +264,24 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
 template <typename Op>
 LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
     Op op, PatternRewriter &rewriter) const {
+  // If all results are non-secret and the operation is pure, nothing to do.
+  // This handles common cases like index arithmetic within a loop.
+  bool hasNoSecretResults = op->getResults().empty() ||
+                            llvm::all_of(op->getResults(), [&](Value result) {
+                              return !isSecret(result, solver);
+                            });
+  if (isMemoryEffectFree(op) && hasNoSecretResults) {
+    return failure();
+  }
+
   // insert mgmt::InitOp as an mgmt attribute placeholder for plaintext operand
   bool inserted = false;
   for (auto &operand : op->getOpOperands()) {
-    auto secret = isSecret(operand.get(), solver);
-    if (!secret) {
+    bool secret = isSecret(operand.get(), solver);
+    auto definingOp = operand.get().getDefiningOp();
+    bool alreadyInitted =
+        definingOp != nullptr && isa<mgmt::InitOp>(definingOp);
+    if (!secret && !alreadyInitted) {
       rewriter.setInsertionPoint(op);
       auto initOp = rewriter.create<mgmt::InitOp>(
           op.getLoc(), operand.get().getType(), operand.get());
