@@ -383,18 +383,6 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
         if (auto globalOp = dyn_cast<memref::GetGlobalOp>(op)) {
           getGlobals.push_back(globalOp);
         }
-        if (auto indexCastOp = dyn_cast<arith::IndexCastOp>(op)) {
-          // IndexCastOp's are a layer of indirection in the arithmetic
-          // dialect that is unneeded in Verilog. A wire declaration is not
-          // needed. Simply remove the indirection by adding a map from the
-          // index-casted result value to the input integer value.
-          auto retVal = indexCastOp.getResult();
-          if (!value_to_wire_name_.contains(retVal)) {
-            value_to_wire_name_.insert(std::make_pair(
-                retVal, getOrCreateName(indexCastOp.getIn()).str()));
-          }
-          return WalkResult::advance();
-        }
         if (auto constantOp = dyn_cast<arith::ConstantOp>(op)) {
           if (auto indexType =
                   dyn_cast<IndexType>(constantOp.getResult().getType())) {
@@ -631,7 +619,10 @@ LogicalResult VerilogEmitter::printOperation(arith::ExtUIOp op) {
 
 LogicalResult VerilogEmitter::printOperation(arith::IndexCastOp op) {
   // Verilog does not require casting integers to index types before use in an
-  // array access index.
+  // array access index, but nonetheless tell Verilog to treat the index as
+  // unsigned.
+  emitAssignPrefix(op.getResult());
+  os_ << "$unsigned(" << getOrCreateName(op.getIn()) << ");\n";
   return success();
 }
 
