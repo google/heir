@@ -247,9 +247,9 @@ module attributes {scheme.bgv} {
 
 // -----
 
-module attributes {scheme.ckks} {
-  // CHECK: func splat
-  func.func @splat(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
+module attributes {scheme.bgv} {
+  // CHECK: func extract_slice
+  func.func @extract_slice(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
   // CHECK:  [[v0:[^ ]*]] := []int32{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
   // CHECK:  [[v1:[^ ]*]] := [3]int32{}
   // CHECK:  [[dest:[^ ]*]] := 0
