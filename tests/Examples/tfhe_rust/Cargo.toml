@@ -20,3 +20,7 @@ path = "src/main_add_one.rs"
 [[bin]]
 name = "main_fully_connected"
 path = "src/main_fully_connected.rs"
+
+[[bin]]
+name = "main_sbox"
+path = "src/main_sbox.rs"

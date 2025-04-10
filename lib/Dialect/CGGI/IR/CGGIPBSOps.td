@@ -29,7 +29,6 @@ def CGGI_ProgrammableBootstrapOp : CGGI_Op<"programmable_bootstrap", [
 class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
   : CGGI_Op<mnemonic, traits # [
   Pure,
-  Commutative,
   ElementwiseMappable,
   Scalarizable,
   DeclareOpInterfaceMethods<LUTOpInterface>

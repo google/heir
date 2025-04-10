@@ -77,7 +77,7 @@ class TfheRustEmitter {
   LogicalResult printOperation(ApplyLookupTableOp op);
   LogicalResult printOperation(GenerateLookupTableOp op);
   LogicalResult printOperation(ScalarLeftShiftOp op);
-  LogicalResult emitBlock(::mlir::Operation *op);
+  LogicalResult emitBlock(::mlir::Operation *op, int batch);
 
   // Helpers for above
   LogicalResult printSksMethod(::mlir::Value result, ::mlir::Value sks,
