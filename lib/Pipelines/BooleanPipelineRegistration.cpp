@@ -76,6 +76,10 @@ void mlirToCGGIPipeline(OpPassManager &pm,
   pm.addPass(createForwardStoreToLoad());
   pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
 
+  // Inline?
+  pm.addPass(createInlinerPass());
+  pm.addPass(createSymbolDCEPass());
+
   // Cleanup
   pm.addPass(createMemrefGlobalReplacePass());
   arith::ArithIntRangeNarrowingOptions arithOps;
