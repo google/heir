@@ -68,7 +68,10 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           .Case<affine::AffineForOp, affine::AffineYieldOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
-          .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
+          .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
+                arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
+                arith::AddIOp, arith::CmpIOp, arith::SelectOp>(
+              [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertOp,
                 tensor::FromElementsOp, tensor::SplatOp>(
@@ -391,6 +394,198 @@ LogicalResult LattigoEmitter::printOperation(arith::ConstantOp op) {
   valueString += right;
   os << getName(op.getResult()) << " := " << valueString << "\n";
   return success();
+}
+
+LogicalResult LattigoEmitter::typecast(Value operand, Value result) {
+  std::string inputVarName = getName(operand);
+
+  // If it's a slice, upcast by creating a new slice and looping
+  if (auto tensorTy = dyn_cast<RankedTensorType>(result.getType())) {
+    if (tensorTy.getRank() > 1) {
+      return emitError(operand.getDefiningOp()->getLoc(),
+                       "Unsupported cast; expected 1D tensor");
+    }
+    auto res = convertType(tensorTy.getElementType());
+    if (failed(res)) {
+      return failure();
+    }
+    std::string elementType = res.value();
+    // Don't use getName because the usage of the variable is guaranteed
+    std::string resultVarName = variableNames->getNameForValue(result);
+    os << resultVarName << " := make([]" << elementType << ", ";
+    os << tensorTy.getNumElements() << ")\n";
+
+    // Now loop and apply the cast
+    os << "for i, val := range " << inputVarName << " {\n";
+    os.indent();
+    os << resultVarName << "[i] = " << elementType << "(val)\n";
+    os.unindent();
+    os << "}\n";
+  } else {
+    auto res = convertType(result.getType());
+    if (failed(res)) {
+      return failure();
+    }
+    std::string resultTy = res.value();
+    os << getName(result) << " := " << resultTy << "(" << inputVarName << ")\n";
+  }
+
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::ExtSIOp op) {
+  return typecast(op.getOperand(), op.getResult());
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::ExtUIOp op) {
+  // Unsigned extension should only be used for booleans.
+  assert(
+      getElementTypeOrSelf(op.getOperand().getType()).getIntOrFloatBitWidth() ==
+          1 &&
+      "expected boolean type for extui");
+
+  // golang cannot directly convert booleans to integers, so we need to branch
+  std::string inputVarName = getName(op.getOperand());
+
+  // If it's a slice, upcast by creating a new slice and looping
+  if (auto tensorTy = dyn_cast<RankedTensorType>(op.getResult().getType())) {
+    if (tensorTy.getRank() > 1) {
+      return op.emitOpError()
+             << "Unsupported input type for extui, expected 1D tensor";
+    }
+    auto res = convertType(tensorTy.getElementType());
+    if (failed(res)) {
+      return failure();
+    }
+    std::string elementType = res.value();
+    // Don't use getName because the usage of the variable is guaranteed
+    std::string resultVarName = variableNames->getNameForValue(op.getResult());
+    os << resultVarName << " := make([]" << elementType << ", ";
+    os << tensorTy.getNumElements() << ")\n";
+
+    // Now loop and apply the cast
+    // for i, val := range input {
+    //   if val {
+    //     result[i] = extendedType(1)
+    //   } else {
+    //     result[i] = extendedType(0)
+    //   }
+    // }
+    os << "for i, val := range " << inputVarName << " {\n";
+    os.indent();
+
+    os << "if val {\n";
+    os.indent();
+    os << resultVarName << "[i] = " << elementType << "(1)\n";
+    os.unindent();
+    os << "} else {\n";
+    os.indent();
+    os << resultVarName << "[i] = " << elementType << "(0)\n";
+    os.unindent();
+    os << "}\n";
+
+    os.unindent();
+    os << "}\n";
+  } else {
+    // A plain if to upcast a bool
+    // var result extendedType
+    // if operand {
+    //   result = extendedType(1)
+    // } else {
+    //   result = extendedType(0)
+    // }
+    auto res = convertType(op.getResult().getType());
+    if (failed(res)) {
+      return failure();
+    }
+    std::string resultName = getName(op.getResult());
+    std::string resultTy = res.value();
+
+    os << "var " << resultName << " " << resultTy << "\n";
+    os << "if " << inputVarName << " {\n";
+    os.indent();
+    os << resultName << " = " << resultTy << "(1)\n";
+    os.unindent();
+    os << "} else {\n";
+    os.indent();
+    os << resultName << " = " << resultTy << "(0)\n";
+    os.unindent();
+    os << "}\n";
+  }
+
+  return success();
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::ExtFOp op) {
+  return typecast(op.getOperand(), op.getResult());
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::IndexCastOp op) {
+  return typecast(op.getOperand(), op.getOut());
+}
+
+LogicalResult LattigoEmitter::printBinaryOp(Operation *op, ::mlir::Value lhs,
+                                            ::mlir::Value rhs,
+                                            std::string_view opName) {
+  assert(op->getNumResults() == 1 && "Expected single-result op!");
+  os << getName(op->getResult(0)) << " := " << getName(lhs) << " " << opName
+     << " " << getName(rhs) << ";\n";
+  return success();
+}
+
+// Lowerings of ops like affine.apply involve scalar cleartext types
+LogicalResult LattigoEmitter::printOperation(arith::AddIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::RemSIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "%");
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::SelectOp op) {
+  std::string resultName = getName(op.getResult());
+  auto res = convertType(op.getResult().getType());
+  if (failed(res)) return failure();
+
+  // Declare variable without assignment first, since go does not have a
+  // ternary if.
+  os << "var " << resultName << " " << res.value() << "\n";
+
+  os << "if " << getName(op.getCondition()) << " {\n";
+  os.indent();
+  os << resultName << " = " << getName(op.getTrueValue()) << "\n";
+  os.unindent();
+  os << "} else {\n";
+  os.indent();
+  os << resultName << " = " << getName(op.getFalseValue()) << "\n";
+  os.unindent();
+  os << "}\n";
+
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(arith::CmpIOp op) {
+  switch (op.getPredicate()) {
+    case arith::CmpIPredicate::eq:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "==");
+    case arith::CmpIPredicate::ne:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "!=");
+    case arith::CmpIPredicate::slt:
+    case arith::CmpIPredicate::ult:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<");
+    case arith::CmpIPredicate::sle:
+    case arith::CmpIPredicate::ule:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), "<=");
+    case arith::CmpIPredicate::sgt:
+    case arith::CmpIPredicate::ugt:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">");
+    case arith::CmpIPredicate::sge:
+    case arith::CmpIPredicate::uge:
+      return printBinaryOp(op, op.getLhs(), op.getRhs(), ">=");
+  }
+  llvm_unreachable("unknown cmpi predicate kind");
+  return failure();
 }
 
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {

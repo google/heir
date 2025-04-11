@@ -65,6 +65,12 @@ class LattigoEmitter {
   std::string prelude;
   std::set<std::string> imports;
 
+  // general binary op helper
+  LogicalResult printBinaryOp(Operation *op, ::mlir::Value lhs,
+                              ::mlir::Value rhs, std::string_view opName);
+  // General typecast helper
+  LogicalResult typecast(Value operand, Value result);
+
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
   LogicalResult printOperation(::mlir::affine::AffineForOp op);
@@ -72,7 +78,15 @@ class LattigoEmitter {
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
+  LogicalResult printOperation(::mlir::arith::AddIOp op);
+  LogicalResult printOperation(::mlir::arith::CmpIOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  LogicalResult printOperation(::mlir::arith::ExtFOp op);
+  LogicalResult printOperation(::mlir::arith::ExtSIOp op);
+  LogicalResult printOperation(::mlir::arith::ExtUIOp op);
+  LogicalResult printOperation(::mlir::arith::IndexCastOp op);
+  LogicalResult printOperation(::mlir::arith::RemSIOp op);
+  LogicalResult printOperation(::mlir::arith::SelectOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);

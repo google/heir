@@ -265,7 +265,7 @@ module attributes {scheme.ckks} {
 
 // -----
 
-module attributes {scheme.ckks} {
+module attributes {scheme.bgv} {
   // CHECK: func splat
   func.func @splat(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
   // CHECK:  [[v0:[^ ]*]] := []int32{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
@@ -278,5 +278,127 @@ module attributes {scheme.ckks} {
     %c5 = arith.constant dense<5> : tensor<20xi32>
     %v = tensor.extract_slice %c5[1] [3] [2] : tensor<20xi32> to tensor<3xi32>
     return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extsi_scalar
+  func.func @extsi_scalar(%evaluator: !lattigo.bgv.evaluator) {
+  // CHECK:  [[v0:[^ ]*]] := int16(5)
+  // CHECK:  [[v1:[^ ]*]] := int32([[v0]])
+    %c5 = arith.constant 5 : i16
+    %v = arith.extsi %c5 : i16 to i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extsi_tensor
+  func.func @extsi_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
+  // CHECK:  [[v0:[^ ]*]] := []int16{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
+  // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
+  // CHECK:  for [[i:[^,]*]], [[var:[^ ]*]] := range [[v0]] {
+  // CHECK:    [[v1]]{{\[}}[[i]]] = int32([[var]])
+  // CHECK:  }
+    %c5 = arith.constant dense<5> : tensor<20xi16>
+    %v = arith.extsi %c5 : tensor<20xi16> to tensor<20xi32>
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func select
+  func.func @select(%evaluator: !lattigo.bgv.evaluator) {
+    // CHECK:  [[true_val:[^ ]*]] := int32(5)
+    // CHECK:  [[false_val:[^ ]*]] := int32(6)
+    // CHECK:  [[cond:[^ ]*]] := bool(true)
+    // CHECK:  var [[result:[^ ]*]] int32
+    // CHECK:  if [[cond]] {
+    // CHECK:    [[result]] = [[true_val]]
+    // CHECK:  } else {
+    // CHECK:    [[result]] = [[false_val]]
+    // CHECK:  }
+    %c5 = arith.constant 5 : i32
+    %c6 = arith.constant 6 : i32
+    %cond = arith.constant 1 : i1
+    %v = arith.select %cond, %c5, %c6 : i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extui_scalar
+  func.func @extui_scalar(%evaluator: !lattigo.bgv.evaluator) {
+    // CHECK:  [[v0:[^ ]*]] := bool(true)
+    // CHECK:  var [[v1:[^ ]*]] int32
+    // CHECK:  if [[v0]] {
+    // CHECK:    [[v1]] = int32(1)
+    // CHECK:  } else {
+    // CHECK:    [[v1]] = int32(0)
+    // CHECK:  }
+    %ctrue = arith.constant 1 : i1
+    %v = arith.extui %ctrue : i1 to i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extui_tensor
+  func.func @extui_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
+    // CHECK:  [[v0:[^ ]*]] := []bool{true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true}
+    // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
+    // CHECK:  for [[i:[^,]*]], [[var:[^ ]*]] := range [[v0]] {
+    // CHECK:    if [[var]] {
+    // CHECK:      [[v1]]{{\[}}[[i]]] = int32(1)
+    // CHECK:    } else {
+    // CHECK:      [[v1]]{{\[}}[[i]]] = int32(0)
+    // CHECK:    }
+    // CHECK:  }
+    %ctrue = arith.constant dense<true> : tensor<20xi1>
+    %v = arith.extui %ctrue : tensor<20xi1> to tensor<20xi32>
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func index_cast
+  func.func @index_cast(%evaluator: !lattigo.bgv.evaluator) {
+    // CHECK:  [[v0:[^ ]*]] := int64(5)
+    // CHECK:  [[v1:[^ ]*]] := int32([[v0]])
+    %c5 = arith.constant 5 : index
+    %v = arith.index_cast %c5 : index to i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func binops
+  func.func @binops() -> i1 {
+    // CHECK: [[c0:[^ ]*]] := int64(0)
+    // CHECK: [[c1:[^ ]*]] := int64(1)
+    %c0 = arith.constant 0 : i64
+    %c1 = arith.constant 1 : i64
+
+    // CHECK: [[v2:[^ ]*]] := [[c0]] + [[c1]]
+    // CHECK: [[v3:[^ ]*]] := [[c0]] % [[c1]]
+    // CHECK: [[v4:[^ ]*]] := [[c0]] >= [[c1]]
+    %0 = arith.addi %c0, %c1 : i64
+    %1 = arith.remsi %c0, %c1 : i64
+    %2 = arith.cmpi sge, %c0, %c1 : i64
+    return %2 : i1
   }
 }
