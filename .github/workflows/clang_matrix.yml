@@ -30,7 +30,9 @@ jobs:
       - name: "Run `bazel build` with Clang ${{ matrix.clang-version }}"
         run: |
           bazel build --keep_going --noincompatible_strict_action_env \
-            --action-env=CC=clang-${{ matrix.clang-version }} \
-            --action-env=CXX=clang++-${{ matrix.clang-version }} \
+            --action_env=CC=clang-${{ matrix.clang-version }} \
+            --action_env=CXX=clang++-${{ matrix.clang-version }} \
+            --host_action_env=CC=clang-${{ matrix.clang-version }} \
+            --host_action_env=CXX=clang++-${{ matrix.clang-version }} \
             --//:enable_openmp=0 \
             -c fastbuild //...
