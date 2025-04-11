@@ -1,6 +1,7 @@
 #ifndef LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
 #define LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
 
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -8,7 +9,8 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Utils/Tablegen/InplaceOpInterface.h"
 #include "lib/Utils/TargetUtils.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -66,6 +68,8 @@ class LattigoEmitter {
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
+  LogicalResult printOperation(::mlir::affine::AffineForOp op);
+  LogicalResult printOperation(::mlir::affine::AffineYieldOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
