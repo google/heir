@@ -512,9 +512,10 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
   // The Halevi-Shoup kernel (all we support at this time) requires one
   // ciphertext per matrix row.
   int64_t numCiphertexts = matrixType.getShape()[0];
-  RankedTensorType alignedOutType = RankedTensorType::get(
+  RankedTensorType alignedOutType = matrixType;
+  RankedTensorType ciphertextSemanticShape = RankedTensorType::get(
       {numCiphertexts, ciphertextSize}, matrixType.getElementType());
-  if (!isLayoutSquatDiagonal(matrixType, alignedOutType,
+  if (!isLayoutSquatDiagonal(matrixType, ciphertextSemanticShape,
                              matrixLayout.getMap())) {
     // Insert a layout conversion op to make the matrix layout squat diagonal
     mlir::IRRewriter builder(&getContext());
@@ -526,7 +527,7 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
         builder.getDenseI64ArrayAttr({}), builder.getDenseI64ArrayAttr({}),
         nullptr);
     LayoutAttr squatDiagonalLayoutAttr = LayoutAttr::get(
-        getDiagonalLayoutMap(matrixType, alignedOutType), alignment);
+        getDiagonalLayoutMap(matrixType, ciphertextSemanticShape), alignment);
 
     ConvertLayoutOp convertLayoutOp = builder.create<ConvertLayoutOp>(
         op->getLoc(), matrix, matrixLayout, squatDiagonalLayoutAttr);
