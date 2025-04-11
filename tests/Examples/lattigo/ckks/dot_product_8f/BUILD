@@ -10,7 +10,7 @@ heir_lattigo_lib(
     go_library_name = "dotproduct8f",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=8",
+        "--mlir-to-ckks=ciphertext-degree=1024",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
