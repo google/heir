@@ -26,7 +26,6 @@ cc_library(
         ":ops_inc_gen",
         ":type_interfaces_inc_gen",
         ":types_inc_gen",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
@@ -42,6 +41,26 @@ cc_library(
         "RNSDialect.h",
         "RNSTypeInterfaces.h",
         "RNSTypes.h",
+    ],
+    deps = [
+        ":dialect_inc_gen",
+        ":type_interfaces_inc_gen",
+        ":types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+# to avoid cyclic dependency among mod_arith and rns
+cc_library(
+    name = "RNSTypeInterfaces",
+    srcs = [
+        "RNSTypeInterfaces.cpp",
+    ],
+    hdrs = [
+        "RNSDialect.h",
+        "RNSTypeInterfaces.h",
     ],
     deps = [
         ":dialect_inc_gen",
@@ -70,7 +89,6 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
     ],
