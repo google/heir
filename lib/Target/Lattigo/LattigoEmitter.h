@@ -8,7 +8,8 @@
 #include "lib/Dialect/Lattigo/IR/LattigoOps.h"
 #include "lib/Utils/Tablegen/InplaceOpInterface.h"
 #include "lib/Utils/TargetUtils.h"
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -64,12 +65,30 @@ class LattigoEmitter {
   std::string prelude;
   std::set<std::string> imports;
 
+  // general binary op helper
+  LogicalResult printBinaryOp(Operation *op, ::mlir::Value lhs,
+                              ::mlir::Value rhs, std::string_view opName);
+  // General typecast helper
+  LogicalResult typecast(Value operand, Value result);
+
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);
+  LogicalResult printOperation(::mlir::affine::AffineForOp op);
+  LogicalResult printOperation(::mlir::affine::AffineYieldOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::ReturnOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
+  LogicalResult printOperation(::mlir::arith::AddIOp op);
+  LogicalResult printOperation(::mlir::arith::CmpIOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  LogicalResult printOperation(::mlir::arith::ExtFOp op);
+  LogicalResult printOperation(::mlir::arith::ExtSIOp op);
+  LogicalResult printOperation(::mlir::arith::ExtUIOp op);
+  LogicalResult printOperation(::mlir::arith::IndexCastOp op);
+  LogicalResult printOperation(::mlir::arith::RemSIOp op);
+  LogicalResult printOperation(::mlir::arith::SelectOp op);
+  LogicalResult printOperation(::mlir::tensor::ConcatOp op);
+  LogicalResult printOperation(::mlir::tensor::EmptyOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
   LogicalResult printOperation(::mlir::tensor::FromElementsOp op);

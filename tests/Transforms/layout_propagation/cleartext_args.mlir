@@ -1,7 +1,7 @@
 // RUN: heir-opt --layout-propagation=ciphertext-size=1024 %s | FileCheck %s
 
 // CHECK-DAG: [[alignment:#[^ ]*]] = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-// CHECK-DAG: [[layout:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0), alignment = [[alignment]]>
+// CHECK-DAG: [[layout:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = [[alignment]]>
 
 // Layouts should not be assigned to the cleartext function args
 // CHECK: func @cmux
