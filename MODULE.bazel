@@ -68,6 +68,15 @@ use_repo(pip, "heir_pip_deps")
 use_repo(pip, "frontend_pip_deps")
 
 # Go setup
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+
+# Bazel ignores go.mod for the purpose of selecting a go version. To see which
+# go version will be used, run:
+#
+#   bazel run @rules_go//go -- version
+#
+go_sdk.download(version = "1.24.2")
+
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
 
