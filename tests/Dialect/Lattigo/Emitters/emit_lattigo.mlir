@@ -217,7 +217,7 @@ module attributes {scheme.bgv} {
 
 // -----
 
-module attributes {scheme.ckks} {
+module attributes {scheme.bgv} {
   // CHECK: func float_constant
   func.func @float_constant(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
     // CHECK: [[v:[^, ]*]] := float32(7.5)
@@ -229,7 +229,7 @@ module attributes {scheme.ckks} {
 
 // -----
 
-module attributes {scheme.ckks} {
+module attributes {scheme.bgv} {
   // CHECK: func tensor_insert
   func.func @tensor_insert(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> f32 {
     // CHECK:  [[v0:[^ ]*]] := int64(5)
@@ -247,18 +247,178 @@ module attributes {scheme.ckks} {
 
 // -----
 
-module attributes {scheme.ckks} {
-  // CHECK: func splat
-  func.func @splat(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
+module attributes {scheme.bgv} {
+  // CHECK: func extract_slice
+  func.func @extract_slice(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
   // CHECK:  [[v0:[^ ]*]] := []int32{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
   // CHECK:  [[v1:[^ ]*]] := [3]int32{}
+  // CHECK:  [[dest:[^ ]*]] := 0
   // CHECK:  for [[source:[^ ]*]] := 1; [[source]] < 7; [[source]] += 2 {
-  // CHECK:    [[dest:[^ ]*]] := 0
   // CHECK:    [[v1]]{{\[}}[[dest]]] = [[v0]]{{\[}}[[source]]]
   // CHECK:    [[dest]] += 1
   // CHECK:  }
     %c5 = arith.constant dense<5> : tensor<20xi32>
     %v = tensor.extract_slice %c5[1] [3] [2] : tensor<20xi32> to tensor<3xi32>
     return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func splat
+  func.func @splat(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) -> tensor<20xi32> {
+    // CHECK:  [[c5:[^ ]*]] := int32(5)
+    // CHECK:  [[v0:[^ ]*]] := []int32{[[c5]]}
+    // CHECK:  [[v1:[^ ]*]] := slices.Repeat([[v0]], 20)
+    %c5 = arith.constant 5 : i32
+    %v = tensor.splat %c5 : tensor<20xi32>
+    return %v : tensor<20xi32>
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extsi_scalar
+  func.func @extsi_scalar(%evaluator: !lattigo.bgv.evaluator) {
+  // CHECK:  [[v0:[^ ]*]] := int16(5)
+  // CHECK:  [[v1:[^ ]*]] := int32([[v0]])
+    %c5 = arith.constant 5 : i16
+    %v = arith.extsi %c5 : i16 to i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extsi_tensor
+  func.func @extsi_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
+  // CHECK:  [[v0:[^ ]*]] := []int16{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}
+  // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
+  // CHECK:  for [[i:[^,]*]], [[var:[^ ]*]] := range [[v0]] {
+  // CHECK:    [[v1]]{{\[}}[[i]]] = int32([[var]])
+  // CHECK:  }
+    %c5 = arith.constant dense<5> : tensor<20xi16>
+    %v = arith.extsi %c5 : tensor<20xi16> to tensor<20xi32>
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func select
+  func.func @select(%evaluator: !lattigo.bgv.evaluator) {
+    // CHECK:  [[true_val:[^ ]*]] := int32(5)
+    // CHECK:  [[false_val:[^ ]*]] := int32(6)
+    // CHECK:  [[cond:[^ ]*]] := bool(true)
+    // CHECK:  var [[result:[^ ]*]] int32
+    // CHECK:  if [[cond]] {
+    // CHECK:    [[result]] = [[true_val]]
+    // CHECK:  } else {
+    // CHECK:    [[result]] = [[false_val]]
+    // CHECK:  }
+    %c5 = arith.constant 5 : i32
+    %c6 = arith.constant 6 : i32
+    %cond = arith.constant 1 : i1
+    %v = arith.select %cond, %c5, %c6 : i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extui_scalar
+  func.func @extui_scalar(%evaluator: !lattigo.bgv.evaluator) {
+    // CHECK:  [[v0:[^ ]*]] := bool(true)
+    // CHECK:  var [[v1:[^ ]*]] int32
+    // CHECK:  if [[v0]] {
+    // CHECK:    [[v1]] = int32(1)
+    // CHECK:  } else {
+    // CHECK:    [[v1]] = int32(0)
+    // CHECK:  }
+    %ctrue = arith.constant 1 : i1
+    %v = arith.extui %ctrue : i1 to i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func extui_tensor
+  func.func @extui_tensor(%evaluator: !lattigo.bgv.evaluator, %ct: !lattigo.rlwe.ciphertext) {
+    // CHECK:  [[v0:[^ ]*]] := []bool{true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true}
+    // CHECK:  [[v1:[^ ]*]] := make([]int32, 20)
+    // CHECK:  for [[i:[^,]*]], [[var:[^ ]*]] := range [[v0]] {
+    // CHECK:    if [[var]] {
+    // CHECK:      [[v1]]{{\[}}[[i]]] = int32(1)
+    // CHECK:    } else {
+    // CHECK:      [[v1]]{{\[}}[[i]]] = int32(0)
+    // CHECK:    }
+    // CHECK:  }
+    %ctrue = arith.constant dense<true> : tensor<20xi1>
+    %v = arith.extui %ctrue : tensor<20xi1> to tensor<20xi32>
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func index_cast
+  func.func @index_cast(%evaluator: !lattigo.bgv.evaluator) {
+    // CHECK:  [[v0:[^ ]*]] := int64(5)
+    // CHECK:  [[v1:[^ ]*]] := int32([[v0]])
+    %c5 = arith.constant 5 : index
+    %v = arith.index_cast %c5 : index to i32
+    return
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func binops
+  func.func @binops() -> i1 {
+    // CHECK: [[c0:[^ ]*]] := int64(0)
+    // CHECK: [[c1:[^ ]*]] := int64(1)
+    %c0 = arith.constant 0 : i64
+    %c1 = arith.constant 1 : i64
+
+    // CHECK: [[v2:[^ ]*]] := [[c0]] + [[c1]]
+    // CHECK: [[v3:[^ ]*]] := [[c0]] % [[c1]]
+    // CHECK: [[v4:[^ ]*]] := [[c0]] >= [[c1]]
+    %0 = arith.addi %c0, %c1 : i64
+    %1 = arith.remsi %c0, %c1 : i64
+    %2 = arith.cmpi sge, %c0, %c1 : i64
+    return %2 : i1
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func concat
+  func.func @concat() -> tensor<32xi32> {
+    // CHECK: [[v0:[^ ]*]] := []int32{1, 1, 1, 1, 1, 1, 1, 1}
+    // CHECK: [[v1:[^ ]*]] := slices.Concat([[v0]], [[v0]], [[v0]], [[v0]])
+    %c0 = arith.constant dense<1> : tensor<8xi32>
+    %0 = tensor.concat dim(0) %c0, %c0, %c0, %c0 : (tensor<8xi32>, tensor<8xi32>, tensor<8xi32>, tensor<8xi32>) -> tensor<32xi32>
+    return %0 : tensor<32xi32>
+  }
+}
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func empty
+  func.func @empty() -> tensor<8xi32> {
+    // CHECK: [[v0:[^ ]*]] := make([]int32, 8)
+    %0 = tensor.empty() : tensor<8xi32>
+    return %0 : tensor<8xi32>
   }
 }

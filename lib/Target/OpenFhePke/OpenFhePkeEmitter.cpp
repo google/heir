@@ -254,11 +254,13 @@ LogicalResult OpenFhePkeEmitter::translate(Operation &op) {
           // Arith ops
           .Case<arith::ConstantOp, arith::ExtSIOp, arith::ExtUIOp,
                 arith::IndexCastOp, arith::ExtFOp, arith::RemSIOp,
-                arith::AddIOp, arith::CmpIOp, arith::SelectOp>(
+                arith::AddIOp, arith::SubIOp, arith::MulIOp, arith::DivSIOp,
+                arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::InsertOp,
-                tensor::ExtractOp, tensor::ExtractSliceOp, tensor::SplatOp>(
+                tensor::InsertSliceOp, tensor::ExtractOp,
+                tensor::ExtractSliceOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // LWE ops
           .Case<lwe::RLWEDecodeOp, lwe::ReinterpretApplicationDataOp>(
@@ -853,6 +855,18 @@ LogicalResult OpenFhePkeEmitter::printOperation(arith::AddIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "+");
 }
 
+LogicalResult OpenFhePkeEmitter::printOperation(arith::MulIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "*");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::SubIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "-");
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(arith::DivSIOp op) {
+  return printBinaryOp(op, op.getLhs(), op.getRhs(), "/");
+}
+
 LogicalResult OpenFhePkeEmitter::printOperation(arith::RemSIOp op) {
   return printBinaryOp(op, op.getLhs(), op.getRhs(), "%");
 }
@@ -972,12 +986,8 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractOp op) {
   return success();
 }
 
-// Support input mlir like
-//
-// tensor.extract_slice %0[0, 0] [1, 16] [1, 1]
-//  : tensor<16x16xf32> to tensor<16xf32>
-//
-LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
+LogicalResult OpenFhePkeEmitter::extractRowFromMatrix(
+    tensor::ExtractSliceOp op) {
   // Must be single contiguous slice with constant sizes and strides.
   if (llvm::any_of(op.getStaticSizes(),
                    [](int64_t size) { return ShapedType::isDynamic(size); })) {
@@ -1019,6 +1029,121 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
   os << "std::vector<" << elementType.value() << "> " << resultVarName
      << "(std::begin(" << inputVarName << ") + " << flattenStart
      << ", std::begin(" << inputVarName << ") + " << flattenEnd << ");\n";
+  return success();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::ExtractSliceOp op) {
+  RankedTensorType resultType = op.getResult().getType();
+
+  // Otherwise we need a loop
+  // For now only support 1D output tensors
+  if (resultType.getRank() != 1) {
+    return op.emitError() << "OpenFHE emitter only supports 1D output tensors "
+                             "for extract_slice";
+  }
+
+  // If the input is a matrix, we can extract a row.
+  if (resultType.getRank() != op.getSourceType().getRank()) {
+    return extractRowFromMatrix(op);
+  }
+
+  std::string resultName = variableNames->getNameForValue(op.getResult());
+  std::string sourceName = variableNames->getNameForValue(op.getSource());
+  // std::vector<ty> result;
+  if (failed(emitType(resultType, op->getLoc()))) {
+    return failure();
+  }
+  os << " " << resultName << "(" << resultType.getNumElements() << ");\n";
+
+  // If everything is 1D and has stride 1, we can use std::copy
+  //
+  // std::copy(source.begin() + offset, source.begin() + offset + size,
+  // result.begin());
+  if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
+      llvm::all_of(op.getStaticStrides(),
+                   [](int64_t stride) { return stride == 1; })) {
+    auto offset = op.getStaticOffsets()[0];
+    auto size = op.getStaticSizes()[0];
+    os << "std::copy(";
+    os << sourceName << ".begin()" << " + " << offset << ", ";
+    os << sourceName << ".begin()" << " + " << offset << " + " << size << ", ";
+    os << resultName << ".begin());\n";
+    return success();
+  }
+
+  return failure();
+}
+
+LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
+  RankedTensorType resultType = op.getResult().getType();
+  if (resultType.getRank() != op.getSourceType().getRank()) {
+    return op.emitError(
+        "OpenFHE emitter for InsertSliceOp only supports "
+        "result rank equal to source rank");
+  }
+
+  // We could relax this by using previously declared SSA values for dynamic
+  // offsets, sizes, and strides. But we have no use for it yet and I'm facing
+  // a deadline, baby!
+  if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
+      op.getStaticStrides().empty()) {
+    return op.emitError() << "expected static offsets, sizes, and strides";
+  }
+
+  std::string destName = variableNames->getNameForValue(op.getDest());
+  std::string sourceName = variableNames->getNameForValue(op.getSource());
+  // The result tensor is materialized to the destination of the insert
+  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
+
+  // If we have a 1D source and target tensor, and the strides are 1,
+  // we can use std::copy
+  //
+  // std::copy(source.begin(), source.end(), dest.begin() + offset);
+  if (resultType.getRank() == 1 && op.getSourceType().getRank() == 1 &&
+      llvm::all_of(op.getStaticStrides(),
+                   [](int64_t stride) { return stride == 1; })) {
+    os << "std::copy(";
+    os << sourceName << ".begin(), ";
+    os << sourceName << ".end(), ";
+    os << destName << ".begin() + " << op.getStaticOffsets()[0] << ");\n";
+    return success();
+  }
+
+  SmallVector<int64_t> offsets = SmallVector<int64_t>(op.getStaticOffsets());
+  SmallVector<int64_t> sizes = SmallVector<int64_t>(op.getStaticSizes());
+  SmallVector<int64_t> strides = SmallVector<int64_t>(op.getStaticStrides());
+
+  // Loop nest to copy the right values
+  SmallVector<std::string> sourceIndexNames;
+  SmallVector<std::string> destIndexNames;
+  for (int nestLevel = 0; nestLevel < offsets.size(); nestLevel++) {
+    std::string sourceIndexName = sourceName + "_" + std::to_string(nestLevel);
+    std::string destIndexName = destName + "_" + std::to_string(nestLevel);
+    sourceIndexNames.push_back(sourceIndexName);
+    destIndexNames.push_back(destIndexName);
+    // Initialize the source index to zero, since it is simple, note this must
+    // happen outside the loop
+    os << "int64_t " << sourceIndexName << " = 0;\n";
+    os << "for (int64_t " << destIndexName << " = " << offsets[nestLevel]
+       << "; " << destIndexName << " < "
+       << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
+       << destIndexName << " += " << strides[nestLevel] << ") {\n";
+    os.indent();
+  }
+
+  // Now we're in the innermost loop nest, do the assignment
+  os << destName << "[" << llvm::join(destIndexNames, "][")
+     << "] = " << sourceName << "[" << llvm::join(sourceIndexNames, "][")
+     << "];\n";
+
+  // Now unindent and close the loop nest
+  for (int nestLevel = offsets.size() - 1; nestLevel >= 0; nestLevel--) {
+    // Also increment the source indices
+    os << sourceIndexNames[nestLevel] << " += 1;\n";
+    os.unindent();
+    os << "}\n";
+  }
+
   return success();
 }
 
