@@ -1,0 +1,36 @@
+name: Clang Matrix for Linux build
+permissions: read-all
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run at midnight (UTC) every Sunday
+  workflow_dispatch:     # Allow manual triggering
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # don't cache, run full build
+  build-multi-clang:
+    strategy:
+      matrix:
+        clang-version: [15, 16, 17, 18, 19]
+      fail-fast: false
+    runs-on:
+      labels: ubuntu-22.04-8core
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
+      - name: Install Clang ${{ matrix.clang-version }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-${{ matrix.clang-version }}
+          clang-${{ matrix.clang-version }} --version
+
+      - name: "Run `bazel build` with Clang ${{ matrix.clang-version }}"
+        run: |
+          bazel build --keep_going --noincompatible_strict_action_env \
+            --action-env=CC=clang-${{ matrix.clang-version }} \
+            --action-env=CXX=clang++-${{ matrix.clang-version }} \
+            --//:enable_openmp=0 \
+            -c fastbuild //...
