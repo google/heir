@@ -90,17 +90,21 @@ class OpenFhePkeEmitter {
   LogicalResult printOperation(::mlir::arith::AddIOp op);
   LogicalResult printOperation(::mlir::arith::CmpIOp op);
   LogicalResult printOperation(::mlir::arith::ConstantOp op);
+  LogicalResult printOperation(::mlir::arith::DivSIOp op);
   LogicalResult printOperation(::mlir::arith::ExtFOp op);
   LogicalResult printOperation(::mlir::arith::ExtSIOp op);
   LogicalResult printOperation(::mlir::arith::ExtUIOp op);
   LogicalResult printOperation(::mlir::arith::IndexCastOp op);
+  LogicalResult printOperation(::mlir::arith::MulIOp op);
   LogicalResult printOperation(::mlir::arith::RemSIOp op);
   LogicalResult printOperation(::mlir::arith::SelectOp op);
+  LogicalResult printOperation(::mlir::arith::SubIOp op);
   LogicalResult printOperation(::mlir::tensor::ConcatOp op);
   LogicalResult printOperation(::mlir::tensor::EmptyOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractOp op);
   LogicalResult printOperation(::mlir::tensor::ExtractSliceOp op);
   LogicalResult printOperation(::mlir::tensor::InsertOp op);
+  LogicalResult printOperation(::mlir::tensor::InsertSliceOp op);
   LogicalResult printOperation(::mlir::tensor::SplatOp op);
   LogicalResult printOperation(::mlir::func::FuncOp op);
   LogicalResult printOperation(::mlir::func::CallOp op);
@@ -143,6 +147,9 @@ class OpenFhePkeEmitter {
                                 std::string_view op);
   LogicalResult printBinaryOp(Operation *op, ::mlir::Value lhs,
                               ::mlir::Value rhs, std::string_view opName);
+
+  // A helper for a special case of ExtractSliceOp
+  LogicalResult extractRowFromMatrix(tensor::ExtractSliceOp op);
 
   // Emit an OpenFhe type, using a const specifier.
   LogicalResult emitType(::mlir::Type type, ::mlir::Location loc,
