@@ -100,8 +100,7 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
   //
   // There is no good way to identify an allocation op in general. Maybe we can
   // upstream a trait for this?
-  if (!op.getOps<tensor::EmptyOp>().empty() ||
-      !op.getOps<memref::AllocOp>().empty()) {
+  if (!op.getOps<memref::AllocOp>().empty()) {
     return failure();
   }
 
