@@ -1070,13 +1070,14 @@ LogicalResult OpenFhePkeEmitter::printOperation(tensor::InsertSliceOp op) {
     std::string destIndexName = destName + "_" + std::to_string(nestLevel);
     sourceIndexNames.push_back(sourceIndexName);
     destIndexNames.push_back(destIndexName);
-    os << "\nfor (int64_t " << destIndexName << " = " << offsets[nestLevel]
+    // Initialize the source index to zero, since it is simple, note this must
+    // happen outside the loop
+    os << "int64_t " << sourceIndexName << " = 0;\n";
+    os << "for (int64_t " << destIndexName << " = " << offsets[nestLevel]
        << "; " << destIndexName << " < "
        << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
        << destIndexName << " += " << strides[nestLevel] << ") {\n";
     os.indent();
-    // Also initialise the source index to zero, since it is simple
-    os << "int64_t " << sourceIndexName << " = 0;\n";
   }
 
   // Now we're in the innermost loop nest, do the assignment

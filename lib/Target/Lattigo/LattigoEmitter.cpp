@@ -619,7 +619,7 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
   std::string resultName = getName(op.getResult(), /*force=*/true);
   std::string tmpName = resultName + "_array";
   os << tmpName << " := " << llvm::join(arrays, "")
-     << convertType(resultType.getElementType()) << "{}";
+     << convertType(resultType.getElementType()) << "{}\n";
 
   if (op.getStaticOffsets().empty() || op.getStaticSizes().empty() ||
       op.getStaticStrides().empty()) {
@@ -640,13 +640,14 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
         resultName + "_dest_" + std::to_string(nestLevel);
     sourceIndexNames.push_back(sourceIndexName);
     destIndexNames.push_back(destIndexName);
-    os << "\nfor " << sourceIndexName << " := " << offsets[nestLevel] << "; "
+    // Initialise the destination index to zero, since it is simple, note this
+    // must happen outside the loop.
+    os << destIndexName << " := 0\n";
+    os << "for " << sourceIndexName << " := " << offsets[nestLevel] << "; "
        << sourceIndexName << " < "
        << offsets[nestLevel] + sizes[nestLevel] * strides[nestLevel] << "; "
        << sourceIndexName << " += " << strides[nestLevel] << " {\n";
     os.indent();
-    // Also initialise the destination index to zero
-    os << destIndexName << " := 0\n";
   }
 
   // Now we're in the innermost loop nest, do the assignment
