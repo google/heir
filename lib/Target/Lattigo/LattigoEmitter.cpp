@@ -13,11 +13,12 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/CommandLine.h"       // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
-#include "llvm/include/llvm/Support/ManagedStatic.h"     // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
+#include "llvm/include/llvm/Support/CommandLine.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/ManagedStatic.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -62,6 +63,9 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
           .Case<ModuleOp>([&](auto op) { return printOperation(op); })
           // Func ops
           .Case<func::FuncOp, func::ReturnOp, func::CallOp>(
+              [&](auto op) { return printOperation(op); })
+          // Affine ops
+          .Case<affine::AffineForOp, affine::AffineYieldOp>(
               [&](auto op) { return printOperation(op); })
           // Arith ops
           .Case<arith::ConstantOp>([&](auto op) { return printOperation(op); })
@@ -225,6 +229,67 @@ LogicalResult LattigoEmitter::printOperation(func::CallOp op) {
     os << ", " << debugAttrMapName;
   }
   os << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(affine::AffineForOp op) {
+  if (!op.hasConstantBounds()) {
+    return emitError(op.getLoc(), "Only constant bounds are supported");
+  }
+
+  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+    // Assign the loop's results to use as initial iter args.
+    Value result = op.getResults()[i];
+    Value operand = op.getOperands()[i];
+    Value iterArg = op.getRegionIterArgs()[i];
+
+    if (variableNames->contains(result) && variableNames->contains(operand) &&
+        variableNames->getNameForValue(result) ==
+            variableNames->getNameForValue(operand)) {
+      // This occurs in cases where the loop is inserting into a tensor and
+      // passing it along as an inter arg.
+      continue;
+    }
+
+    os << getName(iterArg) << " := " << getName(operand) << "\n";
+  }
+
+  os << llvm::formatv("for {0} := int64({1}); {0} < {2}; {0} += {3} {{\n",
+                      // Don't use getName here because it is guaranteed to be
+                      // used by the loop update calls
+                      variableNames->getNameForValue(op.getInductionVar()),
+                      op.getConstantLowerBound(), op.getConstantUpperBound(),
+                      op.getStepAsInt());
+  os.indent();
+  for (Operation &op : *op.getBody()) {
+    if (failed(translate(op))) {
+      return op.emitOpError() << "Failed to translate for loop block";
+    }
+  }
+
+  // Now assign the final yielded results to the iter arg variable
+  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+    // Assign the loop's results to use as initial iter args.
+    Value iterArg = op.getRegionIterArgs()[i];
+    Value yieldedResult = op.getYieldedValues()[i];
+
+    os << getName(iterArg) << " = " << getName(yieldedResult) << "\n";
+  }
+
+  os.unindent();
+  os << "}\n";
+
+  // Now assign the final iterArgs to the loop results
+  for (auto i = 0; i < op.getNumRegionIterArgs(); ++i) {
+    Value result = op.getResults()[i];
+    Value iterArg = op.getRegionIterArgs()[i];
+    os << getName(result) << " := " << getName(iterArg) << "\n";
+  }
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(affine::AffineYieldOp op) {
+  // Assume all yielded loop values have already been assigned.
   return success();
 }
 
@@ -1192,7 +1257,8 @@ void registerToLattigoTranslation() {
         return translateToLattigo(op, output, translateOptions->packageName);
       },
       [](DialectRegistry &registry) {
-        registry.insert<rns::RNSDialect, arith::ArithDialect, func::FuncDialect,
+        registry.insert<affine::AffineDialect, rns::RNSDialect,
+                        arith::ArithDialect, func::FuncDialect,
                         tensor::TensorDialect, tensor_ext::TensorExtDialect,
                         lattigo::LattigoDialect, mgmt::MgmtDialect>();
       });
