@@ -14,7 +14,7 @@ heir_lattigo_lib(
     go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=8 \
+        "--mlir-to-ckks=ciphertext-degree=1024 \
           encryption-technique-extended=true \
           plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
