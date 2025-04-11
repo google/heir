@@ -19,7 +19,7 @@ heir_lattigo_lib(
     go_library_name = "simplesum",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=ciphertext-degree=32",
+        "--mlir-to-bgv=ciphertext-degree=1024",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:simple_sum.mlir",
