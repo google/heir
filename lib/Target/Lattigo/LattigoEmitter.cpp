@@ -73,8 +73,9 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
                 arith::AddIOp, arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ConcatOp, tensor::ExtractOp, tensor::ExtractSliceOp,
-                tensor::InsertOp, tensor::FromElementsOp, tensor::SplatOp>(
+          .Case<tensor::ConcatOp, tensor::EmptyOp, tensor::ExtractOp,
+                tensor::ExtractSliceOp, tensor::InsertOp,
+                tensor::FromElementsOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
@@ -598,6 +599,18 @@ LogicalResult LattigoEmitter::printOperation(tensor::ConcatOp op) {
       op.getInputs(), [&](Value value) { return getName(value); }));
   os << getName(op.getResult()) << " := slices.Concat("
      << llvm::join(operandNames, ", ") << ")\n";
+  return success();
+}
+
+LogicalResult LattigoEmitter::printOperation(tensor::EmptyOp op) {
+  // Only support 1D tensors for now, initialize as a slice
+  ShapedType resultType = op.getResult().getType();
+  if (resultType.getRank() != 1) {
+    return op.emitError("Lattigo emitter for ConcatOp only supports rank 1");
+  }
+  os << getName(op.getResult()) << " := make([]"
+     << convertType(resultType.getElementType()) << ", "
+     << resultType.getNumElements() << ")\n";
   return success();
 }
 

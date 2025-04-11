@@ -411,3 +411,14 @@ module attributes {scheme.bgv} {
     return %0 : tensor<32xi32>
   }
 }
+
+// -----
+
+module attributes {scheme.bgv} {
+  // CHECK: func empty
+  func.func @empty() -> tensor<8xi32> {
+    // CHECK: [[v0:[^ ]*]] := make([]int32, 8)
+    %0 = tensor.empty() : tensor<8xi32>
+    return %0 : tensor<8xi32>
+  }
+}
