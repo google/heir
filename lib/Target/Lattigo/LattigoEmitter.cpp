@@ -73,8 +73,8 @@ LogicalResult LattigoEmitter::translate(Operation &op) {
                 arith::AddIOp, arith::CmpIOp, arith::SelectOp>(
               [&](auto op) { return printOperation(op); })
           // Tensor ops
-          .Case<tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertOp,
-                tensor::FromElementsOp, tensor::SplatOp>(
+          .Case<tensor::ConcatOp, tensor::ExtractOp, tensor::ExtractSliceOp,
+                tensor::InsertOp, tensor::FromElementsOp, tensor::SplatOp>(
               [&](auto op) { return printOperation(op); })
           // Lattigo ops
           .Case<
@@ -588,6 +588,19 @@ LogicalResult LattigoEmitter::printOperation(arith::CmpIOp op) {
   return failure();
 }
 
+LogicalResult LattigoEmitter::printOperation(tensor::ConcatOp op) {
+  // Use slices.Concat which has the same semantics as 1D tensor.concat
+  if (op.getResultType().getRank() != 1) {
+    return op.emitError("Lattigo emitter for ConcatOp only supports rank 1");
+  }
+  imports.insert(std::string(kSlicesImport));
+  SmallVector<std::string> operandNames = llvm::to_vector<4>(llvm::map_range(
+      op.getInputs(), [&](Value value) { return getName(value); }));
+  os << getName(op.getResult()) << " := slices.Concat("
+     << llvm::join(operandNames, ", ") << ")\n";
+  return success();
+}
+
 LogicalResult LattigoEmitter::printOperation(tensor::ExtractOp op) {
   os << getName(op.getResult()) << " := " << getName(op.getTensor()) << "[";
   os << flattenIndexExpression(
@@ -690,7 +703,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::FromElementsOp op) {
 
 LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
   imports.insert(std::string(kSlicesImport));
-  std::string tmpVar = getName(op.getResult()) + "_0";
+  // don't use getName because the tmpvar is guaranteed to be used
+  std::string tmpVar = variableNames->getNameForValue(op.getResult()) + "_0";
   auto scalarTypeString = convertType(op.getInput().getType());
 
   RankedTensorType resultType = op.getResult().getType();
@@ -700,7 +714,7 @@ LogicalResult LattigoEmitter::printOperation(tensor::SplatOp op) {
 
   // golang requires a slice input to slices.Repeat
   //
-  //     numbers := []int{v}
+  //   numbers := []int{v}
   //   repeat := slices.Repeat(numbers, 50)
   //
   int tensorSize = resultType.getNumElements();
