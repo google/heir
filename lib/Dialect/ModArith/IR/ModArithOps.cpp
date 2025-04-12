@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -46,6 +47,30 @@ LogicalResult verifyModArithType(OpType op, ModArithType type) {
   return success();
 }
 
+/// Ensures that the underlying integer type is wide enough for the coefficient
+template <typename OpType>
+LogicalResult verifyRNSType(OpType op, rns::RNSType type) {
+  for (auto basisType : type.getBasisTypes()) {
+    if (auto modArithType = dyn_cast<ModArithType>(basisType)) {
+      if (failed(verifyModArithType(op, modArithType))) {
+        return op.emitOpError()
+               << "Every basis type in the RNS type must be a valid ModArith.";
+      }
+    } else {
+      return op.emitOpError() << "Unsupported RNS type: " << basisType;
+    }
+  }
+  return success();
+}
+
+template <typename OpType>
+LogicalResult verifyModArithOrRNSType(OpType op, Type type) {
+  if (auto rnsType = dyn_cast<rns::RNSType>(type)) {
+    return verifyRNSType(op, rnsType);
+  }
+  return verifyModArithType(op, cast<ModArithType>(getElementTypeOrSelf(type)));
+}
+
 template <typename OpType>
 LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
                               IntegerType integerType) {
@@ -72,7 +97,7 @@ LogicalResult ReduceOp::verify() {
 }
 
 LogicalResult AddOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
+  return verifyModArithOrRNSType(*this, this->getResult().getType());
 }
 
 LogicalResult SubOp::verify() {
