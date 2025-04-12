@@ -62,6 +62,8 @@ def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeI
       return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
     }
   }];
+
+  let genVerifyDecl = 1;
 }
 
 def ModArithLike: TypeOrValueSemanticsContainer<ModArith_ModArithType, "mod_arith-like">;

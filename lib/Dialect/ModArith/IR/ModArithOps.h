@@ -1,6 +1,8 @@
 #ifndef LIB_DIALECT_MODARITH_IR_MODARITHOPS_H_
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_H_
 
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
+
 // NOLINTBEGIN(misc-include-cleaner): Required to define ModArithOps
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
