@@ -697,6 +697,8 @@ struct ConvertLinalgMatvec
     Value result = adaptor.getOutputs()[0];
     Value packedMatrix = adaptor.getInputs()[0];
     Value packedVector = adaptor.getInputs()[1];
+    auto originalMatrixType =
+        cast<RankedTensorType>(op.getInputs()[0].getType());
     auto packedMatrixType = cast<RankedTensorType>(packedMatrix.getType());
     auto packedVectorType = cast<RankedTensorType>(packedVector.getType());
     Type elementType = packedVectorType.getElementType();
@@ -752,11 +754,8 @@ struct ConvertLinalgMatvec
     // Only the last op will need its layout set for later ops to reference.
     setAttributeAssociatedWith(accumulator, kLayoutAttrName, layoutAttr);
 
-    int64_t matrixNumRows = packedMatrixType.getShape()[0];
-    int64_t matrixNumCols = packedMatrixType.getShape()[1];
-
     Value summedShifts = accumulator;
-    if (matrixNumRows == matrixNumCols) {
+    if (originalMatrixType.getShape()[0] == originalMatrixType.getShape()[1]) {
       rewriter.replaceOp(op, summedShifts);
       return;
     }
@@ -764,6 +763,8 @@ struct ConvertLinalgMatvec
     // else, necessarily matrixNumRows < matrixNumCols due to the precondition
     // applied earlier. This is the post-processing partial-rotate-and-reduce
     // step required for squat-diagonal packing.
+    int64_t matrixNumRows = packedMatrixType.getShape()[0];
+    int64_t matrixNumCols = packedMatrixType.getShape()[1];
 
     int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
     int64_t shift = matrixNumCols / 2;
