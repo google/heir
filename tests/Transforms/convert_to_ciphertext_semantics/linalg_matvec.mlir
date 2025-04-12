@@ -149,6 +149,7 @@ func.func @matvec_constant_matrix(
           ins(%enc_matrix, %input0 : tensor<16x16xi16>, tensor<16xi16>)
           outs(%enc_out : tensor<16xi16>) -> tensor<16xi16>
 
+    // CHECK-NOT: tensor_ext.rotate
     secret.yield %3 : tensor<16xi16>
   } -> !secret.secret<tensor<16xi16>>
   // CHECK: return [[output]]
