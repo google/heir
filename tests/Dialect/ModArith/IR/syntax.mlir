@@ -1,7 +1,9 @@
 // RUN: heir-opt --mlir-print-local-scope %s | FileCheck %s
 
 !Zp = !mod_arith.int<17 : i10>
+!Zp2 = !mod_arith.int<257 : i10>
 !Zp_vec = tensor<4x!Zp>
+!rns = !rns.rns<!Zp, !Zp2>
 
 // CHECK: @test_arith_syntax
 func.func @test_arith_syntax() {
@@ -82,4 +84,12 @@ func.func @test_arith_syntax() {
   %mod_switch = mod_arith.mod_switch %e6: !Zp to !mod_arith.int<31 : i10>
 
   return
+}
+
+// CHECK: @test_rns_syntax
+func.func @test_rns_syntax(%arg0: !rns, %arg1: !rns) -> !rns {
+  // CHECK: mod_arith.add
+  // CHECK-SAME: rns
+  %result = mod_arith.add %arg0, %arg1 : !rns
+  return %result : !rns
 }

@@ -13,6 +13,7 @@ cc_library(
     srcs = [
         "ModArithDialect.cpp",
         "ModArithOps.cpp",
+        "ModArithTypes.cpp",
     ],
     hdrs = [
         "ModArithDialect.h",
@@ -24,6 +25,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "@heir//lib/Dialect/RNS/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:CommonFolders",
@@ -44,7 +46,9 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect/RNS/IR:td_files",
         "@heir//lib/Utils/DRR",
+        "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
@@ -89,6 +93,5 @@ gentbl_cc_library(
     td_file = "ModArithCanonicalization.td",
     deps = [
         ":td_files",
-        "@llvm-project//mlir:ArithOpsTdFiles",
     ],
 )
