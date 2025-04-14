@@ -3,7 +3,8 @@
 // RUN: heir-opt --mlir-to-cggi --scheme-to-tfhe-rs %s | heir-translate --emit-tfhe-rust --use-levels > %S/src/fn_under_test.rs
 // RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_sbox | FileCheck %s
 
-// CHECK: 637C777B
+// CHECK: 637C
+// CHECK: BB16
 
 #map = affine_map<(d0) -> (d0)>
 module {

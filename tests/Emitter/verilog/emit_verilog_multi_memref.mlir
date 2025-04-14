@@ -25,14 +25,16 @@ module {
 // CHECK-NEXT: );
 // CHECK-NEXT: wire signed [8207:0] [[V2:.*]];
 // CHECK-NEXT: wire signed [8207:0] [[V3:.*]];
-// CHECK-NEXT: wire signed [15:0] [[V4:.*]];
+// CHECK-NEXT: wire signed [31:0] [[V4:.*]];
 // CHECK-NEXT: wire signed [15:0] [[V5:.*]];
 // CHECK-NEXT: wire signed [15:0] [[V6:.*]];
+// CHECK-NEXT: wire signed [15:0] [[V7:.*]];
 // CHECK-NEXT: assign [[V2]] = 8208'h{{[A-Z0-9]+}};
 // CHECK-NEXT: assign [[V3]] = 8208'h{{[A-Z0-9]+}};
 // CHECK-EMPTY:
-// CHECK-NEXT:  assign [[V4]] = [[V2]][15 + 16 * [[ARG]] : 16 * [[ARG]]];
-// CHECK-NEXT:  assign [[V5]] = [[V3]][15 + 16 * [[ARG]] : 16 * [[ARG]]];
-// CHECK-NEXT:  assign [[V6]] = [[V4]] + [[V5]];
-// CHECK-NEXT:  assign [[OUT]] = [[V6]];
+// CHECK-NEXT:  assign [[V4]] = $unsigned([[ARG]]);
+// CHECK-NEXT:  assign [[V5]] = [[V2]][15 + 16 * [[V4]] : 16 * [[V4]]];
+// CHECK-NEXT:  assign [[V6]] = [[V3]][15 + 16 * [[V4]] : 16 * [[V4]]];
+// CHECK-NEXT:  assign [[V7]] = [[V5]] + [[V6]];
+// CHECK-NEXT:  assign [[OUT]] = [[V7]];
 // CHECK:      endmodule

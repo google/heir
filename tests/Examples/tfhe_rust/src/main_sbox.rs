@@ -25,8 +25,8 @@ fn main() {
     let parameters = get_parameters_from_message_and_carry((1 << 3) - 1, 2);
     let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
 
-    // query the first 4 elements of the table.
-    let query = [0, 1, 2, 3];
+    // query the first 2 and last 2 elements of the table
+    let query = [0, 1, 254, 255];
     let ct_query: Vec<[Ciphertext; 8]> =
         query.into_iter().map(|v| encrypt_u8(v, &client_key)).collect();
 
