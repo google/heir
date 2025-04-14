@@ -12,6 +12,7 @@ cc_library(
     name = "Dialect",
     srcs = [
         "ModArithDialect.cpp",
+        "ModArithOps.cpp",
     ],
     hdrs = [
         "ModArithDialect.h",
