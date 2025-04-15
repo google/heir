@@ -101,7 +101,15 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
     if (isa<IndexType>(op.getValue().getType())) {
       return failure();
     }
-    // FIXME: the cast is unsafe here, as we might also have a dense int attr?
+
+    auto denseIntAttr = dyn_cast<DenseIntElementsAttr>(op.getValue());
+    if (denseIntAttr) {
+      auto result = b.create<mod_arith::ConstantOp>(
+          typeConverter->convertType(op.getType()), denseIntAttr);
+      rewriter.replaceOp(op, result);
+      return success();
+    }
+
     auto result = b.create<mod_arith::ConstantOp>(
         typeConverter->convertType(op.getType()),
         cast<IntegerAttr>(op.getValue()));
