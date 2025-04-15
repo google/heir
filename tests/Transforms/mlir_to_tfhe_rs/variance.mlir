@@ -2,6 +2,7 @@
 
 // Calculate Variance of i4 elements, returning i32
 // Uses the formula: Var(X) = E[X^2] - (E[X])^2 = (sum_sq / N) - (sum / N)^2
+// CHECK: func.func @calculate_variance
 func.func @calculate_variance(%input_tensor: tensor<5xi4> {secret.secret}) -> i32 {
     %c10_i32 = arith.constant 10 : i32
 
