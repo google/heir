@@ -35,6 +35,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -307,8 +308,8 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   os << ")";
 
   if (serverKeyArg.empty()) {
-    return funcOp.emitWarning() << "expected server key function argument to "
-                                   "create default ciphertexts";
+    emitWarning(funcOp.getLoc()) << "expected server key function argument to "
+                                    "create default ciphertexts";
   }
 
   if (funcOp.getNumResults() > 0) {
