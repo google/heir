@@ -243,11 +243,12 @@ LogicalResult VerilogEmitter::translate(
             }
             return printOperation(op);
           })
-          .Case<arith::AddIOp, arith::CmpIOp, arith::ExtSIOp, arith::ExtUIOp,
-                arith::IndexCastOp, arith::MaxSIOp, arith::MinSIOp,
-                arith::MulIOp, arith::SelectOp, arith::ShLIOp, arith::ShRSIOp,
-                arith::ShRUIOp, arith::SubIOp, arith::TruncIOp, arith::AndIOp,
-                arith::XOrIOp>([&](auto op) { return printOperation(op); })
+          .Case<arith::AddIOp, arith::CmpIOp, arith::DivSIOp, arith::ExtSIOp,
+                arith::ExtUIOp, arith::IndexCastOp, arith::MaxSIOp,
+                arith::MinSIOp, arith::MulIOp, arith::SelectOp, arith::ShLIOp,
+                arith::ShRSIOp, arith::ShRUIOp, arith::SubIOp, arith::TruncIOp,
+                arith::AndIOp, arith::XOrIOp>(
+              [&](auto op) { return printOperation(op); })
           // Custom math ops.
           .Case<math::CountLeadingZerosOp>(
               [&](auto op) { return printOperation(op); })
@@ -584,6 +585,10 @@ LogicalResult VerilogEmitter::printOperation(UnrealizedConversionCastOp op) {
         << ");\n";
   }
   return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(arith::DivSIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "/");
 }
 
 LogicalResult VerilogEmitter::printOperation(arith::ExtSIOp op) {
