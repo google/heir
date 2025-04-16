@@ -176,15 +176,6 @@ class SecretGenericOpConversion
     convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
     convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
 
-    // special treatment for memref.alloc, which has alignment attr
-    // that should be preserved
-    // TODO: secret-to-cggi should handle this instead of here
-    for (auto &namedAttr : innerOp.getAttrs()) {
-      if (namedAttr.getName().getValue() == "alignment") {
-        attrsToPreserve.push_back(namedAttr);
-      }
-    }
-
     FailureOr<Operation *> newOpResult = matchAndRewriteInner(
         op, resultTypes, inputs, attrsToPreserve, rewriter);
     if (failed(newOpResult)) return failure();

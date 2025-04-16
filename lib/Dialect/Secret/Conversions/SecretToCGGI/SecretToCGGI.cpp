@@ -347,6 +347,52 @@ class SecretGenericOpMemRefLoadConversion
   }
 };
 
+class SecretGenericOpMemRefAllocConversion
+    : public SecretGenericOpConversion<memref::AllocOp> {
+  using SecretGenericOpConversion<memref::AllocOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter &rewriter) const override {
+    // Preserve the alignment attribute.
+    auto innerOp = cast<memref::AllocOp>(op.getBody()->getOperations().front());
+    SmallVector<NamedAttribute> newAttributes(attributes.begin(),
+                                              attributes.end());
+    if (innerOp.getAlignmentAttr()) {
+      newAttributes.push_back(NamedAttribute(
+          "alignment", cast<Attribute>(innerOp.getAlignmentAttr())));
+    }
+    return rewriter
+        .replaceOpWithNewOp<memref::AllocOp>(op, outputTypes, inputs,
+                                             newAttributes)
+        .getOperation();
+  }
+};
+
+class SecretGenericOpMemRefCollapseShapeConversion
+    : public SecretGenericOpConversion<memref::CollapseShapeOp> {
+  using SecretGenericOpConversion<
+      memref::CollapseShapeOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter &rewriter) const override {
+    // Preserve the reassociation attribute.
+    auto innerOp =
+        cast<memref::CollapseShapeOp>(op.getBody()->getOperations().front());
+    SmallVector<NamedAttribute> newAttributes(attributes.begin(),
+                                              attributes.end());
+    newAttributes.push_back(
+        NamedAttribute("reassociation", innerOp.getReassociationAttr()));
+    return rewriter
+        .replaceOpWithNewOp<memref::CollapseShapeOp>(op, outputTypes, inputs,
+                                                     newAttributes)
+        .getOperation();
+  }
+};
+
 template <typename GateOp, typename CGGIGateOp>
 class SecretGenericOpGateConversion
     : public SecretGenericOpConversion<GateOp, CGGIGateOp> {
@@ -738,11 +784,9 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
         [&](auto op) { return typeConverter.isLegal(op); });
 
     patterns.add<
-        SecretGenericOpLUTConversion,
-        SecretGenericOpConversion<memref::AllocOp, memref::AllocOp>,
+        SecretGenericOpLUTConversion, SecretGenericOpMemRefAllocConversion,
         SecretGenericOpConversion<memref::DeallocOp, memref::DeallocOp>,
-        SecretGenericOpConversion<memref::CollapseShapeOp,
-                                  memref::CollapseShapeOp>,
+        SecretGenericOpMemRefCollapseShapeConversion,
         SecretGenericOpMemRefLoadConversion,
         SecretGenericOpAffineStoreConversion,
         SecretGenericOpAffineLoadConversion,
