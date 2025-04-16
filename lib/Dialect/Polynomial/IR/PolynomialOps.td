@@ -267,7 +267,8 @@ def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure]> {
 
 def Polynomial_AnyTypedPolynomialAttr : AnyAttrOf<[
   Polynomial_TypedFloatPolynomialAttr,
-  Polynomial_TypedIntPolynomialAttr
+  Polynomial_TypedIntPolynomialAttr,
+  Polynomial_TypedChebyshevPolynomialAttr
 ]>;
 
 def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant",
