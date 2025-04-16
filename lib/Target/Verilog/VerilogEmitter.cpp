@@ -489,15 +489,13 @@ LogicalResult VerilogEmitter::printOperation(func::CallOp op) {
   // e.g., submodule submod_call(xInput0, xInput1, xOutput);
   std::string opName = (getOrCreateName(op.getResult(0)) + "_call").str();
 
-  // Verilog only supports functions with a single return value.
-  if (op.getResults().size() != 1) {
-    return failure();
-  }
   std::string funcArgs;
   for (auto arg : op.getArgOperands()) {
     funcArgs += getOrCreateName(arg).str() + ", ";
   }
-  funcArgs += getOrCreateName(op.getResult(0));
+  for (auto res : op.getResults()) {
+    funcArgs += getOrCreateName(res).str() + ", ";
+  }
   os_ << op.getCallee() << " " << opName << "(" << funcArgs << ");\n";
   return success();
 }

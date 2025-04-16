@@ -24,3 +24,7 @@ path = "src/main_fully_connected.rs"
 [[bin]]
 name = "main_sbox"
 path = "src/main_sbox.rs"
+
+[[bin]]
+name = "main_multi_output"
+path = "src/main_multi_output.rs"

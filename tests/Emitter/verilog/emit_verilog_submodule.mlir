@@ -57,6 +57,6 @@ module {
 // CHECK-NEXT:   wire signed [7:0] [[V13:.*]];
 // CHECK-EMPTY:
 // CHECK-NEXT:   assign [[V12]] = $signed([[ARG1]]);
-// CHECK-NEXT:   submod [[V13]]_call([[V12]], [[V13]]);
+// CHECK-NEXT:   submod [[V13]]_call([[V12]], [[V13]], );
 // CHECK-NEXT:   assign [[OUT1]] = [[V13]];
 // CHECK-NEXT: endmodule
