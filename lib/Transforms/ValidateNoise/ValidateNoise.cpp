@@ -12,7 +12,9 @@
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
+#include "lib/Analysis/NoiseAnalysis/CKKS/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
+#include "lib/Analysis/ScaleAnalysis/ScaleAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -68,7 +70,12 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto getLocalParam = [&](Value value) {
       auto level = getLevelFromMgmtAttr(value);
       auto dimension = getDimensionFromMgmtAttr(value);
-      return LocalParamType(&schemeParam, level, dimension);
+      [[maybe_unused]] auto scale = getScaleFromMgmtAttr(value);
+      if constexpr (std::is_same_v<LocalParamType, ckks::LocalParam>) {
+        return LocalParamType(&schemeParam, level, dimension, scale);
+      } else {
+        return LocalParamType(&schemeParam, level, dimension);
+      }
     };
 
     auto secretness = isSecret(value, solver);
@@ -144,8 +151,18 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   void run() {
     int maxLevel = getMaxLevel();
 
-    auto schemeParamAttr = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
-        bgv::BGVDialect::kSchemeParamAttrName);
+    using SchemeParamAttrType = std::conditional_t<
+        std::is_same_v<typename NoiseAnalysis::SchemeParamType,
+                       bgv::SchemeParam>,
+        bgv::SchemeParamAttr, ckks::SchemeParamAttr>;
+    auto schemeParamAttrName =
+        (std::is_same_v<typename NoiseAnalysis::SchemeParamType,
+                        bgv::SchemeParam>)
+            ? bgv::BGVDialect::kSchemeParamAttrName
+            : ckks::CKKSDialect::kSchemeParamAttrName;
+
+    auto schemeParamAttr =
+        getOperation()->getAttrOfType<SchemeParamAttrType>(schemeParamAttrName);
     if (!schemeParamAttr) {
       getOperation()->emitOpError() << "No scheme param found.\n";
       signalPassFailure();
@@ -204,6 +221,9 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     } else if (model == "bfv-noise-by-variance-coeff" ||
                model == "bfv-noise-bmcm23") {
       run<NoiseAnalysis<bfv::NoiseByVarianceCoeffModel>>();
+    } else if (model == "ckks-noise-by-variance-coeff" ||
+               model == "ckks-noise-cch23") {
+      run<NoiseAnalysis<ckks::NoiseByVarianceCoeffModel>>();
     } else {
       getOperation()->emitOpError() << "Unknown noise model.\n";
       signalPassFailure();
