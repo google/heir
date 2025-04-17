@@ -3,6 +3,12 @@ title: Ciphertext Management
 weight: 9
 ---
 
+On 2025-04-17, Hongren Zheng gave a talk overview of the ciphertext management
+system in the HEIR working group meeting.
+[The video can be found here](https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&t=1631)
+
+## Introduction
+
 To lower from user specified computation to FHE scheme operations, a compiler
 must insert *ciphertext management* operations to satisfy various requirements
 of the FHE scheme, like modulus switching, relinearization, and bootstrapping.
