@@ -23,10 +23,6 @@ def RNS_Dialect : Dialect {
   let cppNamespace = "::mlir::heir::rns";
 
   let useDefaultTypePrinterParser = 1;
-
-  let dependentDialects = [
-    "mlir::heir::polynomial::PolynomialDialect",
-  ];
 }
 
 #endif  // LIB_DIALECT_RNS_IR_RNSDIALECT_TD_
