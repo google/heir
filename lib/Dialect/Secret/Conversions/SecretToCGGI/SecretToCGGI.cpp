@@ -542,48 +542,45 @@ struct ConvertSecretCastOp
   LogicalResult matchAndRewrite(
       secret::CastOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    // If this is a cast from secret<i8> to secret<memref<8xi1>> or vice
-    // versa, replace with the cast's input.
-    auto lhsType =
-        cast<secret::SecretType>(op.getInput().getType()).getValueType();
-    auto rhsType =
-        cast<secret::SecretType>(op.getOutput().getType()).getValueType();
+    // The original secret cast reconciles multi-bit or memrefs of values like
+    // secret<i8> to secret<memref<8xi1>> or secret<memref<2x4xi2>> and
+    // secret<memref<16xi1>> and vice versa. One of these will always be a
+    // flattened memref<Nxi1> type that Yosys uses as input/output types. After
+    // secret-to-cggi type conversion, both will be memref types.
+    auto lhsMemRefTy = dyn_cast<MemRefType>(adaptor.getInput().getType());
+    auto rhsMemRefTy = dyn_cast<MemRefType>(typeConverter->convertType(
+        op.getOutput().getType(),
+        typeConverter->getContextualAttr(op.getOutput()).value_or(nullptr)));
 
-    int lhsBits = getElementTypeOrSelf(lhsType).getIntOrFloatBitWidth();
-    int rhsBits = getElementTypeOrSelf(rhsType).getIntOrFloatBitWidth();
-    auto lhsMemRefTy = dyn_cast<MemRefType>(lhsType);
-    if (lhsMemRefTy) {
-      lhsBits *= lhsMemRefTy.getNumElements();
-    }
-    auto rhsMemRefTy = dyn_cast<MemRefType>(rhsType);
-    if (rhsMemRefTy) {
-      rhsBits *= rhsMemRefTy.getNumElements();
+    if (!lhsMemRefTy || !rhsMemRefTy) {
+      return op->emitOpError()
+             << "expected cast between multi-bit secret types, got "
+             << op.getInput().getType() << " and " << op.getOutput().getType();
     }
 
+    int lhsBits = lhsMemRefTy.getNumElements();
+    int rhsBits = rhsMemRefTy.getNumElements();
     if (lhsBits != rhsBits) {
-      return op->emitOpError() << "expected cast between secrets holding the "
-                                  "same number of total bits, got "
-                               << lhsType << " and " << rhsType;
+      return op->emitOpError()
+             << "expected cast between secrets holding the "
+                "same number of total bits, got "
+             << op.getInput().getType() << " and " << op.getOutput().getType();
     }
 
-    if ((lhsMemRefTy == nullptr) != (rhsMemRefTy == nullptr)) {
-      LLVM_DEBUG(op.emitRemark() << "Only one of the inputs to secret.cast is "
-                                    "a memref, can replace with input\n");
-      // If they both contain the same bits but only one is a memref, then
-      // simply replace with the input.
+    // Fold the cast if the resulting type converted shapes are the same.
+    if (lhsMemRefTy.getShape() == rhsMemRefTy.getShape()) {
+      // This happens when one of the original shapes was a memref and the other
+      // was an integer, for e.g. a secret.cast from i8 to memref<8xlwe_ct>.
+      assert(isa<ShapedType>(op.getInput().getType().getValueType()) !=
+             isa<ShapedType>(op.getOutput().getType().getValueType()));
       rewriter.replaceOp(op, adaptor.getInput());
       return success();
     }
 
-    // If the input and output are memrefs contain the same number of bits,
-    // resolve them by reshaping or replacing with the input. This can happen
-    // when converting op results or operands in Yosys Optimizer when the
-    // original result or operand was also a memref.
+    // Otherwise, resolve the cast by reshaping the input. This happens when the
+    // original operand or result was a memref which Yosys optimizer flattened,
+    // for e.g. secret<memref<2xi4>> (memref<8xlwe_ct>).
     if (lhsMemRefTy && rhsMemRefTy) {
-      auto *typeConverter = getTypeConverter();
-      auto outRhsType = typeConverter->convertType<MemRefType>(
-          op.getOutput().getType(),
-          typeConverter->getContextualAttr(op.getOutput()).value_or(nullptr));
       if (lhsMemRefTy.getRank() > rhsMemRefTy.getRank() &&
           rhsMemRefTy.getRank() == 1) {
         // This case happens when converting a high dimension memref into a flat
@@ -592,7 +589,7 @@ struct ConvertSecretCastOp
         // secret<memref<8xi1>> (memref<8xlwe_ciphertext>). In this case,
         // collapse the memref shape.
         SmallVector<mlir::ReassociationIndices> reassociation;
-        auto range = llvm::seq<unsigned>(0, lhsMemRefTy.getRank() + 1);
+        auto range = llvm::seq<unsigned>(0, lhsMemRefTy.getRank());
         reassociation.emplace_back(range.begin(), range.end());
         rewriter.replaceOpWithNewOp<memref::CollapseShapeOp>(
             op, adaptor.getInput(), reassociation);
@@ -604,21 +601,21 @@ struct ConvertSecretCastOp
         // secret<memref<8xi1>> (memref<8xlwe_ciphertext>) to
         // secret<memref<1x2xi4>> (memref<1x2x4xlwe_ciphertext>).
         SmallVector<mlir::ReassociationIndices> reassociation;
-        auto range = llvm::seq<unsigned>(0, rhsMemRefTy.getRank() + 1);
+        auto range = llvm::seq<unsigned>(0, rhsMemRefTy.getRank());
         reassociation.emplace_back(range.begin(), range.end());
         rewriter.replaceOpWithNewOp<memref::ExpandShapeOp>(
-            op, outRhsType, adaptor.getInput(), reassociation);
+            op, rhsMemRefTy, adaptor.getInput(), reassociation);
         return success();
       } else if (lhsMemRefTy.getShape() != rhsMemRefTy.getShape()) {
-        // In other cases, use a reinterpret cast to resolve the memref shapes.
+        // Fallback to a reinterpret cast to resolve the memref shapes.
         int64_t offset;
         SmallVector<int64_t> strides;
-        if (failed(outRhsType.getStridesAndOffset(strides, offset)))
+        if (failed(rhsMemRefTy.getStridesAndOffset(strides, offset)))
           return rewriter.notifyMatchFailure(
               op, "failed to get stride and offset exprs");
         auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-            op.getLoc(), outRhsType, adaptor.getInput(), offset,
-            outRhsType.getShape(), strides);
+            op.getLoc(), rhsMemRefTy, adaptor.getInput(), offset,
+            rhsMemRefTy.getShape(), strides);
         rewriter.replaceOp(op, castOp);
         return success();
       }
