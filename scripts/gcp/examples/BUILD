@@ -2,10 +2,7 @@
 
 load("@heir//tools:heir-jaxite.bzl", "fhe_jaxite_lib")
 
-package(
-    default_applicable_licenses = ["@heir//:license"],
-    default_visibility = ["//visibility:public"],
-)
+package(default_applicable_licenses = ["@heir//:license"])
 
 fhe_jaxite_lib(
     name = "add_one_lut3",
