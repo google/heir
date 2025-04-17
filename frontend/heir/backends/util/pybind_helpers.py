@@ -85,5 +85,26 @@ def pybind11_includes() -> list[str]:
   return [quote(d) for d in unique_dirs]
 
 
+def pybind11_libs() -> str:
+  """Return the system directories for pybind11.
+
+  Returns:
+    A list of directories for pybind11.
+  """
+  dirs = [
+      sysconfig.get_config_var("LIBDIR"),
+  ]
+  return [quote(d) for d in dirs]
+
+
+def python_link_lib() -> str:
+  """Return the str for the linker to include the python lib.
+
+  Returns:
+    A str of the python lib for the linker to include.
+  """
+  return f"python{sysconfig.get_python_version()}"
+
+
 def pyconfig_ext_suffix() -> str:
   return sysconfig.get_config_var("EXT_SUFFIX")

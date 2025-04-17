@@ -26,6 +26,8 @@ from functools import partial
 Path = pathlib.Path
 pyconfig_ext_suffix = pybind_helpers.pyconfig_ext_suffix
 pybind11_includes = pybind_helpers.pybind11_includes
+pybind11_libs = pybind_helpers.pybind11_libs
+python_link_lib = pybind_helpers.python_link_lib
 
 
 class OpenfheClientInterface(ClientInterface):
@@ -281,8 +283,8 @@ class OpenFHEBackend(BackendInterface):
         include_paths=self.openfhe_config.include_dirs
         + pybind11_includes()
         + [workspace_dir],
-        linker_search_paths=linker_search_paths,
-        link_libs=self.openfhe_config.link_libs,
+        linker_search_paths=linker_search_paths + pybind11_libs(),
+        link_libs=self.openfhe_config.link_libs + [python_link_lib()],
         linker_args=["-rpath", ":".join(linker_search_paths)],
         abs_link_lib_paths=[so_filepath],
         arg_printer=debug_printer if debug else None,
