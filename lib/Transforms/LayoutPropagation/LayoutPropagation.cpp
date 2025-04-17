@@ -505,7 +505,7 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
   auto matrix = matvecOp.lhs();
   auto matrixType = cast<RankedTensorType>(matrix.getType());
 
-  // TODO(#1695): a layout optimizer should really be selecting the diagonal
+  // TODO(#1597): a layout optimizer should really be selecting the diagonal
   // layout instead of this pass.
 
   LayoutAttr matrixLayout = assignedLayouts.at(matrix);
