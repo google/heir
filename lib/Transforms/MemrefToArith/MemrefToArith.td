@@ -51,7 +51,6 @@ def MemrefGlobalReplacePass : Pass<"memref-global-replace", "mlir::ModuleOp"> {
     "mlir::affine::AffineDialect",
     "mlir::arith::ArithDialect",
     "mlir::memref::MemRefDialect",
-    "mlir::scf::SCFDialect",
   ];
 }
 
