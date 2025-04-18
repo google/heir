@@ -74,13 +74,3 @@ jobs:
       - name: "Run `bazel test`"
         run: |
           bazel test --noincompatible_strict_action_env --//:enable_openmp=0 -c fastbuild //...
-
-      # Tests specifically for the tfhe-rs codegen
-      - name: rustup toolchain install
-        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # pin@1.72.1
-        with:
-          toolchain: stable
-
-      - name: Test rust codegen targets
-        run: |
-          bash .github/workflows/run_rust_tests.sh

@@ -1,21 +1,23 @@
-# See README.md for setup required to run these tests
-
-load("//bazel:lit.bzl", "glob_lit_tests")
+load("@heir//tests/Examples/tfhe_rust:test.bzl", "tfhe_rs_end_to_end_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
-glob_lit_tests(
-    name = "all_tests",
-    data = [
-        "Cargo.toml",
-        "src/main.rs",
-        "src/main_fully_connected.rs",
-        "@heir//tests:test_utilities",
+tfhe_rs_end_to_end_test(
+    name = "arith_test",
+    size = "large",
+    heir_translate_flags = ["--emit-tfhe-rust-hl"],
+    mlir_src = "arith.mlir",
+    test_src = "src/main.rs",
+)
+
+tfhe_rs_end_to_end_test(
+    name = "fully_connected_test",
+    size = "large",
+    heir_opt_flags = [
+        "--mlir-to-cggi=data-type=Integer",
+        "--scheme-to-tfhe-rs",
     ],
-    default_tags = [
-        "manual",
-        "notap",
-    ],
-    driver = "@heir//tests:run_lit.sh",
-    test_file_exts = ["mlir"],
+    heir_translate_flags = ["--emit-tfhe-rust-hl"],
+    mlir_src = "fully_connected.mlir",
+    test_src = "src/main_fully_connected.rs",
 )

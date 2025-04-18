@@ -10,7 +10,6 @@ use tfhe::boolean::server_key::FpgaAcceleration;
 
 mod fn_under_test;
 
-// TODO(#235): improve generality
 #[derive(Parser, Debug)]
 struct Args {
     /// arguments to forward to function under test

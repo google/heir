@@ -1,7 +1,6 @@
-// RUN: heir-translate %s --emit-tfhe-rust-hl > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml -- 27 | FileCheck %s
+// heir-translate %s --emit-tfhe-rust-hl > %S/src/fn_under_test.rs
+// cargo run --release --manifest-path %S/Cargo.toml -- 27 | FileCheck %s
 
-// CHECK: 1320
 module attributes {tf_saved_model.semantics} {
   func.func @fn_under_test(%arg0: !tfhe_rust.server_key, %arg1: memref<2x3x!tfhe_rust.eui32>) -> memref<1x1x!tfhe_rust.eui32> {
     %c429_i32 = arith.constant 429 : i32
