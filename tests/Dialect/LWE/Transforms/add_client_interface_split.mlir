@@ -22,8 +22,16 @@
 !mul_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_D3_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 !out_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
+#alignment = #tensor_ext.alignment<in = [32], out = [32]>
+#layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #alignment>
+#original_type = #tensor_ext.original_type<originalType = tensor<32xi16>, layout = #layout>
+
+#scalar_alignment = #tensor_ext.alignment<in = [], out = [1], insertedDims = [0]>
+#scalar_layout = #tensor_ext.layout<map = (d0) -> (d0), alignment = #scalar_alignment>
+#scalar_original_type = #tensor_ext.original_type<originalType = i16, layout = #scalar_layout>
+
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [], P = [], plaintextModulus = 65537, encryptionType = pk>, scheme.bgv} {
-  func.func @dot_product(%arg0: !in_ty, %arg1: !in_ty) -> (!out_ty, !out_ty) {
+  func.func @dot_product(%arg0: !in_ty {tensor_ext.original_type = #original_type}, %arg1: !in_ty {tensor_ext.original_type = #original_type}) -> (!out_ty {tensor_ext.original_type = #scalar_original_type}, !out_ty {tensor_ext.original_type = #scalar_original_type}) {
     %c7 = arith.constant 7 : index
     %0 = bgv.mul %arg0, %arg1 : (!in_ty, !in_ty) -> !mul_ty
     %1 = bgv.relinearize %0 {from_basis = array<i32: 0, 1, 2>, to_basis = array<i32: 0, 1>} : !mul_ty -> !in_ty
