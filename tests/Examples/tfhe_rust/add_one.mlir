@@ -1,4 +1,4 @@
-// RUN: heir-opt --forward-store-to-load --cggi-to-tfhe-rust --canonicalize --cse %s | heir-translate --emit-tfhe-rust > %S/src/fn_under_test.rs
+// RUN: heir-opt --forward-store-to-load --cggi-to-tfhe-rust --canonicalize --cse %s | heir-translate --emit-tfhe-rust > %S/src/add_one_test_rs_lib.rs
 // RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_add_one -- 2 --message_bits=3 | FileCheck %s
 
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>

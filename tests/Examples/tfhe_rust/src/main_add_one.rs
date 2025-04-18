@@ -2,7 +2,7 @@ use clap::Parser;
 use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
 use tfhe::shortint::*;
 
-mod fn_under_test;
+use add_one_test_rs_lib;
 
 // TODO(#235): improve generality
 #[derive(Parser, Debug)]
@@ -44,8 +44,32 @@ fn main() {
 
     let ct_1 = encrypt(flags.input1.into(), &client_key);
 
-    let result = fn_under_test::fn_under_test(&server_key, &ct_1);
+    let result = add_one_test_rs_lib::fn_under_test(&server_key, &ct_1);
     let output = decrypt(&result, &client_key);
 
     println!("{:08b}", output);
+}
+
+#[cfg(test)]
+mod test {
+    use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
+    use tfhe::shortint::*;
+
+    use super::encrypt;
+    use super::decrypt;
+
+    use add_one_test_rs_lib;
+
+    #[test]
+    fn simple_test() {
+        let parameters = get_parameters_from_message_and_carry((1 << 3) - 1, 2);
+        let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
+
+        let ct_1 = encrypt(3, &client_key);
+
+        let result = add_one_test_rs_lib::fn_under_test(&server_key, &ct_1);
+        let output = decrypt(&result, &client_key);
+
+        assert_eq!(output, 4);
+    }
 }
