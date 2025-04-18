@@ -4,7 +4,8 @@
 <a href=# onclick="return print(),!1">Click here to print</a>.</p><p><a href=/docs/design/>Return to the regular view of this page</a>.</p></div><h1 class=title>Design</h1><ul><li>1: <a href=#pg-b68f7af4e332a4d2b770c09ac2607bf8>Ciphertext Management</a></li><li>2: <a href=#pg-bddfea9d49299ca5edc4a07ea06fcc23>Data-oblivious Transformations</a></li><li>3: <a href=#pg-76ae4da46c68c5cd44ad0ecf5d69993f>Secret</a></li><li>4: <a href=#pg-05018faa55dd802660a3ea38b8f7fb69>SIMD Optimizations</a></li><li>5: <a href=#pg-cd22aa05be277ba6c2e2f8f083706b51>Optimizing relinearization</a></li></ul><div class=content><p>This section contains documentation on the high level design of the project.
 Readers are intended to have basic familiarity with MLIR and FHE.</p></div></div><div class=td-content><h1 id=pg-b68f7af4e332a4d2b770c09ac2607bf8>1 - Ciphertext Management</h1><p>On 2025-04-17, Hongren Zheng gave a talk overview of the ciphertext management
 system in the HEIR working group meeting.
-<a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;t=1631">The video can be found here</a></p><h2 id=introduction>Introduction</h2><p>To lower from user specified computation to FHE scheme operations, a compiler
+<a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;t=1631">The video can be found here</a>
+and <a href=/slides/mgmt-2025-04-17.pdf>the slides can be found here</a></p><h2 id=introduction>Introduction</h2><p>To lower from user specified computation to FHE scheme operations, a compiler
 must insert <em>ciphertext management</em> operations to satisfy various requirements
 of the FHE scheme, like modulus switching, relinearization, and bootstrapping.
 In HEIR, such operations are modeled in a scheme-agnostic way in the <code>mgmt</code>
