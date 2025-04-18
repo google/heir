@@ -48,6 +48,10 @@ cc_library(
     name = "BooleanPipelineRegistration",
     srcs = ["BooleanPipelineRegistration.cpp"],
     hdrs = ["BooleanPipelineRegistration.h"],
+    defines = select({
+        "@heir//:config_enable_yosys": [],
+        "//conditions:default": ["HEIR_NO_YOSYS=1"],
+    }),
     deps = [
         ":PipelineRegistration",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
@@ -65,7 +69,6 @@ cc_library(
         "@heir//lib/Transforms/MemrefToArith:MemrefToArithRegistration",
         "@heir//lib/Transforms/Secretize",
         "@heir//lib/Transforms/UnusedMemRef",
-        "@heir//lib/Transforms/YosysOptimizer",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineTransforms",
         "@llvm-project//mlir:ArithTransforms",
@@ -75,7 +78,12 @@ cc_library(
         "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Transforms",
-    ],
+    ] + select({
+        "@heir//:config_enable_yosys": [
+            "@heir//lib/Transforms/YosysOptimizer",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(
