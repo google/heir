@@ -370,6 +370,7 @@ def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "$polynomial `,` $value attr-dict `:` type($value)";
+  let hasVerifier = 1;
 }
 
 
