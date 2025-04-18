@@ -1,5 +1,6 @@
 # See README.md for setup required to run these tests
 
+load("@heir//tools:heir-tfhe-rs.bzl", "tfhe_rs_lib")
 load("//bazel:lit.bzl", "glob_lit_tests")
 
 package(default_applicable_licenses = ["@heir//:license"])
@@ -30,4 +31,17 @@ glob_lit_tests(
         "test_multi_output.mlir": "large",
     },
     test_file_exts = ["mlir"],
+)
+
+tfhe_rs_lib(
+    name = "test_add_one",
+    heir_opt_flags = [
+        "--forward-store-to-load",
+        "--cggi-to-tfhe-rust",
+        "--canonicalize",
+        "--cse",
+    ],
+    heir_translate_flags = ["--use-levels"],
+    mlir_src = "test_add_one.mlir",
+    rs_lib_target_name = "test_add_one_rs_lib",
 )
