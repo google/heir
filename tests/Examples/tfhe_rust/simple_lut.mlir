@@ -1,14 +1,9 @@
 // This test ensures the testing harness is working properly with minimal codegen.
 
-// RUN: heir-translate %s --emit-tfhe-rust > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main -- 1 0 --message_bits=3 | FileCheck %s
-
 !sks = !tfhe_rust.server_key
 !lut = !tfhe_rust.lookup_table
 !eui3 = !tfhe_rust.eui3
 
-// We're computing, effectively (0b00000111 >> (1 << 1)) & 1, i.e., 0b111 >> 2
-// CHECK: 1
 func.func @fn_under_test(%sks : !sks, %a: !eui3, %b: !eui3) -> !eui3 {
   %lut = tfhe_rust.generate_lookup_table %sks {truthTable = 7 : ui8} : (!sks) -> !lut
   %0 = tfhe_rust.scalar_left_shift %sks, %a {shiftAmount = 1 : index} : (!sks, !eui3) -> !eui3

@@ -128,3 +128,33 @@ git_override(
     commit = "c84a140c93352cdabbfb547c531be34515b12228",
     remote = "https://github.com/google/re2",
 )
+
+bazel_dep(name = "rules_rust", version = "0.60.0")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.spec(
+    features = ["derive"],
+    package = "clap",
+    version = "4.1.8",
+)
+crate.spec(
+    package = "rayon",
+    version = "1.6.1",
+)
+crate.spec(
+    features = ["derive"],
+    package = "serde",
+    version = "1.0.152",
+)
+crate.spec(
+    features = [
+        "boolean",
+        "shortint",
+        "integer",
+        "x86_64-unix",
+    ],
+    package = "tfhe",
+    version = "0.5.3",
+)
+crate.from_specs()
+use_repo(crate, "crates")

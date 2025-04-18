@@ -17,7 +17,6 @@ mod server_key_enum;
 const FPGA_COUNT: usize = 1;
 const SEED: u64 = 0;
 
-// TODO(https://github.com/google/heir/issues/235): improve generality
 #[derive(Parser, Debug)]
 struct Args {
     /// arguments to forward to function under test

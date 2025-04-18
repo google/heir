@@ -1,11 +1,7 @@
-// RUN: heir-opt --forward-store-to-load --cggi-to-tfhe-rust --canonicalize --cse %s | heir-translate --emit-tfhe-rust > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_add_one -- 2 --message_bits=3 | FileCheck %s
-
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
 !pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
 
-// CHECK: 00000011
 module {
   func.func @fn_under_test(%arg0: memref<8x!ct_ty>) -> memref<8x!ct_ty> {
     %true = arith.constant true
