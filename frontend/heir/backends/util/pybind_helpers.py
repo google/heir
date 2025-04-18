@@ -91,9 +91,10 @@ def pybind11_libs() -> str:
   Returns:
     A list of directories for pybind11.
   """
-  dirs = [
-      sysconfig.get_config_var("LIBDIR"),
-  ]
+  dirs = [sysconfig.get_config_var("LIBDIR")]
+  py_lib_dir = os.path.dirname(sysconfig.get_path("stdlib"))
+  if py_lib_dir:
+    dirs.append(py_lib_dir)
   return [quote(d) for d in dirs]
 
 
