@@ -99,6 +99,12 @@ class LWE_BinOp<string mnemonic, list<Trait> traits = []> :
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
+class LWE_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []> :
+        LWE_Op<mnemonic, traits #  [IsCiphertextPlaintextOp, InferTypeOpAdaptor]> {
+  let arguments = (ins NewLWEPlaintextOrCiphertext:$lhs, NewLWEPlaintextOrCiphertext:$rhs);
+  let results = (outs NewLWECiphertext:$output);
+}
+
 def LWE_EncodeOp : LWE_Op<"encode", [HasEncoding<"output", "encoding", "LWEPlaintextType">]> {
   let summary = "Encode an integer to yield an LWE plaintext";
   let description = [{
@@ -159,6 +165,10 @@ def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultRings, SameOperandsAndR
   }];
 }
 
+def LWE_RAddOp_Plain : LWE_CiphertextPlaintextOp<"radd_plain", [Commutative, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
+  let summary = "Add two RLWE plaintexts/ciphertexts";
+}
+
 def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Subtract two RLWE ciphertexts";
   let assemblyFormat = [{
@@ -166,11 +176,22 @@ def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndR
   }];
 }
 
+// TODO: traits and assembly format
+def LWE_RSubOp_Plain : LWE_CiphertextPlaintextOp<"rsub_plain", [SameOperandsAndResultPlaintextTypes]> {
+  let summary = "Subtract two RLWE plaintexts/ciphertexts";
+}
+
 def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdaptor, Commutative]> {
   let summary = "Multiplies two RLWE ciphertexts";
   let assemblyFormat = [{
     operands attr-dict `:`  functional-type(operands, results)
   }];
+  let hasVerifier = 1;
+}
+
+// TODO: traits and assembly format
+def LWE_RMulOp_Plain : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative, SameOperandsAndResultPlaintextTypes]> {
+  let summary = "Multiply two RLWE plaintexts/ciphertexts";
   let hasVerifier = 1;
 }
 
