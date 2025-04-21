@@ -60,8 +60,8 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   template <typename NoiseAnalysis>
   LogicalResult validateNoiseForValue(
       Value value, DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam) {
-    using NoiseModel = typename NoiseAnalysis::NoiseModel;
+      const typename NoiseAnalysis::SchemeParamType &schemeParam,
+      const typename NoiseAnalysis::NoiseModel &model) {
     using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
     using LocalParamType = typename NoiseAnalysis::LocalParamType;
 
@@ -84,11 +84,11 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto noiseState = noiseLattice->getValue();
     auto localParam = getLocalParam(value);
 
-    auto budget = NoiseModel::toLogBudget(localParam, noiseState);
+    auto budget = model.toLogBudget(localParam, noiseState);
 
-    auto boundString = NoiseModel::toLogBoundString(localParam, noiseState);
-    auto budgetString = NoiseModel::toLogBudgetString(localParam, noiseState);
-    auto totalString = NoiseModel::toLogTotalString(localParam);
+    auto boundString = model.toLogBoundString(localParam, noiseState);
+    auto budgetString = model.toLogBudgetString(localParam, noiseState);
+    auto totalString = model.toLogTotalString(localParam);
 
     LLVM_DEBUG({
       llvm::dbgs() << "Noise Bound: " << boundString
@@ -112,12 +112,13 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   template <typename NoiseAnalysis>
   LogicalResult validate(
       DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam) {
+      const typename NoiseAnalysis::SchemeParamType &schemeParam,
+      const typename NoiseAnalysis::NoiseModel &model) {
     auto res = getOperation()->walk([&](secret::GenericOp genericOp) {
       // check arguments
       for (Value arg : genericOp.getBody()->getArguments()) {
         if (failed(validateNoiseForValue<NoiseAnalysis>(arg, solver,
-                                                        schemeParam))) {
+                                                        schemeParam, model))) {
           return WalkResult::interrupt();
         }
       }
@@ -126,8 +127,8 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       // TODO(#1181): handle region bearing ops
       return genericOp.getBody()->walk([&](Operation *op) {
         for (Value result : op->getResults()) {
-          if (failed(validateNoiseForValue<NoiseAnalysis>(result, solver,
-                                                          schemeParam))) {
+          if (failed(validateNoiseForValue<NoiseAnalysis>(
+                  result, solver, schemeParam, model))) {
             return WalkResult::interrupt();
           }
         }
@@ -140,8 +141,8 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     return success();
   }
 
-  template <typename NoiseAnalysis>
-  void run() {
+  template <typename NoiseModel>
+  void run(const NoiseModel &model) {
     int maxLevel = getMaxLevel();
 
     auto schemeParamAttr = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
@@ -158,7 +159,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     }
 
     auto schemeParam =
-        NoiseAnalysis::SchemeParamType::getSchemeParamFromAttr(schemeParamAttr);
+        NoiseModel::SchemeParamType::getSchemeParamFromAttr(schemeParamAttr);
     if (schemeParam.getLevel() < maxLevel) {
       getOperation()->emitOpError()
           << "The level in the scheme param is smaller than the max level.\n";
@@ -172,14 +173,15 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     // NoiseAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
 
-    solver.load<NoiseAnalysis>(schemeParam);
+    solver.load<NoiseAnalysis<NoiseModel>>(schemeParam, model);
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
     }
 
-    if (failed(validate<NoiseAnalysis>(&solver, schemeParam))) {
+    if (failed(
+            validate<NoiseAnalysis<NoiseModel>>(&solver, schemeParam, model))) {
       getOperation()->emitOpError() << "Noise validation failed.\n";
       signalPassFailure();
     }
@@ -187,23 +189,30 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
   void runOnOperation() override {
     if (model == "bgv-noise-by-bound-coeff-worst-case") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseModel>>();
+      bgv::NoiseByBoundCoeffModel model(NoiseModelVariant::WORST_CASE);
+      run<bgv::NoiseByBoundCoeffModel>(model);
     } else if (model == "bgv-noise-by-bound-coeff-average-case" ||
                model == "bgv-noise-kpz21") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseModel>>();
+      bgv::NoiseByBoundCoeffModel model(NoiseModelVariant::AVERAGE_CASE);
+      run<bgv::NoiseByBoundCoeffModel>(model);
     } else if (model == "bgv-noise-by-variance-coeff" ||
                model == "bgv-noise-mp24") {
-      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffModel>>();
+      bgv::NoiseByVarianceCoeffModel model;
+      run<bgv::NoiseByVarianceCoeffModel>(model);
     } else if (model == "bgv-noise-mono") {
-      run<NoiseAnalysis<bgv::NoiseCanEmbModel>>();
+      bgv::NoiseCanEmbModel model;
+      run<bgv::NoiseCanEmbModel>(model);
     } else if (model == "bfv-noise-by-bound-coeff-worst-case") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseModel>>();
+      bfv::NoiseByBoundCoeffModel model(NoiseModelVariant::WORST_CASE);
+      run<bfv::NoiseByBoundCoeffModel>(model);
     } else if (model == "bfv-noise-by-bound-coeff-average-case" ||
                model == "bfv-noise-kpz21") {
-      run<NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseModel>>();
+      bfv::NoiseByBoundCoeffModel model(NoiseModelVariant::AVERAGE_CASE);
+      run<bfv::NoiseByBoundCoeffModel>(model);
     } else if (model == "bfv-noise-by-variance-coeff" ||
                model == "bfv-noise-bmcm23") {
-      run<NoiseAnalysis<bfv::NoiseByVarianceCoeffModel>>();
+      bfv::NoiseByVarianceCoeffModel model;
+      run<bfv::NoiseByVarianceCoeffModel>(model);
     } else {
       getOperation()->emitOpError() << "Unknown noise model.\n";
       signalPassFailure();

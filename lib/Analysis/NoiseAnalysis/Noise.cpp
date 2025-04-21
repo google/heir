@@ -15,6 +15,9 @@ std::string NoiseState::toString() const {
       return "NoiseState(uninitialized)";
     case (NoiseType::SET):
       return "NoiseState(" + std::to_string(log2(getValue())) + ") ";
+    default:
+      llvm_unreachable("Unknown noise type");
+      return "";
   }
 }
 

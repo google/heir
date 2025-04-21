@@ -21,43 +21,42 @@ class NoiseCanEmbModel {
   using LocalParamType = bgv::LocalParam;
 
  private:
-  static double getVarianceErr(const LocalParamType &param);
-  static double getVarianceKey(const LocalParamType &param);
-  static double getBScale(const LocalParamType &param);
-  static double getBKs(const LocalParamType &param);
-  static double getAssuranceFactor(const LocalParamType &param);
-  static double getPhi(const LocalParamType &param);
-  static double getRingExpansionFactor(const LocalParamType &param);
+  double getVarianceErr(const LocalParamType &param) const;
+  double getVarianceKey(const LocalParamType &param) const;
+  double getBScale(const LocalParamType &param) const;
+  double getBKs(const LocalParamType &param) const;
+  double getAssuranceFactor(const LocalParamType &param) const;
+  double getPhi(const LocalParamType &param) const;
+  double getRingExpansionFactor(const LocalParamType &param) const;
 
-  static StateType evalEncryptPk(const LocalParamType &param);
-  static StateType evalEncryptSk(const LocalParamType &param);
-  static StateType evalRelinearizeHYBRID(const LocalParamType &inputParam,
-                                         const StateType &input);
+  StateType evalEncryptPk(const LocalParamType &param) const;
+  StateType evalEncryptSk(const LocalParamType &param) const;
+  StateType evalRelinearizeHYBRID(const LocalParamType &inputParam,
+                                  const StateType &input) const;
 
  public:
-  static StateType evalEncrypt(const LocalParamType &param);
-  static StateType evalConstant(const LocalParamType &param);
-  static StateType evalAdd(const StateType &lhs, const StateType &rhs);
-  static StateType evalMul(const LocalParamType &resultParam,
-                           const StateType &lhs, const StateType &rhs);
-  static StateType evalRelinearize(const LocalParamType &inputParam,
-                                   const StateType &input);
-  static StateType evalModReduce(const LocalParamType &inputParam,
-                                 const StateType &input);
+  StateType evalEncrypt(const LocalParamType &param) const;
+  StateType evalConstant(const LocalParamType &param) const;
+  StateType evalAdd(const StateType &lhs, const StateType &rhs) const;
+  StateType evalMul(const LocalParamType &resultParam, const StateType &lhs,
+                    const StateType &rhs) const;
+  StateType evalRelinearize(const LocalParamType &inputParam,
+                            const StateType &input) const;
+  StateType evalModReduce(const LocalParamType &inputParam,
+                          const StateType &input) const;
 
   // logTotal: log(Ql / 2)
   // logBound: bound on ||m + t * e|| predicted by the model
   // logBudget: logTotal - logBound
   // as ||m + t * e|| < Ql / 2 for correct decryption
-  static double toLogBound(const LocalParamType &param, const StateType &noise);
-  static std::string toLogBoundString(const LocalParamType &param,
-                                      const StateType &noise);
-  static double toLogBudget(const LocalParamType &param,
-                            const StateType &noise);
-  static std::string toLogBudgetString(const LocalParamType &param,
-                                       const StateType &noise);
-  static double toLogTotal(const LocalParamType &param);
-  static std::string toLogTotalString(const LocalParamType &param);
+  double toLogBound(const LocalParamType &param, const StateType &noise) const;
+  std::string toLogBoundString(const LocalParamType &param,
+                               const StateType &noise) const;
+  double toLogBudget(const LocalParamType &param, const StateType &noise) const;
+  std::string toLogBudgetString(const LocalParamType &param,
+                                const StateType &noise) const;
+  double toLogTotal(const LocalParamType &param) const;
+  std::string toLogTotalString(const LocalParamType &param) const;
 };
 
 }  // namespace bgv

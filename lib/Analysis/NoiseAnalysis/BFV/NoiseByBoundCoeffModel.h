@@ -11,55 +11,53 @@ namespace mlir {
 namespace heir {
 namespace bfv {
 
-// coefficient embedding noise model
-// both average-case (from HPS19/KPZ21) and worst-case
-// use template here just for the sake of code reuse
-// W for worst-case
-template <bool W>
+// Coefficient embedding noise model. Both average-case (from HPS19/KPZ21) and
+// worst-case variants are supported.
 class NoiseByBoundCoeffModel {
  public:
+  NoiseByBoundCoeffModel(NoiseModelVariant variant) : variant(variant) {}
+  ~NoiseByBoundCoeffModel() = default;
+
   // for KPZ21, NoiseState stores the bound ||e|| for error e.
   using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;
 
  private:
-  static double getExpansionFactor(const LocalParamType &param);
-  static double getBoundErr(const LocalParamType &param);
-  static double getBoundKey(const LocalParamType &param);
+  double getExpansionFactor(const LocalParamType &param) const;
+  double getBoundErr(const LocalParamType &param) const;
+  double getBoundKey(const LocalParamType &param) const;
 
-  static StateType evalEncryptPk(const LocalParamType &param);
-  static StateType evalEncryptSk(const LocalParamType &param);
-  static StateType evalRelinearizeHYBRID(const LocalParamType &inputParam,
-                                         const StateType &input);
+  StateType evalEncryptPk(const LocalParamType &param) const;
+  StateType evalEncryptSk(const LocalParamType &param) const;
+  StateType evalRelinearizeHYBRID(const LocalParamType &inputParam,
+                                  const StateType &input) const;
 
  public:
-  static StateType evalEncrypt(const LocalParamType &param);
-  static StateType evalConstant(const LocalParamType &param);
-  static StateType evalAdd(const StateType &lhs, const StateType &rhs);
-  static StateType evalMul(const LocalParamType &resultParam,
-                           const StateType &lhs, const StateType &rhs);
-  static StateType evalRelinearize(const LocalParamType &inputParam,
-                                   const StateType &input);
+  StateType evalEncrypt(const LocalParamType &param) const;
+  StateType evalConstant(const LocalParamType &param) const;
+  StateType evalAdd(const StateType &lhs, const StateType &rhs) const;
+  StateType evalMul(const LocalParamType &resultParam, const StateType &lhs,
+                    const StateType &rhs) const;
+  StateType evalRelinearize(const LocalParamType &inputParam,
+                            const StateType &input) const;
 
   // logTotal: log(Q / (t * 2))
   // logBound: bound on ||e|| predicted by the model
   // logBudget: logTotal - logBound
   // as ||e|| < Q / (t * 2) for correct decryption
-  static double toLogBound(const LocalParamType &param, const StateType &noise);
-  static std::string toLogBoundString(const LocalParamType &param,
-                                      const StateType &noise);
-  static double toLogBudget(const LocalParamType &param,
-                            const StateType &noise);
-  static std::string toLogBudgetString(const LocalParamType &param,
-                                       const StateType &noise);
-  static double toLogTotal(const LocalParamType &param);
-  static std::string toLogTotalString(const LocalParamType &param);
-};
+  double toLogBound(const LocalParamType &param, const StateType &noise) const;
+  std::string toLogBoundString(const LocalParamType &param,
+                               const StateType &noise) const;
+  double toLogBudget(const LocalParamType &param, const StateType &noise) const;
+  std::string toLogBudgetString(const LocalParamType &param,
+                                const StateType &noise) const;
+  double toLogTotal(const LocalParamType &param) const;
+  std::string toLogTotalString(const LocalParamType &param) const;
 
-// user-facing typedefs
-using NoiseByBoundCoeffAverageCaseModel = NoiseByBoundCoeffModel<false>;
-using NoiseByBoundCoeffWorstCaseModel = NoiseByBoundCoeffModel<true>;
+ private:
+  NoiseModelVariant variant;
+};
 
 }  // namespace bfv
 }  // namespace heir
