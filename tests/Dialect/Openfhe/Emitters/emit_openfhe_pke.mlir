@@ -318,3 +318,66 @@ module attributes {scheme.bgv} {
     return %v : tensor<64xi16>
   }
 }
+
+// -----
+
+module attributes {scheme.ckks} {
+  // CHECK: test_insert_slice_1d
+  // CHECK: std::vector<float> [[v4:[^(]*]](8, 0.100000001);
+  // CHECK: std::vector<float> [[v6:[^(]*]](32);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 0);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 8);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 16);
+  // CHECK: std::copy([[v4]].begin(), [[v4]].end(), [[v6]].begin() + 24);
+  func.func @test_insert_slice_1d() -> tensor<32xf32> {
+    %cst_2 = arith.constant dense<1.000000e-01> : tensor<8xf32>
+    %0 = tensor.empty() : tensor<32xf32>
+    %inserted_slice = tensor.insert_slice %cst_2 into %0[0] [8] [1] : tensor<8xf32> into tensor<32xf32>
+    %inserted_slice_3 = tensor.insert_slice %cst_2 into %inserted_slice[8] [8] [1] : tensor<8xf32> into tensor<32xf32>
+    %inserted_slice_4 = tensor.insert_slice %cst_2 into %inserted_slice_3[16] [8] [1] : tensor<8xf32> into tensor<32xf32>
+    %inserted_slice_5 = tensor.insert_slice %cst_2 into %inserted_slice_4[24] [8] [1] : tensor<8xf32> into tensor<32xf32>
+    return %inserted_slice_5 : tensor<32xf32>
+  }
+}
+
+// -----
+
+module attributes {scheme.ckks} {
+  // CHECK: test_insert_slice_2d
+  // CHECK: std::vector<float> [[v0:[^(]*]](64, 0.100000001);
+  // CHECK: std::vector<float> [[v1:[^(]*]](32, std::vector<float>(32));
+
+  // TODO(#1703): this test is quite wrong, but only because the type
+  // declaration and initializations above are bad, which is owned by a
+  // different part of the emitter, while the loop itself is good.
+
+  // CHECK:  int64_t [[v0]]_0 = 0;
+  // CHECK:  for (int64_t [[v1]]_0 = 8; [[v1]]_0 < 24; [[v1]]_0 += 2) {
+  // CHECK:    int64_t [[v0]]_1 = 0;
+  // CHECK:    for (int64_t [[v1]]_1 = 8; [[v1]]_1 < 24; [[v1]]_1 += 2) {
+  // CHECK:      [[v1]]{{\[}}[[v1]]_0]{{\[}}[[v1]]_1] = [[v0]]{{\[}}[[v0]]_0]{{\[}}[[v0]]_1];
+  // CHECK:      [[v0]]_1 += 1;
+  // CHECK:    }
+  // CHECK:    [[v0]]_0 += 1;
+  // CHECK:  }
+  func.func @test_insert_slice_2d() -> tensor<32x32xf32> {
+    %cst_2 = arith.constant dense<1.000000e-01> : tensor<8x8xf32>
+    %0 = tensor.empty() : tensor<32x32xf32>
+    %inserted_slice = tensor.insert_slice %cst_2 into %0[8, 8] [8, 8] [2, 2] : tensor<8x8xf32> into tensor<32x32xf32>
+    return %inserted_slice : tensor<32x32xf32>
+  }
+}
+
+// -----
+
+module attributes {scheme.ckks} {
+  // CHECK: test_extract_slice_1d
+  // CHECK: std::vector<float> [[source:[^(]*]](32, 0.100000001);
+  // CHECK: std::vector<float> [[result:[^(]*]](8);
+  // CHECK: std::copy([[source]].begin() + 8, [[source]].begin() + 8 + 8, [[result]].begin());
+  func.func @test_extract_slice_1d() -> tensor<8xf32> {
+    %cst = arith.constant dense<1.000000e-01> : tensor<32xf32>
+    %result = tensor.extract_slice %cst[8] [8] [1] : tensor<32xf32> to tensor<8xf32>
+    return %result : tensor<8xf32>
+  }
+}

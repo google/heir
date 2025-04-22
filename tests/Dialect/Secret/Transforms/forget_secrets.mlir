@@ -109,3 +109,11 @@ func.func @test_convert_call_2() -> i32 {
   %5 = secret.reveal %4 : !secret.secret<i32> -> i32
   func.return %5 : i32
 }
+
+// -----
+
+// CHECK-NOT: tensor_ext
+#orig_type = #tensor_ext.original_type<originalType = i32, layout = <map = (d0) -> (d0)>>
+func.func @test_clear_attrs(%Y : !secret.secret<i32> {tensor_ext.original_type = #orig_type}) -> (!secret.secret<i32> {tensor_ext.original_type = #orig_type}) {
+  func.return %Y : !secret.secret<i32>
+}

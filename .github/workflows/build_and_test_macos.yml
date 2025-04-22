@@ -4,11 +4,14 @@ on:
   schedule:
     # daily at 3 AM
     - cron: "0 3 * * *"
+  pull_request:
+    types: [labeled]
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 jobs:
   check-cache:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'ci:macos'
     runs-on:
       labels: macos-15
     outputs:
@@ -41,6 +44,7 @@ jobs:
           fi
 
   build-and-test:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'ci:macos'
     needs: check-cache
     runs-on:
       labels: ${{ needs.check-cache.outputs.runner }}

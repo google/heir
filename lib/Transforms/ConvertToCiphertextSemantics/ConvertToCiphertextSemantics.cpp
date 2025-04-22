@@ -655,8 +655,8 @@ struct ConvertLinalgMatvec
   }
 
   bool supportsHaleviShoup(linalg::MatvecOp op, OpAdaptor adaptor) const {
-    Value matrix = op.getInputs()[0];
-    Value vector = op.getInputs()[1];
+    Value matrix = adaptor.getInputs()[0];
+    Value vector = adaptor.getInputs()[1];
     auto matrixType = cast<RankedTensorType>(matrix.getType());
     auto vectorType = cast<RankedTensorType>(vector.getType());
     auto materializedMatrixType =
@@ -697,6 +697,8 @@ struct ConvertLinalgMatvec
     Value result = adaptor.getOutputs()[0];
     Value packedMatrix = adaptor.getInputs()[0];
     Value packedVector = adaptor.getInputs()[1];
+    auto originalMatrixType =
+        cast<RankedTensorType>(op.getInputs()[0].getType());
     auto packedMatrixType = cast<RankedTensorType>(packedMatrix.getType());
     auto packedVectorType = cast<RankedTensorType>(packedVector.getType());
     Type elementType = packedVectorType.getElementType();
@@ -722,8 +724,9 @@ struct ConvertLinalgMatvec
     Value accumulator = result;
     for (int index = 0; index < numRotations; ++index) {
       // construct vector.rotate(i)
-      auto rotateOp = b.create<tensor_ext::RotateOp>(
-          packedVector, b.create<arith::ConstantIntOp>(index, 64));
+      auto rotationIndexOp = b.create<arith::ConstantIntOp>(index, 64);
+      auto rotateOp =
+          b.create<tensor_ext::RotateOp>(packedVector, rotationIndexOp);
 
       // get the corresponding element of the ciphertext tensor,
       // which is row i
@@ -744,17 +747,15 @@ struct ConvertLinalgMatvec
           op->getLoc(), addOpName, {accumulator, mulOp->getResult(0)},
           {packedVectorType}));
 
-      setMaterializedAttr({rotateOp, extractRowOp, mulOp, addOp});
+      setMaterializedAttr(
+          {rotationIndexOp, rotateOp, extractRowOp, mulOp, addOp});
       accumulator = addOp->getResult(0);
     }
     // Only the last op will need its layout set for later ops to reference.
     setAttributeAssociatedWith(accumulator, kLayoutAttrName, layoutAttr);
 
-    int64_t matrixNumRows = packedMatrixType.getShape()[0];
-    int64_t matrixNumCols = packedMatrixType.getShape()[1];
-
     Value summedShifts = accumulator;
-    if (matrixNumRows == matrixNumCols) {
+    if (originalMatrixType.getShape()[0] == originalMatrixType.getShape()[1]) {
       rewriter.replaceOp(op, summedShifts);
       return;
     }
@@ -762,17 +763,23 @@ struct ConvertLinalgMatvec
     // else, necessarily matrixNumRows < matrixNumCols due to the precondition
     // applied earlier. This is the post-processing partial-rotate-and-reduce
     // step required for squat-diagonal packing.
+    int64_t matrixNumRows = packedMatrixType.getShape()[0];
+    int64_t matrixNumCols = packedMatrixType.getShape()[1];
 
     int64_t numShifts = (int64_t)(log2(matrixNumCols) - log2(matrixNumRows));
     int64_t shift = matrixNumCols / 2;
 
     for (int64_t i = 0; i < numShifts; ++i) {
-      auto rotateOp = b.create<tensor_ext::RotateOp>(
-          summedShifts, b.create<arith::ConstantIntOp>(shift, 64));
+      auto shiftAmountOp = b.create<arith::ConstantIntOp>(shift, 64);
+      auto rotateOp =
+          b.create<tensor_ext::RotateOp>(summedShifts, shiftAmountOp);
       setMaterializedAttr(rotateOp);
       auto *addOp = b.create(OperationState(
           op->getLoc(), addOpName, {summedShifts, rotateOp.getResult()},
           {rotateOp.getResult().getType()}));
+      setMaterializedAttr({shiftAmountOp, rotateOp, addOp});
+      setAttributeAssociatedWith(addOp->getResult(0), kLayoutAttrName,
+                                 layoutAttr);
       summedShifts = addOp->getResult(0);
       shift /= 2;
     }
@@ -819,12 +826,16 @@ struct ConvertLinalgMatvec
   LogicalResult matchAndRewrite(
       linalg::MatvecOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const final {
-    Value matrix = op.getInputs()[0];
-    Value vector = op.getInputs()[1];
+    Value matrix = adaptor.getInputs()[0];
+    Value vector = adaptor.getInputs()[1];
+    LayoutAttr vectorLayout = getLayoutAttr(vector);
+    LayoutAttr matrixLayout = getLayoutAttr(matrix);
 
-    if (!getLayoutAttr(matrix) || !getLayoutAttr(vector)) {
-      return op.emitError() << "missing layout attribute for matrix or vector";
-    }
+    if (!matrixLayout)
+      return op.emitError() << "missing layout attribute for matrix";
+
+    if (!vectorLayout)
+      return op.emitError() << "missing layout attribute for vector";
 
     if (supportsHaleviShoup(op, adaptor)) {
       haleviShoupKernel(op, adaptor, rewriter);
@@ -833,7 +844,7 @@ struct ConvertLinalgMatvec
 
     // TODO(#1589): implement row-major naive matvec kernel
     return op.emitError() << "unsupported layout for matrix in matvec: "
-                          << getLayoutAttr(matrix);
+                          << matrixLayout;
   }
 };
 
@@ -1061,7 +1072,8 @@ class ConvertTensorInsert
                        {ciphertextSemanticType}));
     Value result = finalAdd->getResult(0);
 
-    setMaterializedAttr({applyOp, zero, scalarMul, rotateOp, destMul});
+    setMaterializedAttr(
+        {applyOp, zero, scalarMul, rotateOp, destMul, finalAdd});
     setAttributeAssociatedWith(result, kLayoutAttrName, resultLayout);
     rewriter.replaceOp(op, result);
     return success();

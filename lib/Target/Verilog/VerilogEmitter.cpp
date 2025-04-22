@@ -243,11 +243,12 @@ LogicalResult VerilogEmitter::translate(
             }
             return printOperation(op);
           })
-          .Case<arith::AddIOp, arith::CmpIOp, arith::ExtSIOp, arith::ExtUIOp,
-                arith::IndexCastOp, arith::MaxSIOp, arith::MinSIOp,
-                arith::MulIOp, arith::SelectOp, arith::ShLIOp, arith::ShRSIOp,
-                arith::ShRUIOp, arith::SubIOp, arith::TruncIOp, arith::AndIOp,
-                arith::XOrIOp>([&](auto op) { return printOperation(op); })
+          .Case<arith::AddIOp, arith::CmpIOp, arith::DivSIOp, arith::ExtSIOp,
+                arith::ExtUIOp, arith::IndexCastOp, arith::MaxSIOp,
+                arith::MinSIOp, arith::MulIOp, arith::SelectOp, arith::ShLIOp,
+                arith::ShRSIOp, arith::ShRUIOp, arith::SubIOp, arith::TruncIOp,
+                arith::AndIOp, arith::XOrIOp>(
+              [&](auto op) { return printOperation(op); })
           // Custom math ops.
           .Case<math::CountLeadingZerosOp>(
               [&](auto op) { return printOperation(op); })
@@ -383,18 +384,6 @@ LogicalResult VerilogEmitter::printFunctionLikeOp(
         if (auto globalOp = dyn_cast<memref::GetGlobalOp>(op)) {
           getGlobals.push_back(globalOp);
         }
-        if (auto indexCastOp = dyn_cast<arith::IndexCastOp>(op)) {
-          // IndexCastOp's are a layer of indirection in the arithmetic
-          // dialect that is unneeded in Verilog. A wire declaration is not
-          // needed. Simply remove the indirection by adding a map from the
-          // index-casted result value to the input integer value.
-          auto retVal = indexCastOp.getResult();
-          if (!value_to_wire_name_.contains(retVal)) {
-            value_to_wire_name_.insert(std::make_pair(
-                retVal, getOrCreateName(indexCastOp.getIn()).str()));
-          }
-          return WalkResult::advance();
-        }
         if (auto constantOp = dyn_cast<arith::ConstantOp>(op)) {
           if (auto indexType =
                   dyn_cast<IndexType>(constantOp.getResult().getType())) {
@@ -500,15 +489,13 @@ LogicalResult VerilogEmitter::printOperation(func::CallOp op) {
   // e.g., submodule submod_call(xInput0, xInput1, xOutput);
   std::string opName = (getOrCreateName(op.getResult(0)) + "_call").str();
 
-  // Verilog only supports functions with a single return value.
-  if (op.getResults().size() != 1) {
-    return failure();
-  }
   std::string funcArgs;
   for (auto arg : op.getArgOperands()) {
     funcArgs += getOrCreateName(arg).str() + ", ";
   }
-  funcArgs += getOrCreateName(op.getResult(0));
+  for (auto res : op.getResults()) {
+    funcArgs += getOrCreateName(res).str() + ", ";
+  }
   os_ << op.getCallee() << " " << opName << "(" << funcArgs << ");\n";
   return success();
 }
@@ -598,6 +585,10 @@ LogicalResult VerilogEmitter::printOperation(UnrealizedConversionCastOp op) {
   return success();
 }
 
+LogicalResult VerilogEmitter::printOperation(arith::DivSIOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "/");
+}
+
 LogicalResult VerilogEmitter::printOperation(arith::ExtSIOp op) {
   // E.g., assign x0 = {{24{arg0[7]}}, arg0};
   Value input = op.getIn();
@@ -631,7 +622,10 @@ LogicalResult VerilogEmitter::printOperation(arith::ExtUIOp op) {
 
 LogicalResult VerilogEmitter::printOperation(arith::IndexCastOp op) {
   // Verilog does not require casting integers to index types before use in an
-  // array access index.
+  // array access index, but nonetheless tell Verilog to treat the index as
+  // unsigned.
+  emitAssignPrefix(op.getResult());
+  os_ << "$unsigned(" << getOrCreateName(op.getIn()) << ");\n";
   return success();
 }
 

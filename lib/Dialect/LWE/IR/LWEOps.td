@@ -166,7 +166,7 @@ def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultRings, SameOperandsAndR
 }
 
 def LWE_RAddOp_Plain : LWE_CiphertextPlaintextOp<"radd_plain", [Commutative, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
-  let summary = "Add two RLWE plaintexts/ciphertexts";
+  let summary = "Addition between RLWE ciphertext-plaintext";
 }
 
 def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
@@ -176,9 +176,8 @@ def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndR
   }];
 }
 
-// TODO: traits and assembly format
 def LWE_RSubOp_Plain : LWE_CiphertextPlaintextOp<"rsub_plain", [SameOperandsAndResultPlaintextTypes]> {
-  let summary = "Subtract two RLWE plaintexts/ciphertexts";
+  let summary = "Subtraction between RLWE ciphertext-plaintext";
 }
 
 def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdaptor, Commutative]> {
@@ -189,9 +188,8 @@ def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdapt
   let hasVerifier = 1;
 }
 
-// TODO: traits and assembly format
 def LWE_RMulOp_Plain : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative, SameOperandsAndResultPlaintextTypes]> {
-  let summary = "Multiply two RLWE plaintexts/ciphertexts";
+  let summary = "Multiplication between RLWE ciphertext-plaintext";
   let hasVerifier = 1;
 }
 

@@ -10,18 +10,24 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
 #include "lib/Utils/Approximation/CaratheodoryFejer.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
-#include "llvm/include/llvm/ADT/APFloat.h"           // from @llvm-project
-#include "mlir/include/mlir/Dialect/Math/IR/Math.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/APFloat.h"             // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"           // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Math/IR/Math.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 // IWYU pragma: end_keep
+
+#define DEBUG_TYPE "polynomial-approximation"
 
 namespace mlir {
 namespace heir {
@@ -131,6 +137,47 @@ inline APFloat trunc(const APFloat &x) {
   return APFloat(std::trunc(x.convertToDouble()));
 }
 
+// Binary ops
+inline APFloat atan2(const APFloat &lhs, const APFloat &rhs) {
+  return APFloat(std::atan2(lhs.convertToDouble(), rhs.convertToDouble()));
+}
+inline APFloat fpowi(const APFloat &lhs, const APFloat &rhs) {
+  return APFloat(std::pow(lhs.convertToDouble(), rhs.convertToDouble()));
+}
+inline APFloat powf(const APFloat &lhs, const APFloat &rhs) {
+  return APFloat(std::pow(lhs.convertToDouble(), rhs.convertToDouble()));
+}
+inline APFloat copysign(const APFloat &lhs, const APFloat &rhs) {
+  return APFloat::copySign(lhs, rhs);
+}
+
+// The user of these ops (the polynomial approximation routines) don't see the
+// types of the possibly constant operand, which may be an f32 while the caller
+// is using APFloats with f64 semnatics.  So we convert both operands to double
+// precision and avoid this.  A better approach may be to have the polynomial
+// approximation routines take as input the float semantics used to create
+// APFloats internally.
+inline APFloat maxf(const APFloat &lhs, const APFloat &rhs) {
+  APFloat lhsConverted = APFloat(lhs.convertToDouble());
+  APFloat rhsConverted = APFloat(rhs.convertToDouble());
+  return llvm::maximum(lhsConverted, rhsConverted);
+}
+inline APFloat minf(const APFloat &lhs, const APFloat &rhs) {
+  APFloat lhsConverted = APFloat(lhs.convertToDouble());
+  APFloat rhsConverted = APFloat(rhs.convertToDouble());
+  return llvm::minimum(lhsConverted, rhsConverted);
+}
+inline APFloat maxnumf(const APFloat &lhs, const APFloat &rhs) {
+  APFloat lhsConverted = APFloat(lhs.convertToDouble());
+  APFloat rhsConverted = APFloat(rhs.convertToDouble());
+  return llvm::maximumnum(lhsConverted, rhsConverted);
+}
+inline APFloat minnumf(const APFloat &lhs, const APFloat &rhs) {
+  APFloat lhsConverted = APFloat(lhs.convertToDouble());
+  APFloat rhsConverted = APFloat(rhs.convertToDouble());
+  return llvm::minimumnum(lhsConverted, rhsConverted);
+}
+
 template <typename OpTy>
 struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
   ConvertUnaryOp(mlir::MLIRContext *context,
@@ -153,7 +200,8 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
             ? cast<FloatAttr>(op->getAttr("domain_upper"))
             : rewriter.getF64FloatAttr(kDefaultDomainUpper);
     FloatPolynomial poly = approximation::caratheodoryFejerApproximation(
-        exp, degreeAttr.getInt(), domainLowerAttr.getValue().convertToDouble(),
+        cppFunc, degreeAttr.getInt(),
+        domainLowerAttr.getValue().convertToDouble(),
         domainUpperAttr.getValue().convertToDouble());
     PolynomialType polyType =
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
@@ -165,6 +213,106 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
 
  private:
   std::function<APFloat(APFloat)> cppFunc;
+};
+
+// Return a single value defining a constant (either a splatted tensor or a
+// scalar value), or else a failure if the value is non-constant or defined by
+// a non-splatted constant.
+FailureOr<APFloat> getSingleValueOrSplat(Value value) {
+  LLVM_DEBUG(llvm::dbgs() << "Checking if value " << value
+                          << " is a constant\n");
+  auto constantOp = value.getDefiningOp<arith::ConstantOp>();
+  if (!constantOp) {
+    return failure();
+  }
+
+  auto elementsAttr = dyn_cast<ElementsAttr>(constantOp.getValue());
+  if (elementsAttr && elementsAttr.isSplat()) {
+    return elementsAttr.getSplatValue<APFloat>();
+  }
+
+  auto floatAttr = dyn_cast<FloatAttr>(constantOp.getValue());
+  if (floatAttr) {
+    return floatAttr.getValue();
+  }
+
+  auto intAttr = dyn_cast<IntegerAttr>(constantOp.getValue());
+  if (intAttr) {
+    return APFloat(APFloat::IEEEdouble(), intAttr.getValue());
+  }
+
+  return failure();
+}
+
+template <typename OpTy>
+struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
+  ConvertBinaryConstOp(mlir::MLIRContext *context,
+                       const std::function<APFloat(APFloat, APFloat)> &cppFunc)
+      : OpRewritePattern<OpTy>(context, /*benefit=*/1), cppFunc(cppFunc) {}
+
+ public:
+  LogicalResult matchAndRewrite(OpTy op,
+                                PatternRewriter &rewriter) const override {
+    if (op.getNumOperands() != 2) {
+      return op.emitOpError("Expected 2 operands; should be unreachable!");
+    }
+
+    auto lhs = op->getOperand(0);
+    auto rhs = op->getOperand(1);
+    auto lhsConstResult = getSingleValueOrSplat(lhs);
+    auto rhsConstResult = getSingleValueOrSplat(rhs);
+    if (failed(lhsConstResult) && failed(rhsConstResult)) {
+      // Neither operand is a single-valued constant, so we can't approximate.
+      // If it's a constant but defined by a non-splatted dense elements attr,
+      // we'd need to first run a pass like elementwise-to-affine to unpack the
+      // tensor into individual scalars, then loop unroll or else make this pass
+      // depend on SCCP analysis to get the constant here.
+      return failure();
+    }
+    bool lhsIsConstant = succeeded(lhsConstResult);
+    APFloat constValue =
+        lhsIsConstant ? lhsConstResult.value() : rhsConstResult.value();
+    Value nonConstOperand = lhsIsConstant ? rhs : lhs;
+
+    // cppFunc is a binary op, so we need to give it the constant value to
+    // convert it to a unary op.
+    std::function<APFloat(APFloat)> unaryFunc;
+    if (lhsIsConstant) {
+      unaryFunc = [this, constValue](const APFloat &x) {
+        return cppFunc(constValue, x);
+      };
+    } else {
+      unaryFunc = [this, constValue](const APFloat &x) {
+        return cppFunc(x, constValue);
+      };
+    }
+
+    MLIRContext *ctx = op.getContext();
+    IntegerAttr degreeAttr = op->hasAttr("degree")
+                                 ? cast<IntegerAttr>(op->getAttr("degree"))
+                                 : rewriter.getI32IntegerAttr(kDefaultDegree);
+    FloatAttr domainLowerAttr =
+        op->hasAttr("domain_lower")
+            ? cast<FloatAttr>(op->getAttr("domain_lower"))
+            : rewriter.getF64FloatAttr(kDefaultDomainLower);
+    FloatAttr domainUpperAttr =
+        op->hasAttr("domain_upper")
+            ? cast<FloatAttr>(op->getAttr("domain_upper"))
+            : rewriter.getF64FloatAttr(kDefaultDomainUpper);
+    FloatPolynomial poly = approximation::caratheodoryFejerApproximation(
+        unaryFunc, degreeAttr.getInt(),
+        domainLowerAttr.getValue().convertToDouble(),
+        domainUpperAttr.getValue().convertToDouble());
+    PolynomialType polyType =
+        PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
+    TypedFloatPolynomialAttr polyAttr =
+        TypedFloatPolynomialAttr::get(polyType, poly);
+    rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, nonConstOperand);
+    return success();
+  }
+
+ private:
+  std::function<APFloat(APFloat, APFloat)> cppFunc;
 };
 
 struct PolynomialApproximation
@@ -219,13 +367,15 @@ struct PolynomialApproximation
     // math::IsnanOp
     // math::IsnormalOp
 
-    // TODO(#1487): support these ops when all but one operand is constant
     // Math binary ops (when one argument is statically constant)
-    // patterns.add<ConvertUnaryOp<math::Atan2Op>>(context, atan2);
-    // patterns.add<ConvertUnaryOp<math::CopySignOp>>(context, copysign);
-    // patterns.add<ConvertBinaryOp<math::FpowiOp>>(context, fpowi);
-    // patterns.add<ConvertBinaryOp<math::IpowiOp>>(context, ipowi);
-    // patterns.add<ConvertBinaryOp<math::PowfOp>>(context, powf);
+    patterns.add<ConvertBinaryConstOp<arith::MaxNumFOp>>(context, maxnumf);
+    patterns.add<ConvertBinaryConstOp<arith::MaximumFOp>>(context, maxf);
+    patterns.add<ConvertBinaryConstOp<arith::MinNumFOp>>(context, minf);
+    patterns.add<ConvertBinaryConstOp<arith::MinimumFOp>>(context, minnumf);
+    patterns.add<ConvertBinaryConstOp<math::Atan2Op>>(context, atan2);
+    patterns.add<ConvertBinaryConstOp<math::CopySignOp>>(context, copysign);
+    patterns.add<ConvertBinaryConstOp<math::FPowIOp>>(context, fpowi);
+    patterns.add<ConvertBinaryConstOp<math::PowFOp>>(context, powf);
 
     // Math ternary ops
     // patterns.add<ConvertUnaryOp<math::FmaOp>>(context, fma);

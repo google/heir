@@ -93,6 +93,7 @@ class VerilogEmitter {
   LogicalResult printOperation(mlir::arith::AndIOp op);
   LogicalResult printOperation(mlir::arith::CmpIOp op);
   LogicalResult printOperation(mlir::arith::ConstantOp op);
+  LogicalResult printOperation(mlir::arith::DivSIOp op);
   LogicalResult printOperation(mlir::arith::ExtSIOp op);
   LogicalResult printOperation(mlir::arith::ExtUIOp op);
   LogicalResult printOperation(mlir::arith::IndexCastOp op);

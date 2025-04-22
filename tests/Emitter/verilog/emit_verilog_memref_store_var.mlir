@@ -18,10 +18,12 @@ module {
 // CHECK-NEXT:   input wire signed [3:0] [[ARG:.*]],
 // CHECK-NEXT:   output wire signed [31:0] [[OUT:.*]]
 // CHECK-NEXT: );
-// CHECK-NEXT: wire signed [7:0] [[V2:.*]];
-// CHECK-NEXT: wire signed [31:0] [[V3:.*]];
+// CHECK-NEXT: wire signed [31:0] [[V2:.*]];
+// CHECK-NEXT: wire signed [7:0] [[V3:.*]];
+// CHECK-NEXT: wire signed [31:0] [[V4:.*]];
 // CHECK-EMPTY:
-// CHECK-NEXT: assign [[V2]] = 0;
-// CHECK:      assign [[V3]][7 + 8 * [[ARG]] : 8 * [[ARG]]] = [[V2]];
-// CHECK-NEXT:  assign [[OUT]] = [[V3]];
+// CHECK-NEXT: assign [[V2]] = $unsigned([[ARG]]);
+// CHECK-NEXT: assign [[V3]] = 0;
+// CHECK:      assign [[V4]][7 + 8 * [[V2]] : 8 * [[V2]]] = [[V3]];
+// CHECK-NEXT:  assign [[OUT]] = [[V4]];
 // CHECK:      endmodule

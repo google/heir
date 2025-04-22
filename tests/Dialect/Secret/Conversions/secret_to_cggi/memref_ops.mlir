@@ -148,4 +148,16 @@ module attributes {tf_saved_model.semantics} {
     // CHECK: return [[V6]] : [[OUT]]
     return %6 : !secret.secret<memref<1xi1>>
   }
+
+  // CHECK: @collapse_shape
+  // CHECK-SAME: (%[[arg0:.*]]: memref<1x1x[[lwe_ty:!lwe.lwe_ciphertext<.*>]]>)
+  func.func @collapse_shape(%arg0: !secret.secret<memref<1x1xi1>>) -> !secret.secret<memref<1xi1>> {
+    // CHECK: %[[v0:.*]] = memref.collapse_shape %[[arg0]]
+    %6 = secret.generic ins(%arg0 : !secret.secret<memref<1x1xi1>>) {
+    ^bb0(%arg1: memref<1x1xi1>):
+      %alloc = memref.collapse_shape %arg1 [[0, 1]] : memref<1x1xi1> into memref<1xi1>
+      secret.yield %alloc : memref<1xi1>
+    } -> !secret.secret<memref<1xi1>>
+    return %6 : !secret.secret<memref<1xi1>>
+  }
 }

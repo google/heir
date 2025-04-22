@@ -16,7 +16,6 @@
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/Secretize/Passes.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
-#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Transforms/Passes.h"  // from @llvm-project
@@ -30,6 +29,10 @@
 #include "mlir/include/mlir/Pass/PassRegistry.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 
+#ifndef HEIR_NO_YOSYS
+#include "lib/Transforms/YosysOptimizer/YosysOptimizer.h"
+#endif
+
 using namespace mlir;
 using namespace heir;
 using mlir::func::FuncOp;
@@ -39,6 +42,7 @@ namespace mlir::heir {
 static std::vector<std::string> opsToDistribute = {"secret.separator"};
 static std::vector<unsigned> bitWidths = {1, 2, 4, 8, 16};
 
+#ifndef HEIR_NO_YOSYS
 CGGIPipelineBuilder mlirToCGGIPipelineBuilder(const std::string &yosysFilesPath,
                                               const std::string &abcPath) {
   return [=](OpPassManager &pm, const MLIRToCGGIPipelineOptions &options) {
@@ -119,6 +123,8 @@ void mlirToCGGIPipeline(OpPassManager &pm,
   pm.addPass(createCSEPass());
   pm.addPass(createSCCPPass());
 }
+
+#endif
 
 CGGIBackendPipelineBuilder toTfheRsPipelineBuilder() {
   return [=](OpPassManager &pm) {

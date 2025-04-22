@@ -15,6 +15,7 @@ cc_library(
         "@heir//lib/Utils/Approximation:CaratheodoryFejer",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MathDialect",
         "@llvm-project//mlir:Pass",

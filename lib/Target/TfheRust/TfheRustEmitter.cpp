@@ -35,6 +35,7 @@
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
@@ -157,7 +158,7 @@ LogicalResult translateToTfheRust(Operation *op, llvm::raw_ostream &os,
   return result;
 }
 
-LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op) {
+LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op, int batch) {
   // Translate ops in the block until we get to a tfhe_rust.ApplyLookupTable,
   // AddOp, ScalarLeftShitOp
   while (op != nullptr && !isLevelledOp(op)) {
@@ -179,8 +180,9 @@ LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op) {
     auto levels = sortedGraph.value();
     // Print lists of operations per level.
     for (size_t level = 0; level < levels.size(); ++level) {
-      os << "static LEVEL_" << level << " : [((OpType, usize), &[GateInput]); "
-         << levels[level].size() << "] = [";
+      os << "static LEVEL_" << batch << "_" << level
+         << " : [((OpType, usize), &[GateInput]); " << levels[level].size()
+         << "] = [";
       for (auto &op : levels[level]) {
         // Print the operation type and its ciphertext args
         os << llvm::formatv(
@@ -202,18 +204,18 @@ LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op) {
     // Execute each task in the level.
     for (size_t level = 0; level < levels.size(); ++level) {
       os << llvm::formatv(
-          "run_level({1}, &mut temp_nodes, &mut luts, &LEVEL_{0});\n", level,
-          serverKeyArg);
+          "run_level({2}, &mut temp_nodes, &mut luts, &LEVEL_{0}_{1});\n",
+          batch, level, serverKeyArg);
     }
   }
   // Continue to emit the block.
-  return emitBlock(nextOp);
+  return emitBlock(nextOp, ++batch);
 }
 
 LogicalResult TfheRustEmitter::translateBlock(Block &block) {
   if (useLevels) {
     Operation *op = &block.getOperations().front();
-    return emitBlock(op);
+    return emitBlock(op, 0);
   }
   for (Operation &op : block.getOperations()) {
     if (failed(translate(op))) {
@@ -306,8 +308,8 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   os << ")";
 
   if (serverKeyArg.empty()) {
-    return funcOp.emitWarning() << "expected server key function argument to "
-                                   "create default ciphertexts";
+    emitWarning(funcOp.getLoc()) << "expected server key function argument to "
+                                    "create default ciphertexts";
   }
 
   if (funcOp.getNumResults() > 0) {

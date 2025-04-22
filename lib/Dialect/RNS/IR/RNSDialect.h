@@ -1,7 +1,6 @@
 #ifndef LIB_DIALECT_RNS_IR_RNSDIALECT_H_
 #define LIB_DIALECT_RNS_IR_RNSDIALECT_H_
 
-#include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "mlir/include/mlir/IR/Builders.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dialect.h"   // from @llvm-project
 

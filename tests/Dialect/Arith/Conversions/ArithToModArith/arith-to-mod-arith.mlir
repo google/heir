@@ -63,6 +63,16 @@ func.func @test_arith_constant() -> i32 {
   return %c17 : i32
 }
 
+// CHECK: @test_arith_constant_splat
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_arith_constant_splat() -> tensor<10xi32> {
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<17> : [[T]]
+  // CHECK: return %[[C:.*]] : [[T]]
+  %c17 = arith.constant dense<17> : tensor<10xi32>
+  return %c17 : tensor<10xi32>
+}
+
+
 // CHECK: @test_arith_constant_no_convert_index
 // CHECK-SAME: (%[[ARG:.*]]: tensor<2x[[T:.*]]>) -> [[T]] {
 func.func @test_arith_constant_no_convert_index(%arg : tensor<2xi32>) -> i32 {

@@ -11,7 +11,7 @@
 #include "lib/Dialect/Openfhe/IR/OpenfheDialect.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialDialect.h"
 #include "lib/Dialect/RNS/IR/RNSDialect.h"
-#include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/RNS/IR/RNSTypeInterfaces.h"
 #include "lib/Dialect/Random/IR/RandomDialect.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"

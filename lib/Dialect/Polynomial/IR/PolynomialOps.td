@@ -267,7 +267,8 @@ def Polynomial_ToTensorOp : Polynomial_Op<"to_tensor", [Pure]> {
 
 def Polynomial_AnyTypedPolynomialAttr : AnyAttrOf<[
   Polynomial_TypedFloatPolynomialAttr,
-  Polynomial_TypedIntPolynomialAttr
+  Polynomial_TypedIntPolynomialAttr,
+  Polynomial_TypedChebyshevPolynomialAttr
 ]>;
 
 def Polynomial_ConstantOp : Op<Polynomial_Dialect, "constant",
@@ -369,6 +370,7 @@ def Polynomial_EvalOp : Polynomial_Op<"eval", [AllTypesMatch<["value", "output"]
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "$polynomial `,` $value attr-dict `:` type($value)";
+  let hasVerifier = 1;
 }
 
 

@@ -14,11 +14,11 @@ using ::llvm::SmallVector;
 
 int64_t maxOfMaxes(ArrayRef<int64_t> d1, ArrayRef<int64_t> d2) {
   int64_t max = d1.front();
-  for (int64_t i = 1; i < d1.size(); ++i) {
-    max = std::max(max, d1[i]);
+  for (int64_t di : d1) {
+    max = std::max(max, di);
   }
-  for (long i : d2) {
-    max = std::max(max, i);
+  for (int64_t di : d2) {
+    max = std::max(max, di);
   }
   return max;
 }

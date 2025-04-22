@@ -11,6 +11,8 @@ glob_lit_tests(
         "src/main.rs",
         "src/main_add_one.rs",
         "src/main_fully_connected.rs",
+        "src/main_multi_output.rs",
+        "src/main_sbox.rs",
         "@heir//tests:test_utilities",
     ],
     default_tags = [
@@ -24,6 +26,8 @@ glob_lit_tests(
         "test_bitand.mlir": "large",
         "test_simple_lut.mlir": "large",
         "test_fully_connected.mlir": "large",
+        "test_sbox.mlir": "large",
+        "test_multi_output.mlir": "large",
     },
     test_file_exts = ["mlir"],
 )

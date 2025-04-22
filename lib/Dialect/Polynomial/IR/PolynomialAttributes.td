@@ -120,6 +120,51 @@ def Polynomial_TypedFloatPolynomialAttr : Polynomial_Attr<
   }];
 }
 
+def Polynomial_ChebyshevPolynomialAttr : Polynomial_Attr<"ChebyshevPolynomial", "chebyshev_polynomial"> {
+  let summary = "an attribute containing a single-variable polynomial with float coefficients in the Chebyshev basis";
+  let description = [{
+    This attribute represents a single-variable polynomial with double
+    precision floating point coefficients, represented in the basis of
+    Chebyshev polynomials of the first kind.
+
+    Example:
+
+    ```mlir
+    #poly = #polynomial.chebyshev_polynomial<[1.0, 2.0, 3.0, 4.0]>
+    ```
+  }];
+  let parameters = (ins "ArrayAttr":$coefficients);
+  let assemblyFormat = "`<` $coefficients `>`";
+}
+
+def Polynomial_TypedChebyshevPolynomialAttr : Polynomial_Attr<
+    "TypedChebyshevPolynomial", "typed_chebyshev_polynomial"> {
+  let summary = "a typed chebyshev_polynomial";
+  let description = [{
+    Example:
+
+    ```mlir
+    !poly_ty = !polynomial.polynomial<ring=<coefficientType=f32>>
+    #poly = float<1.4 x**7 + 4.5> : !poly_ty
+    #poly_verbose = #polynomial.typed_chebyshev_polynomial<[1.4, 4.5, 6.0, 7.0]> : !poly_ty
+    ```
+  }];
+  let parameters = (ins "::mlir::Type":$type, "::mlir::heir::polynomial::ChebyshevPolynomialAttr":$value);
+  let assemblyFormat = "$value `:` $type";
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$type,
+                                        "const ArrayAttr &":$value), [{
+      return $_get(
+        type.getContext(),
+        type,
+        ChebyshevPolynomialAttr::get(type.getContext(), value));
+    }]>
+  ];
+  let extraClassDeclaration = [{
+    using ValueType = ::mlir::heir::polynomial::ChebyshevPolynomialAttr;
+  }];
+}
+
 def Polynomial_RingAttr : Polynomial_Attr<"Ring", "ring", [OpAsmAttrInterface]> {
   let summary = "an attribute specifying a polynomial ring";
   let description = [{

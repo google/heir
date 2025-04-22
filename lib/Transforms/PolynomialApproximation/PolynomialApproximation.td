@@ -9,30 +9,35 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     This pass replaces certain operations that are incompatible
     with the FHE computational model with polynomial approximations.
 
-    The pass applies to the following ops in the `math` dialect:
-
+    The pass applies to the following ops in the `math` dialect. When the
+    op is binary, the pass applies when one op is the result of an
+    `arith.constant` which is scalar-valued or a splatted tensor.
 
     - `absf`
     - `acos`
     - `acosh`
     - `asin`
     - `asinh`
+    - `atan2`
     - `atan`
     - `atanh`
     - `cbrt`
     - `ceil`
+    - `copysign`
     - `cos`
     - `cosh`
     - `erf`
     - `erfc`
-    - `exp`
     - `exp2`
+    - `exp`
     - `expm1`
     - `floor`
-    - `log`
+    - `fpowi`
     - `log10`
     - `log1p`
     - `log2`
+    - `log`
+    - `powf`
     - `round`
     - `roundeven`
     - `rsqrt`
@@ -42,6 +47,13 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     - `tan`
     - `tanh`
     - `trunc`
+
+    The following ops in the `arith` dialect are also supported:
+
+    - `maxf`
+    - `maxnumf`
+    - `minf`
+    - `minnumf`
 
     These ops are replaced with `polynomial.eval` ops with a static polynomial
     attribute.
