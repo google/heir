@@ -190,9 +190,6 @@ LogicalResult TfheRustEmitter::emitBlock(::mlir::Operation *op, int batch) {
             variableNames->getIntForValue(op->getResult(0)),
             commaSeparatedValues(
                 getCiphertextOperands(op->getOperands()), [&](Value value) {
-                  // TODO(#462): This assumes that all ciphertexts are
-                  // loaded into temp_nodes. Currently, block arguments are
-                  // not supported.
                   return "Tv(" +
                          std::to_string(variableNames->getIntForValue(value)) +
                          ")";
@@ -337,14 +334,23 @@ LogicalResult TfheRustEmitter::printOperation(func::FuncOp funcOp) {
   os.indent();
 
   // Create a global temp_nodes hashmap for any created SSA values.
-  // TODO(#462): Insert block argument that are encrypted ints into
-  // temp_nodes.
   if (useLevels) {
     os << "let mut temp_nodes : HashMap<usize, Ciphertext> = "
           "HashMap::new();\n";
     os << "let mut luts : HashMap<&str, LookupTableOwned> = "
           "HashMap::new();\n";
     os << kRunLevelDefn << "\n";
+
+    // Seed the temp_nodes with the block arguments.
+    for (Value arg : funcOp.getArguments()) {
+      auto type = arg.getType();
+      if (!type.hasTrait<EncryptedInteger>() && !isa<EncryptedBoolType>(type)) {
+        continue;
+      }
+      os << llvm::formatv("temp_nodes.insert({0}, {1}.clone());\n",
+                          variableNames->getIntForValue(arg),
+                          variableNames->getNameForValue(arg));
+    }
   }
 
   for (Block &block : funcOp.getBlocks()) {
@@ -384,7 +390,7 @@ LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
     } else if (isLevelledOp(value.getDefiningOp()) && useLevels) {
       // This is from a levelled op stored in temp nodes.
       return std::string(
-          llvm::formatv("temp_nodes[&{0}]",
+          llvm::formatv("temp_nodes[&{0}].clone()",
                         std::to_string(variableNames->getIntForValue(value))));
     }
     return variableNames->getNameForValue(value);
