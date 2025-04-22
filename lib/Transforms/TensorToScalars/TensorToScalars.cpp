@@ -141,11 +141,11 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
     RewritePatternSet patterns(context);
     patterns.add<ConvertFromElementsOp, ConvertInsertOp>(typeConverter,
                                                          context);
-    scf::populateSCFStructuralOneToNTypeConversions(typeConverter, patterns);
+    scf::populateSCFStructuralTypeConversions(typeConverter, patterns);
     populateFuncTypeConversionPatterns(typeConverter, patterns);
 
-    if (mlir::failed(mlir::applyPartialOneToNConversion(
-            getOperation(), typeConverter, std::move(patterns))))
+    if (mlir::failed(mlir::applyPartialConversion(getOperation(), typeConverter,
+                                                  std::move(patterns))))
       signalPassFailure();
 
     // Empty PatternSet = only run folders (should never fail)
