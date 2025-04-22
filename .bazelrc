@@ -2,9 +2,17 @@ common --action_env=BAZEL_CXXOPTS=-std=c++17
 common --cxxopt='-std=c++17'
 common --copt=-fdiagnostics-color=always
 common --test_output=errors
-# compilation_mode options below are `dbg` (debug symbols) `fastbuild`
-# (build as quickly as possible), and `opt` (turn on all optimizations)
-common -c dbg
+
+# compilation_mode options below are `dbg` (debug symbols) `fastbuild` (build
+# as quickly as possible), and `opt` (turn on all optimizations). Note OpenFHE
+# programs run much slower with dbg vs opt. Also note that compilation mode is
+# global to a build, and switching compilation mode incurs a full rebuild.
+#
+# Add the line below to your ~/.bazelrc to set a user-wide default for build
+# and test.
+#
+# common -c dbg
+
 common --enable_bzlmod
 # required for hybrid bzlmod+workspace builds
 common --enable_workspace
