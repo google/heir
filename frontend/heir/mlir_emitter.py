@@ -113,6 +113,60 @@ class Loop:
   inits: list[ir.Var]
 
 
+def get_ambient_vars(block):
+  # Get vars defined in the ambient scope.
+  vars = set()
+  for instr in block.body:
+    match type(instr):
+      case ir.Assign:
+        if type(instr.value) == ir.Global:
+          continue
+        # Defined before the loop block
+        if not instr.target.is_temp:
+          if instr.target.loc.line < block.loc.line:
+            vars.add(instr.target)
+  return vars
+
+
+def get_vars_used_after(block, post_dominators, ssa_ir):
+  # Find any vars assigned in the block scopes used in the post dominators.
+  block_vars = set()
+  for instr in block.body:
+    match type(instr):
+      case ir.Assign:
+        if type(instr.value) == ir.Global:
+          continue
+        if not instr.target.is_temp:
+          block_vars.add(instr.target)
+
+  vars = set()
+  for id in post_dominators:
+    pblock = ssa_ir.blocks[id]
+    for instr in pblock.body:
+      match type(instr):
+        case ir.Assign:
+          if type(instr.value) == ir.Global:
+            continue
+          # Defined before the loop block
+          for var in instr.list_vars():
+            if var == instr.target:
+              continue
+            # var must be defined in the block
+            if var in block_vars:
+              vars.add(var)
+  return list(vars)
+
+
+def get_return_vars(block):
+  # Gets the vars returns in the block
+  vars = []
+  for instr in block.body:
+    match type(instr):
+      case ir.Return:
+        vars.append(instr.value)
+  return vars
+
+
 def build_loop_from_call(index, block_id, blocks, cfa):
   body = blocks[block_id].body
   # Build a loop from a range call starting at index
@@ -132,17 +186,8 @@ def build_loop_from_call(index, block_id, blocks, cfa):
 
   for id in loop_body_blocks:
     block = blocks[id]
-    for instr in blocks[id].body:
-      match type(instr):
-        case ir.Assign:
-          if type(instr.value) == ir.Global:
-            continue
-          if instr.target == iter_var:
-            continue
-          # not temp and defined outside before the loop block
-          if not instr.target.is_temp:
-            if instr.target.loc.line < block.loc.line:
-              inits.add(instr.target)
+    ambient_vars = get_ambient_vars(block)
+    [inits.add(var) for var in ambient_vars if var != iter_var]
 
   return Loop(
       header_id,
@@ -196,6 +241,7 @@ class TextualMlirEmitter:
     self.numba_names_to_ssa_var_names = {}
     self.globals_map = {}
     self.loops = {}
+    self.cfa = self.get_control_flow()
 
   def get_control_flow(self):
     bc = bytecode.ByteCode(self.ssa_ir.func_id)
@@ -229,22 +275,22 @@ class TextualMlirEmitter:
 
   def emit_blocks(self):
     blocks = self.ssa_ir.blocks
-    cfa = self.get_control_flow()
 
     # collect loops and block header needs
     block_ids_to_omit_header = set()
-    loop_entries = [list(l.entries)[0] for l in cfa.graph._loops.values()]
+    block_ids_to_omit_header.update(self.cfa.graph.backbone())
+    loop_entries = [list(l.entries)[0] for l in self.cfa.graph._loops.values()]
     for entry_id in loop_entries:
       block = blocks[entry_id]
       for i in range(len(block.body)):
         # Detect a range call
         instr = block.body[i]
         if is_start_of_loop(i, block.body, self.ssa_ir):
-          loop = build_loop_from_call(i, entry_id, blocks, cfa)
+          loop = build_loop_from_call(i, entry_id, blocks, self.cfa)
           self.loops[instr.target] = loop
           block_ids_to_omit_header.add(loop.header.next_id)
 
-    sorted_blocks = list(cfa.iterblocks())
+    sorted_blocks = list(self.cfa.iterblocks())
     # first block doesn't require a block header
     block_ids_to_omit_header.add(sorted_blocks[0].offset)
     blocks_to_print = deque(
@@ -323,6 +369,9 @@ class TextualMlirEmitter:
     assert var.name in self.numba_names_to_ssa_var_names
     return self.get_or_create_name(var)
 
+  def has_name(self, var):
+    return var.name in self.numba_names_to_ssa_var_names
+
   def forward_name(self, from_var, to_var):
     to_name = self.numba_names_to_ssa_var_names[to_var.name]
     self.numba_names_to_ssa_var_names[from_var.name] = to_name
@@ -366,16 +415,25 @@ class TextualMlirEmitter:
         self.forward_name(from_var=assign.target, to_var=assign.value.value)
         return ""
       case ir.Const():
-        name = self.get_or_create_name(assign.target)
-        return (
+        # if we reassign a const, then forward the name
+        reassign = self.has_name(assign.target)
+        if reassign:
+          name = self.get_next_name()
+        else:
+          name = self.get_or_create_name(assign.target)
+        const_str = (
             f"{name} = arith.constant {assign.value.value} :"
             f" {mlirType(self.typemap.get(assign.target.name))}"
             f" {mlirLoc(assign.loc)}"
         )
+        if reassign:
+          self.forward_name_to_id(assign.target, name.strip("%"))
+        return const_str
       case ir.Global():
         self.globals_map[assign.target.name] = assign.value.name
         return ""
       case ir.Var():
+        # Sometimes we need this to be assigned?
         self.forward_name(from_var=assign.target, to_var=assign.value)
         return ""
     raise NotImplementedError(f"Unsupported IR Element: {assign}")
@@ -456,17 +514,80 @@ class TextualMlirEmitter:
     raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
 
   def emit_branch(self, branch, blocks_to_print):
-    condvar = self.get_name(branch.cond)
-    branches = [branch.truebr, branch.falsebr]
-    branch_strs = [
-        f"cf.cond_br {condvar}, ^bb{branch.truebr}, ^bb{branch.falsebr}"
-    ]
     for _ in range(2):
       block_id, branch_block = blocks_to_print.popleft()
-      assert block_id in branches
-      body_str = self.emit_block(branch_block, blocks_to_print)
-      block_header = f"^bb{block_id}:\n"
-      branch_strs.append(block_header + textwrap.indent(body_str, "  "))
+      assert block_id in [branch.truebr, branch.falsebr]
+
+    true_block = self.ssa_ir.blocks[branch.truebr]
+    false_block = self.ssa_ir.blocks[branch.falsebr]
+
+    # Get variables that are used after the branches.
+    successors = self.cfa.graph._find_descendents()[branch.truebr]
+    true_vars_to_yield = get_vars_used_after(
+        true_block, successors, self.ssa_ir
+    )
+    false_vars_to_yield = get_vars_used_after(
+        false_block, successors, self.ssa_ir
+    )
+    if true_vars_to_yield != false_vars_to_yield:
+      # We should be able to handle this by taking the union of each.
+      raise ValueError(
+          "Currently only supports branches that modify the same vars"
+      )
+    vars_to_yield = true_vars_to_yield
+
+    # Special case: if there are no successors, than this if/else terminates
+    # the func.
+    is_terminator = len(successors) == 0
+
+    # Emit the true branch
+    previous_state = self.numba_names_to_ssa_var_names.copy()
+    true_str = self.emit_block(true_block, blocks_to_print)
+    true_vars = [self.get_name(i) for i in vars_to_yield]
+
+    # Emit the false branch, after rewinding the variable state map
+    self.numba_names_to_ssa_var_names.clear()
+    self.numba_names_to_ssa_var_names = previous_state
+    false_str = self.emit_block(false_block, blocks_to_print)
+    false_vars = [self.get_name(i) for i in vars_to_yield]
+
+    if is_terminator:
+      # When the if/else terminates the function, then it will emit ir.Return
+      # instructions in each branch block. Instead, yield the return values and
+      # later return the conditional block.
+      assert not vars_to_yield
+      true_str = true_str.replace("func.return", "scf.yield")
+      false_str = false_str.replace("func.return", "scf.yield")
+      # Yield the function return vars.
+      vars_to_yield = get_return_vars(true_block)
+
+    yield_types = [mlirType(self.typemap.get(str(i))) for i in vars_to_yield]
+    type_str = ", ".join([f"{ty}" for ty in yield_types])
+    # Add yield statements to the blocks
+    if vars_to_yield and not is_terminator:
+      true_var_str = ", ".join(true_vars)
+      false_var_str = ", ".join(false_vars)
+      true_str += f"\nscf.yield {true_var_str} : {type_str}"
+      false_str += f"\nscf.yield {false_var_str} : {type_str}"
+
+    # Emit the branch statement.
+    branch_stmt = f"scf.if {self.get_name(branch.cond)}"
+    result_vars = [self.forward_to_new_id(i) for i in vars_to_yield]
+    results = ", ".join(result_vars)
+    if vars_to_yield:
+      branch_stmt = f"{results} = {branch_stmt} -> ({type_str})"
+    branch_stmt += " {"
+
+    branch_strs = [branch_stmt]
+    branch_strs.append(textwrap.indent(true_str, "  "))
+    branch_strs.append("} else {")
+    branch_strs.append(textwrap.indent(false_str, "  "))
+    branch_strs.append("}")
+
+    # If this was a terminating statement, add the func.return
+    if is_terminator:
+      branch_strs.append(f"func.return {results} : {type_str}")
+
     return "\n".join(branch_strs)
 
   def emit_var_or_int(self, var_or_int):
@@ -532,7 +653,19 @@ class TextualMlirEmitter:
       if type(instr) == ir.Assign and instr.target in self.loops:
         raise NotImplementedError("Nested loops are not supported")
 
-    body_str = self.emit_block(loop_block, blocks_to_print)
+    body_str = ""
+    # Index cast the itvar to an integer to use within the block
+    itvar = self.get_name(loop.header.phi_var)
+    it = self.ssa_ir.get_assignee(loop.header.phi_var)
+    var_name = self.get_or_create_name(it)
+    body_str += (
+        f"{var_name} = arith.index_cast {itvar} : index to"
+        f" {mlirType(self.typemap.get(it.name))}\n"
+    )
+    self.forward_name(loop.header.phi_var, it)
+
+    # Emit the loop block
+    body_str += self.emit_block(loop_block, blocks_to_print)
     if loop.inits:
       # Yield the iter args
       yield_vars = ", ".join([self.get_name(init) for init in loop.inits])

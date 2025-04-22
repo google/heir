@@ -63,7 +63,7 @@ class I1(MLIRTypeAnnotation):
 
   @staticmethod
   def numba_str():
-    return "bool"
+    return "boolean"
 
 
 class I4(MLIRTypeAnnotation):
