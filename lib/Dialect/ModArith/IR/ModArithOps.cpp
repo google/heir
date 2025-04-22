@@ -112,59 +112,6 @@ LogicalResult BarrettReduceOp::verify() {
   return success();
 }
 
-ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
-  unsigned minBitwidth = 4;  // bitwidth assigned by parser to integer `1`
-  Type parsedType;
-  if (parser.parseOptionalKeyword("dense").succeeded()) {
-    // Dense case
-    // We parse the integers as a list, rather than an ArrayAttr, so we can more
-    // easily convert them to the correct bitwidth (ArrayAttr forces I64)
-    std::vector<APInt> parsedInts;
-    if (parser.parseLess() ||
-        parser.parseCommaSeparatedList(mlir::AsmParser::Delimiter::Square,
-                                       [&] {
-                                         APInt parsedInt;
-                                         if (parser.parseInteger(parsedInt))
-                                           return failure();
-                                         parsedInts.push_back(parsedInt);
-                                         return success();
-                                       }) ||
-        parser.parseGreater() || parser.parseColonType(parsedType))
-      return failure();
-    if (parsedInts.empty())
-      return parser.emitError(parser.getNameLoc(),
-                              "expected at least one integer in dense list.");
-
-    unsigned maxWidth = 0;
-    for (auto &parsedInt : parsedInts) {
-      // zero becomes `i64` when parsed, so truncate back down to minBitwidth
-      parsedInt = parsedInt.isZero() ? parsedInt.trunc(minBitwidth) : parsedInt;
-      maxWidth = std::max(maxWidth, parsedInt.getBitWidth());
-    }
-    for (auto &parsedInt : parsedInts) {
-      parsedInt = parsedInt.zextOrTrunc(maxWidth);
-    }
-    auto attr = DenseIntElementsAttr::get(
-        RankedTensorType::get({static_cast<int64_t>(parsedInts.size())},
-                              IntegerType::get(parser.getContext(), maxWidth)),
-        parsedInts);
-    result.addAttribute("value", attr);
-  } else {
-    // Scalar case
-    APInt parsedInt;
-    if (parser.parseInteger(parsedInt) || parser.parseColonType(parsedType))
-      return failure();
-    // zero becomes `i64` when parsed, so truncate back down to minBitwidth
-    if (parsedInt.isZero()) parsedInt = parsedInt.trunc(minBitwidth);
-    result.addAttribute(
-        "value", IntegerAttr::get(IntegerType::get(parser.getContext(),
-                                                   parsedInt.getBitWidth()),
-                                  parsedInt));
-  }
-  result.addTypes(parsedType);
-  return success();
-}
-
 LogicalResult ConstantOp::verify() {
   auto shapedType = dyn_cast<ShapedType>(getType());
   auto modType = dyn_cast<ModArithType>(getElementTypeOrSelf(getType()));
@@ -203,13 +150,6 @@ LogicalResult ConstantOp::verify() {
   }
   // anything else: failure
   return emitOpError("value must be IntegerAttr or DenseIntElementsAttr.");
-}
-
-void ConstantOp::print(OpAsmPrinter &p) {
-  p << " ";
-  p.printAttributeWithoutType(getValue());
-  p << " : ";
-  p.printType(getOutput().getType());
 }
 
 // constant(c0) -> c0 mod q

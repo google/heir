@@ -94,7 +94,7 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
   }];
   let arguments = (ins TypedAttrInterface:$value);
   let results = (outs ModArithLike:$output);
-  let hasCustomAssemblyFormat = 1;
+  let assemblyFormat = "attr-dict $value `:` type($output)";
   let hasVerifier = 1;
   let hasFolder = 1;
 

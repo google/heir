@@ -27,6 +27,8 @@ func.func @test_arith_syntax() {
   %constdenseZero = mod_arith.constant dense<[0, 2, 3, 4]> : !Zp_vec
   // CHECK: mod_arith.constant dense<[-1, -2, -3, -4]> : tensor<4x!mod_arith.int<17 : i10>>
   %constdenseNegative = mod_arith.constant dense<[-1, -2, -3, -4]> : !Zp_vec
+  // CHECK: mod_arith.constant dense<0> : tensor<1024x!mod_arith.int<17 : i10>>
+  %denseSplat = mod_arith.constant dense<0> : tensor<1024x!Zp>
 
   // CHECK-COUNT-6: mod_arith.encapsulate
   %e4 = mod_arith.encapsulate %c4 : i10 -> !Zp
