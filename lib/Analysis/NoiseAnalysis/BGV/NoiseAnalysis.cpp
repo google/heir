@@ -155,7 +155,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             // this
             NoiseState rotate =
                 NoiseModel::evalRelinearize(localParam, extract);
-            propagate(extractOp.getResult(), extract);
+            propagate(extractOp.getResult(), rotate);
             return success();
           })
           .template Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {
