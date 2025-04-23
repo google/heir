@@ -83,7 +83,7 @@ def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure, SameOperandsAndResul
 }
 
 def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
-    [Pure, ConstantLike]> {
+    [Pure, ConstantLike, AllTypesMatch<["value", "output"]>]> {
   let summary = "Define a constant value via an attribute.";
   let description = [{
     Example:
@@ -94,10 +94,9 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant",
   }];
   let arguments = (ins TypedAttrInterface:$value);
   let results = (outs ModArithLike:$output);
-  let hasCustomAssemblyFormat = 1;
+  let assemblyFormat = "attr-dict $value";
   let hasVerifier = 1;
   let hasFolder = 1;
-
 }
 
 

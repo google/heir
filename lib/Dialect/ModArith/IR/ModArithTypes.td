@@ -14,7 +14,8 @@ class ModArith_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 }
 
-def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeInterface, OpAsmTypeInterface]> {
+def ModArith_ModArithType : ModArith_Type<"ModArith", "int",
+    [MemRefElementTypeInterface, OpAsmTypeInterface, IntegerLikeTypeInterface]> {
   let summary = "Integer type with modular arithmetic";
   let description = [{
     `mod_arith.int<p>` represents an element of the ring of integers modulo $p$.
@@ -60,6 +61,11 @@ def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeI
       os << "_";
       os << getModulus().getType();
       return ::mlir::OpAsmDialectInterface::AliasResult::FinalAlias;
+    }
+
+    // IntegerLikeTypeInterface methods
+    unsigned getStorageBitWidth() const {
+      return cast<IntegerType>(getModulus().getType()).getWidth();
     }
   }];
 }
