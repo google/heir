@@ -22,6 +22,7 @@ def _heir_opt_impl(ctx):
     args.add(ctx.file.src)
     env_vars = {}
     if ctx.attr.HEIR_YOSYS:
+        # https://bazel.build/remote/output-directories#layout-diagram
         HEIR_BASE_PATH = "_main/"
         runtime_dir = ctx.executable._heir_opt_binary.path + ".runfiles"
         yosys_scripts_dir = runtime_dir + "/" + HEIR_BASE_PATH + "lib/Transforms/YosysOptimizer/yosys"
