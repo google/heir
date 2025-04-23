@@ -392,12 +392,12 @@ class TextualMlirEmitter:
         )
         return ""
       case ir.Expr(op="binop"):
-        emitted_expr, ext = self.emit_binop(assign.value)
+        emitted_expr, ext, ty = self.emit_binop(assign.value)
         name = self.get_or_create_name(assign.target)
         return (
             f"{ext}"
             f"{name} = {emitted_expr} :"
-            f" {mlirType(self.typemap.get(assign.value.lhs.name))} {mlirLoc(assign.loc)}"
+            f" {mlirType(ty)} {mlirLoc(assign.loc)}"
         )
       case ir.Expr(op="call"):
         func = assign.value.func
@@ -444,7 +444,7 @@ class TextualMlirEmitter:
 
     # Types agree: do nothing
     if lhs_type == rhs_type:
-      return self.get_name(lhs), self.get_name(rhs), ""
+      return self.get_name(lhs), self.get_name(rhs), "", lhs_type
 
     # types aren't integer types
     if not isinstance(lhs_type, types.Integer) or not isinstance(
@@ -460,7 +460,7 @@ class TextualMlirEmitter:
       # TODO (#1162): Support bitwidth extension for non-scalar types (e.g., tensors)
 
     if lhs_type.bitwidth == rhs_type.bitwidth:
-      return self.get_name(lhs), self.get_name(rhs), ""
+      return self.get_name(lhs), self.get_name(rhs), "", lhs_type
 
     # time to emit some extensions!
     short, long = lhs, rhs
@@ -476,40 +476,40 @@ class TextualMlirEmitter:
     )
 
     if lhs_type.bitwidth > rhs_type.bitwidth:
-      return self.get_name(lhs), tmp, ext
-    return tmp, self.get_name(rhs), ext
+      return self.get_name(lhs), tmp, ext, lhs_type
+    return tmp, self.get_name(rhs), ext, rhs_type
 
   def emit_binop(self, binop):
     # This should be the same, otherwise MLIR will complain
     suffix = arithSuffix(self.typemap.get(str(binop.lhs)))
 
-    lhs_ssa, rhs_ssa, ext = self.emit_ext_if_needed(binop.lhs, binop.rhs)
+    lhs_ssa, rhs_ssa, ext, ty = self.emit_ext_if_needed(binop.lhs, binop.rhs)
 
     match binop.fn:
       case operator.lt:
-        return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.cmp{suffix} slt, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.ge:
-        return f"arith.cmp{suffix} sge, {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.cmp{suffix} sge, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.eq:
-        return f"arith.cmp{suffix} eq, {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.cmp{suffix} eq, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.ne:
-        return f"arith.cmp{suffix} ne, {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.cmp{suffix} ne, {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.add:
-        return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.add{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.mul:
-        return f"arith.mul{suffix} {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.mul{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.sub:
-        return f"arith.sub{suffix} {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.sub{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.lshift:
-        return f"arith.shl{suffix} {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.shl{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.and_:
-        return f"arith.and{suffix} {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.and{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.xor:
-        return f"arith.xor{suffix} {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.xor{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.mod:
         # Used signed semantics when integer types
         suffix = "si" if suffix == "i" else suffix
-        return f"arith.rem{suffix} {lhs_ssa}, {rhs_ssa}", ext
+        return f"arith.rem{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
 
     raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
 
