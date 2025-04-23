@@ -43,13 +43,6 @@ maybe(
     ],
 )
 
-git_repository(
-    name = "com_google_ortools",
-    commit = "ed94162b910fa58896db99191378d3b71a5313af",
-    remote = "https://github.com/google/or-tools.git",
-    shallow_since = "1726144997 +0200",
-)
-
 # install dependencies for yosys/ABC circuit optimizers
 http_archive(
     name = "rules_hdl",
@@ -112,38 +105,6 @@ new_git_repository(
     name = "com_google_absl_py",
     commit = "127c98870edf5f03395ce9cf886266fa5f24455e",  # v1.4.0
     remote = "https://github.com/abseil/abseil-py",
-)
-
-## Solvers
-http_archive(
-    name = "glpk",
-    build_file = "@com_google_ortools//bazel:glpk.BUILD.bazel",
-    sha256 = "4a1013eebb50f728fc601bdd833b0b2870333c3b3e5a816eeba921d95bec6f15",
-    url = "http://ftp.gnu.org/gnu/glpk/glpk-5.0.tar.gz",
-)
-
-http_archive(
-    name = "bliss",
-    build_file = "@com_google_ortools//bazel:bliss.BUILD.bazel",
-    patches = ["@com_google_ortools//bazel:bliss-0.73.patch"],
-    sha256 = "f57bf32804140cad58b1240b804e0dbd68f7e6bf67eba8e0c0fa3a62fd7f0f84",
-    url = "https://github.com/google/or-tools/releases/download/v9.0/bliss-0.73.zip",
-    #url = "http://www.tcs.hut.fi/Software/bliss/bliss-0.73.zip",
-)
-
-new_git_repository(
-    name = "scip",
-    build_file = "@com_google_ortools//bazel:scip.BUILD.bazel",
-    commit = "7205bedd942f87faeb9a0552839710941d1ffc2c",
-    patch_args = ["-p1"],
-    patches = ["@com_google_ortools//bazel:scip-v900.patch"],
-    remote = "https://github.com/scipopt/scip.git",
-)
-
-git_repository(
-    name = "highs",
-    branch = "bazel",
-    remote = "https://github.com/ERGO-Code/HiGHS.git",
 )
 
 # OpenFHE backend and dependencies
