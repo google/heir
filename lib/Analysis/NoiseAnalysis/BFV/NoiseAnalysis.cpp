@@ -57,7 +57,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
   auto propagate = [&](Value value, NoiseState noise) {
     LLVM_DEBUG(llvm::dbgs()
                << "Propagating "
-               << NoiseModel::toLogBoundString(getLocalParam(value), noise)
+               << noiseModel.toLogBoundString(getLocalParam(value), noise)
                << " to " << value << "\n");
     LatticeType *lattice = this->getLatticeElement(value);
     auto changeResult = lattice->join(noise);
@@ -78,7 +78,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
       (void)operand;
       // at least one operand is secret
       auto localParam = getLocalParam(secretOperands[0]->get());
-      noises.push_back(NoiseModel::evalConstant(localParam));
+      noises.push_back(noiseModel.evalConstant(localParam));
     }
   };
 
@@ -88,7 +88,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             Block *body = genericOp.getBody();
             for (Value &arg : body->getArguments()) {
               auto localParam = getLocalParam(arg);
-              NoiseState encrypted = NoiseModel::evalEncrypt(localParam);
+              NoiseState encrypted = noiseModel.evalEncrypt(localParam);
               propagate(arg, encrypted);
             }
             return success();
@@ -104,8 +104,8 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             getOperandNoises(mulOp, operandNoises);
 
             auto localParam = getLocalParam(mulOp.getResult());
-            NoiseState mult = NoiseModel::evalMul(localParam, operandNoises[0],
-                                                  operandNoises[1]);
+            NoiseState mult = noiseModel.evalMul(localParam, operandNoises[0],
+                                                 operandNoises[1]);
             propagate(mulOp.getResult(), mult);
             return success();
           })
@@ -119,7 +119,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             SmallVector<NoiseState, 2> operandNoises;
             getOperandNoises(addOp, operandNoises);
             NoiseState add =
-                NoiseModel::evalAdd(operandNoises[0], operandNoises[1]);
+                noiseModel.evalAdd(operandNoises[0], operandNoises[1]);
             propagate(addOp.getResult(), add);
             return success();
           })
@@ -130,8 +130,8 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             // assume relinearize immediately after rotate
             // when we support hoisting relinearize, we need to change
             // this
-            NoiseState rotate = NoiseModel::evalRelinearize(
-                localParam, operands[0]->getValue());
+            NoiseState rotate =
+                noiseModel.evalRelinearize(localParam, operands[0]->getValue());
             propagate(rotateOp.getResult(), rotate);
             return success();
           })
@@ -147,15 +147,14 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             // packing), the value multiplied to the ciphertext is not 1,
             // If we can know the encoded value, we can bound it more
             // precisely.
-            NoiseState one = NoiseModel::evalConstant(localParam);
+            NoiseState one = noiseModel.evalConstant(localParam);
             NoiseState extract =
-                NoiseModel::evalMul(localParam, operands[0]->getValue(), one);
+                noiseModel.evalMul(localParam, operands[0]->getValue(), one);
             // assume relinearize immediately after rotate
             // when we support hoisting relinearize, we need to change
             // this
-            NoiseState rotate =
-                NoiseModel::evalRelinearize(localParam, extract);
-            propagate(extractOp.getResult(), rotate);
+            NoiseState rotate = noiseModel.evalRelinearize(localParam, extract);
+            propagate(extractOp.getResult(), extract);
             return success();
           })
           .template Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
@@ -167,8 +166,8 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
           .template Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
             auto localParam = getLocalParam(relinearizeOp.getInput());
 
-            NoiseState relinearize = NoiseModel::evalRelinearize(
-                localParam, operands[0]->getValue());
+            NoiseState relinearize =
+                noiseModel.evalRelinearize(localParam, operands[0]->getValue());
             propagate(relinearizeOp.getResult(), relinearize);
             return success();
           })
@@ -212,8 +211,7 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
 }
 
 // template instantiation
-template class NoiseAnalysis<bfv::NoiseByBoundCoeffAverageCaseModel>;
-template class NoiseAnalysis<bfv::NoiseByBoundCoeffWorstCaseModel>;
+template class NoiseAnalysis<bfv::NoiseByBoundCoeffModel>;
 
 // for variance
 template class NoiseAnalysis<bfv::NoiseByVarianceCoeffModel>;

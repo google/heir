@@ -12,6 +12,15 @@
 namespace mlir {
 namespace heir {
 
+// An enum some noise models can use to tweak their behavior for different
+// noise modeling regimes. Worst case uses worst-case bounds on noise growth,
+// while average case uses statistical bounds, such as a range of standard
+// deviations away from the expected noise grwoth.
+enum NoiseModelVariant {
+  AVERAGE_CASE,
+  WORST_CASE,
+};
+
 // This class could be shared among all noise models that tracks the noise by a
 // single value. Noise model could have different interpretation of the value.
 // In BGV/BFV world, most noise model just use a single value, either as bound

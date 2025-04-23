@@ -1,6 +1,5 @@
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 
-#include <cassert>
 #include <cmath>
 #include <iomanip>
 #include <ios>
@@ -12,27 +11,25 @@ namespace mlir {
 namespace heir {
 namespace bfv {
 
+using LocalParamType = NoiseByBoundCoeffModel::LocalParamType;
+using SchemParamType = NoiseByBoundCoeffModel::SchemeParamType;
+using StateType = NoiseByBoundCoeffModel::StateType;
+
 // the formulae below are mainly taken from KPZ21
 // "Revisiting Homomorphic Encryption Schemes for Finite Fields"
 // https://ia.cr/2021/204
 
-template <bool W>
-using Model = NoiseByBoundCoeffModel<W>;
-
-template <bool W>
-double Model<W>::toLogBound(const LocalParamType &param,
-                            const StateType &noise) {
+double NoiseByBoundCoeffModel::toLogBound(const LocalParamType &param,
+                                          const StateType &noise) const {
   return log2(noise.getValue());
 }
 
-template <bool W>
-double Model<W>::toLogBudget(const LocalParamType &param,
-                             const StateType &noise) {
+double NoiseByBoundCoeffModel::toLogBudget(const LocalParamType &param,
+                                           const StateType &noise) const {
   return toLogTotal(param) - toLogBound(param, noise);
 }
 
-template <bool W>
-double Model<W>::toLogTotal(const LocalParamType &param) {
+double NoiseByBoundCoeffModel::toLogTotal(const LocalParamType &param) const {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
   for (auto i = 0; i <= param.getSchemeParam()->getLevel(); ++i) {
@@ -42,49 +39,50 @@ double Model<W>::toLogTotal(const LocalParamType &param) {
   return total - logT - 1.0;
 }
 
-template <bool W>
-std::string Model<W>::toLogBoundString(const LocalParamType &param,
-                                       const StateType &noise) {
+std::string NoiseByBoundCoeffModel::toLogBoundString(
+    const LocalParamType &param, const StateType &noise) const {
   auto logBound = toLogBound(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBound;
   return stream.str();
 }
 
-template <bool W>
-std::string Model<W>::toLogBudgetString(const LocalParamType &param,
-                                        const StateType &noise) {
+std::string NoiseByBoundCoeffModel::toLogBudgetString(
+    const LocalParamType &param, const StateType &noise) const {
   auto logBudget = toLogBudget(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBudget;
   return stream.str();
 }
 
-template <bool W>
-std::string Model<W>::toLogTotalString(const LocalParamType &param) {
+std::string NoiseByBoundCoeffModel::toLogTotalString(
+    const LocalParamType &param) const {
   auto logTotal = toLogTotal(param);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logTotal;
   return stream.str();
 }
 
-template <bool W>
-double Model<W>::getExpansionFactor(const LocalParamType &param) {
+double NoiseByBoundCoeffModel::getExpansionFactor(
+    const LocalParamType &param) const {
   auto n = param.getSchemeParam()->getRingDim();
-  if constexpr (W) {
-    // worst-case
-    // well known from DPSZ12
-    return n;
-  } else {
-    // average-case
-    // experimental result
-    // cite HPS19 and KPZ21
-    return 2.0 * sqrt(n);
+  switch (variant) {
+    case NoiseModelVariant::WORST_CASE:
+      // worst-case
+      // well known from DPSZ12
+      return n;
+    case NoiseModelVariant::AVERAGE_CASE:
+      // average-case
+      // experimental result
+      // cite HPS19 and KPZ21
+      return 2.0 * sqrt(n);
+    default:
+      llvm_unreachable("Unknown noise model variant");
+      return 0.0;
   }
 }
 
-template <bool W>
-double Model<W>::getBoundErr(const LocalParamType &param) {
+double NoiseByBoundCoeffModel::getBoundErr(const LocalParamType &param) const {
   auto std0 = param.getSchemeParam()->getStd0();
   // probability of larger than 6 * std0 is less than 2^{-30}
   auto assurance = 6;
@@ -92,16 +90,14 @@ double Model<W>::getBoundErr(const LocalParamType &param) {
   return boundErr;
 }
 
-template <bool W>
-double Model<W>::getBoundKey(const LocalParamType &param) {
+double NoiseByBoundCoeffModel::getBoundKey(const LocalParamType &param) const {
   // assume UNIFORM_TERNARY
   auto boundKey = 1.0;
   return boundKey;
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalEncryptPk(
-    const LocalParamType &param) {
+typename NoiseByBoundCoeffModel::StateType
+NoiseByBoundCoeffModel::evalEncryptPk(const LocalParamType &param) const {
   auto boundErr = getBoundErr(param);
   auto boundKey = getBoundKey(param);
   auto expansionFactor = getExpansionFactor(param);
@@ -114,9 +110,8 @@ typename Model<W>::StateType Model<W>::evalEncryptPk(
   return StateType::of(fresh);
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalEncryptSk(
-    const LocalParamType &param) {
+typename NoiseByBoundCoeffModel::StateType
+NoiseByBoundCoeffModel::evalEncryptSk(const LocalParamType &param) const {
   auto boundErr = getBoundErr(param);
 
   // secret key s
@@ -126,9 +121,8 @@ typename Model<W>::StateType Model<W>::evalEncryptSk(
   return StateType::of(fresh);
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalEncrypt(
-    const LocalParamType &param) {
+typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalEncrypt(
+    const LocalParamType &param) const {
   auto usePublicKey = param.getSchemeParam()->getUsePublicKey();
   auto isEncryptionTechniqueExtended =
       param.getSchemeParam()->isEncryptionTechniqueExtended();
@@ -148,27 +142,24 @@ typename Model<W>::StateType Model<W>::evalEncrypt(
   return evalEncryptSk(param);
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalConstant(
-    const LocalParamType &param) {
+typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalConstant(
+    const LocalParamType &param) const {
   // constant is (Q/t)m + 0
   // v_constant = 0
   return StateType::of(0);
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalAdd(const StateType &lhs,
-                                               const StateType &rhs) {
+typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalAdd(
+    const StateType &lhs, const StateType &rhs) const {
   // (Q/t)m_0 + v_0 + (Q/t)m_1 + v_1 <= (Q/t)[m_0 + m_1]_t + (v_0 + v_1 + r(Q)u)
   // mod Q v_add = v_0 + v_1 + r(Q)u
   // where ||u|| <= 1
   return StateType::of(lhs.getValue() + rhs.getValue() + 1);
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalMul(
+typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
     const LocalParamType &resultParam, const StateType &lhs,
-    const StateType &rhs) {
+    const StateType &rhs) const {
   auto expansionFactor = getExpansionFactor(resultParam);
   auto t = resultParam.getSchemeParam()->getPlaintextModulus();
   auto v0 = lhs.getValue();
@@ -191,9 +182,9 @@ typename Model<W>::StateType Model<W>::evalMul(
   return StateType::of(term1 + term2 + term3);
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalRelinearizeHYBRID(
-    const LocalParamType &inputParam, const StateType &input) {
+typename NoiseByBoundCoeffModel::StateType
+NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
+                                              const StateType &input) const {
   // for v_input, after modup and moddown, it remains the same (with rounding).
   // We only need to consider the error from key switching key
   // and rounding error during moddown.
@@ -239,18 +230,14 @@ typename Model<W>::StateType Model<W>::evalRelinearizeHYBRID(
   return StateType::of(input.getValue() + scaled + added);
 }
 
-template <bool W>
-typename Model<W>::StateType Model<W>::evalRelinearize(
-    const LocalParamType &inputParam, const StateType &input) {
+typename NoiseByBoundCoeffModel::StateType
+NoiseByBoundCoeffModel::evalRelinearize(const LocalParamType &inputParam,
+                                        const StateType &input) const {
   // assume HYBRID
   // if we further introduce BV to SchemeParam we can have alternative
   // implementation.
   return evalRelinearizeHYBRID(inputParam, input);
 }
-
-// instantiate template class
-template class NoiseByBoundCoeffModel<false>;
-template class NoiseByBoundCoeffModel<true>;
 
 }  // namespace bfv
 }  // namespace heir

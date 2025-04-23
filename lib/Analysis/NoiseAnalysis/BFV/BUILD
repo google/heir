@@ -27,6 +27,8 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],
+    # required for gcc to link properly
+    alwayslink = 1,
 )
 
 cc_library(
