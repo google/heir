@@ -50,6 +50,7 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
     ],
+    alwayslink = 1,
 )
 
 td_library(
