@@ -122,6 +122,10 @@ LogicalResult AssignLayoutOp::verify() {
   return verifyLayoutMatchesType(getLayout(), getValue().getType(), *this);
 }
 
+LogicalResult UnpackOp::verify() {
+  return verifyLayoutMatchesType(getLayout(), getResult().getType(), *this);
+}
+
 LogicalResult PermuteOp::verify() {
   auto tensorTy = getInput().getType();
   // TODO(#924): Support more general vector inputs.
