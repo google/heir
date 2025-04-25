@@ -7,10 +7,11 @@ include "mlir/IR/PatternBase.td"
 
 def Equal : Constraint<CPred<"$0 == $1">>;
 
-def IsZero : Constraint<CPred<"dyn_cast<IntegerAttr>($0).getValue().isZero()">>;
-def IsOne : Constraint<CPred<"dyn_cast<IntegerAttr>($0).getValue() == APInt(dyn_cast<IntegerAttr>($0).getValue().getBitWidth(), 1, true)">>;
+// TODO(#1759): support dense attributes in these patterns
+def IsZero : Constraint<CPred<"isa<IntegerAttr>($0) && cast<IntegerAttr>($0).getValue().isZero()">>;
+def IsOne : Constraint<CPred<"isa<IntegerAttr>($0) && cast<IntegerAttr>($0).getValue() == APInt(cast<IntegerAttr>($0).getValue().getBitWidth(), 1, true)">>;
 
-def IsMinusOne : Constraint<CPred<"dyn_cast<IntegerAttr>($1).getValue().zextOrTrunc(dyn_cast<ModArithType>($0.getType()).getModulus().getValue().getBitWidth()) == dyn_cast<ModArithType>($0.getType()).getModulus().getValue() - APInt(dyn_cast<ModArithType>($0.getType()).getModulus().getValue().getBitWidth(), 1)">>;
+def IsMinusOne : Constraint<CPred<"isa<IntegerAttr>($1) && cast<IntegerAttr>($1).getValue().zextOrTrunc(cast<ModArithType>($0.getType()).getModulus().getValue().getBitWidth()) == cast<ModArithType>($0.getType()).getModulus().getValue() - APInt(cast<ModArithType>($0.getType()).getModulus().getValue().getBitWidth(), 1)">>;
 
 def CreateZeroConstant : NativeCodeCall<
    "$_builder.create<ConstantOp>($0.getLoc(), dyn_cast<ModArithType>($0.getType()), IntegerAttr::get(dyn_cast<ModArithType>($0.getType()).getModulus().getType(), 0));">
