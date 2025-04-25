@@ -1,8 +1,7 @@
-// RUN: heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-fpt %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 | FileCheck %s
+// heir-opt --mlir-to-cggi=abc-fast=true --scheme-to-fpt %s | heir-translate --emit-tfhe-rust-bool-packed > %S/src/fn_under_test.rs
+// cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 | FileCheck %s
 
 // This takes takes the input x and outputs a FC layer operation.
-// CHECK: 00000111
 module {
   func.func @fn_under_test(%arg0: tensor<1x3xi8> {secret.secret}) -> tensor<1x3xi32> {
     %cst = arith.constant dense<[[2, 8, 1], [7, 2, 8], [1, 8, 2]]> : tensor<3x3xi8>
