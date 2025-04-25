@@ -1191,8 +1191,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakePackedPlaintextOp op) {
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
-  std::string inputVarFilledName = inputVarName + "_filled";
-  std::string inputVarFilledLengthName = inputVarName + "_filled_n";
+  std::string filledPrefix =
+      variableNames->getNameForValue(op.getResult()) + "_filled";
+  std::string inputVarFilledName = filledPrefix;
+  std::string inputVarFilledLengthName = filledPrefix + "_n";
 
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
@@ -1219,8 +1221,10 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakeCKKSPackedPlaintextOp op) {
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
-  std::string inputVarFilledName = inputVarName + "_filled";
-  std::string inputVarFilledLengthName = inputVarName + "_filled_n";
+  std::string filledPrefix =
+      variableNames->getNameForValue(op.getResult()) + "_filled";
+  std::string inputVarFilledName = filledPrefix;
+  std::string inputVarFilledLengthName = filledPrefix + "_n";
 
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
