@@ -55,6 +55,7 @@
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 #include "lib/Pipelines/BooleanPipelineRegistration.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
@@ -249,6 +250,7 @@ int main(int argc, char **argv) {
   ::mlir::heir::polynomial::registerPolynomialPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
+  registerAddClientInterfacePass();
   registerElementwiseToAffinePasses();
   registerSecretizePasses();
   registerSecretInsertMgmtPasses();
