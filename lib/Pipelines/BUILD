@@ -54,6 +54,7 @@ cc_library(
     }),
     deps = [
         ":PipelineRegistration",
+        "@heir//lib/Dialect/Arith/Conversions/ArithToCGGI",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToJaxite",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRust",
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
