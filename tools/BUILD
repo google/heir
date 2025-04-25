@@ -102,6 +102,7 @@ cc_binary(
         "@heir//lib/Pipelines:ArithmeticPipelineRegistration",
         "@heir//lib/Pipelines:BooleanPipelineRegistration",
         "@heir//lib/Pipelines:PipelineRegistration",
+        "@heir//lib/Transforms/AddClientInterface",
         "@heir//lib/Transforms/AnnotateModule",
         "@heir//lib/Transforms/AnnotateSecretness",
         "@heir//lib/Transforms/ApplyFolders",

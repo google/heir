@@ -115,5 +115,17 @@ def TensorExt_AssignLayoutOp : TensorExt_Op<"assign_layout", [Pure, AllTypesMatc
   let hasVerifier = 1;
 }
 
+def TensorExt_UnpackOp : TensorExt_Op<"unpack", [Pure]> {
+  let summary = "Unpack data from a ciphertext-semantic tensor.";
+  let description = [{
+    This op extracts the underlying cleartext data from a ciphertext-semantic
+    tensor.
+  }];
+
+  let arguments = (ins AnyType:$value, TensorExt_LayoutAttr:$layout);
+  let results = (outs AnyType:$output);
+  let hasVerifier = 1;
+}
+
 
 #endif  // LIB_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
