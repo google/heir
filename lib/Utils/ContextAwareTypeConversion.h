@@ -346,8 +346,6 @@ class ContextAwareTypeConverter {
   /// generating a cast sequence of some kind. See the respective
   /// `add*Materialization` for more information on the context for these
   /// methods.
-  Value materializeArgumentConversion(OpBuilder &builder, Location loc,
-                                      Type resultType, ValueRange inputs) const;
   Value materializeSourceConversion(OpBuilder &builder, Location loc,
                                     Type resultType, ValueRange inputs) const;
   Value materializeTargetConversion(OpBuilder &builder, Location loc,

@@ -7,7 +7,6 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/Transforms/OneToNFuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
@@ -19,8 +18,8 @@
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/OneToNTypeConversion.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -56,36 +55,32 @@ static SmallVector<Value> buildExtractOps(OpBuilder &builder,
 }
 
 class ConvertFromElementsOp
-    : public OneToNOpConversionPattern<tensor::FromElementsOp> {
+    : public OpConversionPattern<tensor::FromElementsOp> {
  public:
-  using OneToNOpConversionPattern<
-      tensor::FromElementsOp>::OneToNOpConversionPattern;
+  using OpConversionPattern<tensor::FromElementsOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      tensor::FromElementsOp op, OpAdaptor adaptor,
-      OneToNPatternRewriter &rewriter) const override {
-    // OneToNConversion has no Conversion-level illegality handling
+      tensor::FromElementsOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    // Conversion has no Conversion-level illegality handling
     if (typeConverter->isLegal(op)) return failure();
-
     // This pass only operates on tensors of static shape,
     // but no check is necessary here as from_elements' shape is always static
-
     // Replace the current op with the flattened operands.
     // This should already match the "natural" order expected by this pass.
-    rewriter.replaceOp(op, adaptor.getFlatOperands(),
-                       adaptor.getResultMapping());
+    rewriter.replaceOpWithMultiple(op, adaptor.getOperands());
     return success();
   }
 };
 
-class ConvertInsertOp : public OneToNOpConversionPattern<tensor::InsertOp> {
+class ConvertInsertOp : public OpConversionPattern<tensor::InsertOp> {
  public:
-  using OneToNOpConversionPattern<tensor::InsertOp>::OneToNOpConversionPattern;
+  using OpConversionPattern<tensor::InsertOp>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      tensor::InsertOp op, OpAdaptor adaptor,
-      OneToNPatternRewriter &rewriter) const override {
-    // OneToNConversion has no Conversion-level illegality handling
+      tensor::InsertOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    // Conversion has no Conversion-level illegality handling
     if (typeConverter->isLegal(op)) return failure();
 
     // This pass only operates on tensors of static shape
@@ -109,7 +104,7 @@ class ConvertInsertOp : public OneToNOpConversionPattern<tensor::InsertOp> {
     // replace element at offset with the "scalar" operand to be inserted
     elements[offset] = adaptor.getOperands()[0].front();
     // replace the current op with the converted operands.
-    rewriter.replaceOp(op, elements, adaptor.getResultMapping());
+    rewriter.replaceOpWithMultiple(op, {elements});
     return success();
   }
 };
@@ -119,6 +114,7 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
+    mlir::ConversionTarget target(getContext());
 
     // do not unroll tensors with more than maxSize elements
     int maxSizeInt = maxSize.getValue();
@@ -134,18 +130,25 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
                                     tensorType.getElementType());
           return success();
         });
-    typeConverter.addArgumentMaterialization(buildFromElementsOp);
     typeConverter.addSourceMaterialization(buildFromElementsOp);
     typeConverter.addTargetMaterialization(buildExtractOps);
 
+    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+      return typeConverter.isSignatureLegal(op.getFunctionType()) &&
+             typeConverter.isLegal(&op.getBody());
+    });
+    target.addDynamicallyLegalDialect<func::FuncDialect, scf::SCFDialect>(
+        [&](Operation *op) { return typeConverter.isLegal(op); });
     RewritePatternSet patterns(context);
     patterns.add<ConvertFromElementsOp, ConvertInsertOp>(typeConverter,
                                                          context);
-    scf::populateSCFStructuralOneToNTypeConversions(typeConverter, patterns);
-    populateFuncTypeConversionPatterns(typeConverter, patterns);
+    scf::populateSCFStructuralTypeConversions(typeConverter, patterns);
+    populateAnyFunctionOpInterfaceTypeConversionPattern(patterns,
+                                                        typeConverter);
+    populateReturnOpTypeConversionPattern(patterns, typeConverter);
 
-    if (mlir::failed(mlir::applyPartialOneToNConversion(
-            getOperation(), typeConverter, std::move(patterns))))
+    if (failed(applyPartialConversion(getOperation(), target,
+                                      std::move(patterns))))
       signalPassFailure();
 
     // Empty PatternSet = only run folders (should never fail)

@@ -219,15 +219,6 @@ bool ContextAwareTypeConverter::isSignatureLegal(
          newResultTypes == funcOp.getResultTypes();
 }
 
-Value ContextAwareTypeConverter::materializeArgumentConversion(
-    OpBuilder &builder, Location loc, Type resultType,
-    ValueRange inputs) const {
-  for (const MaterializationCallbackFn &fn :
-       llvm::reverse(argumentMaterializations))
-    if (Value result = fn(builder, resultType, inputs, loc)) return result;
-  return nullptr;
-}
-
 Value ContextAwareTypeConverter::materializeSourceConversion(
     OpBuilder &builder, Location loc, Type resultType,
     ValueRange inputs) const {
