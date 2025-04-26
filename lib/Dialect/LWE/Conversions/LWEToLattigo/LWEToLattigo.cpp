@@ -486,14 +486,14 @@ using ConvertBGVSubOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp,
 using ConvertBGVMulOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp,
                                          lattigo::BGVMulNewOp>;
 using ConvertBGVAddPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, bgv::AddPlainOp,
+    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, lwe::RAddOp_Plain,
                                   lattigo::BGVAddNewOp>;
 using ConvertBGVSubPlainOp =
-    ConvertRlweSubPlainOp<lattigo::BGVEvaluatorType, bgv::SubPlainOp,
+    ConvertRlweSubPlainOp<lattigo::BGVEvaluatorType, lwe::RSubOp_Plain,
                           lattigo::BGVSubNewOp, lattigo::BGVAddNewOp,
                           lattigo::RLWENegateNewOp>;
 using ConvertBGVMulPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, bgv::MulPlainOp,
+    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, lwe::RMulOp_Plain,
                                   lattigo::BGVMulNewOp>;
 
 using ConvertBGVRelinOp =
@@ -533,14 +533,14 @@ using ConvertCKKSSubOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
 using ConvertCKKSMulOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
                                           lwe::RMulOp, lattigo::CKKSMulNewOp>;
 using ConvertCKKSAddPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, ckks::AddPlainOp,
+    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, lwe::RAddOp_Plain,
                                   lattigo::CKKSAddNewOp>;
 using ConvertCKKSSubPlainOp =
-    ConvertRlweSubPlainOp<lattigo::CKKSEvaluatorType, ckks::SubPlainOp,
+    ConvertRlweSubPlainOp<lattigo::CKKSEvaluatorType, lwe::RSubOp_Plain,
                           lattigo::CKKSSubNewOp, lattigo::CKKSAddNewOp,
                           lattigo::RLWENegateNewOp>;
 using ConvertCKKSMulPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, ckks::MulPlainOp,
+    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, lwe::RMulOp_Plain,
                                   lattigo::CKKSMulNewOp>;
 
 using ConvertCKKSRelinOp =
