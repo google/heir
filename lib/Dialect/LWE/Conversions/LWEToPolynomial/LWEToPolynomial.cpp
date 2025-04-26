@@ -358,6 +358,21 @@ struct ConvertRAdd : public OpConversionPattern<RAddOp> {
   }
 };
 
+struct ConvertRAddPlain : public OpConversionPattern<RAddOp_Plain> {
+  ConvertRAddPlain(mlir::MLIRContext *context)
+    : OpConversionPattern<RAddOp_Plain>(context) {}
+  
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RAddOp_Plain op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::AddOp>(
+        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+    return success();
+  }
+};
+
 struct ConvertRSub : public OpConversionPattern<RSubOp> {
   ConvertRSub(mlir::MLIRContext *context)
       : OpConversionPattern<RSubOp>(context) {}
@@ -366,6 +381,21 @@ struct ConvertRSub : public OpConversionPattern<RSubOp> {
 
   LogicalResult matchAndRewrite(
       RSubOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
+        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+    return success();
+  }
+};
+
+struct ConvertRSubPlain : public OpConversionPattern<RSubOp_Plain> {
+  ConvertRSubPlain(mlir::MLIRContext *context)
+    : OpConversionPattern<RSubOp_Plain>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RSubOp_Plain op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
         op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
@@ -461,6 +491,52 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
     auto z2 = b.create<::mlir::heir::polynomial::MulOp>(x1, y1);
 
     auto z = b.create<tensor::FromElementsOp>(ArrayRef<Value>({z0, z1, z2}));
+
+    rewriter.replaceOp(op, z);
+    return success();
+  }
+};
+
+struct ConvertRMulPlain : public OpConversionPattern<RMulOp_Plain> {
+  ConvertRMulPlain(mlir::MLIRContext *context)
+    : OpConversionPattern<RMulOp_Plain>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  // verify num elements, verify order of ciphertext-plaintext
+  LogicalResult matchAndRewrite(
+      RMulOp_Plain op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+
+    auto x = adaptor.getLhs();
+    auto xT = cast<RankedTensorType>(x.getType());
+    auto y = adaptor.getRhs();
+    auto yT = cast<RankedTensorType>(y.getType());
+
+    if (xT.getNumElements() != 2 || yT.getNumElements() != 1) {
+      op.emitError() << "`lwe.rmul_plain` expects ciphertext as two polynomials and plaintext as 1, got "
+                     << xT.getNumElements() << " and " << yT.getNumElements();
+      return failure();
+    }
+
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    // z = mul([x0, x1], [y0]) := [x0y0, x1y0] (Multiply ciphertext [2dim] with plaintext [1dim])
+    // bgv and ckks canonicalize with ciphertext first
+    auto i0 = b.create<arith::ConstantIndexOp>(0);
+    auto i1 = b.create<arith::ConstantIndexOp>(1);
+
+    auto x0 =
+        b.create<tensor::ExtractOp>(xT.getElementType(), x, ValueRange{i0});
+    auto x1 =
+        b.create<tensor::ExtractOp>(xT.getElementType(), x, ValueRange{i1});
+
+    auto y0 =
+        b.create<tensor::ExtractOp>(yT.getElementType(), y, ValueRange{i0});
+
+    auto z0 = b.create<::mlir::heir::polynomial::MulOp>(x0, y0);
+    auto z1 = b.create<::mlir::heir::polynomial::MulOp>(x1,y0);
+
+    auto z = b.create<tensor::FromElementsOp>(ArrayRef<Value>({z0,z1}));
 
     rewriter.replaceOp(op, z);
     return success();

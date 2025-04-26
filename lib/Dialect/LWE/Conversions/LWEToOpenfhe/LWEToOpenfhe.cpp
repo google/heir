@@ -400,16 +400,13 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         // TODO (#1193): Extend "common lwe" to support ctxt-ptxt ops
 
         // AddPlain
-        ConvertCiphertextPlaintextOp<bgv::AddPlainOp, openfhe::AddPlainOp>,
-        ConvertCiphertextPlaintextOp<ckks::AddPlainOp, openfhe::AddPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RAddOp_Plain, openfhe::AddPlainOp>,
 
         // SubPlain
-        ConvertCiphertextPlaintextOp<bgv::SubPlainOp, openfhe::SubPlainOp>,
-        ConvertCiphertextPlaintextOp<ckks::SubPlainOp, openfhe::SubPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RSubOp_Plain, openfhe::SubPlainOp>,
 
         // MulPlain
-        ConvertCiphertextPlaintextOp<bgv::MulPlainOp, openfhe::MulPlainOp>,
-        ConvertCiphertextPlaintextOp<ckks::MulPlainOp, openfhe::MulPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RMulOp_Plain, openfhe::MulPlainOp>,
 
         // Rotate
         ConvertRotateOp<bgv::RotateColumnsOp, openfhe::RotOp>,
