@@ -26,7 +26,7 @@ struct BGVToLWE : public impl::BGVToLWEBase<BGVToLWE> {
                  Convert<SubOp, lwe::RSubOp>, Convert<SubPlainOp, lwe::RSubOp_Plain>,
                  Convert<NegateOp, lwe::RNegateOp>, 
                  Convert<MulOp, lwe::RMulOp>, Convert<MulPlainOp, lwe::RMulOp_Plain>,
-                 lwe::ConvertExtract<ExtractOp, MulPlainOp, RotateColumnsOp> >(
+                 lwe::ConvertExtract<ExtractOp, lwe::RMulOp_Plain, RotateColumnsOp> >(
         context);
     walkAndApplyPatterns(module, std::move(patterns));
   }

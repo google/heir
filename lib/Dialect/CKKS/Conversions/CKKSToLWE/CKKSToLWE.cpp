@@ -28,7 +28,7 @@ struct CKKSToLWE : public impl::CKKSToLWEBase<CKKSToLWE> {
                  Convert<SubOp, lwe::RSubOp>, Convert<SubPlainOp, lwe::RSubOp_Plain>,
                  Convert<NegateOp, lwe::RNegateOp>,
                  Convert<MulOp, lwe::RMulOp>, Convert<MulPlainOp, lwe::RMulOp_Plain>,
-                 lwe::ConvertExtract<ExtractOp, MulPlainOp, RotateOp> >(
+                 lwe::ConvertExtract<ExtractOp, lwe::RMulOp_Plain, RotateOp> >(
         context);
     walkAndApplyPatterns(module, std::move(patterns));
   }
