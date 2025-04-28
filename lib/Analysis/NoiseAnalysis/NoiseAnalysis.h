@@ -39,9 +39,11 @@ class NoiseAnalysis
   using dataflow::SparseForwardDataFlowAnalysis<
       LatticeType>::SparseForwardDataFlowAnalysis;
 
-  NoiseAnalysis(DataFlowSolver &solver, const SchemeParamType &schemeParam)
+  NoiseAnalysis(DataFlowSolver &solver, const SchemeParamType &schemeParam,
+                const NoiseModelT &noiseModel)
       : dataflow::SparseForwardDataFlowAnalysis<LatticeType>(solver),
-        schemeParam(schemeParam) {}
+        schemeParam(schemeParam),
+        noiseModel(noiseModel) {}
 
   void setToEntryState(LatticeType *lattice) override;
 
@@ -59,6 +61,7 @@ class NoiseAnalysis
 
  private:
   const SchemeParamType schemeParam;
+  const NoiseModelT &noiseModel;
 };
 
 }  // namespace heir

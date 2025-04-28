@@ -15,8 +15,20 @@
 
 namespace mlir::heir {
 
+enum DataType { Bool, Integer };
+
 #ifndef HEIR_NO_YOSYS
-struct MLIRToCGGIPipelineOptions : public YosysOptimizerPipelineOptions {};
+// If Yosys is enabled, also add all yosys optimizer pipeline options.
+struct MLIRToCGGIPipelineOptions : public YosysOptimizerPipelineOptions {
+  PassOptions::Option<enum DataType> dataType{
+      *this, "data-type",
+      llvm::cl::desc("Data type to use for arithmetization, yosys must be "
+                     "enabled for Boolean."),
+      llvm::cl::init(Bool),
+      llvm::cl::values(
+          clEnumVal(Bool, "booleanize with Yosys"),
+          clEnumVal(Integer, "decompose operations into 32 bit data types"))};
+};
 
 using CGGIPipelineBuilder =
     std::function<void(OpPassManager &, const MLIRToCGGIPipelineOptions &)>;
@@ -28,6 +40,25 @@ void mlirToCGGIPipeline(OpPassManager &pm,
                         const MLIRToCGGIPipelineOptions &options,
                         const std::string &yosysFilesPath,
                         const std::string &abcPath);
+
+#else
+struct MLIRToCGGIPipelineOptions
+    : public PassPipelineOptions<MLIRToCGGIPipelineOptions> {
+  PassOptions::Option<enum DataType> dataType{
+      *this, "data-type",
+      llvm::cl::desc("Data type to use for arithmetization."),
+      llvm::cl::init(Integer),
+      llvm::cl::values(
+          clEnumVal(Integer, "decompose operations into 32 bit data types"))};
+};
+
+using CGGIPipelineBuilder =
+    std::function<void(OpPassManager &, const MLIRToCGGIPipelineOptions &)>;
+
+CGGIPipelineBuilder mlirToCGGIPipelineBuilder();
+
+void mlirToCGGIPipeline(OpPassManager &pm,
+                        const MLIRToCGGIPipelineOptions &options);
 #endif
 
 struct CGGIBackendOptions : public PassPipelineOptions<CGGIBackendOptions> {

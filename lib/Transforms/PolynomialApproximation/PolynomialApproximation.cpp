@@ -207,7 +207,10 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
     TypedFloatPolynomialAttr polyAttr =
         TypedFloatPolynomialAttr::get(polyType, poly);
-    rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, op.getOperand());
+    auto evalOp =
+        rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, op.getOperand());
+    evalOp->setAttr("domain_lower", domainLowerAttr);
+    evalOp->setAttr("domain_upper", domainUpperAttr);
     return success();
   }
 
@@ -307,7 +310,13 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
         PolynomialType::get(ctx, RingAttr::get(Float64Type::get(ctx)));
     TypedFloatPolynomialAttr polyAttr =
         TypedFloatPolynomialAttr::get(polyType, poly);
-    rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, nonConstOperand);
+    auto evalOp =
+        rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, nonConstOperand);
+    // These attributes need to be preserved when the polynomial is in the
+    // Chebyshev basis, so that later passes can apply domain rescaling
+    // properly.
+    evalOp->setAttr("domain_lower", domainLowerAttr);
+    evalOp->setAttr("domain_upper", domainUpperAttr);
     return success();
   }
 

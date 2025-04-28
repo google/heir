@@ -214,16 +214,32 @@ void ConstantOp::print(OpAsmPrinter &p) {
 
 // constant(c0) -> c0 mod q
 OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
-  // Check if the value is an IntegerAttr
-  auto intAttr = dyn_cast_if_present<IntegerAttr>(adaptor.getValue());
-  if (!intAttr) return {};
-
-  auto modType = dyn_cast_if_present<ModArithType>(getType());
+  Type type = getElementTypeOrSelf(getType());
+  auto modType = dyn_cast<ModArithType>(type);
   if (!modType) return {};
+  auto storageType = modType.getModulus().getType();
 
   // Retrieve the modulus value and its bit width
   APInt modulus = modType.getModulus().getValue();
   unsigned modBitWidth = modulus.getBitWidth();
+
+  auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(adaptor.getValue());
+  if (denseElementsAttr) {
+    assert(isa<ShapedType>(getType()) &&
+           "non-shaped type with shaped attribute");
+    ShapedType shapedType = cast<ShapedType>(getType());
+    SmallVector<APInt, 4> values;
+    for (const auto value : denseElementsAttr.getValues<APInt>()) {
+      values.push_back(value.zextOrTrunc(modBitWidth).urem(modulus));
+    }
+    // Have to use an integer type here because DenseIntElementsAttr
+    // requires integer types.
+    return DenseIntElementsAttr::get(
+        RankedTensorType::get(shapedType.getShape(), storageType), values);
+  }
+
+  auto intAttr = dyn_cast_if_present<IntegerAttr>(adaptor.getValue());
+  if (!intAttr) return {};
 
   // Extract the actual integer values
   APInt cst = intAttr.getValue();
@@ -246,8 +262,7 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
   });
 
   // Create the result
-  auto elementType = modType.getModulus().getType();
-  return IntegerAttr::get(elementType, foldedVal);
+  return IntegerAttr::get(storageType, foldedVal);
 }
 
 /// Helper function to handle common folding logic for binary arithmetic
@@ -259,6 +274,8 @@ template <typename FoldAdaptor, typename FoldBinFn>
 static OpFoldResult foldBinModOp(Operation *op, FoldAdaptor adaptor,
                                  FoldBinFn &&foldBinFn,
                                  llvm::StringRef opName) {
+  // TODO(#1759): support dense attributes
+
   // Check if lhs and rhs are IntegerAttrs
   auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs());
   auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs());
@@ -338,6 +355,7 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
 Operation *ModArithDialect::materializeConstant(OpBuilder &builder,
                                                 Attribute value, Type type,
                                                 Location loc) {
+  // TODO(#1759): support dense attributes
   auto intAttr = dyn_cast_if_present<IntegerAttr>(value);
   if (!intAttr) return nullptr;
   auto modType = dyn_cast_if_present<ModArithType>(type);

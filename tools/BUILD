@@ -6,6 +6,9 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+# https://bazel.build/remote/output-directories#layout-diagram
+WORKSPACE_PATH = ""
+
 # Custom `mlir-opt` replacement that links our dialect and passes
 cc_binary(
     name = "heir-opt",
@@ -25,7 +28,7 @@ cc_binary(
     defines = select({
         "@heir//:config_enable_yosys": [
             "HEIR_ABC_BINARY=\\\"$(rootpath @edu_berkeley_abc//:abc)\\\"",
-            "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + "lib/Transforms/YosysOptimizer/yosys\\\"",
+            "HEIR_YOSYS_SCRIPTS_DIR=\\\"" + WORKSPACE_PATH + "lib/Transforms/YosysOptimizer/yosys\\\"",
         ],
         "//conditions:default": ["HEIR_NO_YOSYS=1"],
     }),

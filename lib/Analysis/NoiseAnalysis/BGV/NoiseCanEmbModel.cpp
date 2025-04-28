@@ -21,17 +21,19 @@ namespace bgv {
 
 using Model = NoiseCanEmbModel;
 
-double Model::toLogBound(const LocalParamType &param, const StateType &noise) {
+double Model::toLogBound(const LocalParamType &param,
+                         const StateType &noise) const {
   auto cm = getRingExpansionFactor(param);
   // ||a|| <= c_m * ||a||^{can}
   return log(cm * noise.getValue()) / log(2);
 }
 
-double Model::toLogBudget(const LocalParamType &param, const StateType &noise) {
+double Model::toLogBudget(const LocalParamType &param,
+                          const StateType &noise) const {
   return toLogTotal(param) - toLogBound(param, noise);
 }
 
-double Model::toLogTotal(const LocalParamType &param) {
+double Model::toLogTotal(const LocalParamType &param) const {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
   for (auto i = 0; i <= param.getCurrentLevel(); ++i) {
@@ -41,7 +43,7 @@ double Model::toLogTotal(const LocalParamType &param) {
 }
 
 std::string Model::toLogBoundString(const LocalParamType &param,
-                                    const StateType &noise) {
+                                    const StateType &noise) const {
   auto logBound = toLogBound(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBound;
@@ -49,31 +51,31 @@ std::string Model::toLogBoundString(const LocalParamType &param,
 }
 
 std::string Model::toLogBudgetString(const LocalParamType &param,
-                                     const StateType &noise) {
+                                     const StateType &noise) const {
   auto logBudget = toLogBudget(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBudget;
   return stream.str();
 }
 
-std::string Model::toLogTotalString(const LocalParamType &param) {
+std::string Model::toLogTotalString(const LocalParamType &param) const {
   auto logTotal = toLogTotal(param);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logTotal;
   return stream.str();
 }
 
-double Model::getVarianceErr(const LocalParamType &param) {
+double Model::getVarianceErr(const LocalParamType &param) const {
   auto std0 = param.getSchemeParam()->getStd0();
   return std0 * std0;
 }
 
-double Model::getVarianceKey(const LocalParamType &param) {
+double Model::getVarianceKey(const LocalParamType &param) const {
   // assume UNIFORM_TERNARY
   return 2.0 / 3.0;
 }
 
-double Model::getRingExpansionFactor(const LocalParamType &param) {
+double Model::getRingExpansionFactor(const LocalParamType &param) const {
   [[maybe_unused]] auto N = param.getSchemeParam()->getRingDim();
   // Assert that N is a power of 2
   assert((N > 0) && ((N & (N - 1)) == 0) && "N must be a power of 2");
@@ -81,14 +83,14 @@ double Model::getRingExpansionFactor(const LocalParamType &param) {
   return 1.;
 }
 
-double Model::getAssuranceFactor(const LocalParamType &param) {
+double Model::getAssuranceFactor(const LocalParamType &param) const {
   // probability that a exceeds its standard deviation by more than a factor of
   // D is roughly erfc(D) with erfc(6) = 2^-55, erfc(5) = 2^-40, erfc(4.5) =
   // 2^-32
   return 6.;
 }
 
-double Model::getBScale(const LocalParamType &param) {
+double Model::getBScale(const LocalParamType &param) const {
   auto varianceKey = getVarianceKey(param);
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto d = getAssuranceFactor(param);
@@ -99,7 +101,7 @@ double Model::getBScale(const LocalParamType &param) {
   return d * t * sqrt(innerTerm);
 }
 
-double Model::getBKs(const LocalParamType &param) {
+double Model::getBKs(const LocalParamType &param) const {
   auto varianceError = getVarianceErr(param);
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto d = getAssuranceFactor(param);
@@ -109,11 +111,12 @@ double Model::getBKs(const LocalParamType &param) {
   return d * t * phi * sqrt(varianceError / 12.);
 }
 
-double Model::getPhi(const LocalParamType &param) {
+double Model::getPhi(const LocalParamType &param) const {
   return param.getSchemeParam()->getRingDim();
 }
 
-typename Model::StateType Model::evalEncryptPk(const LocalParamType &param) {
+typename Model::StateType Model::evalEncryptPk(
+    const LocalParamType &param) const {
   auto varianceError = getVarianceErr(param);
   // uniform ternary
   auto varianceKey = getVarianceKey(param);
@@ -131,7 +134,8 @@ typename Model::StateType Model::evalEncryptPk(const LocalParamType &param) {
   return StateType::of(fresh);
 }
 
-typename Model::StateType Model::evalEncryptSk(const LocalParamType &param) {
+typename Model::StateType Model::evalEncryptSk(
+    const LocalParamType &param) const {
   auto varianceError = getVarianceErr(param);
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto d = getAssuranceFactor(param);
@@ -145,7 +149,8 @@ typename Model::StateType Model::evalEncryptSk(const LocalParamType &param) {
   return StateType::of(fresh);
 }
 
-typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
+typename Model::StateType Model::evalEncrypt(
+    const LocalParamType &param) const {
   auto usePublicKey = param.getSchemeParam()->getUsePublicKey();
   auto isEncryptionTechniqueExtended =
       param.getSchemeParam()->isEncryptionTechniqueExtended();
@@ -160,7 +165,8 @@ typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
   return evalEncryptSk(param);
 }
 
-typename Model::StateType Model::evalConstant(const LocalParamType &param) {
+typename Model::StateType Model::evalConstant(
+    const LocalParamType &param) const {
   auto t = param.getSchemeParam()->getPlaintextModulus();
   auto phi = getPhi(param);
 
@@ -170,20 +176,20 @@ typename Model::StateType Model::evalConstant(const LocalParamType &param) {
 }
 
 typename Model::StateType Model::evalAdd(const StateType &lhs,
-                                         const StateType &rhs) {
+                                         const StateType &rhs) const {
   // v_add <= v_0 + v_1
   return StateType::of(lhs.getValue() + rhs.getValue());
 }
 
 typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
                                          const StateType &lhs,
-                                         const StateType &rhs) {
+                                         const StateType &rhs) const {
   // v_mul <= v_0 * v_1
   return StateType::of(lhs.getValue() * rhs.getValue());
 }
 
 typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
-                                               const StateType &input) {
+                                               const StateType &input) const {
   auto currentLogqi =
       inputParam.getSchemeParam()->getLogqi()[inputParam.getCurrentLevel()];
   double modulus = pow(2.0, currentLogqi);
@@ -202,7 +208,7 @@ typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
 }
 
 typename Model::StateType Model::evalRelinearizeHYBRID(
-    const LocalParamType &inputParam, const StateType &input) {
+    const LocalParamType &inputParam, const StateType &input) const {
   // for v_input, after modup and moddown, it remains the same (with rounding).
   // We only need to consider the error from key switching key
   // and rounding error during moddown.
@@ -248,7 +254,7 @@ typename Model::StateType Model::evalRelinearizeHYBRID(
 }
 
 typename Model::StateType Model::evalRelinearize(
-    const LocalParamType &inputParam, const StateType &input) {
+    const LocalParamType &inputParam, const StateType &input) const {
   // assume HYBRID
   // if we further introduce BV to SchemeParam we can have alternative
   // implementation.

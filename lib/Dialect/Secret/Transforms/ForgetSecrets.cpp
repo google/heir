@@ -61,7 +61,6 @@ class ForgetSecretsTypeConverter : public TypeConverter {
     });
 
     addSourceMaterialization(materializeSource);
-    addArgumentMaterialization(materializeSource);
     addTargetMaterialization(materializeTarget);
   }
 };

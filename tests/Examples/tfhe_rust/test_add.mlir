@@ -1,6 +1,6 @@
 // This test ensures the testing harness is working properly with minimal codegen.
 
-// RUN: heir-translate %s --emit-tfhe-rust > %S/src/fn_under_test.rs
+// RUN: heir-translate %s --emit-tfhe-rust --use-levels > %S/src/fn_under_test.rs
 // RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main -- 2 3 --message_bits=3 | FileCheck %s
 
 !sks = !tfhe_rust.server_key

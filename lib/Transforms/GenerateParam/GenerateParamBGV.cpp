@@ -51,8 +51,8 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
   template <typename NoiseAnalysis>
   typename NoiseAnalysis::SchemeParamType generateParamByGap(
       DataFlowSolver *solver,
-      const typename NoiseAnalysis::SchemeParamType &schemeParam) {
-    using NoiseModel = typename NoiseAnalysis::NoiseModel;
+      const typename NoiseAnalysis::SchemeParamType &schemeParam,
+      const typename NoiseAnalysis::NoiseModel &noiseModel) {
     using NoiseLatticeType = typename NoiseAnalysis::LatticeType;
     using LocalParamType = typename NoiseAnalysis::LocalParamType;
 
@@ -76,7 +76,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     auto getBound = [&](Value value) {
       auto localParam = getLocalParam(value);
       auto noiseLattice = solver->lookupState<NoiseLatticeType>(value);
-      return NoiseModel::toLogBound(localParam, noiseLattice->getValue());
+      return noiseModel.toLogBound(localParam, noiseLattice->getValue());
     };
 
     auto firstModSize = 0;
@@ -153,15 +153,14 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
                 : bgv::BGVEncryptionTechnique::standard));
   }
 
-  template <typename NoiseAnalysis>
-  void run() {
+  template <typename NoiseModel>
+  void run(const NoiseModel &model) {
     int maxLevel = getMaxLevel();
 
     // plaintext modulus from command line option
-    auto schemeParam =
-        NoiseAnalysis::SchemeParamType::getConservativeSchemeParam(
-            maxLevel, plaintextModulus, slotNumber, usePublicKey,
-            encryptionTechniqueExtended);
+    auto schemeParam = NoiseModel::SchemeParamType::getConservativeSchemeParam(
+        maxLevel, plaintextModulus, slotNumber, usePublicKey,
+        encryptionTechniqueExtended);
 
     LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
                             << schemeParam << "\n");
@@ -171,15 +170,15 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     solver.load<dataflow::SparseConstantPropagation>();
     // NoiseAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
-    solver.load<NoiseAnalysis>(schemeParam);
+    solver.load<NoiseAnalysis<NoiseModel>>(schemeParam, model);
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
       signalPassFailure();
     }
 
     // use previous analysis result to generate concrete scheme param
-    auto concreteSchemeParam =
-        generateParamByGap<NoiseAnalysis>(&solver, schemeParam);
+    auto concreteSchemeParam = generateParamByGap<NoiseAnalysis<NoiseModel>>(
+        &solver, schemeParam, model);
 
     LLVM_DEBUG(llvm::dbgs() << "Concrete Scheme Param:\n"
                             << concreteSchemeParam << "\n");
@@ -217,15 +216,19 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     }
 
     if (model == "bgv-noise-by-bound-coeff-worst-case") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffWorstCaseModel>>();
+      bgv::NoiseByBoundCoeffModel model(NoiseModelVariant::WORST_CASE);
+      run<bgv::NoiseByBoundCoeffModel>(model);
     } else if (model == "bgv-noise-by-bound-coeff-average-case" ||
                model == "bgv-noise-kpz21") {
-      run<NoiseAnalysis<bgv::NoiseByBoundCoeffAverageCaseModel>>();
+      bgv::NoiseByBoundCoeffModel model(NoiseModelVariant::AVERAGE_CASE);
+      run<bgv::NoiseByBoundCoeffModel>(model);
     } else if (model == "bgv-noise-by-variance-coeff" ||
                model == "bgv-noise-mp24") {
-      run<NoiseAnalysis<bgv::NoiseByVarianceCoeffModel>>();
+      bgv::NoiseByVarianceCoeffModel model;
+      run<bgv::NoiseByVarianceCoeffModel>(model);
     } else if (model == "bgv-noise-mono") {
-      run<NoiseAnalysis<bgv::NoiseCanEmbModel>>();
+      bgv::NoiseCanEmbModel model;
+      run<bgv::NoiseCanEmbModel>(model);
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();

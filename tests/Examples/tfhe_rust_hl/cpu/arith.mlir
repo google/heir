@@ -1,5 +1,5 @@
 // RUN: heir-translate %s --emit-tfhe-rust-hl > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml -- 27 | FileCheck %s
+// RUN: cargo run --release --bin main --manifest-path %S/Cargo.toml -- 27 | FileCheck %s
 
 // CHECK: 1320
 module attributes {tf_saved_model.semantics} {

@@ -307,6 +307,12 @@ int main(int argc, char **argv) {
       "Convert a func using standard MLIR dialects to FHE using "
       "CGGI.",
       mlirToCGGIPipelineBuilder(yosysRunfilesEnvPath, abcEnvPath));
+#else
+  PassPipelineRegistration<mlir::heir::MLIRToCGGIPipelineOptions>(
+      "mlir-to-cggi",
+      "Convert a func using standard MLIR dialects to FHE using "
+      "CGGI.",
+      mlirToCGGIPipelineBuilder());
 #endif
 
   // Dialect conversion passes in HEIR

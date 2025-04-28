@@ -22,9 +22,8 @@ namespace bfv {
 // "Revisiting Homomorphic Encryption Schemes for Finite Fields"
 // to see how the formulae there are adapted to this model
 
-using Model = NoiseByVarianceCoeffModel;
-
-double Model::toLogBound(const LocalParamType &param, const StateType &noise) {
+double NoiseByVarianceCoeffModel::toLogBound(const LocalParamType &param,
+                                             const StateType &noise) const {
   // error probability 0.1%
   // though this only holds if every random variable is Gaussian
   // or similar to Gaussian
@@ -36,11 +35,13 @@ double Model::toLogBound(const LocalParamType &param, const StateType &noise) {
   return log2(bound);
 }
 
-double Model::toLogBudget(const LocalParamType &param, const StateType &noise) {
+double NoiseByVarianceCoeffModel::toLogBudget(const LocalParamType &param,
+                                              const StateType &noise) const {
   return toLogTotal(param) - toLogBound(param, noise);
 }
 
-double Model::toLogTotal(const LocalParamType &param) {
+double NoiseByVarianceCoeffModel::toLogTotal(
+    const LocalParamType &param) const {
   double total = 0;
   auto logqi = param.getSchemeParam()->getLogqi();
   for (auto i = 0; i <= param.getSchemeParam()->getLevel(); ++i) {
@@ -50,40 +51,44 @@ double Model::toLogTotal(const LocalParamType &param) {
   return total - logT - 1.0;
 }
 
-std::string Model::toLogBoundString(const LocalParamType &param,
-                                    const StateType &noise) {
+std::string NoiseByVarianceCoeffModel::toLogBoundString(
+    const LocalParamType &param, const StateType &noise) const {
   auto logBound = toLogBound(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBound;
   return stream.str();
 }
 
-std::string Model::toLogBudgetString(const LocalParamType &param,
-                                     const StateType &noise) {
+std::string NoiseByVarianceCoeffModel::toLogBudgetString(
+    const LocalParamType &param, const StateType &noise) const {
   auto logBudget = toLogBudget(param, noise);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logBudget;
   return stream.str();
 }
 
-std::string Model::toLogTotalString(const LocalParamType &param) {
+std::string NoiseByVarianceCoeffModel::toLogTotalString(
+    const LocalParamType &param) const {
   auto logTotal = toLogTotal(param);
   std::stringstream stream;
   stream << std::fixed << std::setprecision(2) << logTotal;
   return stream.str();
 }
 
-double Model::getVarianceErr(const LocalParamType &param) {
+double NoiseByVarianceCoeffModel::getVarianceErr(
+    const LocalParamType &param) const {
   auto std0 = param.getSchemeParam()->getStd0();
   return std0 * std0;
 }
 
-double Model::getVarianceKey(const LocalParamType &param) {
+double NoiseByVarianceCoeffModel::getVarianceKey(
+    const LocalParamType &param) const {
   // assume UNIFORM_TERNARY
   return 2.0 / 3.0;
 }
 
-typename Model::StateType Model::evalEncryptPk(const LocalParamType &param) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalEncryptPk(const LocalParamType &param) const {
   auto varianceError = getVarianceErr(param);
   // uniform ternary
   auto varianceKey = getVarianceKey(param);
@@ -98,7 +103,8 @@ typename Model::StateType Model::evalEncryptPk(const LocalParamType &param) {
   return StateType::of(fresh, 1);
 }
 
-typename Model::StateType Model::evalEncryptSk(const LocalParamType &param) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalEncryptSk(const LocalParamType &param) const {
   auto varianceError = getVarianceErr(param);
 
   // secret key s
@@ -110,7 +116,8 @@ typename Model::StateType Model::evalEncryptSk(const LocalParamType &param) {
   return StateType::of(fresh, 0);
 }
 
-typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalEncrypt(const LocalParamType &param) const {
   auto usePublicKey = param.getSchemeParam()->getUsePublicKey();
   auto isEncryptionTechniqueExtended =
       param.getSchemeParam()->isEncryptionTechniqueExtended();
@@ -131,13 +138,15 @@ typename Model::StateType Model::evalEncrypt(const LocalParamType &param) {
   return evalEncryptSk(param);
 }
 
-typename Model::StateType Model::evalConstant(const LocalParamType &param) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalConstant(const LocalParamType &param) const {
   // constant is v = (q/t)m + 0
   return StateType::of(0, 0);
 }
 
-typename Model::StateType Model::evalAdd(const StateType &lhs,
-                                         const StateType &rhs) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalAdd(const StateType &lhs,
+                                   const StateType &rhs) const {
   // v_add = v_0 + v_1
   // assuming independence of course
   // max degree of 's' in v_add is max(d_0, d_1)
@@ -145,9 +154,10 @@ typename Model::StateType Model::evalAdd(const StateType &lhs,
                        std::max(lhs.getDegree(), rhs.getDegree()));
 }
 
-typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
-                                         const StateType &lhs,
-                                         const StateType &rhs) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalMul(const LocalParamType &resultParam,
+                                   const StateType &lhs,
+                                   const StateType &rhs) const {
   auto ringDim = resultParam.getSchemeParam()->getRingDim();
   auto v0 = lhs.getValue();
   auto d0 = lhs.getDegree();
@@ -207,8 +217,9 @@ typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
   return StateType::of(term1 + term2 + term3, newDegree);
 }
 
-typename Model::StateType Model::evalRelinearizeHYBRID(
-    const LocalParamType &inputParam, const StateType &input) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalRelinearizeHYBRID(
+    const LocalParamType &inputParam, const StateType &input) const {
   // for v_input, after modup and moddown, it remains the same (with rounding).
   // We only need to consider the error from key switching key
   // and rounding error during moddown.
@@ -259,8 +270,9 @@ typename Model::StateType Model::evalRelinearizeHYBRID(
   return StateType::of(input.getValue() + scaled + added, input.getDegree());
 }
 
-typename Model::StateType Model::evalRelinearize(
-    const LocalParamType &inputParam, const StateType &input) {
+typename NoiseByVarianceCoeffModel::StateType
+NoiseByVarianceCoeffModel::evalRelinearize(const LocalParamType &inputParam,
+                                           const StateType &input) const {
   // assume HYBRID
   // if we further introduce BV to SchemeParam we can have alternative
   // implementation.

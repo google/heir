@@ -102,17 +102,30 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
       return failure();
     }
 
-    auto denseIntAttr = dyn_cast<DenseIntElementsAttr>(op.getValue());
-    if (denseIntAttr) {
-      auto result = b.create<mod_arith::ConstantOp>(
-          typeConverter->convertType(op.getType()), denseIntAttr);
+    Type newResultType = typeConverter->convertType(op.getResult().getType());
+    mod_arith::ModArithType newResultEltTy =
+        cast<mod_arith::ModArithType>(getElementTypeOrSelf(newResultType));
+    IntegerType storageType =
+        cast<IntegerType>(newResultEltTy.getModulus().getType());
+    unsigned newWidth = storageType.getWidth();
+
+    if (auto denseIntAttr = dyn_cast<DenseIntElementsAttr>(op.getValue())) {
+      auto shapedType = cast<ShapedType>(newResultType);
+      SmallVector<APInt, 4> newValues;
+      for (const APInt &val : denseIntAttr.getValues<APInt>()) {
+        newValues.push_back(val.sextOrTrunc(newWidth));
+      }
+      TypedAttr newAttr = DenseIntElementsAttr::get(
+          RankedTensorType::get(shapedType.getShape(), storageType), newValues);
+      auto result = b.create<mod_arith::ConstantOp>(shapedType, newAttr);
       rewriter.replaceOp(op, result);
       return success();
     }
 
-    auto result = b.create<mod_arith::ConstantOp>(
-        typeConverter->convertType(op.getType()),
-        cast<IntegerAttr>(op.getValue()));
+    IntegerAttr oldAttr = cast<IntegerAttr>(op.getValue());
+    IntegerAttr newAttr =
+        IntegerAttr::get(storageType, oldAttr.getValue().zextOrTrunc(newWidth));
+    auto result = b.create<mod_arith::ConstantOp>(newResultType, newAttr);
 
     rewriter.replaceOp(op, result);
     return success();
