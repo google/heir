@@ -12,6 +12,7 @@ use inv_sub_bytes_rs_lib;
 
 type SecretBlock = [[Ciphertext; 8]; 16];
 
+// Encrypt a list of 16 u8s
 pub fn encrypt_u8(value: u8, client_key: &ClientKey) -> [Ciphertext; 8] {
     core::array::from_fn(|shift| {
         let bit = (value >> shift) & 1;
@@ -72,11 +73,13 @@ pub fn aes_decrypt_block(
     block = inv_mix_columns_rs_lib::inv_mix_columns(&server_key, &block);
     block = inv_shift_rows_rs_lib::inv_shift_rows(&block);
     block = inv_sub_bytes_rs_lib::inv_sub_bytes(&server_key, &block);
+
     for i in 1..(n_rounds + 1) {
         block = add_round_key_rs_lib::add_round_key(&server_key, &block, &key[n_rounds+1-i]);
         block = inv_mix_columns_rs_lib::inv_mix_columns(&server_key, &block);
         block = inv_shift_rows_rs_lib::inv_shift_rows(&block);
         block = inv_sub_bytes_rs_lib::inv_sub_bytes(&server_key, &block);
+        let output = decrypt_block(&block, &client_key);
     }
     block = add_round_key_rs_lib::add_round_key(&server_key, &block, &key[0]);
     block
@@ -109,8 +112,8 @@ fn main() {
         ct_vec_expanded_key.try_into().expect("Failed to convert to array");
 
     println!("input: {:?}", block);
-    let aes_encrypted = aes_encrypt_block(&server_key, &ct_block, &ct_expaned_key, 9, &client_key);
-    let aes_decrypted = aes_decrypt_block(&server_key, &aes_encrypted, &ct_expaned_key, 9, &client_key);
+    let aes_encrypted = aes_encrypt_block(&server_key, &ct_block, &ct_expaned_key, 9);
+    let aes_decrypted = aes_decrypt_block(&server_key, &aes_encrypted, &ct_expaned_key, 9);
     let output = decrypt_block(&aes_decrypted, &client_key);
     println!("output: {:?}", output);
 }

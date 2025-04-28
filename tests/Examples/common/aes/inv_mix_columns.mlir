@@ -21,7 +21,7 @@ module {
         %10 = arith.xori %6, %5 : i8
         %argz = arith.select %91, %10, %6 : i8
         // check if MSB of x is set
-        %14 = arith.cmpi sle, %5, %c0 : i8
+        %14 = arith.cmpi slt, %5, %c0 : i8
         %11 = arith.constant 1 : i8
         %12 = arith.shli %5, %11 : i8
         %17 = arith.constant 27 : i8
