@@ -560,10 +560,11 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
     RewritePatternSet patterns(context);
 
     patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd,
-                 ConvertRSub, ConvertRNegate, ConvertRMul>(typeConverter,
+                 ConvertRSub, ConvertRNegate, ConvertRMul, 
+                 ConvertRAddPlain, ConvertRSubPlain, ConvertRMulPlain>(typeConverter,
                                                            context);
     target.addIllegalOp<RLWEDecryptOp, RLWEEncryptOp, RAddOp, RSubOp, RNegateOp,
-                        RMulOp>();
+                        RMulOp, RAddOp_Plain, RSubOp_Plain, RMulOp_Plain>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 

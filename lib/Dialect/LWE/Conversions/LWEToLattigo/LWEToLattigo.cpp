@@ -621,6 +621,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
+                      lwe::RMulOp_Plain, lwe::RSubOp_Plain, lwe::RAddOp_Plain,
                       lwe::ReinterpretApplicationDataOp>();
 
     RewritePatternSet patterns(context);

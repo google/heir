@@ -188,7 +188,7 @@ def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdapt
   let hasVerifier = 1;
 }
 
-def LWE_RMulOp_Plain : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative, SameOperandsAndResultPlaintextTypes]> {
+def LWE_RMulOp_Plain : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative]> {
   let summary = "Multiplication between RLWE ciphertext-plaintext";
   let hasVerifier = 1;
 }
