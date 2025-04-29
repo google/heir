@@ -24,3 +24,20 @@ cc_test(
         "@llvm-project//mlir:Support",
     ],
 )
+
+cc_library(
+    name = "ChebyshevDecomposition",
+    srcs = ["ChebyshevDecomposition.cpp"],
+    hdrs = ["ChebyshevDecomposition.h"],
+    deps = ["@llvm-project//llvm:Support"],
+)
+
+cc_test(
+    name = "ChebyshevDecompositionTest",
+    srcs = ["ChebyshevDecompositionTest.cpp"],
+    deps = [
+        ":ChebyshevDecomposition",
+        "@googletest//:gtest_main",
+        "@llvm-project//llvm:Support",
+    ],
+)
