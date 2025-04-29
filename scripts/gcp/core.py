@@ -50,7 +50,8 @@ class Core:
     parser.add_argument("--project", type=str, required=False)
     parser.add_argument("--zone", type=str, required=False)
 
-  def from_args(self, args) -> "Core":
+  @staticmethod
+  def from_args(args) -> "Core":
     """Creates a Core object from the given args."""
     return Core(project=args.project, zone=args.zone)
 
