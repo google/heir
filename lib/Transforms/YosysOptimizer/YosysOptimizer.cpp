@@ -88,7 +88,7 @@ flatten; opt_expr; opt; opt_clean -purge;
 rename -hide */w:*; rename -enumerate */w:*;
 abc -exe {3} -lut 3 {4}; stat;
 opt_clean -purge; stat;
-techmap -map {2}/map_lut_to_lut3.v; opt_clean -purge;
+techmap -map {2}/techmap.v; opt_clean -purge;
 hierarchy -generate * o:Y i:*; opt; opt_clean -purge;
 clean;
 stat;
