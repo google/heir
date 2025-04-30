@@ -2,10 +2,12 @@
 
 import dataclasses
 import os
+import importlib.resources
 import pathlib
 from pathlib import Path
 import shutil
-from heir.backends.util.common import get_repo_root
+from heir.backends.util.common import get_repo_root, is_pip_installed
+
 
 dataclass = dataclasses.dataclass
 
@@ -25,9 +27,6 @@ def development_heir_config() -> HEIRConfig:
       heir_opt_path=repo_root / "bazel-bin" / "tools" / "heir-opt",
       heir_translate_path=repo_root / "bazel-bin" / "tools" / "heir-translate",
   )
-
-
-# TODO (#1326): Add a config that automagically downloads the nightlies
 
 
 def from_os_env() -> HEIRConfig:
@@ -60,4 +59,18 @@ def from_os_env() -> HEIRConfig:
   return HEIRConfig(
       heir_opt_path=resolved_heir_opt_path,
       heir_translate_path=resolved_heir_translate_path,
+  )
+
+
+def from_pip_installation() -> HEIRConfig:
+  """
+  Configure HEIR binaries from the expected pip installation structure.
+  """
+  if not is_pip_installed():
+    raise RuntimeError("HEIR is not installed via pip.")
+
+  package_path = importlib.resources.files("heir")
+  return HEIRConfig(
+      heir_opt_path=package_path / "heir-opt",
+      heir_translate_path=package_path / "heir-translate",
   )

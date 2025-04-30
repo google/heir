@@ -50,20 +50,20 @@ python.toolchain(python_version = "3.12")
 python.toolchain(python_version = "3.13")
 
 pip.parse(
-    hub_name = "heir_pip_deps",
+    hub_name = "frontend_pip_deps",
     python_version = "3.11",
     requirements_lock = "//:requirements.txt",
 )
 pip.parse(
-    hub_name = "frontend_pip_deps",
+    hub_name = "heir_pip_deps",
     python_version = "3.11",
-    requirements_lock = "//frontend:requirements.txt",
+    requirements_lock = "//:requirements-dev.txt",
 )
 
 use_repo(python, python_3_11 = "python_3_11")
 
-use_repo(pip, "heir_pip_deps")
 use_repo(pip, "frontend_pip_deps")
+use_repo(pip, "heir_pip_deps")
 
 # Go setup
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")

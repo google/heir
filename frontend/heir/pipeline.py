@@ -13,6 +13,7 @@ from numba.core.typed_passes import type_inference_stage
 
 from heir.backends.cleartext import CleartextBackend
 from heir.backends.openfhe import OpenFHEBackend, config as openfhe_config
+from heir.backends.util.common import is_pip_installed
 from heir.heir_cli import heir_cli, heir_cli_config
 from heir.interfaces import BackendInterface, ClientInterface
 from heir.mlir.types import parse_annotations
@@ -184,12 +185,8 @@ def run_pipeline(
 
 def compile(
     scheme: Optional[str] = "bgv",
-    backend: Optional[BackendInterface] = OpenFHEBackend(
-        openfhe_config.from_os_env(),
-    ),
-    config: Optional[
-        heir_cli_config.HEIRConfig
-    ] = heir_cli_config.from_os_env(),
+    backend: Optional[BackendInterface] = None,
+    config: Optional[heir_cli_config.HEIRConfig] = None,
     debug: Optional[bool] = False,
     heir_opt_options: Optional[list[str]] = None,
 ) -> Any:
@@ -216,6 +213,18 @@ def compile(
   Returns:
     The decorator to apply to the given function.
   """
+  if not config:
+    if is_pip_installed():
+      config = heir_cli_config.from_pip_installation()
+    else:
+      config = heir_cli_config.from_os_env()
+
+  if not backend:
+    if is_pip_installed():
+      backend = OpenFHEBackend(openfhe_config.from_pip_installation())
+    else:
+      backend = OpenFHEBackend(openfhe_config.from_os_env())
+
   if debug and heir_opt_options is not None:
     print(f"HEIR Debug: Overriding scheme with options {heir_opt_options}")
 
