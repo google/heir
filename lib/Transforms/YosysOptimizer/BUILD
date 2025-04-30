@@ -86,7 +86,7 @@ cc_library(
     ],
     data = [
         "@edu_berkeley_abc//:abc",
-        "@heir//lib/Transforms/YosysOptimizer/yosys:share_files",
+        "@heir//lib/Transforms/YosysOptimizer/yosys:techmap.v",
     ],
     deps = [
         ":BooleanGateImporter",
