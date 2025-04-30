@@ -152,9 +152,9 @@ LogicalResult RSubOp::inferReturnTypes(
 }
 
 LogicalResult RSubOp_Plain::inferReturnTypes(
-  MLIRContext* ctx, std::optional<Location>, RSubOp_Plain::Adaptor adaptor,
-  SmallVectorImpl<Type>& inferredReturnTypes) {
-return lwe::inferPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+    MLIRContext* ctx, std::optional<Location>, RSubOp_Plain::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
 LogicalResult RMulOp::inferReturnTypes(
