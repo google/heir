@@ -16,7 +16,7 @@ cc_binary(
     data = select({
         "@heir//:config_enable_yosys": [
             "@edu_berkeley_abc//:abc",
-            "@heir//lib/Transforms/YosysOptimizer/yosys:share_files",
+            "@heir//lib/Transforms/YosysOptimizer/yosys:techmap.v",
         ],
         "//conditions:default": [],
     }),

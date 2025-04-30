@@ -5,13 +5,6 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-filegroup(
-    name = "share_files",
-    srcs = glob([
-        "*.v",
-    ]),
-)
-
 exports_files([
-    "*.v",
+    "techmap.v",
 ])
