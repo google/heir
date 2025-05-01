@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-print-local-scope --bgv-to-lwe --lwe-to-openfhe %s | FileCheck %s -dump-input=help
+// RUN: heir-opt --mlir-print-local-scope --bgv-to-lwe --lwe-to-openfhe %s | FileCheck %s
 !Z1032955396097_i64_ = !mod_arith.int<1032955396097 : i64>
 !Z1095233372161_i64_ = !mod_arith.int<1095233372161 : i64>
 !Z65537_i64_ = !mod_arith.int<65537 : i64>
@@ -33,7 +33,7 @@
 // CHECK: module
 module {
   // CHECK: @test_ops
-  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]], [[Y:%.+]]: [[T]], [[Z:%.+]]: [[P:.*new_lwe_plaintext.*]])
+  // CHECK-SAME: ([[C:%.+]]: [[S:.*crypto_context]], [[X:%.+]]: [[T:.*new_lwe_ciphertext.*]], [[Y:%.+]]: [[T]], [[Z:%.+]]: [[P:.*new_lwe_plaintext.[^)]*]])
   func.func @test_ops(%x : !ct, %y : !ct, %z : !pt) -> (!ct, !ct, !ct, !ct_D3, !ct, !ct, !ct, !ct) {
     // CHECK: %[[v1:.*]] = openfhe.negate [[C]], %[[x1:.*]] : ([[S]], [[T]]) -> [[T]]
     %negate = bgv.negate %x  : !ct
