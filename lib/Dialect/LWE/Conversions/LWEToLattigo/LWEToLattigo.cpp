@@ -486,14 +486,14 @@ using ConvertBGVSubOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RSubOp,
 using ConvertBGVMulOp = ConvertRlweBinOp<lattigo::BGVEvaluatorType, lwe::RMulOp,
                                          lattigo::BGVMulNewOp>;
 using ConvertBGVAddPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, lwe::RAddOp_Plain,
+    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, lwe::RAddPlainOp,
                                   lattigo::BGVAddNewOp>;
 using ConvertBGVSubPlainOp =
-    ConvertRlweSubPlainOp<lattigo::BGVEvaluatorType, lwe::RSubOp_Plain,
+    ConvertRlweSubPlainOp<lattigo::BGVEvaluatorType, lwe::RSubPlainOp,
                           lattigo::BGVSubNewOp, lattigo::BGVAddNewOp,
                           lattigo::RLWENegateNewOp>;
 using ConvertBGVMulPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, lwe::RMulOp_Plain,
+    ConvertRlweCommutativePlainOp<lattigo::BGVEvaluatorType, lwe::RMulPlainOp,
                                   lattigo::BGVMulNewOp>;
 
 using ConvertBGVRelinOp =
@@ -533,14 +533,14 @@ using ConvertCKKSSubOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
 using ConvertCKKSMulOp = ConvertRlweBinOp<lattigo::CKKSEvaluatorType,
                                           lwe::RMulOp, lattigo::CKKSMulNewOp>;
 using ConvertCKKSAddPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, lwe::RAddOp_Plain,
+    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, lwe::RAddPlainOp,
                                   lattigo::CKKSAddNewOp>;
 using ConvertCKKSSubPlainOp =
-    ConvertRlweSubPlainOp<lattigo::CKKSEvaluatorType, lwe::RSubOp_Plain,
+    ConvertRlweSubPlainOp<lattigo::CKKSEvaluatorType, lwe::RSubPlainOp,
                           lattigo::CKKSSubNewOp, lattigo::CKKSAddNewOp,
                           lattigo::RLWENegateNewOp>;
 using ConvertCKKSMulPlainOp =
-    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, lwe::RMulOp_Plain,
+    ConvertRlweCommutativePlainOp<lattigo::CKKSEvaluatorType, lwe::RMulPlainOp,
                                   lattigo::CKKSMulNewOp>;
 
 using ConvertCKKSRelinOp =
@@ -621,7 +621,7 @@ struct LWEToLattigo : public impl::LWEToLattigoBase<LWEToLattigo> {
     target
         .addIllegalOp<lwe::RLWEEncryptOp, lwe::RLWEDecryptOp, lwe::RLWEEncodeOp,
                       lwe::RLWEDecodeOp, lwe::RAddOp, lwe::RSubOp, lwe::RMulOp,
-                      lwe::RMulOp_Plain, lwe::RSubOp_Plain, lwe::RAddOp_Plain,
+                      lwe::RMulPlainOp, lwe::RSubPlainOp, lwe::RAddPlainOp,
                       lwe::ReinterpretApplicationDataOp>();
 
     RewritePatternSet patterns(context);

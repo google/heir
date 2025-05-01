@@ -25,7 +25,7 @@ namespace lwe {
 
 LogicalResult RMulOp::verify() { return lwe::verifyMulOp(this); }
 
-LogicalResult RMulOp_Plain::verify() { return lwe::verifyMulPlainOp(this); }
+LogicalResult RMulPlainOp::verify() { return lwe::verifyMulPlainOp(this); }
 
 LogicalResult TrivialEncryptOp::verify() {
   auto paramsAttr = this->getParamsAttr();
@@ -139,8 +139,8 @@ LogicalResult RAddOp::inferReturnTypes(
   return lwe::inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
-LogicalResult RAddOp_Plain::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, RAddOp_Plain::Adaptor adaptor,
+LogicalResult RAddPlainOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RAddPlainOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
@@ -151,8 +151,8 @@ LogicalResult RSubOp::inferReturnTypes(
   return lwe::inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
-LogicalResult RSubOp_Plain::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, RSubOp_Plain::Adaptor adaptor,
+LogicalResult RSubPlainOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RSubPlainOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
@@ -163,8 +163,8 @@ LogicalResult RMulOp::inferReturnTypes(
   return lwe::inferMulOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
-LogicalResult RMulOp_Plain::inferReturnTypes(
-    MLIRContext* ctx, std::optional<Location>, RMulOp_Plain::Adaptor adaptor,
+LogicalResult RMulPlainOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RMulPlainOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferMulPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
