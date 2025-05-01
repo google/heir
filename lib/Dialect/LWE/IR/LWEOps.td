@@ -167,6 +167,7 @@ def LWE_RAddOp : LWE_BinOp<"radd", [SameOperandsAndResultRings, SameOperandsAndR
 
 def LWE_RAddPlainOp : LWE_CiphertextPlaintextOp<"radd_plain", [Commutative, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
   let summary = "Addition between RLWE ciphertext-plaintext";
+  let hasCanonicalizer = 1;
 }
 
 def LWE_RSubOp : LWE_BinOp<"rsub", [SameOperandsAndResultRings, SameOperandsAndResultPlaintextTypes, InferTypeOpAdaptor]> {
@@ -191,6 +192,7 @@ def LWE_RMulOp : LWE_BinOp<"rmul", [SameOperandsAndResultRings, InferTypeOpAdapt
 def LWE_RMulPlainOp : LWE_CiphertextPlaintextOp<"rmul_plain", [Commutative]> {
   let summary = "Multiplication between RLWE ciphertext-plaintext";
   let hasVerifier = 1;
+  let hasCanonicalizer = 1;
 }
 
 def LWE_RNegateOp : LWE_Op<"rnegate", [SameOperandsAndResultType, ElementwiseMappable]> {

@@ -5,6 +5,7 @@
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
+#include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
@@ -167,6 +168,16 @@ LogicalResult RMulPlainOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, RMulPlainOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferMulPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+void RAddPlainOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                            MLIRContext *context) {
+  results.add<lwe::PutCiphertextInFirstOperand<RAddPlainOp>>(context);
+}
+
+void RMulPlainOp::getCanonicalizationPatterns(RewritePatternSet &results, 
+                                              MLIRContext *context) {
+  results.add<lwe::PutCiphertextInFirstOperand<RMulPlainOp>>(context);
 }
 
 }  // namespace lwe

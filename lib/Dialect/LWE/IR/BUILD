@@ -20,6 +20,7 @@ cc_library(
         "LWEOps.h",
         "LWETraits.h",
         "LWETypes.h",
+        "LWEPatterns.h",
     ],
     deps = [
         ":attributes_inc_gen",
@@ -35,6 +36,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 
