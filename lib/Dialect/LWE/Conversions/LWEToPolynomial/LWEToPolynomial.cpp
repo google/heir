@@ -503,7 +503,6 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
 
   using OpConversionPattern::OpConversionPattern;
 
-  // verify num elements, verify order of ciphertext-plaintext
   LogicalResult matchAndRewrite(
       RMulPlainOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
@@ -521,22 +520,9 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
 
     ImplicitLocOpBuilder b(op->getLoc(), rewriter);
     // z = mul([x0, x1], [y0]) := [x0y0, x1y0] (Multiply ciphertext [2dim] with
-    // plaintext [1dim]) bgv and ckks canonicalize with ciphertext first
-    auto i0 = b.create<arith::ConstantIndexOp>(0);
-    auto i1 = b.create<arith::ConstantIndexOp>(1);
-
-    auto x0 =
-        b.create<tensor::ExtractOp>(xT.getElementType(), x, ValueRange{i0});
-    auto x1 =
-        b.create<tensor::ExtractOp>(xT.getElementType(), x, ValueRange{i1});
-
-    auto y0 =
-        b.create<tensor::ExtractOp>(yT.getElementType(), y, ValueRange{i0});
-
-    auto z0 = b.create<::mlir::heir::polynomial::MulOp>(x0, y0);
-    auto z1 = b.create<::mlir::heir::polynomial::MulOp>(x1, y0);
-
-    auto z = b.create<tensor::FromElementsOp>(ArrayRef<Value>({z0, z1}));
+    // plaintext [1dim]), lwe canonicalizes with ciphertext first
+    auto repeated = b.create<tensor::FromElementsOp>(ArrayRef<Value>({y, y}));
+    auto z  = b.create<polynomial::MulOp>(x, repeated);
 
     rewriter.replaceOp(op, z);
     return success();
