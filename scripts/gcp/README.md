@@ -48,9 +48,9 @@ $ gcloud beta services identity create --service tpu.googleapis.com
 - Clone HEIR repo and install dependencies
 
 ```sh
-$ git clone git@github.com:google/heir.git
+$ git clone https://github.com/google/heir.git
 $ cd heir
-$ pip install -r /scripts/gcp/requirements.txt
+$ pip install -r ./scripts/gcp/requirements.txt
 ```
 
 - Create a TPU

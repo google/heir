@@ -100,7 +100,7 @@ struct ExpandCopyPass : impl::ExpandCopyPassBase<ExpandCopyPass> {
 
   void runOnOperation() override {
     GreedyRewriteConfig config;
-    config.strictMode = GreedyRewriteStrictness::ExistingOps;
+    config.setStrictness(GreedyRewriteStrictness::ExistingOps);
     mlir::RewritePatternSet patterns(&getContext());
     patterns.add<MemrefCopyExpansionPattern>(&getContext(), disableAffineLoop);
 
