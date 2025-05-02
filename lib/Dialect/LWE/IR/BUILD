@@ -18,9 +18,9 @@ cc_library(
         "LWEAttributes.h",
         "LWEDialect.h",
         "LWEOps.h",
+        "LWEPatterns.h",
         "LWETraits.h",
         "LWETypes.h",
-        "LWEPatterns.h",
     ],
     deps = [
         ":attributes_inc_gen",

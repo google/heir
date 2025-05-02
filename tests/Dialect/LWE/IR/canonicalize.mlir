@@ -28,7 +28,7 @@
   plaintext_space=#plaintext_space>
 
 // CHECK: @test_ct_pt_canonicalize(
-// CHECK-SAME: [[X:%.[^:]+]]: 
+// CHECK-SAME: [[X:%.[^:]+]]:
 // CHECK-SAME: , [[Y:%.[^:]+]]:
 func.func @test_ct_pt_canonicalize(%x: !ct, %y: !pt) -> (!ct, !ct) {
     // CHECK: lwe.radd_plain [[X]], [[Y]]

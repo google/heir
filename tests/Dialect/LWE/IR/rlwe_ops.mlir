@@ -69,6 +69,8 @@ func.func @test_rnegate(%0: !ct) -> !ct {
 func.func @test_radd_plain(%0: !ct, %1: !pt) -> !ct {
   // CHECK: lwe.radd_plain
   %2 = lwe.radd_plain %0, %1 : (!ct, !pt) -> !ct
+  // CHECK: lwe.radd_plain
+  %3 = lwe.radd_plain %1, %0 : (!pt, !ct) -> !ct
   return %2 : !ct
 }
 
@@ -76,6 +78,8 @@ func.func @test_radd_plain(%0: !ct, %1: !pt) -> !ct {
 func.func @test_rsub_plain(%0: !ct, %1: !pt) -> !ct {
   // CHECK: lwe.rsub_plain
   %2 = lwe.rsub_plain %0, %1 : (!ct, !pt) -> !ct
+  // CHECK: lwe.rsub_plain
+  %3 = lwe.rsub_plain %1, %0 : (!pt, !ct) -> !ct
   return %2 : !ct
 }
 
@@ -83,5 +87,7 @@ func.func @test_rsub_plain(%0: !ct, %1: !pt) -> !ct {
 func.func @test_rmul_plain(%0: !ct, %1: !pt) -> !ct {
   // CHECK: lwe.rmul_plain
   %2 = lwe.rmul_plain %0, %1 : (!ct, !pt) -> !ct
+  // CHECK: lwe.rmul_plain
+  %3 = lwe.rmul_plain %1, %0 : (!pt, !ct) -> !ct
   return %2 : !ct
 }

@@ -522,7 +522,7 @@ struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
     // z = mul([x0, x1], [y0]) := [x0y0, x1y0] (Multiply ciphertext [2dim] with
     // plaintext [1dim]), lwe canonicalizes with ciphertext first
     auto repeated = b.create<tensor::FromElementsOp>(ArrayRef<Value>({y, y}));
-    auto z  = b.create<polynomial::MulOp>(x, repeated);
+    auto z = b.create<polynomial::MulOp>(x, repeated);
 
     rewriter.replaceOp(op, z);
     return success();
