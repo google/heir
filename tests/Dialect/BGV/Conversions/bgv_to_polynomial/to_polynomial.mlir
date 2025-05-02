@@ -31,7 +31,7 @@ module {
     // CHECK: polynomial.sub [[X]], [[Y]] : [[T]]
     %sub = bgv.sub %x, %y  : !ct1
     // CHECK: polynomial.sub [[X]], [[A]] : [[T]]
-    %sub_plain = bgv.sub %x %z : !ct1 (!ct1, !pt1) -> !ct1
+    %sub_plain = bgv.sub_plain %x %z : !ct1 (!ct1, !pt1) -> !ct1
     // CHECK: [[C:%.+]] = mod_arith.constant -1 : [[I:.+]]
     // CHECK: polynomial.mul_scalar [[X]], [[C]] : [[T]], [[I]]
     %negate = bgv.negate %x  : !ct1

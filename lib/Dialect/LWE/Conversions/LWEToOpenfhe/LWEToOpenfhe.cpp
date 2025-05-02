@@ -391,13 +391,13 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         ConvertLWEBinOp<lwe::RSubOp, openfhe::SubOp>,
         ConvertLWEBinOp<lwe::RMulOp, openfhe::MulNoRelinOp>,
         ConvertUnaryOp<lwe::RNegateOp, openfhe::NegateOp>,
+        ConvertCiphertextPlaintextOp<lwe::RAddPlainOp, openfhe::AddPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RSubPlainOp, openfhe::SubPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RMulPlainOp, openfhe::MulPlainOp>,
 
         ///////////////////////////////////
         // Scheme-Specific Op Patterns   //
         ///////////////////////////////////
-        // The Add/(Sub)/Mul-Plain ops are not really scheme-specific,
-        // but do not currently have an analogue in the LWE dialect.
-        // TODO (#1193): Extend "common lwe" to support ctxt-ptxt ops
 
         // AddPlain
         ConvertCiphertextPlaintextOp<lwe::RAddPlainOp, openfhe::AddPlainOp>,
