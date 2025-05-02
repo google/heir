@@ -1,7 +1,12 @@
-from heir.interfaces import CompilationResult, EncValue
+from pathlib import Path
+from typing import Optional
+import importlib.resources
+import importlib.util
 import os
 import pathlib
-from pathlib import Path
+import sysconfig
+
+from heir.interfaces import CompilationResult, EncValue
 
 
 def find_above(dirname: str) -> Path | None:
@@ -49,3 +54,23 @@ def strip_and_verify_eval_arg_consistency(
     )
 
   return stripped_args, kwargs
+
+
+def get_module_origin(module_name: str) -> Optional[str]:
+  """Return the origin of the module as a path."""
+  spec = importlib.util.find_spec(module_name)
+  if spec is None:
+    raise ValueError(f"Module '{module_name}' not found.")
+  return spec.origin
+
+
+def is_pip_installed() -> bool:
+  """Return true if heir is installed via pip."""
+  try:
+    module_path = get_module_origin("heir") or ""
+    # purelib gives the environment-specific location of site-packages
+    # (for venv) or dist-packages (for system-wide installation) of
+    # non-builtin modules.
+    return module_path.startswith(sysconfig.get_paths()["purelib"])
+  except ModuleNotFoundError:
+    return False

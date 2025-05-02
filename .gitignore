@@ -18,6 +18,8 @@ hugo_stats.json
 # python
 venv
 **/dist/
+*.egg-info
+wheelhouse
 
 # heir_play
 scripts/jupyter/.ipynb_checkpoints/

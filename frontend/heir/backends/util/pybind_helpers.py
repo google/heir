@@ -1,6 +1,6 @@
 """Helper functions for pybind11.
 
-We compile pybind11 bindings with clang, and from the
+We compile pybind11 bindings with a C compiler, and from the
 pybind11 docs, the main way to do this is
 
 $ c++ -O3 -Wall -shared -std=c++11 -fPIC $(python3 -m pybind11 --includes)
@@ -98,13 +98,18 @@ def pybind11_libs() -> str:
   return [quote(d) for d in dirs]
 
 
-def python_link_lib() -> str:
-  """Return the str for the linker to include the python lib.
+def python_link_libs() -> list[str]:
+  """Return the strs for the linker to include the python lib.
+
+  For whatever reason, this is required on macos but not other platforms.
 
   Returns:
-    A str of the python lib for the linker to include.
+    A list of str of the python lib for the linker to include.
   """
-  return f"python{sysconfig.get_python_version()}"
+  if sys.platform == "darwin":
+    return [f"python{sysconfig.get_python_version()}"]
+  else:
+    return []
 
 
 def pyconfig_ext_suffix() -> str:

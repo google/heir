@@ -1,4 +1,4 @@
-"""A helper to find and run clang."""
+"""A helper to find and run a C++ compiler."""
 
 import os
 import pathlib
@@ -9,27 +9,39 @@ from typing import Callable, Optional
 Path = pathlib.Path
 
 
-# I would specify -stdlib here, but that would prevent clang from discovering
+# I would specify -stdlib here, but that would prevent the C compiler from discovering
 # the includes automatically and searching for them when compiling. Probably best
-# to let clang try to automate it, rather than manually pass in stdlib paths.
+# to let the C compiler try to automate it, rather than manually pass in stdlib paths.
 DEFAULT_COMPILER_FLAGS: list[str] = ["-O3", "-fPIC", "-shared", "-std=c++17"]
 
 
-def to_clang_args(prefix, strs):
+def to_cpp_compiler_args(prefix, strs):
   return [f"{prefix}{s}" for s in strs] if strs else []
 
 
-class ClangBackend:
-  """A helper to find and run clang."""
+class CppCompilerBackend:
+  """A helper to find and run a C++ compiler."""
 
-  def __init__(self, path_to_clang: Optional[str] = None):
-    self.compiler_binary_path = path_to_clang or self._find_clang()
+  def __init__(self, path_to_compiler: Optional[str] = None):
+    self.compiler_binary_path = path_to_compiler or self._find_cpp_compiler()
 
-  def _find_clang(self):
-    clang = os.environ.get("CLANG")
-    if clang:
-      return clang
-    return shutil.which("clang")
+  def _find_cpp_compiler(self):
+    compiler = os.environ.get("CXX", os.environ.get("CC"))
+    if compiler:
+      return compiler
+    result = (
+        shutil.which("clang++")
+        or shutil.which("clang")
+        or shutil.which("g++")
+        or shutil.which("gcc")
+    )
+    if not result:
+      raise ValueError(
+          "Could not find a C++ compiler (clang++ or g++)."
+          " Please install one or set the CXX"
+          " environment variable to the path of the compiler."
+      )
+    return result
 
   def compile_to_shared_object(
       self,
@@ -48,10 +60,10 @@ class ClangBackend:
     Args:
         cpp_source: the C++ source code to compile
         shared_object_output_filepath: the path to the output .so file
-        compiler_flags: the compiler flags to pass to clang
-        include_paths: include paths (-I) to pass to clang
-        linker_search_paths: linker search paths (-L) to pass to clang
-        link_libs: link libraries (-l) to pass to clang
+        compiler_flags: the compiler flags to pass to the C++ compiler
+        include_paths: include paths (-I) to pass to the C++ compiler
+        linker_search_paths: linker search paths (-L) to pass to the C++ compiler
+        link_libs: link libraries (-l) to pass to the C++ compiler
         linker_args: arguments to pass to the linker, via `-Wl,` prefix. The
           commas separating the values are added by this function.
         abs_link_lib_paths: absolute paths to libraries to link against.
@@ -63,9 +75,9 @@ class ClangBackend:
           f" {shared_object_output_filepath}"
       )
 
-    include_args = to_clang_args("-I", include_paths)
-    linker_search_path_args = to_clang_args("-L", linker_search_paths)
-    link_lib_args = to_clang_args("-l", link_libs)
+    include_args = to_cpp_compiler_args("-I", include_paths)
+    linker_search_path_args = to_cpp_compiler_args("-L", linker_search_paths)
+    link_lib_args = to_cpp_compiler_args("-l", link_libs)
     abs_link_lib_paths = abs_link_lib_paths or []
 
     if linker_args:

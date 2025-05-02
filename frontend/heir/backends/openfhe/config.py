@@ -1,8 +1,9 @@
 """Configuration of OpenFHE backend."""
 
 import dataclasses
+import importlib.resources
 import os
-from heir.backends.util.common import get_repo_root
+from heir.backends.util.common import get_repo_root, is_pip_installed
 
 dataclass = dataclasses.dataclass
 
@@ -154,3 +155,29 @@ def from_os_env(debug=False) -> OpenFHEConfig:
   return (
       development_openfhe_config()
   )  # will raise a RuntimeError if repo_root not found
+
+
+def from_pip_installation() -> OpenFHEConfig:
+  """
+  Configure HEIR binaries from the expected pip installation structure.
+  """
+  if not is_pip_installed():
+    raise RuntimeError("HEIR is not installed via pip.")
+
+  package_path = importlib.resources.files("heir")
+  return OpenFHEConfig(
+      include_dirs=[
+          str(package_path / "openfhe"),
+          str(package_path / "openfhe" / "src" / "binfhe" / "include"),
+          str(package_path / "openfhe" / "src" / "core" / "include"),
+          str(package_path / "openfhe" / "src" / "pke" / "include"),
+          str(package_path / "cereal" / "include"),
+      ],
+      include_type="source-relative",
+      lib_dir=str(package_path),
+      link_libs=[
+          "OPENFHEbinfhe",
+          "OPENFHEcore",
+          "OPENFHEpke",
+      ],
+  )

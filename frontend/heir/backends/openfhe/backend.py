@@ -16,7 +16,7 @@ from heir.interfaces import (
     EncValue,
 )
 from heir.backends.util import (
-    clang,
+    cpp_compiler,
     pybind_helpers,
     common,
 )
@@ -27,7 +27,7 @@ Path = pathlib.Path
 pyconfig_ext_suffix = pybind_helpers.pyconfig_ext_suffix
 pybind11_includes = pybind_helpers.pybind11_includes
 pybind11_libs = pybind_helpers.pybind11_libs
-python_link_lib = pybind_helpers.python_link_lib
+python_link_libs = pybind_helpers.python_link_libs
 
 
 class OpenfheClientInterface(ClientInterface):
@@ -255,7 +255,7 @@ class OpenFHEBackend(BackendInterface):
         options=pybind_options,
     )
 
-    clang_backend = clang.ClangBackend()
+    cpp_compiler_backend = cpp_compiler.CppCompilerBackend()
     so_filepath = Path(workspace_dir) / f"{func_name}.so"
     linker_search_paths = [self.openfhe_config.lib_dir]
 
@@ -263,10 +263,10 @@ class OpenFHEBackend(BackendInterface):
       print(
           "HEIRpy Debug (OpenFHE Backend): "
           + Style.BRIGHT
-          + f"Running clang {' '.join(str(arg) for arg in args)}"
+          + f"Running cpp compiler {' '.join(str(arg) for arg in args)}"
       )
 
-    clang_backend.compile_to_shared_object(
+    cpp_compiler_backend.compile_to_shared_object(
         cpp_source_filepath=cpp_filepath,
         shared_object_output_filepath=so_filepath,
         include_paths=self.openfhe_config.include_dirs,
@@ -277,14 +277,14 @@ class OpenFHEBackend(BackendInterface):
 
     ext_suffix = pyconfig_ext_suffix()
     pybind_so_filepath = Path(workspace_dir) / f"{module_name}{ext_suffix}"
-    clang_backend.compile_to_shared_object(
+    cpp_compiler_backend.compile_to_shared_object(
         cpp_source_filepath=pybind_filepath,
         shared_object_output_filepath=pybind_so_filepath,
         include_paths=self.openfhe_config.include_dirs
         + pybind11_includes()
         + [workspace_dir],
         linker_search_paths=linker_search_paths + pybind11_libs(),
-        link_libs=self.openfhe_config.link_libs + [python_link_lib()],
+        link_libs=self.openfhe_config.link_libs + python_link_libs(),
         linker_args=["-rpath", ":".join(linker_search_paths)],
         abs_link_lib_paths=[so_filepath],
         arg_printer=debug_printer if debug else None,
