@@ -2363,7 +2363,7 @@
     },
     "@@rules_python+//python/extensions:pip.bzl%pip": {
       "general": {
-        "bzlTransitiveDigest": "vKDNEc7MJLQpnsEBRqgLsrNo+zskN5XVJzAg1j5LtPs=",
+        "bzlTransitiveDigest": "pBYZfL5VYF4BT5jARY3p7l3d7Uknixz0stBBKWj2iaw=",
         "usagesDigest": "biag8XSu0P17XXjbARhiolCWispwUXMzVI6y3BjkYxQ=",
         "recordedFileInputs": {
           "@@//frontend/requirements.txt": "af2cd992a762dabd7d9b4dc32667c9aecc82550f90aab96d637bed7496e14963",
