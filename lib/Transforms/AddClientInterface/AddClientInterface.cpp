@@ -78,10 +78,12 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
 }
 
 /// Generates a decryption func for one or more types.
-LogicalResult generateDecryptionFunc(
-    func::FuncOp op, const std::string &decFuncName, TypeRange decFuncArgTypes,
-    TypeRange decFuncResultTypes, ArrayRef<OriginalTypeAttr> originalTypes,
-    ImplicitLocOpBuilder &builder, int64_t ciphertextSize) {
+LogicalResult generateDecryptionFunc(func::FuncOp op,
+                                     const std::string &decFuncName,
+                                     TypeRange decFuncArgTypes,
+                                     TypeRange decFuncResultTypes,
+                                     ArrayRef<OriginalTypeAttr> originalTypes,
+                                     ImplicitLocOpBuilder &builder) {
   SmallVector<Type> funcArgTypes(decFuncArgTypes.begin(),
                                  decFuncArgTypes.end());
   FunctionType decFuncType =
@@ -102,8 +104,8 @@ LogicalResult generateDecryptionFunc(
           dataSemanticType, decrypted.getResult(),
           originalTypeAttr.getLayout());
 
-      auto res = implementUnpackOp(unpackOp, ciphertextSize, builder,
-                                   [&](Operation *createdOp) {});
+      auto res =
+          implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});
       if (failed(res)) return failure();
       b.replaceOp(unpackOp, res.value());
 
@@ -163,8 +165,7 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize) {
           op.getResultAttrOfType<OriginalTypeAttr>(i, kOriginalTypeAttrName);
       if (failed(generateDecryptionFunc(op, decFuncName, {returnCtTy},
                                         {originalTypeAttr.getOriginalType()},
-                                        {originalTypeAttr}, builder,
-                                        ciphertextSize))) {
+                                        {originalTypeAttr}, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out

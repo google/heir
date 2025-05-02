@@ -75,6 +75,7 @@
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
+#include "lib/Transforms/LowerUnpack/LowerUnpack.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"

@@ -286,8 +286,7 @@ FailureOr<Value> implementAssignLayoutForScalar(
 }
 
 FailureOr<Value> implementUnpackOpForTensor(
-    tensor_ext::UnpackOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback) {
   RankedTensorType dataSemanticType =
       cast<RankedTensorType>(op.getResult().getType());
@@ -368,8 +367,7 @@ FailureOr<Value> implementUnpackOpForTensor(
 }
 
 FailureOr<Value> implementUnpackOpForScalar(
-    tensor_ext::UnpackOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback) {
   // All we need to do here is determien the index to extract from
   SmallVector<Value> indices;
@@ -409,16 +407,13 @@ FailureOr<Value> implementAssignLayout(
 };
 
 FailureOr<Value> implementUnpackOp(
-    tensor_ext::UnpackOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback) {
   if (isa<RankedTensorType>(op.getResult().getType())) {
-    return implementUnpackOpForTensor(op, ciphertextSize, builder,
-                                      createdOpCallback);
+    return implementUnpackOpForTensor(op, builder, createdOpCallback);
   }
 
-  return implementUnpackOpForScalar(op, ciphertextSize, builder,
-                                    createdOpCallback);
+  return implementUnpackOpForScalar(op, builder, createdOpCallback);
 }
 
 }  // namespace heir

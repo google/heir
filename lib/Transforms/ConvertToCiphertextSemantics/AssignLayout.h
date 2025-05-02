@@ -25,8 +25,7 @@ FailureOr<Value> implementAssignLayout(
 // Lower tensor_ext.unpack. Returns the final value produced by the unpacking
 // implementation. Applies createdOpCallback to each created operation.
 FailureOr<Value> implementUnpackOp(
-    tensor_ext::UnpackOp op, int64_t ciphertextSize,
-    ImplicitLocOpBuilder &builder,
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback);
 
 }  // namespace heir
