@@ -121,7 +121,15 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
       b.create<arith::ConstantOp>(evaluatedType, b.getOneAttr(evaluatedType));
   xPowers[1] = x;
   for (int64_t i = 2; i <= k; i++) {
-    xPowers[i] = b.create<arith::MulFOp>(xPowers[i - 1], x).getResult();
+    if (i % 2 == 0) {
+      // x^{2k} = (x^{k})^2
+      xPowers[i] =
+          b.create<arith::MulFOp>(xPowers[i / 2], xPowers[i / 2]).getResult();
+    } else {
+      // x^{2k+1} = x^{k}x^{k+1}
+      xPowers[i] = b.create<arith::MulFOp>(xPowers[i / 2], xPowers[i / 2 + 1])
+                       .getResult();
+    }
   }
 
   // Number of chunks we'll need
