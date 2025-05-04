@@ -2,6 +2,8 @@
 
 from abc import ABC, abstractmethod
 from typing import Generic, Self, TypeVar, TypeVarTuple, get_args, get_origin
+from numba.core.types import Type as NumbaType
+from numba.core.types import boolean, int8, int16, int32, int64, float32, float64
 
 T = TypeVar("T")
 Ts = TypeVarTuple("Ts")
@@ -16,7 +18,7 @@ class MLIRTypeAnnotation(ABC):
 
   @staticmethod
   @abstractmethod
-  def numba_str():
+  def numba_type() -> NumbaType:
     raise NotImplementedError(
         "No numba type exists for a generic MLIRTypeAnnotation"
     )
@@ -34,77 +36,70 @@ class MLIRTypeAnnotation(ABC):
 class Secret(Generic[T], MLIRTypeAnnotation):
 
   @staticmethod
-  def numba_str():
+  def numba_type() -> NumbaType:
     raise NotImplementedError("No numba type exists for a generic Secret")
 
 
 class Tensor(Generic[*Ts], MLIRTypeAnnotation):
 
   @staticmethod
-  def numba_str():
+  def numba_type() -> NumbaType:
     raise NotImplementedError("No numba type exists for a generic Tensor")
 
 
 class F32(MLIRTypeAnnotation):
   # TODO (#1162): For CKKS/Float: allow specifying actual intended precision/scale and warn/error if not achievable  @staticmethod
   @staticmethod
-  def numba_str():
-    return "float32"
+  def numba_type() -> NumbaType:
+    return float32
 
 
 class F64(MLIRTypeAnnotation):
   # TODO (#1162): For CKKS/Float: allow specifying actual intended precision/scale and warn/error if not achievable  @staticmethod
   @staticmethod
-  def numba_str():
-    return "float64"
+  def numba_type() -> NumbaType:
+    return float64
 
 
 class I1(MLIRTypeAnnotation):
 
   @staticmethod
-  def numba_str():
-    return "boolean"
-
-
-class I4(MLIRTypeAnnotation):
-
-  @staticmethod
-  def numba_str():
-    return "int4"
+  def numba_type() -> NumbaType:
+    return boolean
 
 
 class I8(MLIRTypeAnnotation):
 
   @staticmethod
-  def numba_str():
-    return "int8"
+  def numba_type() -> NumbaType:
+    return int8
 
 
 class I16(MLIRTypeAnnotation):
 
   @staticmethod
-  def numba_str():
-    return "int16"
+  def numba_type() -> NumbaType:
+    return int16
 
 
 class I32(MLIRTypeAnnotation):
 
   @staticmethod
-  def numba_str():
-    return "int32"
+  def numba_type() -> NumbaType:
+    return int32
 
 
 class I64(MLIRTypeAnnotation):
 
   @staticmethod
-  def numba_str():
-    return "int64"
+  def numba_type() -> NumbaType:
+    return int64
 
 
 # Helper functions
 
 
-def to_numba_str(type) -> str:
+def to_numba_type(type: type) -> NumbaType:
   if get_origin(type) == Secret:
     raise TypeError(
         "Secret type should not appear inside another type annotation."
@@ -112,37 +107,58 @@ def to_numba_str(type) -> str:
 
   if get_origin(type) == Tensor:
     args = get_args(type)
-    inner_type = args[-1]
+    if len(args) != 2:
+      raise TypeError(
+          "Tensor should contain exactly two elements: a shape list and a"
+          f" type, but found {type}"
+      )
+    shape = args[0]
+    inner_type = args[1]
     if get_origin(inner_type) == Tensor:
       raise TypeError("Nested Tensors are not yet supported.")
+    # This is slightly cursed, as numba constructs array types via slice syntax
     # Cf. https://numba.pydata.org/numba-doc/dev/reference/types.html#arrays
-    return f"{to_numba_str(inner_type)}[{','.join([':'] * (len(args) - 1))}]"
+    ty = to_numba_type(inner_type)[(slice(None),) * len(shape)]
+    # We augment the type object with `shape` for the actual sizes
+    ty.shape = shape  # type: ignore
+    return ty
 
   if issubclass(type, MLIRTypeAnnotation):
-    return type.numba_str()
+    return type.numba_type()
 
   raise TypeError(f"Unsupported type annotation: {type}, {get_origin(type)}")
 
 
-def parse_annotations(annotations):
+def parse_annotations(
+    annotations,
+) -> tuple[list[NumbaType], list[int], NumbaType | None]:
+  """Converts a python type annotation to a list of numba types.
+  Args:
+    annotations: A dictionary of type annotations, e.g. func.__annotations__
+  Returns:
+    A tuple of (args, secret_args, rettype) where:
+    - args: a list of numba types for the function arguments
+    - secret_args: a list of indices of secret arguments
+    - rettype: the numba type of the return value
+  """
   if not annotations:
     raise TypeError("Function is missing type annotations.")
-  signature = ""
-  secret_args = []
+  args: list[NumbaType] = []
+  secret_args: list[int] = []
   rettype = None
   for idx, (name, arg_type) in enumerate(annotations.items()):
     if name == "return":
       # A user may not annotate the return type as secret
-      rettype = to_numba_str(arg_type)
+      rettype = to_numba_type(arg_type)
       continue
     if get_origin(arg_type) == Secret:
       assert len(get_args(arg_type)) == 1
-      numba_arg = to_numba_str(get_args(arg_type)[0])
+      numba_arg = to_numba_type(get_args(arg_type)[0])
       if name == "return":
         rettype = numba_arg
         continue
       secret_args.append(idx)
-      signature += f"{numba_arg},"
+      args.append(numba_arg)
     else:
-      signature += f"{to_numba_str(arg_type)},"
-  return signature, secret_args, rettype
+      args.append(to_numba_type(arg_type))
+  return args, secret_args, rettype

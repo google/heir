@@ -51,10 +51,10 @@ def run_pipeline(
     init(autoreset=True)
 
     # (Numba) Type Inference
-    numba_signature = ""
-    secret_args = ""
+    fn_args = []
+    secret_args = []
     try:
-      numba_signature, secret_args, rettype = parse_annotations(
+      fn_args, secret_args, rettype = parse_annotations(
           function.__annotations__
       )
     except Exception as e:
@@ -63,17 +63,6 @@ def run_pipeline(
           + Style.BRIGHT
           + "HEIR Error: Signature parsing failed for function"
           f" {func_name} with {type(e).__name__}: {e}"
-      )
-      raise
-    try:
-      fn_args, _ = sigutils.normalize_signature(numba_signature)
-    except Exception as e:
-      print(
-          Fore.RED
-          + Style.BRIGHT
-          + "HEIR Error: Signature normalization failed for  function"
-          f" {func_name} with signature {numba_signature} with"
-          f" {type(e).__name__}: {e}"
       )
       raise
     typingctx = cpu_target.typing_context
@@ -102,20 +91,36 @@ def run_pipeline(
         )
 
     # Emit Textual IR
-    mlir_textual = TextualMlirEmitter(
+    mlir_raw_textual = TextualMlirEmitter(
         ssa_ir, secret_args, typemap, restype
     ).emit()
     if debug:
-      mlir_in_filepath = Path(workspace_dir) / f"{func_name}.in.mlir"
-      print(f"HEIR Debug: Writing input MLIR to \t \t {mlir_in_filepath}")
-      with open(mlir_in_filepath, "w") as f:
-        f.write(mlir_textual)
+      mlir_raw_filepath = Path(workspace_dir) / f"{func_name}.raw.mlir"
+      print(
+          f"HEIR Debug: Writing raw input MLIR to \t \t \t {mlir_raw_filepath}"
+      )
+      with open(mlir_raw_filepath, "w") as f:
+        f.write(mlir_raw_textual)
 
     # Try to find heir_opt and heir_translate
     heir_opt = heir_cli.HeirOptBackend(heir_config.heir_opt_path)
     heir_translate = heir_cli.HeirTranslateBackend(
         binary_path=heir_config.heir_translate_path
     )
+
+    # Run Shape Inference
+    mlir_textual, graph = heir_opt.run_binary_stderr(
+        input=mlir_raw_textual,
+        options=["--shape-inference", "--view-op-graph"],
+    )
+    if debug:
+      mlir_in_filepath = Path(workspace_dir) / f"{func_name}.in.mlir"
+      print(
+          "HEIR Debug: Writing input MLIR w/ shape inference to \t"
+          f" {mlir_in_filepath}"
+      )
+      with open(mlir_in_filepath, "w") as f:
+        f.write(mlir_textual)
 
     # Print type annotated version of the input
     if debug:
