@@ -27,6 +27,7 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
         "@heir//lib/Utils/Polynomial",
+        "@heir//lib/Utils/Polynomial:ChebyshevDecomposition",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
