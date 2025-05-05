@@ -13046,7 +13046,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
+&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
@@ -13117,7 +13117,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;p>&lt;em>High level operation to check equality of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.eq` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-8">Operands:&lt;/h4>
@@ -13135,19 +13135,11 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13162,11 +13154,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13215,7 +13203,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;p>&lt;em>High level operation to return maximum of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.max` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-10">Operands:&lt;/h4>
@@ -13233,19 +13221,11 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13260,11 +13240,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13272,7 +13248,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;p>&lt;em>High level operation to return minimum of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.min` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-11">Operands:&lt;/h4>
@@ -13290,19 +13266,11 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13317,11 +13285,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13386,7 +13350,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;p>&lt;em>High level operation to check inequality of two ciphertexts.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `tfhe_rust.neq` operands attr-dict `:` functional-type(operands, results)
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Commutative&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-13">Operands:&lt;/h4>
@@ -13404,19 +13368,11 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -13431,11 +13387,7 @@ Note this is not an encryption of a boolean, but the outcome of operations as Eq
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>An encrypted bool corresponding to tfhe-rs&amp;rsquo;s FHEBool, not in the Boolean TFHE-rs.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Note this is not an encryption of a boolean, but the outcome of operations as Eq or Cmp. or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint2 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint3 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint4 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint8 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint10 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint12 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint14 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint16 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint32 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint64 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint128 type or An encrypted unsigned integer corresponding to tfhe-rs&amp;rsquo;s FHEUint256 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt8 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt16 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt32 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt64 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt128 type or An encrypted signed integer corresponding to tfhe-rs&amp;rsquo;s FHEInt256 type&lt;/td>
-&lt;td>&lt;/td>
+&lt;td>tfhe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
