@@ -7,7 +7,10 @@ class EndToEndTest(absltest.TestCase):
 
   def test_simple_arithmetic(self):
 
-    @compile(scheme="cggi", debug="True")  # defaults to BGV and OpenFHE
+    @compile(
+        heir_opt_options=["--canonicalize", "--mlir-to-cggi=mode=Boolean"],
+        debug="True",
+    )
     def foo(a: Secret[I8], b: Secret[I8]):
       return a * a - b * b
 

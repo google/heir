@@ -38,8 +38,10 @@ def run_pipeline(
     heir_config = heir_cli_config.from_os_env()
 
   # Set environment variables from HEIR config
-  os.environ["HEIR_ABC_BINARY"] = str(heir_config.abc_path)
-  os.environ["HEIR_YOSYS_SCRIPTS_DIR"] = str(heir_config.techmap_dir_path)
+  os.environ["HEIR_ABC_BINARY"] = os.path.abspath(str(heir_config.abc_path))
+  os.environ["HEIR_YOSYS_SCRIPTS_DIR"] = os.path.abspath(
+      str(heir_config.techmap_dir_path)
+  )
 
   # The temporary workspace dir is so that heir-opt and the backend
   # can have places to write their output files. It is cleaned up once
