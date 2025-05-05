@@ -251,6 +251,41 @@ struct ConvertCGGITRBinOp : public OpConversionPattern<BinOp> {
   }
 };
 
+template <typename BinOp, typename TfheRustBinOp>
+struct ConvertCGGICtxtBinOp : public OpConversionPattern<BinOp> {
+  using OpConversionPattern<BinOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      BinOp op, typename BinOp::Adaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    FailureOr<Value> result = getContextualServerKey(op);
+    if (failed(result)) return result;
+
+    Value serverKey = result.value();
+    CGGIToTfheRustTypeConverter typeConverter(op->getContext());
+    auto outputType = typeConverter.convertType(op.getResult().getType());
+
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
+
+    if (lhs.getType() != rhs.getType()) {
+      if (!isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
+        lhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, lhs);
+      } else if (!isa<lwe::LWECiphertextType>(op.getRhs().getType())) {
+        rhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, rhs);
+      } else {
+        return op.emitError()
+               << "Expected both operands to be of the same type";
+      }
+    }
+
+    rewriter.replaceOp(
+        op, b.create<TfheRustBinOp>(outputType, serverKey, lhs, rhs));
+    return success();
+  }
+};
+
 struct ConvertSelectOp : public OpConversionPattern<cggi::SelectOp> {
   using OpConversionPattern<cggi::SelectOp>::OpConversionPattern;
 
@@ -550,10 +585,10 @@ class CGGIToTfheRust : public impl::CGGIToTfheRustBase<CGGIToTfheRust> {
         ConvertCGGITRBinOp<cggi::MulOp, tfhe_rust::MulOp>,
         ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>,
         ConvertCGGITRBinOp<cggi::SubOp, tfhe_rust::SubOp>,
-        ConvertCGGITRBinOp<cggi::EqOp, tfhe_rust::EqOp>,
-        ConvertCGGITRBinOp<cggi::NeqOp, tfhe_rust::NeqOp>,
-        ConvertCGGITRBinOp<cggi::MinOp, tfhe_rust::MinOp>,
-        ConvertCGGITRBinOp<cggi::MaxOp, tfhe_rust::MaxOp>, ConvertSelectOp,
+        ConvertCGGICtxtBinOp<cggi::EqOp, tfhe_rust::EqOp>,
+        ConvertCGGICtxtBinOp<cggi::NeqOp, tfhe_rust::NeqOp>,
+        ConvertCGGICtxtBinOp<cggi::MinOp, tfhe_rust::MinOp>,
+        ConvertCGGICtxtBinOp<cggi::MaxOp, tfhe_rust::MaxOp>, ConvertSelectOp,
         ConvertCmpOp, ConvertAndOp, ConvertOrOp, ConvertXorOp, ConvertCastOp,
         ConvertShROp, ConvertAny<memref::AllocOp>,
         ConvertAny<memref::DeallocOp>, ConvertAny<memref::StoreOp>,
