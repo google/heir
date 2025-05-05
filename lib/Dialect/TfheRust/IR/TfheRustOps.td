@@ -103,10 +103,10 @@ def TfheRust_ScalarRightShiftOp : TfheRust_Op<"scalar_right_shift", [
  * COMPARE OPERATIONS *
  **********************/
 
-def TfheRust_EqOp : TfheRust_ScalarBinaryOp<"eq"> { let summary = "High level operation to check equality of two ciphertexts."; }
-def TfheRust_NeqOp : TfheRust_ScalarBinaryOp<"neq"> { let summary = "High level operation to check inequality of two ciphertexts."; }
-def TfheRust_MinOp : TfheRust_ScalarBinaryOp<"min"> { let summary = "High level operation to return minimum of two ciphertexts."; }
-def TfheRust_MaxOp : TfheRust_ScalarBinaryOp<"max"> { let summary = "High level operation to return maximum of two ciphertexts."; }
+def TfheRust_EqOp : TfheRust_BinaryOp<"eq"> { let summary = "High level operation to check equality of two ciphertexts."; }
+def TfheRust_NeqOp : TfheRust_BinaryOp<"neq"> { let summary = "High level operation to check inequality of two ciphertexts."; }
+def TfheRust_MinOp : TfheRust_BinaryOp<"min"> { let summary = "High level operation to return minimum of two ciphertexts."; }
+def TfheRust_MaxOp : TfheRust_BinaryOp<"max"> { let summary = "High level operation to return maximum of two ciphertexts."; }
 def TfheRust_CmpOp : TfheRust_Op<"cmp", [
     Pure,
 ]> {
@@ -114,7 +114,7 @@ def TfheRust_CmpOp : TfheRust_Op<"cmp", [
   TfheRust_ServerKey:$serverKey,
   Arith_CmpIPredicateAttr:$predicate,
   TfheRust_CiphertextType:$lhs,
-  AnyTypeOf<[Builtin_Integer, TfheRust_CiphertextType]>:$rhs);
+  TfheRust_CiphertextType:$rhs);
   let results = (outs TfheRust_EncryptedBool:$output);
   let summary = [{
   High level operation to check the relation of two ciphertexts.
