@@ -145,7 +145,9 @@ LogicalResult convertFunc(func::FuncOp op) {
   if (failed(type)) return failure();
   auto lwePrivateKeyType = type.value();
 
-  op.insertArgument(0, lwePrivateKeyType, nullptr, op.getLoc());
+  if (failed(op.insertArgument(0, lwePrivateKeyType, nullptr, op.getLoc()))) {
+    return failure();
+  }
   if (failed(insertExternalCall(op, lwePrivateKeyType))) {
     return failure();
   }

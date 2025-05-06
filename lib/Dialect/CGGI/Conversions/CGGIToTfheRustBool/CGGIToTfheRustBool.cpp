@@ -89,8 +89,9 @@ struct AddBoolServerKeyArg : public OpConversionPattern<func::FuncOp> {
       serverKeyType = tfhe_rust_bool::PackedServerKeyType::get(getContext());
     }
 
-    rewriter.modifyOpInPlace(
-        op, [&] { op.insertArgument(0, serverKeyType, nullptr, op.getLoc()); });
+    rewriter.modifyOpInPlace(op, [&] {
+      (void)op.insertArgument(0, serverKeyType, nullptr, op.getLoc());
+    });
     return success();
   }
 };
