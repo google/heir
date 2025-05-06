@@ -3,7 +3,7 @@
 // CHECK: test_distribute_generic_preserve_attr
 // CHECK-SAME: %[[value:.*]]: !secret.secret<i32> {dialect.attr = 2 : i64}, %[[cond:.*]]: i1) -> !secret.secret<i32> {
 func.func @test_distribute_generic_preserve_attr(%value: !secret.secret<i32>, %cond: i1) -> !secret.secret<i32> {
-  // CHECK-NEXT: %[[g0:.*]] = secret.generic ins(%[[value]] : !secret.secret<i32>) {
+  // CHECK-NEXT: %[[g0:.*]] = secret.generic ins(%[[value]]: !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[clear_g0_in0:.*]]: i32):
   // CHECK-NEXT:   %[[g0_op:.*]] = arith.muli %[[clear_g0_in0]], %[[clear_g0_in0]] {dialect.attr = 1 : i64} : i32
   // CHECK-NEXT:   secret.yield %[[g0_op]] : i32

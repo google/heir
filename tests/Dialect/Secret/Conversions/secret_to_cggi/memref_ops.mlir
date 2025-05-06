@@ -26,7 +26,7 @@ module attributes {tf_saved_model.semantics} {
         // CHECK: [[V9:%.*]] = lwe.encode
         // CHECK: [[V10:%.*]] = lwe.trivial_encrypt
         // CHECK: memref.store [[V10]], [[V2]]
-        secret.generic ins(%2, %5, %arg1, %arg2 : !secret.secret<memref<1x16xi8>>, i8, index, index) {
+        secret.generic ins(%2: !secret.secret<memref<1x16xi8>>, %5: i8, %arg1: index, %arg2: index) {
         ^bb0(%arg3: memref<1x16xi8>, %arg4: i8, %arg5: index, %arg6: index):
           memref.store %arg4, %arg3[%arg5, %arg6] : memref<1x16xi8>
           secret.yield
@@ -41,7 +41,7 @@ module attributes {tf_saved_model.semantics} {
     affine.for %arg1 = 0 to 1 {
       affine.for %arg2 = 0 to 16 {
         %5 = affine.load %1[%arg2] : memref<16xi32>
-        secret.generic ins(%3, %5, %arg1, %arg2 : !secret.secret<memref<1x16xi32>>, i32, index, index) {
+        secret.generic ins(%3: !secret.secret<memref<1x16xi32>>, %5: i32, %arg1: index, %arg2: index) {
         ^bb0(%arg3: memref<1x16xi32>, %arg4: i32, %arg5: index, %arg6: index):
           memref.store %arg4, %arg3[%arg5, %arg6] : memref<1x16xi32>
           secret.yield
@@ -57,14 +57,14 @@ module attributes {tf_saved_model.semantics} {
       // [[SUB:%.*]] = memref.subview [[V3]]
       // [[ALLOC2:%.*]] = memref.alloc()
       // memref.copy [[SUB]], [[ALLOC2]]
-      %5 = secret.generic ins(%3, %arg1, %c0 : !secret.secret<memref<1x16xi32>>, index, index) {
+      %5 = secret.generic ins(%3: !secret.secret<memref<1x16xi32>>, %arg1: index, %c0: index) {
       ^bb0(%arg2: memref<1x16xi32>, %arg3: index, %arg4: index):
         %6 = memref.load %arg2[%arg4, %arg3] : memref<1x16xi32>
         secret.yield %6 : i32
       } -> !secret.secret<i32>
       // memref.subview [[V4]]
       // memref.copy [[ALLOC2]], [[V4]]
-      secret.generic ins(%4, %5, %arg1, %c0 : !secret.secret<memref<1x16xi32>>, !secret.secret<i32>, index, index) {
+      secret.generic ins(%4: !secret.secret<memref<1x16xi32>>, %5: !secret.secret<i32>, %arg1: index, %c0: index) {
       ^bb0(%arg2: memref<1x16xi32>, %arg3: i32, %arg4: index, %arg5: index):
         memref.store %arg3, %arg2[%arg5, %arg4] : memref<1x16xi32>
         secret.yield
@@ -92,7 +92,7 @@ module attributes {tf_saved_model.semantics} {
     } -> !secret.secret<i32>
     // CHECK: [[SUB1:%.*]] = memref.subview [[V6]][0, 0, 0] [1, 1, 32] [1, 1, 1] : [[OUT]] to [[I32T1:memref<32x.*>]]
     // CHECK: memref.copy [[ALLOC]], [[SUB1]] : [[I32T]] to [[I32T1]]
-    secret.generic ins(%6, %7 : !secret.secret<memref<1x1xi32>>, !secret.secret<i32>) {
+    secret.generic ins(%6: !secret.secret<memref<1x1xi32>>, %7: !secret.secret<i32>) {
     ^bb0(%arg1: memref<1x1xi32>, %arg2: i32):
       affine.store %arg2, %arg1[0, 0] : memref<1x1xi32>
       secret.yield
@@ -117,7 +117,7 @@ module attributes {tf_saved_model.semantics} {
       secret.yield %20 : i1
     } -> !secret.secret<i1>
     // CHECK: memref.store [[V0]], [[V6]][[[c0]]] : [[OUT]]
-    secret.generic ins(%6, %7 : !secret.secret<memref<1xi1>>, !secret.secret<i1>) {
+    secret.generic ins(%6: !secret.secret<memref<1xi1>>, %7: !secret.secret<i1>) {
     ^bb0(%arg1: memref<1xi1>, %arg2: i1):
       affine.store %arg2, %arg1[0] : memref<1xi1>
       secret.yield

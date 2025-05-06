@@ -41,7 +41,7 @@ func.func @sum(%arg0: !secret.secret<memref<2xi3>>) -> !secret.secret<i3> {
       %8 = memref.load %arg3[%c2] : memref<6xi1>
       secret.yield %8 : i1
     } -> !secret.secret<i1>
-    %5 = secret.generic ins(%3, %4 : !secret.secret<i1>, !secret.secret<i1>) {
+    %5 = secret.generic ins(%3: !secret.secret<i1>, %4 : !secret.secret<i1>) {
     ^bb0(%arg3: i1, %arg4: i1):
       %8 = comb.truth_table %true, %arg3, %arg4 -> 1 : ui8
       secret.yield %8 : i1
@@ -50,17 +50,17 @@ func.func @sum(%arg0: !secret.secret<memref<2xi3>>) -> !secret.secret<i3> {
       %alloc = memref.alloc() : memref<3xi1>
       secret.yield %alloc : memref<3xi1>
     } -> !secret.secret<memref<3xi1>>
-    secret.generic ins(%5, %6 : !secret.secret<i1>, !secret.secret<memref<3xi1>>) {
+    secret.generic ins(%5: !secret.secret<i1>, %6 : !secret.secret<memref<3xi1>>) {
     ^bb0(%arg3: i1, %arg4: memref<3xi1>):
       memref.store %arg3, %arg4[%c0] : memref<3xi1>
       secret.yield
     }
-    secret.generic ins(%5, %6 : !secret.secret<i1>, !secret.secret<memref<3xi1>>) {
+    secret.generic ins(%5: !secret.secret<i1>, %6 : !secret.secret<memref<3xi1>>) {
     ^bb0(%arg3: i1, %arg4: memref<3xi1>):
       memref.store %arg3, %arg4[%c1] : memref<3xi1>
       secret.yield
     }
-    secret.generic ins(%5, %6 : !secret.secret<i1>, !secret.secret<memref<3xi1>>) {
+    secret.generic ins(%5: !secret.secret<i1>, %6 : !secret.secret<memref<3xi1>>) {
     ^bb0(%arg3: i1, %arg4: memref<3xi1>):
       memref.store %arg3, %arg4[%c2] : memref<3xi1>
       secret.yield

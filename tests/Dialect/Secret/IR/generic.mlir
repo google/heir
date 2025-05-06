@@ -6,7 +6,7 @@ func.func @test_add_secret_and_plaintext_passed_through_block(%value : i32) {
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
   // CHECK: secret.generic
   %Z = secret.generic
-    ins(%X, %Y : i32, !secret.secret<i32>) {
+    ins(%X: i32,  %Y : !secret.secret<i32>) {
     ^bb0(%x: i32, %y: i32) :
       %d = arith.addi %x, %y: i32
       secret.yield %d : i32
@@ -36,7 +36,7 @@ func.func @test_memref_store(%value : i32) -> !secret.secret<memref<1xi32>> {
   } -> !secret.secret<memref<1xi32>>
   // CHECK: secret.generic
   affine.for %arg1 = 0 to 1 {
-    secret.generic ins(%0, %arg1, %value : !secret.secret<memref<1xi32>>, index, i32) {
+    secret.generic ins(%0: !secret.secret<memref<1xi32>>, %arg1: index, %value: i32) {
     ^bb0(%arg2: memref<1xi32>, %arg3: index, %arg4: i32):
       memref.store %arg4, %arg2[%arg3] : memref<1xi32>
       secret.yield

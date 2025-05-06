@@ -34,7 +34,7 @@ func.func @boolean_gates_partial_secret(%arg0: !secret.secret<i1>, %arg1 : i1) -
   // CHECK: [[LWE:%.+]] = lwe.trivial_encrypt [[ENC]]
   // CHECK: [[VAL1:%.+]] = cggi.and [[ARG0]], [[LWE]] : [[LWET:!lwe.lwe_ciphertext<.* = 1>]]
   %0 = secret.generic
-      ins(%arg0, %arg1: !secret.secret<i1>, i1) {
+      ins(%arg0: !secret.secret<i1>, %arg1: i1) {
       ^bb0(%ARG0: i1, %ARG1: i1) :
           %1 = comb.and %ARG0, %ARG1 : i1
           secret.yield %1 : i1

@@ -11,7 +11,7 @@
 // CHECK-SAME: 1.7{{0*}}e+01, 1.8{{0*}}e+01, 1.9{{0*}}e+01, 2.{{0*}}e+01
 // CHECK-SAME{LITERAL}: ]]>
 // CHECK:      %[[FIRST_SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][0, 0] [1, 4] [1, 1]
-// CHECK:      %[[OUT:.*]] = secret.generic ins(%[[ARG]] : !secret.secret<tensor<1x4xf16>>)
+// CHECK:      %[[OUT:.*]] = secret.generic ins(%[[ARG]]: !secret.secret<tensor<1x4xf16>>)
 // CHECK:      ^body(%[[ARG_CONVERTED:.*]]: tensor<1x4xf16>):
 // CHECK:        %[[FIRST_MUL:.*]] = arith.mulf %[[ARG_CONVERTED]], %[[FIRST_SLICE]]
 // CHECK:        %[[FIRST_SUM:.*]] = arith.addf %[[FIRST_MUL]], %[[BIAS]]

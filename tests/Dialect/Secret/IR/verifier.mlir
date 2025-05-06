@@ -3,7 +3,7 @@
 func.func @test_cleartext_type_mismatch(%value: i32, %c1: i32) {
   // expected-error@+1 {{If the operand is not secret, it must be the same type as}}
   %Z = secret.generic
-    ins(%value, %c1 : i32, i32) {
+    ins(%value: i32, %c1: i32) {
     ^bb0(%clear_value: i64, %clear_c1: i64):
       %0 = arith.addi %clear_value, %clear_c1 : i64
       secret.yield %0 : i64
@@ -16,7 +16,7 @@ func.func @test_cleartext_type_mismatch(%value: i32, %c1: i32) {
 func.func @test_secret_type_mismatch(%value: !secret.secret<i32>, %c1: i32) {
   // expected-error@+1 {{Type mismatch between block argument 0 of type 'i64' and generic operand of type '!secret.secret<i32>'}}
   %Z = secret.generic
-    ins(%value, %c1 : !secret.secret<i32>, i32) {
+    ins(%value: !secret.secret<i32>, %c1: i32) {
     ^bb0(%clear_value: i64, %clear_c1: i32):
       %0 = arith.trunci %clear_value : i64 to i32
       %1 = arith.addi %0, %clear_c1 : i32
