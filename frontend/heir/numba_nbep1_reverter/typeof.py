@@ -152,18 +152,17 @@ if config.USE_LEGACY_TYPE_SYSTEM:
     # original: if nbits < 32: typ = types.intp
     # ours: <8, <16,<32 bits converted to int8, int16, int32
     if nbits < 8:
-      typ = types.int8
+      return types.int8
     if nbits < 16:
-      typ = types.int16
+      return types.int16
     if nbits < 32:
-      typ = types.int32
+      return types.int32
     elif nbits < 64:
-      typ = types.int64
+      return types.int64
     elif nbits == 64 and val >= 0:
-      typ = types.uint64
+      return types.uint64
     else:
       raise ValueError("Int value is too large: %s" % val)
-    return typ
 
 else:
 
