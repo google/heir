@@ -116,8 +116,7 @@ struct AddEvaluatorArg : public OpConversionPattern<func::FuncOp> {
 
     rewriter.modifyOpInPlace(op, [&] {
       SmallVector<unsigned> argIndices(selectedEvaluators.size(), 0);
-      (void)op.insertArguments(argIndices, selectedEvaluators, argAttrs,
-                               argLocs);
+      op.insertArguments(argIndices, selectedEvaluators, argAttrs, argLocs);
     });
     return success();
   }
@@ -148,7 +147,7 @@ struct RemoveKeyArg : public OpConversionPattern<func::FuncOp> {
       return failure();
     }
 
-    rewriter.modifyOpInPlace(op, [&] { (void)op.eraseArguments(argsToErase); });
+    rewriter.modifyOpInPlace(op, [&] { op.eraseArguments(argsToErase); });
     return success();
   }
 };

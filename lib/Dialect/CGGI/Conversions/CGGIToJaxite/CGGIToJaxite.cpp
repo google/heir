@@ -92,8 +92,8 @@ struct AddJaxiteContextualArgs : public OpConversionPattern<func::FuncOp> {
     SmallVector<DictionaryAttr> argAttrs(2, nullptr);
     SmallVector<Location> argLocs(2, op.getLoc());
     rewriter.modifyOpInPlace(op, [&] {
-      (void)op.insertArguments(argIndices, {serverKeyType, paramsType},
-                               argAttrs, argLocs);
+      op.insertArguments(argIndices, {serverKeyType, paramsType}, argAttrs,
+                         argLocs);
     });
     return success();
   }
