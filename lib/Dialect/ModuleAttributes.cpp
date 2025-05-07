@@ -1,6 +1,9 @@
 #include "lib/Dialect/ModuleAttributes.h"
 
+#include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"         // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -29,6 +32,26 @@ bool moduleIsCKKS(Operation *moduleOp) {
 bool moduleIsCGGI(Operation *moduleOp) {
   return moduleOp->getAttrOfType<mlir::UnitAttr>(kCGGISchemeAttrName) !=
          nullptr;
+}
+
+Attribute getSchemeParamAttr(Operation *op) {
+  SmallVector<StringLiteral> schemeAttrNames = {
+      bgv::BGVDialect::kSchemeParamAttrName,
+      ckks::CKKSDialect::kSchemeParamAttrName,
+  };
+
+  Operation *moduleOp = op;
+  if (!isa<ModuleOp>(op)) {
+    moduleOp = op->getParentOfType<ModuleOp>();
+  }
+
+  for (auto schemeAttrName : schemeAttrNames) {
+    if (auto schemeAttr = moduleOp->getAttr(schemeAttrName)) {
+      return schemeAttr;
+    }
+  }
+
+  return UnitAttr::get(op->getContext());
 }
 
 void moduleClearScheme(Operation *moduleOp) {

@@ -31,6 +31,8 @@ cc_library(
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Transforms/ConvertToCiphertextSemantics:AssignLayout",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
