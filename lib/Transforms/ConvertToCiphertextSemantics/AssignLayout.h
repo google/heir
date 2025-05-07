@@ -22,6 +22,12 @@ FailureOr<Value> implementAssignLayout(
     ImplicitLocOpBuilder &builder,
     const std::function<void(Operation *)> &createdOpCallback);
 
+// Lower tensor_ext.unpack. Returns the final value produced by the unpacking
+// implementation. Applies createdOpCallback to each created operation.
+FailureOr<Value> implementUnpackOp(
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
+    const std::function<void(Operation *)> &createdOpCallback);
+
 }  // namespace heir
 }  // namespace mlir
 
