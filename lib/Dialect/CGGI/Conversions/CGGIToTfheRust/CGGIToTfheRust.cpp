@@ -93,9 +93,8 @@ struct AddServerKeyArg : public OpConversionPattern<func::FuncOp> {
 
     auto serverKeyType = tfhe_rust::ServerKeyType::get(getContext());
 
-    rewriter.modifyOpInPlace(op, [&] {
-      (void)op.insertArgument(0, serverKeyType, nullptr, op.getLoc());
-    });
+    rewriter.modifyOpInPlace(
+        op, [&] { op.insertArgument(0, serverKeyType, nullptr, op.getLoc()); });
     return success();
   }
 };
