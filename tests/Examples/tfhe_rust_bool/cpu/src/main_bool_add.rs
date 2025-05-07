@@ -1,18 +1,4 @@
-use clap::Parser;
 use tfhe::boolean::prelude::*;
-
-mod fn_under_test;
-
-// TODO(https://github.com/google/heir/issues/235): improve generality
-#[derive(Parser, Debug)]
-struct Args {
-    /// arguments to forward to function under test
-    #[arg(id = "input_1", index = 1, action)]
-    input1: u8,
-
-    #[arg(id = "input_2", index = 2, action)]
-    input2: u8,
-}
 
 // Encrypt a u8
 pub fn encrypt(value: u8, client_key: &ClientKey) -> Vec<Ciphertext> {
@@ -35,17 +21,24 @@ pub fn decrypt(ciphertexts: &Vec<Ciphertext>, client_key: &ClientKey) -> u8 {
 
 }
 
-fn main() {
-    let flags = Args::parse();
-    let (client_key, server_key) = tfhe::boolean::gen_keys();
+#[cfg(test)]
+mod test {
+    use super::encrypt;
+    use super::decrypt;
 
-    let ct_1 = encrypt(flags.input1.into(), &client_key);
-    let ct_2 = encrypt(flags.input2.into(), &client_key);
+    use bool_add_test_rs_lib;
 
+    #[test]
+    fn simple_test() {
+        let (client_key, server_key) = tfhe::boolean::gen_keys();
 
-    let result = fn_under_test::fn_under_test(&server_key, &ct_1, &ct_2);
+        let ct_1 = encrypt(15, &client_key);
+        let ct_2 = encrypt(3, &client_key);
 
-    let output = decrypt(&result, &client_key);
+        let result = bool_add_test_rs_lib::fn_under_test(&server_key, &ct_1, &ct_2);
 
-    println!("{:08b}", output);
+        let output = decrypt(&result, &client_key);
+
+        assert_eq!(output, 18);
+    }
 }
