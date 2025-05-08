@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <queue>
 #include <set>
@@ -10,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
@@ -25,6 +27,14 @@ class Graph {
   // Adds a vertex to the graph
   void addVertex(V vertex) { vertices.insert(vertex); }
 
+  bool addEdge(V source, V target, int weight) {
+    if (addEdge(source, target)) {
+      weights[{source, target}] = weight;
+      return true;
+    }
+    return false;
+  }
+
   // Adds an edge from the given `source` to the given `target`. Returns false
   // if either the source or target is not a previously inserted vertex, and
   // returns true otherwise. The graph is unchanged if false is returned.
@@ -35,6 +45,12 @@ class Graph {
     outEdges[source].insert(target);
     inEdges[target].insert(source);
     return true;
+  }
+
+  bool hasEdge(V source, V target) {
+    if (vertices.count(source) == 0 || vertices.count(target) == 0)
+      return false;
+    return outEdges[source].find(target) != outEdges[source].end();
   }
 
   // Returns true iff the given vertex has previously been added to the graph
@@ -65,6 +81,62 @@ class Graph {
       return result;
     }
     return {};
+  }
+
+  FailureOr<std::vector<V>> getLongestSourceToSinkPath() {
+    auto sinks = getSinks();
+    auto sources = getSources();
+
+    std::vector<V> result;
+
+    for (auto& src : sources) {
+      for (auto& sink : sinks) {
+        if (src == sink) continue;  // isolated node is both source and sink
+        auto res = getShortestPath(src, sink);
+        if (succeeded(res)) {
+          if (result.size() < res.size()) {
+            result = res;
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  // calculate the longest path in topologically sorted but restrict to first
+  // source (remove rest) and last sink (remove rest) - this is approximate
+  // critical path
+  FailureOr<std::vector<V>> findApproximateCriticalPath() {
+    auto result = topologicalSort();
+    if (failed(result)) {
+      return failure();
+    }
+    auto sinks = getSinks();
+    auto sources = getSources();
+
+    if (result->empty() || result->size() < 3) return *result;
+    std::vector<V> cp_result;
+    // first node has to be a source node
+    if (std::find(sources.begin(), sources.end(), result->at(0)) ==
+        sources.end()) {
+      return failure();
+    }
+    // last node has to be a sink node
+    if (std::find(sinks.begin(), sinks.end(), result->back()) == sinks.end()) {
+      return failure();
+    }
+
+    for (uint64_t i = 1; i < result->size() - 1; i++) {
+      // skip any source or sink nodes in the CP order
+      if (std::find(sources.begin(), sources.end(), result->at(i)) !=
+          sources.end())
+        continue;
+      if (std::find(sinks.begin(), sinks.end(), result->at(i)) != sinks.end())
+        continue;
+      cp_result.emplace_back(result->at(i));
+    }
+    cp_result.emplace_back(result->back());
+    return cp_result;
   }
 
   // Returns a topological sort of the nodes in the graph if the graph is
@@ -151,10 +223,125 @@ class Graph {
     return output;
   }
 
+  /* get vertices in graph with 0 incoming edges */
+  std::set<V> getSources() {
+    std::set<V> sources;
+    llvm::copy_if(
+        vertices, std::inserter(sources, sources.begin()),
+        [this](const V& v /*vertex*/) { return this->inEdges[v].size() == 0; });
+    return sources;
+  }
+
+  /* get vertices in graph with 0 outgoing edges */
+  std::set<V> getSinks() {
+    std::set<V> sinks;
+    llvm::copy_if(vertices, std::inserter(sinks, sinks.begin()),
+                  [this](const V& v /*vertex*/) {
+                    return this->outEdges[v].size() == 0;
+                  });
+    return sinks;
+  }
+
+  /* get number of incoming edges into vertex */
+  uint64_t getInDegree(V vertex) {
+    return (!inEdges.count(vertex)) ? 0 : inEdges.at(vertex).size();
+  }
+
+  /* get number of outgoing edges from vertex */
+  uint64_t getOutDegree(V vertex) {
+    return (!outEdges.count(vertex)) ? 0 : outEdges.at(vertex).size();
+  }
+
+  FailureOr<std::vector<V>> getShortestPath(V start, V end) {
+    std::function<uint64_t(const V&, const V&)> weight_fn =
+        [this](const V& start, const V& end) -> uint64_t {
+      return this->hasEdge(start, end) ? 1
+                                       : std::numeric_limits<uint64_t>::max();
+    };
+    return getShortestPath(start, end, weight_fn);
+  }
+
+  // assume uniform weight for edges; alternatively provide weight matrix
+  FailureOr<std::vector<V>> getShortestPath(
+      V start, V end, std::function<uint64_t(V, V)> weight_fn) {
+    std::vector<V> path;
+    std::queue<V> q;
+
+    std::set<V> visited;
+    std::map<V, uint64_t> distance;  // from @start node
+    std::map<V, V> linkback;
+    for (auto& v : vertices) {
+      distance[v] = std::numeric_limits<uint64_t>::max();
+    }
+    distance[start] = 0;
+
+    q.push(start);
+
+    while (!q.empty()) {
+      const V& curr = q.front();
+      q.pop();
+
+      if (curr == end) {
+        distance[curr] = 0;
+        break;
+      }
+
+      if (!visited.insert(curr).second) {
+        // backedge
+        continue;
+      }
+
+      // nothing to reduce on this edge.
+      if (!outEdges.count(curr)) {
+        continue;
+      }
+
+      for (auto& next : outEdges.at(curr)) {
+        if (distance[next] > distance[curr] + weight_fn(curr, next)) {
+          linkback[curr] = next;
+          distance[next] = distance[curr] + weight_fn(curr, next);
+        } else if (distance[curr] == 0) {
+          linkback[curr] = next;
+        }
+        q.push(next);
+      }
+    }
+
+    if (distance[end] != std::numeric_limits<uint64_t>::max()) {
+      // some path found
+      auto curr = start;
+      while (curr != end) {
+        path.push_back(curr);
+        curr = linkback[curr];
+      }
+      path.push_back(end);
+    } else {
+      return failure();
+    }
+    return path;
+  }
+
  private:
   std::set<V> vertices;
   std::map<V, std::set<V>> outEdges;
   std::map<V, std::set<V>> inEdges;
+  std::map<std::pair<V, V>, int> weights;
+};
+
+template <typename V>
+class GraphWeight {
+  std::map<V, std::set<std::pair<V, uint64_t>>> gWeights;
+
+  bool setWeight(V start, V end, uint64_t weight) {
+    if (!gWeights.count(start)) {
+      gWeights[start] = {std::make_pair(end, weight)};
+      return true;
+    }
+    return gWeights[start].insert(std::make_pair(end, weight)).second;
+  }
+
+  // get weight
+  uint64_t operator()(V start, V end) { return 0; }
 };
 
 // An undirected graph data structure.
@@ -165,6 +352,12 @@ class UndirectedGraph {
  public:
   // Adds a vertex to the graph
   void addVertex(V vertex) { vertices.insert(vertex); }
+
+  bool hasEdge(V source, V target) {
+    if (vertices.count(source) == 0 || vertices.count(target) == 0)
+      return false;
+    return edges[source].find(target) != edges[source].end();
+  }
 
   // Adds an edge between `source` and `target`. Returns false if either the
   // source or target is not a previously inserted vertex, and returns true
