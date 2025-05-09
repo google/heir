@@ -4,14 +4,16 @@ from collections import deque
 from dataclasses import dataclass
 import operator
 import textwrap
+from typing import Any
 
 from numba.core import ir
 from numba.core import types
 from numba.core import bytecode
 from numba.core import controlflow
+from numba.core.types import Type as NumbaType
 
 
-def mlirType(numba_type):
+def mlirType(numba_type: NumbaType) -> str:
   if isinstance(numba_type, types.Integer):
     # TODO (#1162): fix handling of signedness
     # Since `arith` only allows signless integers, we ignore signedness here.
@@ -25,20 +27,20 @@ def mlirType(numba_type):
   if isinstance(numba_type, types.Complex):
     return "complex<" + str(numba_type.bitwidth) + ">"
   if isinstance(numba_type, types.Array):
-    # TODO (#1162): implement support for statically sized tensors
-    # this probably requires extending numba with a new type
-    # See https://numba.readthedocs.io/en/stable/extending/index.html
+    shape = None
+    if hasattr(numba_type, "shape"):
+      shape = "x".join(str(s) for s in numba_type.shape)  # type: ignore
     return "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
   raise NotImplementedError("Unsupported type: " + str(numba_type))
 
 
-def mlirLoc(loc: ir.Loc):
+def mlirLoc(loc: ir.Loc) -> str:
   return (
       f"loc(\"{loc.filename or '<unknown>'}\":{loc.line or 0}:{loc.col or 0})"
   )
 
 
-def arithSuffix(numba_type):
+def arithSuffix(numba_type: NumbaType) -> str:
   if isinstance(numba_type, types.Integer):
     return "i"
   if isinstance(numba_type, types.Boolean):
@@ -251,14 +253,23 @@ class TextualMlirEmitter:
 
   def emit(self):
     func_name = self.ssa_ir.func_id.func_name
-    secret_flag = " {secret.secret}"
     # probably should use unique name...
     # func_name = ssa_ir.func_id.unique_name
-    args_str = ", ".join([
-        f"%{name}:"
-        f" {mlirType(self.typemap.get(name))}{secret_flag if idx in self.secret_args else str()} {mlirLoc(self.ssa_ir.loc)}"
-        for idx, name in enumerate(self.ssa_ir.arg_names)
-    ])
+    args: list[str] = []
+    for idx, name in enumerate(self.ssa_ir.arg_names):
+      numba_type = self.typemap.get(name)
+      arg = f"%{name}: {mlirType(numba_type)} "
+      attrs: list[str] = []
+      if idx in self.secret_args:
+        attrs.append("secret.secret")
+      if hasattr(numba_type, "shape"):
+        attrs.append(f"shape.shape=[{','.join(map(str, numba_type.shape))}]")
+      if attrs:
+        arg += "{" + ", ".join(attrs) + "} "
+      arg += mlirLoc(self.ssa_ir.loc)
+      args.append(arg)
+
+    args_str = ", ".join(args)
 
     # TODO(#1162): support multiple return values!
     if len(self.return_types) > 1:
@@ -590,7 +601,7 @@ class TextualMlirEmitter:
 
     return "\n".join(branch_strs)
 
-  def emit_var_or_int(self, var_or_int):
+  def emit_var_or_int(self, var_or_int: ir.Var | Any):
     if type(var_or_int) == ir.Var:
       # Create an index_cast operation
       var_name = self.get_name(var_or_int)
@@ -684,7 +695,7 @@ class TextualMlirEmitter:
     result = "\n".join([header, textwrap.indent(body_str, "  "), "}"])
     return result
 
-  def emit_return(self, ret):
+  def emit_return(self, ret: ir.Return):
     var = self.get_name(ret.value)
     return (
         f"func.return {var} :"
