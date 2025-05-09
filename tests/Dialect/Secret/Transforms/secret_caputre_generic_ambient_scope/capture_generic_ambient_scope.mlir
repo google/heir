@@ -6,7 +6,7 @@ func.func @test_capture_ambient_scope(%value : i32) {
   %X = arith.constant 7 : i32
   // CHECK: %[[Y:.*]] = secret.conceal
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
-  // CHECK: %[[Z:.*]] = secret.generic ins(%[[Y]], %[[X]] : !secret.secret<i32>, i32)
+  // CHECK: %[[Z:.*]] = secret.generic ins(%[[Y]]: !secret.secret<i32>, %[[X]]: i32)
   %Z = secret.generic ins(%Y : !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[y:.*]]: i32, %[[x:.*]]: i32):
   ^bb0(%y: i32):
@@ -28,7 +28,7 @@ func.func @test_capture_within_region(%value : i32) {
   %X = arith.constant 7 : i32
   // CHECK: %[[Y:.*]] = secret.conceal
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
-  // CHECK: %[[Z:.*]] = secret.generic ins(%[[Y]], %[[X]] : !secret.secret<i32>, i32)
+  // CHECK: %[[Z:.*]] = secret.generic ins(%[[Y]]: !secret.secret<i32>, %[[X]]: i32)
   %Z = secret.generic ins(%Y : !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[y:.*]]: i32, %[[x:.*]]: i32):
   ^bb0(%y: i32):

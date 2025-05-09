@@ -896,7 +896,7 @@ func.func @test_dot_product_regression(%arg0: !secret.secret<tensor<8xi16>>, %ar
   %c2 = arith.constant 2 : index
   %c1 = arith.constant 1 : index
   %c0 = arith.constant 0 : index
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic ins(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %1 = arith.muli %arg2, %arg3 : tensor<8xi16>
     %2 = tensor_ext.rotate %1, %c1 : tensor<8xi16>, index

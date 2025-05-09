@@ -4,7 +4,7 @@
 // CHECK-DAG:   %[[COEFF_0:.*]] = arith.constant dense<5.{{0*}}e-01> : tensor<1x16xf32>
 // CHECK-DAG:   %[[COEFF_1:.*]] = arith.constant dense<1.97{{0*}}e-01> : tensor<1x16xf32>
 // CHECK-DAG:   %[[COEFF_3:.*]] = arith.constant dense<-4.{{0*}}e-03> : tensor<1x16xf32>
-// CHECK:       %[[RET:.*]] = secret.generic ins(%[[ARG]] : !secret.secret<tensor<1x16xf32>>)
+// CHECK:       %[[RET:.*]] = secret.generic ins(%[[ARG]]: !secret.secret<tensor<1x16xf32>>)
 // CHECK-NEXT:  ^body(%[[CONVERTED_ARG:.*]]: tensor<1x16xf32>):
 // CHECK:         %[[COEFF_MUL_DEGREE_1:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[COEFF_1]]
 // CHECK:         %[[DEGREE_2:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[CONVERTED_ARG]]

@@ -27,11 +27,11 @@ func.func @convert_linalg_reduce(
   // lifted the second tensor_ext.assign_layout
 
   // CHECK: secret.generic ins(
-  // CHECK-SAME: [[arg0]], [[arg1]]
+  // CHECK-SAME: [[arg0]]: [[materialized_ty:.*]], [[arg1]]: [[materialized_ty]]
   // CHECK-NEXT: ^body(
   // CHECK-SAME: [[pt_arg0:%[^ ]*]]:
   // CHECK-SAME: [[pt_arg1:%[^ ]*]]:
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<4x4xi16>>, !secret.secret<tensor<4x4xi16>>)
+  %0 = secret.generic ins(%arg0: !secret.secret<tensor<4x4xi16>>, %arg1 : !secret.secret<tensor<4x4xi16>>)
                       attrs = {
                         __argattrs = [{tensor_ext.layout = #row_major_matrix}, {tensor_ext.layout = #row_major_matrix}],
                         __resattrs = [{tensor_ext.layout = #row_major_vec}]

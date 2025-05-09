@@ -15,7 +15,7 @@
 // CHECK:     [[c3:[^ ]*]] = arith.constant 3
 // CHECK:     [[c7_i16:[^ ]*]] = arith.constant 7
 // CHECK:     [[splat:[^ ]*]] = tensor.splat %c7_i16 : tensor<1024xi16>
-// CHECK:     [[v1:[^ ]*]] = secret.generic ins([[arg0]] : !secret.secret<tensor<1024xi16>>) {
+// CHECK:     [[v1:[^ ]*]] = secret.generic ins([[arg0]]: !secret.secret<tensor<1024xi16>>) {
 // CHECK:     ^body([[input0:[^:]*]]: tensor<1024xi16>):
 // CHECK:       [[v2:[^ ]*]] = affine.apply #map([[c3]])
 // CHECK:       [[c0:[^ ]*]] = arith.constant 0

@@ -46,7 +46,7 @@ module {
     %extracted_slice_13 = tensor.extract_slice %cst_0[13, 0] [1, 16] [1, 1] : tensor<16x16xf32> to tensor<1x16xf32>
     %extracted_slice_14 = tensor.extract_slice %cst_0[14, 0] [1, 16] [1, 1] : tensor<16x16xf32> to tensor<1x16xf32>
     %extracted_slice_15 = tensor.extract_slice %cst_0[15, 0] [1, 16] [1, 1] : tensor<16x16xf32> to tensor<1x16xf32>
-    %1 = secret.generic ins(%arg0, %0 : !secret.secret<tensor<1x16xf32>>, !secret.secret<tensor<1x16xf32>>) {
+    %1 = secret.generic ins(%arg0: !secret.secret<tensor<1x16xf32>>, %0: !secret.secret<tensor<1x16xf32>>) {
     ^bb0(%arg1: tensor<1x16xf32>, %arg2: tensor<1x16xf32>):
       %2 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel", "parallel"]} ins(%cst : tensor<16xf32>) outs(%arg2 : tensor<1x16xf32>) {
       ^bb0(%in: f32, %out: f32):

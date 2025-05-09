@@ -8,7 +8,7 @@
 // CHECK-DAG:   %[[DIAGONALIZED_MATRIX:.*]] = arith.constant dense
 // CHECK-SAME{LITERAL}: <[[1, 2, 3, 4], [6, 7, 8, 5], [3, 4, 1, 2], [8, 5, 6, 7]]> : tensor<4x4xi16>
 // CHECK-DAG:   %[[FIRST_SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][0, 0] [4, 1] [1, 1]
-// CHECK:       %[[OUT:.*]] = secret.generic ins(%[[ARG]] : !secret.secret<tensor<4x1xi16>>)
+// CHECK:       %[[OUT:.*]] = secret.generic ins(%[[ARG]]: !secret.secret<tensor<4x1xi16>>)
 // CHECK:       ^body(%[[ARG_CONVERTED:.*]]: tensor<4x1xi16>):
 // CHECK:         %[[FIRST_MUL:.*]] = arith.muli %[[ARG_CONVERTED]], %[[FIRST_SLICE]]
 // CHECK:         %[[FIRST_SUM:.*]] = arith.addi %[[FIRST_MUL]], %[[BIAS]]

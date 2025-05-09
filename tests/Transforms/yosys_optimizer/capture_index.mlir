@@ -7,7 +7,7 @@ module {
     // CHECK-DAG: %[[v0:.*]] = secret.cast %[[arr]] : !secret.secret<memref<8xi8>> to !secret.secret<memref<64xi1>>
     // CHECK-DAG: %[[v1:.*]] = arith.index_cast %[[i]] : index to i3
     // CHECK: %[[alloc:.*]] = memref.alloc() : memref<3xi1>
-    // CHECK: %[[v2:.*]] = secret.generic ins(%[[v0]], %[[alloc]] : !secret.secret<memref<64xi1>>, memref<3xi1>)
+    // CHECK: %[[v2:.*]] = secret.generic ins(%[[v0]]: !secret.secret<memref<64xi1>>, %[[alloc]]: memref<3xi1>)
       // CHECK-COUNT-28: comb.truth_table
       // CHECK: secret.yield
     // CHECK: %[[v3:.*]] = secret.cast %[[v2]] : !secret.secret<memref<8xi1>> to !secret.secret<i8>

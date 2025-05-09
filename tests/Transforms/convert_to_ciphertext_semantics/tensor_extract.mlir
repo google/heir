@@ -14,7 +14,7 @@
 // CHECK:   func.func @extract([[arg0:[^:]*]]: !secret.secret<tensor<1024xi16>>
 // CHECK-SAME:    -> (!secret.secret<tensor<1024xi16>> {tensor_ext.original_type = [[original_type]]}) {
 // CHECK:     [[c3:[^ ]*]] = arith.constant 3
-// CHECK:     [[v1:[^ ]*]] = secret.generic ins([[arg0]] : !secret.secret<tensor<1024xi16>>) {
+// CHECK:     [[v1:[^ ]*]] = secret.generic ins([[arg0]]: !secret.secret<tensor<1024xi16>>) {
 // CHECK:     ^body([[input0:[^:]*]]: tensor<1024xi16>):
 // CHECK:       [[v2:%[^ ]*]] = affine.apply [[map]]([[c3]])
 // CHECK-DAG:   [[cst_0:[^ ]*]] = arith.constant dense<0>
