@@ -144,8 +144,6 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
     // Erase the global after removing all of its users.
     if (getGlobalRemoveable) {
       rewriter.eraseOp(global);
-    } else {
-      return rewriter.notifyMatchFailure(op, "could not replace global");
     }
     return mlir::success();
   }
