@@ -10,7 +10,7 @@ The attribute is a struct with the following fields:"><meta property="og:type" c
 Mgmt attributes MgmtAttr Container attribute for all mgmt parameter
 Syntax:
 #mgmt.mgmt< int, # level int, # dimension int64_t # scale > This attribute is used to store all mgmt parameters.
-The attribute is a struct with the following fields:"><meta itemprop=wordCount content="1008"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Mgmt"><meta name=twitter:description content="&lsquo;mgmt&rsquo; Dialect The mgmt dialect contains scheme-agnostic ciphertext management ops (like relinearize and mod reduce), to enable initial high-level compiler passes to perform a first pass at parameter selection, while lower-level passes may refine them with scheme-specific information.
+The attribute is a struct with the following fields:"><meta itemprop=wordCount content="1007"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Mgmt"><meta name=twitter:description content="&lsquo;mgmt&rsquo; Dialect The mgmt dialect contains scheme-agnostic ciphertext management ops (like relinearize and mod reduce), to enable initial high-level compiler passes to perform a first pass at parameter selection, while lower-level passes may refine them with scheme-specific information.
 Mgmt attributes MgmtAttr Container attribute for all mgmt parameter
 Syntax:
 #mgmt.mgmt< int, # level int, # dimension int64_t # scale > This attribute is used to store all mgmt parameters.
@@ -29,7 +29,7 @@ passes may refine them with scheme-specific information.</p><h2 id=mgmt-attribut
 for determining the level and dimension of the ciphertext.</p><p>It should be populated by &ndash;secret-with-mgmt-<scheme> before
 going through the secret-to-<scheme> pass.</p><p>Example:</p><pre tabindex=0><code>#mgmt = #mgmt.mgmt&lt;level = 1&gt; // dimension defaults to 2
 #mgmt1 = #mgmt.mgmt&lt;level = 1, dimension = 3&gt;
-%0 = secret.generic ins(%arg0, %arg1 : !secret.secret&lt;i16&gt;) attrs = {mgmt.mgmt = #mgmt} {
+%0 = secret.generic(%arg0, %arg1 : !secret.secret&lt;i16&gt;) attrs = {mgmt.mgmt = #mgmt} {
    ...
 } -&gt; !secret.secret&lt;i16&gt;
 </code></pre><h4 id=parameters>Parameters:</h4><table><thead><tr><th style=text-align:center>Parameter</th><th style=text-align:center>C++ type</th><th>Description</th></tr></thead><tbody><tr><td style=text-align:center>level</td><td style=text-align:center><code>int</code></td><td></td></tr><tr><td style=text-align:center>dimension</td><td style=text-align:center><code>int</code></td><td></td></tr><tr><td style=text-align:center>scale</td><td style=text-align:center><code>int64_t</code></td><td></td></tr></tbody></table><h3 id=openfheparamsattr>OpenfheParamsAttr</h3><p><em>Container attribute for some OpenFHE-specific parameters</em></p><p>Syntax:</p><pre tabindex=0><code>#mgmt.openfhe_params&lt;
