@@ -278,6 +278,11 @@ struct ConfigureCryptoContext
       config.mulDepth += bootstrapDepth;
     }
 
+    // OpenFHE CKKS with mulDepth 0 has bug, set it to 1
+    if (config.mulDepth == 0 && moduleIsCKKS(module)) {
+      config.mulDepth = 1;
+    }
+
     // pass option could override mulDepth
     if (mulDepth != 0) {
       config.mulDepth = mulDepth;
