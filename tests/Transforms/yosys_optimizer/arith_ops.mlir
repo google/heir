@@ -15,22 +15,22 @@ func.func @ops(
   } -> (!secret.secret<i3>)
   return %1 : !secret.secret<i3>
   // CHECK: secret.cast
-  // CHECK-SAME: !secret.secret<i3> to !secret.secret<memref<3xi1>>
+  // CHECK-SAME: !secret.secret<i3> to !secret.secret<tensor<3xi1>>
   // CHECK: secret.cast
-  // CHECK-SAME: !secret.secret<i3> to !secret.secret<memref<3xi1>>
+  // CHECK-SAME: !secret.secret<i3> to !secret.secret<tensor<3xi1>>
   // CHECK: secret.cast
-  // CHECK-SAME: !secret.secret<i3> to !secret.secret<memref<3xi1>>
+  // CHECK-SAME: !secret.secret<i3> to !secret.secret<tensor<3xi1>>
   // CHECK: secret.cast
-  // CHECK-SAME: !secret.secret<i3> to !secret.secret<memref<3xi1>>
+  // CHECK-SAME: !secret.secret<i3> to !secret.secret<tensor<3xi1>>
 
   // Main computation
   // CHECK: secret.generic
   // CHECK-COUNT-7: comb.truth_table
   // CHECK: secret.yield
-  // CHECK-SAME: memref<3xi1>
+  // CHECK-SAME: tensor<3xi1>
 
   // CHECK: secret.cast
-  // CHECK-SAME: !secret.secret<memref<3xi1>> to !secret.secret<i3>
+  // CHECK-SAME: !secret.secret<tensor<3xi1>> to !secret.secret<i3>
   // CHECK: return
 }
 

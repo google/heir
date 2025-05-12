@@ -4,8 +4,9 @@
 #include <utility>
 
 #include "lib/Utils/TensorUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/ViewLikeInterfaceUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
@@ -131,9 +132,7 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
           destType, getAsOpFoldResult(currentInsertOp.getIndices()));
       if (failed(maybeFlatIndex)) return failure();
 
-      // Overriding values in the tensor is not supported.
       auto flatIndex = maybeFlatIndex.value();
-      if (flatIndexToElement.contains(flatIndex)) return failure();
       flatIndexToElement[flatIndex] = currentInsertOp.getScalar();
       opsToErase.push_back(currentInsertOp);
 
@@ -156,10 +155,13 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
       }
     }
 
+    auto finalInsertion = opsToErase.back();
+    rewriter.setInsertionPointAfter(finalInsertion);
     rewriter.replaceAllUsesWith(
-        opsToErase.back()->getResult(0),
+        finalInsertion->getResult(0),
         rewriter
-            .create<tensor::FromElementsOp>(insertOp.getLoc(), destType, values)
+            .create<tensor::FromElementsOp>(finalInsertion->getLoc(), destType,
+                                            values)
             .getResult());
     for (auto op : llvm::reverse(opsToErase)) {
       op->erase();
@@ -223,6 +225,36 @@ struct CollapseEmptyTensor
   }
 };
 
+class ExtractOfExtractSlice final : public OpRewritePattern<tensor::ExtractOp> {
+ public:
+  using OpRewritePattern<tensor::ExtractOp>::OpRewritePattern;
+
+  ExtractOfExtractSlice(MLIRContext *context)
+      : OpRewritePattern<tensor::ExtractOp>(context) {}
+
+  LogicalResult matchAndRewrite(tensor::ExtractOp extractOp,
+                                PatternRewriter &rewriter) const override {
+    auto extractSliceOp =
+        extractOp.getTensor().getDefiningOp<tensor::ExtractSliceOp>();
+    if (!extractSliceOp) return failure();
+
+    auto sourceType = llvm::cast<ShapedType>(extractSliceOp.getSourceType());
+    auto sliceType = llvm::cast<ShapedType>(extractOp.getTensor().getType());
+    if (!sliceType.hasStaticShape() || !sourceType.hasStaticShape())
+      return failure();
+
+    SmallVector<Value> sourceIndices;
+    affine::resolveIndicesIntoOpWithOffsetsAndStrides(
+        rewriter, extractOp.getLoc(), extractSliceOp.getMixedOffsets(),
+        extractSliceOp.getMixedStrides(), extractSliceOp.getDroppedDims(),
+        getAsOpFoldResult(extractOp.getIndices()), sourceIndices);
+
+    rewriter.replaceOpWithNewOp<tensor::ExtractOp>(
+        extractOp, extractSliceOp.getSource(), sourceIndices);
+    return success();
+  }
+};
+
 struct FoldConstantTensors
     : public impl::FoldConstantTensorsBase<FoldConstantTensors> {
   void runOnOperation() override {
@@ -231,7 +263,8 @@ struct FoldConstantTensors
 
     RewritePatternSet patterns(context);
     patterns.add<InsertAfterConstant, CollapseShapeAfterConstant,
-                 CollapseEmptyTensor, InsertIntoFromElements>(context);
+                 CollapseEmptyTensor, InsertIntoFromElements,
+                 ExtractOfExtractSlice>(context);
 
     // Run pattern matching and conversion
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
