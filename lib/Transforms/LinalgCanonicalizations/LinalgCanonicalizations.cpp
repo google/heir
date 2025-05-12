@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <utility>
 
-#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Affine/ViewLikeInterfaceUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
@@ -317,6 +318,138 @@ struct RewriteTransposedMatvec
   }
 };
 
+/// Pattern to fold an insert op of a tensor built from elements into a
+/// destination tensor built from elements.
+///
+/// Example:
+/// ```
+///   %slice = tensor.from_elements %c1, %c1 : tensor<2xf32>
+///   %dest = tensor.from_elements %c4, %c4, %c4, %c4 : tensor<2x2xf32>
+///   %1 = tensor.insert_slice %slice into %dest[0, 0][1, 2][1, 1] :
+///   tensor<2x2xf32>
+/// ```
+/// is rewritten into:
+/// ```
+///   %1 = tensor.from_elements %c1, %c1, %c4, %c4 : tensor<2x2xf32>
+/// ```
+///
+struct FoldInsertFromElementsIntoFromElements
+    : public OpRewritePattern<tensor::InsertSliceOp> {
+ public:
+  FoldInsertFromElementsIntoFromElements(MLIRContext *context)
+      : OpRewritePattern<tensor::InsertSliceOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor::InsertSliceOp insertSliceOp,
+                                PatternRewriter &rewriter) const override {
+    // Requires a destination and source slice that are both from elements.
+    auto destFromElements = dyn_cast_or_null<tensor::FromElementsOp>(
+        insertSliceOp.getDest().getDefiningOp());
+    auto sliceFromElements = dyn_cast_or_null<tensor::FromElementsOp>(
+        insertSliceOp.getSource().getDefiningOp());
+    if (!sliceFromElements || !destFromElements) {
+      return rewriter.notifyMatchFailure(
+          insertSliceOp,
+          "source and dest are not constructed from a tensor.from_elements op");
+    }
+
+    // Requires static offsets, sizes, and unit strides.
+    // If the source's defining op was a tensor.from_elements then we can assume
+    // that the size was static.
+    if (!insertSliceOp.hasUnitStride()) {
+      return rewriter.notifyMatchFailure(insertSliceOp,
+                                         "requires unit strides");
+    }
+    auto constantOffsets =
+        getConstantIntValues(insertSliceOp.getMixedOffsets());
+    if (!constantOffsets.has_value()) {
+      return failure();
+    }
+
+    // Construct the new elements with the source slice.
+    auto offsets =
+        llvm::map_to_vector(insertSliceOp.getStaticOffsets(),
+                            [](auto offset) { return cast<uint64_t>(offset); });
+    auto offset =
+        mlir::ElementsAttr::getFlattenedIndex(insertSliceOp.getType(), offsets);
+    auto size = sliceFromElements.getType().getNumElements();
+
+    SmallVector<Value> newElements = {destFromElements.getElements().begin(),
+                                      destFromElements.getElements().end()};
+    // Erase the source slice from the new elements.
+    newElements.erase(newElements.begin() + offset,
+                      newElements.begin() + offset + size);
+    newElements.insert(newElements.begin() + offset,
+                       sliceFromElements.getElements().begin(),
+                       sliceFromElements.getElements().end());
+
+    // Replace the result with the modified from_elements op.
+    rewriter.replaceOpWithNewOp<tensor::FromElementsOp>(
+        insertSliceOp, insertSliceOp.getType(), newElements);
+    return success();
+  }
+};
+
+/// Pattern to fold an insert op of a tensor built from elements into a
+/// destination tensor built from elements.
+///
+/// Example:
+/// ```
+///   %extracted = tensor.extract_slice %arg0[0, 0][1, 2][1, 1] :
+///   tensor<2x2xf32> to tensor<2xf32> %1 = tensor.extract %extracted[%c1] :
+///   tensor<2xf32>
+/// ```
+/// is rewritten into:
+/// ```
+///   %1 = tensor.extract %arg0[%c1] : tensor<2x2xf32>
+/// ```
+///
+struct FoldExtractOfExtractSlice : public OpRewritePattern<tensor::ExtractOp> {
+ public:
+  FoldExtractOfExtractSlice(MLIRContext *context)
+      : OpRewritePattern<tensor::ExtractOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor::ExtractOp extractOp,
+                                PatternRewriter &rewriter) const override {
+    auto extractSliceOp =
+        extractOp.getTensor().getDefiningOp<tensor::ExtractSliceOp>();
+    if (!extractSliceOp) return failure();
+
+    // Requires static offsets, sizes, and unit strides.
+    // If the source's defining op was a tensor.from_elements then we can assume
+    // that the size was static.
+    if (!extractSliceOp.hasUnitStride()) {
+      return rewriter.notifyMatchFailure(extractSliceOp,
+                                         "requires unit strides");
+    }
+    auto constantOffsets =
+        getConstantIntValues(extractSliceOp.getMixedOffsets());
+    if (!constantOffsets.has_value()) {
+      return failure();
+    }
+    if (!extractOp.getTensor().getType().hasStaticShape()) return failure();
+
+    // Find the new extraction indices on the original tensor.
+    auto extractionIndices =
+        getConstantIntValues(getAsOpFoldResult(extractOp.getIndices()));
+    if (!extractionIndices.has_value()) return failure();
+
+    SmallVector<Value> sourceIndices;
+    affine::resolveIndicesIntoOpWithOffsetsAndStrides(
+        rewriter, extractOp.getLoc(), extractSliceOp.getMixedOffsets(),
+        extractSliceOp.getMixedStrides(), extractSliceOp.getDroppedDims(),
+        extractOp.getIndices(), sourceIndices);
+
+    // Replace the result with the modified extract op.
+    rewriter.replaceOpWithNewOp<tensor::ExtractOp>(
+        extractOp, extractSliceOp.getSource(), sourceIndices);
+    return success();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -324,10 +457,11 @@ struct LinalgCanonicalizations
     auto *module = getOperation();
 
     RewritePatternSet patterns(context);
-    patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,
-                 FoldConstantBroadcast, LinalgMapToElementwise,
-                 BroadcastToExpandShape, RewriteTransposedVecmat,
-                 RewriteTransposedMatvec>(context);
+    patterns.add<
+        FoldConstantLinalgTranspose, FoldConstantFill, FoldConstantBroadcast,
+        LinalgMapToElementwise, BroadcastToExpandShape, RewriteTransposedVecmat,
+        RewriteTransposedMatvec, FoldInsertFromElementsIntoFromElements,
+        FoldExtractOfExtractSlice>(context);
 
     // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
