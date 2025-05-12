@@ -24,8 +24,9 @@ double NoiseByBoundCoeffModel::toLogBound(const LocalParamType &param,
                                           const StateType &noise) const {
   auto t = param.getSchemeParam()->getPlaintextModulus();
   // StateType only stores e in (m + t * e), so when we want to print the bound
-  // we need to multiply t back
-  return log2(t * noise.getValue());
+  // we need to multiply t back.
+  // noise.getValue is log2||e||
+  return (noise * t).getValue();
 }
 
 double NoiseByBoundCoeffModel::toLogBudget(const LocalParamType &param,
@@ -150,7 +151,7 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalAdd(
   // m_0 + tv_0 + m_1 + tv_1 <= [m_0 + m_1]_t + t(v_0 + v_1 + u)
   // v_add = v_0 + v_1 + u
   // where ||u|| <= 1
-  return StateType::of(lhs.getValue() + rhs.getValue() + 1);
+  return lhs + rhs + 1;
 }
 
 typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
@@ -166,9 +167,7 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
   // v_mul = v_0 * m_1 + v_1 * m_0 + v_0 * v_1 + r_m
   // ||v_mul|| <=
   //   (delta * t / 2) * (2 * ||v_0|| * ||v_1|| + ||v_0|| + ||v_1|| + 1)
-  return StateType::of((expansionFactor * t / 2) *
-                       (lhs.getValue() * rhs.getValue() * 2 + lhs.getValue() +
-                        rhs.getValue() + 1));
+  return (lhs * rhs * 2 + lhs + rhs + 1) * (expansionFactor * t / 2);
 }
 
 typename NoiseByBoundCoeffModel::StateType
@@ -190,14 +189,14 @@ NoiseByBoundCoeffModel::evalModReduce(const LocalParamType &inputParam,
   // modulus switching is essentially a scaling operation
   // so the original error is scaled by the modulus
   // ||v_scaled|| = ||v_input|| / modulus
-  auto scaled = input.getValue() / modulus;
+  auto scaled = input * (1.0 / modulus);
   // in the meantime, it will introduce an rounding error
   // (tau_0, tau_1) to the (ct_0, ct_1) where ||tau_i|| < t / 2
   // so ||tau_0 + tau_1 * s|| <= t / 2 (1 + delta ||s||)
   // ||v_added|| <= (1 + delta * Bkey) / 2
   // (1.0 + expansionFactor * boundKey) will give underestimation.
-  auto added = 1.0 + expansionFactor * boundKey;
-  return StateType::of(scaled + added);
+  auto added = StateType::of(1.0 + expansionFactor * boundKey);
+  return scaled + added;
 }
 
 typename NoiseByBoundCoeffModel::StateType
@@ -225,28 +224,24 @@ NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
   // log(qiq_{i+1}...), the digit size for a certain digit
   // we use log(pip_{i+1}...) as an approximation,
   // as we often choose P > each digit
-  auto logpi = inputParam.getSchemeParam()->getLogpi();
-  double logDigitSize = std::accumulate(logpi.begin(), logpi.end(), 0.0);
-  // omega in literature
-  auto digitSize = pow(2.0, logDigitSize);
 
   // the HYBRID key switching error is
   // sum over all digit (ct_2 * e_ksk)
   // there are "currentNumDigit" digits
   // and ||c_2|| <= digitSize / 2
   // ||c_2 * e_ksk|| <= delta * digitSize * Berr / 2
-  auto boundKeySwitch =
-      currentNumDigit * digitSize * expansionFactor * boundErr / 2.0;
-
-  // moddown by P
-  auto scaled = boundKeySwitch / digitSize;
+  // then moddown by P
+  // so it becomes currentNumDigit * delta * Berr / 2
+  auto scaled =
+      StateType::of(currentNumDigit * expansionFactor * boundErr / 2.);
 
   // moddown added noise, similar to modreduce above.
-  auto added = (1.0 + expansionFactor * boundKey) / 2;
+  auto added = StateType::of((1.0 + expansionFactor * boundKey) / 2);
 
+  // Get input + scaled + added
   // for relinearization after multiplication, often scaled + added is far less
   // than input.
-  return StateType::of(input.getValue() + scaled + added);
+  return input + scaled + added;
 }
 
 NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalRelinearize(

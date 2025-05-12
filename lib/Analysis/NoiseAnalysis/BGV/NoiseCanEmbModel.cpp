@@ -25,7 +25,8 @@ double Model::toLogBound(const LocalParamType &param,
                          const StateType &noise) const {
   auto cm = getRingExpansionFactor(param);
   // ||a|| <= c_m * ||a||^{can}
-  return log(cm * noise.getValue()) / log(2);
+  // noise.getValue stores log2(||a||^{can})
+  return log2(cm) + noise.getValue();
 }
 
 double Model::toLogBudget(const LocalParamType &param,
@@ -178,14 +179,14 @@ typename Model::StateType Model::evalConstant(
 typename Model::StateType Model::evalAdd(const StateType &lhs,
                                          const StateType &rhs) const {
   // v_add <= v_0 + v_1
-  return StateType::of(lhs.getValue() + rhs.getValue());
+  return lhs + rhs;
 }
 
 typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
                                          const StateType &lhs,
                                          const StateType &rhs) const {
   // v_mul <= v_0 * v_1
-  return StateType::of(lhs.getValue() * rhs.getValue());
+  return lhs * rhs;
 }
 
 typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
@@ -197,14 +198,14 @@ typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
   // modulus switching is essentially a scaling operation
   // so the original error is scaled by the modulus
   // ||v_scaled|| = ||v_input|| / modulus
-  auto scaled = input.getValue() / modulus;
+  auto scaled = input * (1. / modulus);
   // in the meantime, it will introduce a rounding error
   // (tau_0, tau_1) to (ct_0, ct_1)
   // ||tau_0 + tau_1 * s|| <= D * t * sqrt(phi(m)/12 * (1 + phi(m) * V_key) =
   // B_scale
   // ||v_ms|| <= ||v_scaled|| + B_scale
-  double bScale = getBScale(inputParam);
-  return StateType::of(scaled + bScale);
+  auto bScale = StateType::of(getBScale(inputParam));
+  return scaled + bScale;
 }
 
 typename Model::StateType Model::evalRelinearizeHYBRID(
@@ -244,13 +245,15 @@ typename Model::StateType Model::evalRelinearizeHYBRID(
   // * B_ks / P + sqrt(k) * B_scale
   double bKs = getBKs(inputParam);
   auto pPower = ceil(static_cast<double>(currentLevel) / dnum);
-  auto noiseKs = sqrt(dnum * (currentLevel + 1)) *
-                 pow(static_cast<double>(maxPi), static_cast<double>(pPower)) *
-                 bKs / prodPi;
-  double bScale = getBScale(inputParam);
-  auto noiseScale = sqrt(k) * bScale;
+  auto noiseKs = StateType::of(
+      sqrt(dnum * (currentLevel + 1)) *
+      pow(static_cast<double>(maxPi), static_cast<double>(pPower)) * bKs /
+      prodPi);
 
-  return StateType::of(input.getValue() + noiseKs + noiseScale);
+  double bScale = getBScale(inputParam);
+  auto noiseScale = StateType::of(sqrt(k) * bScale);
+
+  return input + noiseKs + noiseScale;
 }
 
 typename Model::StateType Model::evalRelinearize(

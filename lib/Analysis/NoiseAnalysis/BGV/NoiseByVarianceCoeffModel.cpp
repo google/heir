@@ -25,15 +25,16 @@ using Model = NoiseByVarianceCoeffModel;
 
 double Model::toLogBound(const LocalParamType &param,
                          const StateType &noise) const {
-  // error probability 0.1%
+  // error probability 2^-32
   // though this only holds if every random variable is Gaussian
   // or similar to Gaussian
   // so this may give underestimation, see MP24 and CCH+23
-  double alpha = 0.001;
+  double alpha = std::exp2(-32);
   auto ringDim = param.getSchemeParam()->getRingDim();
-  double bound =
-      sqrt(2.0 * noise.getValue()) * erfinv(pow(1.0 - alpha, 1.0 / ringDim));
-  return log2(bound);
+  // noise.getValue is log2(Var(e))
+  double bound = (1. / 2.) * (1 + noise.getValue()) +
+                 log2(erfinv(pow(1.0 - alpha, 1.0 / ringDim)));
+  return bound;
 }
 
 double Model::toLogBudget(const LocalParamType &param,
@@ -96,6 +97,7 @@ typename Model::StateType Model::evalEncryptPk(
   // var_fresh = t^2 * (2n * var_key + 1) * var_error
   // for ringDim, see header comment for explanation
   double fresh = t * t * varianceError * (2. * n * varianceKey + 1.);
+  // noise degree of 1
   return StateType::of(fresh);
 }
 
@@ -109,6 +111,7 @@ typename Model::StateType Model::evalEncryptSk(
   // v_fresh = t * e
   // var_fresh = t^2 * var_error
   double fresh = t * t * varianceError;
+  // noise degree of 0
   return StateType::of(fresh);
 }
 
@@ -134,6 +137,7 @@ typename Model::StateType Model::evalConstant(
   // constant is v = m + t * 0
   // assume m is uniform from [-t/2, t/2]
   // var_constant = t * t / 12
+  // noise degree of 0
   return StateType::of(t * t / 12.0);
 }
 
@@ -141,19 +145,19 @@ typename Model::StateType Model::evalAdd(const StateType &lhs,
                                          const StateType &rhs) const {
   // v_add = v_0 + v_1
   // assuming independent of course
-  return StateType::of(lhs.getValue() + rhs.getValue());
+  return lhs + rhs;
 }
 
 typename Model::StateType Model::evalMul(const LocalParamType &resultParam,
                                          const StateType &lhs,
                                          const StateType &rhs) const {
   auto ringDim = resultParam.getSchemeParam()->getRingDim();
-  auto v0 = lhs.getValue();
-  auto v1 = rhs.getValue();
+  auto v0 = lhs;
+  auto v1 = rhs;
 
   // v_mul = v_0 * v_1
   // for ringDim, see header comment for explanation
-  return StateType::of(ringDim * v0 * v1);
+  return v0 * v1 * ringDim;
 }
 
 typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
@@ -176,14 +180,13 @@ typename Model::StateType Model::evalModReduce(const LocalParamType &inputParam,
   // so the original error is scaled by the modulus
   // v_scaled = v_input / modulus
   // var_scaled = var_input / (modulus * modulus)
-  auto scaled = input.getValue() / (modulus * modulus);
+  auto scaled = input * (1.0 / (modulus * modulus));
   // in the meantime, it will introduce an rounding error
   // (tau_0, tau_1) to the (ct_0, ct_1) where ||tau_i|| < t / 2
   // so tau_0 + tau_1 * s has the variance
   // var_added = var_const * (1.0 + var_key * ringDim)
-  auto varianceConst = evalConstant(inputParam).getValue();
-  auto added = varianceConst * (1.0 + ringDim * varianceKey);
-  return StateType::of(scaled + added);
+  auto added = evalConstant(inputParam) * (1.0 + ringDim * varianceKey);
+  return scaled + added;
 }
 
 typename Model::StateType Model::evalRelinearizeHYBRID(
@@ -211,32 +214,25 @@ typename Model::StateType Model::evalRelinearizeHYBRID(
   // log(qiq_{i+1}...), the digit size for a certain digit
   // we use log(pip_{i+1}...) as an approximation,
   // as we often choose P > each digit
-  auto logqi = inputParam.getSchemeParam()->getLogqi();
-  auto logDigitSize = std::accumulate(logqi.begin(), logqi.end(), 0.0);
-  // omega in literature
-  auto digitSize = pow(2.0, logDigitSize);
 
   // the critical quantity for HYBRID key switching error is
   // t * sum over all digit (ct_2 * e_ksk)
   // there are "currentNumDigit" digits
   // and c_2 uniformly from [-digitSize / 2, digitSize / 2]
+  // then moddown by P, as digitSize / P < 1, we directly use 1.0/12
+  // t * t * 1/12 * currentNumDigit * ringDim * varianceErr
   // for ringDim, see header comment for explanation
-  auto varianceKeySwitch = t * t * currentNumDigit *
-                           (digitSize * digitSize / 12.0) * ringDim *
-                           varianceErr;
-
-  // moddown by P
-  auto scaled = varianceKeySwitch / (digitSize * digitSize);
+  auto scaled = StateType::of(t * t * currentNumDigit * (1.0 / 12.0) * ringDim *
+                              varianceErr);
 
   // Some papers just say hey we mod down by P so the error added is just mod
   // reduce, but the error for mod reduce is different for approximate mod down.
   // Anyway, this term is not the major term.
-  auto varianceConst = evalConstant(inputParam).getValue();
-  auto added = varianceConst * (1.0 + ringDim * varianceKey);
+  auto added = evalConstant(inputParam) * (1.0 + ringDim * varianceKey);
 
   // for relinearization after multiplication, often scaled + added is far less
   // than input.
-  return StateType::of(input.getValue() + scaled + added);
+  return input + scaled + added;
 }
 
 typename Model::StateType Model::evalRelinearize(
