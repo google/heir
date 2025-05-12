@@ -54,7 +54,7 @@ cc_library(
         "NoiseByVarianceCoeffModel.h",
     ],
     deps = [
-        "@heir//lib/Analysis/NoiseAnalysis:NoiseWithDegree",
+        "@heir//lib/Analysis/NoiseAnalysis:Noise",
         "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Utils:MathUtils",
     ],

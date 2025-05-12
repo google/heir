@@ -24,15 +24,16 @@ namespace bfv {
 
 double NoiseByVarianceCoeffModel::toLogBound(const LocalParamType &param,
                                              const StateType &noise) const {
-  // error probability 0.1%
+  // error probability 2^-32
   // though this only holds if every random variable is Gaussian
   // or similar to Gaussian
   // so this may give underestimation, see MP24 and CCH+23
-  double alpha = 0.001;
+  double alpha = std::exp2(-32);
   auto ringDim = param.getSchemeParam()->getRingDim();
-  double bound =
-      sqrt(2.0 * noise.getValue()) * erfinv(pow(1.0 - alpha, 1.0 / ringDim));
-  return log2(bound);
+  // noise.getValue is log2(Var)
+  double bound = (1. / 2) * (1 + noise.getValue()) +
+                 log2(erfinv(pow(1.0 - alpha, 1.0 / ringDim)));
+  return bound;
 }
 
 double NoiseByVarianceCoeffModel::toLogBudget(const LocalParamType &param,
@@ -150,8 +151,7 @@ NoiseByVarianceCoeffModel::evalAdd(const StateType &lhs,
   // v_add = v_0 + v_1
   // assuming independence of course
   // max degree of 's' in v_add is max(d_0, d_1)
-  return StateType::of(lhs.getValue() + rhs.getValue(),
-                       std::max(lhs.getDegree(), rhs.getDegree()));
+  return lhs + rhs;
 }
 
 typename NoiseByVarianceCoeffModel::StateType
@@ -159,9 +159,9 @@ NoiseByVarianceCoeffModel::evalMul(const LocalParamType &resultParam,
                                    const StateType &lhs,
                                    const StateType &rhs) const {
   auto ringDim = resultParam.getSchemeParam()->getRingDim();
-  auto v0 = lhs.getValue();
+  auto v0 = lhs;
   auto d0 = lhs.getDegree();
-  auto v1 = rhs.getValue();
+  auto v1 = rhs;
   auto d1 = rhs.getDegree();
   auto newDegree = std::max(d0, d1);
   auto t = resultParam.getSchemeParam()->getPlaintextModulus();
@@ -196,12 +196,13 @@ NoiseByVarianceCoeffModel::evalMul(const LocalParamType &resultParam,
   // so _heuristically_ we have k_i = tau_0 + tau_1 * s
   // where tau_i is uniformly in [-1/2, 1/2]
   // then Var(k_i) = 1/12(1 + ringDim * var_key)
-  auto term1 = t * t * (ringDim * v0 * v1) / Q / Q;
-  auto term2 = ringDim * t * t * (v0 + v1) / 12.;
-  auto term3 = 0.;
+  auto term1 = (v0 * v1 * ringDim) * t * t * (1. / Q / Q);
+  auto term2 = (v0 + v1) * ringDim * t * t * (1. / 12.);
+  auto zero = StateType::of(0, 0);
+  auto term3 = zero;
   // only ct-ct mul has this term
   // as pt does not have k_i * Q
-  if (v0 != 0 && v1 != 0) {
+  if (v0.withNewDegree(0) != zero && v1.withNewDegree(0) != zero) {
     // Key part of BMCM23 is that, for v_0 * k_1 where v_0 is of degree d0
     // and k_1 is of degree 1, the degree of the resulting term is d0 + 1.
     // Then we need a correction factor f(d0 + 1) multiplied to v_0.
@@ -209,12 +210,12 @@ NoiseByVarianceCoeffModel::evalMul(const LocalParamType &resultParam,
     // use f(d0 + 1) = d0 + 1.
     // CAUTION: this formula won't work for high degree like 20, which means
     // the circuit is 20-level deep.
-    term3 = (1 + ringDim * varianceKey) / 12.0 * ringDim * t * t *
-            (v0 * (d0 + 1) + v1 * (d1 + 1));
+    term3 = (v0 * (d0 + 1) + v1 * (d1 + 1)) * (1 + ringDim * varianceKey) *
+            (1. / 12.) * ringDim * t * t;
     // the degree of the resulting term is max(d0 + 1, d1 + 1)
     newDegree += 1;
   }
-  return StateType::of(term1 + term2 + term3, newDegree);
+  return (term1 + term2 + term3).withNewDegree(newDegree);
 }
 
 typename NoiseByVarianceCoeffModel::StateType
@@ -243,31 +244,25 @@ NoiseByVarianceCoeffModel::evalRelinearizeHYBRID(
   // log(qiq_{i+1}...), the digit size for a certain digit
   // we use log(pip_{i+1}...) as an approximation,
   // as we often choose P > each digit
-  auto logpi = inputParam.getSchemeParam()->getLogpi();
-  double logDigitSize = std::accumulate(logpi.begin(), logpi.end(), 0.0);
-  // omega in literature
-  auto digitSize = pow(2.0, logDigitSize);
 
   // the error for HYBRID key switching error is
   // t * sum over all digit (ct_2 * e_ksk)
   // there are "numDigit" digits
   // and c_2 uniformly from [-digitSize / 2, digitSize / 2]
   // for ringDim, see header comment for explanation
-  auto varianceKeySwitch =
-      t * t * numDigit * (digitSize * digitSize / 12.0) * ringDim * varianceErr;
-
-  // moddown by P
-  auto scaled = varianceKeySwitch / (digitSize * digitSize);
+  // moddown by P, as digitSize / P < 1, we directly use 1/12
+  auto scaled =
+      NoiseState::of(t * t * numDigit * (1.0 / 12.0) * ringDim * varianceErr);
 
   // Some papers just say hey we mod down by P so the error added is just mod
   // reduce, but the error for mod reduce is different for approximate mod down.
   // Anyway, this term is not the major term.
   // moddown added noise, similar to modreduce.
-  auto added = (1.0 + ringDim * varianceKey) / 12.0;
+  auto added = NoiseState::of((1.0 + ringDim * varianceKey) / 12.0);
 
   // for relinearization after multiplication, often scaled + added is far less
   // than input.
-  return StateType::of(input.getValue() + scaled + added, input.getDegree());
+  return input + scaled + added;
 }
 
 typename NoiseByVarianceCoeffModel::StateType

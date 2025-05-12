@@ -15,7 +15,8 @@ namespace bgv {
 // see https://eprint.iacr.org/2022/706
 class NoiseCanEmbModel {
  public:
-  // for MMLGA22, NoiseState stores the bound ||m + t * e||^{can} for error e.
+  // for MMLGA22, NoiseState stores the bound log2||m + t * e||^{can} for error
+  // e.
   using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;

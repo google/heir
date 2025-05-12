@@ -14,8 +14,8 @@ namespace bgv {
 // coefficient embedding noise model using variance
 class NoiseByVarianceCoeffModel {
  public:
-  // for MP24, NoiseState stores the variance var for the one coefficient of
-  // critical quantity v = m + t * e, assuming coefficients are IID.
+  // for MP24, NoiseState stores the variance log2(var) for the one coefficient
+  // of critical quantity v = m + t * e, assuming coefficients are IID.
   //
   // MP24 states that for two polynomial multipication, the variance of one
   // coefficient of the result can be approximated by ringDim * var_0 * var_1,

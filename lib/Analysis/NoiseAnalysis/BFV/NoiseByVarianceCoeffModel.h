@@ -9,7 +9,7 @@
 #include <optional>
 #include <string>
 
-#include "lib/Analysis/NoiseAnalysis/NoiseWithDegree.h"
+#include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Parameters/BGV/Params.h"
 
 namespace mlir {
@@ -19,7 +19,7 @@ namespace bfv {
 // coefficient embedding noise model using variance
 class NoiseByVarianceCoeffModel {
  public:
-  // NoiseState stores the variance var for the one coefficient of
+  // NoiseState stores the variance log2(var) for the one coefficient of
   // the error 'e', assuming coefficients are IID.
   // Note that BMCM23 tracks the invariant noise t/q(c0 + c1 * s).
   // We adapt it to track the 'e' in [(q/t)m + e]_q for convenience
@@ -32,7 +32,7 @@ class NoiseByVarianceCoeffModel {
   // MP24/CCH+23 states that for two polynomial multipication, the variance of
   // one coefficient of the result can be approximated by ringDim * var_0 *
   // var_1, because the polynomial multipication is a convolution.
-  using StateType = NoiseWithDegree;
+  using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;
 

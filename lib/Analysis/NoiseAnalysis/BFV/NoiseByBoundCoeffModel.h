@@ -18,7 +18,7 @@ class NoiseByBoundCoeffModel {
   NoiseByBoundCoeffModel(NoiseModelVariant variant) : variant(variant) {}
   ~NoiseByBoundCoeffModel() = default;
 
-  // for KPZ21, NoiseState stores the bound ||e|| for error e.
+  // for KPZ21, NoiseState stores the bound log2||e|| for error e.
   using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;

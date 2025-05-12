@@ -29,15 +29,3 @@ cc_library(
         "@llvm-project//mlir:IR",
     ],
 )
-
-cc_library(
-    name = "NoiseWithDegree",
-    srcs = ["NoiseWithDegree.cpp"],
-    hdrs = [
-        "NoiseWithDegree.h",
-    ],
-    deps = [
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-    ],
-)

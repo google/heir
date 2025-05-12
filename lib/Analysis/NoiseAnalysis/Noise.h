@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <optional>
 #include <string>
 
@@ -38,27 +39,68 @@ class NoiseState {
     return NoiseState(NoiseType::UNINITIALIZED, std::nullopt);
   }
   static NoiseState of(double value) {
-    return NoiseState(NoiseType::SET, value);
+    return NoiseState::of(value, /*degree*/ 0);
+  }
+  static NoiseState of(double value, int degree) {
+    if (value == 0.0) {
+      return NoiseState(NoiseType::SET, NEGATIVE_INFINITY, degree);
+    }
+    return NoiseState(NoiseType::SET, log2(value), degree);
   }
 
   /// Create an integer value range lattice value.
   /// The default constructor must be equivalent to the "entry state" of the
   /// lattice, i.e., an uninitialized noise.
   NoiseState(NoiseType noiseType = NoiseType::UNINITIALIZED,
-             std::optional<double> value = std::nullopt)
-      : noiseType(noiseType), value(value) {}
+             std::optional<double> value = std::nullopt, int degree = 0)
+      : noiseType(noiseType), value(value), degree(degree) {}
 
   bool isKnown() const { return noiseType == NoiseType::SET; }
 
   bool isInitialized() const { return noiseType != NoiseType::UNINITIALIZED; }
 
+  // this returns log2(e) instead of e, use with caution
   const double &getValue() const {
     assert(isKnown());
     return *value;
   }
 
+  int getDegree() const {
+    assert(isKnown());
+    return degree;
+  }
+
+  NoiseState withNewDegree(int degree) {
+    return NoiseState(noiseType, value, degree);
+  }
+
   bool operator==(const NoiseState &rhs) const {
-    return noiseType == rhs.noiseType && value == rhs.value;
+    return noiseType == rhs.noiseType && value == rhs.value &&
+           degree == rhs.degree;
+  }
+
+  bool operator!=(const NoiseState &rhs) const { return !(*this == rhs); }
+
+  // Although NoiseState stores log(e), we expose the operation
+  // as if we are doing e1 + e2 using log(e1) and log(e2)
+  NoiseState operator+(const NoiseState &rhs) const;
+
+  // for int/double
+  template <typename T>
+  NoiseState operator+(const T &rhs) const {
+    assert(isKnown());
+    return *this + NoiseState::of(rhs);
+  }
+
+  // Although NoiseState stores log(e), we expose the operation
+  // as if we are doing e1 * e2 using log(e1) and log(e2)
+  NoiseState operator*(const NoiseState &rhs) const;
+
+  // for int/double
+  template <typename T>
+  NoiseState operator*(const T &rhs) const {
+    assert(isKnown());
+    return *this * NoiseState::of(rhs);
   }
 
   static NoiseState join(const NoiseState &lhs, const NoiseState &rhs) {
@@ -72,7 +114,8 @@ class NoiseState {
     }
 
     assert(lhs.noiseType == NoiseType::SET && rhs.noiseType == NoiseType::SET);
-    return NoiseState::of(std::max(lhs.getValue(), rhs.getValue()));
+    return NoiseState(NoiseType::SET, std::max(lhs.getValue(), rhs.getValue()),
+                      std::max(lhs.getDegree(), rhs.getDegree()));
   }
 
   void print(llvm::raw_ostream &os) const { os << value; }
@@ -89,7 +132,15 @@ class NoiseState {
   NoiseType noiseType;
   // notice that when level becomes large (e.g. 17), the max Q could be like
   // 3523 bits and could not be represented in double.
+  // To mitigate such problem we store log2(Noise) as only the order of
+  // magnititude is important
   std::optional<double> value;
+  // for some analysis a degree is tracked
+  int degree;
+
+  // value may be negative infinity
+  static constexpr double NEGATIVE_INFINITY =
+      -std::numeric_limits<double>::infinity();
 };
 
 }  // namespace heir
