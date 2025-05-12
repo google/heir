@@ -26,8 +26,7 @@ func.func @binary_gates(%arg1: !ct_ty, %arg2: !ct_ty) -> (!ct_ty) {
   // CHECK-GATES: %[[v1:.*]] = tfhe_rust.bitor %[[sks]], %[[arg1]], %[[arg2]]
   %1 = cggi.or %arg1, %arg2 : !ct_ty
 
-  // CHECK-COMMON: %[[notConst:.*]] = arith.constant 1 : i3
-  // CHECK-COMMON: %[[v6:.*]] = tfhe_rust.create_trivial %[[sks]], %[[notConst]]
+  // CHECK-COMMON: %[[v6:.*]] = tfhe_rust.create_trivial %[[sks]] {valueAttr = 1 : i3}
   // CHECK: %[[v7:.*]] = tfhe_rust.sub %[[sks]], %[[v6]], %[[v5]]
   // CHECK-GATES: %[[v2:.*]] = tfhe_rust.sub %[[sks]], %[[v6]], %[[v1]]
   %2 = cggi.not %1 : !ct_ty

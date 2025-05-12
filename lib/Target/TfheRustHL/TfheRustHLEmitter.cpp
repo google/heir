@@ -1,5 +1,7 @@
 #include "lib/Target/TfheRustHL/TfheRustHLEmitter.h"
 
+#include <mlir/Support/LLVM.h>
+
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -320,25 +322,105 @@ LogicalResult TfheRustHLEmitter::printMethod(
 LogicalResult TfheRustHLEmitter::printOperation(CreateTrivialOp op) {
   emitAssignPrefix(op.getResult());
 
-  os << "FheUint" << getTfheRustBitWidth(op.getResult().getType())
-     << "::try_encrypt_trivial("
-     << variableNames->getNameForValue(op.getValue());
+  if (auto optionalAttr = op.getValueAttr()) {
+    if (auto arrayAttr = dyn_cast<ArrayAttr>(*optionalAttr)) {
+      auto resultType = dyn_cast<RankedTensorType>(op.getResult().getType());
 
-  if (op.getValue().getType().isSigned())
-    os << " as u" << getTfheRustBitWidth(op.getResult().getType());
+      std::string res = "";
 
-  os << ").unwrap();\n";
-  return success();
+      // os << "[";
+
+      std::string fheUintType =
+          "FheUint" +
+          std::to_string(getTfheRustBitWidth(resultType.getElementType()));
+
+      for (unsigned i = 0; i < arrayAttr.size(); i++) {
+        auto intAttr = dyn_cast<IntegerAttr>(arrayAttr[i]);
+
+        res.append(llvm::formatv("{0}::try_encrypt_trivial({1}u{2}).unwrap()",
+                                 fheUintType, intAttr.getValue(),
+                                 getRustIntegerType(
+                                     intAttr.getType().getIntOrFloatBitWidth()))
+                       .str());
+
+        if (i != arrayAttr.size() - 1) {
+          res.append(", ");
+        }
+      }
+
+      for (unsigned dim : llvm::reverse(resultType.getShape())) {
+        res = llvm::formatv("[{0}]", res);
+      }
+
+      os << res << ";\n ";
+      return success();
+
+    } else if (auto intAttr = dyn_cast<IntegerAttr>(*optionalAttr)) {
+      os << "FheUint" << getTfheRustBitWidth(op.getResult().getType())
+         << "::try_encrypt_trivial(" << intAttr.getValue() << "u"
+         << getRustIntegerType(intAttr.getType().getIntOrFloatBitWidth());
+      os << ").unwrap();\n";
+    }
+  } else {
+    os << "FheUint" << getTfheRustBitWidth(op.getResult().getType())
+       << "::try_encrypt_trivial("
+       << variableNames->getNameForValue(op.getValue());
+
+    if (op.getValue().getType().isSigned())
+      os << " as u" << getTfheRustBitWidth(op.getResult().getType());
+
+    os << ").unwrap();\n";
+    return success();
+  }
+
+  return op->emitError() << "Failed to emit CreateTrivialOp";
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(affine::AffineForOp op) {
   if (op.getStepAsInt() > 1) {
     return op.emitOpError() << "AffineForOp has step > 1";
   }
-  os << "for " << variableNames->getNameForValue(op.getInductionVar()) << " in "
-     << op.getConstantLowerBound() << ".." << op.getConstantUpperBound()
-     << " {\n";
-  os.indent();
+
+  auto* suffix = "}\n";
+
+  // Found iter Args
+  if (op.getInits().size() > 0) {
+    suffix = " });\n";
+
+    emitAssignPrefix(op->getResult(0));
+
+    os << "(" << op.getConstantLowerBound() << ".."
+       << op.getConstantUpperBound() << ")" << ".fold(";
+
+    if (op.getInits().size() == 1) {
+      os << variableNames->getNameForValue(op.getInits()[0]) << ", |mut "
+         << variableNames->getNameForValue(op.getRegionIterArgs()[0]) << ", ";
+    }
+
+    // Parse multiple iter args as tuples
+    else if (op.getInits().size() > 1) {
+      os << "("
+         << commaSeparatedValues(op.getInits(),
+                                 [&](Value value) {
+                                   return variableNames->getNameForValue(value);
+                                 })
+         << "), |mut ("
+         << commaSeparatedValues(op.getRegionIterArgs(),
+                                 [&](Value value) {
+                                   return variableNames->getNameForValue(value);
+                                 })
+         << "), ";
+    }
+    os << variableNames->getNameForValue(op.getInductionVar()) << "| {\n";
+    os.indent();
+  }
+
+  else if (op.getInits().size() == 0) {
+    os << "for " << variableNames->getNameForValue(op.getInductionVar())
+       << " in " << op.getConstantLowerBound() << ".."
+       << op.getConstantUpperBound() << " {\n";
+    os.indent();
+  }
 
   // Walk the body of the parallel operation in Program order
   for (auto& op : op.getBody()->getOperations()) {
@@ -348,7 +430,7 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineForOp op) {
   }
 
   os.unindent();
-  os << "}\n";
+  os << suffix;
   return success();
 }
 
@@ -356,6 +438,9 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineYieldOp op) {
   if (op->getNumResults() != 0) {
     return op.emitOpError() << "AffineYieldOp has non-zero number of results";
   }
+
+  os << variableNames->getNameForValue(op->getOperand(0)) << "\n";
+
   return success();
 }
 
@@ -396,6 +481,24 @@ LogicalResult TfheRustHLEmitter::printBinaryOp(::mlir::Value result,
                                                ::mlir::Value lhs,
                                                ::mlir::Value rhs,
                                                std::string_view op) {
+  if (isa<RankedTensorType>(lhs.getType()) &&
+      isa<RankedTensorType>(rhs.getType())) {
+    auto lhsType = dyn_cast<RankedTensorType>(lhs.getType());
+    auto rhsType = dyn_cast<RankedTensorType>(rhs.getType());
+
+    if (lhsType.getShape() != rhsType.getShape()) {
+      return failure();
+    }
+    os << "let " << variableNames->getNameForValue(result) << " : "
+       << convertType(result.getType()) << " = ";
+
+    os << "core::array::from_fn(|i| { \n \t"
+       << variableNames->getNameForValue(lhs) << "[i].clone() " << op << " "
+       << variableNames->getNameForValue(rhs) << "[i].clone() \n});\n";
+
+    return success();
+  }
+
   emitAssignPrefix(result);
 
   if (auto cteOp =
@@ -517,8 +620,8 @@ LogicalResult TfheRustHLEmitter::printOperation(memref::StoreOp op) {
   }) << "), ";
 
   // Note: we may not need to clone all the time, but the BTreeMap stores
-  // Ciphertexts, not &Ciphertexts. This is because results computed inside for
-  // loops will not live long enough.
+  // Ciphertexts, not &Ciphertexts. This is because results computed inside
+  // for loops will not live long enough.
   const auto* suffix = ".clone()";
   os << variableNames->getNameForValue(op.getValueToStore()) << suffix
      << ");\n";
@@ -585,8 +688,8 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineStoreOp op) {
   }) << "), ";
 
   // Note: we may not need to clone all the time, but the BTreeMap stores
-  // Ciphertexts, not &Ciphertexts. This is because results computed inside for
-  // loops will not live long enough.
+  // Ciphertexts, not &Ciphertexts. This is because results computed inside
+  // for loops will not live long enough.
 
   const auto* suffix = ".clone()";
   os << variableNames->getNameForValue(op.getValueToStore()) << suffix
@@ -625,66 +728,89 @@ LogicalResult TfheRustHLEmitter::printOperation(affine::AffineLoadOp op) {
 
 // Use a BTreeMap<(usize, ...), Ciphertext>.
 LogicalResult TfheRustHLEmitter::printOperation(tensor::EmptyOp op) {
-  os << "let mut " << variableNames->getNameForValue(op.getResult())
-     << " : BTreeMap<("
-     << std::accumulate(
-            std::next(op.getType().getShape().begin()),
-            op.getType().getShape().end(), std::string("usize"),
-            [&](const std::string& a, int64_t value) { return a + ", usize"; })
-     << "), ";
-  if (failed(emitType(op.getType().getElementType()))) {
-    return op.emitOpError() << "Failed to get memref element type";
+  os << "let mut " << variableNames->getNameForValue(op.getResult()) << " : "
+     << convertType(op.getType()).value();
+
+  std::string res = "";
+
+  if (getTfheRustBitWidth(op.getType().getElementType()) != -1) {
+    os << " = std::array::from_fn(|_| Ciphertext::try_encrypt_trivial(0u"
+       << getRustIntegerType(getTfheRustBitWidth(op.getType().getElementType()))
+       << ").unwrap());\n";
+
+    return success();
+  } else if (isa<IntegerType>(op.getType().getElementType()) &&
+             op.getType().getElementType().getIntOrFloatBitWidth() == 1) {
+    res = "false;";
+  } else if (isa<IntegerType>(op.getType().getElementType())) {
+    res = llvm::formatv(
+        "0u{0} ;", getRustIntegerType(
+                       op.getType().getElementType().getIntOrFloatBitWidth()));
+  } else {
+    return op.emitOpError()
+           << "Failed to emit empty tensor for type " << op.getType();
   }
-  os << "> = BTreeMap::new();\n";
+
+  for (unsigned dim : llvm::reverse(op.getType().getShape())) {
+    res = llvm::formatv("[{0}; {1}]", res, dim);
+  }
+
+  os << " = " << res << "\n";
 
   return success();
 }
 
 // Produces a &Ciphertext
 LogicalResult TfheRustHLEmitter::printOperation(tensor::ExtractOp op) {
-  // We assume here that the indices are SSA values (not integer attributes).
   emitAssignPrefix(op.getResult());
-  os << "&" << variableNames->getNameForValue(op.getTensor()) << "["
-     << commaSeparatedValues(
+  os << "&" << variableNames->getNameForValue(op.getTensor())
+     << bracketEnclosedValues(
             op.getIndices(),
             [&](Value value) { return variableNames->getNameForValue(value); })
-     << "];\n";
+     << ";\n";
+
   return success();
 }
 
 // Need to produce a Vec<&Ciphertext>
 LogicalResult TfheRustHLEmitter::printOperation(tensor::FromElementsOp op) {
+  auto resultType = op.getResult().getType();
+  std::string res = convertType(resultType).value();
+
   emitAssignPrefix(op.getResult());
-  os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
-    // Check if block argument, if so, clone.
-    const auto* cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
-    // Get the name of defining operation its dialect
-    auto tfheOp =
-        value.getDefiningOp()->getDialect()->getNamespace() == "tfhe_rust";
-    const auto* prefix = tfheOp ? "&" : "";
-    return std::string(prefix) + variableNames->getNameForValue(value) +
-           cloneStr;
-  }) << "];\n";
+
+  std::string valueList;
+
+  for (int i = 0; i < op.getNumOperands(); i++) {
+    valueList = llvm::formatv("{0}{1}.clone()", valueList,
+                              variableNames->getNameForValue(op.getOperand(i)));
+
+    if (i != op->getNumOperands() - 1) {
+      valueList = llvm::formatv("{0}, ", valueList);
+    }
+  }
+
+  for (int i = 0; i < op.getResult().getType().getShape().size(); i++) {
+    valueList = llvm::formatv("[{0}]", valueList);
+  }
+
+  os << valueList << ";\n";
   return success();
 }
 
 // Does not need to produce a value
 LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
+  auto tensor = op.getDest();
+
+  os << variableNames->getNameForValue(tensor)
+     << bracketEnclosedValues(
+            op.getIndices(),
+            [&](Value value) { return variableNames->getNameForValue(value); })
+     << " = " << variableNames->getNameForValue(op.getScalar())
+     << ".clone();\n";
+
   emitAssignPrefix(op.getResult());
-  os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
-    // Check if block argument, if so, clone.
-    const auto* cloneStr = isa<BlockArgument>(value) ? ".clone()" : "";
-    // Get the name of defining operation its dialect
-
-    bool tfheOp = false;
-    if (auto* defOp = value.getDefiningOp()) {
-      tfheOp = isa<TfheRustDialect>(defOp->getDialect());
-    }
-
-    const auto* prefix = tfheOp ? "&" : "";
-    return std::string(prefix) + variableNames->getNameForValue(value) +
-           cloneStr;
-  }) << "];\n";
+  os << variableNames->getNameForValue(tensor) << ";\n";
 
   return success();
 }
@@ -752,7 +878,11 @@ FailureOr<std::string> TfheRustHLEmitter::convertType(Type type) {
             // Tensor types are emitted as vectors
             auto elementTy = convertType(type.getElementType());
             if (failed(elementTy)) return failure();
-            return std::string("Vec<" + elementTy.value() + ">");
+            std::string res = elementTy.value();
+            for (unsigned dim : llvm::reverse(type.getShape())) {
+              res = llvm::formatv("[{0}; {1}]", res, dim);
+            }
+            return res;
           })
       .Case<MemRefType>([&](MemRefType type) -> FailureOr<std::string> {
         // MemRef types are emitted as arrays
@@ -802,7 +932,6 @@ std::string TfheRustHLEmitter::checkOrigin(Value value) {
   } else {
     return "";
   }
-
   return "";
 }
 

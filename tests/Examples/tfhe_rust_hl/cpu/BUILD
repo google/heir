@@ -19,10 +19,6 @@ tfhe_rs_end_to_end_test(
     ],
     heir_translate_flags = ["--emit-tfhe-rust-hl"],
     mlir_src = "fully_connected.mlir",
-    tags = [
-        "manual",
-        "notap",
-    ],
     test_src = "src/main_fully_connected.rs",
 )
 
@@ -35,10 +31,6 @@ tfhe_rs_end_to_end_test(
     ],
     heir_translate_flags = ["--emit-tfhe-rust-hl"],
     mlir_src = "add_round_key.mlir",
-    tags = [
-        "manual",
-        "notap",
-    ],
     test_src = "src/main_add_round_key.rs",
 )
 
@@ -51,9 +43,5 @@ tfhe_rs_end_to_end_test(
     ],
     heir_translate_flags = ["--emit-tfhe-rust-hl"],
     mlir_src = "hello_world_clean_xsmall.mlir",
-    tags = [
-        "manual",
-        "notap",
-    ],
     test_src = "src/main_hello_world.rs",
 )

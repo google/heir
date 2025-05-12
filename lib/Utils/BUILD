@@ -181,7 +181,6 @@ cc_library(
     srcs = ["TransformUtils.cpp"],
     hdrs = ["TransformUtils.h"],
     deps = [
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",

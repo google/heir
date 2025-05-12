@@ -52,6 +52,8 @@ namespace mlir {
 namespace heir {
 namespace tfhe_rust {
 
+// ToDO: the tensor need to be converted to [[[Ciphertext; 8]; 1]; 1] form
+
 namespace {
 
 bool isLevelledOp(Operation* op) {
@@ -411,7 +413,7 @@ LogicalResult TfheRustEmitter::printOperation(func::ReturnOp op) {
 }
 
 void TfheRustEmitter::emitAssignPrefix(Value result, bool mut,
-                                       std::string type) {
+                                       const std::string& type) {
   os << "let " << (mut ? "mut " : "") << variableNames->getNameForValue(result)
      << (type.empty() ? "" : (" : " + type)) << " = ";
 }
@@ -605,25 +607,70 @@ LogicalResult TfheRustEmitter::printOperation(::mlir::arith::TruncIOp op) {
 LogicalResult TfheRustEmitter::printOperation(tensor::ExtractOp op) {
   // We assume here that the indices are SSA values (not integer
   // attributes).
+
+  auto* postSuffix = "";
+
+  std::string varName =
+      llvm::formatv("{0}{1}", variableNames->getNameForValue(op.getTensor()),
+                    bracketEnclosedValues(op.getIndices(), [&](Value value) {
+                      return variableNames->getNameForValue(value);
+                    }));
+
+  if (usedByLevelledOp(op) && useLevels) {
+    os << llvm::formatv("temp_nodes.insert({0}, ",
+                        variableNames->getIntForValue(op.getResult()));
+    postSuffix = ".clone())";
+
+    os << varName << postSuffix << ";\n";
+
+    if (usedByNonLevelledOp(op)) {
+      // If not all users are levelled, we need to clone the result.
+      emitAssignPrefix(op.getResult());
+      os << "&" << varName << ".clone();\n";
+    }
+
+    return success();
+  }
+
   emitAssignPrefix(op.getResult());
-  os << "&" << variableNames->getNameForValue(op.getTensor()) << "["
-     << commaSeparatedValues(
-            op.getIndices(),
-            [&](Value value) { return variableNames->getNameForValue(value); })
-     << "];\n";
+  os << "&";
+
+  os << varName << postSuffix << ";\n";
+
   return success();
 }
 
 LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
-  emitAssignPrefix(op.getResult());
-  os << "vec![" << commaSeparatedValues(op.getOperands(), [&](Value value) {
-    // Check if block argument, if so, clone.
-    auto cloneStr = "";
-    if (isa<BlockArgument>(value)) {
-      cloneStr = ".clone()";
+  auto resultType = op.getResult().getType();
+  std::string res = convertType(resultType).value();
+
+  emitAssignPrefix(op.getResult(), true, res);
+
+  std::string valueList;
+
+  for (int i = 0; i < op.getNumOperands(); i++) {
+    if (isLevelledOp(op.getOperand(i).getDefiningOp()) && useLevels) {
+      // Ensure levelled operands are cloned from temp_nodes.
+      valueList =
+          llvm::formatv("{0}temp_nodes[&{1}].clone()", valueList,
+                        variableNames->getIntForValue(op.getOperand(i)));
+
+    } else {
+      valueList =
+          llvm::formatv("{0}{1}.clone()", valueList,
+                        variableNames->getNameForValue(op.getOperand(i)));
     }
-    return variableNames->getNameForValue(value) + cloneStr;
-  }) << "];\n";
+
+    if (i != op->getNumOperands() - 1) {
+      valueList = llvm::formatv("{0}, ", valueList);
+    }
+  }
+
+  for (int i = 0; i < op.getResult().getType().getShape().size(); i++) {
+    valueList = llvm::formatv("[{0}]", valueList);
+  }
+
+  os << valueList << ";\n";
   return success();
 }
 
@@ -634,7 +681,7 @@ LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
   os << std::accumulate(
       std::next(op.getMemref().getType().getShape().begin()),
       op.getMemref().getType().getShape().end(), std::string("usize"),
-      [&](std::string a, int64_t value) { return a + ", usize"; });
+      [&](const std::string& a, int64_t value) { return a + ", usize"; });
   if (op.getType().getRank() > 1) os << ")";
   os << ", ";
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
@@ -668,7 +715,7 @@ LogicalResult TfheRustEmitter::printOperation(memref::GetGlobalOp op) {
      << " = [";
 
   // Populate data by iterating through constant data attribute
-  auto printValue = [](APInt value) -> std::string {
+  auto printValue = [](const APInt& value) -> std::string {
     llvm::SmallString<40> s;
     value.toStringSigned(s, 10);
     return std::string(s);
@@ -676,9 +723,10 @@ LogicalResult TfheRustEmitter::printOperation(memref::GetGlobalOp op) {
 
   auto cstIter = cstAttr.value().value_begin<APInt>();
   auto cstIterEnd = cstAttr.value().value_end<APInt>();
-  os << std::accumulate(
-      std::next(cstIter), cstIterEnd, printValue(*cstIter),
-      [&](std::string a, APInt value) { return a + ", " + printValue(value); });
+  os << std::accumulate(std::next(cstIter), cstIterEnd, printValue(*cstIter),
+                        [&](const std::string& a, const APInt& value) {
+                          return a + ", " + printValue(value);
+                        });
 
   os << "];\n";
   return success();
@@ -774,13 +822,17 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
   return llvm::TypeSwitch<Type&, FailureOr<std::string>>(type)
       .Case<RankedTensorType>(
           [&](RankedTensorType type) -> FailureOr<std::string> {
-            // Tensor types are emitted as vectors
+            // Tensor types are emitted as nested arrays
             auto elementTy = convertType(type.getElementType());
             if (failed(elementTy)) return failure();
-            return std::string("Vec<" + elementTy.value() + ">");
+            std::string res = elementTy.value();
+            for (unsigned dim : llvm::reverse(type.getShape())) {
+              res = llvm::formatv("[{0}; {1}]", res, dim);
+            }
+            return res;
           })
       .Case<MemRefType>([&](MemRefType type) -> FailureOr<std::string> {
-        // MemRef types are emitted as arrays
+        // MemRef types are emitted as vectors or hashmaps
         auto elementTy = convertType(type.getElementType());
         if (failed(elementTy)) return failure();
         std::string res = elementTy.value();
@@ -788,6 +840,8 @@ FailureOr<std::string> TfheRustEmitter::convertType(Type type) {
           res = llvm::formatv("[{0}; {1}]", res, dim);
         }
         return res;
+
+        // return std::string("Vec<" + elementTy.value() + ">");
       })
       .Case<IntegerType>([&](IntegerType type) -> FailureOr<std::string> {
         if (type.getWidth() == 1) {

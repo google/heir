@@ -145,7 +145,9 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
         return rewriter.notifyMatchFailure(currentInsertOp,
                                            "failed to compute flattened index");
 
+      // Overriding values in the tensor is not supported.
       auto flatIndex = maybeFlatIndex.value();
+      if (flatIndexToElement.contains(flatIndex)) return failure();
       flatIndexToElement[flatIndex] = currentInsertOp.getScalar();
       opsToErase.push_back(currentInsertOp);
 
@@ -170,13 +172,10 @@ class InsertIntoFromElements final : public OpRewritePattern<tensor::InsertOp> {
       }
     }
 
-    auto finalInsertion = opsToErase.back();
-    rewriter.setInsertionPointAfter(finalInsertion);
     rewriter.replaceAllUsesWith(
-        finalInsertion->getResult(0),
+        opsToErase.back()->getResult(0),
         rewriter
-            .create<tensor::FromElementsOp>(finalInsertion->getLoc(), destType,
-                                            values)
+            .create<tensor::FromElementsOp>(insertOp.getLoc(), destType, values)
             .getResult());
     for (auto op : llvm::reverse(opsToErase)) {
       op->erase();
