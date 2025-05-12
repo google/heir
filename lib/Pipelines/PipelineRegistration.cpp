@@ -39,15 +39,13 @@ using mlir::func::FuncOp;
 
 namespace mlir::heir {
 
-void tosaToLinalg(OpPassManager& manager) {
-  manager.addNestedPass<FuncOp>(createTosaToLinalgNamed());
+void tosaToLinalg(OpPassManager &manager) {
   manager.addNestedPass<FuncOp>(createTosaToLinalg());
   manager.addNestedPass<FuncOp>(createTosaToArithPass({true, false}));
   manager.addNestedPass<FuncOp>(createTosaToTensorPass());
-  manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
   manager.addNestedPass<FuncOp>(createLinalgDetensorizePass());
   manager.addPass(createConvertTensorToLinalgPass());
-  manager.addPass(bufferization::createEmptyTensorToAllocTensorPass());
+  manager.addPass(createLinalgGeneralizeNamedOpsPass());
 }
 
 void oneShotBufferize(OpPassManager& manager) {
