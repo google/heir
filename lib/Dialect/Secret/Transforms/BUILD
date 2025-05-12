@@ -43,9 +43,9 @@ cc_library(
         "@llvm-project//mlir:FuncTransforms",
         "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
     ],
 )
