@@ -7,9 +7,9 @@ module {
   // CHECK: @add_one
   func.func @add_one(%in: !secret.secret<i8>) -> (!secret.secret<i8>) {
     %one = arith.constant 1 : i8
-    // Generic to convert the i8 to a memref
+    // Generic to convert the i8 to a tensor
     // CHECK: secret.cast
-    // CHECK-SAME: !secret.secret<i8> to !secret.secret<memref<8xi1>>
+    // CHECK-SAME: !secret.secret<i8> to !secret.secret<tensor<8xi1>>
 
     // CHECK: secret.generic
     %1 = secret.generic
@@ -31,7 +31,7 @@ module {
         } -> (!secret.secret<i8>)
 
     // CHECK: secret.cast
-    // CHECK-SAME: !secret.secret<memref<8xi1>> to !secret.secret<i8>
+    // CHECK-SAME: !secret.secret<tensor<8xi1>> to !secret.secret<i8>
     return %1 : !secret.secret<i8>
   }
 }

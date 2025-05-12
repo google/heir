@@ -12,10 +12,15 @@
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Transforms/DistributeGeneric.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Transforms/DropUnitDims/DropUnitDims.h"
+#include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
+#include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
+#include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/MemrefToArith/MemrefToArith.h"
 #include "lib/Transforms/Secretize/Passes.h"
+#include "lib/Transforms/TensorLinalgToAffineLoops/TensorLinalgToAffineLoops.h"
 #include "lib/Transforms/UnusedMemRef/UnusedMemRef.h"
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Passes.h"  // from @llvm-project
@@ -58,35 +63,36 @@ void mlirToCGGIPipeline(OpPassManager &pm,
   // TOSA to linalg
   ::mlir::heir::tosaToLinalg(pm);
 
-  // Bufferize
-  ::mlir::heir::oneShotBufferize(pm);
-
-  // Affine
-  pm.addNestedPass<FuncOp>(createConvertLinalgToAffineLoopsPass());
-  pm.addNestedPass<FuncOp>(memref::createExpandStridedMetadataPass());
-  pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
-  pm.addNestedPass<FuncOp>(memref::createExpandOpsPass());
-  pm.addPass(createExpandCopyPass());
-  pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
-  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
-  pm.addPass(memref::createFoldMemRefAliasOpsPass());
+  // Linalg to Affine loops
+  pm.addPass(createDropUnitDims());
+  pm.addPass(createFoldConstantTensors());
+  pm.addPass(createLinalgCanonicalizations());
+  pm.addPass(createCanonicalizerPass());
+  pm.addNestedPass<FuncOp>(createTensorLinalgToAffineLoops());
 
   // Affine loop optimizations
+  pm.addNestedPass<FuncOp>(affine::createAffineExpandIndexOpsPass());
+  pm.addNestedPass<FuncOp>(affine::createSimplifyAffineStructuresPass());
+  pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
   pm.addNestedPass<FuncOp>(
       affine::createLoopFusionPass(0, 0, true, affine::FusionMode::Greedy));
   pm.addNestedPass<FuncOp>(affine::createAffineLoopNormalizePass(true));
-  pm.addPass(createForwardStoreToLoad());
   pm.addPass(affine::createAffineParallelize());
+  pm.addPass(createCSEPass());
+  pm.addPass(createSCCPPass());
+  pm.addPass(createCanonicalizerPass());
   pm.addPass(createFullLoopUnroll());
-  pm.addPass(createForwardStoreToLoad());
-  pm.addNestedPass<FuncOp>(createRemoveUnusedMemRef());
 
-  // Cleanup
-  pm.addPass(createMemrefGlobalReplacePass());
+  // Cleanup after loop unroll
   ::mlir::arith::ArithIntRangeNarrowingOptions arithOps;
   arithOps.bitwidthsSupported = llvm::to_vector(bitWidths);
+  // This pass also materializes known constants, so forwards arith.constant
+  // tensor<...> with tensor.extracts.
   pm.addPass(::mlir::arith::createArithIntRangeNarrowing(arithOps));
   pm.addPass(createCanonicalizerPass());
+  pm.addPass(createLinalgCanonicalizations());
+  pm.addPass(createForwardInsertToExtract());
+  pm.addPass(createFoldConstantTensors());
   pm.addPass(createSCCPPass());
   pm.addPass(createCSEPass());
   pm.addPass(createSymbolDCEPass());
@@ -100,32 +106,29 @@ void mlirToCGGIPipeline(OpPassManager &pm,
       pm.addPass(createWrapGeneric());
       pm.addPass(secret::createSecretDistributeGeneric(distributeOpts));
       pm.addPass(createCanonicalizerPass());
-
       pm.addPass(createYosysOptimizer(yosysFilesPath, abcPath, options.abcFast,
-                                      options.unrollFactor,
-                                      options.useSubmodules, options.mode));
+                                      options.unrollFactor, options.mode));
       // Cleanup
       pm.addPass(mlir::createCSEPass());
       pm.addPass(createCanonicalizerPass());
+      pm.addPass(createFoldConstantTensors());
       pm.addPass(createSCCPPass());
       pm.addPass(createSymbolDCEPass());
-      pm.addPass(memref::createFoldMemRefAliasOpsPass());
-      pm.addPass(createForwardStoreToLoad());
 
       // Lower combinational circuit to CGGI
       pm.addPass(secret::createSecretDistributeGeneric());
+      pm.addPass(createCanonicalizerPass());
       pm.addPass(createSecretToCGGI());
       break;
     case Integer:
       pm.addPass(arith::createArithToCGGI());
       break;
   }
-  // Cleanup CombToCGGI
-  pm.addPass(
-      createExpandCopyPass(ExpandCopyPassOptions{.disableAffineLoop = true}));
-  pm.addPass(memref::createFoldMemRefAliasOpsPass());
-  pm.addPass(createForwardStoreToLoad());
-  pm.addPass(createRemoveUnusedMemRef());
+  // Cleanup SecretToCGGI
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createLinalgCanonicalizations());
+  pm.addPass(createForwardInsertToExtract());
+  pm.addPass(createFoldConstantTensors());
   pm.addPass(createCSEPass());
   pm.addPass(createSCCPPass());
 }

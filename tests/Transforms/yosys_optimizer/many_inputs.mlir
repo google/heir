@@ -1,4 +1,4 @@
-// RUN: heir-opt -yosys-optimizer="abc-fast=true use-submodules=false" %s | FileCheck %s
+// RUN: heir-opt -yosys-optimizer="abc-fast=true" %s | FileCheck %s
 
 // Regression test for https://github.com/google/heir/issues/359 When there are
 // > 10 ports, the RTLIL wire ordering is not the same as the original generic's
