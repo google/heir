@@ -30,7 +30,7 @@
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
@@ -85,16 +85,16 @@ Value buildSelectTruthTable(Location loc, OpBuilder &b, Value t, Value f,
 
 Operation *convertWriteOpInterface(
     Operation *op, SmallVector<Value> indices, Value valueToStore,
-    TypedValue<MemRefType> toMemRef,
+    TypedValue<TensorType> toTensor,
     ContextAwareConversionPatternRewriter &rewriter) {
   ImplicitLocOpBuilder b(op->getLoc(), rewriter);
 
-  MemRefType toMemRefTy = toMemRef.getType();
+  TensorType toTensorTy = toTensor.getType();
   Type valueToStoreType = valueToStore.getType();
   return llvm::TypeSwitch<Type, Operation *>(valueToStoreType)
-      // Plaintext integer into memref
+      // Plaintext integer into tensor
       .Case<IntegerType>([&](auto valType) {
-        auto ctTy = toMemRefTy.getElementType();
+        auto ctTy = toTensorTy.getElementType();
         auto encoding = cast<lwe::LWECiphertextType>(ctTy).getEncoding();
         auto ptxtTy = lwe::LWEPlaintextType::get(b.getContext(), encoding);
 
@@ -102,10 +102,10 @@ Operation *convertWriteOpInterface(
           auto ctValue = b.create<lwe::TrivialEncryptOp>(
               ctTy, b.create<lwe::EncodeOp>(ptxtTy, valueToStore, encoding),
               lwe::LWEParamsAttr());
-          return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
+          return b.create<tensor::InsertOp>(ctValue, toTensor, indices);
         }
 
-        // Get i-th bit of input and insert the bit into the memref of
+        // Get i-th bit of input and insert the bit into the tensor of
         // ciphertexts.
         auto loop = b.create<mlir::affine::AffineForOp>(0, valType.getWidth());
         b.setInsertionPointToStart(loop.getBody());
@@ -123,23 +123,20 @@ Operation *convertWriteOpInterface(
             lwe::LWEParamsAttr());
 
         indices.push_back(idx);
-        return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
+        return b.create<tensor::InsertOp>(ctValue, toTensor, indices);
       })
       .Case<lwe::LWECiphertextType>([&](auto valType) {
-        return b.create<memref::StoreOp>(valueToStore, toMemRef, indices);
+        return b.create<tensor::InsertOp>(valueToStore, toTensor, indices);
       })
-      .Case<MemRefType>([&](MemRefType valType) {
-        int rank = toMemRefTy.getRank();
+      .Case<TensorType>([&](TensorType valType) {
+        int rank = toTensorTy.getRank();
 
-        // A store op with a memref value to store must have
+        // A store op with a tensor value to store must have
         // originated from a secret encoding a multi-bit value. Under type
-        // conversion, the op is storing a memref<BITSIZE!ct_ty> into a
-        // memref of the form memref<?xBITSIZE!ct_ty>.
-
-        // Subview the storage memref into a rank-reduced memref at the
-        // storage indices.
+        // conversion, the op is storing a tensor<BITSIZE!ct_ty> into a
+        // tensor of the form tensor<?xBITSIZE!ct_ty>. Use an insert slice:
         //   * Offset: offset at the storage index [indices, 0]
-        //   * Strides: match original memref [1, 1, ..., 1]
+        //   * Strides: match original tensor [1, 1, ..., 1]
         //   * Sizes: rank-reduce to the last dim [1, 1, ..., BITSIZE]
         SmallVector<OpFoldResult> offsets = getAsOpFoldResult(indices);
         offsets.push_back(OpFoldResult(b.getIndexAttr(0)));
@@ -147,58 +144,39 @@ Operation *convertWriteOpInterface(
         Attribute oneIdxAttr = rewriter.getIndexAttr(1);
         SmallVector<OpFoldResult> strides(rank, oneIdxAttr);
         SmallVector<OpFoldResult> sizes(rank - 1, oneIdxAttr);
-        sizes.push_back(rewriter.getIndexAttr(toMemRefTy.getShape()[rank - 1]));
-
-        mlir::Type memRefType =
-            mlir::memref::SubViewOp::inferRankReducedResultType(
-                valType.getShape(), toMemRefTy, offsets, sizes, strides);
-        auto subview = b.create<memref::SubViewOp>(
-            cast<MemRefType>(memRefType), toMemRef, offsets, sizes, strides);
-        return b.create<memref::CopyOp>(valueToStore, subview);
+        sizes.push_back(rewriter.getIndexAttr(toTensorTy.getShape()[rank - 1]));
+        return b.create<tensor::InsertSliceOp>(valueToStore, toTensor, offsets,
+                                               sizes, strides);
       });
-  llvm_unreachable("expected integer or memref to store in ciphertext memref");
+  llvm_unreachable("expected integer or tensor to store in ciphertext tensor");
 }
 
 Operation *convertReadOpInterface(
-    Operation *op, SmallVector<Value> indices, Value fromMemRef,
+    Operation *op, SmallVector<Value> indices, Value fromTensor,
     Type outputType, ContextAwareConversionPatternRewriter &rewriter) {
   ImplicitLocOpBuilder b(op->getLoc(), rewriter);
-  MemRefType outputMemRefType = dyn_cast<MemRefType>(outputType);
-  MemRefType fromMemRefType = cast<MemRefType>(fromMemRef.getType());
-  int rank = fromMemRefType.getRank();
+  RankedTensorType outputTy = cast<RankedTensorType>(outputType);
+  TensorType fromTensorType = cast<TensorType>(fromTensor.getType());
+  int rank = fromTensorType.getRank();
 
-  // A load op with a memref value to store must have
+  // A load op with a tensor value to store must have
   // originated from a secret encoding a multi-bit value. Under type
-  // conversion, the op is loading a memref<BITSIZE!ct_ty> from a
-  // memref<?xBITSIZE!ct_ty>.
+  // conversion, the op is loading a tensor<BITSIZE!ct_ty> from a
+  // tensor<?xBITSIZE!ct_ty>.
 
-  // Subview the storage memref into a rank-reduced memref at the
-  // storage indices.
+  // Extract a slice from the tensor:
   //   * Offset: offset at the storage index [indices, 0]
-  //   * Strides: match original memref [1, 1, ..., 1]
+  //   * Strides: match original tensor [1, 1, ..., 1]
   //   * Sizes: rank-reduce to the last dim [1, 1, ..., BITSIZE]
   Attribute oneIdxAttr = rewriter.getIndexAttr(1);
   SmallVector<OpFoldResult> offsets = getAsOpFoldResult(indices);
   offsets.push_back(OpFoldResult(b.getIndexAttr(0)));
   SmallVector<OpFoldResult> strides(rank, oneIdxAttr);
   SmallVector<OpFoldResult> sizes(rank - 1, oneIdxAttr);
-  sizes.push_back(rewriter.getIndexAttr(fromMemRefType.getShape()[rank - 1]));
+  sizes.push_back(rewriter.getIndexAttr(fromTensorType.getShape()[rank - 1]));
 
-  // We need to calculate the resulting subview shape which may have a dynamic
-  // offset.
-  mlir::Type memRefType = mlir::memref::SubViewOp::inferRankReducedResultType(
-      outputMemRefType.getShape(), fromMemRefType, offsets, sizes, strides);
-  // If the offsets are dynamic and the resulting type does not match the
-  // converted output type, we must allocate and copy into one with a static 0
-  // offset. Otherwise we can return the subview.
-  auto subViewOp = b.create<memref::SubViewOp>(
-      cast<MemRefType>(memRefType), fromMemRef, offsets, sizes, strides);
-  if (memRefType != outputMemRefType) {
-    auto allocOp = b.create<memref::AllocOp>(outputMemRefType);
-    b.create<memref::CopyOp>(subViewOp, allocOp);
-    return allocOp;
-  }
-  return subViewOp;
+  return b.create<tensor::ExtractSliceOp>(outputTy, fromTensor, offsets, sizes,
+                                          strides);
 }
 
 SmallVector<Value> encodeInputs(
@@ -253,7 +231,7 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
             ctx, lwe::UnspecifiedBitFieldEncodingAttr::get(ctx, minBitWidth),
             lwe::LWEParamsAttr());
       }
-      return MemRefType::get(
+      return RankedTensorType::get(
           {intType.getWidth()},
           getLWECiphertextForInt(ctx, IntegerType::get(ctx, 1)));
     }
@@ -269,7 +247,7 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
       // Flatten the element shape with the original shape
       newShape.insert(newShape.end(), elementShape.getShape().begin(),
                       elementShape.getShape().end());
-      return MemRefType::get(newShape, elementShape.getElementType());
+      return RankedTensorType::get(newShape, elementShape.getElementType());
     }
     return shapedType.cloneWith(newShape, elementType);
   }
@@ -326,75 +304,6 @@ class SecretGenericOpLUTConversion
   }
 };
 
-class SecretGenericOpMemRefLoadConversion
-    : public SecretGenericOpConversion<memref::LoadOp> {
-  using SecretGenericOpConversion<memref::LoadOp>::SecretGenericOpConversion;
-
-  FailureOr<Operation *> matchAndRewriteInner(
-      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-      ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
-    memref::LoadOp loadOp =
-        cast<memref::LoadOp>(op.getBody()->getOperations().front());
-    if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
-      return rewriter
-          .replaceOpWithNewOp<memref::LoadOp>(op, inputs[0],
-                                              loadOp.getIndices())
-          .getOperation();
-    }
-    auto *newOp = convertReadOpInterface(loadOp, loadOp.getIndices(), inputs[0],
-                                         outputTypes[0], rewriter);
-    rewriter.replaceOp(op, newOp);
-    return newOp;
-  }
-};
-
-class SecretGenericOpMemRefAllocConversion
-    : public SecretGenericOpConversion<memref::AllocOp> {
-  using SecretGenericOpConversion<memref::AllocOp>::SecretGenericOpConversion;
-
-  FailureOr<Operation *> matchAndRewriteInner(
-      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-      ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
-    // Preserve the alignment attribute.
-    auto innerOp = cast<memref::AllocOp>(op.getBody()->getOperations().front());
-    SmallVector<NamedAttribute> newAttributes(attributes.begin(),
-                                              attributes.end());
-    if (innerOp.getAlignmentAttr()) {
-      newAttributes.push_back(NamedAttribute(
-          "alignment", cast<Attribute>(innerOp.getAlignmentAttr())));
-    }
-    return rewriter
-        .replaceOpWithNewOp<memref::AllocOp>(op, outputTypes, inputs,
-                                             newAttributes)
-        .getOperation();
-  }
-};
-
-class SecretGenericOpMemRefCollapseShapeConversion
-    : public SecretGenericOpConversion<memref::CollapseShapeOp> {
-  using SecretGenericOpConversion<
-      memref::CollapseShapeOp>::SecretGenericOpConversion;
-
-  FailureOr<Operation *> matchAndRewriteInner(
-      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
-      ArrayRef<NamedAttribute> attributes,
-      ContextAwareConversionPatternRewriter &rewriter) const override {
-    // Preserve the reassociation attribute.
-    auto innerOp =
-        cast<memref::CollapseShapeOp>(op.getBody()->getOperations().front());
-    SmallVector<NamedAttribute> newAttributes(attributes.begin(),
-                                              attributes.end());
-    newAttributes.push_back(
-        NamedAttribute("reassociation", innerOp.getReassociationAttr()));
-    return rewriter
-        .replaceOpWithNewOp<memref::CollapseShapeOp>(op, outputTypes, inputs,
-                                                     newAttributes)
-        .getOperation();
-  }
-};
-
 template <typename GateOp, typename CGGIGateOp>
 class SecretGenericOpGateConversion
     : public SecretGenericOpConversion<GateOp, CGGIGateOp> {
@@ -428,75 +337,68 @@ using SecretGenericOpXorConversion =
 using SecretGenericOpNandConversion =
     SecretGenericOpGateConversion<comb::NandOp, cggi::NandOp>;
 
-class SecretGenericOpAffineLoadConversion
-    : public SecretGenericOpConversion<affine::AffineLoadOp> {
-  using SecretGenericOpConversion<
-      affine::AffineLoadOp>::SecretGenericOpConversion;
+class SecretGenericOpTensorExtractConversion
+    : public SecretGenericOpConversion<tensor::ExtractOp> {
+  using SecretGenericOpConversion<tensor::ExtractOp>::SecretGenericOpConversion;
 
   FailureOr<Operation *> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    affine::AffineLoadOp loadOp =
-        cast<affine::AffineLoadOp>(op.getBody()->getOperations().front());
+    tensor::ExtractOp extractOp =
+        cast<tensor::ExtractOp>(op.getBody()->getOperations().front());
     if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
       return rewriter
-          .replaceOpWithNewOp<affine::AffineLoadOp>(
-              op, inputs[0], loadOp.getAffineMap(), loadOp.getIndices())
+          .replaceOpWithNewOp<tensor::ExtractOp>(op, inputs[0],
+                                                 extractOp.getIndices())
           .getOperation();
     }
-    auto indices = affine::expandAffineMap(
-        rewriter, op.getLoc(), loadOp.getAffineMap(), loadOp.getIndices());
-    if (!indices) {
-      op.emitError() << "expected affine access indices";
-    }
-    auto *newOp = convertReadOpInterface(
-        loadOp, {indices.value().begin(), indices.value().end()}, inputs[0],
-        outputTypes[0], rewriter);
+    auto *newOp = convertReadOpInterface(extractOp, extractOp.getIndices(),
+                                         inputs[0], outputTypes[0], rewriter);
     rewriter.replaceOp(op, newOp);
     return newOp;
   }
 };
 
-class SecretGenericOpAffineStoreConversion
-    : public SecretGenericOpConversion<affine::AffineStoreOp, memref::StoreOp> {
-  using SecretGenericOpConversion<affine::AffineStoreOp,
-                                  memref::StoreOp>::SecretGenericOpConversion;
+class SecretGenericOpTensorInsertConversion
+    : public SecretGenericOpConversion<tensor::InsertOp> {
+  using SecretGenericOpConversion<tensor::InsertOp>::SecretGenericOpConversion;
 
   FailureOr<Operation *> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    affine::AffineStoreOp storeOp =
-        cast<affine::AffineStoreOp>(op.getBody()->getOperations().front());
-    auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
-    auto indices = affine::expandAffineMap(
-        rewriter, op.getLoc(), storeOp.getAffineMap(), storeOp.getIndices());
-    if (!indices) {
-      op.emitError() << "expected affine access indices";
+    tensor::InsertOp insertOp =
+        cast<tensor::InsertOp>(op.getBody()->getOperations().front());
+    auto toTensor = cast<TypedValue<TensorType>>(inputs[1]);
+    if (!isa<lwe::LWECiphertextType>(toTensor.getType().getElementType())) {
+      // We may be inserting into a tensor initialized with plaintexts. The
+      // pattern ConvertPlaintextTensorInsertOp should apply first.
+      return failure();
     }
     auto *newOp = convertWriteOpInterface(
-        storeOp, {indices.value().begin(), indices.value().end()}, inputs[0],
-        toMemRef, rewriter);
+        insertOp, {insertOp.getIndices().begin(), insertOp.getIndices().end()},
+        inputs[0], toTensor, rewriter);
     rewriter.replaceOp(op, newOp);
     return newOp;
   }
 };
 
-class SecretGenericOpMemRefStoreConversion
-    : public SecretGenericOpConversion<memref::StoreOp> {
-  using SecretGenericOpConversion<memref::StoreOp>::SecretGenericOpConversion;
+class SecretGenericOpTensorInsertSliceConversion
+    : public SecretGenericOpConversion<tensor::InsertSliceOp> {
+  using SecretGenericOpConversion<
+      tensor::InsertSliceOp>::SecretGenericOpConversion;
 
   FailureOr<Operation *> matchAndRewriteInner(
       secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
       ArrayRef<NamedAttribute> attributes,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    memref::StoreOp storeOp =
-        cast<memref::StoreOp>(op.getBody()->getOperations().front());
-    auto toMemRef = cast<TypedValue<MemRefType>>(inputs[1]);
+    tensor::InsertSliceOp insertOp =
+        cast<tensor::InsertSliceOp>(op.getBody()->getOperations().front());
+    auto toTensor = cast<TypedValue<TensorType>>(inputs[1]);
     auto *newOp = convertWriteOpInterface(
-        storeOp, {storeOp.getIndices().begin(), storeOp.getIndices().end()},
-        inputs[0], toMemRef, rewriter);
+        insertOp, {insertOp.getOffsets().begin(), insertOp.getOffsets().end()},
+        inputs[0], toTensor, rewriter);
     rewriter.replaceOp(op, newOp);
     return newOp;
   }
@@ -544,24 +446,24 @@ struct ConvertSecretCastOp
   LogicalResult matchAndRewrite(
       secret::CastOp op, OpAdaptor adaptor,
       ContextAwareConversionPatternRewriter &rewriter) const override {
-    // The original secret cast reconciles multi-bit or memrefs of values like
-    // secret<i8> to secret<memref<8xi1>> or secret<memref<2x4xi2>> and
-    // secret<memref<16xi1>> and vice versa. One of these will always be a
-    // flattened memref<Nxi1> type that Yosys uses as input/output types. After
-    // secret-to-cggi type conversion, both will be memref types.
-    auto lhsMemRefTy = dyn_cast<MemRefType>(adaptor.getInput().getType());
-    auto rhsMemRefTy = dyn_cast<MemRefType>(typeConverter->convertType(
+    // The original secret cast reconciles multi-bit or tensors of values like
+    // secret<i8> to secret<tensor<8xi1>> or secret<tensor<2x4xi2>> and
+    // secret<tensor<16xi1>> and vice versa. One of these will always be a
+    // flattened tensor<Nxi1> type that Yosys uses as input/output types. After
+    // secret-to-cggi type conversion, both will be tensor types.
+    auto lhsTensorTy = dyn_cast<TensorType>(adaptor.getInput().getType());
+    auto rhsTensorTy = dyn_cast<TensorType>(typeConverter->convertType(
         op.getOutput().getType(),
         typeConverter->getContextualAttr(op.getOutput()).value_or(nullptr)));
 
-    if (!lhsMemRefTy || !rhsMemRefTy) {
+    if (!lhsTensorTy || !rhsTensorTy) {
       return op->emitOpError()
              << "expected cast between multi-bit secret types, got "
              << op.getInput().getType() << " and " << op.getOutput().getType();
     }
 
-    int lhsBits = lhsMemRefTy.getNumElements();
-    int rhsBits = rhsMemRefTy.getNumElements();
+    int lhsBits = lhsTensorTy.getNumElements();
+    int rhsBits = rhsTensorTy.getNumElements();
     if (lhsBits != rhsBits) {
       return op->emitOpError()
              << "expected cast between secrets holding the "
@@ -570,9 +472,9 @@ struct ConvertSecretCastOp
     }
 
     // Fold the cast if the resulting type converted shapes are the same.
-    if (lhsMemRefTy.getShape() == rhsMemRefTy.getShape()) {
-      // This happens when one of the original shapes was a memref and the other
-      // was an integer, for e.g. a secret.cast from i8 to memref<8xlwe_ct>.
+    if (lhsTensorTy.getShape() == rhsTensorTy.getShape()) {
+      // This happens when one of the original shapes was a tensor and the other
+      // was an integer, for e.g. a secret.cast from i8 to tensor<8xlwe_ct>.
       assert(isa<ShapedType>(op.getInput().getType().getValueType()) !=
              isa<ShapedType>(op.getOutput().getType().getValueType()));
       rewriter.replaceOp(op, adaptor.getInput());
@@ -580,44 +482,43 @@ struct ConvertSecretCastOp
     }
 
     // Otherwise, resolve the cast by reshaping the input. This happens when the
-    // original operand or result was a memref which Yosys optimizer flattened,
-    // for e.g. secret<memref<2xi4>> (memref<8xlwe_ct>).
-    if (lhsMemRefTy && rhsMemRefTy) {
-      if (lhsMemRefTy.getRank() > rhsMemRefTy.getRank() &&
-          rhsMemRefTy.getRank() == 1) {
-        // This case happens when converting a high dimension memref into a flat
-        // memref of single bits as an operand to a Yosys optimized body, e.g.
-        // secret<memref<1x1xi8>> (memref<1x1x8xlwe_ciphertext>) to
-        // secret<memref<8xi1>> (memref<8xlwe_ciphertext>). In this case,
-        // collapse the memref shape.
+    // original operand or result was a tensor which Yosys optimizer flattened,
+    // for e.g. secret<tensor<2xi4>> (tensor<8xlwe_ct>).
+    if (lhsTensorTy && rhsTensorTy) {
+      if (lhsTensorTy.getRank() > rhsTensorTy.getRank() &&
+          rhsTensorTy.getRank() == 1) {
+        // This case happens when converting a high dimension tensor into a flat
+        // tensor of single bits as an operand to a Yosys optimized body, e.g.
+        // secret<tensor<1x1xi8>> (tensor<1x1x8xlwe_ciphertext>) to
+        // secret<tensor<8xi1>> (tensor<8xlwe_ciphertext>). In this case,
+        // collapse the tensor shape.
         SmallVector<mlir::ReassociationIndices> reassociation;
-        auto range = llvm::seq<unsigned>(0, lhsMemRefTy.getRank());
+        auto range = llvm::seq<unsigned>(0, lhsTensorTy.getRank());
         reassociation.emplace_back(range.begin(), range.end());
-        rewriter.replaceOpWithNewOp<memref::CollapseShapeOp>(
+        rewriter.replaceOpWithNewOp<tensor::CollapseShapeOp>(
             op, adaptor.getInput(), reassociation);
         return success();
-      } else if (lhsMemRefTy.getRank() < rhsMemRefTy.getRank() &&
-                 lhsMemRefTy.getRank() == 1) {
+      } else if (lhsTensorTy.getRank() < rhsTensorTy.getRank() &&
+                 lhsTensorTy.getRank() == 1) {
         // This is the case of converting results of Yosys optimized bodies,
-        // flat memrefs of single bits, into a high dimensional memref, e.g.
-        // secret<memref<8xi1>> (memref<8xlwe_ciphertext>) to
-        // secret<memref<1x2xi4>> (memref<1x2x4xlwe_ciphertext>).
+        // flat tensors of single bits, into a high dimensional tensor, e.g.
+        // secret<tensor<8xi1>> (tensor<8xlwe_ciphertext>) to
+        // secret<tensor<1x2xi4>> (tensor<1x2x4xlwe_ciphertext>).
         SmallVector<mlir::ReassociationIndices> reassociation;
-        auto range = llvm::seq<unsigned>(0, rhsMemRefTy.getRank());
+        auto range = llvm::seq<unsigned>(0, rhsTensorTy.getRank());
         reassociation.emplace_back(range.begin(), range.end());
-        rewriter.replaceOpWithNewOp<memref::ExpandShapeOp>(
-            op, rhsMemRefTy, adaptor.getInput(), reassociation);
+        rewriter.replaceOpWithNewOp<tensor::ExpandShapeOp>(
+            op, rhsTensorTy, adaptor.getInput(), reassociation);
         return success();
-      } else if (lhsMemRefTy.getShape() != rhsMemRefTy.getShape()) {
-        // Fallback to a reinterpret cast to resolve the memref shapes.
-        int64_t offset;
-        SmallVector<int64_t> strides;
-        if (failed(rhsMemRefTy.getStridesAndOffset(strides, offset)))
-          return rewriter.notifyMatchFailure(
-              op, "failed to get stride and offset exprs");
-        auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-            op.getLoc(), rhsMemRefTy, adaptor.getInput(), offset,
-            rhsMemRefTy.getShape(), strides);
+      } else if (lhsTensorTy.getShape() != rhsTensorTy.getShape()) {
+        // Fallback to a reshape to resolve the tensor shapes.
+        auto shapeOp = rewriter.create<mlir::arith::ConstantOp>(
+            op.getLoc(),
+            RankedTensorType::get(rhsTensorTy.getShape().size(),
+                                  rewriter.getIndexType()),
+            rewriter.getIndexTensorAttr(rhsTensorTy.getShape()));
+        auto castOp = rewriter.create<tensor::ReshapeOp>(
+            op.getLoc(), rhsTensorTy, adaptor.getInput(), shapeOp);
         rewriter.replaceOp(op, castOp);
         return success();
       }
@@ -628,7 +529,7 @@ struct ConvertSecretCastOp
 };
 
 // ConvertSecretConcealOp lowers secret.conceal to a series of trivial_encrypt
-// ops stored into a memref.
+// ops stored into a tensor.
 struct ConvertSecretConcealOp
     : public ContextAwareOpConversionPattern<secret::ConcealOp> {
   ConvertSecretConcealOp(mlir::MLIRContext *context)
@@ -649,78 +550,137 @@ struct ConvertSecretConcealOp
     auto ptxtTy =
         lwe::LWEPlaintextType::get(rewriter.getContext(), ctTy.getEncoding());
 
-    auto storeElement = [&](TypedValue<IntegerType> element,
-                            SmallVector<Value> indices, Value memref) {
-      auto point = b.saveInsertionPoint();
-      auto valueType = element.getType();
-      if (valueType.getWidth() == 1) {
-        auto ctValue = b.create<lwe::TrivialEncryptOp>(
-            ctTy, b.create<lwe::EncodeOp>(ptxtTy, element, ctTy.getEncoding()),
-            lwe::LWEParamsAttr());
-        b.create<memref::StoreOp>(ctValue, memref, indices);
-        return;
-      }
-      auto loop = b.create<mlir::affine::AffineForOp>(0, valueType.getWidth());
-      b.setInsertionPointToStart(loop.getBody());
-      auto idx = loop.getInductionVar();
+    Value valueToStore = adaptor.getCleartext();
+    Value resultValue;
 
-      auto one = b.create<arith::ConstantOp>(
-          valueType, rewriter.getIntegerAttr(valueType, 1));
-      auto shiftAmount = b.create<arith::IndexCastOp>(valueType, idx);
-      auto bitMask = b.create<arith::ShLIOp>(valueType, one, shiftAmount);
-      auto andOp = b.create<arith::AndIOp>(element, bitMask);
-      auto shifted = b.create<arith::ShRSIOp>(andOp, shiftAmount);
-      auto bitValue = b.create<arith::TruncIOp>(b.getI1Type(), shifted);
-      auto ctValue = b.create<lwe::TrivialEncryptOp>(
-          ctTy, b.create<lwe::EncodeOp>(ptxtTy, bitValue, ctTy.getEncoding()),
-          lwe::LWEParamsAttr());
-      indices.append({idx});
-      b.create<memref::StoreOp>(ctValue, memref, indices);
-      b.restoreInsertionPoint(point);
+    auto encodeElement =
+        [&](TypedValue<IntegerType> value) -> SmallVector<Value> {
+      auto valueType = value.getType();
+      if (valueType.getWidth() == 1) {
+        return {b.create<lwe::TrivialEncryptOp>(
+                     ctTy,
+                     b.create<lwe::EncodeOp>(ptxtTy, value, ctTy.getEncoding()),
+                     lwe::LWEParamsAttr())
+                    .getResult()};
+      }
+      SmallVector<Value> elementValues;
+      for (auto i = 0; i < valueType.getWidth(); ++i) {
+        auto one = b.create<arith::ConstantOp>(
+            valueType, rewriter.getIntegerAttr(valueType, 1));
+        auto shiftAmount = b.create<arith::ConstantOp>(
+            valueType, b.getIntegerAttr(valueType, i));
+        auto bitMask = b.create<arith::ShLIOp>(valueType, one, shiftAmount);
+        auto andOp = b.create<arith::AndIOp>(value, bitMask);
+        auto shifted = b.create<arith::ShRSIOp>(andOp, shiftAmount);
+        auto bitValue = b.create<arith::TruncIOp>(b.getI1Type(), shifted);
+        auto ctValue = b.create<lwe::TrivialEncryptOp>(
+            ctTy, b.create<lwe::EncodeOp>(ptxtTy, bitValue, ctTy.getEncoding()),
+            lwe::LWEParamsAttr());
+        elementValues.push_back(ctValue);
+      }
+      return elementValues;
     };
 
-    Value newValue;
-    Value valueToStore = adaptor.getCleartext();
-    if (auto memrefTy = dyn_cast<MemRefType>(convertedTy)) {
-      auto allocOp = b.create<memref::AllocOp>(memrefTy);
-      newValue = allocOp.getResult();
-      if (auto inputMemrefTy =
-              dyn_cast<MemRefType>(adaptor.getCleartext().getType())) {
-        // The input was a memref<<SHAPE>xiN>, so we need to extract each value
-        // of the input and store it in the output memref.
+    // The resulting tensor will be tensor<<SHAPE>xMxlwe_ct> where <SHAPE> is
+    // the shape of the original tensor and M is the bit width of the elements.
+    if (auto tensorTy = dyn_cast<TensorType>(convertedTy)) {
+      SmallVector<Value> elementValues;
+      if (auto inputTensorTy = dyn_cast<TensorType>(valueToStore.getType())) {
         SmallVector<Value> constIndices;
-        const auto *maxDimension = llvm::max_element(inputMemrefTy.getShape());
+        const auto *maxDimension = llvm::max_element(inputTensorTy.getShape());
         for (auto i = 0; i < *maxDimension; ++i) {
           constIndices.push_back(b.create<arith::ConstantIndexOp>(i));
         }
-        for (auto i = 0; i < inputMemrefTy.getNumElements(); ++i) {
-          // Extract the value from the original memref.
-          auto rawIndices = unflattenIndex(i, inputMemrefTy.getShape(), 0);
+        for (auto i = 0; i < inputTensorTy.getNumElements(); ++i) {
+          // Extract the value from the original tensor.
+          auto rawIndices = unflattenIndex(i, inputTensorTy.getShape(), 0);
           auto indices = llvm::map_to_vector(
               rawIndices,
               [&](int64_t index) -> Value { return constIndices[index]; });
           auto extractedValue =
-              b.create<memref::LoadOp>(valueToStore, indices).getResult();
-          storeElement(cast<TypedValue<IntegerType>>(extractedValue), indices,
-                       newValue);
+              b.create<tensor::ExtractOp>(valueToStore, indices).getResult();
+          auto newValues =
+              encodeElement(cast<TypedValue<IntegerType>>(extractedValue));
+          elementValues.append(newValues.begin(), newValues.end());
         }
       } else {
-        // The input was an iN and the output was a memref<Nxct>.
         auto singleValue = cast<TypedValue<IntegerType>>(valueToStore);
-        storeElement(singleValue, {}, newValue);
+        elementValues = encodeElement(singleValue);
       }
+      assert(elementValues.size() == tensorTy.getNumElements());
+      resultValue = b.create<tensor::FromElementsOp>(tensorTy, elementValues);
     } else {
-      // The input was an i1 and the output was a scalar ct.
-      assert(cast<IntegerType>(valueToStore.getType()).getWidth() == 1);
-      newValue = b.create<lwe::TrivialEncryptOp>(
-          ctTy,
-          b.create<lwe::EncodeOp>(ptxtTy, valueToStore, ctTy.getEncoding()),
-          lwe::LWEParamsAttr());
+      auto typedValue = dyn_cast<TypedValue<IntegerType>>(valueToStore);
+      auto resultValues = encodeElement(typedValue);
+      assert(resultValues.size() == 1 && "expected one encoded value");
+      resultValue = resultValues[0];
     }
-
-    rewriter.replaceAllOpUsesWith(op, newValue);
-    rewriter.eraseOp(op);
+    rewriter.replaceOp(op, resultValue);
     return success();
+  }
+};
+
+// ConvertFromElementsOp converts a tensor::FromElementsOp of plaintext/secret
+// types into a tensor::FromElementsOp of lwe::LWECiphertextType of ciphertext
+// types.
+struct ConvertFromElementsOp
+    : public SecretGenericOpConversion<tensor::FromElementsOp> {
+  ConvertFromElementsOp(mlir::MLIRContext *context)
+      : SecretGenericOpConversion<tensor::FromElementsOp>(context) {}
+  using SecretGenericOpConversion<
+      tensor::FromElementsOp>::SecretGenericOpConversion;
+
+  FailureOr<Operation *> matchAndRewriteInner(
+      secret::GenericOp op, TypeRange outputTypes, ValueRange inputs,
+      ArrayRef<NamedAttribute> attributes,
+      ContextAwareConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto tensorTy = cast<TensorType>(outputTypes[0]);
+    auto ctTy = dyn_cast<lwe::LWECiphertextType>(tensorTy.getElementType());
+    if (!ctTy) {
+      return failure();
+    }
+    auto ptTy =
+        lwe::LWEPlaintextType::get(rewriter.getContext(), ctTy.getEncoding());
+    // All elements of the operation must have the same type. If they are
+    // scalars, construct a from_elements op, encoding plaintexts as necessary.
+    if (!isa<ShapedType>(inputs[0].getType())) {
+      SmallVector<Value> values;
+      for (auto element : inputs) {
+        if (isa<lwe::LWECiphertextType>(element.getType())) {
+          values.push_back(element);
+        } else {
+          auto ctElement =
+              b.create<lwe::TrivialEncryptOp>(
+                   ctTy,
+                   b.create<lwe::EncodeOp>(ptTy, element, ctTy.getEncoding()),
+                   lwe::LWEParamsAttr())
+                  .getResult();
+          values.push_back(ctElement);
+        }
+      }
+      return rewriter
+          .replaceOpWithNewOp<tensor::FromElementsOp>(op, outputTypes[0],
+                                                      values)
+          .getOperation();
+    }
+    auto inputTensorTy = cast<TensorType>(inputs[0].getType());
+    assert(inputTensorTy && "expected scalar or tensor input");
+    if (tensorTy.getNumElements() == inputTensorTy.getNumElements()) {
+      // We need to reshape the input tensor, which may be a tensor<32xlwe_ct>
+      // to a tensor<1x1x32xlwe_ct>.
+      auto shapeOp = b.create<mlir::arith::ConstantOp>(
+          RankedTensorType::get(tensorTy.getShape().size(),
+                                rewriter.getIndexType()),
+          rewriter.getIndexTensorAttr(tensorTy.getShape()));
+      return rewriter
+          .replaceOpWithNewOp<tensor::ReshapeOp>(op, tensorTy, inputs[0],
+                                                 shapeOp)
+          .getOperation();
+    }
+    // Otherwise, there are many tensor operands that will need to be
+    // concatenated.
+    return failure();
   }
 };
 
@@ -775,33 +735,40 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
     ConversionTarget target(*context);
     target.addLegalOp<ModuleOp>();
     target.addLegalDialect<cggi::CGGIDialect, arith::ArithDialect,
-                           lwe::LWEDialect, memref::MemRefDialect>();
+                           lwe::LWEDialect, tensor::TensorDialect>();
     target.addIllegalOp<comb::TruthTableOp, secret::CastOp, secret::GenericOp,
                         secret::ConcealOp>();
 
-    target.addDynamicallyLegalOp<memref::StoreOp>([&](memref::StoreOp op) {
-      // Legal only when the memref element type matches the stored
-      // type.
-      return op.getMemRefType().getElementType() ==
-             op.getValueToStore().getType();
-    });
-    target.addDynamicallyLegalOp<affine::AffineStoreOp>(
-        [&](affine::AffineStoreOp op) {
-          // Legal only when the memref element type matches the stored
+    target.addDynamicallyLegalOp<tensor::FromElementsOp>(
+        [&](tensor::FromElementsOp op) {
+          // Legal only when the tensor element type matches the stored
           // type.
-          return op.getMemRefType().getElementType() ==
-                 op.getValueToStore().getType();
+          for (auto element : op.getElements()) {
+            if (element.getType() != op.getType().getElementType()) {
+              return false;
+            }
+          }
+          return true;
         });
-    target.addDynamicallyLegalOp<memref::LoadOp>([&](memref::LoadOp op) {
-      // Legal only when the memref element type matches the loaded type.
-      return op.getMemRefType().getElementType() == op.getResult().getType();
+    target.addDynamicallyLegalOp<tensor::ExtractOp>([&](tensor::ExtractOp op) {
+      // Legal only when the tensor element type matches the extracted type.
+      return op.getType() == op.getTensor().getType().getElementType();
     });
-    target.addDynamicallyLegalOp<affine::AffineLoadOp>(
-        [&](affine::AffineLoadOp op) {
-          // Legal only when the memref element type matches the loaded
+    target.addDynamicallyLegalOp<tensor::InsertOp>([&](tensor::InsertOp op) {
+      // Legal only when the tensor element type matches the inserted
+      // type.
+      return op.getDest().getType().getElementType() ==
+                 op.getScalar().getType() &&
+             op.getType().getElementType() == op.getScalar().getType();
+    });
+    target.addDynamicallyLegalOp<tensor::InsertSliceOp>(
+        [&](tensor::InsertSliceOp op) {
+          // Legal only when the tensor element type matches the inserted
           // type.
-          return op.getMemRefType().getElementType() ==
-                 op.getResult().getType();
+          assert(op.getDest());
+          assert(op.getSource());
+          return op.getDestType().getElementType() ==
+                 op.getSourceType().getElementType();
         });
 
     // The conversion of an op whose result is an iter_arg of affine.for can
@@ -817,19 +784,16 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
         [&](auto op) { return typeConverter.isLegal(op); });
 
     patterns.add<
-        SecretGenericOpLUTConversion, SecretGenericOpMemRefAllocConversion,
-        SecretGenericOpConversion<memref::DeallocOp, memref::DeallocOp>,
-        SecretGenericOpMemRefCollapseShapeConversion,
-        SecretGenericOpMemRefLoadConversion,
-        SecretGenericOpAffineStoreConversion,
-        SecretGenericOpAffineLoadConversion,
-        SecretGenericOpMemRefStoreConversion, ConvertTruthTableOp,
+        SecretGenericOpLUTConversion, SecretGenericOpTensorInsertConversion,
+        SecretGenericOpTensorExtractConversion, ConvertTruthTableOp,
         SecretGenericOpInvConversion, SecretGenericOpAndConversion,
         SecretGenericOpNorConversion, SecretGenericOpNandConversion,
         SecretGenericOpOrConversion, SecretGenericOpXNorConversion,
         SecretGenericOpXorConversion, ConvertSecretCastOp,
         ConvertSecretConcealOp, ConvertAnyContextAware<affine::AffineForOp>,
-        ConvertAnyContextAware<affine::AffineYieldOp>>(typeConverter, context);
+        ConvertAnyContextAware<affine::AffineYieldOp>, ConvertFromElementsOp,
+        SecretGenericOpConversion<tensor::EmptyOp>,
+        SecretGenericOpTensorInsertSliceConversion>(typeConverter, context);
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 
@@ -839,7 +803,8 @@ struct SecretToCGGI : public impl::SecretToCGGIBase<SecretToCGGI> {
     }
 
     RewritePatternSet cleanupPatterns(context);
-    patterns.add<ResolveUnrealizedConversionCast>(context);
+    tensor::populateFoldCollapseExtractPatterns(cleanupPatterns);
+    cleanupPatterns.add<ResolveUnrealizedConversionCast>(context);
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.
     if (failed(applyPatternsGreedily(module, std::move(cleanupPatterns)))) {

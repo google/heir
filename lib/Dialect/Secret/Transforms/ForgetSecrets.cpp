@@ -12,7 +12,7 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
@@ -101,17 +101,17 @@ struct ConvertCast : public OpConversionPattern<CastOp> {
       return success();
     }
 
-    if (isa<MemRefType>(targetType) && isa<IntegerType>(sourceType)) {
-      // Decompose the bits of the input into a memref of i1s.
-      auto convertedValue = convertIntegerValueToMemrefOfBits(
+    if (isa<TensorType>(targetType) && isa<IntegerType>(sourceType)) {
+      // Decompose the bits of the input into a tensor of i1s.
+      auto convertedValue = convertIntegerValueToTensorOfBits(
           adaptor.getInput(), rewriter, op.getLoc());
       rewriter.replaceOp(op, convertedValue);
       return success();
     }
 
-    if (isa<MemRefType>(sourceType) && isa<IntegerType>(targetType)) {
-      // Reconstruct the integer type from a memref of its bits.
-      auto convertedValue = convertMemrefOfBitsToInteger(
+    if (isa<TensorType>(sourceType) && isa<IntegerType>(targetType)) {
+      // Reconstruct the integer type from a tensor of its bits.
+      auto convertedValue = convertTensorOfBitsToInteger(
           adaptor.getInput(), targetType, rewriter, op.getLoc());
       rewriter.replaceOp(op, convertedValue);
       return success();
@@ -135,7 +135,7 @@ struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
     ForgetSecretsTypeConverter typeConverter;
 
     target.addIllegalDialect<SecretDialect>();
-    target.addLegalDialect<memref::MemRefDialect>();
+    target.addLegalDialect<tensor::TensorDialect>();
     target.addLegalDialect<arith::ArithDialect>();
     target.addDynamicallyLegalOp<mlir::func::FuncOp>(
         [&](mlir::func::FuncOp op) {
