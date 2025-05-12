@@ -16,7 +16,7 @@ module attributes {tf_saved_model.semantics} {
     %0 = memref.get_global @__constant_16x1xi8 : memref<16x1xi8>
     %1 = memref.get_global @__constant_16xi32 : memref<16xi8>
     // CHECK: secret.generic
-    %2 = secret.generic ins(%arg0 : !secret.secret<memref<1x1xi8, strided<[?, ?], offset: ?>>>) {
+    %2 = secret.generic(%arg0 : !secret.secret<memref<1x1xi8, strided<[?, ?], offset: ?>>>) {
     ^bb0(%arg1: memref<1x1xi8, strided<[?, ?], offset: ?>>):
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
       affine.parallel (%arg2) = (0) to (16) {
@@ -27,7 +27,7 @@ module attributes {tf_saved_model.semantics} {
       }
       secret.yield %alloc : memref<1x16xi8>
     } -> (!secret.secret<memref<1x16xi8>>)
-    secret.generic ins(%2 : !secret.secret<memref<1x16xi8>>) {
+    secret.generic(%2 : !secret.secret<memref<1x16xi8>>) {
     ^bb0(%arg1: memref<1x16xi8>):
       memref.dealloc %arg1 : memref<1x16xi8>
       secret.yield

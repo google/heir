@@ -18,7 +18,7 @@ module {
     // CHECK: %[[collapse_shape:.*]] = memref.collapse_shape %[[arg0]]
     // CHECK-COUNT-6: memref.load %[[collapse_shape]]
     %0 = secret.cast %arg0 : !secret.secret<memref<2xi4, strided<[?], offset: ?>>> to !secret.secret<memref<8xi1>>
-    %1 = secret.generic ins(%0 : !secret.secret<memref<8xi1>>) {
+    %1 = secret.generic(%0 : !secret.secret<memref<8xi1>>) {
     ^body(%input0: memref<8xi1>):
       %3 = memref.load %input0[%c0] : memref<8xi1>
       %4 = memref.load %input0[%c1] : memref<8xi1>

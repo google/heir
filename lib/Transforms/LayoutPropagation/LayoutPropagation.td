@@ -56,7 +56,7 @@ def LayoutPropagation : Pass<"layout-propagation"> {
     %out_1 = arith.constant dense<0> : !tensor2
     %out_2 = arith.constant dense<0> : !tensor2
 
-    %0 = secret.generic ins(%arg0, %arg1: !stensor, !stensor) {
+    %0 = secret.generic(%arg0, %arg1: !stensor, !stensor) {
     ^body(%pt_arg0: !tensor, %pt_arg1: !tensor):
       %1 = linalg.reduce { arith.addi } ins(%pt_arg0:!tensor) outs(%out_1:!tensor2) dimensions = [0]
       %2 = linalg.reduce { arith.addi } ins(%pt_arg1:!tensor) outs(%out_2:!tensor2) dimensions = [1]
@@ -82,7 +82,7 @@ def LayoutPropagation : Pass<"layout-propagation"> {
         ) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #tensor_ext.layout<layout = (d0) -> (d0)>}) {
       %cst = arith.constant dense<0> : tensor<32xi16>
       %cst_0 = arith.constant dense<0> : tensor<32xi16>
-      %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32x32xi16>>, !secret.secret<tensor<32x32xi16>>)
+      %0 = secret.generic(%arg0, %arg1 : !secret.secret<tensor<32x32xi16>>, !secret.secret<tensor<32x32xi16>>)
                           attrs = {arg0 = {tensor_ext.layout = #map}, arg1 = {tensor_ext.layout = #map}, layout = [#map1]} {
       ^body(%input0: tensor<32x32xi16>, %input1: tensor<32x32xi16>):
         %1 = tensor_ext.assign_layout %cst {tensor_ext.layout = #map1} : tensor<32xi16>

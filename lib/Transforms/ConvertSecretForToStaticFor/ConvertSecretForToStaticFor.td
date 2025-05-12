@@ -15,7 +15,7 @@ def ConvertSecretForToStaticFor : Pass<"convert-secret-for-to-static-for"> {
     ```mlir
       func.func @main(%secretTensor: !secret.secret<tensor<16xi32>>, %secretLower: !secret.secret<index>, %secretUpper: !secret.secret<index>) -> !secret.secret<i32> {
        ...
-       %0 = secret.generic ins(%secretTensor, %secretLower, %secretUpper : !secret.secret<tensor<16xi32>>, !secret.secret<index>, !secret.secret<index>){
+       %0 = secret.generic(%secretTensor, %secretLower, %secretUpper : !secret.secret<tensor<16xi32>>, !secret.secret<index>, !secret.secret<index>){
         ^bb0(%tensor: tensor<16xi32>, %lower : index, %upper : index ):
           ...
           %1 = scf.for %i = %lower to %upper step %step iter_args(%arg = %val) -> (i32) {
@@ -32,7 +32,7 @@ def ConvertSecretForToStaticFor : Pass<"convert-secret-for-to-static-for"> {
     ```mlir
       func.func @main(%secretTensor: !secret.secret<tensor<16xi32>>, %secretIndex: !secret.secret<index> {secret.secret}) -> !secret.secret<i32> {
        ...
-       %0 = secret.generic ins(%secretTensor, %secretLower, %secretUpper : !secret.secret<tensor<16xi32>>, !secret.secret<index>, !secret.secret<index>){
+       %0 = secret.generic(%secretTensor, %secretLower, %secretUpper : !secret.secret<tensor<16xi32>>, !secret.secret<index>, !secret.secret<index>){
         ^bb0(%tensor: tensor<16xi32>, %lower : index, %upper : index ):
           ...
           %1 = affine.for %i = 0 to 16 step %step iter_args(%arg = %val) -> (i32) {

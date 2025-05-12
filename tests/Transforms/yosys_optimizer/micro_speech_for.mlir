@@ -12,7 +12,7 @@ func.func @for_25_20_8(
   // CHECK-NOT: arith.{{^constant}}
   // CHECK: comb.truth_table
   %1 = secret.generic
-      ins(%c98, %c99, %c100: !secret.secret<i32>, !secret.secret<i32>, !secret.secret<i8>) {
+      (%c98: !secret.secret<i32>, %c99: !secret.secret<i32>, %c100: !secret.secret<i8>) {
   ^bb0(%98: i32, %99: i32, %100: i8) :
   %c1_i64 = arith.constant 1 : i64
   %c1073741824_i64 = arith.constant 1073741824 : i64

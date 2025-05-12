@@ -14,7 +14,7 @@ def ConvertSecretInsertToStaticInsert : Pass<"convert-secret-insert-to-static-in
     ```mlir
     func.func @main(%secretTensor: !secret.secret<tensor<32xi16>>, %secretIndex: !secret.secret<index>)) -> !secret.secret<i16> {
       ...
-      %0 = secret.generic ins(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
+      %0 = secret.generic(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
       ^bb0(%tensor: tensor<32xi16>, %index: index):
         // Violation: tensor.insert writes value at secret index
         %inserted = tensor.insert %newValue into %tensor[%index] : tensor<16xi32>
@@ -27,7 +27,7 @@ def ConvertSecretInsertToStaticInsert : Pass<"convert-secret-insert-to-static-in
     ```mlir
     func.func @main(%secretTensor: !secret.secret<tensor<32xi16>>, %secretIndex: !secret.secret<index>)) -> !secret.secret<i16> {
       ...
-      %0 = secret.generic ins(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
+      %0 = secret.generic(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
       ^bb0(%tensor: tensor<32xi16>, %index: index):
         %inserted = affine.for %i=0 to 16 iter_args(%inputArg = %tensor) -> tensor<16xi32> {
           // 1. Check if %i matches the %index

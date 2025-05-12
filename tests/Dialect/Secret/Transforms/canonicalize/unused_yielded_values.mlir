@@ -32,7 +32,7 @@ module attributes {tf_saved_model.semantics} {
     %2 = memref.get_global @__constant_16x16xi8 : memref<16x16xi8>
     %3 = memref.get_global @__constant_16xi32_0 : memref<16xi32>
     %4 = memref.get_global @__constant_1x16xi8 : memref<1x16xi8>
-    %5 = secret.generic {
+    %5 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
       secret.yield %alloc : memref<1x16xi8>
     } -> !secret.secret<memref<1x16xi8>>
@@ -40,38 +40,38 @@ module attributes {tf_saved_model.semantics} {
     affine.for %arg1 = 0 to 1 {
       affine.for %arg2 = 0 to 16 {
         %20 = affine.load %0[%arg2, %arg1] : memref<16x1xi8>
-        secret.generic ins(%5 : !secret.secret<memref<1x16xi8>>) {
+        secret.generic(%5 : !secret.secret<memref<1x16xi8>>) {
         ^bb0(%arg3: memref<1x16xi8>):
           affine.store %20, %arg3[%arg1, %arg2] : memref<1x16xi8>
           secret.yield
         }
       }
     }
-    %6 = secret.generic {
+    %6 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
       secret.yield %alloc : memref<1x16xi32>
     } -> !secret.secret<memref<1x16xi32>>
     affine.for %arg1 = 0 to 1 {
       affine.for %arg2 = 0 to 16 {
         %20 = affine.load %1[%arg2] : memref<16xi32>
-        secret.generic ins(%6 : !secret.secret<memref<1x16xi32>>) {
+        secret.generic(%6 : !secret.secret<memref<1x16xi32>>) {
         ^bb0(%arg3: memref<1x16xi32>):
           affine.store %20, %arg3[%arg1, %arg2] : memref<1x16xi32>
           secret.yield
         }
       }
     }
-    %7 = secret.generic {
+    %7 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
       secret.yield %alloc : memref<1x16xi32>
     } -> !secret.secret<memref<1x16xi32>>
     affine.for %arg1 = 0 to 16 {
-      %20 = secret.generic ins(%6 : !secret.secret<memref<1x16xi32>>) {
+      %20 = secret.generic(%6 : !secret.secret<memref<1x16xi32>>) {
       ^bb0(%arg2: memref<1x16xi32>):
         %21 = affine.load %arg2[0, %arg1] : memref<1x16xi32>
         secret.yield %21 : i32
       } -> !secret.secret<i32>
-      secret.generic ins(%7, %20 : !secret.secret<memref<1x16xi32>>, !secret.secret<i32>) {
+      secret.generic(%7: !secret.secret<memref<1x16xi32>>, %20: !secret.secret<i32>) {
       ^bb0(%arg2: memref<1x16xi32>, %arg3: i32):
         affine.store %arg3, %arg2[0, %arg1] : memref<1x16xi32>
         secret.yield
@@ -84,17 +84,17 @@ module attributes {tf_saved_model.semantics} {
     // CHECK-NEXT: affine.for
         affine.for %arg3 = 0 to 1 {
           // CHECK-COUNT-3: secret.generic
-          %20 = secret.generic ins(%arg0 : !secret.secret<memref<1x1xi8>>) {
+          %20 = secret.generic(%arg0 : !secret.secret<memref<1x1xi8>>) {
           ^bb0(%arg4: memref<1x1xi8>):
             %24 = affine.load %arg4[%arg1, %arg3] : memref<1x1xi8>
             secret.yield %24 : i8
           } -> !secret.secret<i8>
-          %21 = secret.generic ins(%5 : !secret.secret<memref<1x16xi8>>) {
+          %21 = secret.generic(%5 : !secret.secret<memref<1x16xi8>>) {
           ^bb0(%arg4: memref<1x16xi8>):
             %24 = affine.load %arg4[%arg3, %arg2] : memref<1x16xi8>
             secret.yield %24 : i8
           } -> !secret.secret<i8>
-          %22 = secret.generic ins(%7 : !secret.secret<memref<1x16xi32>>) {
+          %22 = secret.generic(%7 : !secret.secret<memref<1x16xi32>>) {
           ^bb0(%arg4: memref<1x16xi32>):
             %24 = affine.load %arg4[%arg1, %arg2] : memref<1x16xi32>
             secret.yield %24 : i32
@@ -102,7 +102,7 @@ module attributes {tf_saved_model.semantics} {
           // CHECK: secret.generic
           // CHECK: secret.yield
           // CHECK-NEXT: -> !secret.secret<i32>
-          %23:6 = secret.generic ins(%20, %21, %22 : !secret.secret<i8>, !secret.secret<i8>, !secret.secret<i32>) {
+          %23:6 = secret.generic(%20: !secret.secret<i8>, %21: !secret.secret<i8>, %22: !secret.secret<i32>) {
           ^bb0(%arg4: i8, %arg5: i8, %arg6: i32):
             %24 = arith.extsi %arg4 : i8 to i16
             %25 = arith.subi %24, %c-128_i16 : i16
@@ -112,7 +112,7 @@ module attributes {tf_saved_model.semantics} {
             %29 = arith.addi %arg6, %28 : i32
             secret.yield %24, %25, %26, %27, %28, %29 : i16, i16, i32, i32, i32, i32
           } -> (!secret.secret<i16>, !secret.secret<i16>, !secret.secret<i32>, !secret.secret<i32>, !secret.secret<i32>, !secret.secret<i32>)
-          secret.generic ins(%7, %23#5 : !secret.secret<memref<1x16xi32>>, !secret.secret<i32>) {
+          secret.generic(%7: !secret.secret<memref<1x16xi32>>, %23#5: !secret.secret<i32>) {
           ^bb0(%arg4: memref<1x16xi32>, %arg5: i32):
             affine.store %arg5, %arg4[%arg1, %arg2] : memref<1x16xi32>
             secret.yield

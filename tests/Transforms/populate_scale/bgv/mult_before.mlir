@@ -3,18 +3,19 @@
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497, 17179967489, 35184372121601], P = [35184372203521, 35184372744193], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: func @mult
   func.func @mult(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-    // CHECK: __argattrs
+    // CHECK: secret.generic
     // CHECK-SAME: level = 2
     // CHECK-SAME: scale = 1
-    // CHECK-SAME: __resattrs
-    // CHECK-SAME: level = 0
-    // CHECK-SAME: scale = 11445
-    %0 = secret.generic ins(%arg0 : !secret.secret<i16>) {
+    %0 = secret.generic(%arg0 : !secret.secret<i16>) {
     ^body(%input0: i16):
       %1 = arith.muli %input0, %input0 : i16
       %2 = arith.addi %1, %1 : i16
       %3 = arith.muli %2, %2 : i16
       secret.yield %3 : i16
+    // CHECK: secret.yield
+    // CHECK: ->
+    // CHECK-SAME: level = 0
+    // CHECK-SAME: scale = 11445
     } -> !secret.secret<i16>
     return %0 : !secret.secret<i16>
   }
@@ -27,7 +28,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [67239937, 8796093202433], P = [8796093349889], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: func @mul
   func.func @mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-    %0 = secret.generic ins(%arg0 : !secret.secret<i16>) {
+    %0 = secret.generic(%arg0 : !secret.secret<i16>) {
     // CHECK: ^body(%[[INPUT0:.*]]: i16):
     ^body(%input0: i16):
       // CHECK: %[[v1:.*]] = arith.muli %[[INPUT0]], %[[INPUT0]]

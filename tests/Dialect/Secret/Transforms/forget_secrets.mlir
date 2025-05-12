@@ -19,7 +19,7 @@ func.func @test_erase_unused_conceal(%value : i32) {
 func.func @test_conceal_then_generic(%value : i32) {
   %X = arith.constant 7 : i32
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
-  %Z = secret.generic ins(%X, %Y : i32, !secret.secret<i32>) {
+  %Z = secret.generic(%X: i32, %Y: !secret.secret<i32>) {
     ^bb0(%x: i32, %y: i32) :
       %d = arith.addi %x, %y: i32
       secret.yield %d : i32
@@ -48,7 +48,7 @@ func.func @test_function_signature(%Y : !secret.secret<i32>) -> !secret.secret<i
 func.func @test_add_two_secrets(
     %s1 : !secret.secret<i32>,
     %s2 : !secret.secret<i32>) -> !secret.secret<i32> {
-  %out = secret.generic ins(%s1, %s2 : !secret.secret<i32>, !secret.secret<i32>) {
+  %out = secret.generic(%s1: !secret.secret<i32>, %s2: !secret.secret<i32>) {
     ^bb0(%x: i32, %y: i32) :
       %d = arith.addi %x, %y: i32
       secret.yield %d : i32
@@ -68,12 +68,12 @@ func.func @test_add_two_secrets(
 func.func @test_compose_generic(
     %s1 : !secret.secret<i32>,
     %s2 : !secret.secret<i32>) -> !secret.secret<i32> {
-  %0 = secret.generic ins(%s1, %s2 : !secret.secret<i32>, !secret.secret<i32>) {
+  %0 = secret.generic(%s1: !secret.secret<i32>, %s2:  !secret.secret<i32>) {
     ^bb0(%x: i32, %y: i32) :
       %d = arith.addi %x, %y: i32
       secret.yield %d : i32
     } -> (!secret.secret<i32>)
-  %1 = secret.generic ins(%s1, %0 : !secret.secret<i32>, !secret.secret<i32>) {
+  %1 = secret.generic(%s1: !secret.secret<i32>, %0: !secret.secret<i32>) {
     ^bb0(%x: i32, %y: i32) :
       %d = arith.muli %x, %y: i32
       secret.yield %d : i32

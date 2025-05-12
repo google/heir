@@ -16,7 +16,7 @@ func.func @test_separator(
   // CHECK: return %[[data]]
   %c0_i32 = arith.constant 0 : i32
   %0 = secret.generic
-    ins(%value : !secret.secret<i32>) {
+    (%value : !secret.secret<i32>) {
     ^body(%clear_value: i32):
       %alloc_0 = memref.alloc() : memref<10xi32>
       affine.for %i = 0 to 10 {
@@ -42,7 +42,7 @@ func.func @test_operand_defined_in_region(
   // CHECK-NEXT:    secret.yield
   // CHECK: return %[[data]]
   %0 = secret.generic
-    ins(%value : !secret.secret<memref<10xi32>>) {
+    (%value : !secret.secret<memref<10xi32>>) {
     ^body(%clear_value: memref<10xi32>):
       %alloc_0 = memref.alloc() : memref<10xi32>
       affine.for %i = 0 to 10 {

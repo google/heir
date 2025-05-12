@@ -3,7 +3,7 @@
 func.func @while_loop_without_max_iter(%input: !secret.secret<i16>) -> !secret.secret<i16> {
   %c100 = arith.constant 100 : i16
   %c20 = arith.constant 20 : i16
-  %0 = secret.generic ins(%input : !secret.secret<i16>) {
+  %0 = secret.generic(%input : !secret.secret<i16>) {
   ^bb0(%arg1: i16):
     // expected-warning@+1 {{Cannot convert secret scf.while to static affine.for since a static maximum iteration attribute (`max_iter`) has not been provided on the scf.while op:}}
     %1 = scf.while (%arg2 = %arg1) : (i16) -> i16 {
@@ -25,7 +25,7 @@ func.func @while_loop_without_max_iter(%input: !secret.secret<i16>) -> !secret.s
 func.func @do_while_not_supported(%input: !secret.secret<i16>) -> !secret.secret<i16> {
   %c100 = arith.constant 100 : i16
   %c20 = arith.constant 20 : i16
-  %0 = secret.generic ins(%input : !secret.secret<i16>) {
+  %0 = secret.generic(%input : !secret.secret<i16>) {
   ^bb0(%arg1: i16):
     // expected-warning@+1 {{Current loop transformation has no support for do-while loops:}}
     %1 = scf.while (%arg2 = %arg1) : (i16) -> i16 {

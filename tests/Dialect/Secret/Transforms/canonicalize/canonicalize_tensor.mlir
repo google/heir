@@ -8,7 +8,7 @@ module {
   func.func @main(%arg0: !secret.secret<tensor<28x28xf32>>, %arg1: !secret.secret<tensor<784x10xf32>>, %arg2: !secret.secret<tensor<1x10xf32>>) -> !secret.secret<tensor<1x10xf32>> {
     %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f32
-    %0 = secret.generic ins(%arg0, %arg1, %arg2 : !secret.secret<tensor<28x28xf32>>, !secret.secret<tensor<784x10xf32>>, !secret.secret<tensor<1x10xf32>>) {
+    %0 = secret.generic(%arg0: !secret.secret<tensor<28x28xf32>>, %arg1: !secret.secret<tensor<784x10xf32>>, %arg2: !secret.secret<tensor<1x10xf32>>) {
     ^bb0(%arg3: tensor<28x28xf32>, %arg4: tensor<784x10xf32>, %arg5: tensor<1x10xf32>):
       %s_1 = "tosa.const_shape"() {values = dense<[1, 1, 784]> : tensor<3xindex>} : () -> !tosa.shape<3>
       %1 = tosa.reshape %arg3, %s_1 : (tensor<28x28xf32>, !tosa.shape<3>) -> tensor<1x1x784xf32>

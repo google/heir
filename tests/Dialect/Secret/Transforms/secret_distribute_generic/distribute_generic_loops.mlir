@@ -1,7 +1,7 @@
 // RUN: heir-opt --wrap-generic --secret-distribute-generic="distribute-through=affine.for,scf.for" --split-input-file %s | FileCheck %s
 
 // CHECK: simple_sum
-// CHECK-SAME: %[[data:.*]]: !secret.secret<tensor<32xi16>>
+// CHECK-SAME: %[[data:.*]]: [[ty:!secret.secret<tensor<32xi16>>]]
 // CHECK-SAME: -> !secret.secret<i16>
 func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
   // CHECK: %[[c0:.*]] = arith.constant 0 : i16
@@ -12,7 +12,7 @@ func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
   // CHECK-SAME: iter_args(%[[sum_iter:.*]] = %[[secret_c0]])
   // CHECK-SAME: -> (!secret.secret<i16>)
   %0 = affine.for %i = 0 to 32 iter_args(%sum_iter = %c0_si16) -> i16 {
-    // CHECK-NEXT: %[[data_i:.*]] = secret.generic ins(%[[data]], %[[sum_iter]]
+    // CHECK-NEXT: %[[data_i:.*]] = secret.generic(%[[data]]: [[ty]], %[[sum_iter]]
     %1 = tensor.extract %arg0[%i] : tensor<32xi16>
     %2 = arith.addi %1, %sum_iter : i16
     // CHECK: secret.yield
@@ -27,7 +27,7 @@ func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
 // -----
 
 // CHECK: simple_sum
-// CHECK-SAME: %[[data:.*]]: !secret.secret<tensor<32xi16>>
+// CHECK-SAME: %[[data:.*]]: [[ty:!secret.secret<tensor<32xi16>>]]
 // CHECK-SAME: -> !secret.secret<i16>
 func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
   // CHECK: %[[c0:.*]] = arith.constant 0 : i16
@@ -40,7 +40,7 @@ func.func @simple_sum(%arg0: tensor<32xi16> { secret.secret }) -> i16 {
   // CHECK-SAME: iter_args(%[[sum_iter:.*]] = %[[secret_c0]])
   // CHECK-SAME: -> (!secret.secret<i16>)
   %0 = scf.for %i = %c0 to %c32 step %c1 iter_args(%sum_iter = %c0_si16) -> i16 {
-    // CHECK-NEXT: %[[data_i:.*]] = secret.generic ins(%[[data]], %[[sum_iter]]
+    // CHECK-NEXT: %[[data_i:.*]] = secret.generic(%[[data]]: [[ty]], %[[sum_iter]]
     %1 = tensor.extract %arg0[%i] : tensor<32xi16>
     %2 = arith.addi %1, %sum_iter : i16
     // CHECK: secret.yield
@@ -88,7 +88,7 @@ func.func @simple_sum_secret_bound(%arg0: tensor<32xi16> { secret.secret }, %arg
     %c0 = arith.constant 0 : index
     %c0_i16 = arith.constant 0 : i16
     %c1 = arith.constant 1 : index
-    // CHECK: secret.generic ins(%[[data]], %[[arg1]] : !secret.secret<tensor<32xi16>>, !secret.secret<index>)
+    // CHECK: secret.generic(%[[data]]: !secret.secret<tensor<32xi16>>, %[[arg1]]: !secret.secret<index>)
     // CHECK-NEXT: ^body(%[[DATA:.*]]: tensor<32xi16>, %[[ARG1:.*]]: index):
     // CHECK-NEXT:   %[[sum:.*]] = scf.for
     // CHECK-SAME: to %[[ARG1]]

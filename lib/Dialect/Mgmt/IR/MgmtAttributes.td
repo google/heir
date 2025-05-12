@@ -28,7 +28,7 @@ def Mgmt_MgmtAttr : Mgmt_Attr<"Mgmt", "mgmt"> {
     ```
     #mgmt = #mgmt.mgmt<level = 1> // dimension defaults to 2
     #mgmt1 = #mgmt.mgmt<level = 1, dimension = 3>
-    %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<i16>) attrs = {mgmt.mgmt = #mgmt} {
+    %0 = secret.generic(%arg0, %arg1 : !secret.secret<i16>) attrs = {mgmt.mgmt = #mgmt} {
        ...
     } -> !secret.secret<i16>
     ```

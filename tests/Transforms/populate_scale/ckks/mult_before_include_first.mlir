@@ -4,18 +4,19 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
   // CHECK: func @mult
   func.func @mult(%arg0: !secret.secret<f32>) -> !secret.secret<f32> {
     // check that argument are encrypted in double degree: 45 * 2 = 90
-    // CHECK: __argattrs
+    // CHECK: secret.generic
     // CHECK-SAME: level = 3
     // CHECK-SAME: scale = 90
-    // CHECK: __resattrs
-    // CHECK-SAME: level = 0
-    // CHECK-SAME: scale = 45
-    %0 = secret.generic ins(%arg0 : !secret.secret<f32>) {
+    %0 = secret.generic(%arg0 : !secret.secret<f32>) {
     ^body(%input0: f32):
       %1 = arith.mulf %input0, %input0 : f32
       %2 = arith.addf %1, %1 : f32
       %3 = arith.mulf %2, %2 : f32
       secret.yield %3 : f32
+    // CHECK: secret.yield
+    // CHECK: ->
+    // CHECK-SAME: level = 0
+    // CHECK-SAME: scale = 45
     } -> !secret.secret<f32>
     return %0 : !secret.secret<f32>
   }
@@ -34,13 +35,10 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
     // CHECK-SAME: level = 2
     // CHECK-SAME: scale = 45
 
-    // CHECK: __argattrs
+    // CHECK: secret.generic
     // CHECK-SAME: level = 2
     // CHECK-SAME: scale = 90
-    // CHECK-SAME: __resattrs
-    // CHECK-SAME: level = 0
-    // CHECK-SAME: scale = 45
-    %0 = secret.generic ins(%arg0 : !secret.secret<f32>) {
+    %0 = secret.generic(%arg0 : !secret.secret<f32>) {
     // CHECK: ^body(%[[INPUT0:.*]]: f32):
     ^body(%input0: f32):
       // CHECK: %[[v2:.*]] = mgmt.modreduce %[[INPUT0]]
@@ -55,6 +53,9 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
       // CHECK-NEXT: %[[v8:.*]] = mgmt.modreduce %[[v7]]
       // CHECK-NEXT: secret.yield %[[v8]]
       secret.yield %2 : f32
+    // CHECK: ->
+    // CHECK-SAME: level = 0
+    // CHECK-SAME: scale = 45
     } -> !secret.secret<f32>
     return %0 : !secret.secret<f32>
   }

@@ -11,7 +11,7 @@ module {
     %cst = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
     %cst_0 = arith.constant dense_resource<__elided__> : tensor<1024x1024xf32>
     %c1 = arith.constant 1 : index
-    %0 = secret.generic ins(%arg0 : !secret.secret<tensor<1x1024xf32>>) {
+    %0 = secret.generic(%arg0 : !secret.secret<tensor<1x1024xf32>>) {
     ^body(%input0: tensor<1x1024xf32>):
       %1:2 = affine.for %arg1 = 0 to 1 iter_args(%arg2 = %cst, %arg3 = %input0) -> (tensor<1x1024xf32>, tensor<1x1024xf32>) {
         %extracted_slice = tensor.extract_slice %cst_0[%arg1, 0] [1, 1024] [1, 1] : tensor<1024x1024xf32> to tensor<1x1024xf32>

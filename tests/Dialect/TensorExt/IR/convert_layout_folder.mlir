@@ -7,7 +7,7 @@
 // CHECK-NOT: tensor_ext.convert_layout
 // CHECK: return
 func.func @fold(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) {
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) attrs = {arg0 = {layout = #map}, layout = [#map]} {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>>) attrs = {arg0 = {layout = #map}, layout = [#map]} {
   ^body(%input0: tensor<32xi16>):
     %1 = tensor_ext.convert_layout %input0 {from_layout = #map, tensor_ext.layout = [#map1], to_layout = #map1} : tensor<32xi16>
     %2 = tensor_ext.convert_layout %1 {from_layout = #map1, layout = [#map], to_layout = #map} : tensor<32xi16>
@@ -24,7 +24,7 @@ func.func @fold(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1
 // CHECK-NOT: tensor_ext.convert_layout
 // CHECK: return
 func.func @noop(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) {
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) attrs = {arg0 = {layout = #map}, layout = [#map]} {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>>) attrs = {arg0 = {layout = #map}, layout = [#map]} {
   ^body(%input0: tensor<32xi16>):
     %1 = tensor_ext.convert_layout %input0 {from_layout = #map, layout = [#map], to_layout = #map} : tensor<32xi16>
     secret.yield %1 : tensor<32xi16>

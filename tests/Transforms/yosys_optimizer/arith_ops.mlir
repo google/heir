@@ -6,8 +6,7 @@ func.func @ops(
     %arg1: !secret.secret<i3>,
     %arg2: !secret.secret<i3>,
     %arg3: !secret.secret<i3>) -> (!secret.secret<i3>) {
-  %1 = secret.generic ins(%arg0, %arg1, %arg2, %arg3:
-          !secret.secret<i3>, !secret.secret<i3>, !secret.secret<i3>, !secret.secret<i3>) {
+  %1 = secret.generic(%arg0: !secret.secret<i3>, %arg1: !secret.secret<i3>, %arg2: !secret.secret<i3>, %arg3: !secret.secret<i3>) {
   ^bb0(%a0: i3, %a1: i3, %a2: i3, %a3: i3):
     %0 = arith.subi %a0, %a1: i3
     %1 = arith.muli %0, %a2: i3
@@ -38,8 +37,8 @@ func.func @ops(
 // CHECK: @truth_table
 func.func @truth_table(
     %arg0: !secret.secret<i1>, %arg1: !secret.secret<i1>) -> (!secret.secret<i1>) {
-  %1 = secret.generic ins(%arg0, %arg1:
-          !secret.secret<i1>, !secret.secret<i1>) {
+  %1 = secret.generic(%arg0: !secret.secret<i1>, %arg1:
+           !secret.secret<i1>) {
   ^bb0(%a0: i1, %a1: i1):
     %0 = arith.addi %a0, %a1: i1
     secret.yield %0 : i1

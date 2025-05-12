@@ -42,7 +42,7 @@ def WrapGeneric : Pass<"wrap-generic", "ModuleOp"> {
     Output:
     ```mlir
       func.func @main(%arg0: !secret.secret<i32>) -> !secret.secret<i32> {
-        %0 = secret.generic ins(%arg0 : !secret.secret<i32>) {
+        %0 = secret.generic(%arg0 : !secret.secret<i32>) {
         ^bb0(%arg1: i32):
           %1 = arith.constant 100 : i32
           %2 = arith.addi %0, %arg1 : i32

@@ -39,7 +39,7 @@ def SecretInsertMgmtBGV : Pass<"secret-insert-mgmt-bgv", "ModuleOp"> {
     Example of multiplication+addition:
     ```mlir
     func.func @func(%arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>) -> !secret.secret<i16> {
-      %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) {
+      %0 = secret.generic(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) {
       ^bb0(%arg2: i16, %arg3: i16):
         %1 = arith.muli %arg2, %arg3 : i16
         %2 = arith.addi %1, %arg3 : i16
@@ -52,7 +52,7 @@ def SecretInsertMgmtBGV : Pass<"secret-insert-mgmt-bgv", "ModuleOp"> {
     which get transformed to:
     ```mlir
     func.func @func(%arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>) -> !secret.secret<i16> {
-      %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}, arg1 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}} {
+      %0 = secret.generic(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}, arg1 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}} {
       ^bb0(%arg2: i16, %arg3: i16):
         %1 = arith.muli %arg2, %arg3 {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3>} : i16
         %2 = mgmt.relinearize %1 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16
@@ -92,7 +92,7 @@ def SecretInsertMgmtBFV : Pass<"secret-insert-mgmt-bfv", "ModuleOp"> {
     Example of multiplication+addition:
     ```mlir
     func.func @func(%arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>) -> !secret.secret<i16> {
-      %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) {
+      %0 = secret.generic(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) {
       ^bb0(%arg2: i16, %arg3: i16):
         %1 = arith.muli %arg2, %arg3 : i16
         %2 = arith.addi %1, %arg3 : i16
@@ -105,7 +105,7 @@ def SecretInsertMgmtBFV : Pass<"secret-insert-mgmt-bfv", "ModuleOp"> {
     which get transformed to:
     ```mlir
     func.func @func(%arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>) -> !secret.secret<i16> {
-      %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}, arg1 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}} {
+      %0 = secret.generic(%arg0, %arg1 : !secret.secret<i16>, !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}, arg1 = {mgmt.mgmt = #mgmt.mgmt<level = 1>}} {
       ^body(%input0: i16, %input1: i16):
         %1 = arith.muli %input0, %input1 {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3>} : i16
         %2 = mgmt.relinearize %1 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16

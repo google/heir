@@ -29,7 +29,7 @@ module {
     memref.store %false, %alloc[%c5] : memref<8xi1>
     memref.store %false, %alloc[%c6] : memref<8xi1>
     memref.store %false, %alloc[%c7] : memref<8xi1>
-    %1 = secret.generic ins(%0 : !secret.secret<memref<8xi1>>) {
+    %1 = secret.generic(%0 : !secret.secret<memref<8xi1>>) {
     ^bb0(%arg1: memref<8xi1>):
       %3 = memref.load %arg1[%c0] : memref<8xi1>
       %4 = memref.load %alloc[%c0] : memref<8xi1>

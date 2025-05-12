@@ -10,7 +10,7 @@ module {
     // CHECK: [[FALSE:%.*]] = arith.constant false
     // CHECK: [[V1:%.*]] = secret.generic
     %1 = secret.generic
-        ins(%in: !secret.secret<i2>) {
+        (%in: !secret.secret<i2>) {
         ^bb0(%IN: i2) :
             // CHECK-NOT: arith.addi
             // CHECK: [[ALLOC:%.*]] = memref.alloc()

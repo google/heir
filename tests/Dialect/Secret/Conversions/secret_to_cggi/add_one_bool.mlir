@@ -18,7 +18,7 @@ module {
     %c2 = arith.constant 2 : index
     %c0 = arith.constant 0 : index
     %0 = secret.cast %arg0 : !secret.secret<i8> to !secret.secret<memref<8xi1>>
-    %1 = secret.generic ins(%0 : !secret.secret<memref<8xi1>>) {
+    %1 = secret.generic(%0 : !secret.secret<memref<8xi1>>) {
     ^bb0(%arg1: memref<8xi1>):
       %3 = memref.load %arg1[%c0] : memref<8xi1>
       %4 = comb.inv %3 : i1

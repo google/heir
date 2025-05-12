@@ -13,7 +13,7 @@ module attributes {tf_saved_model.semantics} {
     // CHECK: secret.generic
     // CHECK-COUNT-85: comb.truth_table
     // CHECK: secret.yield
-    %0 = secret.generic ins(%arg0 : !secret.secret<memref<1xi8>>) {
+    %0 = secret.generic(%arg0 : !secret.secret<memref<1xi8>>) {
     ^bb0(%ARG0 : memref<1xi8>) :
       %alloc_0 = memref.alloc() {alignment = 64 : i64} : memref<1xi8>
       affine.parallel (%arg1) = (0) to (1) {
@@ -33,7 +33,7 @@ module attributes {tf_saved_model.semantics} {
     // CHECK-COUNT-24: comb.truth_table
     // CHECK: secret.yield
     %4 = memref.get_global @__constant_1xi8 : memref<2xi8>
-    %5 = secret.generic ins(%arg0 : !secret.secret<memref<1xi8>>) {
+    %5 = secret.generic(%arg0 : !secret.secret<memref<1xi8>>) {
     ^bb0(%ARG0 : memref<1xi8>) :
       %alloc_0 = memref.alloc() {alignment = 64 : i64} : memref<1xi8>
       affine.parallel (%arg1) = (0) to (1) {

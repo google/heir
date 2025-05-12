@@ -16,7 +16,7 @@ func.func @chunks(%ARG0: !secret.secret<i8>) -> !secret.secret<i32> {
   // CHECK-NOT: arith.muli
   // CHECK-NOT: arith.addi
   %1 = secret.generic
-      ins(%ARG0: !secret.secret<i8>) {
+      (%ARG0: !secret.secret<i8>) {
   ^bb0(%arg1: i8) :
     %c-128_i16_0 = arith.constant -128 : i16
     %c1_i32_1 = arith.constant 1 : i32

@@ -9,7 +9,7 @@ module attributes {tf_saved_model.semantics} {
   memref.global "private" constant @__constant_16x1xi8 : memref<16x1xi8> = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]>
     // CHECK: @main(%[[ARG0:.*]]: !secret.secret<memref<1x1xi8>>
   func.func @main(%arg0: memref<1x1xi8> {iree.identifier = "serving_default_dense_input:0", secret.secret, tf_saved_model.index_path = ["dense_input"]}) -> (memref<1x1xi8> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {
-    // CHECK: %[[V0:.*]] = secret.generic ins(%[[ARG0]] : !secret.secret<memref<1x1xi8>>)
+    // CHECK: %[[V0:.*]] = secret.generic(%[[ARG0]]: !secret.secret<memref<1x1xi8>>)
     // CHECK: (%[[ARG1:.*]]: memref<1x1xi8>):
     // CHECK-NOT: [[ARG0]]
     %c-128_i32 = arith.constant -128 : i32

@@ -5,13 +5,13 @@
 
 // Computes the set of partial cumulative sums of the input array
 func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
-  %0 = secret.generic {
+  %0 = secret.generic() {
   ^bb0:
     %memref = memref.alloc() : memref<10xi8>
     secret.yield %memref : memref<10xi8>
   } -> !out_ty
 
-  secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
+  secret.generic(%arg0: !in_ty, %0 : !out_ty) {
   ^bb0(%input: memref<10xi8>, %alloc: memref<10xi8>):
     %c0 = arith.constant 0 : index
     %val = memref.load %input[%c0] : memref<10xi8>
@@ -20,7 +20,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
   }
 
   affine.for %i = 1 to 10 {
-    secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
+    secret.generic(%arg0: !in_ty, %0 : !out_ty) {
     ^bb0(%input: memref<10xi8>, %accum: memref<10xi8>):
       %c1 = arith.constant 1 : index
       %i_minus_one = arith.subi %i, %c1 : index

@@ -1,7 +1,7 @@
 // RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks=bootstrap-waterline=3 %s | FileCheck %s
 
 // CHECK: func.func @bootstrap_waterline(%arg0: !secret.secret<f16>) -> !secret.secret<f16> {
-// CHECK: %0 = secret.generic ins(%[[arg0:.*]] : !secret.secret<f16>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 3>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1>}]} {
+// CHECK: %0 = secret.generic(%[[arg0:.*]]: !secret.secret<f16> {mgmt.mgmt = #mgmt.mgmt<level = 3>}) {
 // CHECK:  (%[[input0:.*]]: f16):
 // CHECK:    %[[v1:.*]] = arith.addf %[[input0]], %[[input0]] {mgmt.mgmt = #mgmt.mgmt<level = 3>} : f16
 // CHECK:    %[[v2:.*]] = mgmt.modreduce %[[v1]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : f16
@@ -22,6 +22,7 @@
 // CHECK:    %[[v16:.*]]  = mgmt.adjust_scale %[[v12]] {id = 1 : i64, mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
 // CHECK:    %[[v17:.*]]  = arith.addf %[[v16]], %[[v15]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : f16
 // CHECK:    secret.yield %[[v17]] : f16
+// CHECK } -> (!secret.secret<f16> {mgmt.mgmt = #mgmt.mgmt<level = 1>})
 
 
 func.func @bootstrap_waterline(

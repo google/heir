@@ -21,8 +21,8 @@ func.func @matvec_constant_matrix(
   %out = arith.constant dense<0> : tensor<16xi16>
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
-  // CHECK-SAME: ins([[arg0]]
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<16xi16>>)
+  // CHECK-SAME: ([[arg0]]
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>>)
                       attrs = {
                         __argattrs = [{tensor_ext.layout = #vec_layout}],
                         __resattrs = [{tensor_ext.layout = #vec_layout}]
@@ -177,8 +177,8 @@ func.func @squat(
   %out = arith.constant dense<0> : tensor<4xi16>
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
-  // CHECK-SAME: ins([[arg0]]
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<16xi16>>)
+  // CHECK-SAME: ([[arg0]]
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>>)
                       attrs = {
                         __argattrs = [{tensor_ext.layout = #input_vec_layout}],
                         __resattrs = [{tensor_ext.layout = #output_vec_layout}]
@@ -267,7 +267,7 @@ func.func @f32_padding(
   %cst = arith.constant dense<1.0> : tensor<4x16xf32>
   %out = arith.constant dense<0.0> : tensor<4xf32>
 
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<16xf32>>)
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xf32>>)
                       attrs = {
                         __argattrs = [{tensor_ext.layout = #input_vec_layout}],
                         __resattrs = [{tensor_ext.layout = #output_vec_layout}]

@@ -9,7 +9,7 @@ func.func @dot_product(
       %arg0: !secret.secret<tensor<8xi16>>,
       %arg1: !secret.secret<tensor<8xi16>>) -> !secret.secret<i16> {
   %c0_i16 = arith.constant 0 : i16
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) {
   ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>):
     %1 = affine.for %arg2 = 0 to 8 iter_args(%arg3 = %c0_i16) -> (i16) {
       %extracted = tensor.extract %input0[%arg2] : tensor<8xi16>

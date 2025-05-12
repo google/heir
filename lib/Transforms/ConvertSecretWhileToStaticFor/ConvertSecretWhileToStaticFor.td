@@ -26,7 +26,7 @@ def ConvertSecretWhileToStaticFor : Pass<"convert-secret-while-to-static-for"> {
     // MLIR
     func.func @main(%secretInput: !secret.secret<i16>) -> !secret.secret<i16> {
       %c100 = arith.constant 100 : i16
-      %0 = secret.generic ins(%secretInput : !secret.secret<i16>) {
+      %0 = secret.generic(%secretInput : !secret.secret<i16>) {
       ^bb0(%input: i16):
         %1 = scf.while (%arg1 = %input) : (i16) -> i16 {
           %2 = arith.cmpi sgt, %arg1, %c100 : i16
@@ -46,7 +46,7 @@ def ConvertSecretWhileToStaticFor : Pass<"convert-secret-while-to-static-for"> {
     ```mlir
     func.func @main(%secretInput: !secret.secret<i16>) -> !secret.secret<i16> {
       %c100 = arith.constant 100 : i16
-      %0 = secret.generic ins(%secretInput : !secret.secret<i16>) {
+      %0 = secret.generic(%secretInput : !secret.secret<i16>) {
       ^bb0(%input: i16):
         %1 = affine.for 0 to 16 iter_args(%arg1 = %input) -> (i16) {
           %2 = arith.cmpi sgt, %arg1, %c100 : i16

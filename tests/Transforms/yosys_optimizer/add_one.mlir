@@ -13,7 +13,7 @@ module {
 
     // CHECK: secret.generic
     %1 = secret.generic
-        ins(%in, %one: !secret.secret<i8>, i8) {
+        (%in: !secret.secret<i8>, %one: i8) {
         ^bb0(%IN: i8, %ONE: i8) :
             // CHECK-NOT: arith.addi
 

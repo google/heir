@@ -8,7 +8,7 @@ module {
     %one = arith.constant 1 : i1
     // CHECK: [[V1:%.*]] = secret.generic
     %1 = secret.generic
-        ins(%in, %one: !secret.secret<i1>, i1) {
+        (%in: !secret.secret<i1>, %one: i1) {
         ^bb0(%IN: i1, %ONE: i1) :
             // CHECK-NOT: arith.addi
             %2 = arith.addi %IN, %ONE : i1

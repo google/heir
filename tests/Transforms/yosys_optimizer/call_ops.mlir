@@ -12,7 +12,7 @@ module {
   // CHECK: secret.yield
   // CHECK: return
   func.func @main(%arg0: !secret.secret<i8>) -> (!secret.secret<i8>) {
-    %0 = secret.generic ins(%arg0 : !secret.secret<i8>) {
+    %0 = secret.generic(%arg0 : !secret.secret<i8>) {
       ^bb0(%ARG0: i8) :
         %1 = func.call @submod(%ARG0) : (i8) -> i8
         secret.yield %1 : i8

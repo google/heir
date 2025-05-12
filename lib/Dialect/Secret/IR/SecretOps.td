@@ -134,7 +134,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
     Add two secret integers together
 
     ```mlir
-    %Z = secret.generic ins(%X, %Y : !secret.secret<i32>, !secret.secret<i32>) {
+    %Z = secret.generic(%X, %Y : !secret.secret<i32>, !secret.secret<i32>) {
       ^bb0(%x: i32, %y: i32):
         %z = arith.addi %x, %y: i32
         secret.yield %z : i32
@@ -145,7 +145,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
     op need be secret.
 
     ```mlir
-    %Z = secret.generic ins(%X, %Y : i32, !secret.secret<i32>) {
+    %Z = secret.generic(%X, %Y : i32, !secret.secret<i32>) {
       ^bb0(%x: i32, %y: i32):
         %z = arith.addi %x, %y: i32
         secret.yield %z : i32
@@ -157,7 +157,7 @@ def Secret_GenericOp : Secret_Op<"generic", [
 
     ```mlir
     %y = arith.constant 7: i32
-    %Z = secret.generic ins(%X : !secret.secret<i32>) {
+    %Z = secret.generic(%X : !secret.secret<i32>) {
       ^bb0(%x: i32):
         %z = arith.addi %x, %y: i32
         secret.yield %z : i32

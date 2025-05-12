@@ -20,7 +20,7 @@ module {
     %c1 = arith.constant 1 : index
     %cst_0 = arith.constant dense_resource<__elided__> : tensor<1024x1024xf32>
     %cst_1 = arith.constant dense<0.000000e+00> : tensor<1x1024xf32>
-    %0 = secret.generic ins(%arg0 : !secret.secret<tensor<1x1024xf32>>) {
+    %0 = secret.generic(%arg0 : !secret.secret<tensor<1x1024xf32>>) {
     ^body(%input0: tensor<1x1024xf32>):
       %1 = arith.mulf %input0, %cst : tensor<1x1024xf32>
       %2 = arith.addf %1, %cst_1 : tensor<1x1024xf32>

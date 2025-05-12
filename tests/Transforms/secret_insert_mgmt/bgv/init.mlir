@@ -11,7 +11,7 @@
 //     %0 = mgmt.init %c2_i32 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i32
 //     %1 = mgmt.init %c4_i32 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i32
 //     %2 = mgmt.init %c3_i32 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i32
-//     %3 = secret.generic ins(%arg0 : !secret.secret<i32>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 2>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0>}]} {
+//     %3 = secret.generic(%arg0 : !secret.secret<i32>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 2>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0>}]} {
 //     ^body(%input0: i32):
 //       %4 = arith.muli %input0, %0 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i32
 //       %5 = arith.addi %4, %1 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i32
@@ -36,7 +36,7 @@ module {
     %c4_i32 = arith.constant 4 : i32
     %c3_i32 = arith.constant 3 : i32
     %c2_i32 = arith.constant 2 : i32
-    %0 = secret.generic ins(%arg0 : !secret.secret<i32>) {
+    %0 = secret.generic(%arg0 : !secret.secret<i32>) {
     // CHECK: ^body(%[[INPUT0:.*]]: i32):
     ^body(%input0: i32):
       // CHECK: %[[v3:.*]] = arith.muli %[[INPUT0]], %[[v0]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i32

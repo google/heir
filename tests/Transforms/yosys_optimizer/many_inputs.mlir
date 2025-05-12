@@ -24,18 +24,18 @@ module attributes {tf_saved_model.semantics} {
     %c1073741824_i64 = arith.constant 1073741824 : i32
     %c0_i32 = arith.constant 0 : i16
     %c-128_i32 = arith.constant -128 : i16
-    %0 = secret.generic {
+    %0 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi8>
       secret.yield %alloc : memref<1x1xi8>
     } -> !secret.secret<memref<1x1xi8>>
     affine.for %arg1 = 0 to 1 {
       affine.for %arg2 = 0 to 1 {
-        %1 = secret.generic ins(%arg0, %arg1, %arg2 : !secret.secret<memref<1x1xi16>>, index, index) {
+        %1 = secret.generic(%arg0: !secret.secret<memref<1x1xi16>>, %arg1: index, %arg2: index) {
         ^bb0(%arg3: memref<1x1xi16>, %arg4: index, %arg5: index):
           %3 = memref.load %arg3[%arg4, %arg5] : memref<1x1xi16>
           secret.yield %3 : i16
         } -> !secret.secret<i16>
-        %2 = secret.generic ins(%1, %c1630361836_i64, %c34359738368_i64, %c0_i32, %c1073741824_i64, %c-1073741824_i64, %c36_i64, %c5_i32, %c-128_i32, %c127_i32 : !secret.secret<i16>, i32, i32, i16, i32, i32, i32, i16, i16, i16) {
+        %2 = secret.generic(%1: !secret.secret<i16>, %c1630361836_i64: i32, %c34359738368_i64: i32, %c0_i32: i16, %c1073741824_i64: i32, %c-1073741824_i64: i32, %c36_i64: i32, %c5_i32: i16, %c-128_i32: i16, %c127_i32: i16) {
         ^bb0(%arg3: i16, %arg4: i32, %arg5: i32, %arg6: i16, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i16, %arg11: i16, %arg12: i16):
           %3 = arith.extsi %arg3 : i16 to i32
           %4 = arith.muli %3, %arg4 : i32
@@ -53,7 +53,7 @@ module attributes {tf_saved_model.semantics} {
           %16 = arith.trunci %15 : i16 to i8
           secret.yield %16 : i8
         } -> !secret.secret<i8>
-        secret.generic ins(%0, %2, %arg1, %arg2 : !secret.secret<memref<1x1xi8>>, !secret.secret<i8>, index, index) {
+        secret.generic(%0: !secret.secret<memref<1x1xi8>>, %2: !secret.secret<i8>, %arg1: index, %arg2: index) {
         ^bb0(%arg3: memref<1x1xi8>, %arg4: i8, %arg5: index, %arg6: index):
           memref.store %arg4, %arg3[%arg5, %arg6] : memref<1x1xi8>
           secret.yield

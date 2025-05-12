@@ -5,7 +5,7 @@ func.func @remove_unused_yielded_values(%arg0: !secret.secret<i32>) -> !secret.s
   %X = arith.constant 7 : i32
   %Y = secret.conceal %X : i32 -> !secret.secret<i32>
   %Z, %UNUSED = secret.generic
-    ins(%Y, %arg0 : !secret.secret<i32>, !secret.secret<i32>) {
+    (%Y: !secret.secret<i32>, %arg0: !secret.secret<i32>) {
     ^bb0(%y: i32, %clear_arg0 : i32) :
       %d = arith.addi %clear_arg0, %y: i32
       %unused = arith.addi %y, %y: i32
@@ -21,7 +21,7 @@ func.func @remove_pass_through_args(
     %arg1 : !secret.secret<i32>, %arg2 : !secret.secret<i32>) -> (!secret.secret<i32>, !secret.secret<i32>) {
   // CHECK: %[[out1:.*]] = secret.generic
   %out1, %out2 = secret.generic
-    ins(%arg1, %arg2 : !secret.secret<i32>, !secret.secret<i32>) {
+    (%arg1: !secret.secret<i32>, %arg2: !secret.secret<i32>) {
     ^bb0(%x: i32, %y: i32) :
       // CHECK: %[[value:.*]] = arith.addi
       %z = arith.addi %x, %y : i32

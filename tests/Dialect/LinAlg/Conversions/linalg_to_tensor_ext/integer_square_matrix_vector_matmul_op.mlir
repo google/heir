@@ -7,7 +7,7 @@
 // CHECK:      %[[BIAS:.*]] = arith.constant dense
 // CHECK-SAME{LITERAL}: <[[17], [18], [19], [20]]> : tensor<4x1xi16>
 // CHECK:      %[[FIRST_SLICE:.*]] = tensor.extract_slice %[[DIAGONALIZED_MATRIX]][0, 0] [4, 1] [1, 1]
-// CHECK:      %[[OUT:.*]] = secret.generic ins(%[[ARG]] : !secret.secret<tensor<4x1xi16>>)
+// CHECK:      %[[OUT:.*]] = secret.generic(%[[ARG]]: !secret.secret<tensor<4x1xi16>>)
 // CHECK:      ^body(%[[ARG_CONVERTED:.*]]: tensor<4x1xi16>):
 // CHECK:        %[[FIRST_MUL:.*]] = arith.muli %[[ARG_CONVERTED]], %[[FIRST_SLICE]]
 // CHECK:        %[[FIRST_SUM:.*]] = arith.addi %[[FIRST_MUL]], %[[BIAS]]
@@ -23,7 +23,7 @@ module {
 func.func @test_integer_vector_square_matrix_matmul(%vec : !secret.secret<tensor<4x1xi16>>) -> !secret.secret<tensor<4x1xi16>> {
   %matrix = arith.constant dense<[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]> : tensor<4x4xi16>
   %bias = arith.constant dense<[[17], [18], [19], [20]]> : tensor<4x1xi16>
-  %out = secret.generic ins (%vec : !secret.secret<tensor<4x1xi16>>) {
+  %out = secret.generic (%vec : !secret.secret<tensor<4x1xi16>>) {
   ^body(%converted_vec: tensor<4x1xi16>):
     %0 = linalg.matmul ins(%matrix, %converted_vec : tensor<4x4xi16>, tensor<4x1xi16>) outs(%bias : tensor<4x1xi16>) -> tensor<4x1xi16>
     secret.yield %0 : tensor<4x1xi16>

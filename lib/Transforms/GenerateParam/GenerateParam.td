@@ -46,7 +46,7 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
     ```mlir
     module {
       func.func @add(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-        %0 = secret.generic ins(%arg0 : !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
+        %0 = secret.generic(%arg0 : !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
         ^body(%input0: i16):
           %1 = arith.addi %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : i16
           secret.yield %1 : i16
@@ -128,7 +128,7 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     ```mlir
     module {
       func.func @add(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-        %0 = secret.generic ins(%arg0 : !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
+        %0 = secret.generic(%arg0 : !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
         ^body(%input0: i16):
           %1 = arith.addi %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : i16
           secret.yield %1 : i16
@@ -192,7 +192,7 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
     ```mlir
     module {
       func.func @add(%arg0: !secret.secret<f16>) -> !secret.secret<f16> {
-        %0 = secret.generic ins(%arg0 : !secret.secret<f16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
+        %0 = secret.generic(%arg0 : !secret.secret<f16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
         ^body(%input0: f16):
           %1 = arith.addf %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : f16
           secret.yield %1 : f16

@@ -2,7 +2,7 @@
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [1152921504606994433, 1097729], P = [1152921504607191041], plaintextModulus = 65537>, scheme.bfv} {
   func.func @mixed_add(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) -> !secret.secret<tensor<8xi16>> {
-    %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1>}, {mgmt.mgmt = #mgmt.mgmt<level = 1>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1>}]} {
+    %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1>}, {mgmt.mgmt = #mgmt.mgmt<level = 1>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1>}]} {
     ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>):
       // CHECK: bgv.mul
       // CHECK-SAME: size = 3

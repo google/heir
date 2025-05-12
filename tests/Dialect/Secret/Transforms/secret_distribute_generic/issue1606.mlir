@@ -5,7 +5,7 @@
 module {
   func.func @hv_matmul(%arg0: !secret.secret<tensor<1024xf32>>) -> !secret.secret<tensor<1024xf32>> {
     %c1 = arith.constant 1 : index
-    %0 = secret.generic ins(%arg0 : !secret.secret<tensor<1024xf32>>) {
+    %0 = secret.generic(%arg0 : !secret.secret<tensor<1024xf32>>) {
     ^body(%input0: tensor<1024xf32>):
       %1:2 = affine.for %arg1 = 1 to 1024 iter_args(%arg2 = %input0, %arg3 = %input0) -> (tensor<1024xf32>, tensor<1024xf32>) {
         %2 = tensor_ext.rotate %arg3, %c1 : tensor<1024xf32>, index

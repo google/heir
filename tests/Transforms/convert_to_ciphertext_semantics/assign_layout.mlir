@@ -6,7 +6,7 @@
 // Test that a vector of size 16xi16 is replicated to 32xi16.
 // CHECK: @repeat_vector
 func.func @repeat_vector() {
-  %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<16xi16>
     %v = arith.constant dense<1> : tensor<16xi16>
@@ -29,7 +29,7 @@ func.func @repeat_vector() {
 
 // CHECK: @prefix_ones
 func.func @prefix_ones() {
-  %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<32xi16>
@@ -48,7 +48,7 @@ func.func @prefix_ones() {
 
 // CHECK: @suffix_ones
 func.func @suffix_ones() {
-  %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<32xi16>
@@ -72,7 +72,7 @@ func.func @suffix_ones() {
 
 // CHECK: @prefix_and_suffix_ones
 func.func @prefix_and_suffix_ones() {
-  %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<32xi16>
@@ -92,7 +92,7 @@ func.func @prefix_and_suffix_ones() {
 
 // CHECK: @basic_padding
 func.func @basic_padding() {
-  %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<16xi16>
@@ -126,7 +126,7 @@ func.func @basic_padding() {
 //
 // CHECK: @column_alignment
 func.func @column_alignment() {
-  %0 = secret.generic attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<4x4xi16>
     %v = arith.constant dense<1> : tensor<4x4xi16>

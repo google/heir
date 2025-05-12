@@ -5,7 +5,7 @@ func.func @sum(%arr: !secret.secret<memref<8xi8>>) -> !secret.secret<i8> {
     %c0 = arith.constant 0 : i8
     %s0 = secret.conceal %c0 : i8 -> !secret.secret<i8>
     %retval = affine.for %i = 0 to 8 step 1 iter_args(%acc = %s0) -> (!secret.secret<i8>) {
-        %new_acc = secret.generic ins(%arr, %acc: !secret.secret<memref<8xi8>>, !secret.secret<i8>) {
+        %new_acc = secret.generic(%arr: !secret.secret<memref<8xi8>>, %acc: !secret.secret<i8>) {
             ^bb0(%ARR: memref<8xi8>, %ACC: i8):
                 %cur = memref.load %ARR[%i] : memref<8xi8>
                 %sum = arith.addi %cur, %ACC : i8

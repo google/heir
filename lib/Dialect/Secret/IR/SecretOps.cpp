@@ -7,9 +7,11 @@
 #include <optional>
 #include <utility>
 
+#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
@@ -80,10 +82,22 @@ LogicalResult YieldOp::verify() {
 
 void GenericOp::print(OpAsmPrinter &p) {
   ValueRange inputs = getInputs();
-  if (!inputs.empty())
-    p << " ins(" << inputs << " : " << inputs.getTypes() << ")";
 
-  ArrayRef<NamedAttribute> attrs = (*this)->getAttrs();
+  if (!inputs.empty()) {
+    p << "(";
+    llvm::interleaveComma(
+        llvm::seq<size_t>(0, inputs.size()), p, [&](size_t i) {
+          p.printOperand(inputs[i]);
+          p << ": ";
+          p.printType(inputs[i].getType());
+          p.printOptionalAttrDict(NamedAttrList((getOperandAttrDict(i))));
+        });
+    p << ")";
+  }
+
+  NamedAttrList attrs = (*this)->getAttrs();
+  attrs.erase(kOperandAttrsName);
+  attrs.erase(kResultAttrsName);
   if (!attrs.empty()) {
     p << " attrs =";
     p.printOptionalAttrDict(attrs);
@@ -95,13 +109,24 @@ void GenericOp::print(OpAsmPrinter &p) {
   }
 
   TypeRange resultTypes = getResults().getTypes();
-  if (resultTypes.empty()) return;
-  p.printOptionalArrowTypeList(resultTypes);
+
+  bool needsParens = resultTypes.size() > 1 || getAllResultAttrsAttr();
+  if (!resultTypes.empty()) {
+    p << " -> ";
+    if (needsParens) p << "(";
+    llvm::interleaveComma(
+        llvm::seq<size_t>(0, resultTypes.size()), p, [&](size_t i) {
+          p.printType(resultTypes[i]);
+          if (getResultAttrDict(i))
+            p.printOptionalAttrDict(NamedAttrList(getResultAttrDict(i)));
+        });
+    if (needsParens) p << ")";
+  }
 }
 
 static ParseResult parseCommonStructuredOpParts(
     OpAsmParser &parser, OperationState &result,
-    SmallVectorImpl<Type> &inputTypes) {
+    SmallVectorImpl<Type> &inputTypes, SmallVectorImpl<Attribute> &inputAttrs) {
   SMLoc attrsLoc, inputsOperandsLoc;
   SmallVector<OpAsmParser::UnresolvedOperand, 4> inputsOperands;
 
@@ -110,16 +135,23 @@ static ParseResult parseCommonStructuredOpParts(
       return failure();
   }
   attrsLoc = parser.getCurrentLocation();
-  if (succeeded(parser.parseOptionalKeyword("ins"))) {
-    if (parser.parseLParen()) return failure();
+  inputsOperandsLoc = parser.getCurrentLocation();
+  auto inputsResult = parser.parseCommaSeparatedList(
+      OpAsmParser::Delimiter::Paren, [&]() -> ParseResult {
+        if (parser.parseOperand(inputsOperands.emplace_back(),
+                                /*allowResultNumber=*/true) ||
+            parser.parseColonType(inputTypes.emplace_back()))
+          return failure();
 
-    inputsOperandsLoc = parser.getCurrentLocation();
-    if (parser.parseOperandList(inputsOperands) ||
-        parser.parseColonTypeList(inputTypes) || parser.parseRParen())
-      return failure();
-  } else {
-    inputsOperandsLoc = parser.getCurrentLocation();
-  }
+        Attribute attr;
+        auto result = parser.parseOptionalAttribute(attr);
+        if (result.has_value()) {
+          if (failed(*result)) return failure();
+          inputAttrs.push_back(attr);
+        }
+        return success();
+      });
+  if (failed(inputsResult)) return failure();
 
   if (parser.resolveOperands(inputsOperands, inputTypes, inputsOperandsLoc,
                              result.operands))
@@ -132,9 +164,16 @@ ParseResult GenericOp::parse(OpAsmParser &parser, OperationState &result) {
 
   // Parsing is shared with named ops, except for the region.
   SmallVector<Type, 1> inputTypes;
-  if (parseCommonStructuredOpParts(parser, result, inputTypes))
+  SmallVector<Attribute> inputAttrs;
+  if (parseCommonStructuredOpParts(parser, result, inputTypes, inputAttrs))
     return failure();
 
+  // Add operand attributes.
+  if (!inputAttrs.empty()) {
+    result.attributes.append(
+        StringAttr::get(parser.getContext(), kOperandAttrsName),
+        parser.getBuilder().getArrayAttr(inputAttrs));
+  }
   // Optional attributes may be added.
   if (succeeded(parser.parseOptionalKeyword("attrs")))
     if (failed(parser.parseEqual()) ||
@@ -146,8 +185,40 @@ ParseResult GenericOp::parse(OpAsmParser &parser, OperationState &result) {
   result.addRegion(std::move(region));
 
   SmallVector<Type, 1> outputTypes;
-  if (parser.parseOptionalArrowTypeList(outputTypes)) return failure();
+  SmallVector<Attribute> outputAttrs;
+  if (succeeded(parser.parseOptionalArrow())) {
+    auto parseOutputTypeAndAttrFn = [&]() -> ParseResult {
+      if (parser.parseType(outputTypes.emplace_back())) return failure();
+
+      Attribute attr;
+      auto result = parser.parseOptionalAttribute(attr);
+      if (result.has_value()) {
+        if (failed(*result)) return failure();
+        outputAttrs.push_back(attr);
+      }
+      return success();
+    };
+    if (failed(parser.parseOptionalLParen())) {
+      // No parens, expect only a single output type.
+      if (parseOutputTypeAndAttrFn()) return failure();
+    } else if (succeeded(parser.parseOptionalRParen())) {
+      // Special case for empty parens
+      return success();
+    } else {
+      auto parseResult = parser.parseCommaSeparatedList(
+          OpAsmParser::Delimiter::None, parseOutputTypeAndAttrFn);
+      if (failed(parseResult)) {
+        return failure();
+      }
+      if (failed(parser.parseRParen())) return failure();
+    }
+  }
   result.addTypes(outputTypes);
+  if (!outputAttrs.empty()) {
+    result.attributes.append(
+        StringAttr::get(parser.getContext(), kResultAttrsName),
+        parser.getBuilder().getArrayAttr(outputAttrs));
+  }
 
   return success();
 }
@@ -168,8 +239,8 @@ LogicalResult GenericOp::verify() {
     // An error for the case where the generic operand and block arguments
     // are both non-secrets, but they are not the same type
     //
-    // secret.generic (ins %x: i32) {
-    //  ^bb0(%x_clear: i64):
+    // secret.generic(%x: i32) {
+    //  ^body(%x_clear: i64):
     //   ...
     // }
     //
@@ -185,8 +256,8 @@ LogicalResult GenericOp::verify() {
     // An error for the case where the generic operand is secret,
     // but the corresponding block argument doesn't unwrap the secret.
     //
-    // secret.generic (ins %x: !secret.secret<i32>) {
-    //  ^bb0(%x_clear: i64):
+    // secret.generic(%x: !secret.secret<i32>) {
+    //  ^body(%x_clear: i64):
     //   ...
     // }
     //

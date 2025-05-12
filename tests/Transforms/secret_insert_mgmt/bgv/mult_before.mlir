@@ -5,7 +5,7 @@ module {
   // CHECK: func @mult
   func.func @mult(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
     // CHECK: level = 2
-    %0 = secret.generic ins(%arg0 : !secret.secret<i16>) {
+    %0 = secret.generic(%arg0 : !secret.secret<i16>) {
     // CHECK: ^body(%[[INPUT0:.*]]: i16):
     ^body(%input0: i16):
       // CHECK: %[[v1:.*]] = arith.muli %[[INPUT0]], %[[INPUT0]]
@@ -34,7 +34,7 @@ module {
   // CHECK: func @mul
   func.func @mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
     // CHECK: level = 1
-    %0 = secret.generic ins(%arg0 : !secret.secret<i16>) {
+    %0 = secret.generic(%arg0 : !secret.secret<i16>) {
     // CHECK: ^body(%[[INPUT0:.*]]: i16):
     ^body(%input0: i16):
       // CHECK: %[[v1:.*]] = arith.muli %[[INPUT0]], %[[INPUT0]]

@@ -12,7 +12,7 @@ func.func @for_loop(%ARG0: !secret.secret<i8>, %ARG1: !secret.secret<i8>) -> !se
   // CHECK-NOT: arith.muli
   // CHECK-NOT: arith.addi
   %1 = secret.generic
-      ins(%ARG0, %ARG1: !secret.secret<i8>, !secret.secret<i8>) {
+      (%ARG0: !secret.secret<i8>, %ARG1: !secret.secret<i8>) {
   ^bb0(%arg0: i8, %arg1: i8) :
     %c-128_i16 = arith.constant -128 : i16
     %c0_i32 = arith.constant 0 : i32

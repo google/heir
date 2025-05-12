@@ -7,7 +7,7 @@
 // CHECK: @insert_to_secret_index
 func.func @insert_to_secret_index(%arg0: !secret.secret<tensor<16xi32>>, %arg1: !secret.secret<index>) -> !secret.secret<tensor<16xi32>> {
   %c10_i32 = arith.constant 10 : i32
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<16xi32>>, !secret.secret<index>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<16xi32>>, %arg1 : !secret.secret<index>) {
   ^bb0(%arg2: tensor<16xi32>, %arg3: index):
     // CHECK: %[[FOR:.*]] = affine.for %[[I:.*]] = 0 to 16
     // CHECK:      %[[INSERTED:.*]] = tensor.insert
@@ -25,7 +25,7 @@ func.func @insert_to_secret_index(%arg0: !secret.secret<tensor<16xi32>>, %arg1: 
 // CHECK: @insert_and_sum
 func.func @insert_and_sum(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<tensor<32xi16>> {
     %c0_i16 = arith.constant 0 : i16
-    %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
+    %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>>, %arg1 : !secret.secret<index>) {
     ^bb0(%arg2: tensor<32xi16>, %arg3: index):
         // CHECK: %[[FOR:.*]]:2 = affine.for %[[I:.*]] = 0 to 32
         // CHECK-NEXT:  %[[EXTRACTED:.*]] = tensor.extract

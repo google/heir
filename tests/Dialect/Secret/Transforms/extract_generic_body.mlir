@@ -13,7 +13,7 @@
 module {
   func.func @test_add(%value : i32) {
     %Y = secret.conceal %value : i32 -> !secret.secret<i32>
-    %Z = secret.generic ins(%Y : !secret.secret<i32>) {
+    %Z = secret.generic(%Y : !secret.secret<i32>) {
       ^body(%y: i32) :
         %c7_i32_0 = arith.constant 7 : i32
         %d = arith.addi %c7_i32_0, %y: i32
@@ -42,13 +42,13 @@ module {
 module {
   func.func @test_multiple(%value : i32) {
     %Y = secret.conceal %value : i32 -> !secret.secret<i32>
-    %Z = secret.generic ins(%Y : !secret.secret<i32>) {
+    %Z = secret.generic(%Y : !secret.secret<i32>) {
       ^body(%y: i32) :
         %c7_i32_0 = arith.constant 7 : i32
         %d = arith.addi %c7_i32_0, %y: i32
         secret.yield %d : i32
       } -> (!secret.secret<i32>)
-    %A = secret.generic ins(%Z : !secret.secret<i32>) {
+    %A = secret.generic(%Z : !secret.secret<i32>) {
       ^body(%y: i32) :
         %c12_i32_0 = arith.constant 12 : i32
         %d = arith.addi %c12_i32_0, %y: i32
@@ -83,7 +83,7 @@ module {
 module {
   func.func @test_region(%value : memref<1xi32>) {
     %Y = secret.conceal %value : memref<1xi32> -> !secret.secret<memref<1xi32>>
-    %Z = secret.generic ins(%Y : !secret.secret<memref<1xi32>>) {
+    %Z = secret.generic(%Y : !secret.secret<memref<1xi32>>) {
       ^body(%y: memref<1xi32>) :
         %c7_i32_0 = arith.constant 7 : i32
         affine.for %i = 0 to 1 {

@@ -6,7 +6,7 @@
 // CHECK-DAG: %[[COEFF_1:.*]] = arith.constant dense<1.97{{0*}}e-01> : tensor<1x16xf32>
 // CHECK-DAG: %[[COEFF_0:.*]] = arith.constant dense<5.{{0*}}e-01> : tensor<1x16xf32>
 
-// CHECK:     %[[RET:.*]] = secret.generic ins(%[[ARG0]] : !secret.secret<tensor<1x16xf32>>)
+// CHECK:     %[[RET:.*]] = secret.generic(%[[ARG0]]: !secret.secret<tensor<1x16xf32>>)
 // CHECK:     ^body(%[[CONVERTED_ARG:.*]]: tensor<1x16xf32>):
 // CHECK:       %[[COEFF_MUL_DEGREE_1:.*]] = arith.mulf %[[CONVERTED_ARG]], %[[COEFF_1]]
 
@@ -24,7 +24,7 @@ module {
     %cst = arith.constant dense<-4.000000e-03> : tensor<1x16xf32>
     %cst_0 = arith.constant dense<1.970000e-01> : tensor<1x16xf32>
     %cst_1 = arith.constant dense<5.000000e-01> : tensor<1x16xf32>
-    %1 = secret.generic ins(%arg0 : !secret.secret<tensor<1x16xf32>>) {
+    %1 = secret.generic(%arg0 : !secret.secret<tensor<1x16xf32>>) {
     ^bb0(%arg1: tensor<1x16xf32>):
       %5 = arith.mulf %arg1, %cst_0 : tensor<1x16xf32>
       %6 = arith.mulf %arg1, %arg1 : tensor<1x16xf32>

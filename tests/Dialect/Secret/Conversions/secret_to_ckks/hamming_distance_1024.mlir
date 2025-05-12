@@ -22,7 +22,7 @@ func.func @hamming(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secre
   %c128 = arith.constant 128 : index
   %c256 = arith.constant 256 : index
   %c512 = arith.constant 512 : index
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<1024xi16>>, !secret.secret<tensor<1024xi16>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) {
   ^bb0(%arg2: tensor<1024xi16>, %arg3: tensor<1024xi16>):
     %1 = arith.subi %arg2, %arg3 : tensor<1024xi16>
     %2 = arith.muli %1, %1 : tensor<1024xi16>

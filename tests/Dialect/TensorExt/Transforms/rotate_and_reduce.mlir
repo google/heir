@@ -637,7 +637,7 @@ func.func @sum_of_linear_rotates(%arg0: !secret.secret<tensor<32xi16>>) -> !secr
   %c29 = arith.constant 29 : index
   %c31 = arith.constant 31 : index
   %c1 = arith.constant 1 : index
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>>) {
   ^bb0(%arg1: tensor<32xi16>):
     %1 = tensor_ext.rotate %arg1, %c1 : tensor<32xi16>, index
     %2 = arith.addi %1, %arg1 : tensor<32xi16>
@@ -699,7 +699,7 @@ func.func @rotate_not_applied_because_rotation_missing(%arg0: !secret.secret<ten
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<4xi16>>) {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<4xi16>>) {
   ^bb0(%arg1: tensor<4xi16>):
     %1 = tensor_ext.rotate %arg1, %c1 : tensor<4xi16>, index
     %2 = arith.addi %1, %arg1 : tensor<4xi16>
@@ -720,7 +720,7 @@ func.func @rotate_not_applied_because_rotation_missing(%arg0: !secret.secret<ten
 func.func @rotate_not_applied_because_rotation_duplicated(%arg0: !secret.secret<tensor<4xi16>>) -> !secret.secret<i16> {
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<4xi16>>) {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<4xi16>>) {
   ^bb0(%arg1: tensor<4xi16>):
     %1 = tensor_ext.rotate %arg1, %c1 : tensor<4xi16>, index
     %2 = arith.addi %1, %arg1 : tensor<4xi16>
@@ -896,7 +896,7 @@ func.func @test_dot_product_regression(%arg0: !secret.secret<tensor<8xi16>>, %ar
   %c2 = arith.constant 2 : index
   %c1 = arith.constant 1 : index
   %c0 = arith.constant 0 : index
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %1 = arith.muli %arg2, %arg3 : tensor<8xi16>
     %2 = tensor_ext.rotate %1, %c1 : tensor<8xi16>, index

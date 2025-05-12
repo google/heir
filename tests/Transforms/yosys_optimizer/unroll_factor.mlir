@@ -7,14 +7,14 @@
 !out_ty = !secret.secret<memref<2xi8>>
 
 func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
-  %0 = secret.generic {
+  %0 = secret.generic() {
   ^bb0:
     %memref = memref.alloc() : memref<2xi8>
     secret.yield %memref : memref<2xi8>
   } -> !out_ty
 
   affine.for %i = 0 to 2 {
-    secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
+    secret.generic(%arg0: !in_ty, %0 : !out_ty) {
     ^bb0(%clean_memref: memref<2xi8>, %clean_outmemref: memref<2xi8>):
       %1 = memref.load %clean_memref[%i] : memref<2xi8>
       // This is actually such a simple computation that yosys will optimize it

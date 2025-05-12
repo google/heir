@@ -14,7 +14,7 @@ module {
   // CHECK: arith.addi
   // CHECK: return
   func.func @no_hoist(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}, %arg2: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}) {
-    %0 = secret.generic ins(%arg0, %arg1, %arg2 : !secret.secret<tensor<32xi16>>, !secret.secret<tensor<32xi16>>, !secret.secret<tensor<32xi16>>)
+    %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<tensor<32xi16>>, %arg2: !secret.secret<tensor<32xi16>>)
       attrs = {__argattrs=[{tensor_ext.layout = #map}, {tensor_ext.layout = #map1}, {tensor_ext.layout = #map}], __resattrs= [{tensor_ext.layout = #map1}, {tensor_ext.layout = #map1}]} {
     ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>, %input2: tensor<32xi16>):
       %y = arith.addi %input0, %input2 {tensor_ext.layout = [#map]} : tensor<32xi16>

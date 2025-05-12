@@ -6,7 +6,7 @@
 // CHECK: @main
 // CHECK-SAME: !secret.secret<tensor<1024xi16, #[[simd_packing]]>>
 func.func @main(%arg0: tensor<16xi16>, %arg1: tensor<16xi16>) -> tensor<16xi16> {
-  // CHECK-NEXT: secret.generic ins(%[[arg0:.*]], %[[arg1:.*]] : !secret.secret<[[ty:.*]]>, !secret.secret<[[ty]]>)
+  // CHECK-NEXT: secret.generic(%[[arg0:.*]]: !secret.secret<[[ty:.*]]>, %[[arg1:.*]]: !secret.secret<[[ty]]>)
   // CHECK-NEXT:  ^body(%[[arg0_0:.*]]: [[ty]], %[[arg1_0:.*]]: [[ty]]):
   // CHECK-NEXT:    %[[add:.*]] = arith.addi %[[arg0_0]], %[[arg1_0]] : [[ty]]
   // CHECK-NEXT:    secret.yield %[[add]] : [[ty]]
@@ -25,7 +25,7 @@ func.func @main(%arg0: tensor<2048xi16>) -> tensor<2048xi16> {
   // CHECK-DAG: %[[c976:.*]] = arith.constant 976 : index
   // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : index
   // CHECK-DAG: %[[c20:.*]] = arith.constant 20 : index
-  // CHECK: secret.generic ins(%[[arg0]] : !secret.secret<[[ty:.*]]>)
+  // CHECK: secret.generic(%[[arg0]]: !secret.secret<[[ty:.*]]>)
   // CHECK-NEXT:  ^body(%[[arg0_0:.*]]: [[ty]]):
   // CHECK-NEXT:    %[[extract1:.*]] = tensor.extract %[[arg0_0]][%[[c1]], %[[c976]]] : [[ty]]
   // CHECK-NEXT:    %[[extracted:.*]] = tensor.insert %[[extract1]] into %[[arg0_0]][%[[c0]], %[[c20]]] : [[ty]]

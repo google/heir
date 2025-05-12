@@ -4,14 +4,14 @@
 !out_ty = !secret.secret<memref<10xi8>>
 
 func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
-  %0 = secret.generic {
+  %0 = secret.generic() {
   ^body:
     %memref = memref.alloc() : memref<10xi8>
     secret.yield %memref : memref<10xi8>
   } -> !out_ty
 
   affine.for %i = 0 to 10 {
-    secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
+    secret.generic(%arg0: !in_ty, %0 : !out_ty) {
     ^body(%clean_memref: memref<10xi8>, %clean_outmemref: memref<10xi8>):
       %1 = memref.load %clean_memref[%i] : memref<10xi8>
       // This is actually such a simple computation that yosys will optimize it
@@ -122,13 +122,13 @@ func.func @basic_example(%arg0: !in_ty) -> (!out_ty) {
 
 // Computes the set of partial cumulative sums of the input array
 func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
-  %0 = secret.generic {
+  %0 = secret.generic() {
   ^body:
     %memref = memref.alloc() : memref<10xi8>
     secret.yield %memref : memref<10xi8>
   } -> !out_ty
 
-  secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
+  secret.generic(%arg0: !in_ty, %0 : !out_ty) {
   ^body(%input: memref<10xi8>, %alloc: memref<10xi8>):
     %c0 = arith.constant 0 : index
     %val = memref.load %input[%c0] : memref<10xi8>
@@ -137,7 +137,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
   }
 
   affine.for %i = 1 to 10 {
-    secret.generic ins(%arg0, %0 : !in_ty, !out_ty) {
+    secret.generic(%arg0: !in_ty, %0 : !out_ty) {
     ^body(%input: memref<10xi8>, %accum: memref<10xi8>):
       %c1 = arith.constant 1 : index
       %i_minus_one = arith.subi %i, %c1 : index
@@ -165,7 +165,7 @@ func.func @cumulative_sums(%arg0: !in_ty) -> (!out_ty) {
 //   CHECK-DAG: %[[false:.*]] = arith.constant false
 //
 //   Extracting the initial cumulative sum
-//   CHECK: secret.generic ins(%[[arg0]]
+//   CHECK: secret.generic(%[[arg0]]
 //     CHECK-NEXT: ^body
 //     CHECK-NEXT: memref.load
 //     CHECK-NEXT: secret.yield

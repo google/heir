@@ -10,7 +10,7 @@
 // CHECK-SAME: [[arg2:%[^:]*]]: !secret.secret<i1> {tensor_ext.layout = [[layout]]}
 func.func @cmux(%arg0: i64, %arg1: i64, %arg2: !secret.secret<i1>) -> !secret.secret<i64> {
   %true = arith.constant true
-  %0 = secret.generic ins(%arg2 : !secret.secret<i1>) {
+  %0 = secret.generic(%arg2 : !secret.secret<i1>) {
   ^body(%input0: i1):
     %1 = arith.subi %true, %input0 : i1
     %2 = arith.extui %input0 : i1 to i64

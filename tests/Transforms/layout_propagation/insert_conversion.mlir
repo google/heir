@@ -22,13 +22,9 @@ func.func @insert_conversion(%arg0: !stensor, %arg1: !stensor) -> !stensor2 {
   %out_2 = arith.constant dense<0> : !tensor2
 
   // CHECK: secret.generic
-  // CHECK-SAME: ins(%[[arg0]], %[[arg1]]
-  // CHECK-SAME: attrs = {__argattrs = [
-  // CHECK-SAME {tensor_ext.layout = [[rm_layout]]},
-  // CHECK-SAME {tensor_ext.layout = [[rm_layout]]],
-  // Note this one denotes the layout of the result of the generic op
-  // CHECK-SAME: tensor_ext.layout = [[rm_layout1]]
-  %0 = secret.generic ins(%arg0, %arg1: !stensor, !stensor) {
+  // CHECK-SAME: (%[[arg0]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]},
+  // CHECK-SAME: %[[arg1]]: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = [[rm_layout]]}
+  %0 = secret.generic(%arg0: !stensor, %arg1: !stensor) {
   ^body(%pt_arg0: !tensor, %pt_arg1: !tensor):
     // CHECK: tensor_ext.assign_layout [[cst]] {layout = [[rm_layout1]], tensor_ext.layout = [[rm_layout1]]}
 
@@ -55,6 +51,10 @@ func.func @insert_conversion(%arg0: !stensor, %arg1: !stensor) -> !stensor2 {
     // CHECK-SAME: to_layout = [[rm_layout1]]
     // CHECK: arith.addi [[unconverted]], [[converted]]
     %3 = arith.addi %1, %2 : !tensor2
+
+    // Note this one denotes the layout of the result of the generic op
+    // CHECK: secret.yield
+    // CHECK-NEXT: -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = [[rm_layout1]]})
     secret.yield %3 : !tensor2
   } -> !stensor2
   return %0 : !stensor2

@@ -12,7 +12,7 @@
 func.func @fast_unrolled_loop(
     %arg1 : !secret.secret<memref<1024xi32>>) -> !secret.secret<memref<1024xi32>> {
   %c5 = arith.constant 5 : i32
-  %out = secret.generic ins(%arg1 : !secret.secret<memref<1024xi32>>) {
+  %out = secret.generic(%arg1 : !secret.secret<memref<1024xi32>>) {
     ^bb0(%pt_arg: memref<1024xi32>):
       affine.for %i = 0 to 1024 {
         %x = memref.load %pt_arg[%i] : memref<1024xi32>

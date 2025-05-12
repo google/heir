@@ -7,7 +7,7 @@
 // CHECK: @simple_sum_with_thick_body
 func.func @simple_sum_with_thick_body(%arg0: !secret.secret<tensor<32xi16>>) -> !secret.secret<i16> {
   %c0_i16 = arith.constant 0 : i16
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>>) {
   ^bb0(%arg1: tensor<32xi16>):
     // assure body is thick enough for HoistPlaintextOps to happen
     %1 = arith.addi %arg1, %arg1 : tensor<32xi16>
@@ -27,7 +27,7 @@ func.func @simple_sum_with_thick_body(%arg0: !secret.secret<tensor<32xi16>>) -> 
 func.func @simple_sum_tiled_with_thick_body(%arg0: !secret.secret<tensor<32xi16>>) -> !secret.secret<i16> {
   %c0_i16 = arith.constant 0 : i16
   %c8 = arith.constant 8 : index
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>>) {
   ^bb0(%arg1: tensor<32xi16>):
     // assure body is thick enough for HoistPlaintextOps to happen
     %1 = arith.addi %arg1, %arg1 : tensor<32xi16>

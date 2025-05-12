@@ -9,7 +9,7 @@ module  {
   // CHECK-DAG:    %[[c4032:.*]] = arith.constant 4032 : index
   // CHECK-DAG:    %[[c63:.*]] = arith.constant 63 : index
   // CHECK-DAG:    %[[c65:.*]] = arith.constant 65 : index
-  // CHECK-NEXT:   %[[v0:.*]] = secret.generic ins(%[[arg0]] : !secret.secret<tensor<4096xi16>>) {
+  // CHECK-NEXT:   %[[v0:.*]] = secret.generic(%[[arg0]]: !secret.secret<tensor<4096xi16>>) {
   // CHECK-NEXT:   ^body(%[[arg1:.*]]: tensor<4096xi16>):
   // CHECK-NEXT:     %[[v1:.*]] = tensor_ext.rotate %[[arg1]], %[[c3968]]
   // CHECK-NEXT:     %[[v2:.*]] = tensor_ext.rotate %[[arg1]], %[[c4032]]

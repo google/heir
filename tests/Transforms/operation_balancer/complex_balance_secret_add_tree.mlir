@@ -5,7 +5,7 @@
 
 // CHECK:     func.func @complex_balance_secret_add_tree(%[[ARG0:.*]]: !secret.secret<i16>, %[[ARG1:.*]]: !secret.secret<i16>, %[[ARG2:.*]]: !secret.secret<i16>, %[[ARG3:.*]]: !secret.secret<i16>, %[[ARG4:.*]]: !secret.secret<i16>, %[[ARG5:.*]]: !secret.secret<i16>, %[[ARG6:.*]]: !secret.secret<i16>)
 
-// CHECK:     %[[RET:.*]]:3 = secret.generic ins(%[[ARG0]], %[[ARG1]], %[[ARG2]], %[[ARG3]], %[[ARG4]], %[[ARG5]], %[[ARG6]] : !secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>)
+// CHECK:     %[[RET:.*]]:3 = secret.generic(%[[ARG0]]: !secret.secret<i16>, %[[ARG1]]: !secret.secret<i16>, %[[ARG2]]: !secret.secret<i16>, %[[ARG3]]: !secret.secret<i16>, %[[ARG4]]: !secret.secret<i16>, %[[ARG5]]: !secret.secret<i16>, %[[ARG6]]: !secret.secret<i16>)
 // CHECK:     ^body(%[[CONVERTED_ARG0:.*]]: i16, %[[CONVERTED_ARG1:.*]]: i16, %[[CONVERTED_ARG2:.*]]: i16, %[[CONVERTED_ARG3:.*]]: i16, %[[CONVERTED_ARG4:.*]]: i16, %[[CONVERTED_ARG5:.*]]: i16, %[[CONVERTED_ARG6:.*]]: i16):
 
 // CHECK-DAG: %[[ADD_ONE:.*]] = arith.addi %[[CONVERTED_ARG0]], %[[CONVERTED_ARG1]]
@@ -27,10 +27,11 @@ module {
 func.func @complex_balance_secret_add_tree(%arg0: !secret.secret<i16>, %arg1 : !secret.secret<i16>,
     %arg2 : !secret.secret<i16>, %arg3 : !secret.secret<i16>, %arg4 : !secret.secret<i16>, %arg5 : !secret.secret<i16>,
     %arg6 : !secret.secret<i16>) -> (!secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>) {
-  %out0, %out1, %out2 = secret.generic ins (%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6 :
-      !secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>,
-      !secret.secret<i16>, !secret.secret<i16>, !secret.secret<i16>,
-      !secret.secret<i16>) {
+  %out0, %out1, %out2 = secret.generic (
+    %arg0: !secret.secret<i16>, %arg1: !secret.secret<i16>,
+    %arg2: !secret.secret<i16>, %arg3: !secret.secret<i16>,
+    %arg4: !secret.secret<i16>, %arg5: !secret.secret<i16>,
+    %arg6 : !secret.secret<i16>) {
   ^bb0(%converted_arg0: i16, %converted_arg1: i16, %converted_arg2: i16,
       %converted_arg3: i16, %converted_arg4: i16, %converted_arg5: i16,
       %converted_arg6: i16):

@@ -10,7 +10,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_add_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
     %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
-    %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
+    %0 = secret.generic(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: bgv.add_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xi1>):
@@ -25,7 +25,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_mul_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
     %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
-    %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
+    %0 = secret.generic(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: bgv.mul_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xi1>):
@@ -40,7 +40,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_sub_plain(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
     %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
-    %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
+    %0 = secret.generic(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: bgv.sub_plain %[[arg0]], %[[v0]]
       ^bb0(%ARG0 : tensor<1024xi1>):
@@ -55,7 +55,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [67239937,
   // CHECK-SAME: %[[arg1:.*]]: tensor<1024xi1>
   func.func @test_sub_plaintext_ciphertext(%arg0 : !eui1 {mgmt.mgmt = #mgmt}, %arg1 : tensor<1024xi1>) -> (!eui1 {mgmt.mgmt = #mgmt}) {
     %arg1_attr = mgmt.init %arg1 {mgmt.mgmt = #mgmt} : tensor<1024xi1>
-    %0 = secret.generic ins(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
+    %0 = secret.generic(%arg0 :  !eui1) attrs = {__resattrs = [{mgmt.mgmt = #mgmt}]} {
     // CHECK: %[[v0:.*]] = lwe.rlwe_encode %[[arg1]]
     // CHECK: bgv.sub_plain %[[v0]], %[[arg0]]
       ^bb0(%ARG0 : tensor<1024xi1>):

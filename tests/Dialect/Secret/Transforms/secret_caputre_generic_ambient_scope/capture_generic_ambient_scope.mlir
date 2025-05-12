@@ -6,8 +6,8 @@ func.func @test_capture_ambient_scope(%value : i32) {
   %X = arith.constant 7 : i32
   // CHECK: %[[Y:.*]] = secret.conceal
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
-  // CHECK: %[[Z:.*]] = secret.generic ins(%[[Y]], %[[X]] : !secret.secret<i32>, i32)
-  %Z = secret.generic ins(%Y : !secret.secret<i32>) {
+  // CHECK: %[[Z:.*]] = secret.generic(%[[Y]]: !secret.secret<i32>, %[[X]]: i32)
+  %Z = secret.generic(%Y : !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[y:.*]]: i32, %[[x:.*]]: i32):
   ^bb0(%y: i32):
     // CHECK-NEXT: %[[d:.*]] = arith.addi %[[x]], %[[y]]
@@ -28,8 +28,8 @@ func.func @test_capture_within_region(%value : i32) {
   %X = arith.constant 7 : i32
   // CHECK: %[[Y:.*]] = secret.conceal
   %Y = secret.conceal %value : i32 -> !secret.secret<i32>
-  // CHECK: %[[Z:.*]] = secret.generic ins(%[[Y]], %[[X]] : !secret.secret<i32>, i32)
-  %Z = secret.generic ins(%Y : !secret.secret<i32>) {
+  // CHECK: %[[Z:.*]] = secret.generic(%[[Y]]: !secret.secret<i32>, %[[X]]: i32)
+  %Z = secret.generic(%Y : !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[y:.*]]: i32, %[[x:.*]]: i32):
   ^bb0(%y: i32):
     %sum = affine.for %i = 0 to 1 iter_args(%sum_iter = %X) -> (i32) {

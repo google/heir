@@ -10,7 +10,7 @@ module attributes {tf_saved_model.semantics} {
   // CHECK-SAME: %[[value:.*]]: !secret.secret<memref<1x1xi8>>
   func.func @main(%arg0: !secret.secret<memref<1x1xi8>> {iree.identifier = "serving_default_dense_input:0", tf_saved_model.index_path = ["dense_input"]}) -> (!secret.secret<memref<1x1xi8>> {iree.identifier = "StatefulPartitionedCall:0", tf_saved_model.index_path = ["dense_2"]}) attributes {tf_saved_model.exported_names = ["serving_default"]} {
     // CHECK-NOT: secret.generic
-    %0 = secret.generic ins(%arg0 : !secret.secret<memref<1x1xi8>>) {
+    %0 = secret.generic(%arg0 : !secret.secret<memref<1x1xi8>>) {
     ^body(%arg1: memref<1x1xi8>):
       %c-128_i32 = arith.constant -128 : i32
       %c0_i32 = arith.constant 0 : i32

@@ -11,7 +11,7 @@
 func.func @convert_minimal_example(
     %arg0: !secret.secret<tensor<32x32xi16>> {tensor_ext.layout = #row_major}) ->
        (!secret.secret<tensor<32x32xi16>> {tensor_ext.layout = #row_major}) {
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<32x32xi16>>)
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<32x32xi16>>)
                       attrs = {
                         __argattrs=[{tensor_ext.layout = #row_major}],
                         __resattrs=[{tensor_ext.layout = #row_major}]

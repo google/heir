@@ -13,7 +13,7 @@ func.func @annotated_secretness(%s: i32 {secret.secret}, %p: i32) {
 // CHECK: @typed_secretness
 // CHECK-SAME: ([[S:%.*]]: [[ST:.*]], [[P:%.*]]: [[PT:.*]] {secret.public})
 func.func @typed_secretness(%s: !secret.secret<i32>, %p: i32) {
-    %0 = secret.generic ins(%s , %p : !secret.secret<i32>, i32) {
+    %0 = secret.generic(%s: !secret.secret<i32>, %p: i32) {
     //CHECK: ^body([[SS:%.*]]: [[PT]], [[PP:%.*]]: [[PT]]):
     ^body(%ss: i32, %pp: i32):
         //CHECK-NEXT: arith.addi  [[PP]], [[PP]] {secret.public} : [[PT]]

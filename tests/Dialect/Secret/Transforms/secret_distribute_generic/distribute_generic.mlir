@@ -7,25 +7,25 @@ func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !s
   // CHECK-DAG: %[[c1:.*]] = arith.constant 1 : i32
   // CHECK-DAG: %[[c0:.*]] = arith.constant 0 : i32
 
-  // CHECK-NEXT: %[[g0:.*]] = secret.generic ins(%[[value]] : !secret.secret<i32>) {
+  // CHECK-NEXT: %[[g0:.*]] = secret.generic(%[[value]]: !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[clear_g0_in0:.*]]: i32):
   // CHECK-NEXT:   %[[g0_op:.*]] = arith.muli %[[clear_g0_in0]], %[[c7]] : i32
   // CHECK-NEXT:   secret.yield %[[g0_op]] : i32
   // CHECK-NEXT: } -> !secret.secret<i32>
 
-  // CHECK-NEXT: %[[g1:.*]] = secret.generic ins(%[[g0]] : !secret.secret<i32>) {
+  // CHECK-NEXT: %[[g1:.*]] = secret.generic(%[[g0]]: !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb1:.*]](%[[clear_g1_in0:.*]]: i32):
   // CHECK-NEXT:   %[[g1_op:.*]] = arith.addi %[[clear_g1_in0]], %[[c1]] : i32
   // CHECK-NEXT:   secret.yield %[[g1_op]] : i32
   // CHECK-NEXT: } -> !secret.secret<i32>
 
-  // CHECK-NEXT: %[[g2:.*]] = secret.generic ins(%[[g1]] : !secret.secret<i32>) {
+  // CHECK-NEXT: %[[g2:.*]] = secret.generic(%[[g1]]: !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb2:.*]](%[[clear_g2_in0:.*]]: i32):
   // CHECK-NEXT:   %[[g2_op:.*]] = arith.muli %[[clear_g2_in0]], %[[clear_g2_in0]] : i32
   // CHECK-NEXT:   secret.yield %[[g2_op]] : i32
   // CHECK-NEXT: } -> !secret.secret<i32>
 
-  // CHECK-NEXT: %[[g3:.*]] = secret.generic ins(%[[g2]] : !secret.secret<i32>) {
+  // CHECK-NEXT: %[[g3:.*]] = secret.generic(%[[g2]]: !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb3:.*]](%[[clear_g3_in2:.*]]: i32):
   // CHECK-NEXT:   %[[g3_op:.*]] = arith.select %[[cond]], %[[clear_g3_in2]], %[[c0]] : i32
   // CHECK-NEXT:   secret.yield %[[g3_op]] : i32
@@ -33,7 +33,7 @@ func.func @test_distribute_generic(%value: !secret.secret<i32>, %cond: i1) -> !s
 
   // CHECK-NEXT: return %[[g3]] : !secret.secret<i32>
   %Z = secret.generic
-    ins(%value : !secret.secret<i32>) {
+    (%value: !secret.secret<i32>) {
     ^bb0(%clear_value: i32):
       // computes (7x + 1)^2 if cond, else 0
       %c0 = arith.constant 0 : i32
@@ -62,7 +62,7 @@ func.func @test_scf_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
   // CHECK-SAME: -> (!secret.secret<i32>) {
 
   // The loop body is a single secret.generic for the add
-  // CHECK-NEXT: %[[g0:.*]] = secret.generic ins(%[[iter_arg]] : !secret.secret<i32>) {
+  // CHECK-NEXT: %[[g0:.*]] = secret.generic(%[[iter_arg]]: !secret.secret<i32>) {
   // CHECK-NEXT: ^[[bb0:.*]](%[[clear_iter_arg:.*]]: i32):
   // CHECK-NEXT:   %[[g0_op:.*]] = arith.addi %[[clear_iter_arg]], %[[c1i32]] : i32
   // CHECK-NEXT:   secret.yield %[[g0_op]] : i32
@@ -74,7 +74,7 @@ func.func @test_scf_for(%value: !secret.secret<i32>) -> !secret.secret<i32> {
 
   // CHECK-NEXT: return %[[v0]]
   %Z = secret.generic
-    ins(%value : !secret.secret<i32>) {
+    (%value: !secret.secret<i32>) {
     ^bb0(%clear_value: i32):
       %0 = arith.constant 1 : i32
       %c1 = arith.constant 1 : index
@@ -103,7 +103,7 @@ func.func @test_affine_for(
   // CHECK:   affine.store
   // CHECK: return %[[data]]
   secret.generic
-    ins(%value, %data : !secret.secret<i32>, !secret.secret<memref<10xi32>>) {
+    (%value: !secret.secret<i32>, %data: !secret.secret<memref<10xi32>>) {
     ^bb0(%clear_value: i32, %clear_data : memref<10xi32>):
       affine.for %i = 0 to 10 {
         %2 = affine.load %clear_data[%i] : memref<10xi32>

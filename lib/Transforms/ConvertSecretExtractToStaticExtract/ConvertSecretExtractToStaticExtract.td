@@ -13,7 +13,7 @@ def ConvertSecretExtractToStaticExtract : Pass<"convert-secret-extract-to-static
     ```mlir
     func.func @main(%secretTensor: !secret.secret<tensor<32xi16>>, %secretIndex: !secret.secret<index>)) -> !secret.secret<i16> {
       ...
-      %0 = secret.generic ins(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
+      %0 = secret.generic(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
       ^bb0(%tensor: tensor<32xi16>, %index: index):
         // Violation: tensor.extract loads value at secret index
         %extractedValue = tensor.extract %tensor[%index] : tensor<16xi32>
@@ -26,7 +26,7 @@ def ConvertSecretExtractToStaticExtract : Pass<"convert-secret-extract-to-static
     ```mlir
     func.func @main(%secretTensor: !secret.secret<tensor<32xi16>>, %secretIndex: !secret.secret<index>)) -> !secret.secret<i16> {
       ...
-      %0 = secret.generic ins(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
+      %0 = secret.generic(%secretTensor, %secretIndex : !secret.secret<tensor<32xi16>>, !secret.secret<index>) {
       ^bb0(%tensor: tensor<32xi16>, %index: index):
         %extractedValue = affine.for %i=0 to 16 iter_args(%arg= %dummyValue) -> (i32) {
           // 1. Check if %i matches %index

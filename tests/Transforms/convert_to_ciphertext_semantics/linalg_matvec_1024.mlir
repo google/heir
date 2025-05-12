@@ -24,8 +24,8 @@ func.func @matvec_constant_matrix(
   %out = arith.constant dense<0> : tensor<16xi16>
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
-  // CHECK-SAME: ins([[arg0]]
-  %0 = secret.generic ins(%arg0 : !secret.secret<tensor<16xi16>>)
+  // CHECK-SAME: ([[arg0]]
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>>)
                       attrs = {
                         __argattrs = [{tensor_ext.layout = #vec_layout}],
                         __resattrs = [{tensor_ext.layout = #vec_layout}]

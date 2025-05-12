@@ -16,7 +16,7 @@ func.func @test_affine_for(
   // CHECK-NOT:   secret.generic
   // CHECK: return %[[data]]
   secret.generic
-    ins(%value, %data : !secret.secret<i32>, !secret.secret<memref<10xi32>>) {
+    (%value: !secret.secret<i32>, %data: !secret.secret<memref<10xi32>>) {
     ^body(%clear_value: i32, %clear_data : memref<10xi32>):
       affine.for %i = 0 to 10 {
         %2 = affine.load %clear_data[%i] : memref<10xi32>
@@ -35,7 +35,7 @@ func.func @test_affine_for_split_end(
     %value: !secret.secret<i32>,
     %data: !secret.secret<memref<10xi32>>) -> !secret.secret<memref<10xi32>> {
   secret.generic
-    ins(%value, %data : !secret.secret<i32>, !secret.secret<memref<10xi32>>) {
+    (%value: !secret.secret<i32>, %data: !secret.secret<memref<10xi32>>) {
     ^body(%clear_value: i32, %clear_data : memref<10xi32>):
       // CHECK:    arith.constant
       // CHECK:    arith.constant
@@ -80,7 +80,7 @@ func.func @test_affine_for_split_middle(
     %value: !secret.secret<i32>,
     %data: !secret.secret<memref<10xi32>>) -> !secret.secret<memref<10xi32>> {
   secret.generic
-    ins(%value, %data : !secret.secret<i32>, !secret.secret<memref<10xi32>>) {
+    (%value: !secret.secret<i32>, %data: !secret.secret<memref<10xi32>>) {
     ^body(%clear_value: i32, %clear_data : memref<10xi32>):
       // CHECK:    arith.constant
       // CHECK:    arith.constant
@@ -131,7 +131,7 @@ func.func @test_affine_for_split_middle(
 // CHECK: affine_for_yielding_memref
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<10xi8>>
 func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !secret.secret<memref<10xi8>> {
-  %0 = secret.generic ins(%arg0 : !secret.secret<memref<10xi8>>) {
+  %0 = secret.generic(%arg0 : !secret.secret<memref<10xi8>>) {
   ^body(%arg1: memref<10xi8>):
     // CHECK:       secret.generic
     // CHECK-NEXT:    memref.alloc
@@ -156,7 +156,7 @@ func.func @affine_for_yielding_memref(%arg0: !secret.secret<memref<10xi8>>) -> !
 // CHECK: affine_for_hello_world_reproducer
 // CHECK-SAME: %[[data:.*]]: !secret.secret<memref<1x80xi8>>
 func.func @affine_for_hello_world_reproducer(%arg0: !secret.secret<memref<1x80xi8>>) -> !secret.secret<memref<1x80xi8>> {
-  %0 = secret.generic ins(%arg0 : !secret.secret<memref<1x80xi8>>) {
+  %0 = secret.generic(%arg0 : !secret.secret<memref<1x80xi8>>) {
   ^body(%arg1: memref<1x80xi8>):
     // CHECK:    arith.constant
     %c-128_i8 = arith.constant -128 : i8

@@ -3,7 +3,7 @@
 // CHECK: @multi_dimensional_extract
 func.func @multi_dimensional_extract(%arg0: !secret.secret<tensor<32x32xi16>>, %arg1: !secret.secret<index>) -> !secret.secret<i16> {
     %c0_i16 = arith.constant 0 : i16
-    %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<32x32xi16>>, !secret.secret<index>) {
+    %0 = secret.generic(%arg0: !secret.secret<tensor<32x32xi16>>, %arg1: !secret.secret<index>) {
     ^bb0(%arg2: tensor<32x32xi16>, %arg3: index):
       %1 = affine.for %i = 0 to 32 iter_args(%sum = %c0_i16) -> (i16) {
         // expected-warning@+1 {{Currently, transformation only supports 1D tensors:}}
