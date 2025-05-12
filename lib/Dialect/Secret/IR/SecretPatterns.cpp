@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <optional>
 #include <string>
 
@@ -104,6 +105,25 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
   // upstream a trait for this?
   if (!op.getOps<memref::AllocOp>().empty()) {
     return failure();
+  }
+  if (!op.getOps<tensor::EmptyOp>().empty()) {
+    // If the empty op is used in secret operations, don't collapse.
+    auto emptyOp = *op.getOps<tensor::EmptyOp>().begin();
+    if (llvm::any_of(emptyOp->getUsers(), [&](Operation *user) {
+          // If any of the other operands of the user is a secret, then don't
+          // collapse.
+          for (Value operand : user->getOperands()) {
+            OpOperand *genericOperand =
+                op.getOpOperandForBlockArgument(operand);
+            if (genericOperand &&
+                isa<SecretType>(genericOperand->get().getType())) {
+              return true;
+            }
+          }
+          return false;
+        })) {
+      return failure();
+    }
   }
 
   YieldOp yieldOp = op.getYieldOp();
@@ -648,6 +668,17 @@ LogicalResult ConcealThenGeneric::matchAndRewrite(
     if (!concealOp) {
       continue;
     }
+    // Ensure that the use of the operand isn't an insertion destination.
+    if (llvm::any_of(genericOp.getBody()
+                         ->getArguments()[opOperand.getOperandNumber()]
+                         .getUses(),
+                     [&](OpOperand &use) {
+                       auto insertOp =
+                           dyn_cast<tensor::InsertOp>(use.getOwner());
+                       return insertOp && insertOp.getDest() == use.get();
+                     })) {
+      continue;
+    }
     updated = true;
     // Set the input type to be plaintext, replace the input value with the
     // conceal input.
@@ -657,6 +688,37 @@ LogicalResult ConcealThenGeneric::matchAndRewrite(
     });
   }
   return updated ? success() : failure();
+}
+
+LogicalResult ConcealPlaintextInsert::matchAndRewrite(
+    GenericOp op, PatternRewriter &rewriter) const {
+  for (auto insertOp : op.getBody()->getOps<tensor::InsertOp>()) {
+    auto dest = insertOp.getDest();
+    // If the tensor that is being inserted isn't a generic operand and was
+    // defined outside of the generic block, then it is a plaintext tensor.
+    auto genericOperand = op.getOpOperandForBlockArgument(dest);
+    if (!genericOperand &&
+        dest.getParentRegion()->isProperAncestor(&op.getRegion())) {
+      rewriter.setInsertionPointAfterValue(dest);
+      auto concealedTensor =
+          rewriter.create<secret::ConcealOp>(op.getLoc(), dest);
+      // Add the concealed tensor to the generic arguments.
+      rewriter.modifyOpInPlace(op, [&]() {
+        BlockArgument newArg = op.getBody()->addArgument(
+            concealedTensor.getCleartext().getType(), op.getLoc());
+        rewriter.replaceUsesWithIf(dest, newArg, [&](mlir::OpOperand &operand) {
+          auto insertOp = dyn_cast<tensor::InsertOp>(operand.getOwner());
+          if (!insertOp) {
+            return false;
+          }
+          return operand.get() == dest;
+        });
+        op.getInputsMutable().append(concealedTensor.getResult());
+      });
+      return success();
+    }
+  }
+  return failure();
 }
 
 void genericAbsorbConstants(secret::GenericOp genericOp,

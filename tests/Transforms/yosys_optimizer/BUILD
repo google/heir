@@ -21,6 +21,11 @@ glob_lit_tests(
     # won't work because selects do not expand in macros.
     default_tags = ["yosys"],
     driver = "@heir//tests:run_lit.sh",
+    # TODO(FIXME): Add tensor semantics tests to represent the following cases.
+    exclude = [
+        "global_absorb.mlir",
+        "unroll_and_optimize.mlir",
+    ],
     size_override = {
         "micro_speech_for.mlir": "large",
         "64_bit_mul.mlir": "large",

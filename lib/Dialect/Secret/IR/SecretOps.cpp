@@ -12,6 +12,7 @@
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
@@ -83,17 +84,14 @@ LogicalResult YieldOp::verify() {
 void GenericOp::print(OpAsmPrinter &p) {
   ValueRange inputs = getInputs();
 
-  if (!inputs.empty()) {
-    p << "(";
-    llvm::interleaveComma(
-        llvm::seq<size_t>(0, inputs.size()), p, [&](size_t i) {
-          p.printOperand(inputs[i]);
-          p << ": ";
-          p.printType(inputs[i].getType());
-          p.printOptionalAttrDict(NamedAttrList((getOperandAttrDict(i))));
-        });
-    p << ")";
-  }
+  p << "(";
+  llvm::interleaveComma(llvm::seq<size_t>(0, inputs.size()), p, [&](size_t i) {
+    p.printOperand(inputs[i]);
+    p << ": ";
+    p.printType(inputs[i].getType());
+    p.printOptionalAttrDict(NamedAttrList((getOperandAttrDict(i))));
+  });
+  p << ")";
 
   NamedAttrList attrs = (*this)->getAttrs();
   attrs.erase(kOperandAttrsName);
@@ -549,7 +547,8 @@ void populateGenericCanonicalizers(RewritePatternSet &patterns,
                                    MLIRContext *ctx) {
   patterns.add<CollapseSecretlessGeneric, RemoveUnusedYieldedValues,
                RemoveUnusedGenericArgs, RemoveNonSecretGenericArgs,
-               HoistPlaintextOps, ConcealThenGeneric>(ctx);
+               HoistPlaintextOps, ConcealThenGeneric, ConcealPlaintextInsert>(
+      ctx);
 }
 
 // When replacing a generic op with a new one, and given an op in the original
@@ -665,6 +664,16 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
     llvm::dbgs() << "After adding new single-op generic:\n";
     parent->dump();
   });
+  // Replace the uses of the single-op split generic op with the previous
+  // results.
+  auto extractOpGenericResults =
+      llvm::map_to_vector(opToExtract->getResults(), [&](OpResult v) {
+        auto &yieldUse = *v.getUses().begin();
+        assert(isa<YieldOp>(yieldUse.getOwner()) &&
+               "expected yield to be the only use of the op to extract");
+        return genericOpWithNewYields.getResult(yieldUse.getOperandNumber());
+      });
+  rewriter.replaceAllUsesWith(extractOpGenericResults, newGeneric.getResults());
 
   // Once the op is split off into a new generic op, we need to erase
   // the old op and remove its results from the yield op.
@@ -676,7 +685,15 @@ std::pair<GenericOp, GenericOp> extractOpAfterGeneric(
   opToExtract =
       findCorrespondingOp(genericOpWithNewYields, replacedGeneric, opToExtract);
   rewriter.replaceAllUsesWith(remainingResults, replacedGeneric.getResults());
+  LLVM_DEBUG({
+    llvm::dbgs() << "After replacing uses of opToExtract with new results:\n";
+    parent->dump();
+  });
   rewriter.eraseOp(genericOpWithNewYields);
+  LLVM_DEBUG({
+    llvm::dbgs() << "After erasing genericOpWithNewYields:\n";
+    parent->dump();
+  });
   rewriter.eraseOp(opToExtract);
   LLVM_DEBUG({
     llvm::dbgs() << "After removing opToExtract from old generic:\n";
