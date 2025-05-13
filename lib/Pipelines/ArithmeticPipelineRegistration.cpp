@@ -8,7 +8,6 @@
 #include "lib/Dialect/CKKS/Conversions/CKKSToLWE/CKKSToLWE.h"
 #include "lib/Dialect/LWE/Conversions/LWEToLattigo/LWEToLattigo.h"
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
-#include "lib/Dialect/LWE/Transforms/AddClientInterface.h"
 #include "lib/Dialect/LWE/Transforms/AddDebugPort.h"
 #include "lib/Dialect/Lattigo/Transforms/AllocToInplace.h"
 #include "lib/Dialect/Lattigo/Transforms/ConfigureCryptoContext.h"
@@ -27,6 +26,7 @@
 #include "lib/Dialect/TensorExt/Transforms/InsertRotate.h"
 #include "lib/Dialect/TensorExt/Transforms/RotateAndReduce.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
@@ -155,6 +155,10 @@ void mlirToSecretArithmeticPipelineBuilder(
   pm.addPass(createOperationBalancer());
 
   lowerAssignLayout(pm, options, false);
+
+  // Add encrypt/decrypt helper functions for each function argument and return
+  // value.
+  pm.addPass(createAddClientInterface());
 }
 
 void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
@@ -345,8 +349,6 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       exit(EXIT_FAILURE);
   }
 
-  // Add client interface (helper functions)
-  pm.addPass(lwe::createAddClientInterface());
   lowerAssignLayout(pm, options, false);
 
   // TODO (#1145): This should also generate keygen/param gen functions,
