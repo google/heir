@@ -158,7 +158,9 @@ void mlirToSecretArithmeticPipelineBuilder(
 
   // Add encrypt/decrypt helper functions for each function argument and return
   // value.
-  pm.addPass(createAddClientInterface());
+  AddClientInterfaceOptions addClientInterfaceOptions;
+  addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
+  pm.addPass(createAddClientInterface(addClientInterfaceOptions));
 }
 
 void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
