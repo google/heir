@@ -8,7 +8,10 @@ package(
 cc_library(
     name = "Graph",
     hdrs = ["Graph.h"],
-    deps = ["@llvm-project//mlir:Support"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
 )
 
 cc_test(

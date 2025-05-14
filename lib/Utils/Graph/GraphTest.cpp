@@ -13,6 +13,91 @@ namespace {
 
 using ::testing::UnorderedElementsAre;
 
+Graph<int> make_levels_graph() {
+  Graph<int> graph;
+  graph.addVertex(0);
+  graph.addVertex(1);
+  graph.addVertex(2);
+  graph.addVertex(3);
+  graph.addVertex(4);
+  graph.addVertex(5);
+  graph.addVertex(6);
+  graph.addVertex(7);
+  graph.addVertex(8);
+  graph.addVertex(9);
+  graph.addVertex(10);
+  graph.addEdge(0, 5);
+  graph.addEdge(1, 6);
+  graph.addEdge(2, 7);
+  graph.addEdge(3, 8);
+  graph.addEdge(4, 9);
+  graph.addEdge(5, 6);
+  graph.addEdge(6, 7);
+  graph.addEdge(7, 8);
+  graph.addEdge(8, 9);
+  graph.addEdge(9, 10);
+  return graph;
+}
+
+TEST(GraphUtilsTest, SourceAndSink) {
+  auto graph = make_levels_graph();
+  ASSERT_EQ(graph.getSources().size(), 5);
+  ASSERT_EQ(graph.getSinks().size(), 1);
+}
+
+TEST(GraphUtilsTest, DegreeInAndOut) {
+  auto graph = make_levels_graph();
+  ASSERT_EQ(graph.topologicalSort()->size(), 11);
+  ASSERT_EQ(graph.getInDegree(0), 0);
+  ASSERT_EQ(graph.getInDegree(5), 1);
+  ASSERT_EQ(graph.getOutDegree(9), 1);
+  ASSERT_EQ(graph.getOutDegree(10), 0);
+}
+
+TEST(GraphUtilsTest, LongPathsA) {
+  auto graph = make_levels_graph();
+  auto resultpath = graph.getShortestPath(1, 10);
+  ASSERT_TRUE(succeeded(resultpath));
+  ASSERT_EQ((*resultpath).size(), 6);
+  ASSERT_EQ((*resultpath)[0], 1);
+  ASSERT_EQ((*resultpath)[1], 6);
+  ASSERT_EQ((*resultpath)[2], 7);
+  ASSERT_EQ((*resultpath)[3], 8);
+  ASSERT_EQ((*resultpath)[4], 9);
+  ASSERT_EQ((*resultpath)[5], 10);
+}
+
+TEST(GraphUtilsTest, LongPathsB) {
+  auto graph = make_levels_graph();
+  graph.addEdge(1, 9);
+  auto resultpath = graph.getShortestPath(1, 10);
+  ASSERT_TRUE(succeeded(resultpath));
+  ASSERT_EQ((*resultpath).size(), 3);
+  ASSERT_EQ((*resultpath)[0], 1);
+  ASSERT_EQ((*resultpath)[1], 9);
+  ASSERT_EQ((*resultpath)[2], 10);
+}
+
+TEST(GraphUtilsTest, LongPathsC) {
+  auto graph = make_levels_graph();
+  graph.addEdge(1, 9);
+  auto resultpath = graph.getShortestPath(1, 0);
+  ASSERT_TRUE(failed(resultpath));
+}
+
+TEST(GraphUtilsTest, CriticalPath) {
+  auto graph = make_levels_graph();
+  auto resultpath = graph.findApproximateCriticalPath();
+  ASSERT_TRUE(succeeded(resultpath));
+  ASSERT_EQ((*resultpath).size(), 6);
+  ASSERT_EQ((*resultpath)[0], 5);
+  ASSERT_EQ((*resultpath)[1], 6);
+  ASSERT_EQ((*resultpath)[2], 7);
+  ASSERT_EQ((*resultpath)[3], 8);
+  ASSERT_EQ((*resultpath)[4], 9);
+  ASSERT_EQ((*resultpath)[5], 10);
+}
+
 TEST(LevelSortTest, SimpleGraphLevelSort) {
   // Example graph:
   //       ↗ 2 ↘
@@ -68,29 +153,7 @@ TEST(LevelSortTest, MultiInputGraphLevelSort) {
   // Level 5: node 9
   // Level 6: node 10
 
-  Graph<int> graph;
-  graph.addVertex(0);
-  graph.addVertex(1);
-  graph.addVertex(2);
-  graph.addVertex(3);
-  graph.addVertex(4);
-  graph.addVertex(5);
-  graph.addVertex(6);
-  graph.addVertex(7);
-  graph.addVertex(8);
-  graph.addVertex(9);
-  graph.addVertex(10);
-  graph.addEdge(0, 5);
-  graph.addEdge(1, 6);
-  graph.addEdge(2, 7);
-  graph.addEdge(3, 8);
-  graph.addEdge(4, 9);
-  graph.addEdge(5, 6);
-  graph.addEdge(6, 7);
-  graph.addEdge(7, 8);
-  graph.addEdge(8, 9);
-  graph.addEdge(9, 10);
-
+  auto graph = make_levels_graph();
   auto levelSorted = graph.sortGraphByLevels();
   EXPECT_TRUE(succeeded(levelSorted));
   std::vector<std::vector<int>> levelUnwrapped = levelSorted.value();
