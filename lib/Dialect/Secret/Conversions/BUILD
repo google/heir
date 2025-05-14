@@ -1,3 +1,8 @@
+package(
+    default_applicable_licenses = ["@heir//:license"],
+    default_visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "Patterns",
     srcs = ["Patterns.cpp"],
