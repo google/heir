@@ -33,6 +33,8 @@ def PropagateAnnotation : Pass<"propagate-annotation"> {
   let options = [
     Option<"attrName", "attr-name", "std::string", /*default=*/"\"\"",
            "The attribute name to propagate with.">,
+    Option<"reverse", "reverse", "bool", /*default=*/"false",
+           "Whether to propagate in reverse">,
   ];
 }
 
