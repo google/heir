@@ -48,6 +48,25 @@ void moduleClearBackend(Operation *moduleOp);
 void moduleSetOpenfhe(Operation *moduleOp);
 void moduleSetLattigo(Operation *moduleOp);
 
+// Func attributes for client helpers
+//
+// This corresponds to a named attribute client.enc_func whose
+// value is a dictionary {func_name = "foo", index = 2 : i64}
+//
+// This means that the function with this attribute is an encryption
+// helper for the function "foo" and the argument at index 2.
+
+constexpr const static ::llvm::StringLiteral kClientEncFuncAttrName =
+    "client.enc_func";
+constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
+    "client.dec_func";
+
+// The name of the function this client helper is made for.
+constexpr const static ::llvm::StringLiteral kClientHelperFuncName =
+    "func_name";
+// The argument or operand index the client helper function is for.
+constexpr const static ::llvm::StringLiteral kClientHelperIndex = "index";
+
 }  // namespace heir
 }  // namespace mlir
 
