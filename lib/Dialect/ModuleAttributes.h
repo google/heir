@@ -58,6 +58,12 @@ constexpr const static ::llvm::StringLiteral kClientEncFuncAttrName =
 constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
     "client_dec_func";
 
+// The name of the function this client helper is made for.
+constexpr const static ::llvm::StringLiteral kClientHelperFuncName =
+    "func_name";
+// The argument or operand index the client helper function is for.
+constexpr const static ::llvm::StringLiteral kClientHelperIndex = "index";
+
 }  // namespace heir
 }  // namespace mlir
 

@@ -49,47 +49,58 @@ using tensor_ext::UnpackOp;
 
 auto &kOriginalTypeAttrName = TensorExtDialect::kOriginalTypeAttrName;
 
-/// Generates an encryption func for one or more types.
+/// Generates an encryption func for one types.
 LogicalResult generateEncryptionFunc(func::FuncOp op,
-                                     const std::string &encFuncName,
-                                     TypeRange argTypes, TypeRange resultTypes,
-                                     ArrayRef<OriginalTypeAttr> originalTypes,
+                                     BlockArgument funcArgument,
                                      ImplicitLocOpBuilder &builder,
                                      int64_t ciphertextSize) {
-  SmallVector<Type> funcArgTypes(argTypes.begin(), argTypes.end());
+  std::string encFuncName("");
+  llvm::raw_string_ostream encNameOs(encFuncName);
+  encNameOs << op.getSymName() << "__encrypt__arg"
+            << funcArgument.getArgNumber();
+  auto originalTypeAttr = op.getArgAttrOfType<OriginalTypeAttr>(
+      funcArgument.getArgNumber(), kOriginalTypeAttrName);
+  Type encArgType = originalTypeAttr.getOriginalType();
+  Type encReturnType = funcArgument.getType();
+
   FunctionType encFuncType =
-      FunctionType::get(builder.getContext(), funcArgTypes, resultTypes);
+      FunctionType::get(builder.getContext(), {encArgType}, {encReturnType});
   auto encFuncOp = builder.create<func::FuncOp>(encFuncName, encFuncType);
-  encFuncOp->setAttr(kClientEncFuncAttrName, builder.getUnitAttr());
+
+  encFuncOp->setAttr(
+      kClientEncFuncAttrName,
+      builder.getDictionaryAttr({
+          builder.getNamedAttr(kClientHelperFuncName,
+                               builder.getStringAttr(op.getSymName())),
+          builder.getNamedAttr(
+              kClientHelperIndex,
+              builder.getI64IntegerAttr(funcArgument.getArgNumber())),
+      }));
+
   Block *entryBlock = encFuncOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
   IRRewriter b(builder);
 
   SmallVector<Value> encValuesToReturn;
-  for (size_t i = 0; i < argTypes.size(); ++i) {
-    auto resultTy = resultTypes[i];
-    auto originalType = originalTypes[i];
-    auto operand = encFuncOp.getArgument(i);
+  auto operand = encFuncOp.getArgument(0);
 
-    // If the output is encrypted, we need to encode and encrypt
-    if (auto resultCtTy = dyn_cast<SecretType>(resultTy)) {
-      // Apply the layout from the original type, which handles the job of
-      // converting a scalar to a tensor, and out a tensor in a
-      // ciphertext-semantic tensor so that it can then be encoded/encrypted.
-      // Note that this op still needs to be lowered, which implies the
-      // relevant pattern from convert-to-ciphertext-semantics must be run
-      // after this pass.
-      auto assignLayoutOp =
-          builder.create<AssignLayoutOp>(operand, originalType.getLayout());
-      auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
-                                       [&](Operation *createdOp) {});
-      if (failed(res)) return failure();
-      b.replaceOp(assignLayoutOp, res.value());
-      auto encrypted = builder.create<ConcealOp>(res.value());
-      encValuesToReturn.push_back(encrypted.getResult());
-      continue;
-    }
-
+  // If the output is encrypted, we need to encode and encrypt
+  if (auto resultCtTy = dyn_cast<SecretType>(encReturnType)) {
+    // Apply the layout from the original type, which handles the job of
+    // converting a scalar to a tensor, and out a tensor in a
+    // ciphertext-semantic tensor so that it can then be encoded/encrypted.
+    // Note that this op still needs to be lowered, which implies the
+    // relevant pattern from convert-to-ciphertext-semantics must be run
+    // after this pass.
+    auto assignLayoutOp =
+        builder.create<AssignLayoutOp>(operand, originalTypeAttr.getLayout());
+    auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
+                                     [&](Operation *createdOp) {});
+    if (failed(res)) return failure();
+    b.replaceOp(assignLayoutOp, res.value());
+    auto encrypted = builder.create<ConcealOp>(res.value());
+    encValuesToReturn.push_back(encrypted.getResult());
+  } else {
     // Otherwise, return the input unchanged.
     encValuesToReturn.push_back(operand);
   }
@@ -98,44 +109,51 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
   return success();
 }
 
-/// Generates a decryption func for one or more types.
-LogicalResult generateDecryptionFunc(func::FuncOp op,
-                                     const std::string &decFuncName,
-                                     TypeRange decFuncArgTypes,
-                                     TypeRange decFuncResultTypes,
-                                     ArrayRef<OriginalTypeAttr> originalTypes,
+/// Generates a decryption func for one type.
+LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
+                                     int originalFuncReturnIndex,
                                      ImplicitLocOpBuilder &builder) {
-  SmallVector<Type> funcArgTypes(decFuncArgTypes.begin(),
-                                 decFuncArgTypes.end());
+  std::string decFuncName("");
+  llvm::raw_string_ostream encNameOs(decFuncName);
+  encNameOs << op.getSymName() << "__decrypt__result"
+            << originalFuncReturnIndex;
+  auto originalTypeAttr = op.getResultAttrOfType<OriginalTypeAttr>(
+      originalFuncReturnIndex, kOriginalTypeAttrName);
+  SmallVector<Type> funcArgTypes = {decFuncArgType};
   FunctionType decFuncType =
-      FunctionType::get(builder.getContext(), funcArgTypes, decFuncResultTypes);
+      FunctionType::get(builder.getContext(), {decFuncArgType},
+                        {originalTypeAttr.getOriginalType()});
   auto decFuncOp = builder.create<func::FuncOp>(decFuncName, decFuncType);
-  decFuncOp->setAttr(kClientDecFuncAttrName, builder.getUnitAttr());
+
+  decFuncOp->setAttr(
+      kClientDecFuncAttrName,
+      builder.getDictionaryAttr({
+          builder.getNamedAttr(kClientHelperFuncName,
+                               builder.getStringAttr(op.getSymName())),
+          builder.getNamedAttr(
+              kClientHelperIndex,
+              builder.getI64IntegerAttr(originalFuncReturnIndex)),
+      }));
+
   builder.setInsertionPointToEnd(decFuncOp.addEntryBlock());
   IRRewriter b(builder);
   SmallVector<Value> decValuesToReturn;
 
-  for (size_t i = 0; i < decFuncResultTypes.size(); ++i) {
-    auto argTy = decFuncArgTypes[i];
-    auto originalTypeAttr = originalTypes[i];
-    // If the input is ciphertext, we need to decrypt and unpack
-    if (auto argCtTy = dyn_cast<SecretType>(argTy)) {
-      auto decrypted = builder.create<RevealOp>(decFuncOp.getArgument(i));
-      Type dataSemanticType = originalTypeAttr.getOriginalType();
-      auto unpackOp = builder.create<tensor_ext::UnpackOp>(
-          dataSemanticType, decrypted.getResult(),
-          originalTypeAttr.getLayout());
+  // If the input is ciphertext, we need to decrypt and unpack
+  if (auto argCtTy = dyn_cast<SecretType>(decFuncArgType)) {
+    auto decrypted = builder.create<RevealOp>(decFuncOp.getArgument(0));
+    Type dataSemanticType = originalTypeAttr.getOriginalType();
+    auto unpackOp = builder.create<tensor_ext::UnpackOp>(
+        dataSemanticType, decrypted.getResult(), originalTypeAttr.getLayout());
 
-      Value res =
-          implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});
-      b.replaceOp(unpackOp, res);
+    Value res =
+        implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});
+    b.replaceOp(unpackOp, res);
 
-      decValuesToReturn.push_back(res);
-      continue;
-    }
-
+    decValuesToReturn.push_back(res);
+  } else {
     // Otherwise, return the input unchanged.
-    decValuesToReturn.push_back(decFuncOp.getArgument(i));
+    decValuesToReturn.push_back(decFuncOp.getArgument(0));
   }
 
   builder.create<func::ReturnOp>(decValuesToReturn);
@@ -160,14 +178,7 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize) {
   for (BlockArgument val : op.getArguments()) {
     auto argTy = val.getType();
     if (auto argCtTy = dyn_cast<SecretType>(argTy)) {
-      std::string encFuncName("");
-      llvm::raw_string_ostream encNameOs(encFuncName);
-      encNameOs << op.getSymName() << "__encrypt__arg" << val.getArgNumber();
-      auto originalTypeAttr = op.getArgAttrOfType<OriginalTypeAttr>(
-          val.getArgNumber(), kOriginalTypeAttrName);
-      if (failed(generateEncryptionFunc(
-              op, encFuncName, {originalTypeAttr.getOriginalType()}, {argCtTy},
-              {originalTypeAttr}, builder, ciphertextSize))) {
+      if (failed(generateEncryptionFunc(op, val, builder, ciphertextSize))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -179,14 +190,7 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize) {
   for (size_t i = 0; i < returnTypes.size(); ++i) {
     auto returnTy = returnTypes[i];
     if (auto returnCtTy = dyn_cast<SecretType>(returnTy)) {
-      std::string decFuncName("");
-      llvm::raw_string_ostream encNameOs(decFuncName);
-      encNameOs << op.getSymName() << "__decrypt__result" << i;
-      auto originalTypeAttr =
-          op.getResultAttrOfType<OriginalTypeAttr>(i, kOriginalTypeAttrName);
-      if (failed(generateDecryptionFunc(op, decFuncName, {returnCtTy},
-                                        {originalTypeAttr.getOriginalType()},
-                                        {originalTypeAttr}, builder))) {
+      if (failed(generateDecryptionFunc(op, returnCtTy, i, builder))) {
         return failure();
       }
       // insertion point is inside func, move back out
