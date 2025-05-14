@@ -1,0 +1,212 @@
+#include "lib/Transforms/AddClientInterface/AddClientInterface.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
+#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+
+#define DEBUG_TYPE "add-client-interface"
+
+namespace mlir {
+namespace heir {
+
+#define GEN_PASS_DEF_ADDCLIENTINTERFACE
+#include "lib/Transforms/AddClientInterface/AddClientInterface.h.inc"
+
+using secret::ConcealOp;
+using secret::RevealOp;
+using secret::SecretType;
+using tensor_ext::AssignLayoutOp;
+using tensor_ext::OriginalTypeAttr;
+using tensor_ext::TensorExtDialect;
+using tensor_ext::UnpackOp;
+
+auto &kOriginalTypeAttrName = TensorExtDialect::kOriginalTypeAttrName;
+
+/// Generates an encryption func for one or more types.
+LogicalResult generateEncryptionFunc(func::FuncOp op,
+                                     const std::string &encFuncName,
+                                     TypeRange argTypes, TypeRange resultTypes,
+                                     ArrayRef<OriginalTypeAttr> originalTypes,
+                                     ImplicitLocOpBuilder &builder,
+                                     int64_t ciphertextSize) {
+  SmallVector<Type> funcArgTypes(argTypes.begin(), argTypes.end());
+  FunctionType encFuncType =
+      FunctionType::get(builder.getContext(), funcArgTypes, resultTypes);
+  auto encFuncOp = builder.create<func::FuncOp>(encFuncName, encFuncType);
+  Block *entryBlock = encFuncOp.addEntryBlock();
+  builder.setInsertionPointToEnd(entryBlock);
+  IRRewriter b(builder);
+
+  SmallVector<Value> encValuesToReturn;
+  for (size_t i = 0; i < argTypes.size(); ++i) {
+    auto resultTy = resultTypes[i];
+    auto originalType = originalTypes[i];
+    auto operand = encFuncOp.getArgument(i);
+
+    // If the output is encrypted, we need to encode and encrypt
+    if (auto resultCtTy = dyn_cast<SecretType>(resultTy)) {
+      // Apply the layout from the original type, which handles the job of
+      // converting a scalar to a tensor, and out a tensor in a
+      // ciphertext-semantic tensor so that it can then be encoded/encrypted.
+      // Note that this op still needs to be lowered, which implies the
+      // relevant pattern from convert-to-ciphertext-semantics must be run
+      // after this pass.
+      auto assignLayoutOp =
+          builder.create<AssignLayoutOp>(operand, originalType.getLayout());
+      auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
+                                       [&](Operation *createdOp) {});
+      if (failed(res)) return failure();
+      b.replaceOp(assignLayoutOp, res.value());
+      auto encrypted = builder.create<ConcealOp>(res.value());
+      encValuesToReturn.push_back(encrypted.getResult());
+      continue;
+    }
+
+    // Otherwise, return the input unchanged.
+    encValuesToReturn.push_back(operand);
+  }
+
+  builder.create<func::ReturnOp>(encValuesToReturn);
+  return success();
+}
+
+/// Generates a decryption func for one or more types.
+LogicalResult generateDecryptionFunc(func::FuncOp op,
+                                     const std::string &decFuncName,
+                                     TypeRange decFuncArgTypes,
+                                     TypeRange decFuncResultTypes,
+                                     ArrayRef<OriginalTypeAttr> originalTypes,
+                                     ImplicitLocOpBuilder &builder) {
+  SmallVector<Type> funcArgTypes(decFuncArgTypes.begin(),
+                                 decFuncArgTypes.end());
+  FunctionType decFuncType =
+      FunctionType::get(builder.getContext(), funcArgTypes, decFuncResultTypes);
+  auto decFuncOp = builder.create<func::FuncOp>(decFuncName, decFuncType);
+  builder.setInsertionPointToEnd(decFuncOp.addEntryBlock());
+  IRRewriter b(builder);
+  SmallVector<Value> decValuesToReturn;
+
+  for (size_t i = 0; i < decFuncResultTypes.size(); ++i) {
+    auto argTy = decFuncArgTypes[i];
+    auto originalTypeAttr = originalTypes[i];
+    // If the input is ciphertext, we need to decrypt and unpack
+    if (auto argCtTy = dyn_cast<SecretType>(argTy)) {
+      auto decrypted = builder.create<RevealOp>(decFuncOp.getArgument(i));
+      Type dataSemanticType = originalTypeAttr.getOriginalType();
+      auto unpackOp = builder.create<tensor_ext::UnpackOp>(
+          dataSemanticType, decrypted.getResult(),
+          originalTypeAttr.getLayout());
+
+      Value res =
+          implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});
+      b.replaceOp(unpackOp, res);
+
+      decValuesToReturn.push_back(res);
+      continue;
+    }
+
+    // Otherwise, return the input unchanged.
+    decValuesToReturn.push_back(decFuncOp.getArgument(i));
+  }
+
+  builder.create<func::ReturnOp>(decValuesToReturn);
+  return success();
+}
+
+/// Adds the client interface for a single func. This should only be used on the
+/// "entry" func for the IR being compiled, but there may be multiple.
+LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize) {
+  if (op.isDeclaration()) {
+    LLVM_DEBUG(op->emitWarning("Skipping client interface for external func"));
+    return success();
+  }
+
+  auto module = op->getParentOfType<ModuleOp>();
+  ImplicitLocOpBuilder builder =
+      ImplicitLocOpBuilder::atBlockEnd(module.getLoc(), module.getBody());
+
+  // We need one encryption function per argument and one decryption
+  // function per return value. This is mainly to avoid complicated C++ codegen
+  // when encrypting multiple inputs which requires out-params.
+  for (BlockArgument val : op.getArguments()) {
+    auto argTy = val.getType();
+    if (auto argCtTy = dyn_cast<SecretType>(argTy)) {
+      std::string encFuncName("");
+      llvm::raw_string_ostream encNameOs(encFuncName);
+      encNameOs << op.getSymName() << "__encrypt__arg" << val.getArgNumber();
+      auto originalTypeAttr = op.getArgAttrOfType<OriginalTypeAttr>(
+          val.getArgNumber(), kOriginalTypeAttrName);
+      if (failed(generateEncryptionFunc(
+              op, encFuncName, {originalTypeAttr.getOriginalType()}, {argCtTy},
+              {originalTypeAttr}, builder, ciphertextSize))) {
+        return failure();
+      }
+      // insertion point is inside func, move back out
+      builder.setInsertionPointToEnd(module.getBody());
+    }
+  }
+
+  ArrayRef<Type> returnTypes = op.getFunctionType().getResults();
+  for (size_t i = 0; i < returnTypes.size(); ++i) {
+    auto returnTy = returnTypes[i];
+    if (auto returnCtTy = dyn_cast<SecretType>(returnTy)) {
+      std::string decFuncName("");
+      llvm::raw_string_ostream encNameOs(decFuncName);
+      encNameOs << op.getSymName() << "__decrypt__result" << i;
+      auto originalTypeAttr =
+          op.getResultAttrOfType<OriginalTypeAttr>(i, kOriginalTypeAttrName);
+      if (failed(generateDecryptionFunc(op, decFuncName, {returnCtTy},
+                                        {originalTypeAttr.getOriginalType()},
+                                        {originalTypeAttr}, builder))) {
+        return failure();
+      }
+      // insertion point is inside func, move back out
+      builder.setInsertionPointToEnd(module.getBody());
+    }
+  }
+  LLVM_DEBUG(module.dump());
+
+  return success();
+}
+
+struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
+  using AddClientInterfaceBase::AddClientInterfaceBase;
+
+  void runOnOperation() override {
+    Operation *root = getOperation();
+    auto result = root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
+      if (failed(convertFunc(op, ciphertextSize))) {
+        op->emitError("Failed to add client interface for func");
+        return WalkResult::interrupt();
+      }
+      return WalkResult::advance();
+    });
+    if (result.wasInterrupted()) signalPassFailure();
+  }
+};
+
+}  // namespace heir
+}  // namespace mlir

@@ -55,6 +55,7 @@
 #include "lib/Pipelines/ArithmeticPipelineRegistration.h"
 #include "lib/Pipelines/BooleanPipelineRegistration.h"
 #include "lib/Pipelines/PipelineRegistration.h"
+#include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/AnnotateModule/AnnotateModule.h"
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
@@ -74,6 +75,7 @@
 #include "lib/Transforms/LayoutPropagation/LayoutPropagation.h"
 #include "lib/Transforms/LinalgCanonicalizations/LinalgCanonicalizations.h"
 #include "lib/Transforms/LowerPolynomialEval/LowerPolynomialEval.h"
+#include "lib/Transforms/LowerUnpack/LowerUnpack.h"
 #include "lib/Transforms/OperationBalancer/OperationBalancer.h"
 #include "lib/Transforms/OptimizeRelinearization/OptimizeRelinearization.h"
 #include "lib/Transforms/PolynomialApproximation/PolynomialApproximation.h"
@@ -249,6 +251,7 @@ int main(int argc, char **argv) {
   ::mlir::heir::polynomial::registerPolynomialPasses();
   secret::registerSecretPasses();
   tensor_ext::registerTensorExtPasses();
+  registerAddClientInterfacePass();
   registerElementwiseToAffinePasses();
   registerSecretizePasses();
   registerSecretInsertMgmtPasses();
@@ -279,6 +282,7 @@ int main(int argc, char **argv) {
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
   registerLowerPolynomialEvalPasses();
+  registerLowerUnpackPasses();
   registerTensorToScalarsPasses();
   registerTensorLinalgToAffineLoops();
   // Register yosys optimizer pipeline if configured.

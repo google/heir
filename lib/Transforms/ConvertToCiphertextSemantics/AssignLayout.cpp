@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 
@@ -26,6 +28,8 @@ namespace mlir {
 namespace heir {
 
 using tensor_ext::LayoutAttr;
+
+namespace {
 
 bool containsDim(ArrayRef<int64_t> dims, int64_t dim) {
   return llvm::any_of(dims, [dim](int64_t d) { return d == dim; });
@@ -283,6 +287,116 @@ FailureOr<Value> implementAssignLayoutForScalar(
   return failure();
 }
 
+Value implementUnpackOpForTensor(
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
+    const std::function<void(Operation *)> &createdOpCallback) {
+  RankedTensorType dataSemanticType =
+      cast<RankedTensorType>(op.getResult().getType());
+  Value input = op.getValue();
+  Value mostRecentOutput = input;
+
+  LayoutAttr layout = op.getLayout();
+  tensor_ext::AlignmentAttr alignment = layout.getAlignment();
+  RankedTensorType replicatedType =
+      alignment ? RankedTensorType::get(alignment.getOut(),
+                                        dataSemanticType.getElementType())
+                : dataSemanticType;
+
+  // 1. Extract the data according to the layout map
+  if (!layout.getMap().isIdentity()) {
+    // A zero-valued tensor to store the result of the unpacking.
+    auto emptyOp = builder.create<mlir::arith::ConstantOp>(
+        builder.getZeroAttr(replicatedType));
+    createdOpCallback(emptyOp);
+
+    SmallVector<utils::IteratorType> iteratorTypes(
+        op.getLayout().getMap().getNumDims(), utils::IteratorType::parallel);
+    SmallVector<AffineMap> indexingMaps = {
+        // The first map corresponds to how the iteration indices map to the
+        // ciphertext-semantic tensor's indices. This is the layout map.
+        layout.getMap(),
+        // The second map maps the iteration indices to the data-semantic
+        // tensor's indices.
+        AffineMap::getMultiDimIdentityMap(layout.getMap().getNumDims(),
+                                          op.getContext()),
+    };
+    auto inverseLayoutOp = builder.create<linalg::GenericOp>(
+        /*resultTypes=*/emptyOp.getResult().getType(),
+        /*inputs=*/mostRecentOutput,
+        /*outputs=*/emptyOp.getResult(), indexingMaps, iteratorTypes,
+        /*bodyBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          // Do nothing, which just assigns the input to the output slot.
+          auto yieldOp =
+              nestedBuilder.create<linalg::YieldOp>(nestedLoc, args[0]);
+          createdOpCallback(yieldOp);
+        });
+    mostRecentOutput = inverseLayoutOp.getResult(0);
+  }
+
+  if (alignment) {
+    // 2. Slice the input to undo repetition and padding.
+    // Because the repetition and padding only apply to the tail end of each
+    // axis, we can just slice the tensor on the leading part of each axis to
+    // construct the original (inserted-dim)-sized tensor.
+    DenseMap<int64_t, int64_t> inAxisToReplicatedAxis;
+    SmallVector<OpFoldResult> offsets(replicatedType.getRank(),
+                                      builder.getIndexAttr(0));
+    SmallVector<OpFoldResult> strides(replicatedType.getRank(),
+                                      builder.getIndexAttr(1));
+    ArrayRef<int64_t> insertedDims = alignment.getInsertedDims().asArrayRef();
+    SmallVector<OpFoldResult> sizes;
+    int inDim = 0;
+    for (size_t i = 0; i < replicatedType.getRank(); ++i) {
+      if (std::find(insertedDims.begin(), insertedDims.end(), i) !=
+          insertedDims.end()) {
+        // This is an inserted dimension, so it becomes a unit axis and can be
+        // dropped.
+        sizes.push_back(builder.getIndexAttr(1));
+      } else {
+        // This is an original dimension, so slice it by the original size of
+        // the data semantic tensor.
+        sizes.push_back(builder.getIndexAttr(alignment.getIn()[inDim]));
+        inDim++;
+      }
+    }
+
+    auto extractSliceOp = builder.create<tensor::ExtractSliceOp>(
+        dataSemanticType, mostRecentOutput, offsets, sizes, strides);
+    createdOpCallback(extractSliceOp);
+    mostRecentOutput = extractSliceOp.getResult();
+  }
+
+  return mostRecentOutput;
+}
+
+Value implementUnpackOpForScalar(
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
+    const std::function<void(Operation *)> &createdOpCallback) {
+  // All we need to do here is determine the index to extract from
+  SmallVector<Value> indices;
+  LayoutAttr layout = op.getLayout();
+  tensor_ext::AlignmentAttr alignment = layout.getAlignment();
+
+  // Note padding only inserts at the end of a tensor axis, so regardless
+  // of any repetition, the first entry of the tensor will always contain
+  // the right value. So all we need to do is insert a constant zero for
+  // each dimension of the input tensor.
+  for (unsigned i = 0; i < alignment.getOut().size(); ++i) {
+    // We need to insert a 0 for each inserted dimension.
+    auto constOp = builder.create<arith::ConstantIndexOp>(0);
+    createdOpCallback(constOp);
+    indices.push_back(constOp);
+  }
+
+  auto splatOp = builder.create<tensor::ExtractOp>(op.getResult().getType(),
+                                                   op.getValue(), indices);
+  createdOpCallback(splatOp);
+  return splatOp.getResult();
+}
+
+}  // namespace
+
 FailureOr<Value> implementAssignLayout(
     tensor_ext::AssignLayoutOp op, int64_t ciphertextSize,
     ImplicitLocOpBuilder &builder,
@@ -295,6 +409,16 @@ FailureOr<Value> implementAssignLayout(
   return implementAssignLayoutForScalar(op, ciphertextSize, builder,
                                         createdOpCallback);
 };
+
+Value implementUnpackOp(
+    tensor_ext::UnpackOp op, ImplicitLocOpBuilder &builder,
+    const std::function<void(Operation *)> &createdOpCallback) {
+  if (isa<RankedTensorType>(op.getResult().getType())) {
+    return implementUnpackOpForTensor(op, builder, createdOpCallback);
+  }
+
+  return implementUnpackOpForScalar(op, builder, createdOpCallback);
+}
 
 }  // namespace heir
 }  // namespace mlir
