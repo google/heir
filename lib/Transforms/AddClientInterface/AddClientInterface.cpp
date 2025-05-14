@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
@@ -23,9 +24,12 @@
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+// IWYU pragma: end_keep
 
 #define DEBUG_TYPE "add-client-interface"
 
@@ -56,6 +60,7 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
   FunctionType encFuncType =
       FunctionType::get(builder.getContext(), funcArgTypes, resultTypes);
   auto encFuncOp = builder.create<func::FuncOp>(encFuncName, encFuncType);
+  encFuncOp->setAttr(kClientEncFuncAttrName, builder.getUnitAttr());
   Block *entryBlock = encFuncOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
   IRRewriter b(builder);
@@ -105,6 +110,7 @@ LogicalResult generateDecryptionFunc(func::FuncOp op,
   FunctionType decFuncType =
       FunctionType::get(builder.getContext(), funcArgTypes, decFuncResultTypes);
   auto decFuncOp = builder.create<func::FuncOp>(decFuncName, decFuncType);
+  decFuncOp->setAttr(kClientDecFuncAttrName, builder.getUnitAttr());
   builder.setInsertionPointToEnd(decFuncOp.addEntryBlock());
   IRRewriter b(builder);
   SmallVector<Value> decValuesToReturn;

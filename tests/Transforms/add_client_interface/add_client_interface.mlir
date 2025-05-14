@@ -41,7 +41,7 @@ func.func @simple_sum(
 
 // CHECK: @simple_sum__encrypt
 // CHECK-SAME: (%[[arg0:[^:]*]]: tensor<32xi16>
-// CHECK-SAME:     -> [[ct_ty]] {
+// CHECK-SAME:     -> [[ct_ty]] attributes {client_enc_func} {
 // CHECK-NEXT:   %[[laidout:[^ ]*]] = tensor.concat
 //               ...many operands... omitted for brevity
 // CHECK-SAME:   %[[arg0]], %[[arg0]], %[[arg0]], %[[arg0]]
@@ -51,7 +51,7 @@ func.func @simple_sum(
 
 // CHECK: @simple_sum__decrypt
 // CHECK-SAME: (%[[arg1:[^:]*]]: [[ct_ty]]
-// CHECK-SAME:     -> i16 {
+// CHECK-SAME:     -> i16 attributes {client_dec_func} {
 // CHECK-NEXT:   %[[decrypted:.*]] = secret.reveal %[[arg1]]
 // CHECK:        %[[extracted:.*]] = tensor.extract %[[decrypted]]
 // CHECK:        return %[[extracted]]

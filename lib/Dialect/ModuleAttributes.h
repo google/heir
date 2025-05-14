@@ -51,6 +51,13 @@ void moduleClearBackend(Operation *moduleOp);
 void moduleSetOpenfhe(Operation *moduleOp);
 void moduleSetLattigo(Operation *moduleOp);
 
+// Func attributes for client helpers
+
+constexpr const static ::llvm::StringLiteral kClientEncFuncAttrName =
+    "client_enc_func";
+constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
+    "client_dec_func";
+
 }  // namespace heir
 }  // namespace mlir
 
