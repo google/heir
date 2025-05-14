@@ -7,8 +7,10 @@
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/Mgmt/Transforms/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
@@ -134,6 +136,11 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
     // The optional scale is passed by annotateScale() when calling
     // this pass.
     annotateMgmtAttr(getOperation());
+    copyMgmtAttrToFunc(getOperation());
+    if (failed(copyMgmtAttrToClientHelpers(getOperation()))) {
+      signalPassFailure();
+      return;
+    }
   }
 };
 
