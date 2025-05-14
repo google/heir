@@ -383,7 +383,7 @@ struct ConvertRSub : public OpConversionPattern<RSubOp> {
       RSubOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
-        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+        op, adaptor.getLhs(), adaptor.getRhs());
     return success();
   }
 };
@@ -398,7 +398,7 @@ struct ConvertRSubPlain : public OpConversionPattern<RSubPlainOp> {
       RSubPlainOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
-        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+        op, adaptor.getLhs(), adaptor.getRhs());
     return success();
   }
 };
