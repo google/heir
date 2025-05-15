@@ -1,16 +1,18 @@
 #ifndef LIB_DIALECT_SECRET_CONVERSIONS_PATTERNS_H_
 #define LIB_DIALECT_SECRET_CONVERSIONS_PATTERNS_H_
 
-#include "lib/Utils/ContextAwareConversionUtils.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
+
+void copyMgmtAttrToClientHelpers(Operation *op);
 
 // Lower a client encryption function's secret.conceal op to lwe.rlwe_encode +
 // lwe.rlwe_encrypt. Modifies the containing function to add new secret key

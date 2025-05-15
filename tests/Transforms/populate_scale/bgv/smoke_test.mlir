@@ -28,7 +28,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [67239937,
     // the plaintext operand in question
     %0 = mgmt.init %inserted {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
 
-    %1 = secret.generic ins(%arg0 : !secret.secret<tensor<32xi16>>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0>}]} {
+    %1 = secret.generic(%arg0 : !secret.secret<tensor<32xi16>>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1>}], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0>}]} {
     ^body(%input0: tensor<32xi16>):
       %2 = tensor_ext.rotate %input0, %c16 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>, index
       %3 = arith.addi %input0, %2 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<32xi16>
