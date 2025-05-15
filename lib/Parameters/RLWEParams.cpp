@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "lib/Parameters/RLWESecurityParams.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "src/core/include/openfhecore.h"           // from @openfhe
 
@@ -151,17 +152,11 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
 }
 
 void RLWESchemeParam::print(llvm::raw_ostream &os) const {
-  auto doubleToString = [](double d) {
-    std::stringstream stream;
-    stream << std::fixed << std::setprecision(2) << d;
-    return stream.str();
-  };
-
   os << "ringDim: " << ringDim << "\n";
   os << "level: " << level << "\n";
   os << "logqi: ";
   for (auto qi : logqi) {
-    os << doubleToString(qi) << " ";
+    os << doubleToString2Prec(qi) << " ";
   }
   os << "\n";
   os << "qi: ";
@@ -172,7 +167,7 @@ void RLWESchemeParam::print(llvm::raw_ostream &os) const {
   os << "dnum: " << dnum << "\n";
   os << "logpi: ";
   for (auto pi : logpi) {
-    os << doubleToString(pi) << " ";
+    os << doubleToString2Prec(pi) << " ";
   }
   os << "\n";
   os << "pi: ";

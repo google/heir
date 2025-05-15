@@ -10,6 +10,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"              // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"     // from @llvm-project
@@ -55,10 +56,10 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
   };
 
   auto propagate = [&](Value value, NoiseState noise) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Propagating "
-               << noiseModel.toLogBoundString(getLocalParam(value), noise)
-               << " to " << value << "\n");
+    LLVM_DEBUG(llvm::dbgs() << "Propagating "
+                            << doubleToString2Prec(noiseModel.toLogBound(
+                                   getLocalParam(value), noise))
+                            << " to " << value << "\n");
     LatticeType *lattice = this->getLatticeElement(value);
     auto changeResult = lattice->join(noise);
     this->propagateIfChanged(lattice, changeResult);
