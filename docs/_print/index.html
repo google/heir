@@ -3695,6 +3695,7 @@ if these operations does not have the attribute already.</p><p>Example: with <co
 </span></span><span style=display:flex><span>  <span style=color:#204a87;font-weight:700>return</span> <span style=color:#000;font-weight:700>{</span><span style=color:#f57900>test.attr =</span> <span style=color:#0000cf;font-weight:700>1</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i64</span><span style=color:#000;font-weight:700>}</span> <span style=color:#000>%1</span> <span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>i16</span>
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><h4 id=options-24>Options</h4><pre tabindex=0><code>-attr-name : The attribute name to propagate with.
+-reverse   : Whether to propagate in reverse
 </code></pre><h3 id=-remove-unused-memref><code>-remove-unused-memref</code></h3><p><em>Cleanup any unused memrefs</em></p><p>Scan the IR for unused memrefs and remove them.</p><p>This pass looks for locally allocated memrefs that are never used and
 deletes them. This pass can be used as a cleanup pass from other IR
 simplifications that forward stores to loads.</p><h3 id=-rotate-and-reduce><code>-rotate-and-reduce</code></h3><p><em>Use a logarithmic number of rotations to reduce a tensor.</em></p><p>This pass identifies when a commutative, associative binary operation is used
