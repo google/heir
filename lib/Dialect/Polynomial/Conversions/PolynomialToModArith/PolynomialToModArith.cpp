@@ -1221,6 +1221,28 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
 
 void PolynomialToModArith::runOnOperation() {
   MLIRContext *context = &getContext();
+
+  WalkResult result =
+      getOperation()->walk([&](Operation *op) {
+        for (Type ty :
+             llvm::concat<Type>(op->getOperandTypes(), op->getResultTypes())) {
+          if (auto polyTy = dyn_cast<PolynomialType>(ty)) {
+            if (!polyTy.getRing().getPolynomialModulus()) {
+              op->emitError()
+                  << "polynomial-to-mod-arith requires all polynomial "
+                     "types have a polynomialModulus attribute, but found "
+                  << polyTy;
+              return WalkResult::interrupt();
+            }
+          }
+        }
+        return WalkResult::advance();
+      });
+  if (result.wasInterrupted()) {
+    signalPassFailure();
+    return;
+  }
+
   // generateOpImplementations must be called before the conversion begins to
   // apply rewrite patterns, because adding function implementations makes
   // changes at the module level, while the conversion patterns are supposed to
