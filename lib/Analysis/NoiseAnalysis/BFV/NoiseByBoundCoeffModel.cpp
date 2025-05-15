@@ -40,30 +40,6 @@ double NoiseByBoundCoeffModel::toLogTotal(const LocalParamType &param) const {
   return total - logT - 1.0;
 }
 
-std::string NoiseByBoundCoeffModel::toLogBoundString(
-    const LocalParamType &param, const StateType &noise) const {
-  auto logBound = toLogBound(param, noise);
-  std::stringstream stream;
-  stream << std::fixed << std::setprecision(2) << logBound;
-  return stream.str();
-}
-
-std::string NoiseByBoundCoeffModel::toLogBudgetString(
-    const LocalParamType &param, const StateType &noise) const {
-  auto logBudget = toLogBudget(param, noise);
-  std::stringstream stream;
-  stream << std::fixed << std::setprecision(2) << logBudget;
-  return stream.str();
-}
-
-std::string NoiseByBoundCoeffModel::toLogTotalString(
-    const LocalParamType &param) const {
-  auto logTotal = toLogTotal(param);
-  std::stringstream stream;
-  stream << std::fixed << std::setprecision(2) << logTotal;
-  return stream.str();
-}
-
 double NoiseByBoundCoeffModel::getExpansionFactor(
     const LocalParamType &param) const {
   auto n = param.getSchemeParam()->getRingDim();

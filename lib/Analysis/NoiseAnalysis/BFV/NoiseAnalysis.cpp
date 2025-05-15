@@ -55,10 +55,15 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
   };
 
   auto propagate = [&](Value value, NoiseState noise) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "Propagating "
-               << noiseModel.toLogBoundString(getLocalParam(value), noise)
-               << " to " << value << "\n");
+    [[maybe_unused]] auto doubleToString = [](double d) {
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(2) << d;
+      return stream.str();
+    };
+    LLVM_DEBUG(llvm::dbgs() << "Propagating "
+                            << doubleToString(noiseModel.toLogBound(
+                                   getLocalParam(value), noise))
+                            << " to " << value << "\n");
     LatticeType *lattice = this->getLatticeElement(value);
     auto changeResult = lattice->join(noise);
     this->propagateIfChanged(lattice, changeResult);
