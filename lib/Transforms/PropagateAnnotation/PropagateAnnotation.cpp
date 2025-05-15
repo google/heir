@@ -16,12 +16,20 @@ namespace heir {
 #define GEN_PASS_DEF_PROPAGATEANNOTATION
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h.inc"
 
-void forwardPropagateAnnotation(Operation *root, StringRef attrName) {
+void forwardPropagateAnnotation(Operation *root, StringRef attrName,
+                                function_ref<bool(Type)> shouldPropagate) {
   if (attrName.empty()) {
     return;
   }
   root->walk<WalkOrder::PreOrder>([&](Operation *op) {
     if (op->hasAttr(attrName)) {
+      return;
+    }
+
+    if (llvm::all_of(op->getResultTypes(),
+                     [&](Type type) { return !shouldPropagate(type); })) {
+      LLVM_DEBUG(llvm::dbgs() << "Skipping propagation of " << attrName
+                              << " to op " << op->getName() << "\n");
       return;
     }
 
@@ -40,6 +48,7 @@ void forwardPropagateAnnotation(Operation *root, StringRef attrName) {
           continue;
         }
       }
+
       op->setAttr(attrName, attr);
       // short-circuit if we found an attribute
       return;
@@ -53,7 +62,8 @@ void setAttrIfMissing(Value value, StringRef attrName, Attribute attr) {
   }
 }
 
-void backwardPropagateAnnotation(Operation *root, StringRef attrName) {
+void backwardPropagateAnnotation(Operation *root, StringRef attrName,
+                                 function_ref<bool(Type)> shouldPropagate) {
   if (attrName.empty()) {
     return;
   }
@@ -61,12 +71,18 @@ void backwardPropagateAnnotation(Operation *root, StringRef attrName) {
   root->walk<WalkOrder::PostOrder, ReverseIterator>([&](Operation *op) {
     LLVM_DEBUG(llvm::dbgs() << "BackProp(" << attrName << ") visiting op "
                             << op->getName() << "\n");
+
     if (op->hasAttr(attrName)) {
       // The attr is assumed to be associated with the op's results.
       Attribute attrToPropagate = op->getAttr(attrName);
       LLVM_DEBUG(llvm::dbgs()
                  << "Using op's result attr " << attrToPropagate << "\n");
       for (auto operand : op->getOperands()) {
+        if (!shouldPropagate(operand.getType())) {
+          LLVM_DEBUG(llvm::dbgs() << "Skipping propagation of " << attrName
+                                  << " to operand " << operand << "\n");
+          continue;
+        }
         setAttrIfMissing(operand, attrName, attrToPropagate);
       }
       return WalkResult::advance();
@@ -89,9 +105,15 @@ void backwardPropagateAnnotation(Operation *root, StringRef attrName) {
                     })
                 .Default([&](Operation *op) { return op->getAttr(attrName); });
         if (attr) {
+          auto operand = op->getOperand(i);
+          if (!shouldPropagate(operand.getType())) {
+            LLVM_DEBUG(llvm::dbgs() << "Skipping propagation of " << attrName
+                                    << " to operand " << operand << "\n");
+            continue;
+          }
           LLVM_DEBUG(llvm::dbgs() << "Propagating result attr " << i << " ("
                                   << attr << ") to operand " << i << "\n");
-          setAttrIfMissing(op->getOperand(i), attrName, attr);
+          setAttrIfMissing(operand, attrName, attr);
         }
       }
       return WalkResult::advance();
