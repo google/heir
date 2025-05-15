@@ -12,6 +12,12 @@ namespace heir {
 #define GEN_PASS_REGISTRATION
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h.inc"
 
+/// Forward-propagate an annotation through the IR.
+void forwardPropagateAnnotation(Operation *root, StringRef attrName);
+
+/// Backward-propagate an annotation through the IR.
+void backwardPropagateAnnotation(Operation *root, StringRef attrName);
+
 }  // namespace heir
 }  // namespace mlir
 
