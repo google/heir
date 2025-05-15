@@ -71,10 +71,14 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
       op.getLoc(), plaintextTy, adaptor.getCleartext(),
       resultCtTy.getPlaintextSpace().getEncoding(),
       resultCtTy.getPlaintextSpace().getRing());
-  auto encrypted = rewriter.create<lwe::RLWEEncryptOp>(
+  auto encryptOp = rewriter.create<lwe::RLWEEncryptOp>(
       op.getLoc(), resultCtTy, encoded.getResult(), keyBlockArg);
 
-  rewriter.replaceOp(op, encrypted);
+  // Copy attributes from the original op to preserve any mgmt attrs needed by
+  // dialect conversion from secret to scheme.
+  encryptOp->setAttrs(op->getAttrs());
+
+  rewriter.replaceOp(op, encryptOp);
   return success();
 }
 
@@ -102,15 +106,39 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
       lwe::NewLWESecretKeyType::get(ctx, lwe::KeyAttr::get(ctx, 0), ring);
   Value keyBlockArg =
       insertKeyArgument(parentFunc, encryptionKeyType, rewriter);
-  Type resultTy = parentFunc.getResultTypes()[0];
 
   auto plaintextTy = lwe::NewLWEPlaintextType::get(op.getContext(),
                                                    argCtTy.getApplicationData(),
                                                    argCtTy.getPlaintextSpace());
   auto decrypted = rewriter.create<lwe::RLWEDecryptOp>(
       op.getLoc(), plaintextTy, adaptor.getInput(), keyBlockArg);
+
+  // Note: we use the secret.reveal op's original result type as the result
+  // type for the new rlwe_decode op, rather than the type from the parent
+  // func, because the client helper includes extra ops that convert from a
+  // plaintext type to a cleartext type. This may ultimately raise questions
+  // about the purpose of the rlwe_encode/rlwe_decode ops, but the remaining
+  // part of the RLWE encoding that does not have any associated op is the
+  // NTT/iNTT (for evaluation/slot encoding/decoding) and in the case that
+  // remains, the output of the encoding step is a tensor of a specific size,
+  // even when the original cleartext data might be a scalar or a tensor of a
+  // smaller size.
+  //
+  // For example, for this input IR:
+  //
+  //  func.func @dot_product__decrypt__result0(
+  //      %arg0: !secret.secret<tensor<8xi16>>) -> i16 {
+  //    %c0 = arith.constant 0 : index
+  //    %0 = secret.reveal %arg0 : !secret.secret<tensor<8xi16>> ->
+  //    tensor<8xi16> %extracted = tensor.extract %0[%c0] : tensor<8xi16> return
+  //    %extracted : i16
+  //  }
+  //
+  // this pattern lowers the reveal op to have an output tensor type (rather
+  // than i16). The rest of the IR manages unpacking, and the rlwe_decode op
+  // will only manage the cryptosystem-relevant decoding step (such as iNTT).
   auto decoded = rewriter.create<lwe::RLWEDecodeOp>(
-      op.getLoc(), resultTy, decrypted.getResult(),
+      op.getLoc(), op.getResult().getType(), decrypted.getResult(),
       argCtTy.getPlaintextSpace().getEncoding(),
       argCtTy.getPlaintextSpace().getRing());
 

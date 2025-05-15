@@ -22,6 +22,7 @@ cc_library(
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Dialect/Secret/Conversions:Patterns",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Transforms/PropagateAnnotation",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",
         "@heir//lib/Utils:ContextAwareConversionUtils",
