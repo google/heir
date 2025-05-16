@@ -14,7 +14,7 @@
 namespace mlir {
 namespace heir {
 
-std::string SelectVariableNames::suggestNameForValue(Value value) {
+std::string SelectVariableNames::suggestPrefixForValue(Value value) {
   if (auto opAsmTypeInterface =
           mlir::dyn_cast<OpAsmTypeInterface>(value.getType())) {
     std::string asmName;
@@ -25,27 +25,31 @@ std::string SelectVariableNames::suggestNameForValue(Value value) {
 }
 
 SelectVariableNames::SelectVariableNames(Operation *op) {
+  // unique integer for each value
   int i = 0;
   std::map<std::string, int> prefixCount;
 
   auto assignName = [&](Value value) {
-    std::string name = suggestNameForValue(value);
-    if (prefixCount.count(name) == 0 && name != defaultPrefix) {
+    std::string prefix = suggestPrefixForValue(value);
+
+    // special handling for the first non-default prefix
+    if (prefixCount.count(prefix) == 0 && prefix != defaultPrefix) {
       // for non-default prefix
       // the first one is "prefix", the next one is "prefix1"
-      prefixCount[name] = 1;
-      variableNames.try_emplace(value, name);
-    } else if (variableNames.count(value) == 0) {
-      if (prefixCount.count(name) == 0) {
+      prefixCount[prefix] = 1;
+      variableNames.try_emplace(value, VariableName(prefix, i++));
+    }
+    // first time assignment
+    if (variableNames.count(value) == 0) {
+      if (prefixCount.count(prefix) == 0) {
         // for default prefix
         // the first one is "v0", the next one is "v1"
-        prefixCount[name] = 0;
+        prefixCount[prefix] = 0;
       }
-      variableNames.try_emplace(value,
-                                name + std::to_string(prefixCount[name]++));
+      variableNames.try_emplace(
+          value,
+          VariableName(prefix + std::to_string(prefixCount[prefix]++), i++));
     }
-    // unique integer for each value
-    variableToInteger.try_emplace(value, i++);
   };
 
   auto assignForOp = [&](Operation *op) {
