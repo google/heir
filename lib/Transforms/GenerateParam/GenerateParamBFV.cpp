@@ -3,6 +3,7 @@
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
+#include "lib/Analysis/SelectVariableNames/SelectVariableNames.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
@@ -145,6 +146,9 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
     solver.load<dataflow::SparseConstantPropagation>();
     // NoiseAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
+    // NoiseAnalysis depends on SelectVariableNameAnalysis
+    SelectVariableNames selectVariableNames(getOperation());
+    solver.load<SelectVariableNameAnalysis>(selectVariableNames);
     solver.load<NoiseAnalysis<NoiseModel>>(schemeParam, model);
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
