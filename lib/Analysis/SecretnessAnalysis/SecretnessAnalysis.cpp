@@ -86,6 +86,15 @@ LogicalResult SecretnessAnalysis::visitOperation(
     resultSecretness.setSecretness(false);
   }
 
+  // Handle operations that have secret operands but no secret results
+  if (isa<secret::RevealOp>(operation)) {
+    resultSecretness.setSecretness(false);
+    for (SecretnessLattice *result : results) {
+      propagateIfChanged(result, result->join(resultSecretness));
+    }
+    return success();
+  }
+
   for (const SecretnessLattice *operand : operands) {
     const Secretness operandSecretness = operand->getValue();
     if (!operandSecretness.isInitialized()) {
@@ -112,7 +121,7 @@ LogicalResult SecretnessAnalysis::visitOperation(
   for (SecretnessLattice *result : results) {
     propagateIfChanged(result, result->join(resultSecretness));
   }
-  return mlir::success();
+  return success();
 }
 
 void SecretnessAnalysis::visitExternalCall(
