@@ -75,6 +75,8 @@ class TfheRustHLEmitter {
   LogicalResult printOperation(CastOp op);
   LogicalResult printOperation(CreateTrivialOp op);
   LogicalResult printOperation(BitAndOp op);
+  LogicalResult printOperation(BitOrOp op);
+  LogicalResult printOperation(BitXorOp op);
 
   // Helpers for above
   LogicalResult printMethod(::mlir::Value result,
