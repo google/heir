@@ -391,25 +391,22 @@ struct LWEToOpenfhe : public impl::LWEToOpenfheBase<LWEToOpenfhe> {
         ConvertLWEBinOp<lwe::RSubOp, openfhe::SubOp>,
         ConvertLWEBinOp<lwe::RMulOp, openfhe::MulNoRelinOp>,
         ConvertUnaryOp<lwe::RNegateOp, openfhe::NegateOp>,
+        ConvertCiphertextPlaintextOp<lwe::RAddPlainOp, openfhe::AddPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RSubPlainOp, openfhe::SubPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RMulPlainOp, openfhe::MulPlainOp>,
 
         ///////////////////////////////////
         // Scheme-Specific Op Patterns   //
         ///////////////////////////////////
-        // The Add/(Sub)/Mul-Plain ops are not really scheme-specific,
-        // but do not currently have an analogue in the LWE dialect.
-        // TODO (#1193): Extend "common lwe" to support ctxt-ptxt ops
 
         // AddPlain
-        ConvertCiphertextPlaintextOp<bgv::AddPlainOp, openfhe::AddPlainOp>,
-        ConvertCiphertextPlaintextOp<ckks::AddPlainOp, openfhe::AddPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RAddPlainOp, openfhe::AddPlainOp>,
 
         // SubPlain
-        ConvertCiphertextPlaintextOp<bgv::SubPlainOp, openfhe::SubPlainOp>,
-        ConvertCiphertextPlaintextOp<ckks::SubPlainOp, openfhe::SubPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RSubPlainOp, openfhe::SubPlainOp>,
 
         // MulPlain
-        ConvertCiphertextPlaintextOp<bgv::MulPlainOp, openfhe::MulPlainOp>,
-        ConvertCiphertextPlaintextOp<ckks::MulPlainOp, openfhe::MulPlainOp>,
+        ConvertCiphertextPlaintextOp<lwe::RMulPlainOp, openfhe::MulPlainOp>,
 
         // Rotate
         ConvertRotateOp<bgv::RotateColumnsOp, openfhe::RotOp>,

@@ -358,6 +358,21 @@ struct ConvertRAdd : public OpConversionPattern<RAddOp> {
   }
 };
 
+struct ConvertRAddPlain : public OpConversionPattern<RAddPlainOp> {
+  ConvertRAddPlain(mlir::MLIRContext *context)
+      : OpConversionPattern<RAddPlainOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RAddPlainOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::AddOp>(
+        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+    return success();
+  }
+};
+
 struct ConvertRSub : public OpConversionPattern<RSubOp> {
   ConvertRSub(mlir::MLIRContext *context)
       : OpConversionPattern<RSubOp>(context) {}
@@ -368,7 +383,22 @@ struct ConvertRSub : public OpConversionPattern<RSubOp> {
       RSubOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
-        op, adaptor.getOperands()[0], adaptor.getOperands()[1]);
+        op, adaptor.getLhs(), adaptor.getRhs());
+    return success();
+  }
+};
+
+struct ConvertRSubPlain : public OpConversionPattern<RSubPlainOp> {
+  ConvertRSubPlain(mlir::MLIRContext *context)
+      : OpConversionPattern<RSubPlainOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RSubPlainOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<::mlir::heir::polynomial::SubOp>(
+        op, adaptor.getLhs(), adaptor.getRhs());
     return success();
   }
 };
@@ -467,6 +497,38 @@ struct ConvertRMul : public OpConversionPattern<RMulOp> {
   }
 };
 
+struct ConvertRMulPlain : public OpConversionPattern<RMulPlainOp> {
+  ConvertRMulPlain(mlir::MLIRContext *context)
+      : OpConversionPattern<RMulPlainOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      RMulPlainOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto x = adaptor.getLhs();
+    auto xT = cast<RankedTensorType>(x.getType());
+    auto y = adaptor.getRhs();
+    auto yT = cast<RankedTensorType>(y.getType());
+
+    if (xT.getNumElements() != 2 || yT.getNumElements() != 1) {
+      op.emitError() << "`lwe.rmul_plain` expects ciphertext as two "
+                        "polynomials and plaintext as 1, got "
+                     << xT.getNumElements() << " and " << yT.getNumElements();
+      return failure();
+    }
+
+    ImplicitLocOpBuilder b(op->getLoc(), rewriter);
+    // z = mul([x0, x1], [y0]) := [x0y0, x1y0] (Multiply ciphertext [2dim] with
+    // plaintext [1dim]), lwe canonicalizes with ciphertext first
+    auto repeated = b.create<tensor::FromElementsOp>(ArrayRef<Value>({y, y}));
+    auto z = b.create<polynomial::MulOp>(x, repeated);
+
+    rewriter.replaceOp(op, z);
+    return success();
+  }
+};
+
 struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
   void runOnOperation() override {
     // TODO(#1199): Remove this emitError once the pass is fixed.
@@ -484,10 +546,10 @@ struct LWEToPolynomial : public impl::LWEToPolynomialBase<LWEToPolynomial> {
     RewritePatternSet patterns(context);
 
     patterns.add<ConvertRLWEDecrypt, ConvertRLWEEncrypt, ConvertRAdd,
-                 ConvertRSub, ConvertRNegate, ConvertRMul>(typeConverter,
-                                                           context);
+                 ConvertRSub, ConvertRNegate, ConvertRMul, ConvertRAddPlain,
+                 ConvertRSubPlain, ConvertRMulPlain>(typeConverter, context);
     target.addIllegalOp<RLWEDecryptOp, RLWEEncryptOp, RAddOp, RSubOp, RNegateOp,
-                        RMulOp>();
+                        RMulOp, RAddPlainOp, RSubPlainOp, RMulPlainOp>();
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 

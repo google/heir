@@ -33,6 +33,10 @@
   ciphertext_space=#post_mul_ciphertext_space,
   key=#lwe.key<>>
 
+!pt = !lwe.new_lwe_plaintext<
+  application_data=<message_type=i3>,
+  plaintext_space=#plaintext_space>
+
 // CHECK: test_radd
 func.func @test_radd(%0: !ct, %1: !ct) -> !ct {
   // CHECK: lwe.radd
@@ -59,4 +63,31 @@ func.func @test_rnegate(%0: !ct) -> !ct {
   // CHECK: lwe.rnegate
   %1 = lwe.rnegate %0 : !ct
   return %1 : !ct
+}
+
+// CHECK: test_radd_plain
+func.func @test_radd_plain(%0: !ct, %1: !pt) -> !ct {
+  // CHECK: lwe.radd_plain
+  %2 = lwe.radd_plain %0, %1 : (!ct, !pt) -> !ct
+  // CHECK: lwe.radd_plain
+  %3 = lwe.radd_plain %1, %0 : (!pt, !ct) -> !ct
+  return %2 : !ct
+}
+
+// CHECK: test_rsub_plain
+func.func @test_rsub_plain(%0: !ct, %1: !pt) -> !ct {
+  // CHECK: lwe.rsub_plain
+  %2 = lwe.rsub_plain %0, %1 : (!ct, !pt) -> !ct
+  // CHECK: lwe.rsub_plain
+  %3 = lwe.rsub_plain %1, %0 : (!pt, !ct) -> !ct
+  return %2 : !ct
+}
+
+// CHECK: test_rmul_plain
+func.func @test_rmul_plain(%0: !ct, %1: !pt) -> !ct {
+  // CHECK: lwe.rmul_plain
+  %2 = lwe.rmul_plain %0, %1 : (!ct, !pt) -> !ct
+  // CHECK: lwe.rmul_plain
+  %3 = lwe.rmul_plain %1, %0 : (!pt, !ct) -> !ct
+  return %2 : !ct
 }
