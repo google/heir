@@ -16,5 +16,6 @@ plaintext_test(
     mlir_src = "add.mlir",
     deps = [
         ":add_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
     ],
 )
