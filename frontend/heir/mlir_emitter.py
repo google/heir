@@ -4,13 +4,16 @@ from collections import deque
 from dataclasses import dataclass
 import operator
 import textwrap
-from typing import Any
+from typing import Any, NewType
 
 from numba.core import ir
 from numba.core import types
 from numba.core import bytecode
 from numba.core import controlflow
 from numba.core.types import Type as NumbaType
+
+from heir.mlir.types import MLIRType, MLIR_TYPES, I1, I8, I16, I32, I64, F32, F64
+from heir.interfaces import CompilerError, DebugMessage, InternalCompilerError
 
 
 def mlirType(numba_type: NumbaType) -> str:
@@ -31,7 +34,62 @@ def mlirType(numba_type: NumbaType) -> str:
     if hasattr(numba_type, "shape"):
       shape = "x".join(str(s) for s in numba_type.shape)  # type: ignore
     return "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
-  raise NotImplementedError("Unsupported type: " + str(numba_type))
+  raise InternalCompilerError("Unsupported type: " + str(numba_type))
+
+
+def isIntegerLike(typ: NumbaType | MLIRType) -> bool:
+  if isinstance(typ, type) and issubclass(typ, MLIRType):
+    return typ in {I1, I8, I16, I32, I64}
+  if isinstance(typ, NumbaType):
+    return isinstance(typ, types.Integer) or isinstance(typ, types.Boolean)
+  raise InternalCompilerError(f"Encountered unexpected type {typ}")
+
+
+def isFloatLike(typ: NumbaType | MLIRType) -> bool:
+  if isinstance(typ, type) and issubclass(type, MLIRType):
+    return typ in {F32, F64}
+  if isinstance(typ, NumbaType):
+    return isinstance(typ, types.Float)
+  raise InternalCompilerError(f"Encountered unexpected type {type}")
+
+
+def mlirCastOp(
+    from_type: NumbaType, to_type: MLIRType, value: str, loc: ir.Loc
+) -> str:
+  if isIntegerLike(from_type) and isIntegerLike(to_type):
+    if from_type.bitwidth == to_type.numba_type().bitwidth:
+      raise CompilerError(
+          f"Cannot create cast of {value} from {from_type} to {to_type} as they"
+          " have the same bitwidth",
+          loc,
+      )
+    if from_type.bitwidth > to_type.numba_type().bitwidth:
+      return (
+          f"arith.trunci {value} : {mlirType(from_type)} to"
+          f" {to_type.mlir_type()} {mlirLoc(loc)}"
+      )
+    if from_type.bitwidth < to_type.numba_type().bitwidth:
+      # FIXME: signedness for extensions?
+      return (
+          f"arith.extui {value} : {mlirType(from_type)} to"
+          f" {to_type.mlir_type()} {mlirLoc(loc)}"
+      )
+  if isFloatLike(from_type) and isIntegerLike(to_type):
+    # FIXME: signedness?
+    return (
+        f"arith.fptoui {value} : {mlirType(from_type)} to"
+        f" {mlirType(to_type)} {mlirLoc(loc)}"
+    )
+  if isIntegerLike(from_type) and isFloatLike(to_type):
+    # FIXME: signendess?
+    return (
+        f"arith.uitofp {value} : {mlirType(from_type)} to"
+        f" {mlirType(to_type)} {mlirLoc(loc)}"
+    )
+  raise CompilerError(
+      f"Encountered unsupported cast of {value} from {from_type} to {to_type}",
+      loc,
+  )
 
 
 def mlirLoc(loc: ir.Loc) -> str:
@@ -41,6 +99,7 @@ def mlirLoc(loc: ir.Loc) -> str:
 
 
 def arithSuffix(numba_type: NumbaType) -> str:
+  """Helper to translate numba types to the associated arith dialect operation suffixes"""
   if isinstance(numba_type, types.Integer):
     return "i"
   if isinstance(numba_type, types.Boolean):
@@ -48,12 +107,12 @@ def arithSuffix(numba_type: NumbaType) -> str:
   if isinstance(numba_type, types.Float):
     return "f"
   if isinstance(numba_type, types.Complex):
-    raise NotImplementedError(
+    raise InternalCompilerError(
         "Complex numbers not supported in `arith` dialect"
     )
   if isinstance(numba_type, types.Array):
     return arithSuffix(numba_type.dtype)
-  raise NotImplementedError("Unsupported type: " + str(numba_type))
+  raise InternalCompilerError("Unsupported type: " + str(numba_type))
 
 
 class HeaderInfo:
@@ -199,7 +258,7 @@ def build_loop_from_call(index, block_id, blocks, cfa):
   )
 
 
-def is_start_of_loop(index, body, ssa_ir):
+def is_start_of_loop(index, body, ssa_ir) -> bool:
   instr = body[index]
   # True if instr is a range call that begins a loop
   match instr:
@@ -227,10 +286,12 @@ def is_start_of_loop(index, body, ssa_ir):
 
 class TextualMlirEmitter:
 
-  def __init__(self, ssa_ir, secret_args: list[int], typemap, return_types):
+  def __init__(
+      self, ssa_ir: ir.FunctionIR, secret_args: list[int], typemap, return_types
+  ):
     """Initialize the emitter with the given SSA IR and type information.
 
-    ssa_ir: output of numba's compiler.run_frontend or similar
+    ssa_ir: output of numba's compiler.run_frontend or similar (must be a function)
     secret_args: list of indices of secret arguments
     typemap: typemap produced by numba's type_inference_stage(...)
     return_types: return types produced by numba's type_inference_stage(...)
@@ -273,7 +334,7 @@ class TextualMlirEmitter:
 
     # TODO(#1162): support multiple return values!
     if len(self.return_types) > 1:
-      raise NotImplementedError("Multiple return values not supported")
+      raise InternalCompilerError("Multiple return values not supported")
     return_types_str = mlirType(self.return_types[0])
 
     body = self.emit_blocks()
@@ -351,7 +412,7 @@ class TextualMlirEmitter:
         # TODO ignore
         assert instr.is_terminator
         return
-    raise NotImplementedError("Unsupported instruction: " + str(instr))
+    raise InternalCompilerError("Unsupported instruction: " + str(instr))
 
   def get_or_create_name(self, var):
     name = var.name
@@ -394,7 +455,7 @@ class TextualMlirEmitter:
     match assign.value:
       case ir.Arg():
         if assign.target.name != assign.value.name:
-          raise ValueError(
+          raise InternalCompilerError(
               "MLIR has no vanilla assignment op? "
               "Do I need to keep a mapping from func arg names to SSA names?"
           )
@@ -414,12 +475,39 @@ class TextualMlirEmitter:
         func = assign.value.func
         # if assert fails, variable was undefined
         assert func.name in self.globals_map
-        if self.globals_map[func.name] == "bool":
+        name, global_ = self.globals_map[func.name]
+        if name == "bool":
           # nothing to do, forward the name to the arg of bool()
           self.forward_name(from_var=assign.target, to_var=assign.value.args[0])
           return ""
+        if global_ in MLIR_TYPES:
+          if len(assign.value.args) != 1:
+            raise CompilerError(
+                "MLIR type cast requires exactly one argument", assign.value.loc
+            )
+          value = assign.value.args[0].name
+          if (
+              mlirType(self.typemap.get(assign.target.name))
+              != global_.mlir_type()
+          ):
+            raise InternalCompilerError(
+                f"MLIR type cast of {value} from"
+                f" {mlirType(self.typemap.get(value))} to"
+                f" {global_.mlir_type()} is not correctly reflected in types"
+                " inferred for the assignment, which expects"
+                f" {mlirType(self.typemap.get(assign.target.name))}"
+            )
+          target_ssa = self.get_or_create_name(assign.target)
+          ssa_id = self.get_or_create_name(assign.value.args[0])
+          cast = mlirCastOp(
+              self.typemap.get(value),
+              global_,
+              ssa_id,
+              assign.loc,
+          )
+          return f"{target_ssa} = {cast}"
         else:
-          raise NotImplementedError("Unknown global " + func.name)
+          raise InternalCompilerError("Call to unknown function " + name)
       case ir.Expr(op="cast"):
         # not sure what to do here. maybe will be needed for type conversions
         # when interfacing with C
@@ -441,13 +529,16 @@ class TextualMlirEmitter:
           self.forward_name_to_id(assign.target, name.strip("%"))
         return const_str
       case ir.Global():
-        self.globals_map[assign.target.name] = assign.value.name
+        self.globals_map[assign.target.name] = (
+            assign.value.name,
+            assign.value.value,
+        )
         return ""
       case ir.Var():
         # Sometimes we need this to be assigned?
         self.forward_name(from_var=assign.target, to_var=assign.value)
         return ""
-    raise NotImplementedError(f"Unsupported IR Element: {assign}")
+    raise InternalCompilerError(f"Unsupported IR Element: {assign}")
 
   def emit_ext_if_needed(self, lhs, rhs):
     lhs_type = self.typemap.get(str(lhs))
@@ -461,9 +552,10 @@ class TextualMlirEmitter:
     if not isinstance(lhs_type, types.Integer) or not isinstance(
         rhs_type, types.Integer
     ):
-      raise NotImplementedError(
+      raise InternalCompilerError(
           "Extension handling for non-integer (e.g., floats, tensors) types"
           " is not yet supported. Please ensure (inferred) bit-widths match."
+          f" Failed to extend {lhs_type} and {rhs_type} types."
       )
       # TODO (#1162): Support bitwidth extension for float types
       #      (this probably requires adding support for local variable type hints,
@@ -522,7 +614,7 @@ class TextualMlirEmitter:
         suffix = "si" if suffix == "i" else suffix
         return f"arith.rem{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
 
-    raise NotImplementedError("Unsupported binop: " + binop.fn.__name__)
+    raise InternalCompilerError("Unsupported binop: " + binop.fn.__name__)
 
   def emit_branch(self, branch, blocks_to_print):
     for _ in range(2):
@@ -662,7 +754,7 @@ class TextualMlirEmitter:
     assert body_id == loop.header.body_id
     for instr in loop_block.body:
       if type(instr) == ir.Assign and instr.target in self.loops:
-        raise NotImplementedError("Nested loops are not supported")
+        raise InternalCompilerError("Nested loops are not supported")
 
     body_str = ""
     # Index cast the itvar to an integer to use within the block
