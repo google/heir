@@ -5,8 +5,13 @@ import colorama
 Fore = colorama.Fore
 Style = colorama.Style
 
-from heir.interfaces import BackendInterface, CompilationResult, ClientInterface, EncValue
+from heir.interfaces import BackendInterface, CompilationResult, ClientInterface, EncValue, CompilerWarning
 from heir.backends.util import common
+from heir.backends.util.common import BackendWarning as GenericBackendWarning
+
+
+def BackendWarning(message: str):
+  return GenericBackendWarning("Cleartext Backend", message)
 
 
 class CleartextClientInterface(ClientInterface):
@@ -15,20 +20,14 @@ class CleartextClientInterface(ClientInterface):
     self.compilation_result = compilation_result
 
   def setup(self):
-    print(
-        "HEIR Warning (Cleartext Backend): "
-        + Fore.YELLOW
-        + Style.BRIGHT
-        + f"{self.compilation_result.func_name}.setup(..) "
+    BackendWarning(
+        f"{self.compilation_result.func_name}.setup(..) "
         "is a no-op in the Cleartext Backend."
     )
 
   def decrypt_result(self, result):
-    print(
-        "HEIR Warning (Cleartext Backend): "
-        + Fore.YELLOW
-        + Style.BRIGHT
-        + f"{self.compilation_result.func_name}.decrypt(..) "
+    BackendWarning(
+        f"{self.compilation_result.func_name}.decrypt(..) "
         "is a no-op in the Cleartext Backend."
     )
     return result
@@ -39,11 +38,8 @@ class CleartextClientInterface(ClientInterface):
       arg_name = key[len("encrypt_") :]
 
       def wrapper(arg):
-        print(
-            "HEIR Warning (Cleartext Backend): "
-            + Fore.YELLOW
-            + Style.BRIGHT
-            + f"{self.compilation_result.func_name}.{key}(..) "
+        BackendWarning(
+            f"{self.compilation_result.func_name}.{key}(..) "
             "does not perform any encryption in the Cleartext Backend."
         )
         return EncValue(arg_name, arg)
@@ -53,11 +49,8 @@ class CleartextClientInterface(ClientInterface):
     raise AttributeError(f"Attribute {key} not found")
 
   def eval(self, *args, **kwargs):
-    print(
-        "HEIR Warning (Cleartext Backend): "
-        + Fore.YELLOW
-        + Style.BRIGHT
-        + f"{self.compilation_result.func_name}.eval(..) simply forwards to "
+    BackendWarning(
+        f"{self.compilation_result.func_name}.eval(..) simply forwards to "
         f"{self.compilation_result.func_name}.original(..) "
         "in the Cleartext Backend."
     )
@@ -71,11 +64,8 @@ class CleartextClientInterface(ClientInterface):
     return self.func(*stripped_args, **stripped_kwargs)
 
   def __call__(self, *args, **kwargs):
-    print(
-        "HEIR Warning (Cleartext Backend): "
-        + Fore.YELLOW
-        + Style.BRIGHT
-        + f"{self.compilation_result.func_name}(..) is the same as"
+    BackendWarning(
+        f"{self.compilation_result.func_name}(..) is the same as"
         f" {self.compilation_result.func_name}.original(..) "
         "in the Cleartext Backend."
     )
