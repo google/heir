@@ -100,6 +100,7 @@ def CGGI_SubOp : CGGI_Op<"sub", [
 
 def CGGI_ScalarShiftRightOp : CGGI_Op<"sshr", [
     Pure,
+    AllTypesMatch<["lhs", "output"]>,
 ]> {
   let arguments = (ins LWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
   let results = (outs LWECiphertextLike:$output);
@@ -107,7 +108,8 @@ def CGGI_ScalarShiftRightOp : CGGI_Op<"sshr", [
 }
 
 def CGGI_ScalarShiftLeftOp : CGGI_Op<"sshl", [
-    Pure
+    Pure,
+    AllTypesMatch<["lhs", "output"]>,
 ]> {
   let arguments = (ins LWECiphertextLike:$lhs, IndexAttr:$shiftAmount);
   let results = (outs LWECiphertextLike:$output);
