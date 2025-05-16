@@ -86,9 +86,17 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     auto budget = model.toLogBudget(localParam, noiseState);
 
-    auto boundString = model.toLogBoundString(localParam, noiseState);
-    auto budgetString = model.toLogBudgetString(localParam, noiseState);
-    auto totalString = model.toLogTotalString(localParam);
+    auto doubleToString = [](double d) {
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(2) << d;
+      return stream.str();
+    };
+
+    auto boundString = doubleToString(model.toLogBound(localParam, noiseState));
+    [[maybe_unused]] auto budgetString =
+        doubleToString(model.toLogBudget(localParam, noiseState));
+    [[maybe_unused]] auto totalString =
+        doubleToString(model.toLogTotal(localParam));
 
     LLVM_DEBUG({
       llvm::dbgs() << "Noise Bound: " << boundString

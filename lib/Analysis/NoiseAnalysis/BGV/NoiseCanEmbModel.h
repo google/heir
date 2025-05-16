@@ -51,13 +51,8 @@ class NoiseCanEmbModel {
   // logBudget: logTotal - logBound
   // as ||m + t * e|| < Ql / 2 for correct decryption
   double toLogBound(const LocalParamType &param, const StateType &noise) const;
-  std::string toLogBoundString(const LocalParamType &param,
-                               const StateType &noise) const;
   double toLogBudget(const LocalParamType &param, const StateType &noise) const;
-  std::string toLogBudgetString(const LocalParamType &param,
-                                const StateType &noise) const;
   double toLogTotal(const LocalParamType &param) const;
-  std::string toLogTotalString(const LocalParamType &param) const;
 };
 
 }  // namespace bgv
