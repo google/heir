@@ -11,7 +11,10 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/AssignLayout.h"
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/Transforms/Transforms.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
@@ -24,11 +27,10 @@
 #include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"    // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
-#include "llvm/include/llvm/Support/raw_ostream.h"      // from @llvm-project
+#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
-#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
 // IWYU pragma: end_keep
 
 #define DEBUG_TYPE "add-client-interface"
@@ -215,6 +217,13 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
       return WalkResult::advance();
     });
     if (result.wasInterrupted()) signalPassFailure();
+
+    // FIXME: remove when https://github.com/llvm/llvm-project/pull/140171 is
+    // integrated into HEIR. This is added here as a workaround to
+    // tensor.concat not being bufferizable.
+    RewritePatternSet patterns(&getContext());
+    ::mlir::tensor::populateDecomposeTensorConcatPatterns(patterns);
+    walkAndApplyPatterns(root, std::move(patterns));
   }
 };
 
