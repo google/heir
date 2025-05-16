@@ -174,7 +174,10 @@ class OpenFHEBackend(BackendInterface):
     colorama.init(autoreset=True)
 
     # Convert from "scheme" to openfhe:
-    heir_opt_options = [f"--scheme-to-openfhe=entry-function={func_name}"]
+    heir_opt_options = [
+        f"--scheme-to-openfhe=entry-function={func_name}",
+        "--mlir-print-debuginfo",
+    ]
     if debug:
       heir_opt_options.append("--view-op-graph")
       print(

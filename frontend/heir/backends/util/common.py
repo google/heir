@@ -8,6 +8,8 @@ import sysconfig
 
 from heir.interfaces import CompilationResult, EncValue
 
+from colorama import Fore, Style
+
 
 def find_above(dirname: str) -> Path | None:
   path = pathlib.Path(__file__).resolve()
@@ -74,3 +76,14 @@ def is_pip_installed() -> bool:
     return module_path.startswith(sysconfig.get_paths()["purelib"])
   except ModuleNotFoundError:
     return False
+
+
+class BackendWarning:
+
+  def __init__(self, name: str, message: str):
+    print(
+        Fore.YELLOW
+        + Style.BRIGHT
+        + f"HEIR Warning ({name}): {message}"
+        + Style.RESET_ALL
+    )

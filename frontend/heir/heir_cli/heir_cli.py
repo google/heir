@@ -5,6 +5,38 @@ from pathlib import Path
 import subprocess
 
 
+class CLIError(Exception):
+  """Error running a CLI command."""
+
+  def __init__(
+      self,
+      command: str,
+      options: list[str],
+      input: str,
+      stdout: str,
+      stderr: str,
+      message: str = "",
+  ):
+    super().__init__(message)
+    self.message = message
+    self.command = command
+    self.options = options
+    self.input = input
+    self.stdout = stdout
+    self.stderr = stderr
+
+  def __str__(self):
+    return (
+        (f"{self.message} :" if self.message else "")
+        + f"Error running {self.command} with options "
+        + " ".join([str(x) for x in self.options])
+        + "\n"
+        + f"input was:\n{self.input}\n"
+        + f"stdout was:\n{self.stdout}\n"
+        + f"stderr was:\n{self.stderr}\n"
+    )
+
+
 class CLIBackend:
 
   def __init__(self, binary_path: str | Path):
@@ -28,11 +60,13 @@ class CLIBackend:
         check=False,
     )
     if completed_process.returncode != 0:
-      message = f"Error running {self.binary_path}. "
-      message += "stderr was:\n\n" + completed_process.stderr + "\n\n"
-      message += "input was:\n\n" + input + "\n\n"
-      message += "options were:\n\n" + " ".join([str(x) for x in options])
-      raise ValueError(message)
+      raise CLIError(
+          self.binary_path,
+          options,
+          input,
+          completed_process.stdout,
+          completed_process.stderr,
+      )
 
     return completed_process.stdout
 
@@ -54,12 +88,13 @@ class CLIBackend:
         check=False,
     )
     if completed_process.returncode != 0:
-      message = f"Error running {self.binary_path}. "
-      message += "stderr was:\n\n" + completed_process.stderr + "\n\n"
-      message += "input was:\n\n" + input + "\n\n"
-      message += "options were:\n\n" + " ".join([str(x) for x in options])
-      raise ValueError(message)
-
+      raise CLIError(
+          self.binary_path,
+          options,
+          input,
+          completed_process.stdout,
+          completed_process.stderr,
+      )
     return completed_process.stdout, completed_process.stderr
 
 
