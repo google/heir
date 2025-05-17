@@ -13,7 +13,7 @@ cc_library(
     ],
     deps = [
         ":BooleanVectorizer",
-        ":ExpandLUT",
+        ":DecomposeOperations",
         ":SetDefaultParameters",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
@@ -64,13 +64,13 @@ cc_library(
 )
 
 cc_library(
-    name = "ExpandLUT",
-    srcs = ["ExpandLUT.cpp"],
+    name = "DecomposeOperations",
+    srcs = ["DecomposeOperations.cpp"],
     hdrs = [
-        "ExpandLUT.h",
+        "DecomposeOperations.h",
     ],
     deps = [
-        ":expand_lut_inc_gen",
+        ":decompose_operations_inc_gen",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
@@ -91,10 +91,10 @@ add_heir_transforms(
 )
 
 gentbl_cc_library(
-    name = "expand_lut_inc_gen",
-    tbl_outs = {"ExpandLUT.cpp.inc": ["-gen-rewriters"]},
+    name = "decompose_operations_inc_gen",
+    tbl_outs = {"DecomposeOperations.cpp.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ExpandLUT.td",
+    td_file = "DecomposeOperations.td",
     deps = [
         "@heir//lib/Dialect:td_files",
         "@heir//lib/Dialect/CGGI/IR:ops_inc_gen",
