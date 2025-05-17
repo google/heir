@@ -1,7 +1,6 @@
-// RUN: heir-opt --mlir-print-local-scope --secretize --mlir-to-secret-arithmetic --optimize-relinearization %s | FileCheck %s
+// RUN: heir-opt --optimize-relinearization %s | FileCheck %s
 
 // CHECK: func.func @two_muls_followed_by_add
-// CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
 // CHECK-NEXT: arith.addi
@@ -9,19 +8,20 @@
 // CHECK-NEXT: %[[RELINEARIZE0:.*]] = mgmt.relinearize
 // CHECK-NEXT: secret.yield %[[RELINEARIZE0]]
 
-func.func @two_muls_followed_by_add(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>, %arg2: tensor<8xi16>, %arg3: tensor<8xi16>) -> tensor<8xi16> {
-  %0 = arith.muli %arg0, %arg1 : tensor<8xi16>
-  %1 = mgmt.relinearize %0 : tensor<8xi16>
-
-  %2 = arith.muli %arg2, %arg3 : tensor<8xi16>
-  %3 = mgmt.relinearize %2 : tensor<8xi16>
-
-  %z = arith.addi %1, %3 : tensor<8xi16>
-  func.return %z : tensor<8xi16>
+func.func @two_muls_followed_by_add(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>, %arg2: !secret.secret<tensor<8xi16>>, %arg3: !secret.secret<tensor<8xi16>>) -> !secret.secret<tensor<8xi16>> {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>, %arg2: !secret.secret<tensor<8xi16>>, %arg3: !secret.secret<tensor<8xi16>>) {
+  ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>, %input2: tensor<8xi16>, %input3: tensor<8xi16>):
+    %1 = arith.muli %input0, %input1 : tensor<8xi16>
+    %2 = mgmt.relinearize %1 : tensor<8xi16>
+    %3 = arith.muli %input2, %input3 : tensor<8xi16>
+    %4 = mgmt.relinearize %3 : tensor<8xi16>
+    %5 = arith.addi %2, %4 : tensor<8xi16>
+    secret.yield %5 : tensor<8xi16>
+  } -> !secret.secret<tensor<8xi16>>
+  return %0 : !secret.secret<tensor<8xi16>>
 }
 
 // CHECK: func.func @two_muls_followed_by_add_f16
-// CHECK: secret.generic
 // CHECK: arith.mulf
 // CHECK-NEXT: arith.mulf
 // CHECK-NEXT: arith.addf
@@ -29,19 +29,20 @@ func.func @two_muls_followed_by_add(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>, 
 // CHECK-NEXT: %[[RELINEARIZE0:.*]] = mgmt.relinearize
 // CHECK-NEXT: secret.yield %[[RELINEARIZE0]]
 
-func.func @two_muls_followed_by_add_f16(%arg0: tensor<8xf16>, %arg1: tensor<8xf16>, %arg2: tensor<8xf16>, %arg3: tensor<8xf16>) -> tensor<8xf16> {
-  %0 = arith.mulf %arg0, %arg1 : tensor<8xf16>
-  %1 = mgmt.relinearize %0 : tensor<8xf16>
-
-  %2 = arith.mulf %arg2, %arg3 : tensor<8xf16>
-  %3 = mgmt.relinearize %2 : tensor<8xf16>
-
-  %z = arith.addf %1, %3 : tensor<8xf16>
-  func.return %z : tensor<8xf16>
+func.func @two_muls_followed_by_add_f16(%arg0: !secret.secret<tensor<8xf16>>, %arg1: !secret.secret<tensor<8xf16>>, %arg2: !secret.secret<tensor<8xf16>>, %arg3: !secret.secret<tensor<8xf16>>) -> (!secret.secret<tensor<8xf16>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xf16>>, %arg1: !secret.secret<tensor<8xf16>>, %arg2: !secret.secret<tensor<8xf16>>, %arg3: !secret.secret<tensor<8xf16>>) {
+  ^body(%input0: tensor<8xf16>, %input1: tensor<8xf16>, %input2: tensor<8xf16>, %input3: tensor<8xf16>):
+    %1 = arith.mulf %input0, %input1 : tensor<8xf16>
+    %2 = mgmt.relinearize %1 : tensor<8xf16>
+    %3 = arith.mulf %input2, %input3 : tensor<8xf16>
+    %4 = mgmt.relinearize %3 : tensor<8xf16>
+    %5 = arith.addf %2, %4 : tensor<8xf16>
+    secret.yield %5 : tensor<8xf16>
+  } -> !secret.secret<tensor<8xf16>>
+  return %0 : !secret.secret<tensor<8xf16>>
 }
 
 // CHECK: func.func @six_muls_with_add
-// CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
 // CHECK-NEXT: arith.muli
@@ -57,35 +58,32 @@ func.func @two_muls_followed_by_add_f16(%arg0: tensor<8xf16>, %arg1: tensor<8xf1
 // CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: secret.yield
 
-func.func @six_muls_with_add(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>, %arg2: tensor<8xi16>, %arg3: tensor<8xi16>) -> tensor<8xi16> {
-  %0 = arith.muli %arg0, %arg1 : tensor<8xi16>
-  %1 = mgmt.relinearize %0  : tensor<8xi16>
-
-  %2 = arith.muli %arg0, %arg2  : tensor<8xi16>
-  %3 = mgmt.relinearize %2  : tensor<8xi16>
-
-  %4 = arith.muli %arg0, %arg3  : tensor<8xi16>
-  %5 = mgmt.relinearize %4  : tensor<8xi16>
-
-  %6 = arith.muli %arg1, %arg2  : tensor<8xi16>
-  %7 = mgmt.relinearize %6  : tensor<8xi16>
-
-  %8 = arith.muli %arg1, %arg3  : tensor<8xi16>
-  %9 = mgmt.relinearize %8  : tensor<8xi16>
-
-  %10 = arith.muli %arg2, %arg3  : tensor<8xi16>
-  %11 = mgmt.relinearize %10  : tensor<8xi16>
-
-  %add1 = arith.addi %1, %3 : tensor<8xi16>
-  %add2 = arith.addi %5, %7 : tensor<8xi16>
-  %add3 = arith.addi %9, %11 : tensor<8xi16>
-  %add4 = arith.addi %add1, %add2 : tensor<8xi16>
-  %add5 = arith.addi %add3, %add4 : tensor<8xi16>
-  func.return %add5 : tensor<8xi16>
+func.func @six_muls_with_add(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>, %arg2: !secret.secret<tensor<8xi16>>, %arg3: !secret.secret<tensor<8xi16>>) -> (!secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>, %arg2: !secret.secret<tensor<8xi16>>, %arg3: !secret.secret<tensor<8xi16>>) {
+  ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>, %input2: tensor<8xi16>, %input3: tensor<8xi16>):
+    %1 = arith.muli %input0, %input1 : tensor<8xi16>
+    %2 = mgmt.relinearize %1 : tensor<8xi16>
+    %3 = arith.muli %input0, %input2 : tensor<8xi16>
+    %4 = mgmt.relinearize %3 : tensor<8xi16>
+    %5 = arith.muli %input0, %input3 : tensor<8xi16>
+    %6 = mgmt.relinearize %5 : tensor<8xi16>
+    %7 = arith.muli %input1, %input2 : tensor<8xi16>
+    %8 = mgmt.relinearize %7 : tensor<8xi16>
+    %9 = arith.muli %input1, %input3 : tensor<8xi16>
+    %10 = mgmt.relinearize %9 : tensor<8xi16>
+    %11 = arith.muli %input2, %input3 : tensor<8xi16>
+    %12 = mgmt.relinearize %11 : tensor<8xi16>
+    %13 = arith.addi %10, %12 : tensor<8xi16>
+    %14 = arith.addi %13, %2 : tensor<8xi16>
+    %15 = arith.addi %4, %6 : tensor<8xi16>
+    %16 = arith.addi %15, %8 : tensor<8xi16>
+    %17 = arith.addi %14, %16 : tensor<8xi16>
+    secret.yield %17 : tensor<8xi16>
+  } -> !secret.secret<tensor<8xi16>>
+  return %0 : !secret.secret<tensor<8xi16>>
 }
 
 // CHECK: func.func @six_muls_with_add_f16
-// CHECK: secret.generic
 // CHECK: arith.mulf
 // CHECK-NEXT: arith.mulf
 // CHECK-NEXT: arith.mulf
@@ -101,37 +99,34 @@ func.func @six_muls_with_add(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>, %arg2: 
 // CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: secret.yield
 
-func.func @six_muls_with_add_f16(%arg0: tensor<8xf16>, %arg1: tensor<8xf16>, %arg2: tensor<8xf16>, %arg3: tensor<8xf16>) -> tensor<8xf16> {
-  %0 = arith.mulf %arg0, %arg1 : tensor<8xf16>
-  %1 = mgmt.relinearize %0  : tensor<8xf16>
-
-  %2 = arith.mulf %arg0, %arg2  : tensor<8xf16>
-  %3 = mgmt.relinearize %2  : tensor<8xf16>
-
-  %4 = arith.mulf %arg0, %arg3  : tensor<8xf16>
-  %5 = mgmt.relinearize %4  : tensor<8xf16>
-
-  %6 = arith.mulf %arg1, %arg2  : tensor<8xf16>
-  %7 = mgmt.relinearize %6  : tensor<8xf16>
-
-  %8 = arith.mulf %arg1, %arg3  : tensor<8xf16>
-  %9 = mgmt.relinearize %8  : tensor<8xf16>
-
-  %10 = arith.mulf %arg2, %arg3  : tensor<8xf16>
-  %11 = mgmt.relinearize %10  : tensor<8xf16>
-
-  %add1 = arith.addf %1, %3 : tensor<8xf16>
-  %add2 = arith.addf %5, %7 : tensor<8xf16>
-  %add3 = arith.addf %9, %11 : tensor<8xf16>
-  %add4 = arith.addf %add1, %add2 : tensor<8xf16>
-  %add5 = arith.addf %add3, %add4 : tensor<8xf16>
-  func.return %add5 : tensor<8xf16>
+func.func @six_muls_with_add_f16(%arg0: !secret.secret<tensor<8xf16>>, %arg1: !secret.secret<tensor<8xf16>>, %arg2: !secret.secret<tensor<8xf16>>, %arg3: !secret.secret<tensor<8xf16>>) -> (!secret.secret<tensor<8xf16>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xf16>>, %arg1: !secret.secret<tensor<8xf16>>, %arg2: !secret.secret<tensor<8xf16>>, %arg3: !secret.secret<tensor<8xf16>>) {
+  ^body(%input0: tensor<8xf16>, %input1: tensor<8xf16>, %input2: tensor<8xf16>, %input3: tensor<8xf16>):
+    %1 = arith.mulf %input0, %input1 : tensor<8xf16>
+    %2 = mgmt.relinearize %1 : tensor<8xf16>
+    %3 = arith.mulf %input0, %input2 : tensor<8xf16>
+    %4 = mgmt.relinearize %3 : tensor<8xf16>
+    %5 = arith.mulf %input0, %input3 : tensor<8xf16>
+    %6 = mgmt.relinearize %5 : tensor<8xf16>
+    %7 = arith.mulf %input1, %input2 : tensor<8xf16>
+    %8 = mgmt.relinearize %7 : tensor<8xf16>
+    %9 = arith.mulf %input1, %input3 : tensor<8xf16>
+    %10 = mgmt.relinearize %9 : tensor<8xf16>
+    %11 = arith.mulf %input2, %input3 : tensor<8xf16>
+    %12 = mgmt.relinearize %11 : tensor<8xf16>
+    %13 = arith.addf %10, %12 : tensor<8xf16>
+    %14 = arith.addf %13, %2 : tensor<8xf16>
+    %15 = arith.addf %4, %6 : tensor<8xf16>
+    %16 = arith.addf %15, %8 : tensor<8xf16>
+    %17 = arith.addf %14, %16 : tensor<8xf16>
+    secret.yield %17 : tensor<8xf16>
+  } -> !secret.secret<tensor<8xf16>>
+  return %0 : !secret.secret<tensor<8xf16>>
 }
 
 // Test for a max key basis degree of 3, i.e., cannot do more than one repeated
 // mul op before relinearizing.
 // CHECK: func.func @repeated_mul
-// CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: arith.muli
@@ -145,31 +140,28 @@ func.func @six_muls_with_add_f16(%arg0: tensor<8xf16>, %arg1: tensor<8xf16>, %ar
 // CHECK-DAG: mgmt.relinearize
 // CHECK-NEXT: secret.yield
 
-func.func @repeated_mul(%arg0: tensor<8xi16>) -> tensor<8xi16> {
-  %0 = arith.muli %arg0, %arg0: tensor<8xi16>
-  %1 = mgmt.relinearize %0  : tensor<8xi16>
-
-  %2 = arith.muli %1, %1: tensor<8xi16>
-  %3 = mgmt.relinearize %2  : tensor<8xi16>
-
-  %4 = arith.muli %3, %3: tensor<8xi16>
-  %5 = mgmt.relinearize %4  : tensor<8xi16>
-
-  %6 = arith.muli %5, %5: tensor<8xi16>
-  %7 = mgmt.relinearize %6  : tensor<8xi16>
-
-  %8 = arith.muli %7, %7: tensor<8xi16>
-  %9 = mgmt.relinearize %8  : tensor<8xi16>
-
-  %z = arith.addi %9, %9 : tensor<8xi16>
-  func.return %z : tensor<8xi16>
+func.func @repeated_mul(%arg0: !secret.secret<tensor<8xi16>>) -> (!secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>) {
+  ^body(%input0: tensor<8xi16>):
+    %1 = arith.muli %input0, %input0 : tensor<8xi16>
+    %2 = mgmt.relinearize %1 : tensor<8xi16>
+    %3 = arith.muli %2, %2 : tensor<8xi16>
+    %4 = mgmt.relinearize %3 : tensor<8xi16>
+    %5 = arith.muli %4, %4 : tensor<8xi16>
+    %6 = mgmt.relinearize %5 : tensor<8xi16>
+    %7 = arith.muli %6, %6 : tensor<8xi16>
+    %8 = mgmt.relinearize %7 : tensor<8xi16>
+    %9 = arith.muli %8, %8 : tensor<8xi16>
+    %10 = mgmt.relinearize %9 : tensor<8xi16>
+    %11 = arith.addi %10, %10 : tensor<8xi16>
+    secret.yield %11 : tensor<8xi16>
+  } -> !secret.secret<tensor<8xi16>>
+  return %0 : !secret.secret<tensor<8xi16>>
 }
 
 // Test that non mul/add ops work well with generic op handling in the analysis
 // CHECK: func.func @smoke_test
-// CHECK-NEXT: arith.constant
-// CHECK-NEXT: arith.constant
-// CHECK-NEXT: secret.generic
+// CHECK-COUNT-5: arith.constant
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
 // CHECK-NEXT: arith.subi
@@ -177,23 +169,43 @@ func.func @repeated_mul(%arg0: tensor<8xi16>) -> tensor<8xi16> {
 // CHECK-NEXT: arith.addi
 // CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: secret.yield
-func.func @smoke_test(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> tensor<8xi16> {
-  %cst = arith.constant dense<3> : tensor<8xi16>
-
-  %0 = arith.muli %arg0, %arg0: tensor<8xi16>
-  %1 = mgmt.relinearize %0  : tensor<8xi16>
-  %2 = arith.muli %arg1, %arg1: tensor<8xi16>
-  %3 = mgmt.relinearize %2  : tensor<8xi16>
-
-  %c1 = arith.constant dense<1> : tensor<8xi16>
-  %6 = arith.subi %3, %c1 : tensor<8xi16>
-  %7 = arith.muli %1, %cst : tensor<8xi16>
-  %8 = arith.addi %6, %7 : tensor<8xi16>
-  func.return %8 : tensor<8xi16>
+func.func @smoke_test(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) -> (!secret.secret<tensor<8xi16>>) {
+  %c3_i16 = arith.constant 3 : i16
+  %c0 = arith.constant 0 : index
+  %c8 = arith.constant 8 : index
+  %c1_i16 = arith.constant 1 : i16
+  %cst = arith.constant dense<0> : tensor<8xi16>
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) {
+  ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>):
+    %1 = arith.muli %input0, %input0 : tensor<8xi16>
+    %2 = mgmt.relinearize %1 : tensor<8xi16>
+    %3 = arith.muli %input1, %input1 : tensor<8xi16>
+    %4 = mgmt.relinearize %3 : tensor<8xi16>
+    %5 = affine.for %arg2 = 0 to 8 iter_args(%arg3 = %cst) -> (tensor<8xi16>) {
+      %10 = arith.remsi %arg2, %c8 : index
+      %11 = arith.cmpi slt, %10, %c0 : index
+      %12 = arith.addi %10, %c8 : index
+      %13 = arith.select %11, %12, %10 : index
+      %inserted = tensor.insert %c1_i16 into %arg3[%13] : tensor<8xi16>
+      affine.yield %inserted : tensor<8xi16>
+    }
+    %6 = arith.subi %4, %5 : tensor<8xi16>
+    %7 = affine.for %arg2 = 0 to 8 iter_args(%arg3 = %cst) -> (tensor<8xi16>) {
+      %10 = arith.remsi %arg2, %c8 : index
+      %11 = arith.cmpi slt, %10, %c0 : index
+      %12 = arith.addi %10, %c8 : index
+      %13 = arith.select %11, %12, %10 : index
+      %inserted = tensor.insert %c3_i16 into %arg3[%13] : tensor<8xi16>
+      affine.yield %inserted : tensor<8xi16>
+    }
+    %8 = arith.muli %2, %7 : tensor<8xi16>
+    %9 = arith.addi %6, %8 : tensor<8xi16>
+    secret.yield %9 : tensor<8xi16>
+  } -> !secret.secret<tensor<8xi16>>
+  return %0 : !secret.secret<tensor<8xi16>>
 }
 
 // CHECK: func.func @rotation_needs_linear_inputs
-// CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
 // CHECK-NEXT: mgmt.relinearize
@@ -201,31 +213,37 @@ func.func @smoke_test(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> tensor<8xi1
 // CHECK-NEXT: arith.addi
 // CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: secret.yield
-func.func @rotation_needs_linear_inputs(%arg0: tensor<8xi16>, %arg1: tensor<8xi16>) -> tensor<8xi16> {
-  %0 = arith.muli %arg0, %arg0: tensor<8xi16>
-  %1 = mgmt.relinearize %0  : tensor<8xi16>
-  %2 = arith.muli %arg1, %arg1: tensor<8xi16>
-  %3 = mgmt.relinearize %2  : tensor<8xi16>
-
-  // Rotation requires degree 1 key basis input
+func.func @rotation_needs_linear_inputs(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) -> (!secret.secret<tensor<8xi16>>) {
   %c1 = arith.constant 1 : index
-  %6 = tensor_ext.rotate %3, %c1 : tensor<8xi16>, index
-  %7 = arith.addi %1, %6 : tensor<8xi16>
-  func.return %7 : tensor<8xi16>
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) {
+  ^body(%input0: tensor<8xi16>, %input1: tensor<8xi16>):
+    %1 = arith.muli %input0, %input0 : tensor<8xi16>
+    %2 = mgmt.relinearize %1 : tensor<8xi16>
+    %3 = arith.muli %input1, %input1 : tensor<8xi16>
+    %4 = mgmt.relinearize %3 : tensor<8xi16>
+    // Rotation requires linear key basis for its input
+    %5 = tensor_ext.rotate %4, %c1 : tensor<8xi16>, index
+    %6 = arith.addi %2, %5 : tensor<8xi16>
+    secret.yield %6 : tensor<8xi16>
+  } -> !secret.secret<tensor<8xi16>>
+  return %0 : !secret.secret<tensor<8xi16>>
 }
 
 // CHECK: func.func @modreduce_needs_linear_inputs
-// CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK-NEXT: arith.muli
 // CHECK-NEXT: arith.subi
 // CHECK-NEXT: mgmt.relinearize
 // CHECK-NEXT: mgmt.modreduce
 // CHECK-NEXT: secret.yield
-func.func @modreduce_needs_linear_inputs(%a: i64, %b: i64) -> (i64) {
-    %0 = arith.muli %a, %a : i64
-    %1 = arith.muli %b, %b : i64
-    %2 = arith.subi %0, %1 : i64
-    %ret = mgmt.modreduce %2 : i64
-    func.return %ret : i64
+func.func @modreduce_needs_linear_inputs(%arg0: !secret.secret<tensor<8xi64>>, %arg1: !secret.secret<tensor<8xi64>>) -> (!secret.secret<tensor<8xi64>>) {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<8xi64>>, %arg1: !secret.secret<tensor<8xi64>>) {
+  ^body(%input0: tensor<8xi64>, %input1: tensor<8xi64>):
+    %1 = arith.muli %input0, %input0 : tensor<8xi64>
+    %2 = arith.muli %input1, %input1 : tensor<8xi64>
+    %3 = arith.subi %1, %2 : tensor<8xi64>
+    %4 = mgmt.modreduce %3 : tensor<8xi64>
+    secret.yield %4 : tensor<8xi64>
+  } -> !secret.secret<tensor<8xi64>>
+  return %0 : !secret.secret<tensor<8xi64>>
 }
