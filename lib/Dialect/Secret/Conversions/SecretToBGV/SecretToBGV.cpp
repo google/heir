@@ -19,6 +19,7 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/Secret/Conversions/Patterns.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -47,6 +48,8 @@ namespace mlir::heir {
 
 #define GEN_PASS_DEF_SECRETTOBGV
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h.inc"
+
+auto &kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
 
 namespace {
 
@@ -191,6 +194,9 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       return;
     }
 
+    bool usePublicKey =
+        schemeParamAttr.getEncryptionType() == bgv::BGVEncryptionType::pk;
+
     // NOTE: 2 ** logN != polyModDegree
     // they have different semantic
     // auto logN = schemeParamAttr.getLogN();
@@ -240,6 +246,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       return;
     }
 
+    copyMgmtAttrToClientHelpers(module);
+
     // Invariant: for every SecretType, there is a corresponding MgmtAttr
     // attached to it, either in its DefiningOp or getOwner()->getParentOp()
     // (i.e., the FuncOp). Otherwise the typeConverter won't find the proper
@@ -273,6 +281,10 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
         SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>,
         SecretGenericFuncCallConversion>(typeConverter, context);
+
+    patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
+                                       rlweRing.value());
+    patterns.add<ConvertClientReveal>(typeConverter, context, rlweRing.value());
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 

@@ -15,5 +15,6 @@ plaintext_test(
     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
     deps = [
         ":dot_product_8f_test",
+        "@heir//tests/Examples/plaintext:memrefCopy",
     ],
 )

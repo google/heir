@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --mlir-to-secret-arithmetic --secret-insert-mgmt-bgv --generate-param-bgv --secret-distribute-generic --secret-to-bgv | FileCheck %s
+// RUN: heir-opt %s "--annotate-module=backend=openfhe scheme=bgv" "--mlir-to-bgv=ciphertext-degree=8192" | FileCheck %s
 
 // CHECK-NOT: !secret.secret<i16>
 func.func @add(%arg0 : i16 {secret.secret}, %arg1 : i16 {secret.secret}) -> i16 {

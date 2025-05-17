@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --mlir-to-bgv | FileCheck %s
+// RUN: heir-opt %s "--annotate-module=backend=openfhe scheme=bgv" "--mlir-to-bgv=ciphertext-degree=8192" | FileCheck %s
 
 // CHECK: @func
 func.func @func(%x: i16 {secret.secret}, %y: i16 {secret.secret}) -> (i16) {

@@ -31,9 +31,11 @@ namespace mod_arith {
 #define GEN_PASS_DEF_MODARITHTOARITH
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h.inc"
 
+namespace {
+
 IntegerType convertModArithType(ModArithType type) {
-  APInt modulus = type.getModulus().getValue();
-  return IntegerType::get(type.getContext(), modulus.getBitWidth());
+  IntegerType modulusType = cast<IntegerType>(type.getModulus().getType());
+  return IntegerType::get(type.getContext(), modulusType.getWidth());
 }
 
 Type convertModArithLikeType(ShapedType type) {
@@ -42,17 +44,6 @@ Type convertModArithLikeType(ShapedType type) {
   }
   return type;
 }
-
-class ModArithToArithTypeConverter : public TypeConverter {
- public:
-  ModArithToArithTypeConverter(MLIRContext *ctx) {
-    addConversion([](Type type) { return type; });
-    addConversion(
-        [](ModArithType type) -> Type { return convertModArithType(type); });
-    addConversion(
-        [](ShapedType type) -> Type { return convertModArithLikeType(type); });
-  }
-};
 
 // A helper function to generate the attribute or type
 // needed to represent the result of mod_arith op as an integer
@@ -83,6 +74,19 @@ template <typename Op>
 inline Type modulusType(Op op, bool mul = false) {
   return modulusAttr(op, mul).getType();
 }
+
+}  // namespace
+
+class ModArithToArithTypeConverter : public TypeConverter {
+ public:
+  ModArithToArithTypeConverter(MLIRContext *ctx) {
+    addConversion([](Type type) { return type; });
+    addConversion(
+        [](ModArithType type) -> Type { return convertModArithType(type); });
+    addConversion(
+        [](ShapedType type) -> Type { return convertModArithLikeType(type); });
+  }
+};
 
 struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
   ConvertEncapsulate(mlir::MLIRContext *context)
@@ -122,7 +126,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       ConstantOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     auto constOp =
-        rewriter.create<arith::ConstantOp>(op.getLoc(), op.getValueAttr());
+        rewriter.create<arith::ConstantOp>(op.getLoc(), adaptor.getValue());
     rewriter.replaceOp(op, constOp);
     return success();
   }
