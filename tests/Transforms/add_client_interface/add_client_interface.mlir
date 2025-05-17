@@ -42,10 +42,9 @@ func.func @simple_sum(
 // CHECK: @simple_sum__encrypt
 // CHECK-SAME: (%[[arg0:[^:]*]]: tensor<32xi16>
 // CHECK-SAME:     -> [[ct_ty]] attributes {client_enc_func = {func_name = "simple_sum", index = 0 : i64}} {
-// CHECK-NEXT:   %[[laidout:[^ ]*]] = tensor.concat
 //               ...many operands... omitted for brevity
-// CHECK-SAME:   %[[arg0]], %[[arg0]], %[[arg0]], %[[arg0]]
-// CHECK-SAME:   -> tensor<1024xi16>
+// CHECK-COUNT-31: tensor.insert_slice
+// CHECK:        %[[laidout:[^ ]*]] = tensor.insert_slice
 // CHECK-NEXT:   %[[encrypted:.*]] = secret.conceal %[[laidout]]
 // CHECK-NEXT:   return %[[encrypted]]
 
