@@ -1,7 +1,7 @@
 // RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks=bootstrap-waterline=3 %s | FileCheck %s
 
 // CHECK: func.func @bootstrap_waterline
-// CHECK: %0 = secret.generic(%[[arg0:.*]] : !secret.secret<tensor<1024xf16>> {mgmt.mgmt = #mgmt.mgmt<level = 3>}) {
+// CHECK: %0 = secret.generic(%[[arg0:.*]]: !secret.secret<tensor<1024xf16>> {mgmt.mgmt = #mgmt.mgmt<level = 3>}) {
 // CHECK:  (%[[input0:.*]]: tensor<1024xf16>):
 // CHECK:    %[[v1:.*]] = arith.addf %[[input0]], %[[input0]] {mgmt.mgmt = #mgmt.mgmt<level = 3>} : tensor<1024xf16>
 // CHECK:    %[[v2:.*]] = mgmt.modreduce %[[v1]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1024xf16>

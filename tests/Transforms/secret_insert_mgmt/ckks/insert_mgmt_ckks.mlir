@@ -15,7 +15,7 @@ module attributes {backend.lattigo, scheme.ckks} {
     %c6 = arith.constant 6 : index
     %c7 = arith.constant 7 : index
     %inserted = tensor.insert %cst_0 into %cst_1[%c7] : tensor<8xf32>
-    %0 = secret.generic(%arg0, %arg1 : !secret.secret<tensor<8xf32>>, !secret.secret<tensor<8xf32>>) {
+    %0 = secret.generic(%arg0 : !secret.secret<tensor<8xf32>>, %arg1 : !secret.secret<tensor<8xf32>>) {
     ^body(%input0: tensor<8xf32>, %input1: tensor<8xf32>):
       %1 = arith.mulf %input0, %input1 : tensor<8xf32>
       %2 = affine.for %arg2 = 0 to 8 iter_args(%arg3 = %cst_1) -> (tensor<8xf32>) {
