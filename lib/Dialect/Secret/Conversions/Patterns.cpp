@@ -49,8 +49,11 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   auto resultCtTy =
       dyn_cast<lwe::NewLWECiphertextType>(parentFunc.getResultTypes()[0]);
   if (!resultCtTy) {
-    return op->emitError() << "expected to be inside a function with a single "
-                           << "LWE ciphertext return type";
+    return parentFunc->emitError()
+           << "expected secret.conceal op to be inside a function with a "
+              "single LWE ciphertext return type; it may be that "
+              "the type converter failed to run on this func "
+              "because the mgmt attribute is missing.";
   }
 
   auto *ctx = op->getContext();
