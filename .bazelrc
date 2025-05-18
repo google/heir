@@ -2,6 +2,7 @@ common --action_env=BAZEL_CXXOPTS=-std=c++17
 common --cxxopt='-std=c++17'
 common --copt=-fdiagnostics-color=always
 common --test_output=errors
+common --test_summary=terse
 # compilation_mode options below are `dbg` (debug symbols) `fastbuild`
 # (build as quickly as possible), and `opt` (turn on all optimizations)
 common -c dbg
