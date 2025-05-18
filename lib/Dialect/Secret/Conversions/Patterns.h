@@ -12,8 +12,6 @@
 namespace mlir {
 namespace heir {
 
-void copyMgmtAttrToClientHelpers(Operation *op);
-
 // Lower a client encryption function's secret.conceal op to lwe.rlwe_encode +
 // lwe.rlwe_encrypt. Modifies the containing function to add new secret key
 // material args.

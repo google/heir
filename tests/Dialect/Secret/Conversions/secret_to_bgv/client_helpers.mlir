@@ -24,13 +24,13 @@ module attributes {backend.openfhe, bgv.schemeParam = #bgv.scheme_param<logN = 1
   // CHECK-SAME: !lwe.new_lwe_public_key
   // CHECK: lwe.rlwe_encode
   // CHECK: lwe.rlwe_encrypt
-  func.func @dot_product__encrypt__arg0(%arg0: tensor<8xi16>) -> !secret.secret<tensor<8xi16>> attributes {client_enc_func = {func_name = "dot_product", index = 0 : i64}} {
+  func.func @dot_product__encrypt__arg0(%arg0: tensor<8xi16>) -> (!secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}) attributes {client_enc_func = {func_name = "dot_product", index = 0 : i64}} {
     %cst = arith.constant dense<0> : tensor<8xi16>
     %0 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel"]} ins(%arg0 : tensor<8xi16>) outs(%cst : tensor<8xi16>) {
     ^bb0(%in: i16, %out: i16):
       linalg.yield %in : i16
     } -> tensor<8xi16>
-    %1 = secret.conceal %0 : tensor<8xi16> -> !secret.secret<tensor<8xi16>>
+    %1 = secret.conceal %0 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<8xi16> -> !secret.secret<tensor<8xi16>>
     return %1 : !secret.secret<tensor<8xi16>>
   }
 
@@ -38,13 +38,13 @@ module attributes {backend.openfhe, bgv.schemeParam = #bgv.scheme_param<logN = 1
   // CHECK-SAME: !lwe.new_lwe_public_key
   // CHECK: lwe.rlwe_encode
   // CHECK: lwe.rlwe_encrypt
-  func.func @dot_product__encrypt__arg1(%arg0: tensor<8xi16>) -> !secret.secret<tensor<8xi16>> attributes {client_enc_func = {func_name = "dot_product", index = 1 : i64}} {
+  func.func @dot_product__encrypt__arg1(%arg0: tensor<8xi16>) -> (!secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}) attributes {client_enc_func = {func_name = "dot_product", index = 1 : i64}} {
     %cst = arith.constant dense<0> : tensor<8xi16>
     %0 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel"]} ins(%arg0 : tensor<8xi16>) outs(%cst : tensor<8xi16>) {
     ^bb0(%in: i16, %out: i16):
       linalg.yield %in : i16
     } -> tensor<8xi16>
-    %1 = secret.conceal %0 : tensor<8xi16> -> !secret.secret<tensor<8xi16>>
+    %1 = secret.conceal %0 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<8xi16> -> !secret.secret<tensor<8xi16>>
     return %1 : !secret.secret<tensor<8xi16>>
   }
 
@@ -52,7 +52,7 @@ module attributes {backend.openfhe, bgv.schemeParam = #bgv.scheme_param<logN = 1
   // CHECK-SAME: !lwe.new_lwe_secret_key
   // CHECK: lwe.rlwe_decrypt
   // CHECK: lwe.rlwe_decode
-  func.func @dot_product__decrypt__result0(%arg0: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) -> i16 attributes {client_dec_func = {func_name = "dot_product", index = 0 : i64}} {
+  func.func @dot_product__decrypt__result0(%arg0: !secret.secret<tensor<8xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}) -> i16 attributes {client_dec_func = {func_name = "dot_product", index = 0 : i64}} {
     %c0 = arith.constant 0 : index
     %0 = secret.reveal %arg0 : !secret.secret<tensor<8xi16>> -> tensor<8xi16>
     %extracted = tensor.extract %0[%c0] : tensor<8xi16>

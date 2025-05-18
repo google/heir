@@ -337,8 +337,6 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     }
     bool packTensorInSlots = succeeded(validationResult);
 
-    copyMgmtAttrToClientHelpers(module);
-
     // Invariant: for every SecretType, there is a
     // corresponding MgmtAttr attached to it,
     // either in its DefiningOp or getOwner()->getParentOp()

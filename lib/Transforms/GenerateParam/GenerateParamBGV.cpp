@@ -11,6 +11,7 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
+#include "lib/Transforms/GenerateParam/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
@@ -232,6 +233,11 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();
+    }
+
+    if (failed(copyMgmtAttrToClientHelpers(getOperation()))) {
+      signalPassFailure();
+      return;
     }
   }
 };

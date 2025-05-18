@@ -246,8 +246,6 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
       return;
     }
 
-    copyMgmtAttrToClientHelpers(module);
-
     // Invariant: for every SecretType, there is a corresponding MgmtAttr
     // attached to it, either in its DefiningOp or getOwner()->getParentOp()
     // (i.e., the FuncOp). Otherwise the typeConverter won't find the proper
