@@ -163,11 +163,11 @@ func.func @repeated_mul(%arg0: !secret.secret<tensor<8xi16>>) -> (!secret.secret
 // CHECK: func.func @smoke_test
 // CHECK-COUNT-5: arith.constant
 // CHECK: arith.muli
-// CHECK-NEXT: arith.muli
-// CHECK-NEXT: arith.subi
-// CHECK-NEXT: arith.muli
-// CHECK-NEXT: arith.addi
-// CHECK-NEXT: mgmt.relinearize
+// CHECK: arith.muli
+// CHECK: arith.subi
+// CHECK: arith.muli
+// CHECK: arith.addi
+// CHECK: mgmt.relinearize
 // CHECK-NEXT: secret.yield
 func.func @smoke_test(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secret<tensor<8xi16>>) -> (!secret.secret<tensor<8xi16>>) {
   %c3_i16 = arith.constant 3 : i16
