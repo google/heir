@@ -4,7 +4,6 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
-#include "lib/Transforms/GenerateParam/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
@@ -77,11 +76,6 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
             schemeParam.getLogDefaultScale(),
             usePublicKey ? ckks::CKKSEncryptionType::pk
                          : ckks::CKKSEncryptionType::sk));
-
-    if (failed(copyMgmtAttrToClientHelpers(getOperation()))) {
-      signalPassFailure();
-      return;
-    }
   }
 };
 

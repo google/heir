@@ -6,21 +6,6 @@ package(
 )
 
 cc_library(
-    name = "Utils",
-    srcs = ["Utils.cpp"],
-    hdrs = ["Utils.h"],
-    deps = [
-        "@heir//lib/Dialect:ModuleAttributes",
-        "@heir//lib/Dialect/Mgmt/IR:Dialect",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Transforms/PropagateAnnotation",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Support",
-    ],
-)
-
-cc_library(
     name = "GenerateParam",
     srcs = [
         "GenerateParamBFV.cpp",
@@ -29,7 +14,6 @@ cc_library(
     ],
     hdrs = ["GenerateParam.h"],
     deps = [
-        ":Utils",
         ":pass_inc_gen",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
