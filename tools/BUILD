@@ -59,7 +59,6 @@ cc_binary(
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/LWE/Transforms",
-        "@heir//lib/Dialect/LWE/Transforms:AddClientInterface",
         "@heir//lib/Dialect/Lattigo/IR:Dialect",
         "@heir//lib/Dialect/Lattigo/Transforms",
         "@heir//lib/Dialect/Lattigo/Transforms:AllocToInplace",

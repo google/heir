@@ -1,4 +1,4 @@
-// RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-bgv --validate-noise="model=bgv-noise-by-bound-coeff-worst-case" --verify-diagnostics %s
+// RUN: heir-opt --validate-noise="model=bgv-noise-by-bound-coeff-worst-case" --verify-diagnostics %s
 
 // This is only for testing whether validate-noise would fail, but
 // not for testing the noise model.
@@ -12,14 +12,31 @@
 // Note that if any condition changed the test may fail and changes
 // to this file are expected
 
+#alignment = #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
+#layout = #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
+#original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
 // expected-error@below {{'builtin.module' op Noise validation failed.}}
-module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113, 35184376184833], P = [35184376545281, 35184376578049], plaintextModulus = 4295294977>} {
-  func.func @dot_product(%arg0: i16 {secret.secret}) -> i16 {
-    %0 = arith.muli %arg0, %arg0 : i16
-    %1 = arith.muli %0, %0 : i16
-    %2 = arith.muli %1, %1 : i16
-    %3 = arith.muli %2, %2 : i16
-    %4 = arith.muli %3, %3 : i16
-    return %4 : i16
+module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113, 35184376184833], P = [35184376545281, 35184376578049], plaintextModulus = 4295294977>, scheme.bgv} {
+  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>>) -> (!secret.secret<tensor<1024xi16>>) {
+    %0 = secret.generic(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 5>}) {
+    ^body(%input0: tensor<1024xi16>):
+      %1 = arith.muli %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 5, dimension = 3>} : tensor<1024xi16>
+      %2 = mgmt.relinearize %1 {mgmt.mgmt = #mgmt.mgmt<level = 5>} : tensor<1024xi16>
+      %3 = mgmt.modreduce %2 {mgmt.mgmt = #mgmt.mgmt<level = 4>} : tensor<1024xi16>
+      %4 = arith.muli %3, %3 {mgmt.mgmt = #mgmt.mgmt<level = 4, dimension = 3>} : tensor<1024xi16>
+      %5 = mgmt.relinearize %4 {mgmt.mgmt = #mgmt.mgmt<level = 4>} : tensor<1024xi16>
+      %6 = mgmt.modreduce %5 {mgmt.mgmt = #mgmt.mgmt<level = 3>} : tensor<1024xi16>
+      %7 = arith.muli %6, %6 {mgmt.mgmt = #mgmt.mgmt<level = 3, dimension = 3>} : tensor<1024xi16>
+      %8 = mgmt.relinearize %7 {mgmt.mgmt = #mgmt.mgmt<level = 3>} : tensor<1024xi16>
+      %9 = mgmt.modreduce %8 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1024xi16>
+      %10 = arith.muli %9, %9 {mgmt.mgmt = #mgmt.mgmt<level = 2, dimension = 3>} : tensor<1024xi16>
+      %11 = mgmt.relinearize %10 {mgmt.mgmt = #mgmt.mgmt<level = 2>} : tensor<1024xi16>
+      %12 = mgmt.modreduce %11 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1024xi16>
+      %13 = arith.muli %12, %12 {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3>} : tensor<1024xi16>
+      %14 = mgmt.relinearize %13 {mgmt.mgmt = #mgmt.mgmt<level = 1>} : tensor<1024xi16>
+      %15 = mgmt.modreduce %14 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : tensor<1024xi16>
+      secret.yield %15 : tensor<1024xi16>
+    } -> (!secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>})
+    return %0 : !secret.secret<tensor<1024xi16>>
   }
 }

@@ -24,6 +24,9 @@ bool moduleIsBGVOrBFV(Operation *moduleOp);
 bool moduleIsCKKS(Operation *moduleOp);
 bool moduleIsCGGI(Operation *moduleOp);
 
+// Fetch the scheme parameter attribute from the parent module op.
+Attribute getSchemeParamAttr(Operation *op);
+
 void moduleClearScheme(Operation *moduleOp);
 
 void moduleSetBGV(Operation *moduleOp);
@@ -47,6 +50,19 @@ void moduleClearBackend(Operation *moduleOp);
 
 void moduleSetOpenfhe(Operation *moduleOp);
 void moduleSetLattigo(Operation *moduleOp);
+
+// Func attributes for client helpers
+
+constexpr const static ::llvm::StringLiteral kClientEncFuncAttrName =
+    "client_enc_func";
+constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
+    "client_dec_func";
+
+// The name of the function this client helper is made for.
+constexpr const static ::llvm::StringLiteral kClientHelperFuncName =
+    "func_name";
+// The argument or operand index the client helper function is for.
+constexpr const static ::llvm::StringLiteral kClientHelperIndex = "index";
 
 }  // namespace heir
 }  // namespace mlir

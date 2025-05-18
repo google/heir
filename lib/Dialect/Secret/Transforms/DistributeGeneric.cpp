@@ -83,7 +83,7 @@ struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
 //
 // E.g.,
 //
-//    %res = secret.generic ins(%value : !secret.secret<i32>) {
+//    %res = secret.generic(%value : !secret.secret<i32>) {
 //    ^bb0(%clear_value: i32):
 //      %c7 = arith.constant 7 : i32
 //      %0 = arith.muli %clear_value, %c7 : i32
@@ -96,7 +96,7 @@ struct FoldSecretSeparators : public OpRewritePattern<GenericOp> {
 //      %c7 = arith.constant 7 : i32
 //      secret.yield %c7 : i32
 //    } -> !secret.secret<i32>
-//    %1 = secret.generic ins(
+//    %1 = secret.generic(
 //       %arg0, %secret_7 : !secret.secret<i32>, !secret.secret<i32>) {
 //    ^bb0(%clear_arg0: i32, %clear_7: i32):
 //      %7 = arith.muli %clear_arg0, %clear_7 : i32
@@ -128,7 +128,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     if (auto loop = dyn_cast<LoopLikeOpInterface>(opToDistribute)) {
       // Example:
       //
-      //   secret.generic ins(%value : !secret.secret<...>) {
+      //   secret.generic(%value : !secret.secret<...>) {
       //   ^bb0(%clear_value: ...):
       //     %1 = scf.for ... iter_args(%iter_arg = %clear_value) -> ... {
       //       scf.yield ...
@@ -139,7 +139,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // This needs to be converted to:
       //
       //   %1 = scf.for ... iter_args(%iter_arg = %value) -> ... {
-      //     %2 = secret.generic ins(%iter_arg : !secret.secret<...>) {
+      //     %2 = secret.generic(%iter_arg : !secret.secret<...>) {
       //     ^bb0(%clear_iter_arg: ...):
       //       ...
       //       secret.yield %1 : ...
@@ -620,52 +620,6 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   DataFlowSolver *solver;
 };
 
-// should be called right before all splitting
-void moveMgmtAttrAnnotationToFuncArgument(Operation *top) {
-  top->walk([&](secret::GenericOp genericOp) {
-    for (auto i = 0; i != genericOp->getNumOperands(); ++i) {
-      auto operand = genericOp.getOperand(i);
-      auto funcBlockArg = dyn_cast<BlockArgument>(operand);
-      if (isa<SecretType>(operand.getType()) && funcBlockArg) {
-        auto funcOp =
-            dyn_cast<func::FuncOp>(funcBlockArg.getOwner()->getParentOp());
-        auto mgmtAttr =
-            genericOp.removeOperandAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
-        if (mgmtAttr) {
-          funcOp.setArgAttr(funcBlockArg.getArgNumber(),
-                            mgmt::MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-        }
-      }
-    }
-  });
-  // some unused func secret type arg should also be annotated with mgmt attr,
-  // inferred from other used arg
-  top->walk([&](func::FuncOp funcOp) {
-    if (funcOp.isDeclaration()) {
-      return;
-    }
-    Attribute firstMgmtAttr;
-    for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-      firstMgmtAttr = funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
-      if (firstMgmtAttr) {
-        break;
-      }
-    }
-    for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-      auto arg = funcOp.getArgument(i);
-      if (firstMgmtAttr && mlir::isa<SecretType>(arg.getType()) &&
-          !funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName)) {
-        funcOp.setArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName,
-                          firstMgmtAttr);
-      }
-    }
-  });
-
-  // Now handle returned values -> func op result attrs
-  copyReturnOperandAttrsToFuncResultAttrs(top,
-                                          mgmt::MgmtDialect::kArgMgmtAttrName);
-}
-
 // should be called right before all splitting, after
 // moveMgmtAttrAnnotationToFuncArgument
 void moveDialectAttrsToFuncArgument(Operation *top) {
@@ -738,8 +692,6 @@ struct DistributeGeneric
       return;
     }
 
-    // used by secret-to-<scheme> lowering
-    moveMgmtAttrAnnotationToFuncArgument(getOperation());
     // move dialect attrs from secret generic op arg to func arg
     moveDialectAttrsToFuncArgument(getOperation());
 

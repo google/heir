@@ -1,10 +1,5 @@
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 
-#include <algorithm>
-#include <cmath>
-#include <map>
-#include <vector>
-
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"

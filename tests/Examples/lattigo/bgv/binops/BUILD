@@ -10,7 +10,7 @@ heir_lattigo_lib(
     go_library_name = "binops",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=ciphertext-degree=4",
+        "--mlir-to-bgv=ciphertext-degree=1024",
         "--scheme-to-lattigo",
     ],
     mlir_src = "binops.mlir",
