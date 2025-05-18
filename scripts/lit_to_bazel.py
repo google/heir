@@ -1,6 +1,8 @@
 from collections import deque
 import os
 import pathlib
+import shutil
+import subprocess
 
 import fire
 
@@ -58,6 +60,8 @@ def convert_to_run_commands(run_lines):
 def lit_to_bazel(
     lit_test_file: str,
     git_root: str = "",
+    run: bool = False,
+    debug_dir: str = "/tmp/mlir",
 ):
   """A helper CLI that converts MLIR test files to bazel run commands.
 
@@ -107,7 +111,18 @@ def lit_to_bazel(
       "heir-translate", f"{git_root}/bazel-bin/tools/heir-translate"
   )
   joined = joined.replace("%s", str(pathlib.Path(lit_test_file).absolute()))
-  print(joined)
+
+  if run:
+    # delete the debug dir if it exists
+    if os.path.isdir(debug_dir):
+      shutil.rmtree(debug_dir)
+    joined += f" --mlir-print-ir-after-all --mlir-print-ir-tree-dir={debug_dir}"
+    print(joined)
+
+    # run the command
+    subprocess.run(joined, shell=True)
+  else:
+    print(joined)
 
 
 if __name__ == "__main__":
