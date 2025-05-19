@@ -1,23 +1,28 @@
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h"
 
 #include <cstdint>
+#include <iostream>
 #include <optional>
 #include <utility>
 
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeRange.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/TypeRange.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"            // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -26,6 +31,33 @@ namespace heir {
 
 #define GEN_PASS_DEF_TENSORTOSCALARS
 #include "lib/Transforms/TensorToScalars/TensorToScalars.h.inc"
+
+namespace {
+
+SmallVector<SmallVector<int64_t>> getAllIndices(TensorType tensorType) {
+  auto getIndices = [&](ArrayRef<int64_t> shape) {
+    SmallVector<SmallVector<int64_t>> oldResult;
+    while (!shape.empty()) {
+      SmallVector<SmallVector<int64_t>> result;
+      for (auto i = 0; i < shape.front(); ++i) {
+        if (oldResult.empty()) {
+          result.push_back({i});
+        }
+        for (const auto &res : oldResult) {
+          SmallVector<int64_t> newResult = res;
+          newResult.push_back(i);
+          result.push_back(newResult);
+        }
+      }
+      shape = shape.drop_front();
+      oldResult = result;
+    }
+    return oldResult;
+  };
+  return getIndices(tensorType.getShape());
+}
+
+}  // namespace
 
 static Value buildFromElementsOp(OpBuilder &builder,
                                  RankedTensorType resultType, ValueRange inputs,
@@ -44,12 +76,18 @@ static SmallVector<Value> buildExtractOps(OpBuilder &builder,
 
   // Create extract ops in "natural" order (dimension-by-dimension)
   SmallVector<Value> values;
-  for (auto dim : inputType.getShape()) {
-    for (int i = 0; i < dim; ++i) {
-      Value index = builder.create<arith::ConstantIndexOp>(loc, i);
-      Value element = builder.create<tensor::ExtractOp>(loc, input, index);
-      values.push_back(element);
-    }
+  ImplicitLocOpBuilder b(loc, builder);
+  const auto *maxDimension = llvm::max_element(inputType.getShape());
+  SmallVector<Value> constVals;
+  for (auto i = 0; i < *maxDimension; ++i) {
+    constVals.push_back(b.create<arith::ConstantIndexOp>(i));
+  }
+  auto rawIndices = getAllIndices(inputType);
+  for (SmallVector<int64_t> indices : rawIndices) {
+    SmallVector<Value> idxRange = llvm::to_vector(
+        llvm::map_range(indices, [&](int64_t idx) { return constVals[idx]; }));
+    Value element = builder.create<tensor::ExtractOp>(loc, input, idxRange);
+    values.push_back(element);
   }
   return values;
 }
@@ -109,6 +147,76 @@ class ConvertInsertOp : public OpConversionPattern<tensor::InsertOp> {
   }
 };
 
+class ConvertExtractOp : public OpConversionPattern<tensor::ExtractOp> {
+ public:
+  using OpConversionPattern<tensor::ExtractOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      tensor::ExtractOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    // Conversion has no Conversion-level illegality handling
+    if (typeConverter->isLegal(op)) return failure();
+
+    // This pass only operates on tensors of static shape
+    if (!op.getTensor().getType().hasStaticShape()) return failure();
+
+    // Compute the extraction offset (in dimension-by-dimension order):
+    int64_t multiplier = 1;
+    int64_t offset = 0;
+    SmallVector<OpFoldResult> indices = getAsOpFoldResult(op.getIndices());
+
+    for (auto [dim, idx] :
+         llvm::zip(op.getTensor().getType().getShape(), indices)) {
+      // We can only support statically known indices
+      // that have been constant-folded to a single arith.constant op
+      auto constantIdx = dyn_cast<Attribute>(idx);
+      if (!constantIdx) return failure();
+      offset += cast<IntegerAttr>(constantIdx).getInt() * multiplier;
+      multiplier *= dim;
+    }
+
+    // replace the current op with the extracted scalar.
+    Value value = adaptor.getOperands()[0][offset];
+    rewriter.replaceOpWithMultiple(op, {value});
+
+    return success();
+  }
+};
+
+class ConvertConstantOp : public OpConversionPattern<arith::ConstantOp> {
+ public:
+  using OpConversionPattern<arith::ConstantOp>::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      arith::ConstantOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    // Conversion has no Conversion-level illegality handling
+    if (typeConverter->isLegal(op)) return failure();
+
+    RankedTensorType tensorType = dyn_cast<RankedTensorType>(op.getType());
+    if (!tensorType) {
+      return failure();
+    }
+
+    // This pass only operates on tensors of static shape
+    if (!tensorType.hasStaticShape()) return failure();
+
+    auto elementsAttr = dyn_cast<DenseElementsAttr>(op.getValueAttr());
+    if (!elementsAttr) return failure();
+
+    // Replace the current op with flattened constants.
+    SmallVector<Value> constants;
+    for (auto valueAttr : elementsAttr.getValues<Attribute>()) {
+      constants.push_back(rewriter.create<arith::ConstantOp>(
+          op.getLoc(), elementsAttr.getElementType(),
+          cast<TypedAttr>(valueAttr)));
+    }
+
+    rewriter.replaceOpWithMultiple(op, {constants});
+    return success();
+  }
+};
+
 struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
   using TensorToScalarsBase::TensorToScalarsBase;
 
@@ -137,11 +245,13 @@ struct TensorToScalars : impl::TensorToScalarsBase<TensorToScalars> {
       return typeConverter.isSignatureLegal(op.getFunctionType()) &&
              typeConverter.isLegal(&op.getBody());
     });
+    target.addDynamicallyLegalOp<arith::ConstantOp>(
+        [&](arith::ConstantOp op) { return typeConverter.isLegal(op); });
     target.addDynamicallyLegalDialect<func::FuncDialect, scf::SCFDialect>(
         [&](Operation *op) { return typeConverter.isLegal(op); });
     RewritePatternSet patterns(context);
-    patterns.add<ConvertFromElementsOp, ConvertInsertOp>(typeConverter,
-                                                         context);
+    patterns.add<ConvertFromElementsOp, ConvertInsertOp, ConvertExtractOp,
+                 ConvertConstantOp>(typeConverter, context);
     scf::populateSCFStructuralTypeConversions(typeConverter, patterns);
     populateAnyFunctionOpInterfaceTypeConversionPattern(patterns,
                                                         typeConverter);
