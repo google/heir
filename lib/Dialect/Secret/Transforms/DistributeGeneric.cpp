@@ -691,8 +691,6 @@ struct DistributeGeneric
       return;
     }
 
-    // used by secret-to-<scheme> lowering
-    copyMgmtAttrToFunc(getOperation());
     // move dialect attrs from secret generic op arg to func arg
     moveDialectAttrsToFuncArgument(getOperation());
 

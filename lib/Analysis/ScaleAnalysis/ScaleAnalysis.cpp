@@ -14,6 +14,8 @@
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/APIntUtils.h"
+#include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -419,15 +421,13 @@ template class ScaleAnalysisBackward<CKKSScaleModel>;
 // Utils
 //===----------------------------------------------------------------------===//
 
-int64_t getScale(Value value, DataFlowSolver *solver) {
+std::optional<int64_t> getScale(Value value, DataFlowSolver *solver) {
   auto *lattice = solver->lookupState<ScaleLattice>(value);
   if (!lattice) {
-    assert(false && "ScaleLattice not found");
-    return 0;
+    return std::nullopt;
   }
   if (!lattice->getValue().isInitialized()) {
-    assert(false && "ScaleLattice not initialized");
-    return 0;
+    return std::nullopt;
   }
   return lattice->getValue().getScale();
 }
@@ -446,27 +446,15 @@ void annotateScale(Operation *top, DataFlowSolver *solver) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), scale);
   };
 
-  top->walk<WalkOrder::PreOrder>([&](mgmt::InitOp initOp) {
-    auto scale = getScale(initOp.getResult(), solver);
-    initOp->setAttr(kArgScaleAttrName, getIntegerAttr(scale));
-  });
-
-  top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-    for (auto blockArg : genericOp.getBody()->getArguments()) {
-      genericOp.setOperandAttr(blockArg.getArgNumber(), kArgScaleAttrName,
-                               getIntegerAttr(getScale(blockArg, solver)));
+  walkValues(top, [&](Value value) {
+    if (isSecret(value, solver)) {
+      std::optional<int> scale = getScale(value, solver);
+      if (!scale.has_value()) {
+        return;
+      }
+      setAttributeAssociatedWith(value, kArgScaleAttrName,
+                                 getIntegerAttr(scale.value()));
     }
-
-    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
-      if (op->getNumResults() == 0) {
-        return;
-      }
-      if (!isSecret(op->getResult(0), solver)) {
-        return;
-      }
-      op->setAttr(kArgScaleAttrName,
-                  getIntegerAttr(getScale(op->getResult(0), solver)));
-    });
   });
 }
 

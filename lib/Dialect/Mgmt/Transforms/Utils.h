@@ -7,11 +7,6 @@
 namespace mlir {
 namespace heir {
 
-// Copy the mgmt attr from the first use of each func argument to the func's
-// operand attr, and copy the return values' mgmt attrs to the func's result
-// attrs.
-void copyMgmtAttrToFunc(Operation *top);
-
 // Client helper functions require mgmt attributes in order for the type
 // converter to convert them. The correct mgmt attribute to use is
 // determined by the function the helpers are made for, and so

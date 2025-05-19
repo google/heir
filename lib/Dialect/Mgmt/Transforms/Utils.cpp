@@ -13,51 +13,6 @@
 namespace mlir {
 namespace heir {
 
-void copyMgmtAttrToFunc(Operation *top) {
-  top->walk([&](secret::GenericOp genericOp) {
-    for (auto i = 0; i != genericOp->getNumOperands(); ++i) {
-      auto operand = genericOp.getOperand(i);
-      auto funcBlockArg = dyn_cast<BlockArgument>(operand);
-      if (isa<secret::SecretType>(operand.getType()) && funcBlockArg) {
-        auto funcOp =
-            dyn_cast<func::FuncOp>(funcBlockArg.getOwner()->getParentOp());
-        auto mgmtAttr =
-            genericOp.getOperandAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
-        if (mgmtAttr) {
-          funcOp.setArgAttr(funcBlockArg.getArgNumber(),
-                            mgmt::MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-        }
-      }
-    }
-  });
-  // some unused func secret type arg should also be annotated with mgmt attr,
-  // inferred from other used arg
-  top->walk([&](func::FuncOp funcOp) {
-    if (funcOp.isDeclaration()) {
-      return;
-    }
-    Attribute firstMgmtAttr;
-    for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-      firstMgmtAttr = funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
-      if (firstMgmtAttr) {
-        break;
-      }
-    }
-    for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-      auto arg = funcOp.getArgument(i);
-      if (firstMgmtAttr && mlir::isa<secret::SecretType>(arg.getType()) &&
-          !funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName)) {
-        funcOp.setArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName,
-                          firstMgmtAttr);
-      }
-    }
-  });
-
-  // Now handle returned values -> func op result attrs
-  copyReturnOperandAttrsToFuncResultAttrs(top,
-                                          mgmt::MgmtDialect::kArgMgmtAttrName);
-}
-
 LogicalResult copyMgmtAttrToClientHelpers(Operation *op) {
   auto &kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
 

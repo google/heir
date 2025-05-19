@@ -191,34 +191,5 @@ void clearAttrs(Operation *op, StringRef attrName) {
   });
 }
 
-void copyReturnOperandAttrsToFuncResultAttrs(Operation *op,
-                                             StringRef attrName) {
-  op->walk([&](func::FuncOp funcOp) {
-    for (auto &block : funcOp.getBlocks()) {
-      for (OpOperand &returnOperand : block.getTerminator()->getOpOperands()) {
-        FailureOr<Attribute> attr =
-            findAttributeAssociatedWith(returnOperand.get(), attrName);
-        if (failed(attr)) continue;
-        funcOp.setResultAttr(returnOperand.getOperandNumber(), attrName,
-                             attr.value());
-      }
-    }
-  });
-}
-
-void populateOperandAttrInterface(Operation *op, StringRef attrName) {
-  op->walk<WalkOrder::PreOrder>([&](OperandAndResultAttrInterface opInt) {
-    for (auto &opOperand : opInt->getOpOperands()) {
-      FailureOr<Attribute> attrResult =
-          findAttributeAssociatedWith(opOperand.get(), attrName);
-
-      if (failed(attrResult)) continue;
-
-      opInt.setOperandAttr(opOperand.getOperandNumber(), attrName,
-                           attrResult.value());
-    }
-  });
-}
-
 }  // namespace heir
 }  // namespace mlir

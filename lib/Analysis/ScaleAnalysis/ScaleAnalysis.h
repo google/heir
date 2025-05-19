@@ -199,7 +199,7 @@ class ScaleAnalysisBackward
 // Utils
 //===----------------------------------------------------------------------===//
 
-int64_t getScale(Value value, DataFlowSolver *solver);
+std::optional<int64_t> getScale(Value value, DataFlowSolver *solver);
 
 constexpr StringRef kArgScaleAttrName = "mgmt.scale";
 
