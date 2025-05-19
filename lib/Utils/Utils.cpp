@@ -60,6 +60,22 @@ LogicalResult walkAndValidateValues(Operation *op, IsValidValueFn isValidValue,
   return res;
 }
 
+void walkValues(Operation *op, ValueProcessor valueProcessor) {
+  op->walk([&](Operation *op) {
+    if (op->getNumResults() > 0) {
+      for (auto result : op->getResults()) {
+        valueProcessor(result);
+      }
+    }
+
+    if (op->getNumOperands() > 0) {
+      for (auto operand : op->getOperands()) {
+        valueProcessor(operand);
+      }
+    }
+  });
+}
+
 bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
   // special treatment for func declaration
   if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
