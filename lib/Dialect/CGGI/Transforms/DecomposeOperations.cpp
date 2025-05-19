@@ -1,4 +1,4 @@
-#include "lib/Dialect/CGGI/Transforms/ExpandLUT.h"
+#include "lib/Dialect/CGGI/Transforms/DecomposeOperations.h"
 
 #include <cassert>
 #include <utility>
@@ -20,12 +20,12 @@ namespace mlir {
 namespace heir {
 namespace cggi {
 
-#define GEN_PASS_DEF_EXPANDLUT
+#define GEN_PASS_DEF_DECOMPOSEOPERATIONS
 #include "lib/Dialect/CGGI/Transforms/Passes.h.inc"
 
 namespace alignment {
 // In an inner namespace to avoid conflicts with canonicalization patterns
-#include "lib/Dialect/CGGI/Transforms/ExpandLUT.cpp.inc"
+#include "lib/Dialect/CGGI/Transforms/DecomposeOperations.cpp.inc"
 }  // namespace alignment
 
 struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
@@ -55,8 +55,9 @@ struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
   }
 };
 
-struct ExpandLUT : impl::ExpandLUTBase<ExpandLUT> {
-  using ExpandLUTBase::ExpandLUTBase;
+struct DecomposeOperations
+    : impl::DecomposeOperationsBase<DecomposeOperations> {
+  using DecomposeOperationsBase::DecomposeOperationsBase;
 
   void runOnOperation() override {
     MLIRContext *context = &getContext();
