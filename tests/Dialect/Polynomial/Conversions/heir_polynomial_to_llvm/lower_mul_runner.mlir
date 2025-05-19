@@ -19,7 +19,7 @@ func.func @test_poly_mul() {
 
   %3 = polynomial.to_tensor %2 : !poly_ty -> tensor<12x!coeff_ty>
   %ext = mod_arith.extract %3 : tensor<12x!coeff_ty> -> tensor<12xi32>
-  %4 = bufferization.to_memref %ext : tensor<12xi32> to memref<12xi32>
+  %4 = bufferization.to_buffer %ext : tensor<12xi32> to memref<12xi32>
   %U = memref.cast %4 : memref<12xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return

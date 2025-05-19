@@ -24,7 +24,7 @@ func.func @test_lower_mac() {
   %1 = mod_arith.extract %m1 : !Zpv -> tensor<4xi26>
 
   %2 = arith.extui %1 : tensor<4xi26> to tensor<4xi32>
-  %3 = bufferization.to_memref %2 : tensor<4xi32> to memref<4xi32>
+  %3 = bufferization.to_buffer %2 : tensor<4xi32> to memref<4xi32>
   %U = memref.cast %3 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return

@@ -18,7 +18,7 @@ func.func @test_poly_add() {
 
   %3 = polynomial.to_tensor %2 : !poly_ty -> tensor<12x!coeff_ty>
   %4 = mod_arith.extract %3 : tensor<12x!coeff_ty> -> tensor<12xi32>
-  %5 = bufferization.to_memref %4 : tensor<12xi32> to memref<12xi32>
+  %5 = bufferization.to_buffer %4 : tensor<12xi32> to memref<12xi32>
   %U = memref.cast %5 : memref<12xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return

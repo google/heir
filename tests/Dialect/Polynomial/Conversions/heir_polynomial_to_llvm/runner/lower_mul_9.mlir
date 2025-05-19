@@ -32,7 +32,7 @@ func.func @test_9() {
   %3 = polynomial.to_tensor %2 : !poly_ty_9 -> tensor<3x!coeff_ty_9>
   %tensor = mod_arith.extract %3 : tensor<3x!coeff_ty_9> -> tensor<3xi32>
 
-  %ref = bufferization.to_memref %tensor : tensor<3xi32> to memref<3xi32>
+  %ref = bufferization.to_buffer %tensor : tensor<3xi32> to memref<3xi32>
   %U = memref.cast %ref : memref<3xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return

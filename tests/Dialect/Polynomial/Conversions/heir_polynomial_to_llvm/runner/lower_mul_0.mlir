@@ -33,7 +33,7 @@ func.func @test_0() {
   %4 = mod_arith.extract %3 : tensor<12x!coeff_ty_0> -> tensor<12xi64>
   %tensor = arith.trunci %4 : tensor<12xi64> to tensor<12xi32>
 
-  %ref = bufferization.to_memref %tensor : tensor<12xi32> to memref<12xi32>
+  %ref = bufferization.to_buffer %tensor : tensor<12xi32> to memref<12xi32>
   %U = memref.cast %ref : memref<12xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
   return
