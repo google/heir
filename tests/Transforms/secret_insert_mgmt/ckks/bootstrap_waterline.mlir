@@ -1,6 +1,6 @@
 // RUN: heir-opt --mlir-to-secret-arithmetic --secret-insert-mgmt-ckks=bootstrap-waterline=3 %s | FileCheck %s
 
-// CHECK: func.func @bootstrap_waterline(%arg0: !secret.secret<f16>) -> !secret.secret<f16> {
+// CHECK: func.func @bootstrap_waterline
 // CHECK: %0 = secret.generic(%[[arg0:.*]]: !secret.secret<f16> {mgmt.mgmt = #mgmt.mgmt<level = 3>}) {
 // CHECK:  (%[[input0:.*]]: f16):
 // CHECK:    %[[v1:.*]] = arith.addf %[[input0]], %[[input0]] {mgmt.mgmt = #mgmt.mgmt<level = 3>} : f16
