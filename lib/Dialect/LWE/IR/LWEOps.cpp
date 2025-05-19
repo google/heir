@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "lib/Dialect/LWE/IR/LWEAttributes.h"
+#include "lib/Dialect/LWE/IR/LWEPatterns.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
@@ -11,6 +12,7 @@
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
@@ -24,6 +26,8 @@ namespace lwe {
 //===----------------------------------------------------------------------===//
 
 LogicalResult RMulOp::verify() { return lwe::verifyMulOp(this); }
+
+LogicalResult RMulPlainOp::verify() { return lwe::verifyMulPlainOp(this); }
 
 LogicalResult TrivialEncryptOp::verify() {
   auto paramsAttr = this->getParamsAttr();
@@ -137,16 +141,44 @@ LogicalResult RAddOp::inferReturnTypes(
   return lwe::inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
+LogicalResult RAddPlainOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RAddPlainOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
 LogicalResult RSubOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, RSubOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferAddOpReturnTypes(ctx, adaptor, inferredReturnTypes);
 }
 
+LogicalResult RSubPlainOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RSubPlainOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
 LogicalResult RMulOp::inferReturnTypes(
     MLIRContext* ctx, std::optional<Location>, RMulOp::Adaptor adaptor,
     SmallVectorImpl<Type>& inferredReturnTypes) {
   return lwe::inferMulOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+LogicalResult RMulPlainOp::inferReturnTypes(
+    MLIRContext* ctx, std::optional<Location>, RMulPlainOp::Adaptor adaptor,
+    SmallVectorImpl<Type>& inferredReturnTypes) {
+  return lwe::inferMulPlainOpReturnTypes(ctx, adaptor, inferredReturnTypes);
+}
+
+void RAddPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                              MLIRContext* context) {
+  results.add<lwe::PutCiphertextInFirstOperand<RAddPlainOp>>(context);
+}
+
+void RMulPlainOp::getCanonicalizationPatterns(RewritePatternSet& results,
+                                              MLIRContext* context) {
+  results.add<lwe::PutCiphertextInFirstOperand<RMulPlainOp>>(context);
 }
 
 }  // namespace lwe

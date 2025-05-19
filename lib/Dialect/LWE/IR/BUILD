@@ -18,6 +18,7 @@ cc_library(
         "LWEAttributes.h",
         "LWEDialect.h",
         "LWEOps.h",
+        "LWEPatterns.h",
         "LWETraits.h",
         "LWETypes.h",
     ],
@@ -32,9 +33,11 @@ cc_library(
         "@heir//lib/Dialect/RNS/IR:Dialect",
         "@heir//lib/Utils:APIntUtils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
 

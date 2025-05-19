@@ -11,6 +11,8 @@
 !ct1 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params, underlying_type=i3>
 !ct2 = !lwe.rlwe_ciphertext<encoding=#encoding, rlwe_params=#params1, underlying_type=i3>
 
+!pt1 = !lwe.rlwe_plaintext<encoding=#encoding, ring=#ring, underlying_type=i3>
+
 // CHECK: module
 module {
   // CHECK: func.func @test_fn([[X:%.+]]: [[T:tensor<2x!polynomial.*33538049.*]]) -> [[T]] {
@@ -20,12 +22,16 @@ module {
   }
 
 
-  // CHECK: func.func @test_bin_ops([[X:%.+]]: [[T:tensor<2x!polynomial.*33538049.*]], [[Y:%.+]]: [[T]])
-  func.func @test_bin_ops(%x : !ct1, %y : !ct1) -> (!ct1, !ct1, !ct1, !ct2) {
+  // CHECK: func.func @test_bin_ops([[X:%.+]]: [[T:tensor<2x!polynomial.*33538049.*]], [[Y:%.+]]: [[T]], [[A:%.+]]: [[PT:tensor<2x!polynomial.*33538049.*]])
+  func.func @test_bin_ops(%x : !ct1, %y : !ct1, %z : !pt1) -> (!ct1, !ct1, !ct1, !ct1, !ct1, !ct2, !ct1) {
     // CHECK: polynomial.add [[X]], [[Y]] : [[T]]
     %add = bgv.add %x, %y  : !ct1
+    // CHECK: polynomial.add [[X]], [[A]] : [[T]]
+    %add_plain = bgv.add_plain %x, %z : (!ct1, !pt1) -> !ct1
     // CHECK: polynomial.sub [[X]], [[Y]] : [[T]]
     %sub = bgv.sub %x, %y  : !ct1
+    // CHECK: polynomial.sub [[X]], [[A]] : [[T]]
+    %sub_plain = bgv.sub_plain %x %z : !ct1 (!ct1, !pt1) -> !ct1
     // CHECK: [[C:%.+]] = mod_arith.constant -1 : [[I:.+]]
     // CHECK: polynomial.mul_scalar [[X]], [[C]] : [[T]], [[I]]
     %negate = bgv.negate %x  : !ct1
@@ -43,6 +49,16 @@ module {
     // CHECK: [[Z2:%.+]] = polynomial.mul [[X1]], [[Y1]] : [[P]]
     // CHECK: [[Z:%.+]] = tensor.from_elements [[Z0]], [[Z1]], [[Z2]] : tensor<3x[[P]]>
     %mul = bgv.mul %x, %y  : (!ct1, !ct1) -> !ct2
-    return %add, %sub, %negate, %mul : !ct1, !ct1, !ct1, !ct2
+
+    // CHECK: [[I0:%.+]] = arith.constant 0 : index
+    // CHECK: [[I1:%.+]] = arith.constant 1 : index
+    // CHECK: [[X0:%.+]] = tensor.extract [[X]][[[I0]]] : [[T]]
+    // CHECK: [[X1:%.+]] = tensor.extract [[X]][[[I1]]] : [[T]]
+    // CHECK: [[Y0:%.+]] = tensor.extract [[Y]][[[I0]]] : [[PT]]
+    // CHECK: [[Z0:%.+]] = polynomial.mul [[X0]], [[Y0]] : [[P:!polynomial.*33538049.*]]
+    // CHECK: [[Z1:%.+]] = polynomial.mul [[X1]], [[Y0]] : [[P]]
+    // CHECK: [[Z:%.+]] = tensor.from_elements [[Z0]], [[Z1]] : tensor<2x[[P]]>
+    %mul_plain = bgv.mul_plain %x, %z : (!ct1, !pt1) -> !ct1
+    return %add, %add_plain, %sub, %sub_plain, %negate, %mul, %mul_plain: !ct1, !ct1, !ct1, !ct1, !ct1, !ct2, !ct1
   }
 }

@@ -24,10 +24,13 @@ struct CKKSToLWE : public impl::CKKSToLWEBase<CKKSToLWE> {
     auto *module = getOperation();
 
     RewritePatternSet patterns(context);
-    patterns.add<Convert<AddOp, lwe::RAddOp>, Convert<SubOp, lwe::RSubOp>,
-                 Convert<NegateOp, lwe::RNegateOp>, Convert<MulOp, lwe::RMulOp>,
-                 lwe::ConvertExtract<ExtractOp, MulPlainOp, RotateOp> >(
-        context);
+    patterns
+        .add<Convert<AddOp, lwe::RAddOp>, Convert<AddPlainOp, lwe::RAddPlainOp>,
+             Convert<SubOp, lwe::RSubOp>, Convert<SubPlainOp, lwe::RSubPlainOp>,
+             Convert<NegateOp, lwe::RNegateOp>, Convert<MulOp, lwe::RMulOp>,
+             Convert<MulPlainOp, lwe::RMulPlainOp>,
+             lwe::ConvertExtract<ExtractOp, lwe::RMulPlainOp, RotateOp> >(
+            context);
     walkAndApplyPatterns(module, std::move(patterns));
   }
 };
