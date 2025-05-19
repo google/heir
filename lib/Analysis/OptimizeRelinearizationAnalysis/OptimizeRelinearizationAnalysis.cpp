@@ -165,8 +165,12 @@ LogicalResult OptimizeRelinearizationAnalysis::solve() {
   // the computation.
   for (auto &[value, var] : keyBasisVars) {
     if (llvm::isa<BlockArgument>(value)) {
+      std::optional<int> dimension = getDimension(value, solver);
+      if (!dimension.has_value()) {
+        continue;
+      }
       // If the dimension is 3, the key basis is [0, 1, 2] and the degree is 2.
-      auto constrainedDegree = getDimension(value, solver) - 1;
+      auto constrainedDegree = dimension.value() - 1;
       model.AddLinearConstraint(var == constrainedDegree, "");
     }
   }
