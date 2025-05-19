@@ -17,13 +17,14 @@
 namespace mlir {
 namespace heir {
 
-typedef std::function<bool(Operation *)> OpPredicate;
-typedef std::function<LogicalResult(const Type &)> IsValidTypeFn;
-typedef std::function<LogicalResult(const Value &)> IsValidValueFn;
+using OpPredicate = std::function<bool(Operation *)>;
+using IsValidTypeFn = std::function<LogicalResult(const Type &)>;
+using IsValidValueFn = std::function<LogicalResult(const Value &)>;
+using ValueProcessor = std::function<void(const Value &)>;
 
-typedef std::function<bool(const Type &)> TypePredicate;
+using TypePredicate = std::function<bool(const Type &)>;
 
-typedef std::function<bool(Dialect *)> DialectPredicate;
+using DialectPredicate = std::function<bool(Dialect *)>;
 
 using IndexTupleConsumer = std::function<void(const std::vector<int64_t> &)>;
 
@@ -69,6 +70,11 @@ LogicalResult validateValues(Operation *op, IsValidValueFn isValidValue);
 LogicalResult walkAndValidateValues(
     Operation *op, IsValidValueFn isValidValue,
     std::optional<std::string> err = std::nullopt);
+
+/// Walk the IR and apply a predicate to all argument values and produced
+/// values. Values will be visited once for the operation that produces them,
+/// and once for each use.
+void walkValues(Operation *op, ValueProcessor valueProcessor);
 
 /// Walk the IR and apply a predicate to all argument and result types
 /// encountered, returning failure if any type is invalid. Invalidity is
