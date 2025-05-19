@@ -20,6 +20,7 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
@@ -86,11 +87,13 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     auto budget = model.toLogBudget(localParam, noiseState);
 
-    auto boundString = model.toLogBoundString(localParam, noiseState);
-    auto budgetString = model.toLogBudgetString(localParam, noiseState);
-    auto totalString = model.toLogTotalString(localParam);
+    auto boundString =
+        doubleToString2Prec(model.toLogBound(localParam, noiseState));
 
     LLVM_DEBUG({
+      auto budgetString =
+          doubleToString2Prec(model.toLogBudget(localParam, noiseState));
+      auto totalString = doubleToString2Prec(model.toLogTotal(localParam));
       llvm::dbgs() << "Noise Bound: " << boundString
                    << " Budget: " << budgetString << " Total: " << totalString
                    << " for value: " << value << " " << "\n";

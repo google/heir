@@ -121,6 +121,9 @@ void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
                     ArrayRef<int64_t> fixedIndices = {},
                     ArrayRef<int64_t> fixedIndexValues = {});
 
+/// Convert a double to a string with 2 decimal precision.
+std::string doubleToString2Prec(double value);
+
 }  // namespace heir
 }  // namespace mlir
 

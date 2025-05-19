@@ -43,29 +43,6 @@ double Model::toLogTotal(const LocalParamType &param) const {
   return total - 1.0;
 }
 
-std::string Model::toLogBoundString(const LocalParamType &param,
-                                    const StateType &noise) const {
-  auto logBound = toLogBound(param, noise);
-  std::stringstream stream;
-  stream << std::fixed << std::setprecision(2) << logBound;
-  return stream.str();
-}
-
-std::string Model::toLogBudgetString(const LocalParamType &param,
-                                     const StateType &noise) const {
-  auto logBudget = toLogBudget(param, noise);
-  std::stringstream stream;
-  stream << std::fixed << std::setprecision(2) << logBudget;
-  return stream.str();
-}
-
-std::string Model::toLogTotalString(const LocalParamType &param) const {
-  auto logTotal = toLogTotal(param);
-  std::stringstream stream;
-  stream << std::fixed << std::setprecision(2) << logTotal;
-  return stream.str();
-}
-
 double Model::getVarianceErr(const LocalParamType &param) const {
   auto std0 = param.getSchemeParam()->getStd0();
   return std0 * std0;

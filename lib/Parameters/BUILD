@@ -9,6 +9,7 @@ cc_library(
     hdrs = ["RLWEParams.h"],
     deps = [
         ":RLWESecurityParams",
+        "@heir//lib/Utils",
         "@llvm-project//llvm:Support",
         "@openfhe//:core",
     ],

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
 #include <map>
 #include <optional>
 #include <string>
@@ -129,6 +130,12 @@ void iterateIndices(ArrayRef<int64_t> shape, const IndexTupleConsumer &process,
       done = true;
     }
   }
+}
+
+std::string doubleToString2Prec(double value) {
+  std::stringstream stream;
+  stream << std::fixed << std::setprecision(2) << value;
+  return stream.str();
 }
 
 }  // namespace heir
