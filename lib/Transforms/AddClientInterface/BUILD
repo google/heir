@@ -11,6 +11,7 @@ cc_library(
     hdrs = ["AddClientInterface.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@heir//lib/Transforms/ConvertToCiphertextSemantics:AssignLayout",
