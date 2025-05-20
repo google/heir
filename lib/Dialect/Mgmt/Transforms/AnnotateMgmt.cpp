@@ -6,6 +6,7 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/Mgmt/Transforms/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
@@ -110,6 +111,11 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
     // the func terminator.
     copyReturnOperandAttrsToFuncResultAttrs(getOperation(),
                                             MgmtDialect::kArgMgmtAttrName);
+
+    if (failed(copyMgmtAttrToClientHelpers(getOperation()))) {
+      signalPassFailure();
+      return;
+    }
   }
 };
 
