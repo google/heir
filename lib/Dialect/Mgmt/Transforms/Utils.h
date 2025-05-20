@@ -13,7 +13,7 @@ namespace heir {
 // this method copies the relevant mgmt attributes from
 // the original function to the client helper function arg/result attrs
 // so they can be propagated through those IRs. Any existing mgmt attributes
-// on the client helpers are ignored.
+// on the client helpers are replaced.
 //
 // E.g., given the following functions
 //
