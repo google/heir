@@ -9,6 +9,7 @@ glob_lit_tests(
     data = [
         "Cargo.toml",
         "src/main.rs",
+        "src/main_add_round_key.rs",
         "src/main_fully_connected.rs",
         "@heir//tests:test_utilities",
     ],

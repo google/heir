@@ -14,3 +14,7 @@ path = "src/main.rs"
 [[bin]]
 name = "main_fully_connected"
 path = "src/main_fully_connected.rs"
+
+[[bin]]
+name = "main_add_round_key"
+path = "src/main_add_round_key.rs"

@@ -103,7 +103,8 @@ LogicalResult TfheRustHLEmitter::translate(Operation &op) {
                 memref::StoreOp>([&](auto op) { return printOperation(op); })
           // TfheRust ops
           .Case<AddOp, SubOp, MulOp, ScalarRightShiftOp, CastOp,
-                CreateTrivialOp>([&](auto op) { return printOperation(op); })
+                CreateTrivialOp, BitAndOp, BitOrOp, BitXorOp>(
+              [&](auto op) { return printOperation(op); })
           // Tensor ops
           .Case<tensor::ExtractOp, tensor::FromElementsOp, tensor::InsertOp>(
               [&](auto op) { return printOperation(op); })
@@ -380,7 +381,8 @@ LogicalResult TfheRustHLEmitter::printBinaryOp(::mlir::Value result,
                                                std::string_view op) {
   emitAssignPrefix(result);
 
-  if (auto cteOp = dyn_cast<mlir::arith::ConstantOp>(rhs.getDefiningOp())) {
+  if (auto cteOp =
+          dyn_cast_or_null<mlir::arith::ConstantOp>(rhs.getDefiningOp())) {
     auto intValue =
         cast<IntegerAttr>(cteOp.getValue()).getValue().getZExtValue();
     os << checkOrigin(lhs) << variableNames->getNameForValue(lhs) << " " << op
@@ -598,7 +600,15 @@ LogicalResult TfheRustHLEmitter::printOperation(tensor::InsertOp op) {
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(BitAndOp op) {
-  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "&&");
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "&");
+}
+
+LogicalResult TfheRustHLEmitter::printOperation(BitOrOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "|");
+}
+
+LogicalResult TfheRustHLEmitter::printOperation(BitXorOp op) {
+  return printBinaryOp(op.getResult(), op.getLhs(), op.getRhs(), "^");
 }
 
 LogicalResult TfheRustHLEmitter::printOperation(AddOp op) {
@@ -695,9 +705,8 @@ std::string TfheRustHLEmitter::checkOrigin(Value value) {
   // if not: comes from function definition
   mlir::Operation *opParent = value.getDefiningOp();
   if (opParent) {
-    if (!isa<tensor::FromElementsOp>(opParent) &&
-        !isa<tensor::ExtractOp>(opParent) &&
-        !isa<affine::AffineLoadOp>(opParent))
+    if (!isa<tensor::FromElementsOp, tensor::ExtractOp, affine::AffineLoadOp,
+             memref::LoadOp>(opParent))
       return "&";
 
   } else {

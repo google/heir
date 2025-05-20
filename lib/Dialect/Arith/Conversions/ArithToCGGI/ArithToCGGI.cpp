@@ -561,6 +561,7 @@ struct ArithToCGGI : public impl::ArithToCGGIBase<ArithToCGGI> {
         ConvertArithBinOp<mlir::arith::MinSIOp, cggi::MinOp>,
         ConvertArithBinOp<mlir::arith::MaxUIOp, cggi::MaxOp>,
         ConvertArithBinOp<mlir::arith::MinUIOp, cggi::MinOp>,
+        ConvertArithBinOp<mlir::arith::XOrIOp, cggi::XorOp>,
         ConvertAny<memref::LoadOp>, ConvertAllocOp,
         ConvertAny<memref::DeallocOp>, ConvertAny<memref::SubViewOp>,
         ConvertAny<memref::CopyOp>, ConvertAny<memref::StoreOp>,
