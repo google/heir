@@ -33,6 +33,10 @@ void setAttributeAssociatedWith(Value value, StringRef attrName,
 // OperandAndResultAttrInterface.
 void clearAttrs(Operation *op, StringRef attrName);
 
+// Walk the op and copy attributes associated with any func.return operands to
+// the enclosing func.func's result attrs.
+void copyReturnOperandAttrsToFuncResultAttrs(Operation *op, StringRef attrName);
+
 }  // namespace heir
 }  // namespace mlir
 

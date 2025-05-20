@@ -1,11 +1,8 @@
 #include "lib/Dialect/Mgmt/Transforms/Utils.h"
 
-#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/ModuleAttributes.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Transforms/PropagateAnnotation/PropagateAnnotation.h"
-#include "lib/Utils/AttributeUtils.h"
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
@@ -13,10 +10,11 @@
 namespace mlir {
 namespace heir {
 
-LogicalResult copyMgmtAttrToClientHelpers(Operation *op) {
-  auto &kArgMgmtAttrName = mgmt::MgmtDialect::kArgMgmtAttrName;
-
+LogicalResult copyAttrToClientHelpers(Operation *op, StringRef attrName) {
   ModuleOp moduleOp = dyn_cast<ModuleOp>(op);
+  if (!moduleOp) {
+    return op->emitError() << "copyAttrToClientHelpers expected module op";
+  }
   WalkResult result = op->walk([&](func::FuncOp funcOp) {
     // Check for the helper attributes
     auto clientEncAttr =
@@ -38,23 +36,23 @@ LogicalResult copyMgmtAttrToClientHelpers(Operation *op) {
     };
 
     if (clientEncAttr) {
-      auto mgmtAttr = originalFunc.getArgAttr(index, kArgMgmtAttrName);
+      auto mgmtAttr = originalFunc.getArgAttr(index, attrName);
       if (!mgmtAttr) {
         originalFunc.emitError()
             << "expected mgmt attribute on original function argument";
         return WalkResult::interrupt();
       }
-      funcOp.setResultAttr(0, kArgMgmtAttrName, mgmtAttr);
-      backwardPropagateAnnotation(funcOp, kArgMgmtAttrName, shouldPropagate);
+      funcOp.setResultAttr(0, attrName, mgmtAttr);
+      backwardPropagateAnnotation(funcOp, attrName, shouldPropagate);
     } else {
-      auto mgmtAttr = originalFunc.getResultAttr(index, kArgMgmtAttrName);
+      auto mgmtAttr = originalFunc.getResultAttr(index, attrName);
       if (!mgmtAttr) {
         originalFunc.emitError()
             << "expected mgmt attribute on original function argument";
         return WalkResult::interrupt();
       }
-      funcOp.setArgAttr(0, kArgMgmtAttrName, mgmtAttr);
-      forwardPropagateAnnotation(funcOp, kArgMgmtAttrName, shouldPropagate);
+      funcOp.setArgAttr(0, attrName, mgmtAttr);
+      forwardPropagateAnnotation(funcOp, attrName, shouldPropagate);
     }
 
     return WalkResult::advance();

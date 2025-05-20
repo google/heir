@@ -42,6 +42,8 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  LLVM_DEBUG(llvm::dbgs() << "visitOperation for " << op->getName() << "\n");
+
   llvm::TypeSwitch<Operation &>(*op)
       .Case<secret::GenericOp>([&](auto genericOp) {
         Block *body = genericOp.getBody();

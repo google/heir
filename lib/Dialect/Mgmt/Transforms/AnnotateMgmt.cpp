@@ -95,7 +95,14 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
     clearAttrs(getOperation(), kArgDimensionAttrName);
     clearAttrs(getOperation(), kArgScaleAttrName);
 
-    if (failed(copyMgmtAttrToClientHelpers(getOperation()))) {
+    // Dataflow analyses don't assign anything to function results because they
+    // don't have a corresponding Value. So we have to manually copy it from
+    // the func terminator.
+    copyReturnOperandAttrsToFuncResultAttrs(getOperation(),
+                                            MgmtDialect::kArgMgmtAttrName);
+
+    if (failed(copyAttrToClientHelpers(getOperation(),
+                                       MgmtDialect::kArgMgmtAttrName))) {
       signalPassFailure();
       return;
     }

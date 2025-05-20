@@ -191,5 +191,20 @@ void clearAttrs(Operation *op, StringRef attrName) {
   });
 }
 
+void copyReturnOperandAttrsToFuncResultAttrs(Operation *op,
+                                             StringRef attrName) {
+  op->walk([&](func::FuncOp funcOp) {
+    for (auto &block : funcOp.getBlocks()) {
+      for (OpOperand &returnOperand : block.getTerminator()->getOpOperands()) {
+        FailureOr<Attribute> attr =
+            findAttributeAssociatedWith(returnOperand.get(), attrName);
+        if (failed(attr)) continue;
+        funcOp.setResultAttr(returnOperand.getOperandNumber(), attrName,
+                             attr.value());
+      }
+    }
+  });
+}
+
 }  // namespace heir
 }  // namespace mlir

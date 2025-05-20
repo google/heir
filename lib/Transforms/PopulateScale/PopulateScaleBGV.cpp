@@ -89,8 +89,7 @@ struct PopulateScaleBGV : impl::PopulateScaleBGVBase<PopulateScaleBGV> {
     // FIXME: func operands aren't getting scale from the secret.generic, seems
     // like backward prop isn't handling region-holding ops well.
     //
-    // FIXME: scale not forward-propagating through secret.generic, result attrs
-    // not getting scale nor is function result attr.
+    // FIXME: scale not forward-propagating through secret.generic
 
     // pass scale to AnnotateMgmt pass
     annotateScale(getOperation(), &solver);
