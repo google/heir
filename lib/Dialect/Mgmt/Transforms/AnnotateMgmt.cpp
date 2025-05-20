@@ -7,6 +7,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/Mgmt/Transforms/Utils.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -134,6 +135,11 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
     // The optional scale is passed by annotateScale() when calling
     // this pass.
     annotateMgmtAttr(getOperation());
+
+    if (failed(copyMgmtAttrToClientHelpers(getOperation()))) {
+      signalPassFailure();
+      return;
+    }
   }
 };
 
