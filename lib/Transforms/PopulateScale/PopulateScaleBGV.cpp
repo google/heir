@@ -86,6 +86,12 @@ struct PopulateScaleBGV : impl::PopulateScaleBGVBase<PopulateScaleBGV> {
     // at this time all adjust_scale should have ScaleLattice for its result.
     // all plaintext (mgmt.init) should have ScaleLattice for its result.
 
+    // FIXME: func operands aren't getting scale from the secret.generic, seems
+    // like backward prop isn't handling region-holding ops well.
+    //
+    // FIXME: scale not forward-propagating through secret.generic, result attrs
+    // not getting scale nor is function result attr.
+
     // pass scale to AnnotateMgmt pass
     annotateScale(getOperation(), &solver);
     OpPassManager annotateMgmt("builtin.module");
