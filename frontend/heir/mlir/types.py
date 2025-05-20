@@ -8,20 +8,15 @@ from numba.core.types import boolean, int8, int16, int32, int64, float32, float6
 T = TypeVar("T")
 Ts = TypeVarTuple("Ts")
 
-
-operator_error_message = (
-    "MLIRTypeAnnotation should only be used for annotations."
-)
+operator_error_message = "MLIRType should only be used for annotations."
 
 
-class MLIRTypeAnnotation(ABC):
+class MLIRType(ABC):
 
   @staticmethod
   @abstractmethod
   def numba_type() -> NumbaType:
-    raise NotImplementedError(
-        "No numba type exists for a generic MLIRTypeAnnotation"
-    )
+    raise NotImplementedError("No numba type exists for a generic MLIRType")
 
   def __add__(self, other) -> Self:
     raise RuntimeError(operator_error_message)
@@ -33,63 +28,63 @@ class MLIRTypeAnnotation(ABC):
     raise RuntimeError(operator_error_message)
 
 
-class Secret(Generic[T], MLIRTypeAnnotation):
+class Secret(Generic[T], MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     raise NotImplementedError("No numba type exists for a generic Secret")
 
 
-class Tensor(Generic[*Ts], MLIRTypeAnnotation):
+class Tensor(Generic[*Ts], MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     raise NotImplementedError("No numba type exists for a generic Tensor")
 
 
-class F32(MLIRTypeAnnotation):
+class F32(MLIRType):
   # TODO (#1162): For CKKS/Float: allow specifying actual intended precision/scale and warn/error if not achievable  @staticmethod
   @staticmethod
   def numba_type() -> NumbaType:
     return float32
 
 
-class F64(MLIRTypeAnnotation):
+class F64(MLIRType):
   # TODO (#1162): For CKKS/Float: allow specifying actual intended precision/scale and warn/error if not achievable  @staticmethod
   @staticmethod
   def numba_type() -> NumbaType:
     return float64
 
 
-class I1(MLIRTypeAnnotation):
+class I1(MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     return boolean
 
 
-class I8(MLIRTypeAnnotation):
+class I8(MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     return int8
 
 
-class I16(MLIRTypeAnnotation):
+class I16(MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     return int16
 
 
-class I32(MLIRTypeAnnotation):
+class I32(MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     return int32
 
 
-class I64(MLIRTypeAnnotation):
+class I64(MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
@@ -123,7 +118,7 @@ def to_numba_type(type: type) -> NumbaType:
     ty.shape = shape  # type: ignore
     return ty
 
-  if issubclass(type, MLIRTypeAnnotation):
+  if issubclass(type, MLIRType):
     return type.numba_type()
 
   raise TypeError(f"Unsupported type annotation: {type}, {get_origin(type)}")
