@@ -206,19 +206,5 @@ void copyReturnOperandAttrsToFuncResultAttrs(Operation *op,
   });
 }
 
-void populateOperandAttrInterface(Operation *op, StringRef attrName) {
-  op->walk<WalkOrder::PreOrder>([&](OperandAndResultAttrInterface opInt) {
-    for (auto &opOperand : opInt->getOpOperands()) {
-      FailureOr<Attribute> attrResult =
-          findAttributeAssociatedWith(opOperand.get(), attrName);
-
-      if (failed(attrResult)) continue;
-
-      opInt.setOperandAttr(opOperand.getOperandNumber(), attrName,
-                           attrResult.value());
-    }
-  });
-}
-
 }  // namespace heir
 }  // namespace mlir

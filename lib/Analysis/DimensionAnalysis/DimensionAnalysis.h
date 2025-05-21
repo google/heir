@@ -99,7 +99,8 @@ class DimensionAnalysis
 
 // this function will assert false when Lattice does not exist or not
 // initialized
-DimensionState::DimensionType getDimension(Value value, DataFlowSolver *solver);
+std::optional<DimensionState::DimensionType> getDimension(
+    Value value, DataFlowSolver *solver);
 
 DimensionState::DimensionType getDimensionFromMgmtAttr(Value value);
 

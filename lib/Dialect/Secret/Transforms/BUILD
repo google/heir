@@ -54,6 +54,7 @@ cc_library(
         ":pass_inc_gen",
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
+        "@heir//lib/Dialect/Mgmt/Transforms:Utils",
         "@heir//lib/Dialect/Secret/IR:SecretPatterns",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
