@@ -81,7 +81,7 @@ class DimensionAnalysis
   friend class SecretnessAnalysisDependent<DimensionAnalysis>;
 
   void setToEntryState(DimensionLattice *lattice) override {
-    propagateIfChanged(lattice, lattice->join(DimensionState()));
+    propagateIfChanged(lattice, lattice->join(DimensionState(2)));
   }
 
   LogicalResult visitOperation(Operation *op,

@@ -42,13 +42,6 @@ LogicalResult DimensionAnalysis::visitOperation(
   };
 
   llvm::TypeSwitch<Operation &>(*op)
-      .Case<secret::GenericOp>([&](auto genericOp) {
-        Block *body = genericOp.getBody();
-        for (auto i = 0; i != body->getNumArguments(); ++i) {
-          auto blockArg = body->getArgument(i);
-          propagate(blockArg, DimensionState(2));
-        }
-      })
       .Case<mgmt::RelinearizeOp>([&](auto relinearizeOp) {
         // implicitly ensure that the operand is secret
         propagate(relinearizeOp.getResult(), DimensionState(2));
@@ -113,11 +106,9 @@ void DimensionAnalysis::visitExternalCall(
 int getDimension(Value value, DataFlowSolver *solver) {
   auto *lattice = solver->lookupState<DimensionLattice>(value);
   if (!lattice) {
-    assert(false && "DimensionLattice not found");
     return 2;
   }
   if (!lattice->getValue().isInitialized()) {
-    assert(false && "DimensionLattice not initialized");
     return 2;
   }
   return lattice->getValue().getDimension();

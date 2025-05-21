@@ -113,7 +113,8 @@ class CountAnalysis
   friend class SecretnessAnalysisDependent<CountAnalysis>;
 
   void setToEntryState(CountLattice *lattice) override {
-    propagateIfChanged(lattice, lattice->join(CountState()));
+    // one addition in Vfresh
+    propagateIfChanged(lattice, lattice->join(CountState(1, 0)));
   }
 
   LogicalResult visitOperation(Operation *op,

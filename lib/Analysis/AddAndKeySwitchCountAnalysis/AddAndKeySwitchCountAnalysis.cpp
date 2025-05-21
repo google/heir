@@ -35,14 +35,6 @@ LogicalResult CountAnalysis::visitOperation(
   };
 
   llvm::TypeSwitch<Operation &>(*op)
-      .Case<secret::GenericOp>([&](auto genericOp) {
-        Block *body = genericOp.getBody();
-        for (auto i = 0; i != body->getNumArguments(); ++i) {
-          auto blockArg = body->getArgument(i);
-          // one Vfresh
-          propagate(blockArg, CountState(1, 0));
-        }
-      })
       .Case<arith::AddIOp, arith::SubIOp, arith::AddFOp, arith::SubFOp>(
           [&](auto &op) {
             // condition on result secretness
@@ -158,10 +150,12 @@ void annotateCount(Operation *top, DataFlowSolver *solver) {
 
   auto getCount = [&](Value value) {
     auto state = solver->lookupState<CountLattice>(value)->getValue();
+    int addCount = state.isInitialized() ? state.getAddCount() : 0;
+    int keySwitchCount = state.isInitialized() ? state.getKeySwitchCount() : 0;
     // update the max
-    maxAddCount = std::max(maxAddCount, state.getAddCount());
-    maxKeySwitchCount = std::max(maxKeySwitchCount, state.getKeySwitchCount());
-    return std::make_tuple(state.getAddCount(), state.getKeySwitchCount());
+    maxAddCount = std::max(maxAddCount, addCount);
+    maxKeySwitchCount = std::max(maxKeySwitchCount, keySwitchCount);
+    return std::make_tuple(addCount, keySwitchCount);
   };
 
   top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {

@@ -127,7 +127,7 @@ class LevelAnalysisBackward
   friend class SecretnessAnalysisDependent<LevelAnalysis>;
 
   void setToExitState(LevelLattice *lattice) override {
-    propagateIfChanged(lattice, lattice->join(LevelState()));
+    propagateIfChanged(lattice, lattice->join(LevelState(0)));
   }
 
   LogicalResult visitOperation(Operation *op, ArrayRef<LevelLattice *> operands,

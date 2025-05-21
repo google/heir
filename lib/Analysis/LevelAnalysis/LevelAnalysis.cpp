@@ -41,13 +41,6 @@ LogicalResult LevelAnalysis::visitOperation(
   };
 
   llvm::TypeSwitch<Operation &>(*op)
-      .Case<secret::GenericOp>([&](auto genericOp) {
-        Block *body = genericOp.getBody();
-        for (auto i = 0; i != body->getNumArguments(); ++i) {
-          auto blockArg = body->getArgument(i);
-          propagate(blockArg, LevelState(0));
-        }
-      })
       .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         // implicitly ensure that the operand is secret
         const auto *operandLattice = operands[0];
@@ -167,10 +160,12 @@ static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
         return;
       }
       // ensure result is secret
-      auto level = solver->lookupState<LevelLattice>(op->getResult(0))
-                       ->getValue()
-                       .getLevel();
-      maxLevel = std::max(maxLevel, level);
+      auto level =
+          solver->lookupState<LevelLattice>(op->getResult(0))->getValue();
+      if (!level.isInitialized()) {
+        return;
+      }
+      maxLevel = std::max(maxLevel, level.getLevel());
     });
   });
   return maxLevel;
@@ -186,8 +181,8 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
 
   // use L to 0 instead of 0 to L
   auto getLevel = [&](Value value) {
-    return maxLevel -
-           solver->lookupState<LevelLattice>(value)->getValue().getLevel() +
+    auto lattice = solver->lookupState<LevelLattice>(value)->getValue();
+    return maxLevel - (lattice.isInitialized() ? lattice.getLevel() : 0) +
            baseLevel;
   };
 
