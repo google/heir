@@ -95,6 +95,8 @@ def Secret_RevealOp : Secret_Op<"reveal", [Pure]> {
 
 
 def Secret_YieldOp : Secret_Op<"yield", [
+    // ReturnLike provides a default implementation of
+    // RegionBranchTerminatorOpInterface::getMutableSuccessorOperands
     Pure, ReturnLike, Terminator, HasParent<"GenericOp">
 ]>,
   Arguments<(ins Variadic<AnyType>:$values)> {
@@ -114,7 +116,25 @@ def Secret_GenericOp : Secret_Op<"generic", [
   SingleBlock,
   SingleBlockImplicitTerminator<"YieldOp">,
   OpAsmOpInterface,
-  OperandAndResultAttrInterface
+  OperandAndResultAttrInterface,
+  DeclareOpInterfaceMethods<RegionBranchOpInterface, [
+    // Generic operands forward to the body's block arguments with a type change
+    "getEntrySuccessorOperands",
+
+    // getEntrySuccessorRegions is not needed because we always enter the region
+    // this is used for other operations that may not execute the body (e.g.,
+    // a loop with statically-determined zero iterations.
+
+    // RegionBranchPoint::parent() -> body,
+    // body -> RegionBranchPoint::parent()
+    "getSuccessorRegions",
+
+    // Generic runs exactly once.
+    "getRegionInvocationBounds",
+
+    // Cleartext types are compatible to forward to secret region results.
+    "areTypesCompatible"
+  ]>
 ]> {
   let summary = "Lift a plaintext computation to operate on secrets.";
   let description = [{
