@@ -750,7 +750,9 @@ bool GenericOp::areTypesCompatible(Type t1, Type t2) {
     return t1 == s2.getValueType();
   }
 
-  return false;
+  // Generic operands need not be secret, so in this case the types must be
+  // equal.
+  return t1 == t2;
 }
 
 }  // namespace secret
