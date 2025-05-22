@@ -46,6 +46,7 @@ cc_library(
         ":ops_inc_gen",
         ":types_inc_gen",
         "@heir//lib/Dialect:HEIRInterfaces",
+        "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineAnalysis",
         "@llvm-project//mlir:AffineDialect",

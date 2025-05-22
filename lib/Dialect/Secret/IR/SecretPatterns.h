@@ -17,7 +17,8 @@ namespace mlir {
 namespace heir {
 namespace secret {
 
-// Inline the inner block of a secret.generic that has no secret operands.
+// Inline the inner block of a secret.generic that has no secret operands and no
+// secret results.
 //
 // E.g.,
 //
@@ -32,6 +33,7 @@ namespace secret {
 //
 //    %0 = arith.constant 0 : i32
 //    %res = arith.muli %value, %0 : i32
+//    secret.conceal %res : i32 to !secret.secret<i32>
 //
 struct CollapseSecretlessGeneric : public OpRewritePattern<GenericOp> {
   CollapseSecretlessGeneric(mlir::MLIRContext *context)
@@ -110,7 +112,7 @@ struct RemoveUnusedYieldedValues : public OpRewritePattern<GenericOp> {
 // directly in the enclosing scope.
 struct RemoveNonSecretGenericArgs : public OpRewritePattern<GenericOp> {
   RemoveNonSecretGenericArgs(mlir::MLIRContext *context)
-      : OpRewritePattern<GenericOp>(context, /*benefit=*/2) {}
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/3) {}
 
  public:
   LogicalResult matchAndRewrite(GenericOp op,
@@ -225,6 +227,21 @@ struct HoistPlaintextOps : public OpRewritePattern<GenericOp> {
                                 PatternRewriter &rewriter) const override;
 };
 
+// When secret.generic uses the output of a secret.conceal, forward the
+// conceal operand. Other patterns may introduce extra secret.conceal
+// ops to maintain type consistency (e.g., of function return signatures).
+// But most of the time we want to elide those conceals so that
+// ciphertext-ciphertext ops inside a secret.generic can be converted to
+// plaintext-ciphertext ops.
+struct ConcealThenGeneric : public OpRewritePattern<GenericOp> {
+  ConcealThenGeneric(mlir::MLIRContext *context)
+      : OpRewritePattern<GenericOp>(context, /*benefit=*/1) {}
+
+ public:
+  LogicalResult matchAndRewrite(GenericOp op,
+                                PatternRewriter &rewriter) const override;
+};
+
 // Inspects a generic body for any constant operands, and copies the constant
 // definition inside the generic body. This is useful for performing IR
 // optimizations local to the generic body, so that constants can be folded
@@ -240,30 +257,6 @@ void genericAbsorbDealloc(secret::GenericOp genericOp,
 // body with a call to the created function.
 LogicalResult extractGenericBody(secret::GenericOp genericOp,
                                  mlir::IRRewriter &rewriter);
-
-// This pattern adjusts function types that have become invalid due to one of
-// the patterns above. For example, CollapseSecretlessGeneric can lead to a
-// `func.return %i : !secret.secret<t>` being simplified back to
-// `func.return %i : t` while the function type still indicates the secret type.
-//
-//  // Simple example: a function that does not actually use its secret input
-//  func.func @func(%arg0: i16 {secret.secret}) -> i16 {
-//   %c1_i16 = arith.constant 1 : i16
-//   return %c1_i16 : i16
-// }
-//
-// TODO (#888): Rather than relying on `FixSecretInFunctionType` pattern,
-// instead use Secretness Analysis (after it fully supports all IR constructs)
-// in the `--wrap-generic` pass to decide whether or not to wrap the function
-// return type in `!secret.secret<..>`
-struct FixSecretInFunctionType : public OpRewritePattern<func::FuncOp> {
-  FixSecretInFunctionType(mlir::MLIRContext *context)
-      : OpRewritePattern<func::FuncOp>(context, /*benefit=*/1) {}
-
- public:
-  LogicalResult matchAndRewrite(func::FuncOp op,
-                                PatternRewriter &rewriter) const override;
-};
 
 }  // namespace secret
 }  // namespace heir

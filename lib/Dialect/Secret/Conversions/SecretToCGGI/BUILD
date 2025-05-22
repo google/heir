@@ -18,6 +18,7 @@ cc_library(
         "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Transforms/MemrefToArith:Utils",
         "@heir//lib/Utils:ContextAwareConversionUtils",
         "@heir//lib/Utils:ContextAwareDialectConversion",
         "@heir//lib/Utils:ContextAwareTypeConversion",

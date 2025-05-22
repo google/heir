@@ -13,6 +13,7 @@
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
@@ -113,14 +114,6 @@ struct ConvertAnyContextAware<void> : public ContextAwareConversionPattern {
     return finalizeOpModification(result.value(), rewriter);
   }
 };
-
-// For each attribute name in arrayOfDicts, extract an ArrayAttr of the values
-// for that name and add it to result.
-//
-// If there is only one dictionary in the array, extract the attributes
-// directly without wrapping them in array attrs
-void convertArrayOfDicts(ArrayAttr arrayOfDicts,
-                         SmallVector<NamedAttribute> &result);
 
 template <typename T, typename Y = T>
 class SecretGenericOpConversion
