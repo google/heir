@@ -31,7 +31,10 @@ bazel_dep(name = "rules_python", version = "1.2.0")
 bazel_dep(name = "googletest", version = "1.16.0")
 bazel_dep(name = "google_benchmark", version = "1.9.1")
 bazel_dep(name = "abseil-cpp", version = "20250127.0", repo_name = "com_google_absl")
-bazel_dep(name = "eigen", version = "4.0.0-20241125.bcr.1")
+
+# eigen 4.0.0-20241125.bcr.1 has issues with gitlab changing the checksum
+# Cf. https://github.com/google/heir/issues/1840
+bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
 bazel_dep(name = "or-tools", version = "9.12", repo_name = "com_google_ortools")
 
 # needed as transitive deps of yosys
