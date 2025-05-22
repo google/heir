@@ -11,6 +11,7 @@
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -50,6 +51,18 @@ void annotateMgmtAttr(Operation *top) {
     Attribute mgmtAttr =
         mergeIntoMgmtAttr(levelAttr.value(), dimensionAttr.value(), scaleAttr);
     setAttributeAssociatedWith(value, MgmtDialect::kArgMgmtAttrName, mgmtAttr);
+  });
+
+  // Function declarations have no values and must be handled manually
+  top->walk<WalkOrder::PreOrder>([&](func::FuncOp funcOp) {
+    if (!funcOp.isExternal()) return;
+    for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
+      auto argumentTy = funcOp.getFunctionType().getInput(i);
+      if (isa<secret::SecretType>(argumentTy)) {
+        funcOp.setArgAttr(i, MgmtDialect::kArgMgmtAttrName,
+                          MgmtAttr::get(top->getContext(), 0, 2));
+      }
+    }
   });
 }
 
