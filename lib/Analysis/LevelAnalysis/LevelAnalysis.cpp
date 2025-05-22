@@ -8,7 +8,6 @@
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
@@ -158,7 +157,7 @@ LogicalResult LevelAnalysisBackward::visitOperation(
 static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
   auto maxLevel = 0;
   walkValues(top, [&](Value value) {
-    if (isSecret(value, solver)) {
+    if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
       auto levelState = solver->lookupState<LevelLattice>(value)->getValue();
       if (levelState.isInitialized()) {
         auto level = levelState.getLevel();
@@ -190,7 +189,7 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
   };
 
   walkValues(top, [&](Value value) {
-    if (isSecret(value, solver)) {
+    if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
       int level = getLevel(value);
       setAttributeAssociatedWith(value, kArgLevelAttrName,
                                  getIntegerAttr(level));

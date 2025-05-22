@@ -270,8 +270,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
         this->getSecretOperands(op, secretOperands);
         for (auto &opOperand : op->getOpOperands()) {
           if (!this->isSecretInternal(op, opOperand.get()) &&
-              opOperand.get().getDefiningOp() &&
-              isa<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
+              isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
             // Treat it as if it were secret for the purpose of scale
             // propagation
             secretOperands.push_back(&opOperand);
@@ -441,7 +440,7 @@ void annotateScale(Operation *top, DataFlowSolver *solver) {
   };
 
   walkValues(top, [&](Value value) {
-    if (isSecret(value, solver)) {
+    if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
       setAttributeAssociatedWith(value, kArgScaleAttrName,
                                  getIntegerAttr(getScale(value, solver)));
     }

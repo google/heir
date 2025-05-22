@@ -127,13 +127,23 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
 
   walkValues(top, [&](Value value) {
     std::optional<int> dimension = getDimension(value, solver);
-    if (isSecret(value, solver)) {
-      if (!dimension.has_value()) {
+
+    if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      // Other analyses will backprop to mgmt.init, and hence mgmt.init will
+      // have a lattice value. Here we don't backprop, though perhaps we should
+      // in case a mgmt.init is used for a ct-pt op at dimension-3.
+      //
+      // In that case, we can avoid the default value_or(2) below and properly
+      // err whenever an analysis result is not present and
+      // shouldHaveMgmtAttribute is true.
+      //
+      // TODO(#1847): backpropagate dimension analysis to mgmt.init.
+      if (!dimension.has_value() && isSecret(value, solver)) {
         assert(false &&
                "secret-typed value not processed by dimension analysis!");
       }
       setAttributeAssociatedWith(value, kArgDimensionAttrName,
-                                 getIntegerAttr(dimension.value()));
+                                 getIntegerAttr(dimension.value_or(2)));
     }
   });
 }
