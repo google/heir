@@ -1,4 +1,4 @@
-// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --secret-insert-mgmt-ckks=slot-number=1024 --generate-param-ckks --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=openfhe scheme=ckks" --secret-insert-mgmt-ckks=slot-number=1024 --generate-param-ckks --secret-distribute-generic --canonicalize --secret-to-ckks %s | FileCheck %s
 
 module {
 // CHECK: func @hv_matmul

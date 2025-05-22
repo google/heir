@@ -16,12 +16,14 @@
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Transforms/MemrefToArith/Utils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
@@ -643,25 +645,21 @@ struct ConvertSecretConcealOp
         op.getResult().getType(), getTypeConverter()
                                       ->getContextualAttr(op.getResult())
                                       .value_or(nullptr));
-    auto memrefTy = dyn_cast<MemRefType>(convertedTy);
-    auto ctTy = cast<lwe::LWECiphertextType>(memrefTy.getElementType());
+    auto ctTy = cast<lwe::LWECiphertextType>(getElementTypeOrSelf(convertedTy));
     auto ptxtTy =
         lwe::LWEPlaintextType::get(rewriter.getContext(), ctTy.getEncoding());
 
-    Value valueToStore = adaptor.getCleartext();
-    IntegerType valueType = dyn_cast<IntegerType>(valueToStore.getType());
-
-    auto allocOp = b.create<memref::AllocOp>(memrefTy);
-    Value valueMemref = allocOp.getResult();
-
-    if (valueType.getWidth() == 1) {
-      auto ctValue = b.create<lwe::TrivialEncryptOp>(
-          ctTy,
-          b.create<lwe::EncodeOp>(ptxtTy, valueToStore, ctTy.getEncoding()),
-          lwe::LWEParamsAttr());
-      SmallVector<Value> indices = {b.create<arith::ConstantIndexOp>(0)};
-      b.create<memref::StoreOp>(ctValue, valueMemref, indices);
-    } else {
+    auto storeElement = [&](TypedValue<IntegerType> element,
+                            SmallVector<Value> indices, Value memref) {
+      auto point = b.saveInsertionPoint();
+      auto valueType = element.getType();
+      if (valueType.getWidth() == 1) {
+        auto ctValue = b.create<lwe::TrivialEncryptOp>(
+            ctTy, b.create<lwe::EncodeOp>(ptxtTy, element, ctTy.getEncoding()),
+            lwe::LWEParamsAttr());
+        b.create<memref::StoreOp>(ctValue, memref, indices);
+        return;
+      }
       auto loop = b.create<mlir::affine::AffineForOp>(0, valueType.getWidth());
       b.setInsertionPointToStart(loop.getBody());
       auto idx = loop.getInductionVar();
@@ -670,20 +668,58 @@ struct ConvertSecretConcealOp
           valueType, rewriter.getIntegerAttr(valueType, 1));
       auto shiftAmount = b.create<arith::IndexCastOp>(valueType, idx);
       auto bitMask = b.create<arith::ShLIOp>(valueType, one, shiftAmount);
-      auto andOp = b.create<arith::AndIOp>(valueToStore, bitMask);
+      auto andOp = b.create<arith::AndIOp>(element, bitMask);
       auto shifted = b.create<arith::ShRSIOp>(andOp, shiftAmount);
       auto bitValue = b.create<arith::TruncIOp>(b.getI1Type(), shifted);
       auto ctValue = b.create<lwe::TrivialEncryptOp>(
           ctTy, b.create<lwe::EncodeOp>(ptxtTy, bitValue, ctTy.getEncoding()),
           lwe::LWEParamsAttr());
+      indices.append({idx});
+      b.create<memref::StoreOp>(ctValue, memref, indices);
+      b.restoreInsertionPoint(point);
+    };
 
-      SmallVector<Value> indices = {idx};
-      b.create<memref::StoreOp>(ctValue, valueMemref, indices);
+    Value newValue;
+    Value valueToStore = adaptor.getCleartext();
+    if (auto memrefTy = dyn_cast<MemRefType>(convertedTy)) {
+      auto allocOp = b.create<memref::AllocOp>(memrefTy);
+      newValue = allocOp.getResult();
+      if (auto inputMemrefTy =
+              dyn_cast<MemRefType>(adaptor.getCleartext().getType())) {
+        // The input was a memref<<SHAPE>xiN>, so we need to extract each value
+        // of the input and store it in the output memref.
+        SmallVector<Value> constIndices;
+        const auto *maxDimension = llvm::max_element(inputMemrefTy.getShape());
+        for (auto i = 0; i < *maxDimension; ++i) {
+          constIndices.push_back(b.create<arith::ConstantIndexOp>(i));
+        }
+        for (auto i = 0; i < inputMemrefTy.getNumElements(); ++i) {
+          // Extract the value from the original memref.
+          auto rawIndices = unflattenIndex(i, inputMemrefTy.getShape(), 0);
+          auto indices = llvm::map_to_vector(
+              rawIndices,
+              [&](int64_t index) -> Value { return constIndices[index]; });
+          auto extractedValue =
+              b.create<memref::LoadOp>(valueToStore, indices).getResult();
+          storeElement(cast<TypedValue<IntegerType>>(extractedValue), indices,
+                       newValue);
+        }
+      } else {
+        // The input was an iN and the output was a memref<Nxct>.
+        auto singleValue = cast<TypedValue<IntegerType>>(valueToStore);
+        storeElement(singleValue, {}, newValue);
+      }
+    } else {
+      // The input was an i1 and the output was a scalar ct.
+      assert(cast<IntegerType>(valueToStore.getType()).getWidth() == 1);
+      newValue = b.create<lwe::TrivialEncryptOp>(
+          ctTy,
+          b.create<lwe::EncodeOp>(ptxtTy, valueToStore, ctTy.getEncoding()),
+          lwe::LWEParamsAttr());
     }
 
-    rewriter.replaceAllOpUsesWith(op, valueMemref);
+    rewriter.replaceAllOpUsesWith(op, newValue);
     rewriter.eraseOp(op);
-
     return success();
   }
 };

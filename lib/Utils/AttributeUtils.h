@@ -3,6 +3,7 @@
 
 #include "llvm/include/llvm/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"          // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 
@@ -40,6 +41,14 @@ void copyReturnOperandAttrsToFuncResultAttrs(Operation *op, StringRef attrName);
 // Walk the op and copy attributes associated with
 // OperandAndResultAttrInterface op operands to the operand attrs of that op.
 void populateOperandAttrInterface(Operation *op, StringRef attrName);
+
+// For each attribute name in arrayOfDicts, extract an ArrayAttr of the values
+// for that name and add it to result.
+//
+// If there is only one dictionary in the array, extract the attributes
+// directly without wrapping them in array attrs
+void convertArrayOfDicts(ArrayAttr arrayOfDicts,
+                         SmallVector<NamedAttribute> &result);
 
 }  // namespace heir
 }  // namespace mlir
