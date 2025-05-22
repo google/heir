@@ -57,6 +57,32 @@ def convert_to_run_commands(run_lines):
   return cmds
 
 
+def normalize_lit_test_file_arg(lit_test_file: str) -> str:
+  # Convert a bazel test target into a file path.
+  # Bazel test targets look like
+  #
+  #   //tests/path/to/dir:target.mlir.test
+  #   tests/path/to/dir:target.mlir.test
+  #
+  # and are converted to
+  #
+  #   test/path/to/dir/target.mlir
+  #
+  if lit_test_file.startswith("//") or lit_test_file.endswith(".mlir.test"):
+    print(f"Converting bazel test target {lit_test_file} to file path")
+
+  if lit_test_file.startswith("//"):
+    lit_test_file = lit_test_file[2:]
+  if lit_test_file.endswith(".mlir.test"):
+    lit_test_file = lit_test_file[:-5]
+
+  components = lit_test_file.split(":")
+  if len(components) > 1:
+    lit_test_file = components[0] + "/" + components[1]
+
+  return lit_test_file
+
+
 def lit_to_bazel(
     lit_test_file: str,
     git_root: str = "",
@@ -78,6 +104,8 @@ def lit_to_bazel(
 
   if not lit_test_file:
     raise ValueError("lit_test_file must be provided")
+
+  lit_test_file = normalize_lit_test_file_arg(lit_test_file)
 
   if not os.path.isfile(lit_test_file):
     raise ValueError("Unable to find lit_test_file '%s'" % lit_test_file)
