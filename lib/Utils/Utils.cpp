@@ -60,6 +60,36 @@ LogicalResult walkAndValidateValues(Operation *op, IsValidValueFn isValidValue,
   return res;
 }
 
+void walkValues(Operation *op, ValueProcessor valueProcessor) {
+  op->walk([&](Operation *op) {
+    // Region-holding ops may not have operands or results, but their region's
+    // arguments are BlockArguments that may not be processed by any other
+    // means, e.g., an unused function argument, cf.
+    // https://github.com/google/heir/issues/1406
+    if (op->getNumRegions() > 0) {
+      for (auto &region : op->getRegions()) {
+        for (auto &block : region.getBlocks()) {
+          for (auto arg : block.getArguments()) {
+            valueProcessor(arg);
+          }
+        }
+      }
+    }
+
+    if (op->getNumResults() > 0) {
+      for (auto result : op->getResults()) {
+        valueProcessor(result);
+      }
+    }
+
+    if (op->getNumOperands() > 0) {
+      for (auto operand : op->getOperands()) {
+        valueProcessor(operand);
+      }
+    }
+  });
+}
+
 bool containsArgumentOfType(Operation *op, TypePredicate predicate) {
   // special treatment for func declaration
   if (auto funcOp = dyn_cast<func::FuncOp>(op)) {

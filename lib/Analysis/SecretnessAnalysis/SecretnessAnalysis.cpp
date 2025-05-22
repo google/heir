@@ -25,50 +25,38 @@ namespace mlir {
 namespace heir {
 
 void SecretnessAnalysis::setToEntryState(SecretnessLattice *lattice) {
-  auto operand = lattice->getAnchor();
-  bool secretness = isa<secret::SecretType>(operand.getType());
+  auto value = lattice->getAnchor();
+  bool secretness = isa<secret::SecretType>(value.getType());
+  auto blockArg = dyn_cast<BlockArgument>(value);
 
   Operation *operation = nullptr;
   // Get defining operation for operand
-  if (auto blockArg = dyn_cast<BlockArgument>(operand)) {
+  if (blockArg) {
     operation = blockArg.getOwner()->getParentOp();
   } else {
-    operation = operand.getDefiningOp();
+    operation = value.getDefiningOp();
   }
 
   // If operand is defined by a secret.generic operation,
   // check if operand is of secret type
   if (auto genericOp = dyn_cast<secret::GenericOp>(*operation)) {
-    if (OpOperand *genericOperand =
-            genericOp.getOpOperandForBlockArgument(operand)) {
-      secretness = isa<secret::SecretType>(genericOperand->get().getType());
-    }
+    secretness = isa<secret::SecretType>(
+        genericOp.getOperand(blockArg.getArgNumber()).getType());
   }
 
   // If operand is defined by a func.func operation,
   // check if the operand is either of secret type or annotated with
   // {secret.secret}
   if (auto funcOp = dyn_cast<func::FuncOp>(*operation)) {
-    // identify which function argument the operand corresponds to
-    auto blockArgs = funcOp.getBody().getArguments();
-    int index = std::find(blockArgs.begin(), blockArgs.end(), operand) -
-                blockArgs.begin();
-
     // Check if it has secret type
-    secretness = isa<secret::SecretType>(funcOp.getArgumentTypes()[index]);
+    secretness = isa<secret::SecretType>(
+        funcOp.getArgumentTypes()[blockArg.getArgNumber()]);
 
     // check if it is annotated as {secret.secret}
-    auto attrs = funcOp.getArgAttrs();
-    if (attrs) {
-      auto arr = attrs->getValue();
-      if (auto dictattr = dyn_cast<DictionaryAttr>(arr[index])) {
-        for (auto attr : dictattr) {
-          secretness =
-              secretness ||
-              attr.getName() == secret::SecretDialect::kArgSecretAttrName.str();
-          break;
-        }
-      }
+    UnitAttr attr = funcOp.getArgAttrOfType<UnitAttr>(
+        blockArg.getArgNumber(), secret::SecretDialect::kArgSecretAttrName);
+    if (attr) {
+      secretness = true;
     }
   }
 

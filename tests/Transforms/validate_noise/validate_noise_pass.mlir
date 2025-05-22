@@ -8,7 +8,7 @@
 
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [134250497, 33832961, 140737488486401], P = [140737488928769, 140737489256449], plaintextModulus = 65537>, scheme.bgv} {
   // CHECK: @dot_product
-  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>>, %arg1: !secret.secret<tensor<1024xi16>>) -> (!secret.secret<tensor<1024xi16>>) {
+  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}, %arg1: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 2>}) -> (!secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {
     %c7 = arith.constant 7 : index
     %c1_i16 = arith.constant 1 : i16
     %cst = arith.constant dense<0> : tensor<1024xi16>

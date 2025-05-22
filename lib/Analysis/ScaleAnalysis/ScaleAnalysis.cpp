@@ -10,10 +10,11 @@
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Utils/APIntUtils.h"
+#include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -146,13 +147,6 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
   };
 
   llvm::TypeSwitch<Operation &>(*op)
-      .Case<secret::GenericOp>([&](auto genericOp) {
-        Block *body = genericOp.getBody();
-        for (auto i = 0; i != body->getNumArguments(); ++i) {
-          auto blockArg = body->getArgument(i);
-          propagate(blockArg, ScaleState(inputScale));
-        }
-      })
       .template Case<arith::MulIOp, arith::MulFOp, tensor::ExtractOp>(
           [&](auto mulOp) {
             SmallVector<int64_t> scales;
@@ -276,8 +270,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
         this->getSecretOperands(op, secretOperands);
         for (auto &opOperand : op->getOpOperands()) {
           if (!this->isSecretInternal(op, opOperand.get()) &&
-              opOperand.get().getDefiningOp() &&
-              isa<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
+              isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
             // Treat it as if it were secret for the purpose of scale
             // propagation
             secretOperands.push_back(&opOperand);
@@ -446,27 +439,11 @@ void annotateScale(Operation *top, DataFlowSolver *solver) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), scale);
   };
 
-  top->walk<WalkOrder::PreOrder>([&](mgmt::InitOp initOp) {
-    auto scale = getScale(initOp.getResult(), solver);
-    initOp->setAttr(kArgScaleAttrName, getIntegerAttr(scale));
-  });
-
-  top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-    for (auto blockArg : genericOp.getBody()->getArguments()) {
-      genericOp.setOperandAttr(blockArg.getArgNumber(), kArgScaleAttrName,
-                               getIntegerAttr(getScale(blockArg, solver)));
+  walkValues(top, [&](Value value) {
+    if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      setAttributeAssociatedWith(value, kArgScaleAttrName,
+                                 getIntegerAttr(getScale(value, solver)));
     }
-
-    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
-      if (op->getNumResults() == 0) {
-        return;
-      }
-      if (!isSecret(op->getResult(0), solver)) {
-        return;
-      }
-      op->setAttr(kArgScaleAttrName,
-                  getIntegerAttr(getScale(op->getResult(0), solver)));
-    });
   });
 }
 

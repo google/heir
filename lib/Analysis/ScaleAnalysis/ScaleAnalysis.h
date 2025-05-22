@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
@@ -132,6 +133,10 @@ class ScaleAnalysis
         inputScale(inputScale) {}
 
   void setToEntryState(ScaleLattice *lattice) override {
+    if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
+      propagateIfChanged(lattice, lattice->join(ScaleState(inputScale)));
+      return;
+    }
     propagateIfChanged(lattice, lattice->join(ScaleState()));
   }
 
