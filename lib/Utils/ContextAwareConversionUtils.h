@@ -173,6 +173,8 @@ class SecretGenericOpConversion
     // OperandAndResultAttrInterface, and this gives special names to the
     // attributes, so it doesn't make sense to copy those names to the
     // converted op.
+    // FIXME: duplicate execution_results landing here. Dedupe or fix at the
+    // propagation step?
     convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
     convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
 
