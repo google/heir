@@ -7,11 +7,10 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
-#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
@@ -22,8 +21,6 @@
 #include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
 #include "mlir/include/mlir/Interfaces/CallInterfaces.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
-
-#define DEBUG_TYPE "DimensionAnalysis"
 
 namespace mlir {
 namespace heir {
@@ -103,13 +100,14 @@ void DimensionAnalysis::visitExternalCall(
 // Utils
 //===----------------------------------------------------------------------===//
 
-int getDimension(Value value, DataFlowSolver *solver) {
+std::optional<DimensionState::DimensionType> getDimension(
+    Value value, DataFlowSolver *solver) {
   auto *lattice = solver->lookupState<DimensionLattice>(value);
   if (!lattice) {
-    return 2;
+    return std::nullopt;
   }
   if (!lattice->getValue().isInitialized()) {
-    return 2;
+    return std::nullopt;
   }
   return lattice->getValue().getDimension();
 }
@@ -127,28 +125,16 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), dimension);
   };
 
-  top->walk<WalkOrder::PreOrder>([&](mgmt::InitOp initOp) {
-    auto dimension = 2;
-    // plaintext actually has no dimension, use 2 as a placeholder
-    initOp->setAttr(kArgDimensionAttrName, getIntegerAttr(dimension));
-  });
-
-  top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-    for (auto blockArg : genericOp.getBody()->getArguments()) {
-      genericOp.setOperandAttr(blockArg.getArgNumber(), kArgDimensionAttrName,
-                               getIntegerAttr(getDimension(blockArg, solver)));
+  walkValues(top, [&](Value value) {
+    std::optional<int> dimension = getDimension(value, solver);
+    if (isSecret(value, solver)) {
+      if (!dimension.has_value()) {
+        assert(false &&
+               "secret-typed value not processed by dimension analysis!");
+      }
+      setAttributeAssociatedWith(value, kArgDimensionAttrName,
+                                 getIntegerAttr(dimension.value()));
     }
-
-    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
-      if (op->getNumResults() == 0) {
-        return;
-      }
-      if (!isSecret(op->getResult(0), solver)) {
-        return;
-      }
-      op->setAttr(kArgDimensionAttrName,
-                  getIntegerAttr(getDimension(op->getResult(0), solver)));
-    });
   });
 }
 

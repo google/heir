@@ -6,14 +6,11 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Utils.h"
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -39,73 +36,21 @@ void annotateMgmtAttr(Operation *top) {
     auto scale = cast<IntegerAttr>(scaleAttr).getInt();
     return MgmtAttr::get(top->getContext(), level, dimension, scale);
   };
-  top->walk<WalkOrder::PreOrder>([&](func::FuncOp funcOp) {
-    // handle plaintext
-    funcOp->walk<WalkOrder::PreOrder>([&](mgmt::InitOp initOp) {
-      auto levelAttr = initOp->removeAttr(kArgLevelAttrName);
-      auto dimensionAttr = initOp->removeAttr(kArgDimensionAttrName);
-      if (!levelAttr || !dimensionAttr) {
-        return;
-      }
-      auto scaleAttr = initOp->removeAttr(kArgScaleAttrName);
-      auto mgmtAttr = mergeIntoMgmtAttr(levelAttr, dimensionAttr, scaleAttr);
-      initOp->setAttr(MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-    });
 
-    bool bodyContainsSecretGeneric = false;
-    funcOp->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-      bodyContainsSecretGeneric = true;
-      for (auto i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
-        auto levelAttr = genericOp.removeOperandAttr(i, kArgLevelAttrName);
-        auto dimensionAttr =
-            genericOp.removeOperandAttr(i, kArgDimensionAttrName);
-        auto scaleAttr = genericOp.removeOperandAttr(i, kArgScaleAttrName);
-        auto mgmtAttr = mergeIntoMgmtAttr(levelAttr, dimensionAttr, scaleAttr);
-        genericOp.setOperandAttr(i, MgmtDialect::kArgMgmtAttrName, mgmtAttr);
-      }
-
-      genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
-        if (op->getNumResults() == 0) {
-          return;
-        }
-        auto levelAttr = op->removeAttr(kArgLevelAttrName);
-        auto dimensionAttr = op->removeAttr(kArgDimensionAttrName);
-        if (!levelAttr || !dimensionAttr) {
-          return;
-        }
-        auto scaleAttr = op->removeAttr(kArgScaleAttrName);
-        op->setAttr(MgmtDialect::kArgMgmtAttrName,
-                    mergeIntoMgmtAttr(levelAttr, dimensionAttr, scaleAttr));
-      });
-
-      // Add yielded result as attribute on secret.generic
-      secret::YieldOp yieldOp = genericOp.getYieldOp();
-      for (auto &opOperand : yieldOp->getOpOperands()) {
-        FailureOr<Attribute> attrResult = findAttributeAssociatedWith(
-            opOperand.get(), MgmtDialect::kArgMgmtAttrName);
-
-        if (failed(attrResult)) continue;
-        genericOp.setResultAttr(opOperand.getOperandNumber(),
-                                MgmtDialect::kArgMgmtAttrName,
-                                attrResult.value());
-      }
-    });
-
-    // handle generic-less function body
-    // default to level 0 and dimension 2
-    // otherwise secret-to-<scheme> won't find the mgmt attr
-    if (!bodyContainsSecretGeneric) {
-      for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-        auto argumentTy = funcOp.getFunctionType().getInput(i);
-        if (isa<secret::SecretType>(argumentTy)) {
-          funcOp.setArgAttr(i, MgmtDialect::kArgMgmtAttrName,
-                            MgmtAttr::get(top->getContext(), 0, 2));
-        }
-      }
+  walkValues(top, [&](Value value) {
+    FailureOr<Attribute> levelAttr =
+        findAttributeAssociatedWith(value, kArgLevelAttrName);
+    FailureOr<Attribute> dimensionAttr =
+        findAttributeAssociatedWith(value, kArgDimensionAttrName);
+    if (failed(levelAttr) || failed(dimensionAttr)) {
+      return;
     }
+    Attribute scaleAttr =
+        findAttributeAssociatedWith(value, kArgScaleAttrName).value_or(nullptr);
+    Attribute mgmtAttr =
+        mergeIntoMgmtAttr(levelAttr.value(), dimensionAttr.value(), scaleAttr);
+    setAttributeAssociatedWith(value, MgmtDialect::kArgMgmtAttrName, mgmtAttr);
   });
-
-  populateOperandAttrInterface(top, MgmtDialect::kArgMgmtAttrName);
 }
 
 struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
@@ -134,6 +79,10 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
     // The optional scale is passed by annotateScale() when calling
     // this pass.
     annotateMgmtAttr(getOperation());
+
+    clearAttrs(getOperation(), kArgLevelAttrName);
+    clearAttrs(getOperation(), kArgDimensionAttrName);
+    clearAttrs(getOperation(), kArgScaleAttrName);
   }
 };
 
