@@ -40,6 +40,9 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  LLVM_DEBUG(llvm::dbgs() << "Forward Propagate visiting " << op->getName()
+                          << "\n");
+
   llvm::TypeSwitch<Operation &>(*op)
       .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         // implicitly ensure that the operand is secret

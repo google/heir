@@ -146,13 +146,6 @@ LogicalResult ScaleAnalysis<ScaleModelT>::visitOperation(
   };
 
   llvm::TypeSwitch<Operation &>(*op)
-      .Case<secret::GenericOp>([&](auto genericOp) {
-        Block *body = genericOp.getBody();
-        for (auto i = 0; i != body->getNumArguments(); ++i) {
-          auto blockArg = body->getArgument(i);
-          propagate(blockArg, ScaleState(inputScale));
-        }
-      })
       .template Case<arith::MulIOp, arith::MulFOp, tensor::ExtractOp>(
           [&](auto mulOp) {
             SmallVector<int64_t> scales;

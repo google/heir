@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -81,7 +82,11 @@ class DimensionAnalysis
   friend class SecretnessAnalysisDependent<DimensionAnalysis>;
 
   void setToEntryState(DimensionLattice *lattice) override {
-    propagateIfChanged(lattice, lattice->join(DimensionState(2)));
+    if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
+      propagateIfChanged(lattice, lattice->join(DimensionState(2)));
+      return;
+    }
+    propagateIfChanged(lattice, lattice->join(DimensionState()));
   }
 
   LogicalResult visitOperation(Operation *op,

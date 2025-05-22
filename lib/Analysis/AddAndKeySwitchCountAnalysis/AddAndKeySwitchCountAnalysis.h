@@ -5,6 +5,7 @@
 #include <cassert>
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -114,7 +115,11 @@ class CountAnalysis
 
   void setToEntryState(CountLattice *lattice) override {
     // one addition in Vfresh
-    propagateIfChanged(lattice, lattice->join(CountState(1, 0)));
+    if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
+      propagateIfChanged(lattice, lattice->join(CountState(1, 0)));
+      return;
+    }
+    propagateIfChanged(lattice, lattice->join(CountState()));
   }
 
   LogicalResult visitOperation(Operation *op,
