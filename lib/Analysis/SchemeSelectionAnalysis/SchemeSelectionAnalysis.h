@@ -5,7 +5,6 @@
 #include <cassert>
 #include <optional>
 
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"        // from @llvm-project
@@ -17,6 +16,19 @@
 
 namespace mlir {
 namespace heir {
+
+constexpr StringRef numBoolOpsAttrName = "natcomp.boolOps";
+constexpr StringRef numBitOpsAttrName = "natcomp.bitOps";
+constexpr StringRef numIntArithOpsAttrName = "natcomp.intOps";
+constexpr StringRef numRealArithOpsAttrName = "natcomp.realOps";
+constexpr StringRef numCmpOpsAttrName = "natcomp.cmpOps";
+constexpr StringRef numNonLinOpsAttrName = "natcomp.nonLinOps";
+constexpr StringRef boolOpsTypeName = "bool";
+constexpr StringRef bitOpsTypeName = "bit";
+constexpr StringRef intArithOpsTypeName = "intArith";
+constexpr StringRef realArithOpsTypeName = "realArith";
+constexpr StringRef cmpOpsTypeName = "cmp";
+constexpr StringRef nonLinOpsTypeName = "nonLin";
 
 class NatureOfComputation {
  public:
@@ -37,8 +49,8 @@ class NatureOfComputation {
         numBitOps(numBitOps),
         numIntArithOps(numIntArithOps),
         numRealArithOps(numRealArithOps),
-        numCmpOps(numBoolOps),
-        numNonLinOps(numBitOps) {}
+        numCmpOps(numCmpOps),
+        numNonLinOps(numNonLinOps) {}
 
   void countOperation(Operation *op);
 
@@ -67,7 +79,7 @@ class NatureOfComputation {
     return numCmpOps;
   }
 
-  int getnumNonLinOpsCount() const {
+  int getNonLinOpsCount() const {
     assert(isInitialized() && "NatureOfComputation not initialized");
     return numNonLinOps;
   }
@@ -81,10 +93,85 @@ class NatureOfComputation {
            numCmpOps == rhs.numCmpOps && numNonLinOps == rhs.numNonLinOps;
   }
 
+ NatureOfComputation operator+(const NatureOfComputation &rhs) const {
+	if (!isInitialized() && !rhs.isInitialized()) {
+      return *this; // return the current object
+    }
+
+    if (isInitialized() && !rhs.isInitialized()) {
+      return *this; // return the current object
+    }
+
+    if (!isInitialized() && rhs.isInitialized()) {
+      return rhs; // return the rhs object
+    }
+
+    // Both are initialized
+    return NatureOfComputation(
+        numBoolOps + rhs.numBoolOps,
+        numBitOps + rhs.numBitOps,
+        numIntArithOps + rhs.numIntArithOps,
+        numRealArithOps + rhs.numRealArithOps,
+        numCmpOps + rhs.numCmpOps,
+        numNonLinOps + rhs.numNonLinOps);
+  }
+
+  StringRef getDominantAttributeName() const {
+    assert(isInitialized() && "NatureOfComputation not initialized");
+    //TODO: define what happens when all are equal
+    int maxCount = numBoolOps;
+    StringRef attributeName = numBoolOpsAttrName;
+
+    if (numBitOps > maxCount) {
+        maxCount = numBitOps;
+        attributeName = numBitOpsAttrName;
+    }
+    if (numIntArithOps > maxCount) {
+        maxCount = numIntArithOps;
+        attributeName = numIntArithOpsAttrName;
+    }
+    if (numRealArithOps > maxCount) {
+        maxCount = numRealArithOps;
+        attributeName = numRealArithOpsAttrName;
+    }
+    if (numCmpOps > maxCount) {
+        maxCount = numCmpOps;
+        attributeName = numCmpOpsAttrName;
+    }
+    if (numNonLinOps > maxCount) {
+        maxCount = numNonLinOps;
+        attributeName = numNonLinOpsAttrName;
+    }
+
+    return attributeName;
+}
+
+int getDominantComputationCount() const {
+    assert(isInitialized() && "NatureOfComputation not initialized");
+    
+    int maxCount = numBoolOps;
+
+    if (numBitOps > maxCount) {
+        maxCount = numBitOps;
+    }
+    if (numIntArithOps > maxCount) {
+        maxCount = numIntArithOps;
+    }
+    if (numRealArithOps > maxCount) {
+        maxCount = numRealArithOps;
+    }
+    if (numCmpOps > maxCount) {
+        maxCount = numCmpOps;
+    }
+    if (numNonLinOps > maxCount) {
+        maxCount = numNonLinOps;
+    }
+
+    return maxCount; // Returns the highest count after all comparisons
+}
+
   static NatureOfComputation max(const NatureOfComputation &lhs,
                                  const NatureOfComputation &rhs) {
-    assert(lhs.isInitialized() && rhs.isInitialized() &&
-           "NatureOfComputation not initialized");
     return NatureOfComputation(
         std::max(lhs.numBoolOps, rhs.numBoolOps),
         std::max(lhs.numBitOps, rhs.numBitOps),
@@ -110,9 +197,9 @@ class NatureOfComputation {
   void print(llvm::raw_ostream &os) const {
     if (isInitialized()) {
       os << "NatureOfComputation(numBoolOps=" << numBoolOps
-         << "numBitOps=" << numBitOps << "numIntArithOps=" << numIntArithOps
-         << "numRealArithOps=" << numRealArithOps << "numCmpOps=" << numCmpOps
-         << "numNonLinOps=" << numNonLinOps << ")";
+         << "; numBitOps=" << numBitOps << "; numIntArithOps=" << numIntArithOps
+         << "; numRealArithOps=" << numRealArithOps << "; numCmpOps=" << numCmpOps
+         << "; numNonLinOps=" << numNonLinOps << ")";
     } else {
       os << "NatureOfComputation(uninitialized)";
     }
@@ -140,12 +227,14 @@ class SchemeInfoLattice : public dataflow::Lattice<NatureOfComputation> {
 };
 
 class SchemeSelectionAnalysis
-    : public dataflow::SparseForwardDataFlowAnalysis<SchemeInfoLattice>,
-      public SecretnessAnalysisDependent<SchemeSelectionAnalysis> {
+    : public dataflow::SparseForwardDataFlowAnalysis<SchemeInfoLattice>{
+ private:
+  NatureOfComputation counter;
  public:
+  SchemeSelectionAnalysis(DataFlowSolver &solver)
+      : SparseForwardDataFlowAnalysis<SchemeInfoLattice>(solver), counter(0, 0, 0, 0, 0, 0) {}
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
-  friend class SecretnessAnalysisDependent<SchemeSelectionAnalysis>;
-
+  
   LogicalResult visitOperation(Operation *op,
                                ArrayRef<const SchemeInfoLattice *> operands,
                                ArrayRef<SchemeInfoLattice *> results) override;
