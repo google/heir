@@ -8,6 +8,7 @@
 
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
+#include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/DenseMap.h"            // from @llvm-project
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
@@ -23,6 +24,7 @@
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Block.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
@@ -105,9 +107,31 @@ LogicalResult CollapseSecretlessGeneric::matchAndRewrite(
   }
 
   YieldOp yieldOp = op.getYieldOp();
+  // If any yielded values are defined from constants, then collapse into a
+  // secret.conceal outside of the generic.
+  auto attrs = op.getAllResultAttrsAttr();
+  auto setAttrs = [&](Value value, DictionaryAttr attrDict) {
+    if (attrs) {
+      SmallVector<NamedAttribute> attrList;
+      for (auto &attr : attrDict) {
+        setAttributeAssociatedWith(value, attr.getName(), attr.getValue());
+      }
+    }
+  };
   rewriter.inlineBlockBefore(op.getBody(), op.getOperation(), op.getInputs());
-  rewriter.replaceOp(op, yieldOp.getValues());
+  rewriter.setInsertionPointAfter(op.getOperation());
+  for (auto &opOperand : yieldOp->getOpOperands()) {
+    auto opIndex = opOperand.getOperandNumber();
+    // Copy any attributes of the op onto operations in the body.
+    auto resultAttr = op.getResultAttrDict(opIndex);
+    auto concealOp =
+        rewriter.create<secret::ConcealOp>(op.getLoc(), opOperand.get());
+    setAttrs(opOperand.get(), resultAttr);
+    setAttrs(concealOp.getResult(), resultAttr);
+    rewriter.replaceAllUsesWith(op.getResult(opIndex), concealOp.getResult());
+  }
   rewriter.eraseOp(yieldOp);
+  rewriter.eraseOp(op);
   return success();
 };
 
@@ -623,7 +647,6 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
 
   LLVM_DEBUG(llvm::dbgs() << "Found " << opsToHoist.size()
                           << " ops to hoist\n");
-
   for (Operation *op : opsToHoist) {
     genericOp.extractOpBeforeGeneric(op, rewriter);
   }
@@ -631,6 +654,26 @@ LogicalResult HoistPlaintextOps::matchAndRewrite(
   LLVM_DEBUG(llvm::dbgs() << "Done hoisting\n");
 
   return hoistedAny ? success() : failure();
+}
+
+LogicalResult ConcealThenGeneric::matchAndRewrite(
+    GenericOp genericOp, PatternRewriter &rewriter) const {
+  bool updated = false;
+  for (auto &opOperand : genericOp->getOpOperands()) {
+    auto concealOp =
+        dyn_cast_or_null<ConcealOp>(opOperand.get().getDefiningOp());
+    if (!concealOp) {
+      continue;
+    }
+    updated = true;
+    // Set the input type to be plaintext, replace the input value with the
+    // conceal input.
+    rewriter.modifyOpInPlace(genericOp, [&]() {
+      genericOp.setOperand(opOperand.getOperandNumber(),
+                           concealOp.getCleartext());
+    });
+  }
+  return updated ? success() : failure();
 }
 
 void genericAbsorbConstants(secret::GenericOp genericOp,
@@ -769,61 +812,6 @@ LogicalResult extractGenericBody(secret::GenericOp genericOp,
   }
 
   return success();
-}
-
-LogicalResult FixSecretInFunctionType::matchAndRewrite(
-    func::FuncOp funcOp, PatternRewriter &rewriter) const {
-  // For this pattern to work, the function must have a body
-  if (funcOp.isExternal()) {
-    return failure();
-  }
-
-  // Result Types
-  auto funcResultTypes = funcOp.getFunctionType().getResults();
-
-  // Get terminator (func.return) types
-  auto terminatorTypes =
-      funcOp.getBody().getBlocks().front().getTerminator()->getOperandTypes();
-
-  // If these are not the same length, something went VERY wrong
-  assert(
-      funcResultTypes.size() == terminatorTypes.size() &&
-      "Function Result Types and Terminator result types must be same length.");
-
-  // Iterate over return types and check if there are any mismatches
-  // where the func.func type is secret<T> but the return op has T
-  SmallVector<Type, 1> newFuncResultTypes;
-  newFuncResultTypes.reserve(funcResultTypes.size());
-  bool changed = false;
-  for (auto [funcResultType, terminatorResultType] :
-       llvm::zip(funcResultTypes, terminatorTypes)) {
-    if (funcResultType != terminatorResultType) {  // cheap check first
-      if (auto secretType = dyn_cast<SecretType>(funcResultType)) {
-        if (!isa<SecretType>(terminatorResultType)) {
-          // These should never disagree on the underlying type
-          assert(terminatorResultType == secretType.getValueType() &&
-                 "Secret type mismatch in function return type");
-
-          // Removing the secret<..> here is safe(-ish) because the only time
-          // this happens is if one of the other patterns removed the secret
-          // type from the return value (e.g., CollapseSecretlessGeneric)
-          newFuncResultTypes.push_back(secretType.getValueType());
-          changed = true;
-          continue;
-        }
-      }
-    }
-    newFuncResultTypes.push_back(funcResultType);
-    LLVM_DEBUG(llvm::dbgs() << "Pushing back " << funcResultType << "\n");
-  }
-
-  // We can only signal success if there's actually a real change to the IR
-  if (changed) {
-    funcOp.setFunctionType(rewriter.getFunctionType(funcOp.getArgumentTypes(),
-                                                    newFuncResultTypes));
-    return success();
-  }
-  return failure();
 }
 
 }  // namespace secret

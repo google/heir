@@ -76,6 +76,7 @@ cc_library(
     srcs = ["ContextAwareConversionUtils.cpp"],
     hdrs = ["ContextAwareConversionUtils.h"],
     deps = [
+        ":AttributeUtils",
         ":ContextAwareDialectConversion",
         ":ContextAwareTypeConversion",
         "@heir//lib/Dialect/LWE/IR:Dialect",

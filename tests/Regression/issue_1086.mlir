@@ -1,4 +1,4 @@
-// RUN: heir-opt %s --yosys-optimizer --secret-distribute-generic --secret-to-cggi | FileCheck %s
+// RUN: heir-opt %s --yosys-optimizer --secret-distribute-generic --canonicalize --secret-to-cggi | FileCheck %s
 
 // CHECK-NOT: secret
 func.func @sum(%arr: !secret.secret<memref<8xi8>>) -> !secret.secret<i8> {

@@ -94,33 +94,6 @@ static LogicalResult convertFuncOpTypes(
   return success();
 }
 
-void convertArrayOfDicts(ArrayAttr arrayOfDicts,
-                         SmallVector<NamedAttribute> &result) {
-  if (!arrayOfDicts) return;
-
-  if (arrayOfDicts.size() == 1) {
-    for (auto &namedAttr : cast<DictionaryAttr>(arrayOfDicts[0]))
-      result.push_back(namedAttr);
-    return;
-  }
-
-  DenseMap<StringAttr, SmallVector<Attribute>> arrayAttrs;
-  arrayAttrs.reserve(arrayOfDicts.size());
-  for (auto arrayOfDict : arrayOfDicts) {
-    ::mlir::DictionaryAttr attrs = cast<DictionaryAttr>(arrayOfDict);
-    for (NamedAttribute namedAttr : attrs) {
-      auto key = namedAttr.getName();
-      arrayAttrs[key].push_back(namedAttr.getValue());
-    }
-  }
-
-  for (auto &[name, attributes] : arrayAttrs) {
-    NamedAttribute attr(name,
-                        ArrayAttr::get(arrayOfDicts.getContext(), attributes));
-    result.push_back(attr);
-  }
-}
-
 LogicalResult ContextAwareFuncConversion::matchAndRewrite(
     func::FuncOp op, OpAdaptor adaptor,
     ContextAwareConversionPatternRewriter &rewriter) const {
