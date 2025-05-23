@@ -62,6 +62,20 @@ LogicalResult walkAndValidateValues(Operation *op, IsValidValueFn isValidValue,
 
 void walkValues(Operation *op, ValueProcessor valueProcessor) {
   op->walk([&](Operation *op) {
+    // Region-holding ops may not have operands or results, but their region's
+    // arguments are BlockArguments that may not be processed by any other
+    // means, e.g., an unused function argument, cf.
+    // https://github.com/google/heir/issues/1406
+    if (op->getNumRegions() > 0) {
+      for (auto &region : op->getRegions()) {
+        for (auto &block : region.getBlocks()) {
+          for (auto arg : block.getArguments()) {
+            valueProcessor(arg);
+          }
+        }
+      }
+    }
+
     if (op->getNumResults() > 0) {
       for (auto result : op->getResults()) {
         valueProcessor(result);

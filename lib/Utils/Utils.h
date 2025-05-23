@@ -71,9 +71,10 @@ LogicalResult walkAndValidateValues(
     Operation *op, IsValidValueFn isValidValue,
     std::optional<std::string> err = std::nullopt);
 
-/// Walk the IR and apply a predicate to all argument values and produced
-/// values. Values will be visited once for the operation that produces them,
-/// and once for each use.
+/// Walk the IR and apply a predicate to all SSA values and produced values.
+/// Values will be visited once for the operation that defines them, and once
+/// for each use. The valueProcessor must be aware that it may be called
+/// multiple times for the same value.
 void walkValues(Operation *op, ValueProcessor valueProcessor);
 
 /// Walk the IR and apply a predicate to all argument and result types

@@ -39,6 +39,11 @@ void annotateMgmtAttr(Operation *top) {
   };
 
   walkValues(top, [&](Value value) {
+    if (succeeded(findAttributeAssociatedWith(value,
+                                              MgmtDialect::kArgMgmtAttrName))) {
+      return;
+    }
+
     FailureOr<Attribute> levelAttr =
         findAttributeAssociatedWith(value, kArgLevelAttrName);
     FailureOr<Attribute> dimensionAttr =
@@ -85,6 +90,7 @@ struct AnnotateMgmt : impl::AnnotateMgmtBase<AnnotateMgmt> {
       return;
     }
 
+    clearAttrs(getOperation(), MgmtDialect::kArgMgmtAttrName);
     annotateLevel(getOperation(), &solver, baseLevel);
     annotateDimension(getOperation(), &solver);
     // Combine level and dimension (and optional scale) into MgmtAttr
