@@ -17,7 +17,7 @@
 #original_type = #tensor_ext.original_type<originalType = i16, layout = #layout>
 // expected-error@below {{'builtin.module' op Noise validation failed.}}
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 14, Q = [35184372121601, 35184372744193, 35184373006337, 35184373989377, 35184374874113, 35184376184833], P = [35184376545281, 35184376578049], plaintextModulus = 4295294977>, scheme.bgv} {
-  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>>) -> (!secret.secret<tensor<1024xi16>>) {
+  func.func @dot_product(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 5>}) -> (!secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {
     %0 = secret.generic(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 5>}) {
     ^body(%input0: tensor<1024xi16>):
       %1 = arith.muli %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 5, dimension = 3>} : tensor<1024xi16>
