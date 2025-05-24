@@ -25,6 +25,7 @@ cc_library(
         ":MgmtAttributes",
         ":MgmtOps",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
     ],
@@ -40,8 +41,10 @@ cc_library(
         "MgmtDialect.h",
     ],
     deps = [
+        ":MgmtOps",
         ":attributes_inc_gen",
         ":dialect_inc_gen",
+        "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
