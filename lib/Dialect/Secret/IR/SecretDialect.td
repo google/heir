@@ -26,6 +26,8 @@ def Secret_Dialect : Dialect {
         kArgMissingAttrName = "secret.missing";
     constexpr const static ::llvm::StringLiteral
         kArgUnknownAttrName = "secret.unknown";
+    constexpr const static ::llvm::StringLiteral
+        kSecretInitsAttrName = "secret.secret_inits";
 
     // Name of the attribute for plaintext backend execution result.
     constexpr const static ::llvm::StringLiteral
