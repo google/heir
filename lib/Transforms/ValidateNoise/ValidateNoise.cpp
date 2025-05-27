@@ -1,9 +1,6 @@
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 
-#include <algorithm>
 #include <cmath>
-#include <map>
-#include <vector>
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
@@ -16,7 +13,6 @@
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
-#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/AttributeUtils.h"
@@ -117,31 +113,14 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       DataFlowSolver *solver,
       const typename NoiseAnalysis::SchemeParamType &schemeParam,
       const typename NoiseAnalysis::NoiseModel &model) {
-    auto res = getOperation()->walk([&](secret::GenericOp genericOp) {
-      // check arguments
-      for (Value arg : genericOp.getBody()->getArguments()) {
-        if (failed(validateNoiseForValue<NoiseAnalysis>(arg, solver,
-                                                        schemeParam, model))) {
-          return WalkResult::interrupt();
-        }
+    LogicalResult result = success();
+    walkValues(getOperation(), [&](Value value) {
+      if (failed(validateNoiseForValue<NoiseAnalysis>(value, solver,
+                                                      schemeParam, model))) {
+        result = failure();
       }
-
-      // check each operation
-      // TODO(#1181): handle region bearing ops
-      return genericOp.getBody()->walk([&](Operation *op) {
-        for (Value result : op->getResults()) {
-          if (failed(validateNoiseForValue<NoiseAnalysis>(
-                  result, solver, schemeParam, model))) {
-            return WalkResult::interrupt();
-          }
-        }
-        return WalkResult::advance();
-      });
     });
-    if (res == WalkResult::interrupt()) {
-      return failure();
-    }
-    return success();
+    return result;
   }
 
   template <typename NoiseModel>

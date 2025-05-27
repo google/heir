@@ -168,9 +168,17 @@ class SecretGenericOpConversion
     // converted op.
     convertArrayOfDicts(op.getAllOperandAttrsAttr(), attrsToPreserve);
     convertArrayOfDicts(op.getAllResultAttrsAttr(), attrsToPreserve);
+    DenseSet<StringRef> seenNames;
+    SmallVector<NamedAttribute> dedupedAttrsToPreserve;
+    for (NamedAttribute preservedAttr : attrsToPreserve) {
+      if (!seenNames.insert(preservedAttr.getName()).second) {
+        continue;  // Skip duplicates.
+      }
+      dedupedAttrsToPreserve.push_back(preservedAttr);
+    }
 
     FailureOr<Operation *> newOpResult = matchAndRewriteInner(
-        op, resultTypes, inputs, attrsToPreserve, rewriter);
+        op, resultTypes, inputs, dedupedAttrsToPreserve, rewriter);
     if (failed(newOpResult)) return failure();
     Operation *newOp = newOpResult.value();
 
@@ -179,7 +187,7 @@ class SecretGenericOpConversion
     // the new op.
     DictionaryAttr existingAttrs(newOp->getAttrDictionary());
     SmallVector<NamedAttribute> attrsToSet(existingAttrs.getValue());
-    for (NamedAttribute preservedAttr : attrsToPreserve) {
+    for (NamedAttribute preservedAttr : dedupedAttrsToPreserve) {
       if (existingAttrs.get(preservedAttr.getName())) {
         continue;
       }

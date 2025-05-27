@@ -1,10 +1,14 @@
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <string>
+#include <utility>
 
-#include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Diagnostics.h"       // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/raw_ostream.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Diagnostics.h"         // from @llvm-project
 
 namespace mlir {
 namespace heir {

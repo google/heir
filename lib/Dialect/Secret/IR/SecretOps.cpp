@@ -7,7 +7,6 @@
 #include <optional>
 #include <utility>
 
-#include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
@@ -29,6 +28,7 @@
 #include "mlir/include/mlir/IR/Types.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "mlir/include/mlir/Interfaces/ControlFlowInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
@@ -714,6 +714,45 @@ void GenericOp::inlineInPlaceDroppingSecrets(PatternRewriter &rewriter,
 void GenericOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                             MLIRContext *context) {
   populateGenericCanonicalizers(results, context);
+}
+
+// RegionBranchOpInterface implementation for generic/yield
+
+OperandRange GenericOp::getEntrySuccessorOperands(RegionBranchPoint point) {
+  return getInputs();
+}
+
+void GenericOp::getSuccessorRegions(RegionBranchPoint point,
+                                    SmallVectorImpl<RegionSuccessor> &regions) {
+  if (point == RegionBranchPoint::parent()) {
+    regions.push_back(RegionSuccessor(&getRegion(), getBody()->getArguments()));
+  } else {
+    regions.push_back(RegionSuccessor(getResults()));
+  }
+}
+
+void GenericOp::getRegionInvocationBounds(
+    ArrayRef<Attribute> operands, SmallVectorImpl<InvocationBounds> &bounds) {
+  // The sole region is invoked exactly once
+  bounds.push_back(InvocationBounds(/*lb=*/1, /*ub=*/1));
+}
+
+bool GenericOp::areTypesCompatible(Type t1, Type t2) {
+  // The default check enforces type equality, whereas we switch from
+  // secret<foo> to foo and vice versa
+  SecretType s1 = dyn_cast<SecretType>(t1);
+  SecretType s2 = dyn_cast<SecretType>(t2);
+  if (s1) {
+    return t2 == s1.getValueType();
+  }
+
+  if (s2) {
+    return t1 == s2.getValueType();
+  }
+
+  // Generic operands need not be secret, so in this case the types must be
+  // equal.
+  return t1 == t2;
 }
 
 }  // namespace secret

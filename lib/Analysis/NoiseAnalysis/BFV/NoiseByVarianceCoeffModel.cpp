@@ -1,5 +1,6 @@
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <iomanip>
@@ -8,6 +9,7 @@
 #include <sstream>
 #include <string>
 
+#include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Utils/MathUtils.h"
 
 namespace mlir {

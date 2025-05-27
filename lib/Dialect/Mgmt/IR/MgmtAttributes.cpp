@@ -2,10 +2,13 @@
 
 #include <cstdint>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
+#include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Utils/AttributeUtils.h"
-#include "mlir/include/mlir/IR/Value.h"      // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -36,6 +39,11 @@ MgmtAttr findMgmtAttrAssociatedWith(Value value) {
 void setMgmtAttrAssociatedWith(Value value, MgmtAttr mgmtAttr) {
   setAttributeAssociatedWith(value, mgmt::MgmtDialect::kArgMgmtAttrName,
                              mgmtAttr);
+}
+
+bool shouldHaveMgmtAttribute(Value value, DataFlowSolver *solver) {
+  return isSecret(value, solver) ||
+         (isa_and_nonnull<mgmt::InitOp>(value.getDefiningOp()));
 }
 
 }  // namespace mgmt

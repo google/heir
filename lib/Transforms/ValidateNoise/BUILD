@@ -22,7 +22,6 @@ cc_library(
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect:ModuleAttributes",
         "@heir//lib/Dialect/BGV/IR:Dialect",
-        "@heir//lib/Dialect/Mgmt/IR:MgmtOps",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Utils",
         "@heir//lib/Utils:AttributeUtils",

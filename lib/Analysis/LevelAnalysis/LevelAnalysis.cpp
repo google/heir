@@ -4,12 +4,11 @@
 #include <cassert>
 #include <functional>
 
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
-#include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Utils/AttributeUtils.h"
+#include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -40,14 +39,10 @@ LogicalResult LevelAnalysis::visitOperation(
     propagateIfChanged(lattice, changed);
   };
 
+  LLVM_DEBUG(llvm::dbgs() << "Forward Propagate visiting " << op->getName()
+                          << "\n");
+
   llvm::TypeSwitch<Operation &>(*op)
-      .Case<secret::GenericOp>([&](auto genericOp) {
-        Block *body = genericOp.getBody();
-        for (auto i = 0; i != body->getNumArguments(); ++i) {
-          auto blockArg = body->getArgument(i);
-          propagate(blockArg, LevelState(0));
-        }
-      })
       .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         // implicitly ensure that the operand is secret
         const auto *operandLattice = operands[0];
@@ -156,22 +151,18 @@ LogicalResult LevelAnalysisBackward::visitOperation(
 // Utils
 //===----------------------------------------------------------------------===//
 
+// Walk the entire IR and return the maximum assigned level of all secret
+// Values.
 static int getMaxLevel(Operation *top, DataFlowSolver *solver) {
   auto maxLevel = 0;
-  top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
-      if (op->getNumResults() == 0) {
-        return;
+  walkValues(top, [&](Value value) {
+    if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      auto levelState = solver->lookupState<LevelLattice>(value)->getValue();
+      if (levelState.isInitialized()) {
+        auto level = levelState.getLevel();
+        maxLevel = std::max(maxLevel, level);
       }
-      if (!isSecret(op->getResult(0), solver)) {
-        return;
-      }
-      // ensure result is secret
-      auto level = solver->lookupState<LevelLattice>(op->getResult(0))
-                       ->getValue()
-                       .getLevel();
-      maxLevel = std::max(maxLevel, level);
-    });
+    }
   });
   return maxLevel;
 }
@@ -185,34 +176,23 @@ void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel) {
   };
 
   // use L to 0 instead of 0 to L
-  auto getLevel = [&](Value value) {
-    return maxLevel -
-           solver->lookupState<LevelLattice>(value)->getValue().getLevel() +
-           baseLevel;
+  auto getLevel = [&](Value value) -> int {
+    LevelState levelState =
+        solver->lookupState<LevelLattice>(value)->getValue();
+    // The analysis uses 0 to L for ease of analysis, and then we materialize
+    // it in the IR in reverse, from L to 0.
+    if (!levelState.isInitialized()) {
+      return maxLevel + baseLevel;
+    }
+    return maxLevel - levelState.getLevel() + baseLevel;
   };
 
-  top->walk<WalkOrder::PreOrder>([&](mgmt::InitOp initOp) {
-    auto level = getLevel(initOp.getResult());
-    initOp->setAttr(kArgLevelAttrName, getIntegerAttr(level));
-  });
-
-  top->walk<WalkOrder::PreOrder>([&](secret::GenericOp genericOp) {
-    for (auto i = 0; i != genericOp.getBody()->getNumArguments(); ++i) {
-      auto blockArg = genericOp.getBody()->getArgument(i);
-      auto level = getLevel(blockArg);
-      genericOp.setOperandAttr(i, kArgLevelAttrName, getIntegerAttr(level));
+  walkValues(top, [&](Value value) {
+    if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
+      int level = getLevel(value);
+      setAttributeAssociatedWith(value, kArgLevelAttrName,
+                                 getIntegerAttr(level));
     }
-
-    genericOp.getBody()->walk<WalkOrder::PreOrder>([&](Operation *op) {
-      if (op->getNumResults() == 0) {
-        return;
-      }
-      if (!isSecret(op->getResult(0), solver)) {
-        return;
-      }
-      auto level = getLevel(op->getResult(0));
-      op->setAttr(kArgLevelAttrName, getIntegerAttr(level));
-    });
   });
 }
 

@@ -3,13 +3,14 @@
 #include <map>
 #include <string>
 
-#include "llvm/include/llvm/ADT/DenseMap.h"             // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/OpImplementation.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/DenseMap.h"              // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 
 namespace mlir {
 namespace heir {

@@ -7,6 +7,9 @@
 #include <sstream>
 #include <string>
 
+#include "lib/Analysis/NoiseAnalysis/Noise.h"
+#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
+
 namespace mlir {
 namespace heir {
 namespace bfv {

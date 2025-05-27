@@ -43,6 +43,7 @@ cc_library(
     deps = [
         "@heir//lib/Analysis/NoiseAnalysis:Noise",
         "@heir//lib/Parameters/BGV:Params",
+        "@llvm-project//llvm:Support",
     ],
 )
 

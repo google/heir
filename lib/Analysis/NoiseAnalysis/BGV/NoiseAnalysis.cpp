@@ -10,6 +10,7 @@
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"             // from @llvm-project
@@ -29,7 +30,15 @@ namespace heir {
 // explicit specialization of NoiseAnalysis for NoiseByBoundCoeffModel
 template <typename NoiseModel>
 void NoiseAnalysis<NoiseModel>::setToEntryState(LatticeType *lattice) {
-  // At an entry point, we have no information about the noise.
+  if (isa<secret::SecretType>(lattice->getAnchor().getType())) {
+    Value value = lattice->getAnchor();
+    auto localParam = LocalParamType(&schemeParam, getLevelFromMgmtAttr(value),
+                                     getDimensionFromMgmtAttr(value));
+    NoiseState encrypted = noiseModel.evalEncrypt(localParam);
+    this->propagateIfChanged(lattice, lattice->join(encrypted));
+    return;
+  }
+
   this->propagateIfChanged(lattice, lattice->join(NoiseState::uninitialized()));
 }
 
