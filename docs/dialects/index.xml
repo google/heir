@@ -12156,7 +12156,7 @@ block.&lt;/p>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>yield &lt;span style="color:#000">%z&lt;/span> &lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#000;font-weight:bold">-&amp;gt;&lt;/span> &lt;span style="color:#000;font-weight:bold">(!&lt;/span>secret&lt;span style="color:#000;font-weight:bold">.&lt;/span>secret&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i32&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;)&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Traits: &lt;code>SingleBlockImplicitTerminator&amp;lt;YieldOp&amp;gt;&lt;/code>, &lt;code>SingleBlock&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>, &lt;code>OperandAndResultAttrInterface&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>OpAsmOpInterface&lt;/code>, &lt;code>OperandAndResultAttrInterface&lt;/code>, &lt;code>RegionBranchOpInterface&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
