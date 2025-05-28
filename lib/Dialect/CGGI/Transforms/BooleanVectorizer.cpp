@@ -199,7 +199,7 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
     BackwardSliceOptions options;
     options.omitBlockArguments = true;
 
-    getBackwardSlice(&op, &backwardSlice, options);
+    (void)mlir::getBackwardSlice(&op, &backwardSlice, options);
     for (auto *upstreamDep : backwardSlice) {
       // An edge from upstreamDep to `op` means that upstreamDep must be
       // computed before `op`.
