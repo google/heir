@@ -1,0 +1,30 @@
+name: update-lockfile
+on:
+  schedule:
+    - cron: '00 1 * * 0'  # At 01:00 on Sundays.
+  # allow this workflow to be manually run
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+
+      - name: Run update lockfile
+        run: bazel mod deps --lockfile_mode=update
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # pin@v7.0.8
+        with:
+          commit-message: "automated bazel lockfile update"
+          title: "[deps] update bazel lockfile"
+          labels: pull-ready, dependencies, bazel
