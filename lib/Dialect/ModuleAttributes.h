@@ -61,6 +61,11 @@ constexpr const static ::llvm::StringLiteral kClientEncFuncAttrName =
 constexpr const static ::llvm::StringLiteral kClientDecFuncAttrName =
     "client.dec_func";
 
+inline bool isClientHelper(Operation *op) {
+  return op->hasAttr(kClientDecFuncAttrName) ||
+         op->hasAttr(kClientDecFuncAttrName);
+}
+
 // The name of the function this client helper is made for.
 constexpr const static ::llvm::StringLiteral kClientHelperFuncName =
     "func_name";

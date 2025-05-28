@@ -31,21 +31,6 @@ namespace heir {
 struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
   using GenerateParamBFVBase::GenerateParamBFVBase;
 
-  // assume only one main func
-  // also assume max level at entry
-  // also assume first genericOp arg is secret
-  int getMaxLevel() {
-    int maxLevel = 0;
-    getOperation()->walk([&](func::FuncOp funcOp) {
-      funcOp->walk([&](secret::GenericOp genericOp) {
-        if (genericOp.getBody()->getNumArguments() > 0) {
-          maxLevel = getLevelFromMgmtAttr(genericOp.getBody()->getArgument(0));
-        }
-      });
-    });
-    return maxLevel;
-  }
-
   void annotateSchemeParam(const bgv::SchemeParam &schemeParam) {
     getOperation()->setAttr(
         bgv::BGVDialect::kSchemeParamAttrName,
@@ -130,11 +115,11 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
 
   template <typename NoiseModel>
   void run(const NoiseModel &model) {
-    int maxLevel = getMaxLevel();
+    std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     // plaintext modulus from command line option
     auto schemeParam = NoiseModel::SchemeParamType::getConservativeSchemeParam(
-        maxLevel, plaintextModulus, slotNumber, usePublicKey,
+        maxLevel.value_or(0), plaintextModulus, slotNumber, usePublicKey,
         encryptionTechniqueExtended);
 
     LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
@@ -164,8 +149,8 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
 
   void generateFallbackParam() {
     // generate fallback scheme parameters
-    auto maxLevel = getMaxLevel();
-    std::vector<double> logPrimes(maxLevel + 1,
+    auto maxLevel = getMaxLevel(getOperation());
+    std::vector<double> logPrimes(maxLevel.value_or(0) + 1,
                                   modBits);  // all primes of modBits bits
 
     auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(
