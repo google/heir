@@ -16,6 +16,8 @@ dataclass = dataclasses.dataclass
 class HEIRConfig:
   heir_opt_path: str | Path
   heir_translate_path: str | Path
+  techmap_dir_path: str | Path  # optional
+  abc_path: str | Path  # optional
 
 
 def development_heir_config() -> HEIRConfig:
@@ -23,9 +25,36 @@ def development_heir_config() -> HEIRConfig:
   if not repo_root:
     raise RuntimeError("Could not build development config. Did you run bazel?")
 
+  techmap_dir_path = (
+      repo_root
+      / "bazel-bin"
+      / "tools"
+      / "heir-opt.runfiles"
+      / "_main"
+      / "lib"
+      / "Transforms"
+      / "YosysOptimizer"
+      / "yosys"
+  )
+  if not techmap_dir_path.exists():
+    techmap_path = ""
+
+  abc_path = (
+      repo_root
+      / "bazel-bin"
+      / "tools"
+      / "heir-opt.runfiles"
+      / "edu_berkeley_abc"
+      / "abc"
+  )
+  if not abc_path.exists():
+    abc_path = ""
+
   return HEIRConfig(
       heir_opt_path=repo_root / "bazel-bin" / "tools" / "heir-opt",
       heir_translate_path=repo_root / "bazel-bin" / "tools" / "heir-translate",
+      techmap_dir_path=techmap_dir_path,
+      abc_path=abc_path,
   )
 
 
@@ -37,7 +66,8 @@ def from_os_env() -> HEIRConfig:
 
   The order of preference is:
 
-  1. Environment variable HEIR_OPT_PATH or HEIR_TRANSLATE_PATH
+  1. Environment variables HEIR_OPT_PATH, HEIR_TRANSLATE_PATH, HEIR_ABC_BINARY,
+     or HEIR_YOSYS_SCRIPTS_DIR
   2. The path to the heir-opt or heir-translate binary on the PATH
   3. The default development configuration (relative to the project root, in
      bazel-bin)
@@ -47,6 +77,7 @@ def from_os_env() -> HEIRConfig:
   """
   which_heir_opt = shutil.which("heir-opt")
   which_heir_translate = shutil.which("heir-translate")
+  which_abc = shutil.which("abc")
   resolved_heir_opt_path = os.environ.get(
       "HEIR_OPT_PATH",
       which_heir_opt or development_heir_config().heir_opt_path,
@@ -55,10 +86,20 @@ def from_os_env() -> HEIRConfig:
       "HEIR_TRANSLATE_PATH",
       which_heir_translate or development_heir_config().heir_translate_path,
   )
+  resolved_abc_path = os.environ.get(
+      "HEIR_ABC_BINARY",
+      which_abc or development_heir_config().abc_path,
+  )
+  resolved_techmap_dir_path = os.environ.get(
+      "HEIR_YOSYS_SCRIPTS_DIR",
+      development_heir_config().techmap_dir_path,
+  )
 
   return HEIRConfig(
       heir_opt_path=resolved_heir_opt_path,
       heir_translate_path=resolved_heir_translate_path,
+      techmap_dir_path=resolved_techmap_dir_path,
+      abc_path=resolved_abc_path,
   )
 
 
