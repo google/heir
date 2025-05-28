@@ -124,7 +124,7 @@ bool shouldLoopInitBeLiftedToSecret(LoopLikeOpInterface loop,
 //
 // E.g.,
 //
-//    %res = secret.generic ins(%value : !secret.secret<i32>) {
+//    %res = secret.generic(%value : !secret.secret<i32>) {
 //    ^bb0(%clear_value: i32):
 //      %c7 = arith.constant 7 : i32
 //      %0 = arith.muli %clear_value, %c7 : i32
@@ -137,7 +137,7 @@ bool shouldLoopInitBeLiftedToSecret(LoopLikeOpInterface loop,
 //      %c7 = arith.constant 7 : i32
 //      secret.yield %c7 : i32
 //    } -> !secret.secret<i32>
-//    %1 = secret.generic ins(
+//    %1 = secret.generic(
 //       %arg0, %secret_7 : !secret.secret<i32>, !secret.secret<i32>) {
 //    ^bb0(%clear_arg0: i32, %clear_7: i32):
 //      %7 = arith.muli %clear_arg0, %clear_7 : i32
@@ -167,7 +167,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
     if (auto loop = dyn_cast<LoopLikeOpInterface>(opToDistribute)) {
       // Example:
       //
-      //   secret.generic ins(%value : !secret.secret<...>) {
+      //   secret.generic(%value : !secret.secret<...>) {
       //   ^bb0(%clear_value: ...):
       //     %1 = scf.for ... iter_args(%iter_arg = %clear_value) -> ... {
       //       scf.yield ...
@@ -178,7 +178,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       // This needs to be converted to:
       //
       //   %1 = scf.for ... iter_args(%iter_arg = %value) -> ... {
-      //     %2 = secret.generic ins(%iter_arg : !secret.secret<...>) {
+      //     %2 = secret.generic(%iter_arg : !secret.secret<...>) {
       //     ^bb0(%clear_iter_arg: ...):
       //       ...
       //       secret.yield %1 : ...
