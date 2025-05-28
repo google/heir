@@ -10,6 +10,7 @@ cc_library(
     srcs = ["LayoutOptimization.cpp"],
     hdrs = ["LayoutOptimization.h"],
     deps = [
+        ":Patterns",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
@@ -23,6 +24,22 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "Patterns",
+    srcs = ["Patterns.cpp"],
+    hdrs = ["Patterns.h"],
+    deps = [
+        "@heir//lib/Dialect/Secret/IR:SecretPatterns",
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Utils:AttributeUtils",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 

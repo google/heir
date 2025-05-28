@@ -3,10 +3,12 @@
 #include <cassert>
 #include <cstdint>
 #include <tuple>
+#include <utility>
 
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "lib/Transforms/LayoutOptimization/Patterns.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
@@ -24,6 +26,7 @@
 #include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Visitors.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "layout-optimization"
 
@@ -87,7 +90,8 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
 };
 
 void LayoutOptimization::runOnOperation() {
-  IRRewriter builder(&getContext());
+  auto ctx = &getContext();
+  IRRewriter builder(ctx);
   WalkResult result =
       getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
           [&](Operation *op) {
@@ -102,6 +106,12 @@ void LayoutOptimization::runOnOperation() {
           });
 
   if (result.wasInterrupted()) {
+    signalPassFailure();
+  }
+
+  RewritePatternSet patterns(ctx);
+  patterns.add<HoistArgLayouts>(ctx);
+  if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
     signalPassFailure();
   }
 };

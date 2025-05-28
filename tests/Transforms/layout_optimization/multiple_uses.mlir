@@ -1,24 +1,23 @@
 // RUN: heir-opt --layout-optimization --canonicalize %s -split-input-file | FileCheck %s
 
 // CHECK-DAG: [[map:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> ((d0 + 1) mod 32)>
-// CHECK-DAG: [[map1:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0)>
 // CHECK-DAG: [[map2:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> ((d0 + 2) mod 32)>
 #map =  #tensor_ext.layout<map = (d0) -> ((d0 + 1) mod 32)>
 #map1 = #tensor_ext.layout<map = (d0) -> (d0)>
 #map2 = #tensor_ext.layout<map = (d0) -> ((d0 + 2) mod 32)>
 module {
   // CHECK: func @update_uses
+  // 4. Fold first tensor_extr.convert_layout's into the function argument's layout.
+  // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = [[map2]]},
+  // CHECK-SAME:  %[[arg1:.*]]: !secret.secret<tensor<32xi16>> {tensor_ext.layout = [[map2]]})
   func.func @update_uses(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}, %arg2: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map2}) -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}) {
     // CHECK-NEXT: secret.generic
     %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<tensor<32xi16>>, %arg2: !secret.secret<tensor<32xi16>>)
       attrs = {__argattrs = [{tensor_ext.layout = #map1}, {tensor_ext.layout = #map}, {tensor_ext.layout = #map2}], __resattrs = [{tensor_ext.layout = #map2}]} {
     ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>, %input2: tensor<32xi16>):
     // CHECK-NEXT: ^body(%[[input0:[^:]*]]: tensor<32xi16>, %[[input1:[^:]*]]: tensor<32xi16>, %[[input2:[^:]*]]: tensor<32xi16>)
-
       // 3. Hoist %2 before %1 so arith.addi is done in layout #map2.
-      // CHECK-NEXT: %[[v1:[^ ]*]] = tensor_ext.convert_layout %[[input0]]
-      // CHECK-SAME: to_layout = [[map2]]
-      // CHECK: %[[v2:[^ ]*]] = arith.addi %[[v1]], %[[v1]]
+      // CHECK: %[[v2:[^ ]*]] = arith.addi %[[input0]], %[[input0]]
       // CHECK-SAME: tensor_ext.layout = [[map2]]
 
       %1 = arith.addi %input0, %input0 {tensor_ext.layout = #map1} : tensor<32xi16>
@@ -31,8 +30,7 @@ module {
       %4 = arith.addi %3, %input2 {tensor_ext.layout = #map2} : tensor<32xi16>
 
       // 1. Hoist %6 before %5 so arith.addi is done in layout #map2.
-      // CHECK: %[[v4:.*]] = tensor_ext.convert_layout %[[input1]]
-      // CHECK: arith.addi %[[v2]], %[[v4]]
+      // CHECK: arith.addi %[[v2]], %[[input1]]
       // CHECK-SAME: tensor_ext.layout = [[map2]]
       %5 = arith.addi %2, %input1 {tensor_ext.layout = #map} : tensor<32xi16>
       %6 = tensor_ext.convert_layout %5 {from_layout = #map, tensor_ext.layout = [#map2], to_layout = #map2} : tensor<32xi16>
