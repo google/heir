@@ -36,7 +36,7 @@ func.func @dot_product(
     %arg0: !secret.secret<tensor<8xi16>>,
     %arg1: !secret.secret<tensor<8xi16>>) -> !secret.secret<i16> {
   %c0_i16 = arith.constant 0 : i16
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %1 = affine.for %arg4 = 0 to 8 iter_args(%arg5 = %c0_i16) -> (i16) {
       %extracted = tensor.extract %arg2[%arg4] : tensor<8xi16>
@@ -79,7 +79,7 @@ func.func @dot_product(
   %c2 = arith.constant 2 : index
   %c4 = arith.constant 4 : index
   %c7 = arith.constant 7 : index
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %1 = arith.muli %arg2, %arg3 : tensor<8xi16>
     %2 = tensor_ext.rotate %1, %c4 : tensor<8xi16>, index
@@ -117,7 +117,7 @@ proximity of the secret type to the op to be lowered.
 
 ```mlir
   %c2 = arith.constant 2 : index
-  %3 = secret.generic ins(%2 : !secret.secret<tensor<8xi16>>) {
+  %3 = secret.generic(%2 : !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>):
     %8 = tensor_ext.rotate %arg2, %c2 : tensor<8xi16>, index
     secret.yield %8 : tensor<8xi16>
@@ -133,42 +133,42 @@ func.func @dot_product(%arg0: !secret.secret<tensor<8xi16>>, %arg1: !secret.secr
   %c2 = arith.constant 2 : index
   %c4 = arith.constant 4 : index
   %c7 = arith.constant 7 : index
-  %0 = secret.generic ins(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %0 = secret.generic(%arg0, %arg1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %8 = arith.muli %arg2, %arg3 : tensor<8xi16>
     secret.yield %8 : tensor<8xi16>
   } -> !secret.secret<tensor<8xi16>>
-  %1 = secret.generic ins(%0 : !secret.secret<tensor<8xi16>>) {
+  %1 = secret.generic(%0 : !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>):
     %8 = tensor_ext.rotate %arg2, %c4 : tensor<8xi16>, index
     secret.yield %8 : tensor<8xi16>
   } -> !secret.secret<tensor<8xi16>>
-  %2 = secret.generic ins(%0, %1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %2 = secret.generic(%0, %1 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %8 = arith.addi %arg2, %arg3 : tensor<8xi16>
     secret.yield %8 : tensor<8xi16>
   } -> !secret.secret<tensor<8xi16>>
-  %3 = secret.generic ins(%2 : !secret.secret<tensor<8xi16>>) {
+  %3 = secret.generic(%2 : !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>):
     %8 = tensor_ext.rotate %arg2, %c2 : tensor<8xi16>, index
     secret.yield %8 : tensor<8xi16>
   } -> !secret.secret<tensor<8xi16>>
-  %4 = secret.generic ins(%2, %3 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %4 = secret.generic(%2, %3 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %8 = arith.addi %arg2, %arg3 : tensor<8xi16>
     secret.yield %8 : tensor<8xi16>
   } -> !secret.secret<tensor<8xi16>>
-  %5 = secret.generic ins(%4 : !secret.secret<tensor<8xi16>>) {
+  %5 = secret.generic(%4 : !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>):
     %8 = tensor_ext.rotate %arg2, %c1 : tensor<8xi16>, index
     secret.yield %8 : tensor<8xi16>
   } -> !secret.secret<tensor<8xi16>>
-  %6 = secret.generic ins(%4, %5 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
+  %6 = secret.generic(%4, %5 : !secret.secret<tensor<8xi16>>, !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>, %arg3: tensor<8xi16>):
     %8 = arith.addi %arg2, %arg3 : tensor<8xi16>
     secret.yield %8 : tensor<8xi16>
   } -> !secret.secret<tensor<8xi16>>
-  %7 = secret.generic ins(%6 : !secret.secret<tensor<8xi16>>) {
+  %7 = secret.generic(%6 : !secret.secret<tensor<8xi16>>) {
   ^bb0(%arg2: tensor<8xi16>):
     %extracted = tensor.extract %arg2[%c7] : tensor<8xi16>
     secret.yield %extracted : i16

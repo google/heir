@@ -22,7 +22,7 @@ namespace secret {
 //
 // E.g.,
 //
-//    %res = secret.generic ins(%value : i32) {
+//    %res = secret.generic(%value : i32) {
 //     ^bb0(%clear_value: i32):
 //       %c7 = arith.constant 7 : i32
 //       %0 = arith.muli %clear_value, %c7 : i32
