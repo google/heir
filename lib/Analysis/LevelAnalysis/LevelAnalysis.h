@@ -154,6 +154,10 @@ constexpr StringRef kArgLevelAttrName = "mgmt.level";
 /// baseLevel is for B/FV scheme, where all the analysis result would be 0
 void annotateLevel(Operation *top, DataFlowSolver *solver, int baseLevel = 0);
 
+// Get the maximum annotated level from mgmt attributes.
+// Assumes max level at the entrypoint to the main compiled function.
+std::optional<int> getMaxLevel(Operation *root);
+
 }  // namespace heir
 }  // namespace mlir
 

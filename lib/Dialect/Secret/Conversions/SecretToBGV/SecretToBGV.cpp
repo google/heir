@@ -161,24 +161,6 @@ LogicalResult disallowFloatlike(const Type &type) {
 struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
   using SecretToBGVBase::SecretToBGVBase;
 
-  // assume only one main func
-  // also assume max level at entry
-  int getMaxLevel() {
-    int maxLevel = 0;
-    getOperation()->walk([&](func::FuncOp funcOp) {
-      // get mgmtattr from funcop argument
-      for (auto i = 0; i != funcOp.getNumArguments(); ++i) {
-        auto mgmtAttr =
-            funcOp.getArgAttr(i, mgmt::MgmtDialect::kArgMgmtAttrName);
-        if (mgmtAttr) {
-          maxLevel = cast<mgmt::MgmtAttr>(mgmtAttr).getLevel();
-          break;
-        }
-      }
-    });
-    return maxLevel;
-  }
-
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     auto *module = getOperation();

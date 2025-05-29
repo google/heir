@@ -3,15 +3,19 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
+#include <optional>
 
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
@@ -202,6 +206,23 @@ LevelState::LevelType getLevelFromMgmtAttr(Value value) {
     assert(false && "MgmtAttr not found");
   }
   return mgmtAttr.getLevel();
+}
+
+std::optional<int> getMaxLevel(Operation *root) {
+  int maxLevel = 0;
+  root->walk([&](func::FuncOp funcOp) {
+    // Skip client helpers
+    if (isClientHelper(funcOp)) {
+      return;
+    }
+
+    for (BlockArgument arg : funcOp.getArguments()) {
+      if (isa<secret::SecretType>(arg.getType())) {
+        maxLevel = std::max(maxLevel, getLevelFromMgmtAttr(arg));
+      }
+    }
+  });
+  return maxLevel;
 }
 
 }  // namespace heir

@@ -1,10 +1,18 @@
+#include <algorithm>
+#include <cmath>
+#include <optional>
+#include <vector>
+
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
+#include "lib/Dialect/BGV/IR/BGVEnums.h"
 #include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -15,8 +23,11 @@
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"                 // from @llvm-project
+#include "mlir/include/mlir/Pass/PassManager.h"            // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"           // from @llvm-project
 
@@ -30,21 +41,6 @@ namespace heir {
 
 struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
   using GenerateParamBFVBase::GenerateParamBFVBase;
-
-  // assume only one main func
-  // also assume max level at entry
-  // also assume first genericOp arg is secret
-  int getMaxLevel() {
-    int maxLevel = 0;
-    getOperation()->walk([&](func::FuncOp funcOp) {
-      funcOp->walk([&](secret::GenericOp genericOp) {
-        if (genericOp.getBody()->getNumArguments() > 0) {
-          maxLevel = getLevelFromMgmtAttr(genericOp.getBody()->getArgument(0));
-        }
-      });
-    });
-    return maxLevel;
-  }
 
   void annotateSchemeParam(const bgv::SchemeParam &schemeParam) {
     getOperation()->setAttr(
@@ -130,11 +126,11 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
 
   template <typename NoiseModel>
   void run(const NoiseModel &model) {
-    int maxLevel = getMaxLevel();
+    std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     // plaintext modulus from command line option
     auto schemeParam = NoiseModel::SchemeParamType::getConservativeSchemeParam(
-        maxLevel, plaintextModulus, slotNumber, usePublicKey,
+        maxLevel.value_or(0), plaintextModulus, slotNumber, usePublicKey,
         encryptionTechniqueExtended);
 
     LLVM_DEBUG(llvm::dbgs() << "Conservative Scheme Param:\n"
@@ -164,8 +160,8 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
 
   void generateFallbackParam() {
     // generate fallback scheme parameters
-    auto maxLevel = getMaxLevel();
-    std::vector<double> logPrimes(maxLevel + 1,
+    auto maxLevel = getMaxLevel(getOperation());
+    std::vector<double> logPrimes(maxLevel.value_or(0) + 1,
                                   modBits);  // all primes of modBits bits
 
     auto schemeParam = bgv::SchemeParam::getConcreteSchemeParam(

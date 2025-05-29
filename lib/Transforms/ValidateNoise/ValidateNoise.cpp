@@ -1,6 +1,6 @@
 #include "lib/Transforms/ValidateNoise/ValidateNoise.h"
 
-#include <cmath>
+#include <optional>
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
@@ -9,19 +9,18 @@
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
+#include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/BGV/IR/BGVAttributes.h"
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/ModuleAttributes.h"
-#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
@@ -38,21 +37,6 @@ namespace heir {
 
 struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
   using ValidateNoiseBase::ValidateNoiseBase;
-
-  // assume only one main func
-  // also assume max level at entry
-  // also assume first genericOp arg is secret
-  int getMaxLevel() {
-    int maxLevel = 0;
-    getOperation()->walk([&](func::FuncOp funcOp) {
-      funcOp->walk([&](secret::GenericOp genericOp) {
-        if (genericOp.getBody()->getNumArguments() > 0) {
-          maxLevel = getLevelFromMgmtAttr(genericOp.getBody()->getArgument(0));
-        }
-      });
-    });
-    return maxLevel;
-  }
 
   template <typename NoiseAnalysis>
   LogicalResult validateNoiseForValue(
@@ -125,7 +109,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
   template <typename NoiseModel>
   void run(const NoiseModel &model) {
-    int maxLevel = getMaxLevel();
+    std::optional<int> maxLevel = getMaxLevel(getOperation());
 
     auto schemeParamAttr = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
         bgv::BGVDialect::kSchemeParamAttrName);
@@ -142,7 +126,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     auto schemeParam =
         NoiseModel::SchemeParamType::getSchemeParamFromAttr(schemeParamAttr);
-    if (schemeParam.getLevel() < maxLevel) {
+    if (schemeParam.getLevel() < maxLevel.value_or(0)) {
       getOperation()->emitOpError()
           << "The level in the scheme param is smaller than the max level.\n";
       signalPassFailure();
