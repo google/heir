@@ -34,9 +34,11 @@
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Math/IR/Math.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
@@ -103,10 +105,10 @@ void printRawDataFromAttr(DenseElementsAttr attr, raw_ostream &os) {
 }
 
 llvm::SmallString<128> variableLoadStr(
-    MemRefType memRefType, ValueRange indices, unsigned int width,
+    ShapedType shapedType, ValueRange indices, unsigned int width,
     std::function<std::string(Value)> valueToString) {
   auto idx = flattenIndexExpression(
-      memRefType, indices, [&](Value value) -> std::string {
+      shapedType, indices, [&](Value value) -> std::string {
         if (auto constOp =
                 dyn_cast_or_null<arith::ConstantOp>(value.getDefiningOp())) {
           return std::to_string(cast<IntegerAttr>(constOp.getValue()).getInt());
@@ -116,6 +118,38 @@ llvm::SmallString<128> variableLoadStr(
   auto wrappedIdx = indices.size() == 1 ? idx : llvm::formatv("({0})", idx);
   return llvm::formatv("{0} + {2} * {1} : {2} * {1}", width - 1, wrappedIdx,
                        width);
+}
+
+llvm::SmallString<128> variableBottomRangeStr(
+    ShapedType shapedType, ValueRange indices, unsigned int width,
+    std::function<std::string(Value)> valueToString) {
+  auto idx = flattenIndexExpression(
+      shapedType, indices, [&](Value value) -> std::string {
+        if (auto constOp =
+                dyn_cast_or_null<arith::ConstantOp>(value.getDefiningOp())) {
+          return std::to_string(cast<IntegerAttr>(constOp.getValue()).getInt());
+        }
+        return valueToString(value);
+      });
+  auto wrappedIdx = indices.size() == 1 ? idx : llvm::formatv("({0})", idx);
+  return llvm::formatv("{1} == 0 ? 0 : {1} * {0} - 1 < 0 : 0", width,
+                       wrappedIdx);
+}
+
+llvm::SmallString<128> variableTopRangeStr(
+    ShapedType shapedType, ValueRange indices, unsigned int width,
+    std::function<std::string(Value)> valueToString) {
+  auto idx = flattenIndexExpression(
+      shapedType, indices, [&](Value value) -> std::string {
+        if (auto constOp =
+                dyn_cast_or_null<arith::ConstantOp>(value.getDefiningOp())) {
+          return std::to_string(cast<IntegerAttr>(constOp.getValue()).getInt());
+        }
+        return valueToString(value);
+      });
+  auto totalSize = shapedType.getNumElements() * width;
+  auto wrappedIdx = indices.size() == 1 ? idx : llvm::formatv("({0})", idx);
+  return llvm::formatv("{0} : {1} + {2} * {1}", totalSize, width, wrappedIdx);
 }
 
 struct CtlzValueStruct {
@@ -143,7 +177,7 @@ func::FuncOp getCalledFunction(func::CallOp callOp) {
       SymbolTable::lookupNearestSymbolFrom(callOp, sym));
 }
 
-int32_t getMaxMemrefIndexed(Value index) {
+int32_t getMaxShapedTypeSize(Value index) {
   int32_t maxSize = 0;
   for (auto &use : index.getUses()) {
     Operation *user = use.getOwner();
@@ -152,6 +186,12 @@ int32_t getMaxMemrefIndexed(Value index) {
             .Case<affine::AffineLoadOp, affine::AffineStoreOp, memref::LoadOp,
                   memref::StoreOp>(
                 [&](auto op) { return op.getMemRefType().getNumElements(); })
+            .Case<tensor::ExtractOp>([&](auto op) {
+              return op.getTensor().getType().getNumElements();
+            })
+            .Case<tensor::InsertOp>([&](auto op) {
+              return op.getResult().getType().getNumElements();
+            })
             .Case<func::CallOp>([&](func::CallOp op) {
               // Index is passed into a function, get largest use.
               func::FuncOp func = getCalledFunction(op);
@@ -159,7 +199,7 @@ int32_t getMaxMemrefIndexed(Value index) {
                   func.getBody().getArguments()[use.getOperandNumber()];
               assert(isa<IndexType>(operand.getType()) &&
                      "expected block arg of index type use to be index type");
-              return getMaxMemrefIndexed(operand);
+              return getMaxShapedTypeSize(operand);
             })
             .Default([&](Operation *) { return 0; });
     maxSize = std::max(maxSize, memrefSize);
@@ -179,7 +219,8 @@ void registerToVerilogTranslation() {
       [](DialectRegistry &registry) {
         registry.insert<arith::ArithDialect, func::FuncDialect,
                         memref::MemRefDialect, affine::AffineDialect,
-                        secret::SecretDialect, math::MathDialect>();
+                        secret::SecretDialect, math::MathDialect,
+                        tensor::TensorDialect>();
       });
 }
 
@@ -275,6 +316,8 @@ LogicalResult VerilogEmitter::translate(
           // Affine ops.
           .Case<affine::AffineParallelOp, affine::AffineLoadOp,
                 affine::AffineStoreOp, affine::AffineYieldOp>(
+              [&](auto op) { return printOperation(op); })
+          .Case<tensor::InsertOp, tensor::ExtractOp>(
               [&](auto op) { return printOperation(op); })
           .Case<UnrealizedConversionCastOp>(
               [&](auto op) { return printOperation(op); })
@@ -813,6 +856,56 @@ LogicalResult VerilogEmitter::printOperation(memref::StoreOp op) {
   return success();
 }
 
+LogicalResult VerilogEmitter::printOperation(tensor::ExtractOp op) {
+  // This extracts the indexed bits from the flattened tensor.
+  auto iType = dyn_cast<IntegerType>(op.getTensor().getType().getElementType());
+  if (!iType) {
+    return failure();
+  }
+
+  emitAssignPrefix(op.getResult());
+
+  os_ << getOrCreateName(op.getTensor()) << "["
+      << variableLoadStr(
+             op.getTensor().getType(), op.getIndices(), iType.getWidth(),
+             [&](Value value) { return getOrCreateName(value).str(); })
+      << "];\n";
+
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(tensor::InsertOp op) {
+  // An insertion operation must recreate the result tensor with the newly
+  // inserted element.
+  auto iType = dyn_cast<IntegerType>(op.getDest().getType().getElementType());
+  if (!iType) {
+    return failure();
+  }
+
+  // result[:index-1] = dest[:index-1];
+  auto lowRange = variableBottomRangeStr(
+      op.getResult().getType(), op.getIndices(), iType.getWidth(),
+      [&](Value value) { return getOrCreateName(value).str(); });
+  os_ << "assign " << getOrCreateName(op.getResult()) << "[" << lowRange
+      << "] = " << getOrCreateName(op.getDest()) << "[" << lowRange << "]"
+      << ";\n";
+  // result[index] = value
+  os_ << "assign " << getOrCreateName(op.getResult()) << "["
+      << variableLoadStr(
+             op.getResult().getType(), op.getIndices(), iType.getWidth(),
+             [&](Value value) { return getOrCreateName(value).str(); })
+      << "] = " << getOrCreateName(op.getOperands()[0]) << ";\n";
+  // result[index+1:] = dest[index+1:];
+  auto highRange = variableTopRangeStr(
+      op.getResult().getType(), op.getIndices(), iType.getWidth(),
+      [&](Value value) { return getOrCreateName(value).str(); });
+  os_ << "assign " << getOrCreateName(op.getResult()) << "[" << highRange
+      << "] = " << getOrCreateName(op.getDest()) << "[" << highRange << "]"
+      << ";\n";
+
+  return success();
+}
+
 LogicalResult VerilogEmitter::printOperation(affine::AffineStoreOp op) {
   // This extracts the indexed bits from the flattened memref.
   auto iType = dyn_cast<IntegerType>(op.getMemRefType().getElementType());
@@ -938,10 +1031,10 @@ LogicalResult VerilogEmitter::emitType(Type type, raw_ostream &os) {
     int32_t width = iType.getWidth();
     return (os << wireDeclaration(iType, width)), success();
   }
-  if (auto memRefType = dyn_cast<MemRefType>(type)) {
-    auto elementType = memRefType.getElementType();
+  if (auto shapedType = dyn_cast<ShapedType>(type)) {
+    auto elementType = shapedType.getElementType();
     if (auto iType = dyn_cast<IntegerType>(elementType)) {
-      int32_t flattenedWidth = memRefType.getNumElements() * iType.getWidth();
+      int32_t flattenedWidth = shapedType.getNumElements() * iType.getWidth();
       return (os << wireDeclaration(iType, flattenedWidth)), success();
     }
   }
@@ -953,10 +1046,9 @@ LogicalResult VerilogEmitter::emitType(Type type, raw_ostream &os) {
 LogicalResult VerilogEmitter::emitIndexType(Value indexValue, raw_ostream &os) {
   // Operations on index types are not supported in this emitter, so we just
   // need to check the immediate users and inspect the memrefs they contain.
-  int32_t biggestMemrefSize = getMaxMemrefIndexed(indexValue);
-  assert(biggestMemrefSize >= 0 &&
-         "unexpected index value unused by any memref ops");
-  auto widthBigint = APInt(64, biggestMemrefSize);
+  int32_t maxSize = getMaxShapedTypeSize(indexValue);
+  assert(maxSize >= 0 && "unexpected index value unused by any shaped type");
+  auto widthBigint = APInt(64, maxSize);
   int32_t width = widthBigint.isPowerOf2() ? widthBigint.logBase2()
                                            : widthBigint.logBase2() + 1;
   os << wireDeclaration(IntegerType::get(indexValue.getContext(), width),
