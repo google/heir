@@ -1,6 +1,7 @@
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BGV/NoiseBySymbolCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
@@ -229,6 +230,9 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
     } else if (model == "bgv-noise-mono") {
       bgv::NoiseCanEmbModel model;
       run<bgv::NoiseCanEmbModel>(model);
+    } else if (model == "bgv-noise-symbol") {
+      bgv::NoiseBySymbolCoeffModel model;
+      run<bgv::NoiseBySymbolCoeffModel>(model);
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();
