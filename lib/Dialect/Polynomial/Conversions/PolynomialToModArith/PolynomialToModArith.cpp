@@ -19,17 +19,16 @@
 #include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "lib/Utils/Polynomial/Polynomial.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
-#include "llvm/include/llvm/Support/Casting.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
-#include "mlir/include/mlir/Dialect/LLVMIR/LLVMAttrs.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"          // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
+#include "llvm/include/llvm/Support/FormatVariadic.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/LLVMIR/LLVMAttrs.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/SCF/IR/SCF.h"        // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StructuredOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/AffineExpr.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/AffineMap.h"              // from @llvm-project
@@ -48,6 +47,10 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/Dialect/LLVMIR/LLVMDialect.h"  // from @llvm-project
+// IWYU pragma: end_keep
 
 namespace mlir {
 namespace heir {
@@ -1026,6 +1029,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
   Value initialRootExp =
       b.create<arith::ConstantIndexOp>(inverse ? 1 : degree / 2);
   Value zero = b.create<arith::ConstantIndexOp>(0);
+  Value one = b.create<arith::ConstantIndexOp>(1);
   Value two = b.create<arith::ConstantIndexOp>(2);
   Value n = b.create<arith::ConstantIndexOp>(degree);
 
@@ -1033,8 +1037,12 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
   AffineExpr x, y;
   bindDims(b.getContext(), x, y);
 
-  auto stagesLoop = b.create<affine::AffineForOp>(
-      /*lowerBound=*/0, /* upperBound=*/stages, /*step=*/1,
+  Value stagesLb = zero;
+  Value stagesUb = b.create<arith::ConstantIndexOp>(stages);
+  Value stagesStep = one;
+
+  auto stagesLoop = b.create<scf::ForOp>(
+      stagesLb, stagesUb, stagesStep,
       /*iterArgs=*/ValueRange{initialValue, initialBatchSize, initialRootExp},
       /*bodyBuilder=*/
       [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
@@ -1043,23 +1051,24 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
         Value batchSize = args[1];
         Value rootExp = args[2];
 
-        auto innerLoop = b.create<affine::AffineForOp>(
-            /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
-            /*ubOperands=*/ValueRange{n, batchSize},
-            /*ubMap=*/AffineMap::get(2, 0, x.floorDiv(y)),
-            /*step=*/1, /*iterArgs=*/args[0],
+        Value innerLb = zero;
+        Value innerUb = b.create<arith::FloorDivSIOp>(n, batchSize);
+        Value innerStep = one;
+
+        auto innerLoop = b.create<scf::ForOp>(
+            innerLb, innerUb, innerStep,
+            /*iterArgs=*/args[0],
             /*bodyBuilder=*/
             [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
                 ValueRange args) {
               ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-              Value indexK = b.create<affine::AffineApplyOp>(
-                  x * y, ValueRange{batchSize, index});
+              Value indexK = b.create<arith::MulIOp>(batchSize, index);
+              Value arithLb = zero;
+              Value arithUb = b.create<arith::FloorDivSIOp>(batchSize, two);
+              Value arithStep = one;
 
-              auto arithLoop = b.create<affine::AffineForOp>(
-                  /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
-                  /*ubOperands=*/batchSize,
-                  /*ubMap=*/AffineMap::get(1, 0, x.floorDiv(2)),
-                  /*step=*/1, /*iterArgs=*/args[0],
+              auto arithLoop = b.create<scf::ForOp>(
+                  arithLb, arithUb, arithStep, /*iterArgs=*/args[0],
                   /*bodyBuilder=*/
                   [&](OpBuilder &nestedBuilder, Location nestedLoc,
                       Value indexJ, ValueRange args) {
@@ -1067,19 +1076,19 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
 
                     Value target = args[0];
 
-                    // Get A
-                    Value indexA = b.create<affine::AffineApplyOp>(
-                        x + y, ValueRange{indexJ, indexK});
+                    // Get A: indexJ + indexK
+                    Value indexA = b.create<arith::AddIOp>(indexJ, indexK);
                     Value A = b.create<tensor::ExtractOp>(target, indexA);
 
-                    // Get B
-                    Value indexB = b.create<affine::AffineApplyOp>(
-                        x + y.floorDiv(2), ValueRange{indexA, batchSize});
+                    // Get B: indexA + batchSize // 2
+                    Value indexB = b.create<arith::AddIOp>(indexA, arithUb);
                     Value B = b.create<tensor::ExtractOp>(target, indexB);
 
-                    // Get root
-                    Value rootIndex = b.create<affine::AffineApplyOp>(
-                        (2 * x + 1) * y, ValueRange{indexJ, rootExp});
+                    // Get root: (2 * indexJ + 1) * rootExp
+                    Value rootIndex = b.create<arith::MulIOp>(
+                        b.create<arith::AddIOp>(
+                            b.create<arith::MulIOp>(two, indexJ), one),
+                        rootExp);
                     Value root = b.create<tensor::ExtractOp>(roots, rootIndex);
 
                     auto bflyResult =
@@ -1091,10 +1100,10 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
                     auto insertMinus = b.create<tensor::InsertOp>(
                         bflyResult.second, insertPlus, indexB);
 
-                    b.create<affine::AffineYieldOp>(insertMinus.getResult());
+                    b.create<scf::YieldOp>(insertMinus.getResult());
                   });
 
-              b.create<affine::AffineYieldOp>(arithLoop.getResult(0));
+              b.create<scf::YieldOp>(arithLoop.getResult(0));
             });
 
         batchSize = inverse
@@ -1104,7 +1113,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
         rootExp = inverse ? b.create<arith::MulIOp>(rootExp, two).getResult()
                           : b.create<arith::DivUIOp>(rootExp, two).getResult();
 
-        b.create<affine::AffineYieldOp>(
+        b.create<scf::YieldOp>(
             ValueRange{innerLoop.getResult(0), batchSize, rootExp});
       });
 

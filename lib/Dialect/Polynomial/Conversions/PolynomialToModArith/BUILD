@@ -19,7 +19,6 @@ cc_library(
         "@heir//lib/Utils:ConversionUtils",
         "@heir//lib/Utils/Polynomial",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:FuncDialect",

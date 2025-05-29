@@ -10,12 +10,6 @@
 !poly_ty = !polynomial.polynomial<ring=#ring>
 
 // CHECK-DAG: #[[ID_MAP:.*]] = affine_map<(d0) -> (d0)>
-// CHECK-DAG: #[[C_DIV_MAP:.*]] = affine_map<(d0) -> (d0 floordiv 2)>
-// CHECK-DAG: #[[ADD_MAP:.*]] = affine_map<(d0, d1) -> (d0 + d1)>
-// CHECK-DAG: #[[MUL_MAP:.*]] = affine_map<(d0, d1) -> (d0 * d1)>
-// CHECK-DAG: #[[DIV_MAP:.*]] = affine_map<(d0, d1) -> (d0 floordiv d1)>
-// CHECK-DAG: #[[ADD_DIV_MAP:.*]] = affine_map<(d0, d1) -> (d0 + d1 floordiv 2)>
-// CHECK-DAG: #[[ROOT_MAP:.*]] = affine_map<(d0, d1) -> ((d0 * 2 + 1) * d1)>
 
 // CHECK:     func.func @lower_ntt() -> [[OUTPUT_TYPE:.*]] {
 // CHECK:      %[[COEFFS:.*]] = arith.constant dense<[1, 2, 3, 4]> : [[INT_TYPE:.*]]
@@ -35,23 +29,28 @@
 // CHECK-DAG:  %[[ROOTS_ENC:.*]] = mod_arith.encapsulate %[[ROOTS]] : [[INT_TYPE]] -> [[MOD_TYPE]]
 
 // CHECK-DAG:    %[[ZERO:.*]] = arith.constant 0 : index
+// CHECK-DAG:    %[[ONE:.*]] = arith.constant 1 : index
 // CHECK-DAG:    %[[TWO:.*]] = arith.constant 2 : index
 // CHECK-DAG:    %[[N:.*]] = arith.constant 4 : index
 
-// CHECK:        %[[RES:.]]:3 = affine.for %[[_:.*]] = 0 to 2
+// CHECK:        %[[RES:.]]:3 = scf.for %[[_:.*]] = %[[ZERO]] to %[[TWO]] step %[[ONE]]
 // CHECK-SAME:     iter_args(%[[TARGET:.*]] = %[[INITIAL_VALUE]], %[[BATCH_SIZE:.*]] = %[[TWO]], %[[ROOT_EXP:.*]] = %[[TWO]]) -> ([[MOD_TYPE]], index, index) {
-// CHECK:          %[[INNER_RES:.]] = affine.for %[[INDEX:.*]] = #[[ID_MAP]](%[[ZERO]]) to #[[DIV_MAP]](%[[N]], %[[BATCH_SIZE]])
+// CHECK-NEXT:     %[[INNER_UB:[^ ]*]] = arith.floordivsi %[[N]], %[[BATCH_SIZE]]
+// CHECK:          %[[INNER_RES:.]] = scf.for %[[INDEX:.*]] = %[[ZERO]] to %[[INNER_UB]] step %[[ONE]]
 // CHECK-SAME:       iter_args(%[[INNER_TARGET:.*]] = %[[TARGET]]) -> ([[MOD_TYPE]]) {
-// CHECK:            %[[INDEX_K:.*]] = affine.apply #[[MUL_MAP]](%[[BATCH_SIZE]], %[[INDEX]])
-// CHECK:            %[[ARITH_RES:.*]] = affine.for %[[INDEX_J:.*]] = #[[ID_MAP]](%[[ZERO]]) to #[[C_DIV_MAP]](%[[BATCH_SIZE]])
+// CHECK:            %[[INDEX_K:.*]] = arith.muli %[[BATCH_SIZE]], %[[INDEX]]
+// CHECK:            %[[ARITH_UB:.*]] = arith.floordivsi %[[BATCH_SIZE]], %[[TWO]]
+// CHECK:            %[[ARITH_RES:.*]] = scf.for %[[INDEX_J:.*]] = %[[ZERO]] to %[[ARITH_UB]] step %[[ONE]]
 // CHECK-SAME:         iter_args(%[[ARITH_TARGET:.*]] = %[[INNER_TARGET]]) -> ([[MOD_TYPE]]) {
-// CHECK:              %[[INDEX_A:.*]] = affine.apply #[[ADD_MAP]](%[[INDEX_J]], %[[INDEX_K]])
+// CHECK:              %[[INDEX_A:.*]] = arith.addi %[[INDEX_J]], %[[INDEX_K]]
 // CHECK:              %[[A:.*]] = tensor.extract %[[ARITH_TARGET]][%[[INDEX_A]]] : [[MOD_TYPE]]
 
-// CHECK:              %[[INDEX_B:.*]] = affine.apply #[[ADD_DIV_MAP]](%[[INDEX_A]], %[[BATCH_SIZE]])
+// CHECK:              %[[INDEX_B:.*]] = arith.addi %[[INDEX_A]], %[[ARITH_UB]]
 // CHECK:              %[[B:.*]] = tensor.extract %[[ARITH_TARGET]][%[[INDEX_B]]] : [[MOD_TYPE]]
 
-// CHECK:              %[[ROOT_INDEX:.*]] = affine.apply #[[ROOT_MAP]](%[[INDEX_J]], %[[ROOT_EXP]])
+// CHECK:              %[[IJ2:.*]] = arith.muli %[[TWO]], %[[INDEX_J]]
+// CHECK:              %[[IJ2_1:.*]] = arith.addi %[[IJ2]], %[[ONE]]
+// CHECK:              %[[ROOT_INDEX:.*]] = arith.muli %[[IJ2_1]], %[[ROOT_EXP]]
 // CHECK:              %[[ROOT:.*]] = tensor.extract %[[ROOTS_ENC]][%[[ROOT_INDEX]]] : [[MOD_TYPE]]
 
 // CHECK:              %[[ROOTSB:.*]] = mod_arith.mul %[[B]], %[[ROOT]] : [[COEFF_TYPE]]
@@ -60,13 +59,13 @@
 
 // CHECK:              %[[INSERT_PLUS:.*]] = tensor.insert %[[CTPLUS]] into %[[ARITH_TARGET]][%[[INDEX_A]]] : [[MOD_TYPE]]
 // CHECK:              %[[INSERT_MINUS:.*]] = tensor.insert %[[CTMINUS]] into %[[INSERT_PLUS]][%[[INDEX_B]]] : [[MOD_TYPE]]
-// CHECK:              affine.yield %[[INSERT_MINUS]] : [[MOD_TYPE]]
+// CHECK:              scf.yield %[[INSERT_MINUS]] : [[MOD_TYPE]]
 
-// CHECK:            affine.yield %[[ARITH_RES]] : [[MOD_TYPE]]
+// CHECK:            scf.yield %[[ARITH_RES]] : [[MOD_TYPE]]
 
 // CHECK:          %[[NEXT_BATCH_SIZE:.*]] = arith.muli %[[BATCH_SIZE]], %[[TWO]] : index
 // CHECK:          %[[NEXT_ROOT_EXP:.*]] = arith.divui %[[ROOT_EXP]], %[[TWO]] : index
-// CHECK:          affine.yield %[[INNER_RES]], %[[NEXT_BATCH_SIZE]], %[[NEXT_ROOT_EXP]] : [[MOD_TYPE]], index, index
+// CHECK:          scf.yield %[[INNER_RES]], %[[NEXT_BATCH_SIZE]], %[[NEXT_ROOT_EXP]] : [[MOD_TYPE]], index, index
 
 // CHECK:       %[[RES_CAST:.*]] = tensor.cast %[[RES]]#0 : [[MOD_TYPE]] to [[OUTPUT_TYPE]]
 // CHECK:       return %[[RES_CAST]] : [[OUTPUT_TYPE]]
