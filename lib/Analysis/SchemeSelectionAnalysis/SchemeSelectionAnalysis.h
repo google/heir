@@ -228,8 +228,6 @@ class SchemeInfoLattice : public dataflow::Lattice<NatureOfComputation> {
 
 class SchemeSelectionAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<SchemeInfoLattice>{
- private:
-  NatureOfComputation counter;
  public:
   SchemeSelectionAnalysis(DataFlowSolver &solver)
       : SparseForwardDataFlowAnalysis<SchemeInfoLattice>(solver), counter(0, 0, 0, 0, 0, 0) {}

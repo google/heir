@@ -43,8 +43,7 @@ LogicalResult SchemeSelectionAnalysis::visitOperation(
   llvm::TypeSwitch<Operation &>(*op)
       // count integer arithmetic ops
       .Case<arith::AddIOp, arith::SubIOp, arith::MulIOp>([&](auto intOp) {
-		this->counter = this->counter + NatureOfComputation(0, 0, 1, 0, 0, 0);
-        auto newNoc = counter;
+        auto newNoc = NatureOfComputation(0, 0, 1, 0, 0, 0);
         intOp->setAttr(numIntArithOpsAttrName, IntegerAttr::get(IntegerType::get(op->getContext(), 64), newNoc.getIntArithOpsCount()));
 		    LLVM_DEBUG(llvm::dbgs()
       	<< "Counting: " << newNoc << "\n");
@@ -52,8 +51,7 @@ LogicalResult SchemeSelectionAnalysis::visitOperation(
       })
       // count real arithmetic ops
       .Case<arith::AddFOp, arith::SubFOp, arith::MulFOp>([&](auto realOp) {
-		this->counter = this->counter + NatureOfComputation(0, 0, 0, 1, 0, 0);
-        auto newNoc = counter;
+		auto newNoc = NatureOfComputation(0, 0, 0, 1, 0, 0);
         realOp->setAttr(numRealArithOpsAttrName, IntegerAttr::get(IntegerType::get(op->getContext(), 64), newNoc.getRealArithOpsCount()));
 		LLVM_DEBUG(llvm::dbgs()
       	<< "Counting: " << newNoc << "\n");
@@ -61,8 +59,7 @@ LogicalResult SchemeSelectionAnalysis::visitOperation(
       })
       // count non linear ops
       .Case<math::AbsFOp, math::AbsIOp>([&](auto nonLinOp) {
-        this->counter = this->counter + NatureOfComputation(0, 0, 0, 0, 0, 1);
-        auto newNoc = counter;
+        auto newNoc = NatureOfComputation(0, 0, 0, 0, 0, 1);
         nonLinOp->setAttr(numNonLinOpsAttrName, IntegerAttr::get(IntegerType::get(op->getContext(), 64), newNoc.getNonLinOpsCount()));
 		LLVM_DEBUG(llvm::dbgs()
       	<< "Counting: " << newNoc << "\n");
@@ -70,8 +67,7 @@ LogicalResult SchemeSelectionAnalysis::visitOperation(
       })
       // count bool ops
       .Case<arith::AndIOp, arith::OrIOp, arith::XOrIOp>([&](auto boolOp) {
-        this->counter = this->counter + NatureOfComputation(1, 0, 0, 0, 0, 0);
-        auto newNoc = counter;
+        auto newNoc = NatureOfComputation(1, 0, 0, 0, 0, 0);
         boolOp->setAttr(numBoolOpsAttrName, IntegerAttr::get(IntegerType::get(op->getContext(), 64), newNoc.getBoolOpsCount()));
 		LLVM_DEBUG(llvm::dbgs()
       	<< "Counting: " << newNoc << "\n");
@@ -79,8 +75,7 @@ LogicalResult SchemeSelectionAnalysis::visitOperation(
       })
       // count bit ops
       .Case<arith::ShLIOp, arith::ShRSIOp, arith::ShRUIOp>([&](auto bitOp) {
-        this->counter = this->counter + NatureOfComputation(0, 1, 0, 0, 0, 0);
-        auto newNoc = counter;
+        auto newNoc = NatureOfComputation(0, 1, 0, 0, 0, 0);
         bitOp->setAttr(numBitOpsAttrName, IntegerAttr::get(IntegerType::get(op->getContext(), 64), newNoc.getBitOpsCount()));
 		LLVM_DEBUG(llvm::dbgs()
       	<< "Counting: " << newNoc << "\n");
@@ -88,8 +83,7 @@ LogicalResult SchemeSelectionAnalysis::visitOperation(
       })
       // count real comparisons
       .Case<arith::CmpFOp>([&](auto cmpOps) {
-        this->counter = this->counter + NatureOfComputation(0, 0, 0, 1, 1, 0);
-        auto newNoc = counter;
+        auto newNoc = NatureOfComputation(0, 0, 0, 1, 1, 0);
         cmpOps->setAttr(numCmpOpsAttrName, IntegerAttr::get(IntegerType::get(op->getContext(), 64), newNoc.getCmpOpsCount()));
 		LLVM_DEBUG(llvm::dbgs()
       	<< "Counting: " << newNoc << "\n");
@@ -97,8 +91,7 @@ LogicalResult SchemeSelectionAnalysis::visitOperation(
       })
 	  // count int comparisons
       .Case<arith::CmpIOp>([&](auto cmpOps) {
-        this->counter = this->counter + NatureOfComputation(0, 0, 1, 0, 1, 0);
-        auto newNoc = counter;
+        auto newNoc = NatureOfComputation(0, 0, 1, 0, 1, 0);
         cmpOps->setAttr(numCmpOpsAttrName, IntegerAttr::get(IntegerType::get(op->getContext(), 64), newNoc.getCmpOpsCount()));
 		LLVM_DEBUG(llvm::dbgs()
       	<< "Counting: " << newNoc << "\n");
@@ -135,12 +128,28 @@ bool hasAtLeastOneRealOperand(Operation *op) {
   return false;
 }
 
+static NatureOfComputation countNatComp(Operation *top, DataFlowSolver *solver) {
+    auto counter = NatureOfComputation(0,0,0,0,0,0);
+    top->walk<WalkOrder::PreOrder>([&](func::FuncOp funcOp) {
+      funcOp.getBody().walk<WalkOrder::PreOrder>([&](Operation *op) {
+          LLVM_DEBUG(llvm::dbgs()
+            << "Counting here: " << op->getName() << "\n");
+          if (op->getNumResults() == 0) {
+            return;
+          }
+          auto natcomp = solver->lookupState<SchemeInfoLattice>(op->getResult(0))->getValue();
+          if (natcomp.isInitialized()) {
+            counter = counter + natcomp;
+          }
+      });
+  });
+  return counter;
+}
+
 static NatureOfComputation getMaxNatComp(Operation *top, DataFlowSolver *solver) {
     auto maxNatComp = NatureOfComputation(0,0,0,0,0,0);
     top->walk<WalkOrder::PreOrder>([&](func::FuncOp funcOp) {
       funcOp.getBody().walk<WalkOrder::PreOrder>([&](Operation *op) {
-          LLVM_DEBUG(llvm::dbgs()
-            << "Writing annotations here: " << op->getName() << "\n");
           if (op->getNumResults() == 0) {
             return;
           }
@@ -169,13 +178,14 @@ void annotateNatureOfComputation(Operation *top, DataFlowSolver *solver,
   };
 
   auto maxNatComp = getMaxNatComp(top, solver);
+  auto count = countNatComp(top, solver);
   top->walk<WalkOrder::PreOrder>([&](func::FuncOp funcOp) {
-    funcOp->setAttr(numBoolOpsAttrName, getIntegerAttr(maxNatComp.getBoolOpsCount()));
-    funcOp->setAttr(numBitOpsAttrName, getIntegerAttr(maxNatComp.getBitOpsCount()));
-    funcOp->setAttr(numIntArithOpsAttrName, getIntegerAttr(maxNatComp.getIntArithOpsCount()));
-    funcOp->setAttr(numRealArithOpsAttrName, getIntegerAttr(maxNatComp.getRealArithOpsCount()));
-    funcOp->setAttr(numCmpOpsAttrName, getIntegerAttr(maxNatComp.getCmpOpsCount()));
-    funcOp->setAttr(numNonLinOpsAttrName, getIntegerAttr(maxNatComp.getNonLinOpsCount()));
+    funcOp->setAttr(numBoolOpsAttrName, getIntegerAttr(count.getBoolOpsCount()));
+    funcOp->setAttr(numBitOpsAttrName, getIntegerAttr(count.getBitOpsCount()));
+    funcOp->setAttr(numIntArithOpsAttrName, getIntegerAttr(count.getIntArithOpsCount()));
+    funcOp->setAttr(numRealArithOpsAttrName, getIntegerAttr(count.getRealArithOpsCount()));
+    funcOp->setAttr(numCmpOpsAttrName, getIntegerAttr(count.getCmpOpsCount()));
+    funcOp->setAttr(numNonLinOpsAttrName, getIntegerAttr(count.getNonLinOpsCount()));
     LLVM_DEBUG(llvm::dbgs()
       << "Writing annotations here: " << funcOp->getName() << "\n");
   });
