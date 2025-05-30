@@ -1,6 +1,6 @@
 // TODO(#519): disable FileChecks until nondeterminism issues are resolved
 // RUN: heir-opt --straight-line-vectorize %s | FileCheck %s
-// RUN: heir-opt --canonicalize --straight-line-vectorize %s | FileCheck %s --check-prefix=CANONICAL
+// RUN: heir-opt --cggi-decompose-operations=expand-lincomb=false --straight-line-vectorize %s | FileCheck %s --check-prefix=CANONICAL
 
 
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>

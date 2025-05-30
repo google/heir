@@ -1,6 +1,7 @@
 #include "lib/Dialect/CGGI/Transforms/DecomposeOperations.h"
 
 #include <cassert>
+#include <cstdint>
 #include <utility>
 
 #include "lib/Dialect/CGGI/IR/CGGIOps.h"
@@ -27,6 +28,34 @@ namespace alignment {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "lib/Dialect/CGGI/Transforms/DecomposeOperations.cpp.inc"
 }  // namespace alignment
+
+struct ExpandLut2 : public OpRewritePattern<Lut2Op> {
+  ExpandLut2(mlir::MLIRContext *context)
+      : OpRewritePattern<Lut2Op>(context, /*benefit=*/1) {}
+  LogicalResult matchAndRewrite(Lut2Op op,
+                                PatternRewriter &rewriter) const override {
+    SmallVector<int32_t> coeffs2 = {2, 1};
+    auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
+        op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs2,
+        op.getLookupTable());
+    rewriter.replaceOp(op, createLutLinCombOp);
+    return success();
+  }
+};
+
+struct ExpandLut3 : public OpRewritePattern<Lut3Op> {
+  ExpandLut3(mlir::MLIRContext *context)
+      : OpRewritePattern<Lut3Op>(context, /*benefit=*/1) {}
+  LogicalResult matchAndRewrite(Lut3Op op,
+                                PatternRewriter &rewriter) const override {
+    SmallVector<int> coeffs3 = {4, 2, 1};
+    auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
+        op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs3,
+        op.getLookupTable());
+    rewriter.replaceOp(op, createLutLinCombOp);
+    return success();
+  }
+};
 
 struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
   ExpandLutLinComb(mlir::MLIRContext *context)
@@ -65,7 +94,11 @@ struct DecomposeOperations
     RewritePatternSet patterns(context);
     // Add patterns generated from DRR
     alignment::populateWithGenerated(patterns);
-    patterns.add<ExpandLutLinComb>(context);
+
+    patterns.add<ExpandLut2, ExpandLut3>(context);
+    if (expandLincomb) {
+      patterns.add<ExpandLutLinComb>(context);
+    }
 
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
     // here.

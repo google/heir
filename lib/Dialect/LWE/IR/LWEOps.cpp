@@ -12,14 +12,25 @@
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Matchers.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/TypeUtilities.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
 namespace lwe {
+
+OpFoldResult MulScalarOp::fold(MulScalarOp::FoldAdaptor adaptor) {
+  if (matchPattern(adaptor.getScalar(), m_One())) {
+    return getCiphertext();
+  }
+
+  return OpFoldResult();
+}
 
 //===----------------------------------------------------------------------===//
 // Op verifiers

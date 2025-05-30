@@ -207,6 +207,7 @@ def LWE_MulScalarOp : LWE_Op<"mul_scalar", [ElementwiseMappable,
   let summary = "Multiply an LWE ciphertext by a scalar";
   let arguments = (ins LWECiphertextLike:$ciphertext, AnyInteger:$scalar);
   let results = (outs LWECiphertextLike:$output);
+  let hasFolder = 1;
 }
 
 def LWE_RLWEEncodeOp : LWE_Op<"rlwe_encode", [NewHasEncoding<"output", "encoding", "NewLWEPlaintextType">]> {

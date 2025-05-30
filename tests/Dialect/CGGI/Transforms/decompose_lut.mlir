@@ -1,4 +1,4 @@
-// RUN: heir-opt --cggi-decompose-operations %s | FileCheck %s
+// RUN: heir-opt --cggi-decompose-operations --canonicalize %s | FileCheck %s
 
 #encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
 !ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>

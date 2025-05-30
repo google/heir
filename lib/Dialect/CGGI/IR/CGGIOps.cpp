@@ -20,27 +20,8 @@ std::optional<ValueRange> Lut2Op::getLookupTableInputs() {
   return ValueRange{getB(), getA()};
 }
 
-LogicalResult Lut2Op::canonicalize(Lut2Op op, PatternRewriter &rewriter) {
-  SmallVector<int32_t> coeffs2 = {2, 1};
-  auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
-      op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs2,
-      op.getLookupTable());
-  rewriter.replaceOp(op, createLutLinCombOp);
-  return success();
-}
-
 std::optional<ValueRange> Lut3Op::getLookupTableInputs() {
   return ValueRange{getC(), getB(), getA()};
-}
-
-LogicalResult Lut3Op::canonicalize(Lut3Op op, PatternRewriter &rewriter) {
-  SmallVector<int> coeffs3 = {4, 2, 1};
-
-  auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
-      op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs3,
-      op.getLookupTable());
-  rewriter.replaceOp(op, createLutLinCombOp);
-  return success();
 }
 
 std::optional<ValueRange> LutLinCombOp::getLookupTableInputs() {
