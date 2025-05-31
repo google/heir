@@ -6,7 +6,6 @@
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
@@ -103,6 +102,25 @@ int64_t CKKSScaleModel::evalModReduceScaleBackward(
   return resultScale + logDefaultScale;
 }
 
+int64_t PlaintextScaleModel::evalMulScale(
+    const PlaintextScaleModel::LocalParam &param, int64_t lhs, int64_t rhs) {
+  return lhs + rhs;
+}
+
+int64_t PlaintextScaleModel::evalMulScaleBackward(
+    const PlaintextScaleModel::LocalParam &param, int64_t result, int64_t lhs) {
+  return result - lhs;
+}
+
+int64_t PlaintextScaleModel::evalModReduceScale(
+    const PlaintextScaleModel::LocalParam &inputParam, int64_t scale) {
+  return scale - inputParam.getDefaultLogScale();
+}
+
+int64_t PlaintextScaleModel::evalModReduceScaleBackward(
+    const PlaintextScaleModel::LocalParam &inputParam, int64_t resultScale) {
+  return resultScale + inputParam.getDefaultLogScale();
+}
 //===----------------------------------------------------------------------===//
 // ScaleAnalysis (Forward)
 //===----------------------------------------------------------------------===//
@@ -240,6 +258,7 @@ void ScaleAnalysis<ScaleModelT>::visitExternalCall(
 // instantiation
 template class ScaleAnalysis<BGVScaleModel>;
 template class ScaleAnalysis<CKKSScaleModel>;
+template class ScaleAnalysis<PlaintextScaleModel>;
 
 //===----------------------------------------------------------------------===//
 // ScaleAnalysis (Backward)
@@ -407,6 +426,7 @@ LogicalResult ScaleAnalysisBackward<ScaleModelT>::visitOperation(
 // instantiation
 template class ScaleAnalysisBackward<BGVScaleModel>;
 template class ScaleAnalysisBackward<CKKSScaleModel>;
+template class ScaleAnalysisBackward<PlaintextScaleModel>;
 
 //===----------------------------------------------------------------------===//
 // Utils

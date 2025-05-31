@@ -10,6 +10,7 @@ cc_library(
     srcs = [
         "PopulateScaleBGV.cpp",
         "PopulateScaleCKKS.cpp",
+        "PopulateScalePlaintext.cpp",
     ],
     hdrs = ["PopulateScale.h"],
     deps = [
@@ -21,6 +22,7 @@ cc_library(
         "@heir//lib/Dialect/BGV/IR:Dialect",
         "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@heir//lib/Dialect/Mgmt/Transforms:AnnotateMgmt",
+        "@heir//lib/Parameters:PlaintextParams",
         "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Parameters/CKKS:Params",
         "@heir//lib/Utils:APIntUtils",

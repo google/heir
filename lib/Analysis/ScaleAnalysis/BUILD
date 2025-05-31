@@ -14,6 +14,7 @@ cc_library(
         "@heir//lib/Analysis/SecretnessAnalysis",
         "@heir//lib/Dialect/Mgmt/IR:Dialect",
         "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Parameters:PlaintextParams",
         "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Parameters/CKKS:Params",
         "@heir//lib/Utils",

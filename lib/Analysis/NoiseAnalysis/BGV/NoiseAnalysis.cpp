@@ -59,6 +59,7 @@ template <typename NoiseModel>
 LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
     Operation *op, ArrayRef<const LatticeType *> operands,
     ArrayRef<LatticeType *> results) {
+  LLVM_DEBUG(llvm::dbgs() << "NoiseAnalysis: Visiting op " << *op << "\n");
   auto getLocalParam = [&](Value value) {
     auto level = getLevelFromMgmtAttr(value);
     auto dimension = getDimensionFromMgmtAttr(value);
@@ -95,7 +96,16 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
 
   auto res =
       llvm::TypeSwitch<Operation &, LogicalResult>(*op)
-          .Case<secret::GenericOp>([&](auto genericOp) {
+          .template Case<secret::RevealOp, secret::ConcealOp>([&](auto op) {
+            // Reveal outputs are not secret, so no noise. Conceal outputs are
+            // a fresh encryption. Both are handled properly by setToEntryState
+            // based on the type of the result.
+            for (auto result : results) {
+              setToEntryState(result);
+            }
+            return success();
+          })
+          .template Case<secret::GenericOp>([&](auto genericOp) {
             Block *body = genericOp.getBody();
             for (Value &arg : body->getArguments()) {
               auto localParam = getLocalParam(arg);
@@ -144,27 +154,6 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
             NoiseState rotate =
                 noiseModel.evalRelinearize(localParam, operands[0]->getValue());
             propagate(rotateOp.getResult(), rotate);
-            return success();
-          })
-          // NOTE: special case for ExtractOp... it is a mulconst+rotate
-          // if not annotated with slot_extract
-          // TODO(#1174): decide packing earlier in the pipeline instead of
-          // annotation
-          .template Case<tensor::ExtractOp>([&](auto extractOp) {
-            auto localParam = getLocalParam(extractOp.getOperand(0));
-
-            // extract = mul_plain 1 + rotate
-            // although the cleartext is 1, when encoded (i.e. CRT
-            // packing), the value multiplied to the ciphertext is not 1,
-            // If we can know the encoded value, we can bound it more precisely.
-            NoiseState one = noiseModel.evalConstant(localParam);
-            NoiseState extract =
-                noiseModel.evalMul(localParam, operands[0]->getValue(), one);
-            // assume relinearize immediately after rotate
-            // when we support hoisting relinearize, we need to change
-            // this
-            NoiseState rotate = noiseModel.evalRelinearize(localParam, extract);
-            propagate(extractOp.getResult(), extract);
             return success();
           })
           .template Case<mgmt::AdjustScaleOp>([&](auto adjustScaleOp) {

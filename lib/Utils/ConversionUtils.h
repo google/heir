@@ -67,21 +67,50 @@ struct ConvertAny<void> : public ConversionPattern {
   }
 };
 
-template <typename SourceArithOp, typename TargetModArithOp>
-struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
+template <typename SourceOpTy, typename TargetOpTy>
+struct ConvertBinOp : public OpConversionPattern<SourceOpTy> {
   ConvertBinOp(mlir::MLIRContext *context)
-      : OpConversionPattern<SourceArithOp>(context) {}
+      : OpConversionPattern<SourceOpTy>(context) {}
 
-  using OpConversionPattern<SourceArithOp>::OpConversionPattern;
+  using OpConversionPattern<SourceOpTy>::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      SourceArithOp op, typename SourceArithOp::Adaptor adaptor,
+      SourceOpTy op, typename SourceOpTy::Adaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto result = b.create<TargetModArithOp>(
-        adaptor.getLhs().getType(), adaptor.getLhs(), adaptor.getRhs());
+    auto result = b.create<TargetOpTy>(adaptor.getLhs().getType(),
+                                       adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
+template <typename T = void>
+struct DropOp : public ConversionPattern {
+  DropOp(const TypeConverter &typeConverter, MLIRContext *context,
+         PatternBenefit benefit = 2)
+      : ConversionPattern(typeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          /*benefit=*/2, context) {
+    setDebugName("DropOp");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  LogicalResult matchAndRewrite(
+      Operation *op, ArrayRef<Value> operands,
+      ConversionPatternRewriter &rewriter) const override {
+    if (!isa<T>(op)) {
+      return failure();
+    }
+
+    if (op->getNumOperands() != op->getNumResults()) {
+      return op->emitError()
+             << "invalid use of DropOp with op having "
+                "non-matching operand and result sizes; numOperands="
+             << op->getNumOperands() << ", numResults=" << op->getNumResults();
+    }
+
+    rewriter.replaceOp(op, operands);
     return success();
   }
 };

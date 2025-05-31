@@ -160,4 +160,21 @@ def SecretInsertMgmtCKKS : Pass<"secret-insert-mgmt-ckks", "ModuleOp"> {
   ];
 }
 
+def SecretInsertMgmtPlaintext : Pass<"secret-insert-mgmt-plaintext", "ModuleOp"> {
+  let summary = "Place plaintext scale management operations";
+
+  let description = [{
+    This is the plaintext analogue of `insert-mgmt-ckks`, where the only thing
+    that needs to be managed is the plaintext scale. I.e., we need to apply
+    `mod_reduce`/rescaling operations after multiplications, and ensure
+    cleartexts that are encoded for "ciphertext-plaintext" operations receive
+    the correct scale via `mgmt.init`.
+  }];
+
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::heir::mgmt::MgmtDialect"
+  ];
+}
+
 #endif  // LIB_TRANSFORMS_SECRETINSERTMGMT_PASSES_TD_

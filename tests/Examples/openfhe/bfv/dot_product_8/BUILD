@@ -9,7 +9,7 @@ openfhe_end_to_end_test(
     generated_lib_header = "dot_product_8_lib.h",
     heir_opt_flags = [
         "--annotate-module=backend=openfhe scheme=bfv",
-        "--mlir-to-bfv=ciphertext-degree=8",
+        "--mlir-to-bfv=ciphertext-degree=8192",
         "--scheme-to-openfhe",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",

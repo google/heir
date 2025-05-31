@@ -78,5 +78,15 @@ def PopulateScaleCKKS : Pass<"populate-scale-ckks"> {
   ];
 }
 
+def PopulateScalePlaintext : Pass<"populate-scale-plaintext"> {
+  let summary = "Populate the scale for the plaintext backend";
+  let description = [{
+    This is similar to `populate-scale-ckks`, but for the plaintext backend in
+    which ciphertexts are forgotten but encoding is still present. Parameters
+    are not needed, but scale management is still required.
+
+    The scaling factor is expressed in logarithm form.
+  }];
+}
 
 #endif  // LIB_TRANSFORMS_POPULATESCALE_POPULATESCALE_TD_

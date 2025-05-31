@@ -11,6 +11,7 @@ cc_library(
         "SecretInsertMgmtBFV.cpp",
         "SecretInsertMgmtBGV.cpp",
         "SecretInsertMgmtCKKS.cpp",
+        "SecretInsertMgmtPlaintext.cpp",
     ],
     hdrs = [
         "Passes.h",

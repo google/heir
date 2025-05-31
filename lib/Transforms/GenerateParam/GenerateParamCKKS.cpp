@@ -6,14 +6,16 @@
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
+#include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
-#include "llvm/include/llvm/Support/Debug.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"            // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"                 // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"             // from @llvm-project
+#include "mlir/include/mlir/Transforms/Passes.h"        // from @llvm-project
 
 #define DEBUG_TYPE "GenerateParamCKKS"
 

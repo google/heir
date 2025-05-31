@@ -17,12 +17,17 @@ constexpr const static ::llvm::StringLiteral kCKKSSchemeAttrName =
     "scheme.ckks";
 constexpr const static ::llvm::StringLiteral kCGGISchemeAttrName =
     "scheme.cggi";
+constexpr const static ::llvm::StringLiteral kPlaintextSchemeAttrName =
+    "plaintext.log_default_scale";
 
 bool moduleIsBGV(Operation *moduleOp);
 bool moduleIsBFV(Operation *moduleOp);
 bool moduleIsBGVOrBFV(Operation *moduleOp);
 bool moduleIsCKKS(Operation *moduleOp);
 bool moduleIsCGGI(Operation *moduleOp);
+
+// Fetch the scheme parameter attribute from the parent module op.
+Attribute getSchemeParamAttr(Operation *op);
 
 void moduleClearScheme(Operation *moduleOp);
 

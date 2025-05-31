@@ -16,6 +16,14 @@ cc_library(
 )
 
 cc_library(
+    name = "PlaintextParams",
+    srcs = ["PlaintextParams.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "RLWESecurityParams",
     srcs = ["RLWESecurityParams.cpp"],
     hdrs = ["RLWESecurityParams.h"],

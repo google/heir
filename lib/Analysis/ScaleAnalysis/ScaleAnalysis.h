@@ -9,6 +9,7 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Parameters/CKKS/Params.h"
+#include "lib/Parameters/PlaintextParams.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
@@ -97,7 +98,21 @@ struct CKKSScaleModel {
                                             int64_t resultScale);
 };
 
-/// Forward Analyse the sclae of each secret Value
+struct PlaintextScaleModel {
+  using SchemeParam = PlaintextSchemeParam;
+  using LocalParam = PlaintextSchemeParam;
+
+  static int64_t evalMulScale(const LocalParam &param, int64_t lhs,
+                              int64_t rhs);
+  static int64_t evalMulScaleBackward(const LocalParam &param, int64_t result,
+                                      int64_t lhs);
+  static int64_t evalModReduceScale(const LocalParam &inputParam,
+                                    int64_t scale);
+  static int64_t evalModReduceScaleBackward(const LocalParam &inputParam,
+                                            int64_t resultScale);
+};
+
+/// Forward Analyse the scale of each secret Value
 ///
 /// This forward analysis roots from user input as `inputScale`,
 /// and after each HE operation, the scale will be updated.

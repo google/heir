@@ -84,7 +84,7 @@ LogicalResult RLWEEncryptOp::verify() {
 
   auto outputRing = getOutput().getType().getCiphertextSpace().getRing();
   if (outputRing != keyRing) {
-    return emitOpError() << "RLWEEncryptOp input ring do not match. Key ring: "
+    return emitOpError() << "RLWEEncryptOp rings do not match. Key ring: "
                          << keyRing
                          << ". Output ciphertext ring: " << outputRing << ".";
   }

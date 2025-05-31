@@ -34,6 +34,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:SecretOps",
+        "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FuncTransforms",

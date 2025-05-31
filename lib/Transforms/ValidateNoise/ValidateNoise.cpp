@@ -21,6 +21,7 @@
 #include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"     // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                    // from @llvm-project
@@ -77,6 +78,10 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       llvm::dbgs() << "Noise Bound: " << boundString
                    << " Budget: " << budgetString << " Total: " << totalString
                    << " for value: " << value << " " << "\n";
+      if (BlockArgument blockArg = dyn_cast<BlockArgument>(value)) {
+        llvm::dbgs() << "op was: " << *blockArg.getOwner()->getParentOp()
+                     << "\n";
+      }
     });
 
     if (annotateNoiseBound) {
@@ -92,6 +97,18 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     return success();
   }
 
+  bool shouldSkipValidation(Value value) {
+    // Client helpers have an implicit association between the return value of
+    // the entry function and the argument of the decryption helper. This isn't
+    // represented in the noise analysis directly (though perhaps it could be
+    // via DataFlowAnalysis::addDependency), so the noise analysis treats these
+    // values as fresh encryptions, but at a low level, which will exceed the
+    // noise bound if the main function does enough mod reduce ops.
+    func::FuncOp parent =
+        value.getParentRegion()->getParentOfType<func::FuncOp>();
+    return isClientHelper(parent);
+  }
+
   template <typename NoiseAnalysis>
   LogicalResult validate(
       DataFlowSolver *solver,
@@ -99,6 +116,9 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       const typename NoiseAnalysis::NoiseModel &model) {
     LogicalResult result = success();
     walkValues(getOperation(), [&](Value value) {
+      if (shouldSkipValidation(value)) {
+        return;
+      }
       if (failed(validateNoiseForValue<NoiseAnalysis>(value, solver,
                                                       schemeParam, model))) {
         result = failure();

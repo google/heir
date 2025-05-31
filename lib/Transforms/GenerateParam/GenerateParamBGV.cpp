@@ -16,6 +16,7 @@
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
 #include "lib/Dialect/BGV/IR/BGVEnums.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
+#include "lib/Dialect/Mgmt/Transforms/AnnotateMgmt.h"
 #include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/BGV/Params.h"
