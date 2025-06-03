@@ -721,15 +721,32 @@ LogicalResult LattigoEmitter::printOperation(tensor::ExtractSliceOp op) {
   return success();
 }
 
+// Emits a slice copy operation and returns the string containing the emitted
+// variable name of the result
+std::string LattigoEmitter::emitCopySlice(Value source, Value result) {
+  // Tensor semantics create new SSA values for each result. If this causes
+  // inefficiencies, cf. https://github.com/google/heir/issues/1871 for ideas.
+  //
+  // Copy the slice:
+  //
+  //   result := append(make([]int, 0, len(dest)), dest...)
+  //
+  // Cf. https://stackoverflow.com/a/35748636
+  const std::string sourceName = getName(source);
+  std::string resultName = getName(result, /*force=*/true);
+  os << resultName << " := append(make(" << convertType(result.getType())
+     << ", 0, len(" << sourceName << ")), " << sourceName << "...)\n";
+  return resultName;
+}
+
 LogicalResult LattigoEmitter::printOperation(tensor::InsertOp op) {
-  os << variableNames->getNameForValue(op.getDest());
-  os << "[";
+  const std::string resultName = emitCopySlice(op.getDest(), op.getResult());
+  // result[index] = value
+  os << resultName << "[";
   os << flattenIndexExpression(
       op.getResult().getType(), op.getIndices(),
       [&](Value value) { return variableNames->getNameForValue(value); });
-  os << "]";
-  os << " = " << variableNames->getNameForValue(op.getScalar()) << "\n";
-  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
+  os << "] = " << variableNames->getNameForValue(op.getScalar()) << "\n";
   return success();
 }
 
@@ -748,10 +765,8 @@ LogicalResult LattigoEmitter::printOperation(tensor::InsertSliceOp op) {
     return op.emitError() << "expected static offsets, sizes, and strides";
   }
 
-  std::string destName = getName(op.getDest());
-  std::string sourceName = getName(op.getSource());
-  // The result tensor is materialized to the destination of the insert
-  variableNames->mapValueNameToValue(op.getResult(), op.getDest());
+  const std::string destName = emitCopySlice(op.getDest(), op.getResult());
+  const std::string sourceName = getName(op.getSource());
 
   // If we have a 1D source and target tensor, and the strides are 1,
   // we can use std::copy

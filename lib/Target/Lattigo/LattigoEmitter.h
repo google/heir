@@ -245,6 +245,8 @@ class LattigoEmitter {
   FailureOr<std::string> convertType(::mlir::Type type);
 
   LogicalResult emitType(Type type);
+
+  std::string emitCopySlice(Value source, Value result);
 };
 
 void registerToLattigoTranslation(void);
