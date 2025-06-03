@@ -44,15 +44,16 @@ struct SeparatorOpInterface
     return true;
   };
 
-  LogicalResult bufferize(
-      Operation *op, RewriterBase &rewriter,
-      const bufferization::BufferizationOptions &options) const {
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const bufferization::BufferizationOptions &options,
+                          bufferization::BufferizationState &state) const {
     auto separator = cast<secret::SeparatorOp>(op);
 
     SmallVector<Value> newInputs;
     for (auto input : separator.getInputs()) {
       if (isa<TensorType>(input.getType())) {
-        FailureOr<Value> maybeBuffer = getBuffer(rewriter, input, options);
+        FailureOr<Value> maybeBuffer =
+            getBuffer(rewriter, input, options, state);
         if (failed(maybeBuffer)) return failure();
         newInputs.push_back(*maybeBuffer);
       }

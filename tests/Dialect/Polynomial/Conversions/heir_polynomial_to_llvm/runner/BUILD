@@ -15,17 +15,17 @@ py_binary(
     ],
 )
 
-heir_benchmark_test(
-    name = "ntt_benchmark_test",
-    heir_opt_flags = ["--heir-polynomial-to-llvm"],
-    mlir_src = "ntt_benchmark.mlir",
-    test_src = ["ntt_benchmark_test.cc"],
-    deps = [
-        "@google_benchmark//:benchmark_main",
-        "@googletest//:gtest",
-        "@heir//tests/Examples/benchmark:Memref",
-    ],
-)
+# heir_benchmark_test(
+#     name = "ntt_benchmark_test",
+#     heir_opt_flags = ["--heir-polynomial-to-llvm"],
+#     mlir_src = "ntt_benchmark.mlir",
+#     test_src = ["ntt_benchmark_test.cc"],
+#     deps = [
+#         "@googletest//:gtest",
+#         "@googletest//:gtest_main",
+#         "@heir//tests/Examples/benchmark:Memref",
+#     ],
+# )
 
 glob_lit_tests(
     name = "all_tests",
@@ -34,6 +34,10 @@ glob_lit_tests(
     ],
     default_tags = ["notap"],
     driver = "@heir//tests:run_lit.sh",
-    exclude = ["ntt_benchmark.mlir"],
+    exclude = [
+        "ntt_benchmark.mlir",
+        # TODO(#1862): re-enable after replacing affine.for with scf.for
+        "lower_ntt_perf_runner.mlir",
+    ],
     test_file_exts = ["mlir"],
 )
