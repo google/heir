@@ -9,11 +9,6 @@ glob_lit_tests(
     # TODO(#1199): support RNS lowering
     exclude = [
         "lower_add_error.mlir",
-        # TODO(#1862): re-enable after replacing affine.for with scf.for
-        "lower_ntt.mlir",
-        "lower_ntt_runner.mlir",
-        "lower_intt.mlir",
-        "lower_intt_runner.mlir",
     ],
     test_file_exts = ["mlir"],
 )
