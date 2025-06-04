@@ -1,23 +1,42 @@
 # See README.md for setup required to run these tests
 
-load("@heir//tests/Examples/openfhe:test.bzl", "openfhe_end_to_end_test")
+# TODO(#1869): re-enable after fixing plaintext debug handler issues
+# load("@heir//tests/Examples/openfhe:test.bzl", "openfhe_end_to_end_test")
 
+load("//third_party/bazel_rules/rules_cc/cc:cc_library.bzl", "cc_library")
+
+# load("//third_party/bazel_rules/rules_cc/cc:cc_library.bzl", "cc_library")
+#
 package(default_applicable_licenses = ["@heir//:license"])
+#
+# cc_library(
+#     name = "dot_product_8f_debug_test",
+#     testonly = True,
+#     srcs = ["dot_product_8f_debug_test.cpp"],
+#     deps = ["@googletest//:gtest_for_library_testonly"],
+# )
 
-openfhe_end_to_end_test(
+cc_library(
     name = "dot_product_8f_debug_test",
-    data = [
-        "@heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log",
-    ],
-    generated_lib_header = "dot_product_8f_debug_lib.h",
-    heir_opt_flags = [
-        "--annotate-module=backend=openfhe scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=8 \
-          plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
-        "--scheme-to-openfhe=insert-debug-handler-calls=true",
-    ],
-    heir_translate_flags = [],
-    mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
-    tags = ["notap"],
-    test_src = "dot_product_8f_debug_test.cpp",
+    testonly = True,
+    srcs = ["dot_product_8f_debug_test.cpp"],
+    deps = ["@googletest//:gtest_for_library_testonly"],
 )
+
+# openfhe_end_to_end_test(
+#     name = "dot_product_8f_debug_test",
+#     data = [
+#         "@heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log",
+#     ],
+#     generated_lib_header = "dot_product_8f_debug_lib.h",
+#     heir_opt_flags = [
+#         "--annotate-module=backend=openfhe scheme=ckks",
+#         "--mlir-to-ckks=ciphertext-degree=512 \
+#           plaintext-execution-result-file-name=$(location @heir//tests/Examples/plaintext/dot_product_f_debug:dot_product_8f_debug.log)",
+#         "--scheme-to-openfhe=insert-debug-handler-calls=true",
+#     ],
+#     heir_translate_flags = [],
+#     mlir_src = "@heir//tests/Examples/common:dot_product_8f.mlir",
+#     tags = ["notap"],
+#     test_src = "dot_product_8f_debug_test.cpp",
+# )

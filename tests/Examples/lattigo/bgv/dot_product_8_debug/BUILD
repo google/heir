@@ -11,7 +11,7 @@ heir_lattigo_lib(
     go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bgv",
-        "--mlir-to-bgv=ciphertext-degree=8 annotate-noise-bound=true",
+        "--mlir-to-bgv=ciphertext-degree=1024 annotate-noise-bound=true",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",

@@ -100,9 +100,7 @@ cc_library(
     hdrs = ["ContextAwareTypeConversion.h"],
     deps = [
         ":AttributeUtils",
-        "@heir//lib/Dialect:HEIRInterfaces",
         "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",

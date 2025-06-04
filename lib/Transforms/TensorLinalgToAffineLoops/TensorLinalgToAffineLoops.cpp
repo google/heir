@@ -3,6 +3,7 @@
 #include <optional>
 #include <utility>
 
+#include "lib/Utils/RewriteUtils/RewriteUtils.h"
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/Utils/Utils.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"    // from @llvm-project
@@ -19,7 +20,7 @@
 #include "mlir/include/mlir/IR/Value.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"    // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
-#include "mlir/include/mlir/Transforms/WalkPatternRewriteDriver.h"  // from @llvm-project
+#include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 // IWYU pragma: begin_keep
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
@@ -275,8 +276,10 @@ struct TensorLinalgToAffineLoops
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     RewritePatternSet patterns(context);
-    patterns.add<LowerLinalgGenericToLoops>(context);
-    (void)walkAndApplyPatterns(getOperation(), std::move(patterns));
+    patterns.add<LowerLinalgGenericToLoops, ExpandAffineApply>(context);
+    // Greedy is necessary here because LowerLinalgGenericToLoops generates
+    // affine.apply ops.
+    (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
 

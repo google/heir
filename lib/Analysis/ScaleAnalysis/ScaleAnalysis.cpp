@@ -6,7 +6,6 @@
 
 #include "lib/Analysis/DimensionAnalysis/DimensionAnalysis.h"
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
-#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtAttributes.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"

@@ -45,9 +45,13 @@ cc_library(
     srcs = ["ModuleAttributes.cpp"],
     hdrs = ["ModuleAttributes.h"],
     deps = [
+        "@heir//lib/Dialect/BGV/IR:Dialect",
+        "@heir//lib/Dialect/CKKS/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
+    alwayslink = 1,
 )
 
 td_library(

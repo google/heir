@@ -1,6 +1,7 @@
 #ifndef LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
 #define LIB_TARGET_LATTIGO_LATTIGOEMITTER_H_
 
+#include <functional>
 #include <set>
 #include <string>
 #include <string_view>

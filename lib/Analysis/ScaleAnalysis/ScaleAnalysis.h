@@ -97,7 +97,7 @@ struct CKKSScaleModel {
                                             int64_t resultScale);
 };
 
-/// Forward Analyse the sclae of each secret Value
+/// Forward Analyse the scale of each secret Value
 ///
 /// This forward analysis roots from user input as `inputScale`,
 /// and after each HE operation, the scale will be updated.

@@ -3,7 +3,7 @@
 // Test that layout propagation can handle secret scalars
 
 // CHECK: #tensor_ext.alignment<in = [], out = [1024], insertedDims = [0]>
-// CHECK: #tensor_ext.layout<map = (d0) -> (d0), alignment = #alignment>
+// CHECK: #tensor_ext.layout<map = (d0) -> (d0 mod 1024), alignment = #alignment>
 
 // CHECK: @scalar_mul
 func.func @scalar_mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {

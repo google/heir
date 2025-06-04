@@ -98,6 +98,11 @@ struct PlaintextBackendOptions
       llvm::cl::desc("Insert function calls to an externally-defined debug "
                      "function (cf. --secret-add-debug-port)"),
       llvm::cl::init(false)};
+  PassOptions::Option<int> plaintextSize{
+      *this, "plaintext-size",
+      llvm::cl::desc("The size of the plaintexts; i.e., the number of slots "
+                     "to use for packing."),
+      llvm::cl::init(1024)};
 };
 
 struct BackendOptions : public PassPipelineOptions<BackendOptions> {

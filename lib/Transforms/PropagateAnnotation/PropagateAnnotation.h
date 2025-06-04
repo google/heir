@@ -1,7 +1,10 @@
 #ifndef LIB_TRANSFORMS_PROPAGATEANNOTATION_PROPAGATEANNOTATION_H_
 #define LIB_TRANSFORMS_PROPAGATEANNOTATION_PROPAGATEANNOTATION_H_
 
-#include "mlir/include/mlir/Pass/Pass.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"      // from @llvm-project
+#include "mlir/include/mlir/Pass/Pass.h"     // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -18,7 +21,6 @@ void forwardPropagateAnnotation(Operation *root, StringRef attrName,
                                 function_ref<bool(Type)> shouldPropagate);
 
 /// Forward-propagate an annotation through the IR.
-void forwardPropagateAnnotation(Operation *root, StringRef attrName);
 inline void forwardPropagateAnnotation(Operation *root, StringRef attrName) {
   return forwardPropagateAnnotation(root, attrName, [](Type) { return true; });
 }
@@ -29,7 +31,6 @@ void backwardPropagateAnnotation(Operation *root, StringRef attrName,
                                  function_ref<bool(Type)> shouldPropagate);
 
 /// Backward-propagate an annotation through the IR.
-void backwardPropagateAnnotation(Operation *root, StringRef attrName);
 inline void backwardPropagateAnnotation(Operation *root, StringRef attrName) {
   return backwardPropagateAnnotation(root, attrName, [](Type) { return true; });
 }

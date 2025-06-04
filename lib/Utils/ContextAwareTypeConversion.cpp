@@ -61,8 +61,6 @@ void ContextAwareTypeConverter::SignatureConversion::remapInput(
 
 LogicalResult ContextAwareTypeConverter::convertType(
     Type t, Value v, SmallVectorImpl<Type> &results) const {
-  LLVM_DEBUG(llvm::dbgs() << "Fetching contextual attr for value: " << v
-                          << "\n");
   auto contextAttr = getContextualAttr(v);
   // If no usable attribute is found, then we don't need to convert the type,
   // and we can return the type as-is

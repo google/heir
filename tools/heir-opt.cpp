@@ -43,6 +43,7 @@
 #include "lib/Dialect/Secret/Conversions/SecretToBGV/SecretToBGV.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCGGI/SecretToCGGI.h"
 #include "lib/Dialect/Secret/Conversions/SecretToCKKS/SecretToCKKS.h"
+#include "lib/Dialect/Secret/Conversions/SecretToModArith/SecretToModArith.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/Transforms/BufferizableOpInterfaceImpl.h"
 #include "lib/Dialect/Secret/Transforms/Passes.h"
@@ -342,6 +343,7 @@ int main(int argc, char **argv) {
   // This comement registers internal passes
   registerSecretToBGVPasses();
   registerSecretToCKKSPasses();
+  registerSecretToModArithPasses();
   ::mlir::heir::tosa::registerTosaToSecretArithPasses();
 
   // Interfaces in HEIR

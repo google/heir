@@ -657,8 +657,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
   llvm::ArrayRef<std::string> opsToDistribute;
 };
 
-// should be called right before all splitting, after
-// moveMgmtAttrAnnotationToFuncArgument
+// should be called right before all splitting
 void moveDialectAttrsToFuncArgument(Operation *top) {
   top->walk([&](secret::GenericOp genericOp) {
     for (auto i = 0; i != genericOp->getNumOperands(); ++i) {

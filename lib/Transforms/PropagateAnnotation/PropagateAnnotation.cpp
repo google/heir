@@ -2,9 +2,16 @@
 
 #include "lib/Dialect/HEIRInterfaces.h"
 #include "lib/Utils/AttributeUtils.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/Iterators.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"   // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"    // from @llvm-project
+#include "mlir/include/mlir/IR/Iterators.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/Visitors.h"      // from @llvm-project
 #include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"  // from @llvm-project
 

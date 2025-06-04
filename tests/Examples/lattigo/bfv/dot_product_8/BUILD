@@ -10,7 +10,7 @@ heir_lattigo_lib(
     go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=bfv",
-        "--mlir-to-bfv=ciphertext-degree=8",
+        "--mlir-to-bfv=ciphertext-degree=1024",
         "--scheme-to-lattigo",
     ],
     mlir_src = "@heir//tests/Examples/common:dot_product_8.mlir",

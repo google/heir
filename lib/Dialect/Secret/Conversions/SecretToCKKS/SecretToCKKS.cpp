@@ -16,8 +16,10 @@
 #include "lib/Dialect/Mgmt/IR/MgmtDialect.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/RNS/IR/RNSTypes.h"
+#include "lib/Dialect/Secret/Conversions/Patterns.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -302,6 +304,10 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     if (failed(rlweRing)) {
       return signalPassFailure();
     }
+
+    bool usePublicKey =
+        schemeParamAttr.getEncryptionType() == ckks::CKKSEncryptionType::pk;
+
     // Ensure that all secret types are uniform and matching the ring
     // parameter size in order to pack tensors into ciphertext SIMD slots.
     // TODO(#1174): decide this earlier, remove polyModDegree param to earlier
@@ -388,6 +394,10 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         ConvertAnyContextAware<tensor::ExtractOp>,
         ConvertAnyContextAware<tensor::InsertOp>,
         SecretGenericFuncCallConversion>(typeConverter, context);
+
+    patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
+                                       rlweRing.value());
+    patterns.add<ConvertClientReveal>(typeConverter, context, rlweRing.value());
 
     addStructuralConversionPatterns(typeConverter, patterns, target);
 

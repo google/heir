@@ -8,6 +8,7 @@
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/MathUtils.h"
 #include "lib/Utils/Utils.h"
 #include "llvm/include/llvm/ADT/APInt.h"              // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
@@ -43,8 +44,6 @@ namespace linalg {
 
 #define GEN_PASS_DEF_LINALGTOTENSOREXT
 #include "lib/Dialect/LinAlg/Conversions/LinalgToTensorExt/LinalgToTensorExt.h.inc"
-
-bool isPowerOfTwo(int64_t n) { return (n > 0) && ((n & (n - 1)) == 0); }
 
 int calculateIndexHelper(bool isLeftOperandSecret, int dim0, int dim1, int i,
                          int j) {

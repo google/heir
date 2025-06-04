@@ -162,6 +162,7 @@ func.func @repeated_mul(%arg0: !secret.secret<tensor<8xi16>>) -> (!secret.secret
 // Test that non mul/add ops work well with generic op handling in the analysis
 // CHECK: func.func @smoke_test
 // CHECK-COUNT-5: arith.constant
+// CHECK: secret.generic
 // CHECK: arith.muli
 // CHECK: arith.muli
 // CHECK: arith.subi

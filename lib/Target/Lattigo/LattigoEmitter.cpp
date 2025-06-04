@@ -1,5 +1,8 @@
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 
+#include <cassert>
+#include <cstdint>
+#include <functional>
 #include <string>
 #include <string_view>
 
@@ -13,8 +16,12 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "lib/Target/Lattigo/LattigoTemplates.h"
 #include "lib/Utils/TargetUtils.h"
+#include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
+#include "llvm/include/llvm/ADT/StringExtras.h"        // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"          // from @llvm-project
 #include "llvm/include/llvm/Support/CommandLine.h"     // from @llvm-project
+#include "llvm/include/llvm/Support/ErrorHandling.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/FormatVariadic.h"  // from @llvm-project
 #include "llvm/include/llvm/Support/ManagedStatic.h"   // from @llvm-project
 #include "llvm/include/llvm/Support/raw_ostream.h"     // from @llvm-project
@@ -33,6 +40,7 @@
 #include "mlir/include/mlir/IR/Types.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
 #include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/IndentedOstream.h"   // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Tools/mlir-translate/Translation.h"  // from @llvm-project

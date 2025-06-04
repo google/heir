@@ -1,10 +1,10 @@
 // RUN: heir-opt %s --split-input-file --convert-to-ciphertext-semantics=ciphertext-size=16 | FileCheck %s
 
 #vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
-#diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 16, (d0 + d1) mod 16)>
+#diagonal = #tensor_ext.layout<map = (d0, d1) -> ((d1 - d0) mod 16, (d1 - (d1 - d0) mod 16) mod 16)>
 
 // CHECK-DAG: [[row_major_indexing_map:#[^ ]*]] = affine_map<(d0, d1) -> (d0, d1)>
-// CHECK-DAG: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> (d1 mod 16, (d0 + d1) mod 16)>
+// CHECK-DAG: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> ((d1 - d0) mod 16, (d1 - (d1 - d0) mod 16) mod 16)>
 // CHECK-DAG: [[layout_rm_1d:#[^ ]*]] = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
 // CHECK-DAG: [[orig_type:#[^ ]*]] = #tensor_ext.original_type<originalType = tensor<16xi16>, layout = [[layout_rm_1d]]>
 
@@ -161,10 +161,10 @@ func.func @matvec_constant_matrix(
 #input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
 #output_alignment = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0:i16>
 #output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16), alignment = #output_alignment>
-#diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 4, (d0 + d1) mod 16)>
+#diagonal = #tensor_ext.layout<map = (d0, d1) -> ((d1 - d0) mod 4, (d1 - (d1 - d0) mod 4) mod 16)>
 
 // CHECK: [[row_major_indexing_map:#[^ ]*]] = affine_map<(d0, d1) -> (d0, d1)>
-// CHECK: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> (d1 mod 4, (d0 + d1) mod 16)>
+// CHECK: [[diagonal_layout:#[^ ]*]] = affine_map<(d0, d1) -> ((d1 - d0) mod 4, (d1 - (d1 - d0) mod 4) mod 16)>
 
 // CHECK: @squat
 // CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xi16>>]]
@@ -252,7 +252,7 @@ func.func @squat(
 #input_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16)>
 #output_alignment = #tensor_ext.alignment<in = [4], out = [16], padding = [12], paddingValue = 0.0:f32>
 #output_vec_layout = #tensor_ext.layout<map = (d0) -> (d0 mod 16), alignment = #output_alignment>
-#diagonal = #tensor_ext.layout<map = (d0, d1) -> (d1 mod 4, (d0 + d1) mod 16)>
+#diagonal = #tensor_ext.layout<map = (d0, d1) -> ((d1 - d0) mod 4, (d1 - (d1 - d0) mod 4) mod 16)>
 
 // CHECK: @f32_padding
 // CHECK-SAME: [[arg0:%[^:]*]]: [[materialized_ty:!secret.secret<tensor<16xf32>>]]

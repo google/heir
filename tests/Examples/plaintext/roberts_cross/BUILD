@@ -30,7 +30,7 @@ cc_library(
 plaintext_test(
     name = "roberts_cross",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend",
+        "--mlir-to-plaintext-backend=plaintext-size=4096",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
     deps = [
@@ -43,7 +43,7 @@ plaintext_test(
 plaintext_test(
     name = "roberts_cross_mod_536903681",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-modulus=536903681",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=536903681",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
     deps = [
@@ -56,7 +56,7 @@ plaintext_test(
 plaintext_test(
     name = "roberts_cross_mod_786433",
     heir_opt_flags = [
-        "--mlir-to-plaintext-backend=plaintext-modulus=786433",
+        "--mlir-to-plaintext-backend=plaintext-size=4096 plaintext-modulus=786433",
     ],
     mlir_src = "@heir//tests/Examples/common:roberts_cross_64x64.mlir",
     deps = [

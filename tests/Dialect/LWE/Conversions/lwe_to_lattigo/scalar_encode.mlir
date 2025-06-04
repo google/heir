@@ -17,10 +17,11 @@
 module attributes {scheme.bgv} {
   // CHECK: func @foo__encrypt__arg0
   func.func @foo__encrypt__arg0(%arg0: i64, %pk: !pkey_L1_) -> !ct_L1_ {
-    // CHECK: tensor.from_elements
+    // CHECK: tensor.splat
     // CHECK-NEXT: lattigo.bgv.new_plaintext
     // CHECK-NEXT: lattigo.bgv.encode
-    %pt = lwe.rlwe_encode %arg0 {encoding = #full_crt_packing_encoding, ring = #ring_Z4295294977_i64_1_x1024_} : i64 -> !pt
+    %packed = tensor.splat %arg0 : tensor<1024xi64>
+    %pt = lwe.rlwe_encode %packed {encoding = #full_crt_packing_encoding, ring = #ring_Z4295294977_i64_1_x1024_} : tensor<1024xi64> -> !pt
     // CHECK-NEXT: lattigo.rlwe.encrypt
     %ct = lwe.rlwe_encrypt %pt, %pk : (!pt, !pkey_L1_) -> !ct_L1_
     return %ct : !ct_L1_

@@ -4,7 +4,6 @@ add_public_tablegen_target(HEIRLWEPassesIncGen)
 
 
 add_mlir_library(HEIRLWETransforms
-    AddClientInterface.cpp
     SetDefaultParameters.cpp
 
     DEPENDS

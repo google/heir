@@ -1,6 +1,5 @@
 #include "lib/Dialect/LWE/Conversions/LWEToOpenfhe/LWEToOpenfhe.h"
 
-#include <cassert>
 #include <utility>
 
 #include "lib/Dialect/BGV/IR/BGVDialect.h"
@@ -21,7 +20,6 @@
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
@@ -31,6 +29,10 @@
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+// IWYU pragma: end_keep
 
 namespace mlir::heir::lwe {
 
@@ -189,17 +191,10 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
 
     Value input = adaptor.getInput();
     auto elementTy = getElementTypeOrSelf(input.getType());
-
     auto tensorTy = mlir::dyn_cast<RankedTensorType>(input.getType());
-    // Replicate scalar inputs into a splat tensor with shape matching
-    // the ring dimension.
     if (!tensorTy) {
-      auto ringDegree =
-          op.getRing().getPolynomialModulus().getPolynomial().getDegree();
-      tensor::SplatOp splat = rewriter.create<tensor::SplatOp>(
-          op.getLoc(), RankedTensorType::get({ringDegree}, elementTy), input);
-      input = splat.getResult();
-      tensorTy = splat.getType();
+      return op.emitError() << "Expected a tensor type for input; maybe "
+                               "assign_layout wasn't properly lowered?";
     }
 
     // Cast inputs to the correct types for OpenFHE API.
@@ -237,13 +232,7 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
       }
     }
 
-    lwe::NewLWEPlaintextType plaintextType = lwe::NewLWEPlaintextType::get(
-        op.getContext(),
-        lwe::ApplicationDataAttr::get(adaptor.getInput().getType(),
-                                      lwe::NoOverflowAttr::get(getContext())),
-        lwe::PlaintextSpaceAttr::get(getContext(), op.getRing(),
-                                     op.getEncoding()));
-
+    lwe::NewLWEPlaintextType plaintextType = op.getResult().getType();
     return llvm::TypeSwitch<Attribute, LogicalResult>(op.getEncoding())
         .Case<lwe::InverseCanonicalEncodingAttr>([&](auto encoding) {
           rewriter.replaceOpWithNewOp<openfhe::MakeCKKSPackedPlaintextOp>(
