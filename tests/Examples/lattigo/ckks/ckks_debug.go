@@ -29,6 +29,7 @@ func __heir_debug(evaluator *ckks.Evaluator, param ckks.Parameters, encoder *ckk
 	value := make([]float64, messageSize)
 	pt := decryptor.DecryptNew(ct)
 	encoder.Decode(pt, value)
+	fmt.Printf("  Value: %v\n", value)
 
 	// Print the scale
 	fmt.Printf("  Scale: %v\n", ct.Scale.Log2())

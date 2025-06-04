@@ -235,7 +235,8 @@ module attributes {scheme.bgv} {
     // CHECK:  [[v0:[^ ]*]] := int64(5)
     // CHECK:  [[v1:[^, ]*]] := float32(7.5)
     // CHECK:  [[v2:[^ ]*]] := []float32{0, 0, 0, 0, 0, 0, 0, 0}
-    // CHECK:  [[v2]]{{\[}}[[v0]]] = [[v1]]
+    // CHECK:  [[v3:[^ ]*]] := append(make([]float32, 0, len([[v2]])), v2...)
+    // CHECK:  [[v3]]{{\[}}[[v0]]] = [[v1]]
     // CHECK:  return [[v1]]
     %c5 = arith.constant 5 : index
     %v = arith.constant 7.5 : f32

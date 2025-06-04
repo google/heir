@@ -5,16 +5,20 @@
 #include <string>
 #include <vector>
 
+#include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "lib/Dialect/Secret/IR/SecretDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"         // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVector.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/Operation.h"          // from @llvm-project
-#include "mlir/include/mlir/IR/Types.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"    // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVector.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"             // from @llvm-project
+#include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
+#include "mlir/include/mlir/IR/Types.h"                    // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -22,7 +26,8 @@ namespace secret {
 
 // this is in correspondence with insertExternalCall in AddDebugPort.cpp
 LogicalResult annotateResult(secret::GenericOp op,
-                             const std::vector<std::vector<double>> &data) {
+                             const std::vector<std::vector<double>> &data,
+                             DataFlowSolver &solver) {
   auto getArrayOfDoubleAttr = [&](const std::vector<double> &row) {
     auto type = Float64Type::get(op.getContext());
     SmallVector<Attribute> elements =
@@ -42,6 +47,9 @@ LogicalResult annotateResult(secret::GenericOp op,
 
   // insert for each argument
   for (auto i = 0; i != op.getBody()->getNumArguments(); ++i) {
+    if (!isSecret(op.getBody()->getArgument(i), &solver)) {
+      continue;
+    }
     auto lineAttr = tryGetLine();
     if (!lineAttr) {
       op.emitError("Not enough data for argument " + std::to_string(i));
@@ -64,6 +72,12 @@ LogicalResult annotateResult(secret::GenericOp op,
       op->emitError("Not supported yet");
       return;
     }
+    if (!isSecret(op->getResult(0), &solver)) {
+      return;
+    }
+    // The above lines must come before the attempt to get the line, since
+    // reading the line seeks forward in the file pointer and we don't have a
+    // way to seek back if we decide to skip it.
 
     // assume single result for each op!!!
     auto lineAttr = tryGetLine();
@@ -112,8 +126,20 @@ struct ImportExecutionResult
 
     inputFile.close();
 
+    DataFlowSolver solver;
+    solver.load<dataflow::DeadCodeAnalysis>();
+    solver.load<dataflow::SparseConstantPropagation>();
+    solver.load<SecretnessAnalysis>();
+
+    auto result = solver.initializeAndRun(getOperation());
+    if (failed(result)) {
+      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      signalPassFailure();
+      return;
+    }
+
     getOperation()->walk([&](secret::GenericOp genericOp) {
-      if (failed(annotateResult(genericOp, data))) {
+      if (failed(annotateResult(genericOp, data, solver))) {
         genericOp->emitError("Failed to add debug port for genericOp");
         signalPassFailure();
       }

@@ -16,6 +16,15 @@ cc_library(
     ],
 )
 
+# cc_library(
+#     name = "halevi_shoup_matmul_loop_test",
+#     testonly = True,
+#     srcs = ["halevi_shoup_matmul_loop_test.cpp"],
+#     deps = [
+#         "@openfhe//:pke",
+#     ],
+# )
+
 # TODO(#1517): Re-enable this test once the parameters are fixed.
 # openfhe_end_to_end_test(
 #     name = "halevi_shoup_matmul_loop_test",

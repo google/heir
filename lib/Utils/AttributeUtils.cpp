@@ -62,7 +62,25 @@ Attribute getUndistinguishedResultAttr(Operation *op, int resultNumber,
   // (e.g., "tensor_ext.layout" being an array of layout attrs for a
   // multi-result op. In this case, we assert the array entries match
   // with operation results, and return the relevant entry.
+  //
+  // However, a single-result op can have an attribute that is itself
+  // semantically an array (e.g., a tensor-typed result with a
+  // secret.execution_result array attr).
   if (auto arrayAttr = dyn_cast_or_null<ArrayAttr>(attr)) {
+    assert(op->getNumResults() > 0 &&
+           "getUndistinguishedResultAttr expected op to have at least one "
+           "result.");
+
+    if (op->getNumResults() == 1) {
+      // single-result op, array attr is considered entirely applying to that
+      // one value.
+      if (arrayAttr.size() == 1) {
+        return arrayAttr[0];
+      }
+      return arrayAttr;
+    }
+
+    // multi-result op, each array value is for each result.
     assert(arrayAttr.size() == op->getNumResults() &&
            "Array attr does not match number of results");
     return arrayAttr[resultNumber];
@@ -139,21 +157,32 @@ void setAttributeForResult(Value result, StringRef attrName, Attribute attr) {
       .Case<OperandAndResultAttrInterface>(
           [&](auto op) { op.setResultAttr(resultNumber, attrName, attr); })
       .Default([&](Operation *op) {
-        // If the op has an existing array attr, set the attribute in the
-        // existing array attr's index.
-        auto existingAttr = op->getAttr(attrName);
-        if (auto existingArrayAttr =
-                dyn_cast_or_null<ArrayAttr>(existingAttr)) {
-          assert(existingArrayAttr.size() == op->getNumResults() &&
-                 "Array attr does not match number of results");
-          existingArrayAttr[resultNumber] = attr;
-          op->setAttr(attrName, existingArrayAttr);
-        } else {
-          assert(op->getNumResults() == 1 &&
-                 "Op has multiple results but no array attr was passed or "
-                 "existing.");
+        // For a single-result op, the attribute applies to the result as a
+        // whole, even if the attr is an array attr. This is used for
+        // secret.execution_result with tensor-typed results.
+        if (op->getNumResults() == 1) {
           op->setAttr(attrName, attr);
+          return;
         }
+
+        // For a multi-result op, the array attr elements correspond to each
+        // result. If the op has an existing array attr, set the attribute in
+        // the existing array attr's index.
+        auto existingAttr = op->getAttr(attrName);
+        if (!existingAttr) {
+          // Can't instantiate a new array attr here because we only have one
+          // value for the one result. Only thing to do is err.
+          assert(false &&
+                 "Setting single value on multi-result op with no existing "
+                 "array attr!op->setAttr(attrName, attr);");
+          return;
+        }
+
+        ArrayAttr existingArrayAttr = cast<ArrayAttr>(existingAttr);
+        assert(existingArrayAttr.size() == op->getNumResults() &&
+               "Array attr does not match number of results");
+        existingArrayAttr[resultNumber] = attr;
+        op->setAttr(attrName, existingArrayAttr);
       });
 }
 

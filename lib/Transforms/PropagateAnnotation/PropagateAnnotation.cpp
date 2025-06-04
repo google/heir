@@ -36,6 +36,7 @@ void forwardPropagateAnnotation(Operation *root, StringRef attrName,
     return;
   }
   root->walk<WalkOrder::PreOrder>([&](Operation *op) {
+    LLVM_DEBUG(llvm::dbgs() << "Visiting op " << op->getName() << "\n");
     if (op->hasAttr(attrName)) {
       return WalkResult::advance();
     }
