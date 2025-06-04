@@ -236,8 +236,6 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       exit(EXIT_FAILURE);
   }
 
-  // Optimize relinearization at mgmt dialect level
-  // TODO(#1548): respect MAX_KEY_BASIS_DEGREE for B/FV
   OptimizeRelinearizationOptions optimizeRelinearizationOptions;
   optimizeRelinearizationOptions.allowMixedDegreeOperands = false;
   pm.addPass(createOptimizeRelinearization(optimizeRelinearizationOptions));
