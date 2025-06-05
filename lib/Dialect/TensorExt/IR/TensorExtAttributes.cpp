@@ -102,8 +102,10 @@ LogicalResult AlignmentAttr::verify(
 LogicalResult LayoutAttr::verify(function_ref<InFlightDiagnostic()> emitError,
                                  AffineMap map, AlignmentAttr alignment) {
   if (alignment && map.getNumDims() != alignment.getOut().size()) {
-    return emitError() << "The affine map's input size must match the "
-                          "number of dimensions of alignment.out";
+    return emitError() << "The affine map's input size (" << map.getNumDims()
+                       << ") must match the "
+                          "number of dimensions of alignment.out ("
+                       << alignment.getOut().size() << ")";
   }
 
   return success();
