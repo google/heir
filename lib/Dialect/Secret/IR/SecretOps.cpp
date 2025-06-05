@@ -275,9 +275,18 @@ LogicalResult GenericOp::verify() {
 }
 
 void ConcealOp::build(OpBuilder &builder, OperationState &result,
-                      Value cleartextValue) {
+                      Value cleartextValue, std::optional<UnitAttr> trivial) {
   Type resultType = SecretType::get(cleartextValue.getType());
   build(builder, result, resultType, cleartextValue);
+  if (trivial.has_value()) {
+    result.addAttribute("trivial", builder.getUnitAttr());
+  }
+}
+
+void ConcealOp::build(OpBuilder &builder, OperationState &result,
+                      Value cleartextValue) {
+  build(builder, result, cleartextValue.getType(), cleartextValue,
+        std::nullopt);
 }
 
 void RevealOp::build(OpBuilder &builder, OperationState &result,
