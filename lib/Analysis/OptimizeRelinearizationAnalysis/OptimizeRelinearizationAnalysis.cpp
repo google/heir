@@ -41,10 +41,10 @@
 // the full key basis. Meanwhile, most library implementations force the
 // assumptions made here anyway.
 //
-// For now, fix the key basis degree bound to 3. Could make it a pass flag
-// later, or introduce costs for high-degree operations and let it be
+// For now, fix the key basis degree bound to 2 (dimension 3). Could make it a
+// pass flag later, or introduce costs for high-degree operations and let it be
 // unconstrained.
-constexpr int MAX_KEY_BASIS_DEGREE = 3;
+constexpr int MAX_KEY_BASIS_DEGREE = 2;
 constexpr int IF_THEN_AUX = 100;
 
 namespace math_opt = ::operations_research::math_opt;
