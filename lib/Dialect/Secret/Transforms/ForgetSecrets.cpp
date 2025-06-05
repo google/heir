@@ -7,15 +7,19 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Utils/ConversionUtils.h"
+#include "lib/Utils/TransformUtils.h"
 #include "llvm/include/llvm/Support/ErrorHandling.h"    // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Builders.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/MemRef/IR/MemRef.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
 
 namespace mlir {
@@ -80,6 +84,47 @@ struct ConvertGeneric : public OpConversionPattern<GenericOp> {
   }
 };
 
+struct ConvertCast : public OpConversionPattern<CastOp> {
+  ConvertCast(mlir::MLIRContext *context)
+      : OpConversionPattern<CastOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      CastOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto sourceType = adaptor.getInput().getType();
+    auto targetType = getTypeConverter()->convertType(op.getResult().getType());
+
+    if (sourceType == targetType) {
+      rewriter.replaceOp(op, adaptor.getInput());
+      return success();
+    }
+
+    if (isa<MemRefType>(targetType) && isa<IntegerType>(sourceType)) {
+      // Decompose the bits of the input into a memref of i1s.
+      auto convertedValue = convertIntegerValueToMemrefOfBits(
+          adaptor.getInput(), rewriter, op.getLoc());
+      rewriter.replaceOp(op, convertedValue);
+      return success();
+    }
+
+    if (isa<MemRefType>(sourceType) && isa<IntegerType>(targetType)) {
+      // Reconstruct the integer type from a memref of its bits.
+      auto convertedValue = convertMemrefOfBitsToInteger(
+          adaptor.getInput(), targetType, rewriter, op.getLoc());
+      rewriter.replaceOp(op, convertedValue);
+      return success();
+    }
+
+    return op->emitOpError()
+           << "SecretForgetSecrets does not yet support lowering a cast from "
+           << sourceType << " to " << targetType
+           << ", but if you see this, maybe it should support your use case "
+              "and you can contribute the patch :)";
+  }
+};
+
 struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
   using SecretForgetSecretsBase::SecretForgetSecretsBase;
 
@@ -90,6 +135,8 @@ struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
     ForgetSecretsTypeConverter typeConverter;
 
     target.addIllegalDialect<SecretDialect>();
+    target.addLegalDialect<memref::MemRefDialect>();
+    target.addLegalDialect<arith::ArithDialect>();
     target.addDynamicallyLegalOp<mlir::func::FuncOp>(
         [&](mlir::func::FuncOp op) {
           return typeConverter.isSignatureLegal(op.getFunctionType()) &&
@@ -101,8 +148,9 @@ struct ForgetSecrets : impl::SecretForgetSecretsBase<ForgetSecrets> {
         [&](mlir::func::ReturnOp op) { return typeConverter.isLegal(op); });
 
     RewritePatternSet patterns(context);
-    patterns.add<ConvertGeneric, DropOp<ConcealOp>, DropOp<RevealOp>>(
-        typeConverter, context);
+    patterns
+        .add<ConvertGeneric, DropOp<ConcealOp>, DropOp<RevealOp>, ConvertCast>(
+            typeConverter, context);
     populateFunctionOpInterfaceTypeConversionPattern<FuncOp>(patterns,
                                                              typeConverter);
     populateReturnOpTypeConversionPattern(patterns, typeConverter);

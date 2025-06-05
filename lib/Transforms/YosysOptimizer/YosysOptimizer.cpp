@@ -12,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-#include "lib/Dialect/Comb/IR/CombDialect.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretPatterns.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
@@ -20,7 +19,7 @@
 #include "lib/Transforms/YosysOptimizer/BooleanGateImporter.h"
 #include "lib/Transforms/YosysOptimizer/LUTImporter.h"
 #include "lib/Transforms/YosysOptimizer/RTLILImporter.h"
-#include "lib/Utils/RewriteUtils/RewriteUtils.h"
+#include "lib/Utils/TransformUtils.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"         // from @llvm-project
 #include "llvm/include/llvm/ADT/Statistic.h"           // from @llvm-project
@@ -37,7 +36,6 @@
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/DialectRegistry.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
@@ -51,6 +49,10 @@
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/Passes.h"  // from @llvm-project
+
+// IWYU pragma: begin_keep
+#include "lib/Dialect/Comb/IR/CombDialect.h"
+// IWYU pragma: end_keep
 
 // Block clang-format from reordering
 // clang-format off
@@ -177,33 +179,6 @@ struct YosysOptimizer : public impl::YosysOptimizerBase<YosysOptimizer> {
   llvm::SmallVector<RelativeOptimizationStatistics> optStatistics;
 };
 
-Value convertIntegerValue(Value value, Type convertedType, OpBuilder &b,
-                          Location loc) {
-  IntegerType argType = mlir::cast<IntegerType>(value.getType());
-  int width = argType.getWidth();
-  if (width == 1) {
-    return value;
-  }
-
-  auto allocOp =
-      b.create<memref::AllocOp>(loc, MemRefType::get({width}, b.getI1Type()));
-  for (int i = 0; i < width; i++) {
-    // These arith ops correspond to extracting the i-th bit
-    // from the input
-    auto shiftAmount =
-        b.create<arith::ConstantOp>(loc, argType, b.getIntegerAttr(argType, i));
-    auto bitMask = b.create<arith::ConstantOp>(
-        loc, argType, b.getIntegerAttr(argType, 1 << i));
-    auto andOp = b.create<arith::AndIOp>(loc, value, bitMask);
-    auto shifted = b.create<arith::ShRSIOp>(loc, andOp, shiftAmount);
-    b.create<memref::StoreOp>(
-        loc, b.create<arith::TruncIOp>(loc, b.getI1Type(), shifted), allocOp,
-        ValueRange{b.create<arith::ConstantIndexOp>(loc, i)});
-  }
-
-  return allocOp.getResult();
-}
-
 /// Convert a secret.generic's operands secret.secret<i3>
 /// to secret.secret<memref<3xi1>>.
 LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
@@ -230,7 +205,7 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
             builder.getIntegerType(functionMemrefTy.getNumElements()), input);
       }
       auto convertedValue =
-          convertIntegerValue(input, convertedType, builder, op.getLoc());
+          convertIntegerValueToMemrefOfBits(input, builder, op.getLoc());
       typeConvertedArgs.push_back(convertedValue);
 
       continue;
@@ -495,7 +470,7 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   //
   // convertOpOperands goes from i8 -> memref<8xi1> or index -> i3 ->
   // memref<3xi1>
-  // converOpResults from memref<8xi1> -> i8
+  // convertOpResults from memref<8xi1> -> i8
   SmallVector<Value> typeConvertedArgs;
   typeConvertedArgs.reserve(op->getNumOperands());
   if (failed(convertOpOperands(op, func, typeConvertedArgs))) {

@@ -8,8 +8,15 @@ def SecretForgetSecrets : Pass<"secret-forget-secrets"> {
   let description = [{
     Drop the `secret<...>` type from the IR, replacing it with the contained
     type and the corresponding cleartext computation.
+
+    `secret.cast` ops are replaced with freshly alloc'ed memrefs that extract
+    individual bits of the input type or reshape them if possible.
   }];
-  let dependentDialects = ["mlir::heir::secret::SecretDialect"];
+  let dependentDialects = [
+    "mlir::heir::secret::SecretDialect",
+    "mlir::memref::MemRefDialect",
+    "mlir::arith::ArithDialect",
+  ];
 }
 
 def SecretDistributeGeneric : Pass<"secret-distribute-generic"> {
