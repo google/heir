@@ -271,6 +271,17 @@ def LWE_RLWEEncryptOp : LWE_Op<"rlwe_encrypt", [
   let hasVerifier = 1;
 }
 
+def LWE_RLWETrivialEncryptOp : LWE_Op<"rlwe_trivial_encrypt", [
+    NewEncodingsMatch<"input", "NewLWEPlaintextType", "output", "NewLWECiphertextType">]> {
+  let summary = "Trivially encrypt an RLWE plaintext to a RLWE ciphertext";
+  let description = [{
+    The ciphertext is valid for any secret key.
+  }];
+
+  let arguments = (ins NewLWEPlaintext:$input);
+  let results = (outs NewLWECiphertext:$output);
+}
+
 def LWE_RLWEDecryptOp : LWE_Op<"rlwe_decrypt", [
     NewEncodingsMatch<"input", "NewLWECiphertextType", "output", "NewLWEPlaintextType">,
     KeyAndCiphertextMatch<"secret_key", "NewLWESecretKeyType", "input", "NewLWECiphertextType">]> {

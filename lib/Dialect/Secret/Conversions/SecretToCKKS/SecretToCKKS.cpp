@@ -393,7 +393,8 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         ConvertAnyContextAware<tensor::ExtractSliceOp>,
         ConvertAnyContextAware<tensor::ExtractOp>,
         ConvertAnyContextAware<tensor::InsertOp>,
-        SecretGenericFuncCallConversion>(typeConverter, context);
+        SecretGenericFuncCallConversion, ConvertTrivialConceal>(typeConverter,
+                                                                context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());

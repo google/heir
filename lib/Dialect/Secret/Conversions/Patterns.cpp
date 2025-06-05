@@ -41,8 +41,7 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
     ContextAwareConversionPatternRewriter &rewriter) const {
   func::FuncOp parentFunc = op->getParentOfType<func::FuncOp>();
   if (!parentFunc || !parentFunc->hasAttr(kClientEncFuncAttrName)) {
-    return op->emitError() << "expected to be inside a function with attribute "
-                           << kClientEncFuncAttrName;
+    return failure();
   }
 
   // The encryption func encrypts a single value, so it must have a single
@@ -51,11 +50,7 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   auto resultCtTy =
       dyn_cast<lwe::NewLWECiphertextType>(parentFunc.getResultTypes()[0]);
   if (!resultCtTy) {
-    return parentFunc->emitError()
-           << "expected secret.conceal op to be inside a function with a "
-              "single LWE ciphertext return type; it may be that "
-              "the type converter failed to run on this func "
-              "because the mgmt attribute is missing.";
+    return failure();
   }
 
   if (resultCtTy.getCiphertextSpace()
@@ -87,6 +82,40 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
       resultCtTy.getPlaintextSpace().getRing());
   auto encryptOp = rewriter.create<lwe::RLWEEncryptOp>(
       op.getLoc(), resultCtTy, encoded.getResult(), keyBlockArg);
+
+  // Copy attributes from the original op to preserve any mgmt attrs needed by
+  // dialect conversion from secret to scheme.
+  encryptOp->setAttrs(op->getAttrs());
+
+  rewriter.replaceOp(op, encryptOp);
+  return success();
+}
+
+LogicalResult ConvertTrivialConceal::matchAndRewrite(
+    secret::ConcealOp op, OpAdaptor adaptor,
+    ContextAwareConversionPatternRewriter &rewriter) const {
+  if (!op.getTrivial()) {
+    return failure();
+  }
+
+  SmallVector<Type> resultTypes;
+  if (failed(typeConverter->convertType(op.getResult().getType(),
+                                        op.getResult(), resultTypes))) {
+    return op->emitError() << "failed to convert result type for trivial "
+                              "conceal op";
+  }
+  lwe::NewLWECiphertextType resultCtTy =
+      dyn_cast<lwe::NewLWECiphertextType>(resultTypes[0]);
+  auto plaintextTy = lwe::NewLWEPlaintextType::get(
+      op.getContext(), resultCtTy.getApplicationData(),
+      resultCtTy.getPlaintextSpace());
+  auto encoded = rewriter.create<lwe::RLWEEncodeOp>(
+      op.getLoc(), plaintextTy, adaptor.getCleartext(),
+      resultCtTy.getPlaintextSpace().getEncoding(),
+      resultCtTy.getPlaintextSpace().getRing());
+
+  auto encryptOp = rewriter.create<lwe::RLWETrivialEncryptOp>(
+      op.getLoc(), resultCtTy, encoded.getResult());
 
   // Copy attributes from the original op to preserve any mgmt attrs needed by
   // dialect conversion from secret to scheme.
