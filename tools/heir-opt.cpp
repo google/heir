@@ -67,6 +67,7 @@
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/ElementwiseToAffine/ElementwiseToAffine.h"
+#include "lib/Transforms/FoldConstantTensors/FoldConstantTensors.h"
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 #include "lib/Transforms/ForwardStoreToLoad/ForwardStoreToLoad.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -282,6 +283,7 @@ int main(int argc, char **argv) {
   registerLayoutPropagationPasses();
   registerLayoutOptimizationPasses();
   registerLinalgCanonicalizationsPasses();
+  registerFoldConstantTensorsPasses();
   registerLowerPolynomialEvalPasses();
   registerLowerUnpackPasses();
   registerTensorToScalarsPasses();

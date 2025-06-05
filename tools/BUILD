@@ -113,6 +113,7 @@ cc_binary(
         "@heir//lib/Transforms/ConvertToCiphertextSemantics",
         "@heir//lib/Transforms/DropUnitDims",
         "@heir//lib/Transforms/ElementwiseToAffine",
+        "@heir//lib/Transforms/FoldConstantTensors",
         "@heir//lib/Transforms/ForwardInsertToExtract",
         "@heir//lib/Transforms/ForwardStoreToLoad",
         "@heir//lib/Transforms/FullLoopUnroll",
