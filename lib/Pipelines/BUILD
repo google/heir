@@ -12,7 +12,6 @@ cc_library(
     deps = [
         "@heir//lib/Dialect/BGV/Conversions/BGVToLWE",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
-        "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/ModArith/Conversions/ModArithToArith",
         "@heir//lib/Dialect/Polynomial/Conversions/PolynomialToModArith",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
@@ -60,7 +59,6 @@ cc_library(
         "@heir//lib/Dialect/CGGI/Conversions/CGGIToTfheRustBool",
         "@heir//lib/Dialect/CGGI/Transforms:BooleanVectorizer",
         "@heir//lib/Dialect/LWE/Conversions/LWEToPolynomial",
-        "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/Secret/Transforms:DistributeGeneric",
         "@heir//lib/Dialect/TOSA/Conversions/TosaToSecretArith",
@@ -102,7 +100,6 @@ cc_library(
         "@heir//lib/Dialect/LWE/Transforms:AddDebugPort",
         "@heir//lib/Dialect/Lattigo/Transforms:AllocToInplace",
         "@heir//lib/Dialect/Lattigo/Transforms:ConfigureCryptoContext",
-        "@heir//lib/Dialect/LinAlg/Conversions/LinalgToTensorExt",
         "@heir//lib/Dialect/Openfhe/Transforms:ConfigureCryptoContext",
         "@heir//lib/Dialect/Openfhe/Transforms:CountAddAndKeySwitch",
         "@heir//lib/Dialect/Secret/Conversions/SecretToBGV",
