@@ -43,6 +43,9 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   if (!parentFunc || !parentFunc->hasAttr(kClientEncFuncAttrName)) {
     return failure();
   }
+  if (op.getTrivial()) {
+    return failure();
+  }
 
   // The encryption func encrypts a single value, so it must have a single
   // return type. This relies on the ContextAwareFuncConversion to have already
