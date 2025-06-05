@@ -96,12 +96,21 @@ LogicalResult NoiseAnalysis<NoiseModel>::visitOperation(
 
   auto res =
       llvm::TypeSwitch<Operation &, LogicalResult>(*op)
-          .template Case<secret::RevealOp, secret::ConcealOp>([&](auto op) {
-            // Reveal outputs are not secret, so no noise. Conceal outputs are
-            // a fresh encryption. Both are handled properly by setToEntryState
-            // based on the type of the result.
-            //
-            // TODO(#1875): support trivial encryptions which have zero noise.
+          .template Case<secret::RevealOp>([&](auto revealOp) {
+            // Reveal outputs are not secret, so no noise.
+            for (auto result : results) {
+              setToEntryState(result);
+            }
+            return success();
+          })
+          .template Case<secret::ConcealOp>([&](auto concealOp) {
+            // Conceal outputs have the noise of a fresh encryption, unless
+            // they are trivial encryptions, in which case there is zero noise.
+            if (concealOp.getTrivial()) {
+              propagate(concealOp.getResult(), NoiseState::of(0.0));
+              return success();
+            }
+
             for (auto result : results) {
               setToEntryState(result);
             }
