@@ -6,10 +6,13 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -165,6 +168,52 @@ struct FoldConstantLinalgTranspose
   }
 };
 
+struct FoldConstantFill : public OpRewritePattern<mlir::linalg::FillOp> {
+ public:
+  FoldConstantFill(MLIRContext *context)
+      : OpRewritePattern<mlir::linalg::FillOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::FillOp fillOp,
+                                PatternRewriter &rewriter) const override {
+    auto value = getAsOpFoldResult(fillOp.getInputs()[0]);
+    if (isa<Value>(value)) return failure();
+    auto outputTy = cast<RankedTensorType>(fillOp.getResultTypes()[0]);
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+        fillOp, outputTy,
+        DenseElementsAttr::get(outputTy, cast<Attribute>(value)));
+    return success();
+  }
+};
+
+struct FoldConstantBroadcast
+    : public OpRewritePattern<mlir::linalg::BroadcastOp> {
+ public:
+  FoldConstantBroadcast(MLIRContext *context)
+      : OpRewritePattern<mlir::linalg::BroadcastOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::BroadcastOp broadcastOp,
+                                PatternRewriter &rewriter) const override {
+    auto value = getAsOpFoldResult(broadcastOp.getInput());
+    if (isa<Value>(value)) return failure();
+    auto outputTy = cast<RankedTensorType>(broadcastOp.getResultTypes()[0]);
+
+    // Replace with the new broadcasted constant.
+    // For now, only handle splats.
+    auto splatInput = dyn_cast<SplatElementsAttr>(cast<Attribute>(value));
+    if (!splatInput) return failure();
+
+    auto broadcastedInput =
+        SplatElementsAttr::get(outputTy, splatInput.getSplatValue<Attribute>());
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(broadcastOp, outputTy,
+                                                   broadcastedInput);
+    return success();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -172,7 +221,8 @@ struct LinalgCanonicalizations
     auto *module = getOperation();
 
     RewritePatternSet patterns(context);
-    patterns.add<FoldConstantLinalgTranspose>(context);
+    patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,
+                 FoldConstantBroadcast>(context);
 
     // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped

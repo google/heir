@@ -14,6 +14,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DialectUtils",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:LinalgInterfaces",
