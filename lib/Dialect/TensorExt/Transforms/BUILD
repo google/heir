@@ -11,7 +11,6 @@ cc_library(
         "Passes.h",
     ],
     deps = [
-        ":AlignTensorSizes",
         ":CollapseInsertionChains",
         ":FoldConvertLayoutIntoAssignLayout",
         ":ImplementShiftNetwork",
@@ -83,27 +82,6 @@ cc_library(
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
-    ],
-)
-
-cc_library(
-    name = "AlignTensorSizes",
-    srcs = ["AlignTensorSizes.cpp"],
-    hdrs = [
-        "AlignTensorSizes.h",
-    ],
-    deps = [
-        ":pass_inc_gen",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
-        "@heir//lib/Dialect/TensorExt/IR:Dialect",
-        "@heir//lib/Utils:ConversionUtils",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:ArithDialect",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
-        "@llvm-project//mlir:TransformUtils",
     ],
 )
 

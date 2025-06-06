@@ -7,7 +7,6 @@ mlir_tablegen(InsertRotate.cpp.inc -gen-rewriters -name TensorExt)
 add_public_tablegen_target(HEIRTensorExtInsertRotateIncGen)
 
 add_mlir_library(HEIRTensorExtTransforms
-    AlignTensorSizes.cpp
     CollapseInsertionChains.cpp
     InsertRotate.cpp
     RotateAndReduce.cpp
