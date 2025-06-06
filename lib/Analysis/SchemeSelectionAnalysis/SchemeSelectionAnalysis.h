@@ -229,8 +229,6 @@ class SchemeInfoLattice : public dataflow::Lattice<NatureOfComputation> {
 class SchemeSelectionAnalysis
     : public dataflow::SparseForwardDataFlowAnalysis<SchemeInfoLattice>{
  public:
-  SchemeSelectionAnalysis(DataFlowSolver &solver)
-      : SparseForwardDataFlowAnalysis<SchemeInfoLattice>(solver), counter(0, 0, 0, 0, 0, 0) {}
   using SparseForwardDataFlowAnalysis::SparseForwardDataFlowAnalysis;
   
   LogicalResult visitOperation(Operation *op,
