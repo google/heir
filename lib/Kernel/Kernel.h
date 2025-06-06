@@ -20,8 +20,10 @@ inline raw_ostream &operator<<(raw_ostream &os,
   switch (kernelName) {
     case heir::KernelName::MatvecNaive:
       os << "MatvecNaive";
+      break;
     case heir::KernelName::MatvecDiagonal:
       os << "MatvecDiagonal";
+      break;
     default:
       os << "Unknown";
   }
