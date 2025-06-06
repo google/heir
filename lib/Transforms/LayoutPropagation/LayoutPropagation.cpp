@@ -399,15 +399,17 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
   // TODO(#1593): Handle inserted dims when propagating through collapse_shape
   if (!inputLayout.getAlignment().getInsertedDims().empty()) {
     return op->emitError(
-        "Unsupported collapse shape when alignment inserts dims");
+        "Unsupported collapse_shape when alignment inserts dims");
   }
 
   unsigned numDims = tensor.getType().getRank();
   llvm::SmallBitVector dimsBV(numDims, false);
 
-  ArrayRef<int64_t> oldAlignmentIn = inputLayout.getAlignment().getIn();
-  ArrayRef<int64_t> oldAlignmentOut = inputLayout.getAlignment().getOut();
-  ArrayRef<int64_t> oldPadding = inputLayout.getAlignment().getPadding();
+  AlignmentAttr alignment = inputLayout.getAlignment();
+  bool hasPadding = alignment.getPaddingValue() != nullptr;
+  ArrayRef<int64_t> oldAlignmentIn = alignment.getIn();
+  ArrayRef<int64_t> oldAlignmentOut = alignment.getOut();
+  ArrayRef<int64_t> oldPadding = alignment.getPadding();
   SmallVector<int64_t> newAlignmentIn;
   SmallVector<int64_t> newAlignmentOut;
   SmallVector<int64_t> newPadding;
@@ -421,7 +423,7 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
     if (associationArray.size() == 1) {
       newAlignmentIn.push_back(oldAlignmentIn[alignmentIndex]);
       newAlignmentOut.push_back(oldAlignmentOut[alignmentIndex]);
-      newPadding.push_back(oldPadding[alignmentIndex]);
+      if (hasPadding) newPadding.push_back(oldPadding[alignmentIndex]);
       alignmentIndex++;
       continue;
     }
@@ -437,7 +439,7 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
         // 1 (in some reassociation group) are dropped.
         newAlignmentIn.push_back(oldAlignmentIn[alignmentIndex]);
         newAlignmentOut.push_back(oldAlignmentOut[alignmentIndex]);
-        newPadding.push_back(oldPadding[alignmentIndex]);
+        if (hasPadding) newPadding.push_back(oldPadding[alignmentIndex]);
         alignmentIndex++;
       }
     }
@@ -448,9 +450,9 @@ LogicalResult LayoutPropagation::visitOperation(CollapseShapeOp op) {
   AlignmentAttr newAlignment = AlignmentAttr::get(
       &getContext(), DenseI64ArrayAttr::get(op->getContext(), newAlignmentIn),
       DenseI64ArrayAttr::get(op->getContext(), newAlignmentOut),
-      inputLayout.getAlignment().getInsertedDims(),
+      alignment.getInsertedDims(),
       DenseI64ArrayAttr::get(op->getContext(), newPadding),
-      inputLayout.getAlignment().getPaddingValue());
+      alignment.getPaddingValue());
 
   LayoutAttr resultLayoutAttr = LayoutAttr::get(resultLayout, newAlignment);
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
@@ -471,6 +473,21 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
 
   auto tensor = op.getSrc();
   LayoutAttr inputLayout = assignedLayouts.at(tensor);
+  // TODO(#1593): Handle inserted dims when propagating through expand_shape
+  if (!inputLayout.getAlignment().getInsertedDims().empty()) {
+    return op->emitError(
+        "Unsupported expand_shape when alignment inserts dims");
+  }
+
+  AlignmentAttr alignment = inputLayout.getAlignment();
+  bool hasPadding = alignment.getPaddingValue() != nullptr;
+
+  ArrayRef<int64_t> oldAlignmentIn = alignment.getIn();
+  ArrayRef<int64_t> oldAlignmentOut = alignment.getOut();
+  ArrayRef<int64_t> oldPadding = alignment.getPadding();
+  SmallVector<int64_t> newAlignmentIn;
+  SmallVector<int64_t> newAlignmentOut;
+  SmallVector<int64_t> newPadding;
 
   // tensor indices correspond to layout dimensions, and adding a dimension of
   // size 1 has no effect on the affine map expressions, so all we're doing is
@@ -485,6 +502,9 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
     if (associationArray.size() == 1) {
       oldDimsToNewDims[getAffineDimExpr(oldDim, context)] = getAffineDimExpr(
           cast<IntegerAttr>(associationArray[0]).getInt(), context);
+      newAlignmentIn.push_back(oldAlignmentIn[oldDim]);
+      newAlignmentOut.push_back(oldAlignmentOut[oldDim]);
+      if (hasPadding) newPadding.push_back(oldPadding[oldDim]);
       ++oldDim;
       continue;
     }
@@ -494,7 +514,15 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
       if (op.getResultType().getShape()[reassocDim] > 1) {
         oldDimsToNewDims[getAffineDimExpr(oldDim, context)] =
             getAffineDimExpr(reassocDim, context);
+        newAlignmentIn.push_back(oldAlignmentIn[oldDim]);
+        newAlignmentOut.push_back(oldAlignmentOut[oldDim]);
+        if (hasPadding) newPadding.push_back(oldPadding[oldDim]);
         ++oldDim;
+      } else {
+        // A new dimension of size 1 is being added
+        newAlignmentIn.push_back(1);
+        newAlignmentOut.push_back(1);
+        if (hasPadding) newPadding.push_back(0);
       }
     }
   }
@@ -508,9 +536,13 @@ LogicalResult LayoutPropagation::visitOperation(ExpandShapeOp op) {
   // Then replace the old dimension identifier expressions with new ones
   AffineMap resultLayout = resLayout1.replace(oldDimsToNewDims);
 
-  // TODO(#1593): Properly propagate alignment through ExpandShapeOp
-  LayoutAttr resultLayoutAttr =
-      LayoutAttr::get(resultLayout, inputLayout.getAlignment());
+  MLIRContext *ctx = inputLayout.getContext();
+  AlignmentAttr newAlignment = AlignmentAttr::get(
+      ctx, DenseI64ArrayAttr::get(ctx, newAlignmentIn),
+      DenseI64ArrayAttr::get(ctx, newAlignmentOut),
+      DenseI64ArrayAttr::get(ctx, alignment.getInsertedDims()),
+      DenseI64ArrayAttr::get(ctx, newPadding), alignment.getPaddingValue());
+  LayoutAttr resultLayoutAttr = LayoutAttr::get(resultLayout, newAlignment);
   assignedLayouts.insert({op.getResult(), resultLayoutAttr});
   setResultLayoutAttr(op);
   debugAssignLayout(op.getResult(), resultLayoutAttr);
