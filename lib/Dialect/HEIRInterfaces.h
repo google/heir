@@ -2,6 +2,9 @@
 #define LIB_DIALECT_HEIRINTERFACES_H_
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/Secret/IR/SecretAttributes.h"      // from @llvm-project
+#include "lib/Dialect/Secret/IR/SecretDialect.h"         // from @llvm-project
+#include "lib/Transforms/LayoutOptimization/Hoisting.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
@@ -16,7 +19,8 @@
 namespace mlir {
 namespace heir {
 
-void registerOperandAndResultAttrInterface(DialectRegistry &registry);
+void registerOperandAndResultAttrInterface(DialectRegistry& registry);
+void registerLayoutConversionHoistableInterface(DialectRegistry& registry);
 
 }  // namespace heir
 }  // namespace mlir
