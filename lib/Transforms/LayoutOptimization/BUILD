@@ -10,6 +10,7 @@ cc_library(
     srcs = ["LayoutOptimization.cpp"],
     hdrs = ["LayoutOptimization.h"],
     deps = [
+        ":Hoisting",
         ":Patterns",
         ":pass_inc_gen",
         "@heir//lib/Dialect/Secret/IR:Dialect",
@@ -25,6 +26,30 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "Hoisting",
+    srcs = ["Hoisting.h"],
+    hdrs = [],
+    deps = [
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "InterfaceImpl",
+    srcs = ["InterfaceImpl.cpp"],
+    hdrs = ["InterfaceImpl.h"],
+    deps = [
+        ":Hoisting",
+        "@heir//lib/Kernel",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:LinalgDialect",
     ],
 )
 

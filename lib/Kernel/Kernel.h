@@ -9,6 +9,9 @@ namespace mlir {
 namespace heir {
 
 enum class KernelName {
+  // A trivial kernel is one for which there is only a single known option
+  // (e.g., an elementwise addition).
+  Trivial,
   MatvecNaive,
   MatvecDiagonal,
 };
@@ -18,6 +21,9 @@ bool isSupportedKernel(Operation *op, KernelName name);
 inline raw_ostream &operator<<(raw_ostream &os,
                                const heir::KernelName &kernelName) {
   switch (kernelName) {
+    case heir::KernelName::Trivial:
+      os << "Trivial";
+      break;
     case heir::KernelName::MatvecNaive:
       os << "MatvecNaive";
       break;
@@ -38,6 +44,7 @@ struct FieldParser<heir::KernelName> {
     std::string kernelName;
     if (parser.parseString(&kernelName)) return failure();
 
+    if (kernelName == "Trivial") return heir::KernelName::Trivial;
     if (kernelName == "MatvecNaive") return heir::KernelName::MatvecNaive;
     if (kernelName == "MatvecDiagonal") return heir::KernelName::MatvecDiagonal;
 

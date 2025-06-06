@@ -1,4 +1,5 @@
 // RUN: heir-opt --layout-optimization %s | FileCheck %s
+// TODO(#1888): assert layout hoisting is correct
 
 #alignment = #tensor_ext.alignment<in = [1, 10], out = [1, 1024], padding = [0, 6], paddingValue = 0.000000e+00 : f32>
 #alignment1 = #tensor_ext.alignment<in = [1, 784], out = [1, 1024], padding = [0, 240], paddingValue = 0.000000e+00 : f32>

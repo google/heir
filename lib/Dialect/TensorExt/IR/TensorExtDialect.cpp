@@ -5,6 +5,7 @@
 #include "lib/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "llvm/include/llvm/ADT/ArrayRef.h"              // from @llvm-project
 #include "llvm/include/llvm/ADT/STLFunctionalExtras.h"   // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
@@ -37,6 +38,12 @@ void TensorExtDialect::initialize() {
 #define GET_OP_LIST
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.cpp.inc"
       >();
+
+  // FIXME: determine a better place to put these!
+  // declarePromisedInterface<LayoutConversionHoistableOpInterface,
+  // arith::AddIOp>();
+  // declarePromisedInterface<LayoutConversionHoistableOpInterface,
+  // arith::AddFOp>();
 }
 
 }  // namespace tensor_ext
