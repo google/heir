@@ -3,7 +3,7 @@ include "mlir/IR/OpBase.td"
 def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{
-    This is an example interface definition.
+    An interface that represents a general lookup table operation.
   }];
 
   let methods = [
@@ -12,6 +12,30 @@ def LUTOpInterface : OpInterface<"LUTOpInterface"> {
       "std::optional<mlir::ValueRange>", "getLookupTableInputs"
     >,
   ];
+}
+
+def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistableOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that abstracts the common information required for the
+    `layout-optimization` pass to evaluate the feasibility and cost of hoisting
+    a `convert_layout` op through a given operation.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      "Gets lookup table inputs from most significant bit to least.",
+      "const std::vector<::mlir::heir::Hoister>", "getHoisters"
+    >,
+  ];
+
+  let verify = [{
+    if ($_op->hasAttr("secret.kernel")) {
+      auto attr = $_op->getAttrOfType<::mlir::heir::secret::KernelAttr>("secret.kernel");
+      return ::mlir::heir::isSupportedKernel($_op, attr.getName()) ? success() : failure();
+    }
+    return success();
+  }];
 }
 
 def OperandAndResultAttrInterface : OpInterface<"OperandAndResultAttrInterface"> {

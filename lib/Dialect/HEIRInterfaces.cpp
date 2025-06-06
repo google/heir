@@ -6,6 +6,7 @@
 
 namespace mlir {
 namespace heir {
+
 #include "lib/Dialect/HEIRInterfaces.cpp.inc"
 
 void registerOperandAndResultAttrInterface(DialectRegistry &registry) {

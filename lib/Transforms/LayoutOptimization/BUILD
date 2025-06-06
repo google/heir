@@ -29,6 +29,17 @@ cc_library(
 )
 
 cc_library(
+    name = "HoistResult",
+    srcs = ["HoistResult.h"],
+    hdrs = [],
+    deps = [
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "Patterns",
     srcs = ["Patterns.cpp"],
     hdrs = ["Patterns.h"],
