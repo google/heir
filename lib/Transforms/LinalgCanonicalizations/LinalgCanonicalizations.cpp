@@ -6,11 +6,13 @@
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
@@ -214,6 +216,38 @@ struct FoldConstantBroadcast
   }
 };
 
+// Folds linalg.map operations that apply a single elementwise operation into
+// the elementwise operation on the tensors. This requires that the destination
+// tensor was created with a tensor.empty operation.
+struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
+ public:
+  LinalgMapToElementwise(MLIRContext *context)
+      : OpRewritePattern<mlir::linalg::MapOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::MapOp mapOp,
+                                PatternRewriter &rewriter) const override {
+    auto dest = mapOp.getInit().getDefiningOp<tensor::EmptyOp>();
+    if (!dest) return failure();
+
+    // The mapper should have exactly two operations (the second is a yield).
+    auto mapper = mapOp.getBody(0);
+    if (mapper->getOperations().size() != 2) return failure();
+
+    // The operation should be elementwise.
+    Operation &op = mapper->getOperations().front();
+    if (!op.hasTrait<mlir::OpTrait::Elementwise>()) return failure();
+
+    auto elementwiseOp = rewriter.create(
+        mapOp->getLoc(), op.getName().getIdentifier(), mapOp.getInputs(),
+        TypeRange(dest.getType()), mapOp->getAttrs(), {}, {});
+    rewriter.replaceOp(mapOp, elementwiseOp);
+    rewriter.eraseOp(dest);
+    return success();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -222,7 +256,7 @@ struct LinalgCanonicalizations
 
     RewritePatternSet patterns(context);
     patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,
-                 FoldConstantBroadcast>(context);
+                 FoldConstantBroadcast, LinalgMapToElementwise>(context);
 
     // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
