@@ -47,7 +47,7 @@ namespace {
 
 auto &kLayoutAttrName = tensor_ext::TensorExtDialect::kLayoutAttrName;
 
-typedef int64_t Cost;
+using Cost = int64_t;
 
 // TODO(#1595): Implement a more accurate cost model.
 Cost computeCostOfLayoutConversion(LayoutAttr fromLayout, LayoutAttr toLayout) {
@@ -90,7 +90,7 @@ struct LayoutOptimization : impl::LayoutOptimizationBase<LayoutOptimization> {
 };
 
 void LayoutOptimization::runOnOperation() {
-  auto ctx = &getContext();
+  auto *ctx = &getContext();
   IRRewriter builder(ctx);
   WalkResult result =
       getOperation()->walk<WalkOrder::PreOrder, ReverseIterator>(
@@ -136,7 +136,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
 
   // Check if any results are converted directly after.
   SmallVector<ConvertLayoutOp> resultLayoutConversions;
-  for (auto user : op->getResult(0).getUsers()) {
+  for (auto *user : op->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
       resultLayoutConversions.push_back(convertLayoutOp);
     }
@@ -160,7 +160,7 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
   }
 
   // Select the least costly layout conversion to hoist.
-  auto minHoistingResult = llvm::min_element(
+  auto *minHoistingResult = llvm::min_element(
       hoistingResults, [](const HoistingResult &a, const HoistingResult &b) {
         return a.cost < b.cost;
       });
@@ -254,7 +254,7 @@ OperandChange LayoutOptimization::costOfChangedOperand(OpOperand &operand,
 Cost LayoutOptimization::costOfChangedResult(Operation *kernel,
                                              LayoutAttr newLayout) {
   Cost totalCost = 0;
-  for (auto user : kernel->getResult(0).getUsers()) {
+  for (auto *user : kernel->getResult(0).getUsers()) {
     if (auto convertLayoutOp = dyn_cast<ConvertLayoutOp>(user)) {
       Cost originalConversion = computeCostOfLayoutConversion(
           convertLayoutOp.getFromLayout(), convertLayoutOp.getToLayout());
@@ -274,6 +274,8 @@ HoistingResult LayoutOptimization::computeHoistedCost(
             // TODO(#1597): Add linalg::reduce op kernel.
             return HoistingResult();
           })
+          // The case when the operation does not change the layout of any
+          // operand.
           .Case<AddIOp, AddFOp>([&](Operation *kernel) -> HoistingResult {
             HoistingResult result;
             auto outputLayout = convertLayoutOp.getToLayout();

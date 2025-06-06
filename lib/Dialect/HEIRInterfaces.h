@@ -2,6 +2,8 @@
 #define LIB_DIALECT_HEIRINTERFACES_H_
 
 // IWYU pragma: begin_keep
+#include "lib/Dialect/Secret/IR/SecretAttributes.h"  // from @llvm-project
+#include "lib/Transforms/LayoutOptimization/HoistResult.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
