@@ -1,5 +1,4 @@
-// RUN: heir-opt %s > %t
-// RUN: FileCheck %s < %t
+// RUN: heir-opt %s | FileCheck %s
 
 // This simply tests for syntax.
 
@@ -17,5 +16,12 @@ module {
         secret.yield %d : memref<1x16xi8>
       } -> (!secret.secret<memref<1x16xi8>>)
     func.return %Z : !secret.secret<memref<1x16xi8>>
+  }
+
+  // CHECK: conceal_trivial
+  func.func @conceal_trivial() -> !secret.secret<i8> {
+    %c7 = arith.constant 7 : i8
+    %0 = secret.conceal %c7 {trivial} : i8 -> !secret.secret<i8>
+    func.return %0 : !secret.secret<i8>
   }
 }
