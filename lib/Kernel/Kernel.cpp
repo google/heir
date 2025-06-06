@@ -1,4 +1,4 @@
-#include "lib/Kernel/Kernel.h"
+#include "Kernel.h"
 
 #include <string>
 #include <unordered_map>
