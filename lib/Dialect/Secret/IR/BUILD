@@ -12,11 +12,13 @@ cc_library(
         "SecretDialect.cpp",
     ],
     hdrs = [
+        "SecretAttributes.h",
         "SecretDialect.h",
         "SecretOps.h",
         "SecretTypes.h",
     ],
     deps = [
+        ":SecretAttributes",
         ":SecretOps",
         ":SecretPatterns",
         ":dialect_inc_gen",
@@ -63,6 +65,22 @@ cc_library(
 )
 
 cc_library(
+    name = "SecretAttributes",
+    hdrs = [
+        "SecretAttributes.h",
+        "SecretDialect.h",
+    ],
+    deps = [
+        ":attributes_inc_gen",
+        ":dialect_inc_gen",
+        "@heir//lib/Kernel",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "SecretOps",
     srcs = [
         "SecretOps.cpp",
@@ -89,6 +107,7 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
+        "SecretAttributes.td",
         "SecretDialect.td",
         "SecretOps.td",
         "SecretTypes.td",
@@ -108,6 +127,16 @@ add_heir_dialect_library(
     dialect = "Secret",
     kind = "dialect",
     td_file = "SecretDialect.td",
+    deps = [
+        ":td_files",
+    ],
+)
+
+add_heir_dialect_library(
+    name = "attributes_inc_gen",
+    dialect = "Secret",
+    kind = "attribute",
+    td_file = "SecretAttributes.td",
     deps = [
         ":td_files",
     ],
