@@ -10,4 +10,14 @@ def CKKS_EncryptionTypeEnum : I32EnumAttr<"CKKSEncryptionType", "An enum attribu
     let cppNamespace = "::mlir::heir::ckks";
 }
 
+def CKKS_EncryptionTechniqueEnum : I32EnumAttr<"CKKSEncryptionTechnique", "An enum attribute representing an encryption technique", [
+  I32EnumAttrCase<"standard", 0>,
+  // The extended encryption technique encrypts at Qp then mod reduces to Q.
+  // This has the benefit of smaller encryption noise.
+  // See https://ia.cr/2022/915
+  I32EnumAttrCase<"extended", 1>
+]> {
+    let cppNamespace = "::mlir::heir::ckks";
+}
+
 #endif  // LIB_DIALECT_CKKS_IR_CKKSENUMS_TD_

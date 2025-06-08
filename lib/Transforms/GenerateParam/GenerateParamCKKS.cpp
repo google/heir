@@ -6,6 +6,7 @@
 #include "lib/Dialect/CKKS/IR/CKKSAttributes.h"
 #include "lib/Dialect/CKKS/IR/CKKSDialect.h"
 #include "lib/Dialect/CKKS/IR/CKKSEnums.h"
+#include "lib/Dialect/ModuleAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/CKKS/Params.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
@@ -46,12 +47,18 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
       return;
     }
 
+    // for lattigo, defaults to extended encryption technique
+    if (moduleIsLattigo(getOperation())) {
+      encryptionTechniqueExtended = true;
+    }
+
     // generate scheme parameters
     std::vector<double> logPrimes(maxLevel.value_or(0) + 1, scalingModBits);
     logPrimes[0] = firstModBits;
 
     auto schemeParam = ckks::SchemeParam::getConcreteSchemeParam(
-        logPrimes, scalingModBits, slotNumber, usePublicKey);
+        logPrimes, scalingModBits, slotNumber, usePublicKey,
+        encryptionTechniqueExtended);
 
     LLVM_DEBUG(llvm::dbgs() << "Scheme Param:\n" << schemeParam << "\n");
 
@@ -66,7 +73,10 @@ struct GenerateParamCKKS : impl::GenerateParamCKKSBase<GenerateParamCKKS> {
                                    ArrayRef(schemeParam.getPi())),
             schemeParam.getLogDefaultScale(),
             usePublicKey ? ckks::CKKSEncryptionType::pk
-                         : ckks::CKKSEncryptionType::sk));
+                         : ckks::CKKSEncryptionType::sk,
+            encryptionTechniqueExtended
+                ? ckks::CKKSEncryptionTechnique::extended
+                : ckks::CKKSEncryptionTechnique::standard));
   }
 };
 
