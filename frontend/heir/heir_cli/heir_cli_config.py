@@ -37,7 +37,7 @@ def development_heir_config() -> HEIRConfig:
       / "yosys"
   )
   if not techmap_dir_path.exists():
-    techmap_path = ""
+    techmap_dir_path = ""
 
   abc_path = (
       repo_root
