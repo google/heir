@@ -37,6 +37,7 @@ bazel_dep(name = "abseil-cpp", version = "20250127.0", repo_name = "com_google_a
 # abc-lib -> abc and abc -> abc_bin
 #
 # bazel_dep(name = "abc", version = "0.0.0-20250408-yosyshq.bcr.1", repo_name = "edu_berkeley_abc")
+bazel_dep(name = "soplex", version = "7.1.4.bcr.1")
 
 # The versions of yosys deps zlib and libffi that come with rules_hdl don't
 # build for some versions of MacOS + Xcode (e.g., macOS 15.4 with Xcode 16.3).
@@ -126,13 +127,4 @@ git_override(
     module_name = "re2",
     commit = "c84a140c93352cdabbfb547c531be34515b12228",
     remote = "https://github.com/google/re2",
-)
-
-# Workaround 2025-06-03: soplex doesn't build on MacOS in dbg/fastbuild mode
-# Cf. https://github.com/scipopt/soplex/issues/47
-# TODO(#1873): remove override
-git_override(
-    module_name = "soplex",
-    commit = "0f02a6b49ce43c8a8632115af384bc9cc4f6927e",
-    remote = "https://github.com/j2kun/soplex",
 )
