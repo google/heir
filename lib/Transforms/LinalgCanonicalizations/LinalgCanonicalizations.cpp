@@ -3,10 +3,12 @@
 #include <cstdint>
 #include <utility>
 
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Linalg/IR/LinalgInterfaces.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/ReshapeOpsUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Attributes.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
@@ -248,6 +250,28 @@ struct LinalgMapToElementwise : public OpRewritePattern<mlir::linalg::MapOp> {
   }
 };
 
+struct BroadcastToExpandShape
+    : public OpRewritePattern<mlir::linalg::BroadcastOp> {
+ public:
+  BroadcastToExpandShape(MLIRContext *context)
+      : OpRewritePattern<mlir::linalg::BroadcastOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::BroadcastOp broadcastOp,
+                                PatternRewriter &rewriter) const override {
+    // If the broadcast is only reassociating dimensions, replace with
+    // expand_shape.
+    SliceVerificationResult res = isRankReducedType(
+        broadcastOp.getInit().getType(), broadcastOp.getInput().getType());
+    if (res != SliceVerificationResult::Success) return failure();
+
+    rewriter.replaceOpWithNewOp<tensor::ExpandShapeOp>(
+        broadcastOp, broadcastOp.getInit().getType(), broadcastOp.getInput());
+    return success();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -256,7 +280,8 @@ struct LinalgCanonicalizations
 
     RewritePatternSet patterns(context);
     patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,
-                 FoldConstantBroadcast, LinalgMapToElementwise>(context);
+                 FoldConstantBroadcast, LinalgMapToElementwise,
+                 BroadcastToExpandShape>(context);
 
     // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
