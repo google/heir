@@ -41,7 +41,7 @@ namespace heir {
 /// ```
 ///   %1 = arith.constant dense<[4.0, 2.0, 3.0, 4.0]> : tensor<4xf32>
 /// ```
-class InsertOpConstantFold final : public OpRewritePattern<tensor::InsertOp> {
+class InsertAfterConstant final : public OpRewritePattern<tensor::InsertOp> {
  public:
   using OpRewritePattern<tensor::InsertOp>::OpRewritePattern;
 
@@ -100,7 +100,7 @@ class InsertOpConstantFold final : public OpRewritePattern<tensor::InsertOp> {
 /// ```
 ///   %1 = arith.constant dense<[1.0, 2.0, 3.0, 4.0]> : tensor<4xf32>
 /// ```
-class CollapseAfterConstantFold final
+class CollapseShapeAfterConstant final
     : public OpRewritePattern<tensor::CollapseShapeOp> {
  public:
   using OpRewritePattern<tensor::CollapseShapeOp>::OpRewritePattern;
@@ -121,6 +121,27 @@ class CollapseAfterConstantFold final
   }
 };
 
+struct CollapseEmptyTensor
+    : public OpRewritePattern<mlir::tensor::CollapseShapeOp> {
+ public:
+  CollapseEmptyTensor(MLIRContext *context)
+      : OpRewritePattern<mlir::tensor::CollapseShapeOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::tensor::CollapseShapeOp collapseOp,
+                                PatternRewriter &rewriter) const override {
+    auto emptyOp =
+        dyn_cast_or_null<tensor::EmptyOp>(collapseOp.getSrc().getDefiningOp());
+    if (!emptyOp) return failure();
+
+    auto resultTy = collapseOp.getResult().getType();
+    rewriter.replaceOpWithNewOp<tensor::EmptyOp>(
+        collapseOp, resultTy.getShape(), resultTy.getElementType());
+    return success();
+  }
+};
+
 struct FoldConstantTensors
     : public impl::FoldConstantTensorsBase<FoldConstantTensors> {
   void runOnOperation() override {
@@ -128,7 +149,8 @@ struct FoldConstantTensors
     auto *module = getOperation();
 
     RewritePatternSet patterns(context);
-    patterns.add<InsertOpConstantFold, CollapseAfterConstantFold>(context);
+    patterns.add<InsertAfterConstant, CollapseShapeAfterConstant,
+                 CollapseEmptyTensor>(context);
 
     // Run pattern matching and conversion
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {

@@ -11,12 +11,16 @@ cc_library(
     hdrs = ["DropUnitDims.h"],
     deps = [
         ":pass_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithUtils",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:LinalgInterfaces",
         "@llvm-project//mlir:LinalgTransforms",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
-        "@llvm-project//mlir:Transforms",
     ],
 )
 
