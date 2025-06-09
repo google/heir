@@ -39,34 +39,6 @@ void TensorExtDialect::initialize() {
       >();
 }
 
-LogicalResult SIMDPackingAttr::verifyEncoding(
-    llvm::ArrayRef<int64_t> shape, mlir::Type elementType,
-    llvm::function_ref<mlir::InFlightDiagnostic()> emitError) const {
-  if (!elementType.isSignlessInteger()) {
-    return emitError() << "Tensors with a simd_encoding must have "
-                       << "signless integer element type, but found "
-                       << elementType;
-  }
-
-  auto padding = getPadding();
-  auto in = getIn();
-  if (padding.size() != in.size()) {
-    return emitError()
-           << "Tensors with a simd_encoding must have "
-           << "padding array matching size of the tensor, but found "
-           << padding.size() << " != " << shape.size();
-  }
-
-  auto outShape = getOut().asArrayRef();
-  if (outShape.size() != shape.size() && outShape.equals(shape.drop_front(1))) {
-    return emitError() << "Tensors with a simd_encoding must have "
-                       << "out shape matching tensor shape, but found "
-                       << outShape << " != " << shape.drop_front(1);
-  }
-
-  return success();
-}
-
 }  // namespace tensor_ext
 }  // namespace heir
 }  // namespace mlir
