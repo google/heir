@@ -11,13 +11,13 @@ namespace mlir {
 namespace heir {
 namespace ckks {
 
-SchemeParam SchemeParam::getConcreteSchemeParam(std::vector<double> logqi,
-                                                int logDefaultScale,
-                                                int slotNumber,
-                                                bool usePublicKey) {
+SchemeParam SchemeParam::getConcreteSchemeParam(
+    std::vector<double> logqi, int logDefaultScale, int slotNumber,
+    bool usePublicKey, bool encryptionTechniqueExtended) {
   // CKKS slot number = ringDim / 2
   return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
-                         std::move(logqi), 2 * slotNumber, usePublicKey),
+                         std::move(logqi), 2 * slotNumber, usePublicKey,
+                         encryptionTechniqueExtended),
                      logDefaultScale);
 }
 
@@ -42,9 +42,12 @@ SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
   auto level = logqi.size() - 1;
   auto dnum = ceil(static_cast<double>(qiImpl.size()) / piImpl.size());
   auto usePublicKey = attr.getEncryptionType() == CKKSEncryptionType::pk;
-  return SchemeParam(RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi,
-                                     piImpl, usePublicKey),
-                     logDefaultScale);
+  auto encryptionTechniqueExtended =
+      attr.getEncryptionTechnique() == CKKSEncryptionTechnique::extended;
+  return SchemeParam(
+      RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl,
+                      usePublicKey, encryptionTechniqueExtended),
+      logDefaultScale);
 }
 
 void SchemeParam::print(llvm::raw_ostream &os) const {

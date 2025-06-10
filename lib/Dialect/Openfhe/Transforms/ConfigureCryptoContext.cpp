@@ -252,6 +252,12 @@ struct ConfigureCryptoContext
     // remove ckks.schemeParam attribute if present
     if (auto schemeParamAttr = module->getAttrOfType<ckks::SchemeParamAttr>(
             ckks::CKKSDialect::kSchemeParamAttrName)) {
+      if (schemeParamAttr.getEncryptionTechnique() ==
+          ckks::CKKSEncryptionTechnique::extended) {
+        module->emitError(
+            "Extended encryption technique is not supported in OpenFHE CKKS");
+        return failure();
+      }
       module->removeAttr(ckks::CKKSDialect::kSchemeParamAttrName);
     }
 

@@ -12,6 +12,9 @@ def BGV_EncryptionTypeEnum : I32EnumAttr<"BGVEncryptionType", "An enum attribute
 
 def BGV_EncryptionTechniqueEnum : I32EnumAttr<"BGVEncryptionTechnique", "An enum attribute representing an encryption technique", [
   I32EnumAttrCase<"standard", 0>,
+  // The extended encryption technique encrypts at Qp then mod reduces to Q.
+  // This has the benefit of smaller encryption noise.
+  // See https://ia.cr/2022/915
   I32EnumAttrCase<"extended", 1>
 ]> {
     let cppNamespace = "::mlir::heir::bgv";

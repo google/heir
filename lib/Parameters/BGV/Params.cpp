@@ -18,19 +18,20 @@ SchemeParam SchemeParam::getConservativeSchemeParam(
     int level, int64_t plaintextModulus, int slotNumber, bool usePublicKey,
     bool encryptionTechniqueExtended) {
   // Use only half of the BGV slot number to make 1-dim vector.
-  return SchemeParam(RLWESchemeParam::getConservativeRLWESchemeParam(
-                         level, 2 * slotNumber, usePublicKey),
-                     plaintextModulus, encryptionTechniqueExtended);
+  return SchemeParam(
+      RLWESchemeParam::getConservativeRLWESchemeParam(
+          level, 2 * slotNumber, usePublicKey, encryptionTechniqueExtended),
+      plaintextModulus);
 }
 
 SchemeParam SchemeParam::getConcreteSchemeParam(
     std::vector<double> logqi, int64_t plaintextModulus, int slotNumber,
     bool usePublicKey, bool encryptionTechniqueExtended) {
   // Use only half of the BGV slot number to make 1-dim vector.
-  return SchemeParam(
-      RLWESchemeParam::getConcreteRLWESchemeParam(
-          std::move(logqi), 2 * slotNumber, usePublicKey, plaintextModulus),
-      plaintextModulus, encryptionTechniqueExtended);
+  return SchemeParam(RLWESchemeParam::getConcreteRLWESchemeParam(
+                         std::move(logqi), 2 * slotNumber, usePublicKey,
+                         encryptionTechniqueExtended, plaintextModulus),
+                     plaintextModulus);
 }
 
 SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
@@ -56,9 +57,10 @@ SchemeParam SchemeParam::getSchemeParamFromAttr(SchemeParamAttr attr) {
   auto usePublicKey = attr.getEncryptionType() == BGVEncryptionType::pk;
   auto encryptionTechniqueExtended =
       attr.getEncryptionTechnique() == BGVEncryptionTechnique::extended;
-  return SchemeParam(RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi,
-                                     piImpl, usePublicKey),
-                     plaintextModulus, encryptionTechniqueExtended);
+  return SchemeParam(
+      RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl,
+                      usePublicKey, encryptionTechniqueExtended),
+      plaintextModulus);
 }
 
 void SchemeParam::print(llvm::raw_ostream &os) const {

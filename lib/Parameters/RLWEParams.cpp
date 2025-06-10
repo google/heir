@@ -30,7 +30,8 @@ int computeDnum(int level) {
 }
 
 RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(
-    int level, int slotNumber, bool usePublicKey) {
+    int level, int minRingDim, bool usePublicKey,
+    bool encryptionTechniqueExtended) {
   auto logModuli = 60;  // assume all 60 bit moduli
   auto dnum = computeDnum(level);
   std::vector<double> logqi(level + 1, logModuli);
@@ -39,9 +40,10 @@ RLWESchemeParam RLWESchemeParam::getConservativeRLWESchemeParam(
 
   auto totalQP = logModuli * (logqi.size() + logpi.size());
 
-  auto ringDim = computeRingDim(totalQP, slotNumber);
+  auto ringDim = computeRingDim(totalQP, minRingDim);
 
-  return RLWESchemeParam(ringDim, level, logqi, dnum, logpi, usePublicKey);
+  return RLWESchemeParam(ringDim, level, logqi, dnum, logpi, usePublicKey,
+                         encryptionTechniqueExtended);
 }
 
 int64_t findPrime(int qi, int ringDim,
@@ -80,8 +82,8 @@ int64_t findPrime(int qi, int ringDim,
 }
 
 RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
-    std::vector<double> logqi, int slotNumber, bool usePublicKey,
-    int64_t plaintextModulus) {
+    std::vector<double> logqi, int minRingDim, bool usePublicKey,
+    bool encryptionTechniqueExtended, int64_t plaintextModulus) {
   auto level = logqi.size() - 1;
   auto dnum = computeDnum(level);
 
@@ -101,7 +103,7 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
                  std::accumulate(logpi.begin(), logpi.end(), 0.0);
 
   // ringDim will change if newLogPQ is too large
-  auto ringDim = computeRingDim(logPQ, slotNumber);
+  auto ringDim = computeRingDim(logPQ, minRingDim);
   std::vector<int64_t> qiImpl;
   std::vector<int64_t> piImpl;
   bool redo = false;
@@ -130,7 +132,7 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
       newLogPQ += log2(prime);
     }
     // if generated primes are too large, increase ringDim
-    auto newRingDim = computeRingDim(newLogPQ, slotNumber);
+    auto newRingDim = computeRingDim(newLogPQ, minRingDim);
     if (newRingDim != ringDim) {
       ringDim = newRingDim;
       redo = true;
@@ -148,7 +150,7 @@ RLWESchemeParam RLWESchemeParam::getConcreteRLWESchemeParam(
   }
 
   return RLWESchemeParam(ringDim, level, logqi, qiImpl, dnum, logpi, piImpl,
-                         usePublicKey);
+                         usePublicKey, encryptionTechniqueExtended);
 }
 
 void RLWESchemeParam::print(llvm::raw_ostream &os) const {
@@ -176,6 +178,7 @@ void RLWESchemeParam::print(llvm::raw_ostream &os) const {
   }
   os << "\n";
   os << "usePublicKey: " << usePublicKey << "\n";
+  os << "encryptionTechniqueExtended: " << encryptionTechniqueExtended << "\n";
 }
 
 }  // namespace heir

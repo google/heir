@@ -28,7 +28,8 @@ class SchemeParam : public RLWESchemeParam {
 
   static SchemeParam getConcreteSchemeParam(std::vector<double> logqi,
                                             int logDefaultScale, int slotNumber,
-                                            bool usePublicKey);
+                                            bool usePublicKey,
+                                            bool encryptionTechniqueExtended);
 
   static SchemeParam getSchemeParamFromAttr(SchemeParamAttr attr);
 };

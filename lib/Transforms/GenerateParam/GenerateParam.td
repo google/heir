@@ -81,7 +81,7 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
     Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
            "If true, uses a public key for encryption.">,
     Option<"encryptionTechniqueExtended", "encryption-technique-extended", "bool", /*default=*/"false",
-           "If true, uses EXTENDED encryption technique for encryption.">,
+           "If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)">,
   ];
 }
 
@@ -166,7 +166,7 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
            "If true, uses a public key for encryption.">,
     Option<"encryptionTechniqueExtended", "encryption-technique-extended", "bool", /*default=*/"false",
-           "If true, uses EXTENDED encryption technique for encryption.">,
+           "If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)">,
   ];
 }
 
@@ -228,6 +228,8 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
            "coefficient modulus to use for the ciphertext space.">,
     Option<"usePublicKey", "use-public-key", "bool", /*default=*/"true",
            "If true, uses a public key for encryption.">,
+    Option<"encryptionTechniqueExtended", "encryption-technique-extended", "bool", /*default=*/"false",
+           "If true, uses EXTENDED encryption technique for encryption. (See https://ia.cr/2022/915)">,
   ];
 }
 

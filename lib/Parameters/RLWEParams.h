@@ -13,18 +13,21 @@ namespace heir {
 class RLWESchemeParam {
  public:
   RLWESchemeParam(int ringDim, int level, const std::vector<double> &logqi,
-                  int dnum, const std::vector<double> &logpi, bool usePublicKey)
+                  int dnum, const std::vector<double> &logpi, bool usePublicKey,
+                  bool encryptionTechniqueExtended)
       : ringDim(ringDim),
         level(level),
         logqi(logqi),
         dnum(dnum),
         logpi(logpi),
-        usePublicKey(usePublicKey) {}
+        usePublicKey(usePublicKey),
+        encryptionTechniqueExtended(encryptionTechniqueExtended) {}
 
   RLWESchemeParam(int ringDim, int level, const std::vector<double> &logqi,
                   const std::vector<int64_t> &qi, int dnum,
                   const std::vector<double> &logpi,
-                  const std::vector<int64_t> &pi, bool usePublicKey)
+                  const std::vector<int64_t> &pi, bool usePublicKey,
+                  bool encryptionTechniqueExtended)
       : ringDim(ringDim),
         level(level),
         logqi(logqi),
@@ -32,7 +35,8 @@ class RLWESchemeParam {
         dnum(dnum),
         logpi(logpi),
         pi(pi),
-        usePublicKey(usePublicKey) {}
+        usePublicKey(usePublicKey),
+        encryptionTechniqueExtended(encryptionTechniqueExtended) {}
 
   virtual ~RLWESchemeParam() = default;
 
@@ -67,6 +71,12 @@ class RLWESchemeParam {
   // whether to use public key
   bool usePublicKey;
 
+  // the encryption technique used.
+  // if true, use extended encryption technique.
+  // which means encrypt at Qp then mod reduce to Q.
+  // this has the benefit of smaller encryption noise.
+  bool encryptionTechniqueExtended;
+
  public:
   int getRingDim() const { return ringDim; }
   int getLevel() const { return level; }
@@ -77,6 +87,9 @@ class RLWESchemeParam {
   const std::vector<int64_t> &getPi() const { return pi; }
   double getStd0() const { return std0; }
   bool getUsePublicKey() const { return usePublicKey; }
+  bool isEncryptionTechniqueExtended() const {
+    return encryptionTechniqueExtended;
+  }
 
   virtual void print(llvm::raw_ostream &os) const;
 
@@ -86,15 +99,15 @@ class RLWESchemeParam {
     return os;
   }
 
-  static RLWESchemeParam getConservativeRLWESchemeParam(int level,
-                                                        int minRingDim,
-                                                        bool usePublicKey);
+  static RLWESchemeParam getConservativeRLWESchemeParam(
+      int level, int minRingDim, bool usePublicKey,
+      bool encryptionTechniqueExtended);
 
   // plaintext modulus for BGV
   // for CKKS this field is not used
   static RLWESchemeParam getConcreteRLWESchemeParam(
       std::vector<double> logqi, int minRingDim, bool usePublicKey,
-      int64_t plaintextModulus = 0);
+      bool encryptionTechniqueExtended, int64_t plaintextModulus = 0);
 };
 
 // Parameter for each RLWE ciphertext SSA value.
