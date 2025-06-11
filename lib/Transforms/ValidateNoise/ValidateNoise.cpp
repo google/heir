@@ -7,6 +7,7 @@
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BGV/NoiseBySymbolCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
@@ -193,6 +194,9 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     } else if (model == "bgv-noise-mono") {
       bgv::NoiseCanEmbModel model;
       run<bgv::NoiseCanEmbModel>(model);
+    } else if (model == "bgv-noise-symbol") {
+      bgv::NoiseBySymbolCoeffModel model;
+      run<bgv::NoiseBySymbolCoeffModel>(model);
     } else if (model == "bfv-noise-by-bound-coeff-worst-case") {
       bfv::NoiseByBoundCoeffModel model(NoiseModelVariant::WORST_CASE);
       run<bfv::NoiseByBoundCoeffModel>(model);
