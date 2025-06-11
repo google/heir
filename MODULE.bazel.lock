@@ -2433,7 +2433,7 @@
         "bzlTransitiveDigest": "pBYZfL5VYF4BT5jARY3p7l3d7Uknixz0stBBKWj2iaw=",
         "usagesDigest": "fJqnUFr/GgZxd/VmNa3e4q3P8xv3wi51f6kXAa9+tsg=",
         "recordedFileInputs": {
-          "@@//requirements-dev.txt": "26da3dcbf88e8d5600d4bbedf32ac5d38e6992ba510cb49d693891310b5d473c",
+          "@@//requirements-dev.txt": "54fd907ca5b52c0522f9c479b4fe17cf8af6843d1d5b58f62a14705a0552c692",
           "@@//requirements.txt": "7efa66b1fcb36e4aac632075969146e3f087ec5049cd926b84ffdabaa58b8c49",
           "@@grpc+//requirements.bazel.txt": "95a27c3f9a46b8114d464c70ba93cda18cfe8c02004db81028f9306b2691701e",
           "@@or-tools+//bazel/notebook_requirements.txt": "ca78fad693f1b35eed8bb7c54e5ddf7ad255c4b9d94ce18efa55859759a8fb70",
@@ -3851,7 +3851,7 @@
               "dep_template": "@heir_pip_deps//{name}:{target}",
               "python_interpreter_target": "@@rules_python++python+python_3_11_host//:python",
               "repo": "heir_pip_deps_311",
-              "requirement": "requests==2.32.3 --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"
+              "requirement": "requests==2.32.4 --hash=sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c --hash=sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"
             }
           },
           "heir_pip_deps_311_scipy": {
