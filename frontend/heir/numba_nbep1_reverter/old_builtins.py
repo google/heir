@@ -1,8 +1,9 @@
 """This file is a near-verbatim copy of numba.core.typing.old_builtins.py,
 i.e., numba.core.typing.builtins if config.USE_LEGACY_TYPE_SYSTEM is set
 
-with only one change: we override integer_binop_cases to stop numba
-from upcasting, e.g., int8 + int8 to int64 or int32 (intp in numba).
+with two changes: we override (1) integer_binop_cases and
+(2) BitwiseShiftOperation to stop numba from upcasting,
+e.g., int8 + int8 to int64 or int32 (intp in numba)
 
 Numba decided to do this for simplicity, see the explanation in NBEP1:
 https://numba.readthedocs.io/en/stable/proposals/integer-typing.html
@@ -332,22 +333,15 @@ class PowerBuiltin(BinOpPower):
 
 
 class BitwiseShiftOperation(ConcreteTemplate):
-  # For bitshifts, only the first operand's signedness matters
-  # to choose the operation's signedness (the second operand
-  # should always be positive but will generally be considered
-  # signed anyway, since it's often a constant integer).
-  # (also, see issue #1995 for right-shifts)
-
-  # The RHS type is fixed to 64-bit signed/unsigned ints.
-  # The implementation will always cast the operands to the width of the
-  # result type, which is the widest between the LHS type and (u)intp.
+  # For bitshifts, only the first operand's type matters for the result type.
+  # The result type should always match the LHS type (op), not upcast.
   cases = [
-      signature(max(op, types.intp), op, op2)
+      signature(op, op, op2)
       for op in sorted(types.signed_domain)
       for op2 in [types.uint64, types.int64]
   ]
   cases += [
-      signature(max(op, types.uintp), op, op2)
+      signature(op, op, op2)
       for op in sorted(types.unsigned_domain)
       for op2 in [types.uint64, types.int64]
   ]

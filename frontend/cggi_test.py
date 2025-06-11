@@ -1,14 +1,16 @@
 from heir import compile
 from heir.mlir import I8, Secret
+from heir.backends.cleartext import CleartextBackend
 
 
 from absl.testing import absltest  # fmt: skip
 class EndToEndTest(absltest.TestCase):
 
-  def test_simple_arithmetic(self):
+  def test_simple_cggi_arithmetic(self):
 
     @compile(
         scheme="cggi",
+        backend=CleartextBackend(),
         debug="True",
     )
     def foo(a: Secret[I8], b: Secret[I8]):

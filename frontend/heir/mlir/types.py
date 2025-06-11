@@ -4,28 +4,106 @@ from abc import ABC, abstractmethod
 from typing import Generic, Self, TypeVar, TypeVarTuple, get_args, get_origin
 from numba.core.types import Type as NumbaType
 from numba.core.types import boolean, int8, int16, int32, int64, float32, float64
+from numba.extending import typeof_impl, type_callable
 
 T = TypeVar("T")
 Ts = TypeVarTuple("Ts")
 
-operator_error_message = "MLIRType should only be used for annotations."
+# List of all MLIR types we define here, for use in other parts of the compiler
+MLIR_TYPES = []  # populated via MLIRType's __init_subclass__
+
+
+def check_for_value(a: "MLIRType"):
+  if not hasattr(a, "value"):
+    raise RuntimeError(
+        "Trying to use an operator on an MLIRType without a value."
+    )
 
 
 class MLIRType(ABC):
+
+  def __init__(self, value: int):
+    self.value = value
+
+  def __int__(self):
+    check_for_value(self)
+    return int(self.value)
+
+  def __index__(self):
+    check_for_value(self)
+    return int(self.value)
+
+  def __str__(self):
+    check_for_value(self)
+    return str(self.value)
+
+  def __repr__(self):
+    check_for_value(self)
+    return str(self.value)
+
+  def __eq__(self, other):
+    check_for_value(self)
+    if isinstance(other, MLIRType):
+      check_for_value(other)
+      return self.value == other.value
+    return self.value == other
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __init_subclass__(cls, **kwargs):
+    super().__init_subclass__(**kwargs)
+    MLIR_TYPES.append(cls)
 
   @staticmethod
   @abstractmethod
   def numba_type() -> NumbaType:
     raise NotImplementedError("No numba type exists for a generic MLIRType")
 
-  def __add__(self, other) -> Self:
-    raise RuntimeError(operator_error_message)
+  @staticmethod
+  @abstractmethod
+  def mlir_type() -> str:
+    raise NotImplementedError("No mlir type exists for a generic MLIRType")
 
-  def __sub__(self, other) -> Self:
-    raise RuntimeError(operator_error_message)
+  def __add__(self, other):
+    check_for_value(self)
+    return self.value + other
 
-  def __mul__(self, other) -> Self:
-    raise RuntimeError(operator_error_message)
+  def __radd__(self, other):
+    check_for_value(self)
+    return other + self.value
+
+  def __sub__(self, other):
+    check_for_value(self)
+    return self.value - other
+
+  def __rsub__(self, other):
+    check_for_value(self)
+    return other - self.value
+
+  def __mul__(self, other):
+    check_for_value(self)
+    return self.value * other
+
+  def __rmul__(self, other):
+    check_for_value(self)
+    return other * self.value
+
+  def __rshift__(self, other):
+    check_for_value(self)
+    return self.value >> other
+
+  def __rrshift__(self, other):
+    check_for_value(self)
+    return other >> self.value
+
+  def __lshift__(self, other):
+    check_for_value(self)
+    return self.value << other
+
+  def __rlshift__(self, other):
+    check_for_value(self)
+    return other << self.value
 
 
 class Secret(Generic[T], MLIRType):
@@ -34,12 +112,20 @@ class Secret(Generic[T], MLIRType):
   def numba_type() -> NumbaType:
     raise NotImplementedError("No numba type exists for a generic Secret")
 
+  @staticmethod
+  def mlir_type() -> str:
+    raise NotImplementedError("No mlir type exists for a generic Secret")
+
 
 class Tensor(Generic[*Ts], MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     raise NotImplementedError("No numba type exists for a generic Tensor")
+
+  @staticmethod
+  def mlir_type() -> str:
+    raise NotImplementedError("No mlir type exists for a generic Tensor")
 
 
 class F32(MLIRType):
@@ -48,12 +134,20 @@ class F32(MLIRType):
   def numba_type() -> NumbaType:
     return float32
 
+  @staticmethod
+  def mlir_type() -> str:
+    return "f32"
+
 
 class F64(MLIRType):
   # TODO (#1162): For CKKS/Float: allow specifying actual intended precision/scale and warn/error if not achievable  @staticmethod
   @staticmethod
   def numba_type() -> NumbaType:
     return float64
+
+  @staticmethod
+  def mlir_type() -> str:
+    return "f64"
 
 
 class I1(MLIRType):
@@ -62,12 +156,20 @@ class I1(MLIRType):
   def numba_type() -> NumbaType:
     return boolean
 
+  @staticmethod
+  def mlir_type() -> str:
+    return "i1"
+
 
 class I8(MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     return int8
+
+  @staticmethod
+  def mlir_type() -> str:
+    return "i8"
 
 
 class I16(MLIRType):
@@ -76,6 +178,10 @@ class I16(MLIRType):
   def numba_type() -> NumbaType:
     return int16
 
+  @staticmethod
+  def mlir_type() -> str:
+    return "i16"
+
 
 class I32(MLIRType):
 
@@ -83,12 +189,28 @@ class I32(MLIRType):
   def numba_type() -> NumbaType:
     return int32
 
+  @staticmethod
+  def mlir_type() -> str:
+    return "i32"
+
 
 class I64(MLIRType):
 
   @staticmethod
   def numba_type() -> NumbaType:
     return int64
+
+  @staticmethod
+  def mlir_type() -> str:
+    return "i64"
+
+
+# Register the types defined above with Numba
+for typ in [I8, I16, I32, I64, I1, F32, F64]:
+
+  @type_callable(typ)
+  def build_typer_function(context, typ=typ):
+    return lambda value: typ.numba_type()
 
 
 # Helper functions

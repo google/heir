@@ -28,6 +28,7 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
         deps = deps + [
             ":frontend",
             "@com_google_absl_py//absl/testing:absltest",
+            "@edu_berkeley_abc//:abc",
         ],
         imports = ["."],
         data = data,
@@ -42,6 +43,8 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
             "HEIR_OPT_PATH": "tools/heir-opt",
             "HEIR_TRANSLATE_PATH": "tools/heir-translate",
             "PYBIND11_INCLUDE_PATH": "pybind11/include",
+            "HEIR_YOSYS_SCRIPTS_DIR": "lib/Transforms/YosysOptimizer/yosys",
+            "HEIR_ABC_BINARY": "$(rootpath @edu_berkeley_abc//:abc)",
             "NUMBA_USE_LEGACY_TYPE_SYSTEM": "1",
         },
     )
