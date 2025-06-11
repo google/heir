@@ -17,6 +17,7 @@
 #include "mlir/include/mlir/IR/OpDefinition.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
 #include "mlir/include/mlir/IR/Value.h"              // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"         // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
@@ -272,6 +273,50 @@ struct BroadcastToExpandShape
   }
 };
 
+struct RewriteTransposedVecmat
+    : public OpRewritePattern<mlir::linalg::VecmatOp> {
+ public:
+  RewriteTransposedVecmat(MLIRContext *context)
+      : OpRewritePattern<mlir::linalg::VecmatOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::VecmatOp vecmatOp,
+                                PatternRewriter &rewriter) const override {
+    auto transposeOp =
+        vecmatOp.getInputs()[1].getDefiningOp<linalg::TransposeOp>();
+    if (!transposeOp) return failure();
+
+    rewriter.replaceOpWithNewOp<linalg::MatvecOp>(
+        vecmatOp, vecmatOp.getResultTypes()[0],
+        ValueRange{transposeOp.getInput(), vecmatOp.getInputs()[0]},
+        vecmatOp.getDpsInits()[0]);
+    return success();
+  }
+};
+
+struct RewriteTransposedMatvec
+    : public OpRewritePattern<mlir::linalg::MatvecOp> {
+ public:
+  RewriteTransposedMatvec(MLIRContext *context)
+      : OpRewritePattern<mlir::linalg::MatvecOp>(context) {}
+
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(mlir::linalg::MatvecOp matvecOp,
+                                PatternRewriter &rewriter) const override {
+    auto transposeOp =
+        matvecOp.getInputs()[0].getDefiningOp<linalg::TransposeOp>();
+    if (!transposeOp) return failure();
+
+    rewriter.replaceOpWithNewOp<linalg::VecmatOp>(
+        matvecOp, matvecOp.getResultTypes()[0],
+        ValueRange{matvecOp.getInputs()[1], transposeOp.getInput()},
+        matvecOp.getDpsInits()[0]);
+    return success();
+  }
+};
+
 struct LinalgCanonicalizations
     : public impl::LinalgCanonicalizationsBase<LinalgCanonicalizations> {
   void runOnOperation() override {
@@ -281,7 +326,8 @@ struct LinalgCanonicalizations
     RewritePatternSet patterns(context);
     patterns.add<FoldConstantLinalgTranspose, FoldConstantFill,
                  FoldConstantBroadcast, LinalgMapToElementwise,
-                 BroadcastToExpandShape>(context);
+                 BroadcastToExpandShape, RewriteTransposedVecmat,
+                 RewriteTransposedMatvec>(context);
 
     // Run pattern matching and conversion
     // TODO (#1221): Investigate whether folding (default: on) can be skipped
