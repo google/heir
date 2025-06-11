@@ -3,7 +3,7 @@ include "mlir/IR/OpBase.td"
 def LUTOpInterface : OpInterface<"LUTOpInterface"> {
   let cppNamespace = "::mlir::heir";
   let description = [{
-    This is an example interface definition.
+    An interface that represents a general lookup table operation.
   }];
 
   let methods = [
@@ -12,6 +12,33 @@ def LUTOpInterface : OpInterface<"LUTOpInterface"> {
       "std::optional<mlir::ValueRange>", "getLookupTableInputs"
     >,
   ];
+}
+
+def LayoutConversionHoistableOpInterface : OpInterface<"LayoutConversionHoistableOpInterface"> {
+  let cppNamespace = "::mlir::heir";
+  let description = [{
+    An interface that abstracts the common information required for the
+    `layout-optimization` pass to evaluate the feasibility and cost of hoisting
+    a `convert_layout` op through a given operation.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      "Get hoisters for the op.",
+      "std::vector<::mlir::heir::Hoister>",
+      "getHoisters",
+      (ins "::mlir::heir::tensor_ext::ConvertLayoutOp":$convertLayoutOp)
+    >,
+  ];
+
+  let verify = [{
+    auto attrName = ::mlir::heir::secret::SecretDialect::kKernelAttrName;
+    if ($_op->hasAttr(attrName)) {
+      auto attr = $_op->getAttrOfType<::mlir::heir::secret::KernelAttr>(attrName);
+      return ::mlir::heir::isSupportedKernel($_op, attr.getName()) ? success() : failure();
+    }
+    return success();
+  }];
 }
 
 def OperandAndResultAttrInterface : OpInterface<"OperandAndResultAttrInterface"> {
