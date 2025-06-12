@@ -522,6 +522,9 @@ class TextualMlirEmitter:
         return f"arith.and{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.xor:
         return f"arith.xor{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
+      case operator.floordiv:
+        suffix = "si" if suffix == "i" else suffix
+        return f"arith.div{suffix} {lhs_ssa}, {rhs_ssa}", ext, ty
       case operator.mod:
         # Used signed semantics when integer types
         suffix = "si" if suffix == "i" else suffix
