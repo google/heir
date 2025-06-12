@@ -298,16 +298,21 @@ struct ConfigureCryptoContext
     config.hasRelinOp = hasRelinOp(op);
     config.rotIndices = findAllRotIndices(op);
 
-    // get plaintext modulus from function argument ciphertext type
-    // for CKKS, plainMod is 0
-    for (auto arg : op.getArguments()) {
-      if (auto argType = dyn_cast<lwe::NewLWECiphertextType>(
-              getElementTypeOrSelf(arg.getType()))) {
-        if (auto modArithType = dyn_cast<mod_arith::ModArithType>(
-                argType.getPlaintextSpace().getRing().getCoefficientType())) {
-          config.plaintextModulus = modArithType.getModulus().getInt();
-          // implicitly assume arguments have the same plaintext modulus
-          break;
+    // Get plaintext modulus from function argument ciphertext type for CKKS,
+    // plainMod must be 0 to avoid codegen for SetPlaintextModulus. OpenFHE will
+    // throw an exception if you try to set the plaintext modulus in CKKS.
+    if (moduleIsCKKS(module)) {
+      config.plaintextModulus = 0;
+    } else {
+      for (auto arg : op.getArguments()) {
+        if (auto argType = dyn_cast<lwe::NewLWECiphertextType>(
+                getElementTypeOrSelf(arg.getType()))) {
+          if (auto modArithType = dyn_cast<mod_arith::ModArithType>(
+                  argType.getPlaintextSpace().getRing().getCoefficientType())) {
+            config.plaintextModulus = modArithType.getModulus().getInt();
+            // implicitly assume arguments have the same plaintext modulus
+            break;
+          }
         }
       }
     }
