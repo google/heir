@@ -143,7 +143,9 @@ def Mgmt_AdjustScaleOp : Mgmt_Op<"adjust_scale"> {
   let hasCanonicalizer = 1;
 }
 
-def Mgmt_InitOp : Mgmt_Op<"init"> {
+def Mgmt_InitOp : Mgmt_Op<"init",
+    [MemoryEffects<[MemWrite]>, ElementwiseMappable, SameOperandsAndResultType, ConditionallySpeculatable]> {
+
   let summary = "Init the plaintext with mgmt attributes";
 
   let description = [{
@@ -161,6 +163,16 @@ def Mgmt_InitOp : Mgmt_Op<"init"> {
 
     To address the problem, for each _use_ of the plaintext, we insert an `mgmt.init`
     operation to initialize the plaintext with `mgmt` attributes.
+
+    Technical reasons for registering memory effects:
+
+    Register a (bogus) memory effect to prevent CSE from merging this op.
+    Two mgmt.init ops could be seen as equivalent only if they have the same
+    MgmtAttr with *level/dimension/scale* annotated, otherwise we could not
+    judge whether they are equivalent or not. In practice, we create the op first
+    and only in later analyses we know whether they are equivalent or not.
+
+    ConditionallySpeculatable is for isSpeculatable check in hoisting canonicalization.
   }];
 
   let arguments = (ins
@@ -168,6 +180,13 @@ def Mgmt_InitOp : Mgmt_Op<"init"> {
   );
   let results = (outs AnyType:$output);
   let assemblyFormat = "operands attr-dict `:` type($output)";
+
+  let extraClassDeclaration = [{
+    /// Interface method for ConditionallySpeculatable.
+    Speculation::Speculatability getSpeculatability() {
+      return Speculation::Speculatable;
+    }
+  }];
 }
 
 #endif  // LIB_DIALECT_MGMT_IR_MGMTOPS_TD_

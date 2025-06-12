@@ -274,6 +274,7 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
     }
 
     clearAttrs(getOperation(), mgmt::MgmtDialect::kArgMgmtAttrName);
+    mgmt::cleanupInitOp(getOperation());
   }
 };
 

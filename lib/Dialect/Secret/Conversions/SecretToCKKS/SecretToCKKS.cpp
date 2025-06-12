@@ -407,6 +407,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
     }
 
     clearAttrs(getOperation(), mgmt::MgmtDialect::kArgMgmtAttrName);
+    mgmt::cleanupInitOp(getOperation());
   }
 };
 

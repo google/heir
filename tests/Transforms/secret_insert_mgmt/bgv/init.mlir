@@ -52,4 +52,48 @@ module {
     } -> !secret.secret<i32>
     return %0 : !secret.secret<i32>
   }
+
+  // CHECK: @pt_multiple_uses
+  // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<i16> {mgmt.mgmt = #mgmt.mgmt<level = 2>},
+  // CHECK-SAME: %[[arg1:.*]]: i16)
+  func.func @pt_multiple_uses(%arg0: !secret.secret<i16>, %arg1: i16) -> (!secret.secret<i16>) {
+    // CHECK: %[[v0:.*]] = mgmt.init %[[arg1]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i16
+    // CHECK: %[[v1:.*]] = mgmt.init %[[arg1]] {mgmt.mgmt = #mgmt.mgmt<level = 1>} : i16
+    %0 = secret.generic(%arg0: !secret.secret<i16>) {
+    ^body(%input0: i16):
+      // CHECK: arith.addi
+      // CHECK-SAME: %[[v0]]
+      %1 = arith.addi %input0, %arg1 : i16
+      // CHECK: arith.muli
+      %2 = arith.muli %1, %1 : i16
+      // CHECK: arith.muli
+      // CHECK-SAME: %[[v1]]
+      %3 = arith.muli %2, %arg1 : i16
+      secret.yield %3 : i16
+    } -> !secret.secret<i16>
+    return %0 : !secret.secret<i16>
+  }
+
+  // CHECK: @pt_multiple_uses_2
+  // CHECK-SAME: (%[[arg0:.*]]: !secret.secret<i16> {mgmt.mgmt = #mgmt.mgmt<level = 2>},
+  // CHECK-SAME: %[[arg1:.*]]: i16)
+  func.func @pt_multiple_uses_2(%arg0: !secret.secret<i16>, %arg1: i16) -> (!secret.secret<i16>) {
+    // CHECK: %[[v0:.*]] = mgmt.init %[[arg1]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i16
+    // Note: these two mgmt.init should not merge, as later optimization like lazy relinearization
+    // or populate-scale will make them different.
+    // CHECK: %[[v1:.*]] = mgmt.init %[[arg1]] {mgmt.mgmt = #mgmt.mgmt<level = 2>} : i16
+    %0 = secret.generic(%arg0: !secret.secret<i16>) {
+    ^body(%input0: i16):
+      // CHECK: arith.addi
+      // CHECK-SAME: %[[v0]]
+      %1 = arith.addi %input0, %arg1 : i16
+      // CHECK: arith.muli
+      %2 = arith.muli %1, %1 : i16
+      // CHECK: arith.addi
+      // CHECK-SAME: %[[v1]]
+      %3 = arith.addi %2, %arg1 : i16
+      secret.yield %3 : i16
+    } -> !secret.secret<i16>
+    return %0 : !secret.secret<i16>
+  }
 }
