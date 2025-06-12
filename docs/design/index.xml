@@ -373,7 +373,55 @@ data-dependent conditionals with &lt;code>arith.select&lt;/code> operation).&lt;
 data-dependent tensor read-write operations over the same tensor, we can
 benefit from upstream affine transformations over the resulting multiple
 affine loops produced by the Access-Transformation to fuse these loops.&lt;/li>
-&lt;/ul></description></item><item><title>Docs: Secret</title><link>https://heir.dev/docs/design/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/secret/</guid><description>
+&lt;/ul></description></item><item><title>Docs: Noise Analysis</title><link>https://heir.dev/docs/design/noise/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/noise/</guid><description>
+&lt;p>Homomorphic Encryption (HE) schemes based on Learning-With-Errors (LWE) and
+Ring-LWE naturally need to deal with &lt;em>noises&lt;/em>. HE compilers, in particular, need
+to understand the noise behavior to ensure correctness and security while
+pursuing efficiency and optimizaiton.&lt;/p>
+&lt;p>The noise analysis in HEIR has the following central task: Given an HE circuit,
+analyse the noise growth for each operation. HEIR then uses noise analysis for
+parameter selection, but the details of that are beyond the scope of this
+document.&lt;/p>
+&lt;p>Noise analysis and parameter generation are still under active researching and
+HEIR does not have a one-size-fits-all solution for now. Noise analyses and
+(especially) parameter generation in HEIR should be viewed as experimental.
+&lt;em>There is no guarantee that they are correct or secure&lt;/em> and the HEIR authors do
+not take responsibility. Please consult experts before putting them into
+production.&lt;/p>
+&lt;h2 id="two-flavors-of-noise-analysis">Two Flavors of Noise Analysis&lt;/h2>
+&lt;p>Each HE ciphertext contains &lt;em>noise&lt;/em>. A noise analysis determines a &lt;em>bound&lt;/em> on
+the noise and tracks its evolution after each HE operation. The noise should not
+exceed certain bounds imposed by HE schemes.&lt;/p>
+&lt;p>There are two flavors of noise analyses: worst-case and average-case. Worst-case
+noise analyses always track the bound, while some average-case noise analyses
+use intermediate quantity like the variance to track their evolution, and derive
+a bound when needed.&lt;/p>
+&lt;p>Currently, worst-case methods are often too conservative, while average-case
+methods often give underestimation.&lt;/p>
+&lt;h2 id="noise-analysis-framework">Noise Analysis Framework&lt;/h2>
+&lt;p>HEIR implements noise analysis based on the &lt;code>DataFlowFramework&lt;/code> in MLIR.&lt;/p>
+&lt;p>In the &lt;code>DataFlowFramework&lt;/code>, the main function of an &lt;code>Analysis&lt;/code> is
+&lt;code>visitOperation&lt;/code>, where it determines the &lt;code>AnalysisState&lt;/code> for each SSA &lt;code>Value&lt;/code>.
+Usually it computes a transfer function deriving the &lt;code>AnalysisState&lt;/code> for each
+operation result based on the states of the operation&amp;rsquo;s operands.&lt;/p>
+&lt;p>As there are various HE schemes in HEIR, the detailed transfer function is
+defined by a &lt;code>NoiseModel&lt;/code> class, which parameterizes the &lt;code>NoiseAnalysis&lt;/code>.&lt;/p>
+&lt;p>The &lt;code>AnalysisState&lt;/code>, depending on whether we are using worst-case noise model or
+average-case, could be interpreted as the bound or the variance.&lt;/p>
+&lt;p>A typical way to use noise analysis:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-cpp" data-lang="cpp">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">DataFlowSolver&lt;/span> &lt;span style="color:#000">solver&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">solver&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">load&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">dataflow&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">DeadCodeAnalysis&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">solver&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">load&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">dataflow&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">::&lt;/span>&lt;span style="color:#000">SparseConstantPropagation&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// load other dependent analyses
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// schemeParam and model determined by other methods
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">solver&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">load&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">NoiseAnalysis&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#000">NoiseModel&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;gt;&amp;gt;&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">schemeParam&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">model&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// run the analysis on the op
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000">solver&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">initializeAndRun&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">op&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="implemented-noise-models">Implemented Noise Models&lt;/h2>
+&lt;p>See the &lt;a href="https://heir.dev/docs/passes">Passes&lt;/a> page for details. Example passes include
+&lt;code>generate-param-bgv&lt;/code> and &lt;code>validate-noise&lt;/code>.&lt;/p></description></item><item><title>Docs: Secret</title><link>https://heir.dev/docs/design/secret/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/design/secret/</guid><description>
 &lt;p>The &lt;a href="https://heir.dev/docs/dialects/secret/">&lt;code>secret&lt;/code> dialect&lt;/a> contains types
 and operations to represent generic computations on secret data. It is intended
 to be a high-level entry point for the HEIR compiler, agnostic of any particular
