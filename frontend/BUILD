@@ -88,6 +88,24 @@ frontend_test(
     ],
 )
 
+frontend_test(
+    name = "cggi_test",
+    srcs = ["cggi_test.py"],
+    tags = [
+        # copybara: manual
+        "notap",
+    ],
+)
+
+frontend_test(
+    name = "cast_test",
+    srcs = ["cast_test.py"],
+    tags = [
+        # copybara: manual
+        "notap",
+    ],
+)
+
 bzl_library(
     name = "testing_bzl",
     srcs = ["testing.bzl"],
