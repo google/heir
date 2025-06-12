@@ -12,7 +12,9 @@ class EndToEndTest(absltest.TestCase):
         debug="True",
     )
     def foo(a: Secret[I8], b: Secret[I8]):
-      return a * a - b * b
+      x = a * a - b * b
+      y = x // 2
+      return y
 
     # Test cleartext functionality
     self.assertEqual(-15, foo.original(7, 8))
