@@ -98,6 +98,57 @@ void DimensionAnalysis::visitExternalCall(
 }
 
 //===----------------------------------------------------------------------===//
+// DimensionAnalysis (Backward)
+//===----------------------------------------------------------------------===//
+
+void DimensionAnalysisBackward::setToExitState(DimensionLattice *lattice) {
+  propagateIfChanged(lattice, lattice->join(DimensionState()));
+}
+
+LogicalResult DimensionAnalysisBackward::visitOperation(
+    Operation *op, ArrayRef<DimensionLattice *> operands,
+    ArrayRef<const DimensionLattice *> results) {
+  auto propagate = [&](Value value, const DimensionState &state) {
+    auto *lattice = getLatticeElement(value);
+    ChangeResult changed = lattice->join(state);
+    propagateIfChanged(lattice, changed);
+  };
+
+  // condition on result secretness
+  SmallVector<OpResult> secretResults;
+  getSecretResults(op, secretResults);
+  if (secretResults.empty()) {
+    return success();
+  }
+
+  auto dimensionResult = 0;
+  for (auto result : secretResults) {
+    auto &dimensionState = getLatticeElement(result)->getValue();
+    if (!dimensionState.isInitialized()) {
+      return success();
+    }
+    dimensionResult = std::max(dimensionResult, dimensionState.getDimension());
+  }
+
+  // only back-prop for non-secret operands
+  SmallVector<OpOperand *> nonSecretOperands;
+  getNonSecretOperands(op, nonSecretOperands);
+  for (auto *operand : nonSecretOperands) {
+    propagate(operand->get(), DimensionState(dimensionResult));
+  }
+
+  // also backprop to mgmt.init if it is not secret
+  for (auto &opOperand : op->getOpOperands()) {
+    if (!isSecretInternal(op, opOperand.get()) &&
+        isa_and_nonnull<mgmt::InitOp>(opOperand.get().getDefiningOp())) {
+      propagate(opOperand.get(), DimensionState(dimensionResult));
+    }
+  }
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Utils
 //===----------------------------------------------------------------------===//
 
@@ -126,25 +177,23 @@ void annotateDimension(Operation *top, DataFlowSolver *solver) {
     return IntegerAttr::get(IntegerType::get(top->getContext(), 64), dimension);
   };
 
-  walkValues(top, [&](Value value) {
-    std::optional<int> dimension = getDimension(value, solver);
+  auto getDimensionValue = [&](Value value) -> int {
+    auto *lattice = solver->lookupState<DimensionLattice>(value);
+    if (lattice && lattice->getValue().isInitialized()) {
+      return lattice->getValue().getDimension();
+    }
+    // If the value is not initialized, try to get it from the mgmt attr.
+    if (auto mgmtAttr = mgmt::findMgmtAttrAssociatedWith(value)) {
+      return mgmtAttr.getDimension();
+    }
+    return 2;
+  };
 
+  walkValues(top, [&](Value value) {
     if (mgmt::shouldHaveMgmtAttribute(value, solver)) {
-      // Other analyses will backprop to mgmt.init, and hence mgmt.init will
-      // have a lattice value. Here we don't backprop, though perhaps we should
-      // in case a mgmt.init is used for a ct-pt op at dimension-3.
-      //
-      // In that case, we can avoid the default value_or(2) below and properly
-      // err whenever an analysis result is not present and
-      // shouldHaveMgmtAttribute is true.
-      //
-      // TODO(#1847): backpropagate dimension analysis to mgmt.init.
-      if (!dimension.has_value() && isSecret(value, solver)) {
-        assert(false &&
-               "secret-typed value not processed by dimension analysis!");
-      }
+      int dimension = getDimensionValue(value);
       setAttributeAssociatedWith(value, kArgDimensionAttrName,
-                                 getIntegerAttr(dimension.value_or(2)));
+                                 getIntegerAttr(dimension));
     }
   });
 }

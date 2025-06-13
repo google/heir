@@ -102,6 +102,30 @@ class DimensionAnalysis
   }
 };
 
+/// Back propagate dimension to plaintext operands.
+///
+/// This analysis should be run after the (forward) DimensionAnalysis
+/// where the dimension of all the secret Values are determined.
+/// Then, this analysis will find ct-pt pair and determine the
+/// dimension of the pt Value.
+class DimensionAnalysisBackward
+    : public dataflow::SparseBackwardDataFlowAnalysis<DimensionLattice>,
+      public SecretnessAnalysisDependent<DimensionAnalysis> {
+ public:
+  using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
+  friend class SecretnessAnalysisDependent<DimensionAnalysis>;
+
+  void setToExitState(DimensionLattice *lattice) override;
+
+  LogicalResult visitOperation(
+      Operation *op, ArrayRef<DimensionLattice *> operands,
+      ArrayRef<const DimensionLattice *> results) override;
+
+  // dummy impl
+  void visitBranchOperand(OpOperand &operand) override {}
+  void visitCallOperand(OpOperand &operand) override {}
+};
+
 // this function will assert false when Lattice does not exist or not
 // initialized
 std::optional<DimensionState::DimensionType> getDimension(
