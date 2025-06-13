@@ -8867,9 +8867,16 @@ more than one annotation.&lt;/p>
 like CSE or constant folding may canonicalize them away.&lt;/p>
 &lt;p>To address the problem, for each &lt;em>use&lt;/em> of the plaintext, we insert an &lt;code>mgmt.init&lt;/code>
 operation to initialize the plaintext with &lt;code>mgmt&lt;/code> attributes.&lt;/p>
-&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
-&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
-&lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
+&lt;p>Technical reasons for registering memory effects:&lt;/p>
+&lt;p>Register a (bogus) memory effect to prevent CSE from merging this op.
+Two mgmt.init ops could be seen as equivalent only if they have the same
+MgmtAttr with &lt;em>level/dimension/scale&lt;/em> annotated, otherwise we could not
+judge whether they are equivalent or not. In practice, we create the op first
+and only in later analyses we know whether they are equivalent or not.&lt;/p>
+&lt;p>ConditionallySpeculatable is for isSpeculatable check in hoisting canonicalization.&lt;/p>
+&lt;p>Traits: &lt;code>Elementwise&lt;/code>, &lt;code>SameOperandsAndResultType&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+&lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>InferTypeOpInterface&lt;/code>, &lt;code>MemoryEffectOpInterface (MemoryEffectOpInterface)&lt;/code>&lt;/p>
+&lt;p>Effects: &lt;code>MemoryEffects::Effect{MemoryEffects::Write on ::mlir::SideEffects::DefaultResource}&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
 &lt;table>
 &lt;thead>
