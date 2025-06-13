@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "llvm/include/llvm/ADT/STLExtras.h"             // from @llvm-project
 #include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
@@ -87,6 +88,90 @@ class InsertAfterConstant final : public OpRewritePattern<tensor::InsertOp> {
   }
 };
 
+/// Pattern to fold an insertion ops that cover an entire a destination tensor
+/// into a from_elements op of all the inserted scalar values. This is a common
+/// pattern that appears after lowering linalg to affine loops. An initial
+/// constant tensor is created as the destination of the linalg operation, and
+/// subsequent insertions write over the entire result.
+///
+/// Example:
+/// ```
+///   %cst = arith.constant dense<[1.0, 2.0]> : tensor<2xf32>
+///   %1 = tensor.insert %c4_f32 into %cst[%c0] : tensor<2xf32>
+///   %2 = tensor.insert %c8_f32 into %1[%c1] : tensor<2xf32>
+/// ```
+/// is rewritten into:
+/// ```
+///   %2 = tensor.from_elements %c4_f32, %c8_f32 : tensor<2xf32>
+/// ```
+class InsertIntoFullConstant final : public OpRewritePattern<tensor::InsertOp> {
+ public:
+  using OpRewritePattern<tensor::InsertOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(tensor::InsertOp insertOp,
+                                PatternRewriter &rewriter) const override {
+    auto dest = insertOp.getDest();
+    // Requires a ranked tensor type.
+    auto destType = llvm::dyn_cast<RankedTensorType>(dest.getType());
+    if (!destType) return failure();
+
+    // Check that the destination was an arith::constant op.
+    if (!isa_and_nonnull<arith::ConstantOp>(dest.getDefiningOp()))
+      return failure();
+
+    // Collect the element at the index, and then accumulate all the insertion
+    // uses. Each insertion use should only have one use. Once we collect all
+    // elements, then replace with a from_elements op.
+    DenseMap<int64_t, Value> flatIndexToElement;
+    tensor::InsertOp currentInsertOp = insertOp;
+    SmallVector<Operation *> opsToErase;
+    while (flatIndexToElement.size() < destType.getNumElements()) {
+      // Get the flat index of the current insertion.
+      int flatIndex = 0;
+      int stride = 1;
+      for (auto [i, indice] :
+           llvm::enumerate(getAsOpFoldResult(currentInsertOp.getIndices()))) {
+        auto indiceAttr = dyn_cast<Attribute>(indice);
+        if (!indiceAttr) return failure();
+        flatIndex += llvm::cast<IntegerAttr>(indiceAttr).getInt() * stride;
+        stride *= destType.getDimSize(i);
+      }
+      if (flatIndexToElement.contains(flatIndex)) return failure();
+      flatIndexToElement[flatIndex] = currentInsertOp.getScalar();
+
+      // Add the current insertion to the list of insertions to erase.
+      opsToErase.push_back(currentInsertOp);
+
+      // If we have collected all elements, then we can exist and create the
+      // from_elements op.
+      if (flatIndexToElement.size() == destType.getNumElements()) {
+        break;
+      }
+
+      // Find the next insertion op.
+      if (!currentInsertOp->hasOneUse()) return failure();
+      auto nextOp = *currentInsertOp->getUsers().begin();
+      currentInsertOp = dyn_cast<tensor::InsertOp>(nextOp);
+      if (!currentInsertOp) return failure();
+    }
+
+    // Replace the currentInsertOp with a new from_elements op.
+    SmallVector<Value> values;
+    for (auto i = 0; i < destType.getNumElements(); ++i) {
+      values.push_back(flatIndexToElement[i]);
+    }
+    rewriter.replaceAllUsesWith(currentInsertOp,
+                                rewriter.create<tensor::FromElementsOp>(
+                                    insertOp.getLoc(), destType, values));
+
+    // Remove all the unused insertion ops.
+    for (auto op : llvm::reverse(opsToErase)) {
+      op->erase();
+    }
+    return success();
+  }
+};
+
 /// Pattern to fold an collapse op of a constant to a constant with a collapsed
 /// shape.
 ///
@@ -150,7 +235,7 @@ struct FoldConstantTensors
 
     RewritePatternSet patterns(context);
     patterns.add<InsertAfterConstant, CollapseShapeAfterConstant,
-                 CollapseEmptyTensor>(context);
+                 CollapseEmptyTensor, InsertIntoFullConstant>(context);
 
     // Run pattern matching and conversion
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
