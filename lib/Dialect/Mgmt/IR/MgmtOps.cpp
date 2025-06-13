@@ -7,6 +7,10 @@ namespace mlir {
 namespace heir {
 namespace mgmt {
 
+//===----------------------------------------------------------------------===//
+// Canonicalization Patterns
+//===----------------------------------------------------------------------===//
+
 // Kept inside a namespace because it generates a function called
 // populateWithGenerated, which can conflict with other generated patterns.
 #include "lib/Dialect/Mgmt/IR/MgmtCanonicalization.cpp.inc"
@@ -26,6 +30,16 @@ void LevelReduceOp::getCanonicalizationPatterns(RewritePatternSet &results,
 void AdjustScaleOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                                 MLIRContext *context) {
   results.add<ModReduceAfterAdjustScale>(context);
+}
+
+//===----------------------------------------------------------------------===//
+// Utils
+//===----------------------------------------------------------------------===//
+
+void cleanupInitOp(Operation *top) {
+  top->walk([&](mgmt::InitOp initOp) {
+    if (initOp->use_empty()) initOp.erase();
+  });
 }
 
 }  // namespace mgmt

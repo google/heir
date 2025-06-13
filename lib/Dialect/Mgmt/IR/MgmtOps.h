@@ -12,4 +12,15 @@
 #define GET_OP_CLASSES
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h.inc"
 
+namespace mlir {
+namespace heir {
+namespace mgmt {
+
+/// Remove all unused mgmt.init ops from the top operation.
+void cleanupInitOp(Operation *top);
+
+}  // namespace mgmt
+}  // namespace heir
+}  // namespace mlir
+
 #endif  // LIB_DIALECT_MGMT_IR_MGMTOPS_H_

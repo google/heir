@@ -93,9 +93,9 @@ struct SecretInsertMgmtBFV
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsRelinearize));
 
     auto level = maxMulDepth;
-    // call Canonicalizer here because mgmt.init ops need to be moved out of the
-    // secret.generic.
-    // annotate mgmt attribute with all levels set to mulDepth
+    // 1. Canonicalizer moves mgmt::InitOp out of secret.generic.
+    // 2. AnnotateMgmt will merge level and dimension into MgmtAttr, for further
+    //   lowering. For B/FV, all levels should be set to mulDepth.
     OpPassManager pipeline("builtin.module");
     pipeline.addPass(createCanonicalizerPass());
     mgmt::AnnotateMgmtOptions annotateMgmtOptions;

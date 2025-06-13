@@ -226,12 +226,12 @@ struct SecretInsertMgmtCKKS
       (void)walkAndApplyPatterns(getOperation(), std::move(patternsMulDepth));
     }
 
-    // call Canonicalizer here because mgmt ops need to be ordered
-    // call CSE here because there may be redundant mod reduce
-    // one Value may get mod reduced multiple times in
-    // multiple Uses
-    //
-    // also run annotate-mgmt for lowering
+    // 1. Canonicalizer reorders mgmt ops like Rescale/LevelReduce/AdjustScale.
+    //    This is important for AnnotateMgmt.
+    //    Canonicalizer also moves mgmt::InitOp out of secret.generic.
+    // 2. CSE removes redundant mgmt::ModReduceOp.
+    // 3. AnnotateMgmt will merge level and dimension into MgmtAttr, for further
+    //   lowering.
     OpPassManager pipeline("builtin.module");
     pipeline.addPass(createCanonicalizerPass());
     pipeline.addPass(createCSEPass());
