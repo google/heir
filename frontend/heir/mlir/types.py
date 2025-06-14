@@ -1,10 +1,10 @@
 """Defines Python type annotations for MLIR types."""
 
 from abc import ABC, abstractmethod
-from typing import Generic, Self, TypeVar, TypeVarTuple, get_args, get_origin
+from typing import Generic, TypeVar, TypeVarTuple, get_args, get_origin, Optional
 from numba.core.types import Type as NumbaType
 from numba.core.types import boolean, int8, int16, int32, int64, float32, float64
-from numba.extending import typeof_impl, type_callable
+from numba.extending import type_callable
 
 T = TypeVar("T")
 Ts = TypeVarTuple("Ts")
@@ -22,8 +22,19 @@ def check_for_value(a: "MLIRType"):
 
 class MLIRType(ABC):
 
-  def __init__(self, value: int):
-    self.value = value
+  def __init__(self, value: Optional[int] = None):
+    # MLIRType subclasses are used in two ways:
+    #
+    # 1. As an explicit cast, in which case the result of the cast is a value
+    #    that can be further operated on.
+    # 2. As a type, in which case there is no explicit value and the class
+    #    represents a standalone type.
+    #
+    # (2) is useful for match/case when the program is being analyzed for its
+    # types. (1) is useful when allowing a program typed with heir to also run
+    # as standard Python code.
+    if value is not None:
+      self.value = value
 
   def __int__(self):
     check_for_value(self)
