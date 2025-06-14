@@ -124,7 +124,7 @@ LogicalResult SimFHEEmitter::printOperation(func::ReturnOp op) {
   return success();
 }
 
-#define UNARY_EMIT(OPTYPE, GETTER, FUNCNAME)                 \
+#define EMIT(OPTYPE, GETTER, FUNCNAME)                       \
   LogicalResult SimFHEEmitter::printOperation(OPTYPE op) {   \
     std::string input = getName(op.GETTER());                \
     os << "stats += evaluator." FUNCNAME "(" << input        \
@@ -133,7 +133,7 @@ LogicalResult SimFHEEmitter::printOperation(func::ReturnOp op) {
     return success();                                        \
   }
 
-#define UNARY_EMIT_DROP(OPTYPE, GETTER, FUNCNAME)                   \
+#define EMIT_WITH_DROP(OPTYPE, GETTER, FUNCNAME)                    \
   LogicalResult SimFHEEmitter::printOperation(OPTYPE op) {          \
     std::string input = getName(op.GETTER());                       \
     os << "stats += evaluator." FUNCNAME "(" << input               \
@@ -142,34 +142,28 @@ LogicalResult SimFHEEmitter::printOperation(func::ReturnOp op) {
     return success();                                               \
   }
 
-#define BINARY_EMIT(OPTYPE, GETTER, FUNCNAME)                \
-  LogicalResult SimFHEEmitter::printOperation(OPTYPE op) {   \
-    std::string input = getName(op.GETTER());                \
-    os << "stats += evaluator." FUNCNAME "(" << input        \
-       << ", scheme_params.arch_param)\n";                   \
-    os << getName(op.getResult()) << " = " << input << "\n"; \
-    return success();                                        \
-  }
-
-// Since we only care about the cost, add/subtract are treated the same
-BINARY_EMIT(ckks::AddOp, getLhs, "add");
-BINARY_EMIT(ckks::AddPlainOp, getLhs, "add_plain");
-BINARY_EMIT(ckks::SubOp, getLhs, "add");
-BINARY_EMIT(ckks::SubPlainOp, getLhs, "add_plain");
-BINARY_EMIT(ckks::MulOp, getLhs, "multiply");
-BINARY_EMIT(ckks::MulPlainOp, getLhs, "multiply_plain");
-UNARY_EMIT(ckks::NegateOp, getInput, "multiply_plain");
-UNARY_EMIT(ckks::RotateOp, getInput, "rotate");
+// SimFHE doesn't have `sub`. Since we only care about cost it doesn't matter.
+EMIT(ckks::AddOp, getLhs, "add");
+EMIT(ckks::AddPlainOp, getLhs, "add_plain");
+EMIT(ckks::SubOp, getLhs, "add");
+EMIT(ckks::SubPlainOp, getLhs, "add_plain");
+EMIT(ckks::MulOp, getLhs, "multiply");
+EMIT(ckks::MulPlainOp, getLhs, "multiply_plain");
+EMIT(ckks::NegateOp, getInput, "multiply_plain");
+EMIT(ckks::RotateOp, getInput, "rotate");
 LogicalResult SimFHEEmitter::printOperation(ckks::RelinearizeOp op) {
   std::string name = getName(op.getInput());
-  os << "stats += evaluator.key_switch(" << name << ", " << name
+  os << "stats += evaluator.key_switch(" << name << ", scheme_params.fresh_ctxt"
      << ", scheme_params.arch_param)\n";
   os << getName(op.getResult()) << " = " << name << "\n";
+  op->emitWarning(
+      "SimFHEEmitter currently does not know which key to use for "
+      "relinearization, assuming key is similar to fresh_ctxt. ");
   return success();
 }
-UNARY_EMIT_DROP(ckks::RescaleOp, getInput, "mod_reduce_rescale");
-UNARY_EMIT_DROP(ckks::LevelReduceOp, getInput, "mod_down_reduce");
-UNARY_EMIT(ckks::BootstrapOp, getInput, "bootstrap");
+EMIT_WITH_DROP(ckks::RescaleOp, getInput, "mod_reduce_rescale");
+EMIT_WITH_DROP(ckks::LevelReduceOp, getInput, "mod_down_reduce");
+EMIT(ckks::BootstrapOp, getInput, "bootstrap");
 
 #undef UNARY_EMIT
 #undef BINARY_EMIT

@@ -31,7 +31,6 @@ if __name__ == "__main__":
 
 constexpr std::string_view kMainPostlude = R"""(
 # Run and print
-print(scheme_params)
 headers, data = run_mutiple(targets)
 print_table(headers, data)
 print()
