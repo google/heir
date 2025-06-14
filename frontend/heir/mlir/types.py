@@ -1,10 +1,10 @@
 """Defines Python type annotations for MLIR types."""
 
 from abc import ABC, abstractmethod
-from typing import Generic, Self, TypeVar, TypeVarTuple, get_args, get_origin
+from typing import Generic, TypeVar, TypeVarTuple, get_args, get_origin
 from numba.core.types import Type as NumbaType
 from numba.core.types import boolean, int8, int16, int32, int64, float32, float64
-from numba.extending import typeof_impl, type_callable
+from numba.extending import type_callable
 
 T = TypeVar("T")
 Ts = TypeVarTuple("Ts")
