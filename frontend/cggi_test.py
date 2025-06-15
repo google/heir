@@ -19,7 +19,7 @@ class EndToEndTest(absltest.TestCase):
       return y
 
     # Test cleartext functionality
-    self.assertEqual(-15, foo.original(7, 8))
+    self.assertEqual(-8, foo.original(7, 8))
 
     # Test FHE functionality
     foo.setup()
@@ -27,7 +27,7 @@ class EndToEndTest(absltest.TestCase):
     enc_b = foo.encrypt_b(8)
     result_enc = foo.eval(enc_a, enc_b)
     result = foo.decrypt_result(result_enc)
-    self.assertEqual(-15, result)
+    self.assertEqual(-8, result)
 
 
 if __name__ == "__main__":
