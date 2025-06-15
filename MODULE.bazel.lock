@@ -855,7 +855,7 @@
     },
     "@@aspect_rules_js+//npm:extensions.bzl%pnpm": {
       "general": {
-        "bzlTransitiveDigest": "YFxExAsY9FQhfx6FXmH7g9n/R01JoBUW4iqddCl4TfI=",
+        "bzlTransitiveDigest": "APL8SYyljacD95ubBAYq9foT0Ehh/CcnzlGUQcSCG2o=",
         "usagesDigest": "fgIozj3Siw6cYs9usn8up+ymSZ1+1zcwDhiSi/omptE=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -1264,7 +1264,7 @@
     },
     "@@grpc+//bazel:grpc_extra_deps.bzl%grpc_extra_deps_ext": {
       "general": {
-        "bzlTransitiveDigest": "/+C6QXSv3IU2SL5ruvghMnAV7C+FQPW778aEyGIMaO0=",
+        "bzlTransitiveDigest": "p6VrEJG4pf9t0O8uoKtwZE3P6A6Uq7L4yivfTJZ9yxk=",
         "usagesDigest": "BY9iaBuI51W+iyhY4Nmom6cjK/1zFFYXkN9SiDcmjzg=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
