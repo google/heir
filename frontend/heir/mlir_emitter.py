@@ -4,70 +4,87 @@ from collections import deque
 from dataclasses import dataclass
 import operator
 import textwrap
-from typing import Any, NewType
+from typing import Any
 
 from numba.core import ir
-from numba.core import types
 from numba.core import bytecode
 from numba.core import controlflow
-from numba.core.types import Type as NumbaType
+import numba.core.types as nt
 
-from heir.mlir.types import MLIRType, MLIR_TYPES, I1, I8, I16, I32, I64, F32, F64
-from heir.interfaces import CompilerError, DebugMessage, InternalCompilerError
+from heir.mlir import types as mt
+from heir.interfaces import CompilerError, InternalCompilerError
+
+NumbaType = nt.Type
 
 
 def mlirType(numba_type: NumbaType) -> str:
-  if isinstance(numba_type, types.Integer):
-    # TODO (#1162): fix handling of signedness
-    # Since `arith` only allows signless integers, we ignore signedness here.
-    return "i" + str(numba_type.bitwidth)
-  if isinstance(numba_type, types.RangeType):
-    return mlirType(numba_type.dtype)
-  if isinstance(numba_type, types.Boolean):
-    return "i1"
-  if isinstance(numba_type, types.Float):
-    return "f" + str(numba_type.bitwidth)
-  if isinstance(numba_type, types.Complex):
-    return "complex<" + str(numba_type.bitwidth) + ">"
-  if isinstance(numba_type, types.Array):
-    shape = None
-    if hasattr(numba_type, "shape"):
-      shape = "x".join(str(s) for s in numba_type.shape)  # type: ignore
-    return "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
-  raise InternalCompilerError("Unsupported type: " + str(numba_type))
+  match numba_type:
+    case nt.Integer():
+      # TODO (#1162): fix handling of signedness
+      # Since `arith` only allows signless integers, we ignore signedness here.
+      return "i" + str(numba_type.bitwidth)
+    case nt.RangeType():
+      return mlirType(numba_type.dtype)
+    case nt.Boolean():
+      return "i1"
+    case nt.Float():
+      return "f" + str(numba_type.bitwidth)
+    case nt.Complex():
+      return "complex<" + str(numba_type.bitwidth) + ">"
+    case nt.Array():
+      return (
+          "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
+      )
+    case _:
+      raise InternalCompilerError("Unsupported type: " + str(numba_type))
 
 
-def isIntegerLike(typ: NumbaType | MLIRType) -> bool:
-  if isinstance(typ, type) and issubclass(typ, MLIRType):
-    return typ in {I1, I8, I16, I32, I64}
-  if isinstance(typ, NumbaType):
-    return isinstance(typ, types.Integer) or isinstance(typ, types.Boolean)
-  raise InternalCompilerError(f"Encountered unexpected type {typ}")
+def isIntegerLike(typ: NumbaType | mt.MLIRType) -> bool:
+  # note: the match-case discrepancies here—using nt.Integer() instead of
+  # nt.Integer and mt.I1 instead of mt.I1()—are due to the fact that the MLIR
+  # types passed in refer to the class itself, while the Numba types refer to
+  # instances of a class.
+  match typ:
+    case mt.I1 | mt.I8 | mt.I16 | mt.I32 | mt.I64 | nt.Integer() | nt.Boolean():
+      return True
+    case mt.MLIRType | nt.Type:
+      return False
+    case _:
+      raise InternalCompilerError(
+          f"Encountered unexpected type {typ} of type {type(typ)}"
+      )
 
 
-def isFloatLike(typ: NumbaType | MLIRType) -> bool:
-  if isinstance(typ, type) and issubclass(type, MLIRType):
-    return typ in {F32, F64}
-  if isinstance(typ, NumbaType):
-    return isinstance(typ, types.Float)
-  raise InternalCompilerError(f"Encountered unexpected type {typ}")
+def isFloatLike(typ: NumbaType | mt.MLIRType) -> bool:
+  match typ:
+    case nt.F32 | nt.F64 | nt.Float():
+      return True
+    case mt.MLIRType | nt.Type:
+      return False
+    case _:
+      raise InternalCompilerError(
+          f"Encountered unexpected type {typ} of type {type(typ)}"
+      )
 
 
 # Needed because, e.g. Boolean doesn't have a bitwidth
-def getBitwidth(typ: NumbaType | MLIRType) -> int:
-  if isinstance(typ, type) and issubclass(typ, MLIRType):
-    if typ in {I1, I8, I16, I32, I64}:
+def getBitwidth(typ: NumbaType | mt.MLIRType) -> int:
+  match typ:
+    case mt.I1 | mt.I8 | mt.I16 | mt.I32 | mt.I64:
       # e.g.,  <class 'heir.mlir.types.I32'>.__name__ -> "I32" -> "32"
       return int(typ.__name__[1:])
-  if isinstance(typ, types.Integer):
-    return typ.bitwidth
-  if isinstance(typ, types.Boolean):
-    return 1
-  raise InternalCompilerError(f"unexpected type {typ} ({type(typ)})")
+    case nt.Integer() as int_ty:
+      return int_ty.bitwidth
+    case nt.Boolean():
+      return 1
+    case _:
+      raise InternalCompilerError(
+          f"Encountered unexpected type {typ} of type {type(typ)}"
+      )
 
 
 def mlirCastOp(
-    from_type: NumbaType, to_type: MLIRType, value: str, loc: ir.Loc
+    from_type: NumbaType, to_type: mt.MLIRType, value: str, loc: ir.Loc
 ) -> str:
   if isIntegerLike(from_type) and isIntegerLike(to_type):
     from_width = getBitwidth(from_type)
@@ -112,19 +129,15 @@ def mlirLoc(loc: ir.Loc) -> str:
 
 def arithSuffix(numba_type: NumbaType) -> str:
   """Helper to translate numba types to the associated arith dialect operation suffixes"""
-  if isinstance(numba_type, types.Integer):
-    return "i"
-  if isinstance(numba_type, types.Boolean):
-    return "i"
-  if isinstance(numba_type, types.Float):
-    return "f"
-  if isinstance(numba_type, types.Complex):
-    raise InternalCompilerError(
-        "Complex numbers not supported in `arith` dialect"
-    )
-  if isinstance(numba_type, types.Array):
-    return arithSuffix(numba_type.dtype)
-  raise InternalCompilerError("Unsupported type: " + str(numba_type))
+  match numba_type:
+    case nt.Integer() | nt.Boolean():
+      return "i"
+    case nt.Float():
+      return "f"
+    case nt.Array():
+      return arithSuffix(numba_type.dtype)
+    case _:
+      raise InternalCompilerError("Unsupported type: " + str(numba_type))
 
 
 class HeaderInfo:
@@ -495,7 +508,7 @@ class TextualMlirEmitter:
           # nothing to do, forward the name to the arg of bool()
           self.forward_name(from_var=assign.target, to_var=assign.value.args[0])
           return ""
-        if global_ in MLIR_TYPES:
+        if global_ in mt.MLIR_TYPES:
           if len(assign.value.args) != 1:
             raise CompilerError(
                 "MLIR type cast requires exactly one argument", assign.value.loc
