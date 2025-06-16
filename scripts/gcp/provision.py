@@ -128,7 +128,9 @@ def provision(
 #!/bin/bash
 set -eux
 pip install -U "jax[tpu]" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+pip install --upgrade jax jaxlib
 pip install jaxite
+pip install absl-py
 """,
           },
           # cidr_block !!!

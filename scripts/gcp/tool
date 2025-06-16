@@ -207,7 +207,7 @@ class Tool:
         "--accelerator-type",
         type=str,
         # https://cloud.google.com/tpu/docs/system-architecture-tpu-vm
-        default="v5litepod-8",
+        default="v5litepod-4",
         help="Accelerator type",
     )
     parser.add_argument(
