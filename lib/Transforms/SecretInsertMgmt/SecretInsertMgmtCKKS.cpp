@@ -36,64 +36,6 @@ namespace heir {
 #define GEN_PASS_DEF_SECRETINSERTMGMTCKKS
 #include "lib/Transforms/SecretInsertMgmt/Passes.h.inc"
 
-namespace {
-
-// Returns the unique non-unit dimension of a tensor and its rank.
-// Returns failure if the tensor has more than one non-unit dimension.
-FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
-    RankedTensorType tensorTy) {
-  auto shape = tensorTy.getShape();
-
-  if (llvm::count_if(shape, [](auto dim) { return dim != 1; }) != 1) {
-    return failure();
-  }
-
-  unsigned nonUnitIndex = std::distance(
-      shape.begin(), llvm::find_if(shape, [&](auto dim) { return dim != 1; }));
-
-  return std::make_pair(nonUnitIndex, shape[nonUnitIndex]);
-}
-
-bool isTensorInSlots(Operation *top, DataFlowSolver *solver, int slotNumber) {
-  // Ensure that all secret types are uniform and matching the ring
-  // parameter size in order to pack tensors into ciphertext SIMD slots.
-  LogicalResult result = walkAndValidateValues(
-      top,
-      [&](Value value) {
-        auto secret = isSecret(value, solver);
-        if (secret) {
-          auto tensorTy = dyn_cast<RankedTensorType>(value.getType());
-          if (tensorTy) {
-            // TODO(#913): Multidimensional tensors with a single non-unit
-            // dimension are assumed to be packed in the order of that
-            // dimensions.
-            auto nonUnitDim = getNonUnitDimension(tensorTy);
-            if (failed(nonUnitDim) || nonUnitDim.value().second != slotNumber) {
-              return failure();
-            }
-          }
-        }
-        return success();
-      },
-      "expected secret types to be tensors with dimension matching "
-      "ring parameter, pass will not pack tensors into ciphertext "
-      "SIMD slots");
-
-  return succeeded(result);
-}
-
-void annotateTensorExtractAsNotSlotExtract(Operation *top,
-                                           DataFlowSolver *solver) {
-  top->walk([&](tensor::ExtractOp extractOp) {
-    if (isSecret(extractOp.getOperand(0), solver)) {
-      extractOp->setAttr("slot_extract",
-                         BoolAttr::get(extractOp.getContext(), false));
-    }
-  });
-}
-
-}  // namespace
-
 struct SecretInsertMgmtCKKS
     : impl::SecretInsertMgmtCKKSBase<SecretInsertMgmtCKKS> {
   using SecretInsertMgmtCKKSBase::SecretInsertMgmtCKKSBase;
@@ -117,6 +59,7 @@ struct SecretInsertMgmtCKKS
     solver.load<dataflow::SparseConstantPropagation>();
     solver.load<SecretnessAnalysis>();
     solver.load<LevelAnalysis>();
+    solver.load<MulDepthAnalysis>();
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";
@@ -135,40 +78,17 @@ struct SecretInsertMgmtCKKS
         &getContext(), getOperation(), &solver);
     (void)walkAndApplyPatterns(getOperation(), std::move(patternsPlaintext));
 
-    // TODO(#1174): decide packing earlier in the pipeline instead of annotation
-    // determine whether tensor::Extract is extracting slot from ciphertext
-    // or generic tensor extract from tensor ciphertext
-    // This is directly copied from secret-to-ckks
-    // should merge into earlier pipeline
-    bool packTensorInSlots =
-        isTensorInSlots(getOperation(), &solver, slotNumber);
-    if (!packTensorInSlots) {
-      annotateTensorExtractAsNotSlotExtract(getOperation(), &solver);
-    }
-
-    // re-run analysis as MulDepthAnalysis is affected by slot_extract
-    solver.load<MulDepthAnalysis>();
-    solver.eraseAllStates();
-    if (failed(solver.initializeAndRun(getOperation()))) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
-      signalPassFailure();
-      return;
-    }
-
     if (afterMul) {
       RewritePatternSet patternsMultModReduce(&getContext());
       patternsMultModReduce.add<ModReduceAfterMult<arith::MulIOp>,
-                                ModReduceAfterMult<arith::MulFOp>,
-                                ModReduceAfterMult<tensor::ExtractOp>>(
+                                ModReduceAfterMult<arith::MulFOp>>(
           &getContext(), getOperation(), &solver);
       (void)walkAndApplyPatterns(getOperation(),
                                  std::move(patternsMultModReduce));
     } else {
       RewritePatternSet patternsMultModReduce(&getContext());
-      // tensor::ExtractOp = mulConst + rotate
       patternsMultModReduce
-          .add<ModReduceBefore<arith::MulIOp>, ModReduceBefore<arith::MulFOp>,
-               ModReduceBefore<tensor::ExtractOp>>(
+          .add<ModReduceBefore<arith::MulIOp>, ModReduceBefore<arith::MulFOp>>(
               &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
       // includeFirstMul = false here
       // as before yield we only want mulResult to be mod reduced

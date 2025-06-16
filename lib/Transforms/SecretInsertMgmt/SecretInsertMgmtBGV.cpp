@@ -75,16 +75,13 @@ struct SecretInsertMgmtBGV
 
     if (afterMul) {
       RewritePatternSet patternsMultModReduce(&getContext());
-      patternsMultModReduce.add<ModReduceAfterMult<arith::MulIOp>,
-                                ModReduceAfterMult<tensor::ExtractOp>>(
+      patternsMultModReduce.add<ModReduceAfterMult<arith::MulIOp>>(
           &getContext(), getOperation(), &solver);
       (void)walkAndApplyPatterns(getOperation(),
                                  std::move(patternsMultModReduce));
     } else {
       RewritePatternSet patternsMultModReduce(&getContext());
-      // tensor::ExtractOp = mulConst + rotate
-      patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>,
-                                ModReduceBefore<tensor::ExtractOp>>(
+      patternsMultModReduce.add<ModReduceBefore<arith::MulIOp>>(
           &getContext(), beforeMulIncludeFirstMul, getOperation(), &solver);
       // includeFirstMul = false here
       // as before yield we only want mulResult to be mod reduced

@@ -1,12 +1,13 @@
-// RUN: heir-opt --secret-insert-mgmt-bgv --generate-param-bgv --populate-scale-bgv --secret-distribute-generic --secret-to-bgv %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-bgv %s | FileCheck %s
 
 // CHECK: @hamming
 // CHECK: bgv.sub
 // CHECK-NEXT: bgv.mul
 // CHECK-NEXT: bgv.relinearize
-// CHECK-COUNT-10: bgv.rotate
+// CHECK-COUNT-10: bgv.rotate_cols
 // CHECK: bgv.modulus_switch
-// CHECK-NEXT: bgv.extract
+// CHECK-NEXT: lwe.rlwe_encode
+// CHECK-NEXT: bgv.mul_plain
 // CHECK-NEXT: bgv.modulus_switch
 // CHECK-NEXT: return
 
