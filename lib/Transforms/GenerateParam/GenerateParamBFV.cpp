@@ -7,6 +7,7 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BFV/NoiseCanEmbModel.h"
 #include "lib/Analysis/NoiseAnalysis/Noise.h"
 #include "lib/Analysis/NoiseAnalysis/NoiseAnalysis.h"
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
@@ -199,6 +200,9 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
                model == "bfv-noise-bmcm23") {
       bfv::NoiseByVarianceCoeffModel model;
       run<bfv::NoiseByVarianceCoeffModel>(model);
+    } else if (model == "bfv-noise-canon-emb") {
+      bfv::NoiseCanEmbModel model;
+      run<bfv::NoiseCanEmbModel>(model);
     } else {
       getOperation()->emitWarning() << "Unknown noise model.\n";
       generateFallbackParam();

@@ -6,6 +6,7 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BFV/NoiseCanEmbModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseByVarianceCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BGV/NoiseCanEmbModel.h"
@@ -202,6 +203,9 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
                model == "bfv-noise-bmcm23") {
       bfv::NoiseByVarianceCoeffModel model;
       run<bfv::NoiseByVarianceCoeffModel>(model);
+    } else if (model == "bfv-noise-canon-emb") {
+      bfv::NoiseCanEmbModel model;
+      run<bfv::NoiseCanEmbModel>(model);
     } else {
       getOperation()->emitOpError() << "Unknown noise model.\n";
       signalPassFailure();
