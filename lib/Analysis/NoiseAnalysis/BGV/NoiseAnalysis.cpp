@@ -36,6 +36,10 @@ void NoiseAnalysis<NoiseModel>::setToEntryState(LatticeType *lattice) {
                                      getDimensionFromMgmtAttr(value));
     NoiseState encrypted = noiseModel.evalEncrypt(localParam);
     this->propagateIfChanged(lattice, lattice->join(encrypted));
+    LLVM_DEBUG(llvm::dbgs() << "Initializing "
+                            << doubleToString2Prec(
+                                   noiseModel.toLogBound(localParam, encrypted))
+                            << " to " << value << "\n");
     return;
   }
 
