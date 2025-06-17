@@ -194,7 +194,15 @@ void mlirToPlaintextPipelineBuilder(OpPassManager &pm,
 void mlirToRLWEPipeline(OpPassManager &pm,
                         const MlirToRLWEPipelineOptions &options,
                         const RLWEScheme scheme) {
-  mlirToSecretArithmeticPipelineBuilder(pm, options);
+  if (options.skipArithmetization) {
+    // Replicate the non-arithmetization related parts of the pipeline
+    pm.addPass(createWrapGeneric());
+    AddClientInterfaceOptions addClientInterfaceOptions;
+    addClientInterfaceOptions.ciphertextSize = options.ciphertextDegree;
+    addClientInterfaceOptions.skipLayoutAssignment = true;
+    pm.addPass(createAddClientInterface(addClientInterfaceOptions));
+  } else
+    mlirToSecretArithmeticPipelineBuilder(pm, options);
 
   // Only for debugging purpose.
   if (!options.plaintextExecutionResultFileName.empty()) {

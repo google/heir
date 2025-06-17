@@ -28,6 +28,12 @@ void heirSIMDVectorizerPipelineBuilder(OpPassManager &manager,
                                        bool disableLoopUnroll);
 
 struct MlirToRLWEPipelineOptions : public SimdVectorizerOptions {
+  PassOptions::Option<bool> skipArithmetization{
+      *this, "skip-arithmetization",
+      llvm::cl::desc(
+          "If true, skip the arithmetization pipeline and try to directly "
+          "lower to RLWE scheme (default to false)"),
+      llvm::cl::init(false)};
   PassOptions::Option<int> ciphertextDegree{
       *this, "ciphertext-degree",
       llvm::cl::desc("The degree of the polynomials to use for ciphertexts; "
