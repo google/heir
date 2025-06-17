@@ -260,7 +260,8 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
         SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, bgv::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::MulIOp, bgv::MulPlainOp>,
-        SecretGenericFuncCallConversion>(typeConverter, context);
+        SecretGenericFuncCallConversion, ConvertTrivialConceal>(typeConverter,
+                                                                context);
 
     patterns.add<ConvertClientConceal>(typeConverter, context, usePublicKey,
                                        rlweRing.value());
