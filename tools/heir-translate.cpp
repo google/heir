@@ -4,6 +4,7 @@
 #include "lib/Target/Lattigo/LattigoEmitter.h"
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
+#include "lib/Target/SimFHE/SimFHEEmitter.h"
 // This comment includes internal emitters
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
@@ -25,6 +26,7 @@ int main(int argc, char **argv) {
   // jaxite output
   mlir::heir::jaxite::registerToJaxiteTranslation();
   mlir::heir::jaxiteword::registerToJaxiteWordTranslation();
+  mlir::heir::simfhe::registerToSimFHETranslation();
 
   // OpenFHE
   mlir::heir::openfhe::registerTranslateOptions();
