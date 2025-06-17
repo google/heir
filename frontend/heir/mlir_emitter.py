@@ -4,66 +4,79 @@ from collections import deque
 from dataclasses import dataclass
 import operator
 import textwrap
-from typing import Any, NewType
+from typing import Any
 
 from numba.core import ir
-from numba.core import types
 from numba.core import bytecode
 from numba.core import controlflow
-from numba.core.types import Type as NumbaType
+import numba.core.types as nt
 
-from heir.mlir.types import MLIRType, MLIR_TYPES, I1, I8, I16, I32, I64, F32, F64
-from heir.interfaces import CompilerError, DebugMessage, InternalCompilerError
+from heir.mlir import I1, I8, I16, I32, I64, MLIRType, MLIR_TYPES
+from heir.interfaces import CompilerError, InternalCompilerError
+
+NumbaType = nt.Type
 
 
 def mlirType(numba_type: NumbaType) -> str:
-  if isinstance(numba_type, types.Integer):
-    # TODO (#1162): fix handling of signedness
-    # Since `arith` only allows signless integers, we ignore signedness here.
-    return "i" + str(numba_type.bitwidth)
-  if isinstance(numba_type, types.RangeType):
-    return mlirType(numba_type.dtype)
-  if isinstance(numba_type, types.Boolean):
-    return "i1"
-  if isinstance(numba_type, types.Float):
-    return "f" + str(numba_type.bitwidth)
-  if isinstance(numba_type, types.Complex):
-    return "complex<" + str(numba_type.bitwidth) + ">"
-  if isinstance(numba_type, types.Array):
-    shape = None
-    if hasattr(numba_type, "shape"):
-      shape = "x".join(str(s) for s in numba_type.shape)  # type: ignore
-    return "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
-  raise InternalCompilerError("Unsupported type: " + str(numba_type))
+  match numba_type:
+    case nt.Integer():
+      # TODO (#1162): fix handling of signedness
+      # Since `arith` only allows signless integers, we ignore signedness here.
+      return "i" + str(numba_type.bitwidth)
+    case nt.RangeType():
+      return mlirType(numba_type.dtype)
+    case nt.Boolean():
+      return "i1"
+    case nt.Float():
+      return "f" + str(numba_type.bitwidth)
+    case nt.Complex():
+      return "complex<" + str(numba_type.bitwidth) + ">"
+    case nt.Array():
+      return (
+          "tensor<" + "?x" * numba_type.ndim + mlirType(numba_type.dtype) + ">"
+      )
+    case _:
+      raise InternalCompilerError("Unsupported type: " + str(numba_type))
 
 
 def isIntegerLike(typ: NumbaType | MLIRType) -> bool:
-  if isinstance(typ, type) and issubclass(typ, MLIRType):
-    return typ in {I1, I8, I16, I32, I64}
-  if isinstance(typ, NumbaType):
-    return isinstance(typ, types.Integer) or isinstance(typ, types.Boolean)
-  raise InternalCompilerError(f"Encountered unexpected type {typ}")
+  match typ:
+    case I1() | I8() | I16() | I32() | I64() | nt.Integer() | nt.Boolean():
+      return True
+    case MLIRType() | nt.Type:
+      return False
+    case _:
+      raise InternalCompilerError(
+          f"Encountered unexpected type {typ} of type {type(typ)}"
+      )
 
 
 def isFloatLike(typ: NumbaType | MLIRType) -> bool:
-  if isinstance(typ, type) and issubclass(type, MLIRType):
-    return typ in {F32, F64}
-  if isinstance(typ, NumbaType):
-    return isinstance(typ, types.Float)
-  raise InternalCompilerError(f"Encountered unexpected type {typ}")
+  match typ:
+    case nt.F32 | nt.F64 | nt.Float():
+      return True
+    case MLIRType() | nt.Type:
+      return False
+    case _:
+      raise InternalCompilerError(
+          f"Encountered unexpected type {typ} of type {type(typ)}"
+      )
 
 
 # Needed because, e.g. Boolean doesn't have a bitwidth
 def getBitwidth(typ: NumbaType | MLIRType) -> int:
-  if isinstance(typ, type) and issubclass(typ, MLIRType):
-    if typ in {I1, I8, I16, I32, I64}:
+  match typ:
+    case I1() | I8() | I16() | I32() | I64():
       # e.g.,  <class 'heir.mlir.types.I32'>.__name__ -> "I32" -> "32"
       return int(typ.__name__[1:])
-  if isinstance(typ, types.Integer):
-    return typ.bitwidth
-  if isinstance(typ, types.Boolean):
-    return 1
-  raise InternalCompilerError(f"unexpected type {typ} ({type(typ)})")
+    case nt.Integer() as int_ty:
+      return int_ty.bitwidth
+    case nt.Boolean():
+      return 1
+    case _:
+      raise InternalCompilerError(
+          f"Encountered unexpected type {typ} of type {type(typ)}"
+      )
 
 
 def mlirCastOp(
@@ -112,19 +125,15 @@ def mlirLoc(loc: ir.Loc) -> str:
 
 def arithSuffix(numba_type: NumbaType) -> str:
   """Helper to translate numba types to the associated arith dialect operation suffixes"""
-  if isinstance(numba_type, types.Integer):
-    return "i"
-  if isinstance(numba_type, types.Boolean):
-    return "i"
-  if isinstance(numba_type, types.Float):
-    return "f"
-  if isinstance(numba_type, types.Complex):
-    raise InternalCompilerError(
-        "Complex numbers not supported in `arith` dialect"
-    )
-  if isinstance(numba_type, types.Array):
-    return arithSuffix(numba_type.dtype)
-  raise InternalCompilerError("Unsupported type: " + str(numba_type))
+  match numba_type:
+    case nt.Integer() | nt.Boolean():
+      return "i"
+    case nt.Float():
+      return "f"
+    case nt.Array():
+      return arithSuffix(numba_type.dtype)
+    case _:
+      raise InternalCompilerError("Unsupported type: " + str(numba_type))
 
 
 class HeaderInfo:
@@ -514,9 +523,12 @@ class TextualMlirEmitter:
             )
           target_ssa = self.get_or_create_name(assign.target)
           ssa_id = self.get_or_create_name(assign.value.args[0])
+
+          # Construct an instance of the MLIR type in question
+          mlir_type_instance = global_()
           cast = mlirCastOp(
               self.typemap.get(value),
-              global_,
+              mlir_type_instance,
               ssa_id,
               assign.loc,
           )
