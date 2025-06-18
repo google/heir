@@ -204,6 +204,7 @@ cc_binary(
         "@heir//lib/Target/Lattigo:LattigoEmitter",
         "@heir//lib/Target/Metadata:MetadataEmitter",
         "@heir//lib/Target/OpenFhePke:OpenFheRegistration",
+        "@heir//lib/Target/SimFHE:SimFHEEmitter",
         "@heir//lib/Target/TfheRust:TfheRustEmitter",
         "@heir//lib/Target/TfheRustBool:TfheRustBoolEmitter",
         "@heir//lib/Target/TfheRustHL:TfheRustHLEmitter",

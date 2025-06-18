@@ -5,6 +5,7 @@
 #include "lib/Target/Metadata/MetadataEmitter.h"
 #include "lib/Target/OpenFhePke/OpenFheTranslateRegistration.h"
 // This comment includes internal emitters
+#include "lib/Target/SimFHE/SimFHEEmitter.h"
 #include "lib/Target/TfheRust/TfheRustEmitter.h"
 #include "lib/Target/TfheRustBool/TfheRustBoolEmitter.h"
 #include "lib/Target/TfheRustHL/TfheRustHLEmitter.h"
@@ -25,6 +26,7 @@ int main(int argc, char **argv) {
   // jaxite output
   mlir::heir::jaxite::registerToJaxiteTranslation();
   mlir::heir::jaxiteword::registerToJaxiteWordTranslation();
+  mlir::heir::simfhe::registerToSimFHETranslation();
 
   // OpenFHE
   mlir::heir::openfhe::registerTranslateOptions();
