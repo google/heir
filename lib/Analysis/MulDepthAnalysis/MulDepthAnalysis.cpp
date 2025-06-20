@@ -51,17 +51,6 @@ LogicalResult MulDepthAnalysis::visitOperation(
           isMul = true;
         }
 
-        // NOTE: special case for ExtractOp... it is a mulconst+rotate
-        // if not annotated with slot_extract
-        // TODO(#1174): decide packing earlier in the pipeline instead of
-        // annotation
-        if (auto extractOp = dyn_cast<tensor::ExtractOp>(op)) {
-          if (!extractOp->getAttr("slot_extract")) {
-            // must be true
-            isMul = true;
-          }
-        }
-
         // inherit mul depth from secret operands
         int64_t operandsMulDepth = 0;
         SmallVector<OpOperand *> secretOperands;

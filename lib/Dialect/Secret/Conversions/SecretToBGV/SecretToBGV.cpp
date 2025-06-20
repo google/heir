@@ -254,7 +254,6 @@ struct SecretToBGV : public impl::SecretToBGVBase<SecretToBGV> {
                                   lwe::ReinterpretApplicationDataOp>,
         SecretGenericOpRelinearizeConversion<bgv::RelinearizeOp>,
         SecretGenericOpModulusSwitchConversion<bgv::ModulusSwitchOp>,
-        SecretGenericOpConversion<tensor::ExtractOp, bgv::ExtractOp>,
         SecretGenericOpRotateConversion<bgv::RotateColumnsOp>,
         SecretGenericOpLevelReduceConversion<bgv::LevelReduceOp>,
         SecretGenericOpCipherPlainConversion<arith::AddIOp, bgv::AddPlainOp>,

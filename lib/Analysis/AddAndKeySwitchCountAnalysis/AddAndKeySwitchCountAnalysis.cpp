@@ -83,18 +83,6 @@ LogicalResult CountAnalysis::visitOperation(
 
         propagate(op.getResult(), state.keySwitch());
       })
-      // TODO(#1174): in BGV tensor::ExtractOp is assumed to be always
-      // mul+const
-      .Case<tensor::ExtractOp>([&](auto &op) {
-        SmallVector<OpResult> secretResults;
-        getSecretResults(op, secretResults);
-        if (secretResults.empty()) {
-          return;
-        }
-
-        // now noise is Vmult + one Vks
-        propagate(op.getResult(), CountState(1, 1));
-      })
       .Case<mgmt::ModReduceOp>([&](auto modReduceOp) {
         // implicitly ensure that the operand is secret
 

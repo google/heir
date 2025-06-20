@@ -59,17 +59,6 @@ LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
     return failure();
   }
 
-  // guard against tensor::ExtractOp with slot_extract = false
-  // TODO(#1174): decide packing earlier in the pipeline instead of annotation
-  // workaround
-  if (isa<tensor::ExtractOp>(mulOp)) {
-    auto slotExtractAttr = mulOp->getAttr("slot_extract");
-    if (isa_and_nonnull<BoolAttr>(slotExtractAttr)) {
-      // must be false!
-      return failure();
-    }
-  }
-
   rewriter.setInsertionPointAfter(mulOp);
   auto modReduced = rewriter.create<mgmt::ModReduceOp>(mulOp.getLoc(), result);
   result.replaceAllUsesExcept(modReduced, {modReduced});
@@ -91,17 +80,6 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
     }
   }
   // condition on result being secret
-
-  // guard against tensor::ExtractOp with slot_extract = false
-  // TODO(#1174): decide packing earlier in the pipeline instead of annotation
-  // workaround
-  if (isa<tensor::ExtractOp>(op)) {
-    auto slotExtractAttr = op->getAttr("slot_extract");
-    if (isa_and_nonnull<BoolAttr>(slotExtractAttr)) {
-      // must be false!
-      return failure();
-    }
-  }
 
   auto maxLevel = 0;
   int64_t mulDepth = 0;
@@ -333,14 +311,8 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
 template struct MultRelinearize<arith::MulIOp>;
 
 template struct ModReduceAfterMult<arith::MulIOp>;
-// extract = mulplain + rotate for annotated slot_extract = true
-// TODO(#1174): decide packing earlier in the pipeline instead of annotation
-template struct ModReduceAfterMult<tensor::ExtractOp>;
 
 template struct ModReduceBefore<arith::MulIOp>;
-// extract = mulplain + rotate for annotated slot_extract = true
-// TODO(#1174): decide packing earlier in the pipeline instead of annotation
-template struct ModReduceBefore<tensor::ExtractOp>;
 template struct ModReduceBefore<secret::YieldOp>;
 
 template struct MatchCrossLevel<arith::MulIOp>;

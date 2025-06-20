@@ -17,25 +17,29 @@
 
 #ciphertext_space_L0_ = #lwe.ciphertext_space<ring = #ring_rns_L0_1_x32_, encryption_type = lsb>
 
-// These two types differ only on their underlying_type. The IR stays as the !in_ty
-// for the entire computation until the final extract op.
-!in_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
-!out_ty = !lwe.new_lwe_ciphertext<application_data = <message_type = i16>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
+!ty = !lwe.new_lwe_ciphertext<application_data = <message_type = tensor<32xi16>>, plaintext_space = #plaintext_space, ciphertext_space = #ciphertext_space_L0_, key = #key, modulus_chain = #modulus_chain_L5_C0_>
 
-func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
+!pt = !lwe.new_lwe_plaintext<application_data = <message_type = tensor<32xi16>>, plaintext_space = <ring = #ring_Z65537_i64_1_x32_, encoding = #full_crt_packing_encoding>>
+
+func.func @simple_sum(%arg0: !ty) -> !ty {
   %c31 = arith.constant 31 : index
-  %0 = bgv.rotate_cols %arg0 { offset = 16 } : !in_ty
-  %1 = bgv.add %arg0, %0 : (!in_ty, !in_ty) -> !in_ty
-  %2 = bgv.rotate_cols %1 { offset = 8 } : !in_ty
-  %3 = bgv.add %1, %2 : (!in_ty, !in_ty) -> !in_ty
-  %4 = bgv.rotate_cols %3 { offset = 4 } : !in_ty
-  %5 = bgv.add %3, %4 : (!in_ty, !in_ty) -> !in_ty
-  %6 = bgv.rotate_cols %5 { offset = 2 } : !in_ty
-  %7 = bgv.add %5, %6 : (!in_ty, !in_ty) -> !in_ty
-  %8 = bgv.rotate_cols %7 { offset = 1 } : !in_ty
-  %9 = bgv.add %7, %8 : (!in_ty, !in_ty) -> !in_ty
-  %10 = bgv.extract %9, %c31 : (!in_ty, index) -> !out_ty
-  return %10 : !out_ty
+  %c1_i16 = arith.constant 1 : i16
+  %cst = arith.constant dense<0> : tensor<32xi16>
+  %inserted = tensor.insert %c1_i16 into %cst[%c31] : tensor<32xi16>
+  %0 = bgv.rotate_cols %arg0 { offset = 16 } : !ty
+  %1 = bgv.add %arg0, %0 : (!ty, !ty) -> !ty
+  %2 = bgv.rotate_cols %1 { offset = 8 } : !ty
+  %3 = bgv.add %1, %2 : (!ty, !ty) -> !ty
+  %4 = bgv.rotate_cols %3 { offset = 4 } : !ty
+  %5 = bgv.add %3, %4 : (!ty, !ty) -> !ty
+  %6 = bgv.rotate_cols %5 { offset = 2 } : !ty
+  %7 = bgv.add %5, %6 : (!ty, !ty) -> !ty
+  %8 = bgv.rotate_cols %7 { offset = 1 } : !ty
+  %9 = bgv.add %7, %8 : (!ty, !ty) -> !ty
+  %pt = lwe.rlwe_encode %inserted {encoding = #full_crt_packing_encoding, ring = #ring_Z65537_i64_1_x32_} : tensor<32xi16> -> !pt
+  %10 = bgv.mul_plain %9, %pt : (!ty, !pt) -> !ty
+  %11 = bgv.rotate_cols %10 {offset = 31 : index} : !ty
+  return %11 : !ty
 }
 
 // CHECK: @simple_sum
@@ -48,5 +52,5 @@ func.func @simple_sum(%arg0: !in_ty) -> !out_ty {
 // CHECK-SAME: (%[[sk]], %[[original_input]])
 
 // check calling debug func for each intermediate value
-// CHECK-COUNT-11: call @__heir_debug
+// CHECK-COUNT-12: call @__heir_debug
 // CHECK-NOT: call @__heir_debug

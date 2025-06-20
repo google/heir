@@ -144,34 +144,6 @@ def BGV_RotateRowsOp : BGV_Op<"rotate_rows", [AllTypesMatch<["input", "output"]>
   let assemblyFormat = "operands attr-dict `:` qualified(type($input))" ;
 }
 
-def BGV_ExtractOp : BGV_Op<"extract", [SameOperandsAndResultRings]> {
-  let summary = "Extract the i-th element of a ciphertext.";
-
-  let description = [{
-    While this operation is costly to compute in FHE, we represent it so we can
-    implement efficient lowerings and folders.
-
-    This op can be implemented as a plaintext multiplication with a one-hot
-    vector and a rotate into the zero-th index.
-
-    An extraction op's input ciphertext type is asserted to have an `underlying_type`
-    corresponding to a ranked tensor type, and this op's return type is
-    inferred to have the `underlying_type` corresponding to the element type of
-    that tensor type.
-  }];
-
-  let arguments = (ins
-    NewLWECiphertext:$input,
-    AnySignlessIntegerOrIndex:$offset
-  );
-
-  let results = (outs
-    NewLWECiphertext:$output
-  );
-
-  let hasVerifier = 1;
-}
-
 def BGV_NegateOp : BGV_Op<"negate", [Involution, SameOperandsAndResultType]> {
   let summary = "Negate the coefficients of the ciphertext.";
 

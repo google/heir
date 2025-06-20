@@ -1,4 +1,4 @@
-// RUN: heir-opt --secret-insert-mgmt-ckks --generate-param-ckks --populate-scale-ckks --secret-distribute-generic --secret-to-ckks %s | FileCheck %s
+// RUN: heir-opt --annotate-module="backend=lattigo" --mlir-to-ckks %s | FileCheck %s
 
 // CHECK: @hamming
 // CHECK: ckks.sub
@@ -6,7 +6,8 @@
 // CHECK-NEXT: ckks.relinearize
 // CHECK-COUNT-10: ckks.rotate
 // CHECK: ckks.rescale
-// CHECK-NEXT: ckks.extract
+// CHECK-NEXT: lwe.rlwe_encode
+// CHECK-NEXT: ckks.mul_plain
 // CHECK-NEXT: ckks.rescale
 // CHECK-NEXT: return
 
