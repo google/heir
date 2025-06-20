@@ -1,6 +1,7 @@
 #ifndef LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 #define LIB_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 
+include "lib/Dialect/RNS/IR/RNSTypes.td"
 include "lib/Dialect/ModArith/IR/ModArithDialect.td"
 include "lib/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -9,6 +10,8 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
+def ModArithOrRNSLike: TypeOrValueSemanticsContainer<AnyTypeOf<[ModArith_ModArithType, RNS]>,
+    "mod_arith_or_rns-like">;
 
 class ModArith_Op<string mnemonic, list<Trait> traits = [Pure]> :
         Op<ModArith_Dialect, mnemonic, traits> {
@@ -121,15 +124,13 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOp
     ModArithLike:$input
   );
   let results = (outs ModArithLike:$output);
-  let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
 class ModArith_BinaryOp<string mnemonic, list<Trait> traits = []> :
     ModArith_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
-    Arguments<(ins ModArithLike:$lhs, ModArithLike:$rhs)>,
-    Results<(outs ModArithLike:$output)> {
-  let hasVerifier = 1;
+    Arguments<(ins ModArithOrRNSLike:$lhs, ModArithOrRNSLike:$rhs)>,
+    Results<(outs ModArithOrRNSLike:$output)> {
   let assemblyFormat ="operands attr-dict `:` type($output)";
 }
 
@@ -180,7 +181,6 @@ def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, Elemen
   }];
   let arguments = (ins ModArithLike:$lhs, ModArithLike:$rhs, ModArithLike:$acc);
   let results = (outs ModArithLike:$output);
-  let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
