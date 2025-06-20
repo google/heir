@@ -341,6 +341,23 @@ struct ConfigureCryptoContext
     config.scalingTechniqueFixedManual = scalingTechniqueFixedManual;
     config.levelBudgetDecode = levelBudgetDecode;
     config.levelBudgetEncode = levelBudgetEncode;
+
+    // for BFV, keep only one of MulDepth/EvalAddCount/KeySwitchCount
+    // If MulDepth != 0, clean EvalAddCount/KeySwitchCount
+    // If MulDepth == 0, and both Count are non-zero, emit warning
+    //
+    // https://github.com/openfheorg/openfhe-development/blob/v1.3.0/src/pke/lib/scheme/bfvrns/bfvrns-parametergeneration.cpp
+    if (moduleIsBFV(module)) {
+      if (config.mulDepth != 0) {
+        config.evalAddCount = 0;
+        config.keySwitchCount = 0;
+      } else if (config.evalAddCount != 0 && config.keySwitchCount != 0) {
+        module->emitWarning(
+            "MulDepth is 0, but EvalAddCount and KeySwitchCount are both "
+            "non-zero. This may not satisfy the correctness requirement of "
+            "OpenFHE BFV Parameter Generation");
+      }
+    }
     return success();
   }
 

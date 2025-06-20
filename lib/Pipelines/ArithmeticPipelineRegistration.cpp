@@ -313,9 +313,9 @@ void mlirToRLWEPipeline(OpPassManager &pm,
       exit(EXIT_FAILURE);
   }
 
-  if (scheme == RLWEScheme::bgvScheme) {
+  if (scheme == RLWEScheme::bgvScheme || scheme == RLWEScheme::bfvScheme) {
     // count add and keyswitch for Openfhe
-    // this pass only works for BGV now
+    // this pass only works for BGV/BFV
     pm.addPass(openfhe::createCountAddAndKeySwitch());
   }
 
