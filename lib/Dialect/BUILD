@@ -14,6 +14,8 @@ cc_library(
     hdrs = ["HEIRInterfaces.h"],
     deps = [
         ":interfaces_inc_gen",
+        "@heir//lib/Dialect/Secret/IR:SecretAttributes",
+        "@heir//lib/Transforms/LayoutOptimization:InterfaceImpl",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:IR",
     ],

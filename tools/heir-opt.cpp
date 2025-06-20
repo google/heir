@@ -350,6 +350,7 @@ int main(int argc, char **argv) {
   secret::registerBufferizableOpInterfaceExternalModels(registry);
   rns::registerExternalRNSTypeInterfaces(registry);
   registerOperandAndResultAttrInterface(registry);
+  registerLayoutConversionHoistableInterface(registry);
 
   PassPipelineRegistration<TosaToArithOptions>(
       "heir-tosa-to-arith",
