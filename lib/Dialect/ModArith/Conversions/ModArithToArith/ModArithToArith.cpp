@@ -5,6 +5,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -19,7 +20,6 @@
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
@@ -38,9 +38,25 @@ IntegerType convertModArithType(ModArithType type) {
   return IntegerType::get(type.getContext(), modulusType.getWidth());
 }
 
-Type convertModArithLikeType(ShapedType type) {
-  if (auto modArithType = llvm::dyn_cast<ModArithType>(type.getElementType())) {
+Type convertRNSType(rns::RNSType type) {
+  auto basisTypes = type.getBasisTypes();
+  auto modulusType = cast<IntegerType>(
+      cast<ModArithType>(basisTypes[0]).getModulus().getType());
+  return RankedTensorType::get({(int64_t)basisTypes.size()}, modulusType);
+}
+
+Type convertModArithOrRNSLikeType(ShapedType type) {
+  auto elementType = type.getElementType();
+  if (auto modArithType = llvm::dyn_cast<ModArithType>(elementType)) {
     return type.cloneWith(type.getShape(), convertModArithType(modArithType));
+  }
+  if (auto rnsType = llvm::dyn_cast<rns::RNSType>(elementType)) {
+    auto basisTypes = rnsType.getBasisTypes();
+    auto modulusType = cast<IntegerType>(
+        cast<ModArithType>(basisTypes[0]).getModulus().getType());
+    std::vector<int64_t> shape = type.getShape();
+    shape.push_back((int64_t)basisTypes.size());
+    return RankedTensorType::get(shape, modulusType);
   }
   return type;
 }
@@ -84,7 +100,10 @@ class ModArithToArithTypeConverter : public TypeConverter {
     addConversion(
         [](ModArithType type) -> Type { return convertModArithType(type); });
     addConversion(
-        [](ShapedType type) -> Type { return convertModArithLikeType(type); });
+        [](rns::RNSType type) -> Type { return convertRNSType(type); });
+    addConversion([](ShapedType type) -> Type {
+      return convertModArithOrRNSLikeType(type);
+    });
   }
 };
 
@@ -250,6 +269,127 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
   }
 };
 
+struct ConvertModSwitch : public OpConversionPattern<ModSwitchOp> {
+  ConvertModSwitch(mlir::MLIRContext *context)
+      : OpConversionPattern<ModSwitchOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  auto getInteger(ImplicitLocOpBuilder *b, IntegerType integerType) const {
+    return [=](const APInt &value) mutable {
+      return b->create<arith::ConstantOp>(IntegerAttr::get(integerType, value));
+    };
+  }
+
+  LogicalResult matchAndRewrite(
+      ModSwitchOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto inputType = op.getInput().getType();
+    auto outputType = op.getOutput().getType();
+    if (auto inputModArith = dyn_cast<ModArithType>(inputType)) {
+      if (auto outputModArith = dyn_cast<ModArithType>(outputType)) {
+        auto oldModulus = inputModArith.getModulus().getValue();
+        auto newModulus = outputModArith.getModulus().getValue();
+        auto oldWidth = oldModulus.getBitWidth();
+        auto newWidth = newModulus.getBitWidth();
+        auto width = std::max(oldWidth, newWidth);
+        auto integerType = IntegerType::get(op.getContext(), width);
+        auto intConst = getInteger(&b, integerType);
+        oldModulus = oldModulus.zext(width);
+        newModulus = newModulus.zext(width);
+        Value input = adaptor.getInput();
+        if (newWidth > oldWidth) {
+          input = b.create<arith::ExtUIOp>(integerType, input);
+        }
+        auto cmod = intConst(newModulus);
+        auto remu = b.create<arith::RemUIOp>(input, cmod);
+        auto cmp = b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt,
+                                           intConst(oldModulus.lshr(1)), input);
+        auto diffConst = intConst(newModulus - oldModulus.urem(newModulus));
+        auto remuAdd = b.create<arith::AddIOp>(remu, diffConst);
+        auto remuAddMod =
+            b.create<arith::RemUIOp>(remuAdd, intConst(newModulus));
+        Value result = b.create<arith::SelectOp>(cmp, remu, remuAddMod);
+        if (newWidth < oldWidth) {
+          auto outputType = IntegerType::get(op.getContext(), newWidth);
+          result = b.create<arith::TruncIOp>(outputType, result);
+        }
+        rewriter.replaceOp(op, result);
+      } else if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
+        auto modWidth = inputModArith.getModulus().getValue().getBitWidth();
+        auto rnsWidth = cast<ModArithType>(outputRNS.getBasisTypes()[0])
+                            .getModulus()
+                            .getValue()
+                            .getBitWidth();
+        auto modintegerType = IntegerType::get(op.getContext(), modWidth);
+        auto rnsIntegerType = IntegerType::get(op.getContext(), rnsWidth);
+        auto intConst = getInteger(&b, modintegerType);
+        std::vector<Value> rnsElements;
+        for (auto basisType : outputRNS.getBasisTypes()) {
+          auto modArithType = cast<ModArithType>(basisType);
+          auto modulus = modArithType.getModulus().getValue();
+          modulus = modulus.zext(modWidth);
+          auto cmod = intConst(modulus);
+          auto remu = b.create<arith::RemUIOp>(adaptor.getInput(), cmod);
+          auto trunci = b.create<arith::TruncIOp>(rnsIntegerType, remu);
+          rnsElements.push_back(trunci);
+        }
+        auto tensor = b.create<tensor::FromElementsOp>(ValueRange(rnsElements));
+        rewriter.replaceOp(op, tensor);
+      } else {
+        llvm_unreachable("Verifier should make sure this doesn't happen.");
+      }
+    } else if (auto inputRNS = dyn_cast<rns::RNSType>(inputType)) {
+      auto outputModArith = cast<ModArithType>(outputType);
+      auto bigModulus = outputModArith.getModulus().getValue();
+      auto outputWidth = bigModulus.getBitWidth();
+      // The width of each element in the RNS type.
+      auto rnsWidth = cast<ModArithType>(inputRNS.getBasisTypes()[0])
+                          .getModulus()
+                          .getValue()
+                          .getBitWidth();
+      // The width of intermediate results: In the formula (from OpenFHE)
+      // ```
+      // Sigma(i = 0 --> t-1) { M(i) * qt/qi * [(qt/qi)^(-1) mod qi] } mod qt
+      // ```
+      // The width of `qt/qi` is bounded by `outputWidth`. The width of `M(i)`
+      // is bounded by `rnsWidth`, and the value of `(qt/qi)^(-1) mod qi` is
+      // bounded by `qi`, so its width is bounded by `rnsWidth`.
+      // So the width of `M(i) * qt/qi * [(qt/qi)^(-1) mod qi]` is bounded by
+      // `outputWidth + 2 * rnsWidth`.
+      auto width = outputWidth + 2 * rnsWidth +
+                   llvm::Log2_64_Ceil(inputRNS.getBasisTypes().size());
+      bigModulus = bigModulus.zext(width);
+      auto integerType = IntegerType::get(op.getContext(), width);
+      auto intConst = getInteger(&b, integerType);
+      auto bigModulusConst = intConst(bigModulus);
+      Value sum = intConst(APInt::getZero(width));
+      for (int64_t i = 0; i < inputRNS.getBasisTypes().size(); i++) {
+        auto modArithType = cast<ModArithType>(inputRNS.getBasisTypes()[i]);
+        auto modulus = modArithType.getModulus().getValue();
+        modulus = modulus.zext(width);
+        auto tmp = bigModulus.udiv(modulus);
+        auto coeffConst =
+            intConst(tmp * multiplicativeInverse(tmp.urem(modulus), modulus));
+        auto index = b.create<arith::ConstantIndexOp>(i);
+        auto extract =
+            b.create<tensor::ExtractOp>(adaptor.getInput(), ValueRange{index});
+        auto extui = b.create<arith::ExtUIOp>(integerType, extract);
+        auto mul = b.create<arith::MulIOp>(extui, coeffConst);
+        sum = b.create<arith::AddIOp>(sum, mul);
+      }
+      auto remu = b.create<arith::RemUIOp>(sum, bigModulusConst);
+      auto resultType = IntegerType::get(op.getContext(), outputWidth);
+      auto trunci = b.create<arith::TruncIOp>(resultType, remu);
+      rewriter.replaceOp(op, trunci);
+    } else {
+      llvm_unreachable("Verifier should make sure this doesn't happen.");
+    }
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.cpp.inc"
@@ -331,12 +471,12 @@ void ModArithToArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
-           ConvertSub, ConvertMul, ConvertMac, ConvertBarrettReduce,
-           ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
-           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
-          typeConverter, context);
+  patterns.add<
+      ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd, ConvertSub,
+      ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
+      ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
+      typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
