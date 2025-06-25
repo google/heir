@@ -46,10 +46,56 @@ LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
   return success();
 }
 
+std::vector<int64_t> getShapeOrEmpty(Type type) {
+  if (auto tensorType = dyn_cast<TensorType>(type)) {
+    return tensorType.getShape();
+  }
+  return {};
+}
+
+template <typename OpType>
+bool isShapeCorrect(OpType op, int64_t rnsLength,
+                    std::vector<int64_t> &modularShape,
+                    std::vector<int64_t> &integerShape) {
+  auto tmp = modularShape;
+  if (rnsLength != 0) tmp.push_back(rnsLength);
+  return tmp == integerShape;
+}
+
+template <typename OpType>
+LogicalResult verifyTypeLowering(OpType op, Type modularType,
+                                 Type integerType) {
+  int64_t rnsLength = 0;
+  auto innerModularType = getElementTypeOrSelf(modularType);
+  auto innerModArithType = dyn_cast<ModArithType>(innerModularType);
+  if (!innerModArithType) {
+    auto rnsType = dyn_cast<rns::RNSType>(innerModularType);
+    innerModArithType = cast<ModArithType>(rnsType.getBasisTypes()[0]);
+    rnsLength = rnsType.getBasisTypes().size();
+  }
+  auto innerIntegerType = cast<IntegerType>(getElementTypeOrSelf(integerType));
+  auto modularShape = getShapeOrEmpty(modularType);
+  auto integerShape = getShapeOrEmpty(integerType);
+  if (!isShapeCorrect(op, rnsLength, modularShape, integerShape)) {
+    return op.emitOpError() << "The shape of input/output type is not correct.";
+  }
+  return verifySameWidth(op, innerModArithType, innerIntegerType);
+}
+
+LogicalResult EncapsulateOp::verify() {
+  return verifyTypeLowering(*this, getOutput().getType(), getInput().getType());
+}
+
 LogicalResult ExtractOp::verify() {
-  auto modArithType = getOperandModArithType(*this);
-  auto integerType = getResultIntegerType(*this);
-  return verifySameWidth(*this, modArithType, integerType);
+  return verifyTypeLowering(*this, getInput().getType(), getOutput().getType());
+}
+
+LogicalResult ModSwitchOp::verify() {
+  auto inputType = getInput().getType();
+  auto outputType = getOutput().getType();
+  if (dyn_cast<rns::RNSType>(inputType) && dyn_cast<rns::RNSType>(outputType))
+    return emitOpError() << "The input and output type can't both be RNS";
+  return success();
 }
 
 LogicalResult BarrettReduceOp::verify() {
