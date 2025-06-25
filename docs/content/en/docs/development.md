@@ -34,7 +34,7 @@ For the best experience, we recommend following these steps:
   Just as with bazel, you will want to move this somewhere on your PATH, e.g.:
 
   ```bash
-  mkdir ~/bin
+  mkdir -p ~/bin
   echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
   mv buildifier ~/bin/buildifier
   ```
@@ -353,13 +353,20 @@ We use [pre-commit](https://pre-commit.com/) to manage a series of git
 pre-commit hooks for the project; for example, each time you commit code, the
 hooks will make sure that your C++ is formatted properly. If your code isn't,
 the hook will format it, so when you try to commit the second time you'll get
-past the hook.
+past the hook. Note that spelling mistakes identified by the codespell hook will
+not be auto-corrected and require manual resolution, rather than simply
+re-running pre-commit.
 
 All hooks are defined in `.pre-commit-config.yaml`. To install these hooks, run
 
 ```bash
 pip install -r requirements-dev.txt
 ```
+
+You will also need to install ruby and go (e.g., `apt-get install ruby golang`)
+which are used by some of the pre-commits. Note that the pre-commit environment
+expects Python 3.11
+([Installing python3.11 on ubuntu](https://askubuntu.com/a/1512163)).
 
 Then install the hooks to run automatically on `git commit`:
 
