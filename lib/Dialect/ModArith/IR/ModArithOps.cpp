@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -32,20 +33,6 @@ namespace mlir {
 namespace heir {
 namespace mod_arith {
 
-/// Ensures that the underlying integer type is wide enough for the coefficient
-template <typename OpType>
-LogicalResult verifyModArithType(OpType op, ModArithType type) {
-  APInt modulus = type.getModulus().getValue();
-  unsigned bitWidth = modulus.getBitWidth();
-  unsigned modWidth = modulus.getActiveBits();
-  if (modWidth > bitWidth - 1)
-    return op.emitOpError()
-           << "underlying type's bitwidth must be 1 bit larger than "
-           << "the modulus bitwidth, but got " << bitWidth
-           << " while modulus requires width " << modWidth << ".";
-  return success();
-}
-
 template <typename OpType>
 LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
                               IntegerType integerType) {
@@ -59,32 +46,56 @@ LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
   return success();
 }
 
+std::vector<int64_t> getShapeOrEmpty(Type type) {
+  if (auto tensorType = dyn_cast<TensorType>(type)) {
+    return tensorType.getShape();
+  }
+  return {};
+}
+
+template <typename OpType>
+bool isShapeCorrect(OpType op, int64_t rnsLength,
+                    std::vector<int64_t> &modularShape,
+                    std::vector<int64_t> &integerShape) {
+  auto tmp = modularShape;
+  if (rnsLength != 0) tmp.push_back(rnsLength);
+  return tmp == integerShape;
+}
+
+template <typename OpType>
+LogicalResult verifyTypeLowering(OpType op, Type modularType,
+                                 Type integerType) {
+  int64_t rnsLength = 0;
+  auto innerModularType = getElementTypeOrSelf(modularType);
+  auto innerModArithType = dyn_cast<ModArithType>(innerModularType);
+  if (!innerModArithType) {
+    auto rnsType = dyn_cast<rns::RNSType>(innerModularType);
+    innerModArithType = cast<ModArithType>(rnsType.getBasisTypes()[0]);
+    rnsLength = rnsType.getBasisTypes().size();
+  }
+  auto innerIntegerType = cast<IntegerType>(getElementTypeOrSelf(integerType));
+  auto modularShape = getShapeOrEmpty(modularType);
+  auto integerShape = getShapeOrEmpty(integerType);
+  if (!isShapeCorrect(op, rnsLength, modularShape, integerShape)) {
+    return op.emitOpError() << "The shape of input/output type is not correct.";
+  }
+  return verifySameWidth(op, innerModArithType, innerIntegerType);
+}
+
+LogicalResult EncapsulateOp::verify() {
+  return verifyTypeLowering(*this, getOutput().getType(), getInput().getType());
+}
+
 LogicalResult ExtractOp::verify() {
-  auto modArithType = getOperandModArithType(*this);
-  auto integerType = getResultIntegerType(*this);
-  auto result = verifySameWidth(*this, modArithType, integerType);
-  if (result.failed()) return result;
-  return verifyModArithType(*this, modArithType);
+  return verifyTypeLowering(*this, getInput().getType(), getOutput().getType());
 }
 
-LogicalResult ReduceOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult AddOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult SubOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult MulOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult MacOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
+LogicalResult ModSwitchOp::verify() {
+  auto inputType = getInput().getType();
+  auto outputType = getOutput().getType();
+  if (dyn_cast<rns::RNSType>(inputType) && dyn_cast<rns::RNSType>(outputType))
+    return emitOpError() << "The input and output type can't both be RNS";
+  return success();
 }
 
 LogicalResult BarrettReduceOp::verify() {

@@ -5,6 +5,7 @@
 #include "lib/Dialect/ModArith/IR/ModArithDialect.h"
 #include "lib/Dialect/ModArith/IR/ModArithOps.h"
 #include "lib/Dialect/ModArith/IR/ModArithTypes.h"
+#include "lib/Utils/APIntUtils.h"
 #include "lib/Utils/ConversionUtils.h"
 #include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
@@ -19,7 +20,6 @@
 #include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
 #include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
@@ -250,6 +250,77 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
   }
 };
 
+struct ConvertModSwitch : public OpConversionPattern<ModSwitchOp> {
+  ConvertModSwitch(mlir::MLIRContext *context)
+      : OpConversionPattern<ModSwitchOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  Value getInteger(ImplicitLocOpBuilder b, IntegerType intType,
+                   const APInt &value) const {
+    return b.create<arith::ConstantOp>(IntegerAttr::get(intType, value));
+  }
+
+  LogicalResult matchAndRewrite(
+      ModSwitchOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto inputType = op.getInput().getType();
+    auto outputType = op.getOutput().getType();
+    if (auto inputModArith = dyn_cast<ModArithType>(inputType)) {
+      if (auto outputModArith = dyn_cast<ModArithType>(outputType)) {
+        auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
+        auto remu = b.create<arith::RemUIOp>(adaptor.getInput(), cmod);
+        rewriter.replaceOp(op, remu);
+      } else if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
+        auto width = inputModArith.getModulus().getValue().getBitWidth();
+        auto rnsWidth = cast<ModArithType>(outputRNS.getBasisTypes()[0])
+                            .getModulus()
+                            .getValue()
+                            .getBitWidth();
+        auto integerType = IntegerType::get(op.getContext(), width);
+        auto rnsIntegerType = IntegerType::get(op.getContext(), rnsWidth);
+        std::vector<Value> rnsElements;
+        for (auto basisType : outputRNS.getBasisTypes()) {
+          auto modArithType = dyn_cast<ModArithType>(basisType);
+          auto cmod = getInteger(
+              b, integerType,
+              modArithType.getModulus().getValue().zextOrTrunc(width));
+          auto remu = b.create<arith::RemUIOp>(adaptor.getInput(), cmod);
+          auto trunci = b.create<arith::TruncIOp>(rnsIntegerType, remu);
+          rnsElements.push_back(trunci);
+        }
+        auto tensor = b.create<tensor::FromElementsOp>(ValueRange(rnsElements));
+        rewriter.replaceOp(op, tensor);
+      } else {
+        llvm_unreachable("Verifier should make sure this doesn't happen.");
+      }
+    } else if (auto inputRNS = dyn_cast<rns::RNSType>(inputType)) {
+      auto outputModArith = cast<ModArithType>(outputType);
+      auto bigModulus = outputModArith.getModulus().getValue();
+      auto width = 2 * bigModulus.getBitWidth() +
+                   llvm::Log2_64_Ceil(inputRNS.getBasisTypes().size());
+      auto integerType = IntegerType::get(op.getContext(), width);
+      auto bigModulusConst = getInteger(b, integerType, bigModulus);
+      Value sum = getInteger(b, integerType, APInt::getZero(width));
+      for (auto basisType : inputRNS.getBasisTypes()) {
+        auto modArithType = dyn_cast<ModArithType>(basisType);
+        auto modulus = modArithType.getModulus().getValue();
+        auto tmp = bigModulus.udiv(modulus);
+        auto coeff = tmp * multiplicativeInverse(tmp, modulus);
+        auto coeffConst = getInteger(b, integerType, coeff);
+        auto mul = b.create<arith::MulIOp>(adaptor.getInput(), coeffConst);
+        sum = b.create<arith::AddIOp>(sum, mul);
+      }
+      auto cmod = b.create<arith::RemUIOp>(sum, bigModulusConst);
+      rewriter.replaceOp(op, cmod);
+    } else {
+      llvm_unreachable("Verifier should make sure this doesn't happen.");
+    }
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "lib/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.cpp.inc"
@@ -331,12 +402,12 @@ void ModArithToArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
-           ConvertSub, ConvertMul, ConvertMac, ConvertBarrettReduce,
-           ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
-           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
-          typeConverter, context);
+  patterns.add<
+      ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd, ConvertSub,
+      ConvertMul, ConvertMac, ConvertModSwitch, ConvertBarrettReduce,
+      ConvertConstant, ConvertAny<>, ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp> >(
+      typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

@@ -1,5 +1,6 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s | FileCheck %s
 
+// expected-error@+1 {{underlying type's bitwidth must be 1 bit larger than the modulus bitwidth, but got 8 while modulus requires width 8}}
 !Zp = !mod_arith.int<255 : i8>
 
 // -----
