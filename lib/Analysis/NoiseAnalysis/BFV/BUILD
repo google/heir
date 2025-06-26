@@ -13,6 +13,7 @@ cc_library(
     deps = [
         ":NoiseByBoundCoeffModel",
         ":NoiseByVarianceCoeffModel",
+        ":NoiseCanEmbModel",
         "@heir//lib/Analysis:Utils",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
@@ -59,5 +60,19 @@ cc_library(
         "@heir//lib/Analysis/NoiseAnalysis:Noise",
         "@heir//lib/Parameters/BGV:Params",
         "@heir//lib/Utils:MathUtils",
+    ],
+)
+
+cc_library(
+    name = "NoiseCanEmbModel",
+    srcs = [
+        "NoiseCanEmbModel.cpp",
+    ],
+    hdrs = [
+        "NoiseCanEmbModel.h",
+    ],
+    deps = [
+        "@heir//lib/Analysis/NoiseAnalysis:Noise",
+        "@heir//lib/Parameters/BGV:Params",
     ],
 )
