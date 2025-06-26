@@ -13,7 +13,7 @@ def SecretToCGGI : Pass<"secret-to-cggi"> {
   let dependentDialects = [
     "mlir::heir::comb::CombDialect",
     "mlir::heir::cggi::CGGIDialect",
-    "mlir::memref::MemRefDialect",
+    "mlir::tensor::TensorDialect",
     "mlir::affine::AffineDialect",
   ];
 }
