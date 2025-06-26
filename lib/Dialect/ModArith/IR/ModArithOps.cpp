@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "lib/Dialect/RNS/IR/RNSTypes.h"
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"               // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
@@ -32,20 +33,6 @@ namespace mlir {
 namespace heir {
 namespace mod_arith {
 
-/// Ensures that the underlying integer type is wide enough for the coefficient
-template <typename OpType>
-LogicalResult verifyModArithType(OpType op, ModArithType type) {
-  APInt modulus = type.getModulus().getValue();
-  unsigned bitWidth = modulus.getBitWidth();
-  unsigned modWidth = modulus.getActiveBits();
-  if (modWidth > bitWidth - 1)
-    return op.emitOpError()
-           << "underlying type's bitwidth must be 1 bit larger than "
-           << "the modulus bitwidth, but got " << bitWidth
-           << " while modulus requires width " << modWidth << ".";
-  return success();
-}
-
 template <typename OpType>
 LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
                               IntegerType integerType) {
@@ -62,29 +49,7 @@ LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
 LogicalResult ExtractOp::verify() {
   auto modArithType = getOperandModArithType(*this);
   auto integerType = getResultIntegerType(*this);
-  auto result = verifySameWidth(*this, modArithType, integerType);
-  if (result.failed()) return result;
-  return verifyModArithType(*this, modArithType);
-}
-
-LogicalResult ReduceOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult AddOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult SubOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult MulOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
-}
-
-LogicalResult MacOp::verify() {
-  return verifyModArithType(*this, getResultModArithType(*this));
+  return verifySameWidth(*this, modArithType, integerType);
 }
 
 LogicalResult BarrettReduceOp::verify() {
