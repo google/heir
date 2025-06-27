@@ -38,7 +38,8 @@ namespace openfhe {
 ::mlir::LogicalResult translateToOpenFhePke(::mlir::Operation *op,
                                             llvm::raw_ostream &os,
                                             const OpenfheImportType &importType,
-                                            const std::string &weightsFile);
+                                            const std::string &weightsFile,
+                                            bool skipVectorResizing);
 
 // A map from the SSA value name of a 1-D dense element constants to its value.
 // Note that multidimensional shapes are handled as flattened 1-D vectors.
@@ -61,7 +62,7 @@ class OpenFhePkeEmitter {
  public:
   OpenFhePkeEmitter(raw_ostream &os, SelectVariableNames *variableNames,
                     const OpenfheImportType &importType,
-                    const std::string &weightsFile);
+                    const std::string &weightsFile, bool skipVectorResizing);
 
   LogicalResult translate(::mlir::Operation &operation);
 
@@ -82,6 +83,9 @@ class OpenFhePkeEmitter {
   Weights weightsMap_;
 
   const std::string &weightsFile_;
+
+  // Whether to skip resizing vectors to ring dimension / 2
+  bool skipVectorResizing_;
 
   // Functions for printing individual ops
   LogicalResult printOperation(::mlir::ModuleOp op);

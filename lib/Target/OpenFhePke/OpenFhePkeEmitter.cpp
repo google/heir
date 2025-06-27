@@ -233,9 +233,11 @@ FailureOr<std::string> getWeightType(Type type) {
 
 LogicalResult translateToOpenFhePke(Operation *op, llvm::raw_ostream &os,
                                     const OpenfheImportType &importType,
-                                    const std::string &weightsFile) {
+                                    const std::string &weightsFile,
+                                    bool skipVectorResizing) {
   SelectVariableNames variableNames(op);
-  OpenFhePkeEmitter emitter(os, &variableNames, importType, weightsFile);
+  OpenFhePkeEmitter emitter(os, &variableNames, importType, weightsFile,
+                            skipVectorResizing);
   LogicalResult result = emitter.translate(*op);
   return result;
 }
@@ -1191,16 +1193,21 @@ LogicalResult OpenFhePkeEmitter::printOperation(
 LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakePackedPlaintextOp op) {
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
-  std::string filledPrefix =
-      variableNames->getNameForValue(op.getResult()) + "_filled";
-  std::string inputVarFilledName = filledPrefix;
-  std::string inputVarFilledLengthName = filledPrefix + "_n";
-
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
   std::string cc = variableNames->getNameForValue(resultCC.value());
 
+  if (skipVectorResizing_) {
+    emitAutoAssignPrefix(op.getResult());
+    os << cc << "->MakePackedPlaintext(" << inputVarName << ");\n";
+    return success();
+  }
   // cyclic repetition to mitigate openfhe zero-padding (#645)
+  std::string filledPrefix =
+      variableNames->getNameForValue(op.getResult()) + "_filled";
+  std::string &inputVarFilledName = filledPrefix;
+  std::string inputVarFilledLengthName = filledPrefix + "_n";
+
   os << "auto " << inputVarFilledLengthName << " = " << cc
      << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
         "2;\n";
@@ -1212,25 +1219,30 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   os << "  " << inputVarFilledName << ".push_back(" << inputVarName << "[i % "
      << inputVarName << ".size()]);\n";
   os << "}\n";
-
   emitAutoAssignPrefix(op.getResult());
   os << cc << "->MakePackedPlaintext(" << inputVarFilledName << ");\n";
+
   return success();
 }
 
 LogicalResult OpenFhePkeEmitter::printOperation(
     openfhe::MakeCKKSPackedPlaintextOp op) {
   std::string inputVarName = variableNames->getNameForValue(op.getValue());
-  std::string filledPrefix =
-      variableNames->getNameForValue(op.getResult()) + "_filled";
-  std::string inputVarFilledName = filledPrefix;
-  std::string inputVarFilledLengthName = filledPrefix + "_n";
-
   FailureOr<Value> resultCC = getContextualCryptoContext(op.getOperation());
   if (failed(resultCC)) return resultCC;
   std::string cc = variableNames->getNameForValue(resultCC.value());
 
+  if (skipVectorResizing_) {
+    emitAutoAssignPrefix(op.getResult());
+    os << variableNames->getNameForValue(resultCC.value())
+       << "->MakeCKKSPackedPlaintext(" << inputVarName << ");\n";
+    return success();
+  }
   // cyclic repetition to mitigate openfhe zero-padding (#645)
+  std::string filledPrefix =
+      variableNames->getNameForValue(op.getResult()) + "_filled";
+  std::string inputVarFilledName = filledPrefix;
+  std::string inputVarFilledLengthName = filledPrefix + "_n";
   os << "auto " << inputVarFilledLengthName << " = " << cc
      << "->GetCryptoParameters()->GetElementParams()->GetRingDimension() / "
         "2;\n";
@@ -1245,6 +1257,7 @@ LogicalResult OpenFhePkeEmitter::printOperation(
   emitAutoAssignPrefix(op.getResult());
   os << variableNames->getNameForValue(resultCC.value())
      << "->MakeCKKSPackedPlaintext(" << inputVarFilledName << ");\n";
+
   return success();
 }
 
@@ -1481,11 +1494,13 @@ LogicalResult OpenFhePkeEmitter::emitType(Type type, Location loc,
 OpenFhePkeEmitter::OpenFhePkeEmitter(raw_ostream &os,
                                      SelectVariableNames *variableNames,
                                      const OpenfheImportType &importType,
-                                     const std::string &weightsFile)
+                                     const std::string &weightsFile,
+                                     bool skipVectorResizing)
     : importType_(importType),
       os(os),
       variableNames(variableNames),
-      weightsFile_(weightsFile) {}
+      weightsFile_(weightsFile),
+      skipVectorResizing_(skipVectorResizing) {}
 }  // namespace openfhe
 }  // namespace heir
 }  // namespace mlir
