@@ -5,6 +5,7 @@
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Dominance.h"              // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
 #include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
 #include "mlir/include/mlir/Pass/Pass.h"                 // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
@@ -29,8 +30,9 @@ struct ForwardSingleInsertToExtract
                                 PatternRewriter &rewriter) const override;
 
  private:
-  bool isForwardableOp(Operation *potentialInsert,
-                       tensor::ExtractOp &extractOp) const;
+  FailureOr<OpFoldResult> getValueAtIndex(
+      TypedValue<RankedTensorType> tensor,
+      SmallVector<OpFoldResult> indices) const;
 
   DominanceInfo &dominanceInfo;
 };
