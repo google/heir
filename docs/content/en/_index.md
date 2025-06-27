@@ -47,12 +47,10 @@ figure src="/images/dialects.svg" link="/images/dialects.svg" %}}
   compared across accelerators.
 - Provide a platform for research into novel FHE optimizations.
 - Provide a platform for benchmarking.
-- Provide integrations with multiple front-end languages, such as ClangIR and
+- Provide integrations with multiple front-end languages, such as Python and
   TensorFlow.
 
-## Partners
-
-TODO(b/287634511): add list of partner companies and universities
+## Disclaimers
 
 The HEIR codebase and documentation are maintained by Google.
 
