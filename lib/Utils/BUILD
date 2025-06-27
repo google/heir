@@ -130,6 +130,12 @@ cc_library(
 )
 
 cc_library(
+    name = "LogArithmetic",
+    srcs = ["LogArithmetic.cpp"],
+    hdrs = ["LogArithmetic.h"],
+)
+
+cc_library(
     name = "TargetUtils",
     srcs = ["TargetUtils.cpp"],
     hdrs = ["TargetUtils.h"],
