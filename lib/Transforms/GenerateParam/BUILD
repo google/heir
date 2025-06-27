@@ -22,6 +22,7 @@ cc_library(
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseByBoundCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BFV:NoiseByVarianceCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByBoundCoeffModel",
+        "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseBySymbolCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseByVarianceCoeffModel",
         "@heir//lib/Analysis/NoiseAnalysis/BGV:NoiseCanEmbModel",
         "@heir//lib/Analysis/SecretnessAnalysis",
