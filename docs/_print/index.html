@@ -28,7 +28,7 @@ for a list of available binaries):</p><div class=highlight><pre tabindex=0 style
 </span></span><span style=display:flex><span>mv bazelisk-linux-amd64 bazel
 </span></span><span style=display:flex><span>chmod +x bazel
 </span></span></code></pre></div><p>You will then likely want to move <code>bazel</code> to a location on your PATH, or add its
-location to your PATH, e.g.:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir ~/bin
+location to your PATH, e.g.:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p ~/bin
 </span></span><span style=display:flex><span><span style=color:#204a87>echo</span> <span style=color:#4e9a06>&#39;export PATH=$PATH:~/bin&#39;</span> &gt;&gt; ~/.bashrc
 </span></span><span style=display:flex><span>mv bazel ~/bin/bazel
 </span></span></code></pre></div><p>Note that on linux systems, your OS user must <strong>not</strong> be <code>root</code> as bazel might
@@ -370,7 +370,7 @@ extensions</p></li><li><p>Install and rename Buildifier:</p><p>You can download 
 for a list of available binaries):</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
 </span></span><span style=display:flex><span>mv buildifier-linux-amd64 buildifier
 </span></span><span style=display:flex><span>chmod +x buildifier
-</span></span></code></pre></div><p>Just as with bazel, you will want to move this somewhere on your PATH, e.g.:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir ~/bin
+</span></span></code></pre></div><p>Just as with bazel, you will want to move this somewhere on your PATH, e.g.:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p ~/bin
 </span></span><span style=display:flex><span><span style=color:#204a87>echo</span> <span style=color:#4e9a06>&#39;export PATH=$PATH:~/bin&#39;</span> &gt;&gt; ~/.bashrc
 </span></span><span style=display:flex><span>mv buildifier ~/bin/buildifier
 </span></span></code></pre></div><p>VS Code should automatically detect buildifier. If this is not successful, you
@@ -513,8 +513,13 @@ similar to the following:</p><pre tabindex=0><code>python scripts/templates/temp
 pre-commit hooks for the project; for example, each time you commit code, the
 hooks will make sure that your C++ is formatted properly. If your code isn&rsquo;t,
 the hook will format it, so when you try to commit the second time you&rsquo;ll get
-past the hook.</p><p>All hooks are defined in <code>.pre-commit-config.yaml</code>. To install these hooks, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pip install -r requirements-dev.txt
-</span></span></code></pre></div><p>Then install the hooks to run automatically on <code>git commit</code>:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit install
+past the hook. Note that spelling mistakes identified by the codespell hook will
+not be auto-corrected and require manual resolution, rather than simply
+re-running pre-commit.</p><p>All hooks are defined in <code>.pre-commit-config.yaml</code>. To install these hooks, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pip install -r requirements-dev.txt
+</span></span></code></pre></div><p>You will also need to install ruby and go (e.g., <code>apt-get install ruby golang</code>)
+which are used by some of the pre-commits. Note that the pre-commit environment
+expects Python 3.11
+(<a href=https://askubuntu.com/a/1512163>Installing python3.11 on ubuntu</a>).</p><p>Then install the hooks to run automatically on <code>git commit</code>:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit install
 </span></span></code></pre></div><p>To run them manually, run</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>pre-commit run --all-files
 </span></span></code></pre></div></div><div class=td-content style=page-break-before:always><h1 id=pg-e62e32c8f8aaa5c7325bea5a1b00e345>4 - Tutorials and Talks</h1><p>A list of tutorials by the HEIR community. To add to this list, open an issue or
 submit a pull request
