@@ -46,3 +46,17 @@ func.func @test_yield_type_agrees_with_generic(%value: !secret.secret<i32>) {
     } -> (!secret.secret<i32>)
   return
 }
+
+// -----
+
+// Regression test for printer that would skip parens when outputting a generic
+// op with no inputs.
+
+func.func @no_inputs() -> !secret.secret<memref<1xf32>> {
+  // expected-error@+1 {{expected '('}}
+  %0 = secret.generic {
+    %alloc = memref.alloc() : memref<1xf32>
+    secret.yield %alloc : memref<1xf32>
+  } -> !secret.secret<memref<1xf32>>
+  return %0 : !secret.secret<memref<1xf32>>
+}

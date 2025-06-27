@@ -83,17 +83,14 @@ LogicalResult YieldOp::verify() {
 void GenericOp::print(OpAsmPrinter &p) {
   ValueRange inputs = getInputs();
 
-  if (!inputs.empty()) {
-    p << "(";
-    llvm::interleaveComma(
-        llvm::seq<size_t>(0, inputs.size()), p, [&](size_t i) {
-          p.printOperand(inputs[i]);
-          p << ": ";
-          p.printType(inputs[i].getType());
-          p.printOptionalAttrDict(NamedAttrList((getOperandAttrDict(i))));
-        });
-    p << ")";
-  }
+  p << "(";
+  llvm::interleaveComma(llvm::seq<size_t>(0, inputs.size()), p, [&](size_t i) {
+    p.printOperand(inputs[i]);
+    p << ": ";
+    p.printType(inputs[i].getType());
+    p.printOptionalAttrDict(NamedAttrList((getOperandAttrDict(i))));
+  });
+  p << ")";
 
   NamedAttrList attrs = (*this)->getAttrs();
   attrs.erase(kOperandAttrsName);
