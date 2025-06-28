@@ -49,23 +49,33 @@ using tensor_ext::UnpackOp;
 
 auto &kOriginalTypeAttrName = TensorExtDialect::kOriginalTypeAttrName;
 
+namespace {
+Type stripSecretType(Type type) {
+  if (auto secretType = dyn_cast<SecretType>(type))
+    return secretType.getValueType();
+  return type;
+}
+}  // namespace
+
 /// Generates an encryption func for one types.
 LogicalResult generateEncryptionFunc(func::FuncOp op,
                                      BlockArgument funcArgument,
                                      ImplicitLocOpBuilder &builder,
-                                     int64_t ciphertextSize) {
+                                     int64_t ciphertextSize,
+                                     bool enableLayoutAssignment) {
   std::string encFuncName("");
   llvm::raw_string_ostream encNameOs(encFuncName);
   encNameOs << op.getSymName() << "__encrypt__arg"
             << funcArgument.getArgNumber();
   auto originalTypeAttr = op.getArgAttrOfType<OriginalTypeAttr>(
       funcArgument.getArgNumber(), kOriginalTypeAttrName);
-  if (!originalTypeAttr) {
+  if (enableLayoutAssignment && !originalTypeAttr) {
     return op.emitError() << "function argument at index "
                           << funcArgument.getArgNumber()
                           << " missing original type attribute";
   }
-  Type encArgType = originalTypeAttr.getOriginalType();
+  Type encArgType = originalTypeAttr ? originalTypeAttr.getOriginalType()
+                                     : stripSecretType(funcArgument.getType());
   Type encReturnType = funcArgument.getType();
 
   FunctionType encFuncType =
@@ -91,19 +101,23 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
 
   // If the output is encrypted, we need to encode and encrypt
   if (auto resultCtTy = dyn_cast<SecretType>(encReturnType)) {
-    // Apply the layout from the original type, which handles the job of
-    // converting a scalar to a tensor, and out a tensor in a
-    // ciphertext-semantic tensor so that it can then be encoded/encrypted.
-    // Note that this op still needs to be lowered, which implies the
-    // relevant pattern from convert-to-ciphertext-semantics must be run
-    // after this pass.
-    auto assignLayoutOp =
-        builder.create<AssignLayoutOp>(operand, originalTypeAttr.getLayout());
-    auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
-                                     [&](Operation *createdOp) {});
-    if (failed(res)) return failure();
-    b.replaceOp(assignLayoutOp, res.value());
-    auto encrypted = builder.create<ConcealOp>(res.value());
+    Value valueToEncrypt = operand;
+    if (enableLayoutAssignment) {
+      // Apply the layout from the original type, which handles the job of
+      // converting a scalar to a tensor, and out a tensor in a
+      // ciphertext-semantic tensor so that it can then be encoded/encrypted.
+      // Note that this op still needs to be lowered, which implies the
+      // relevant pattern from convert-to-ciphertext-semantics must be run
+      // after this pass.
+      auto assignLayoutOp =
+          builder.create<AssignLayoutOp>(operand, originalTypeAttr.getLayout());
+      auto res = implementAssignLayout(assignLayoutOp, ciphertextSize, builder,
+                                       [&](Operation *createdOp) {});
+      if (failed(res)) return failure();
+      b.replaceOp(assignLayoutOp, res.value());
+      valueToEncrypt = res.value();
+    }
+    auto encrypted = builder.create<ConcealOp>(valueToEncrypt);
     encValuesToReturn.push_back(encrypted.getResult());
   } else {
     // Otherwise, return the input unchanged.
@@ -117,22 +131,27 @@ LogicalResult generateEncryptionFunc(func::FuncOp op,
 /// Generates a decryption func for one type.
 LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
                                      int originalFuncReturnIndex,
-                                     ImplicitLocOpBuilder &builder) {
+                                     ImplicitLocOpBuilder &builder,
+                                     bool enableLayoutAssignment) {
   std::string decFuncName("");
   llvm::raw_string_ostream encNameOs(decFuncName);
   encNameOs << op.getSymName() << "__decrypt__result"
             << originalFuncReturnIndex;
   auto originalTypeAttr = op.getResultAttrOfType<OriginalTypeAttr>(
       originalFuncReturnIndex, kOriginalTypeAttrName);
-  if (!originalTypeAttr) {
+  Type originalType = originalTypeAttr ? originalTypeAttr.getOriginalType()
+                                       : stripSecretType(decFuncArgType);
+  assert(op.getFunctionType().getResult(originalFuncReturnIndex) ==
+             decFuncArgType &&
+         "Decryption func arg type must match original func return type");
+  if (enableLayoutAssignment && !originalTypeAttr) {
     return op.emitError() << "function return value at index "
                           << originalFuncReturnIndex
                           << " missing original type attribute";
   }
   SmallVector<Type> funcArgTypes = {decFuncArgType};
   FunctionType decFuncType =
-      FunctionType::get(builder.getContext(), {decFuncArgType},
-                        {originalTypeAttr.getOriginalType()});
+      FunctionType::get(builder.getContext(), {decFuncArgType}, {originalType});
   auto decFuncOp = builder.create<func::FuncOp>(decFuncName, decFuncType);
 
   decFuncOp->setAttr(
@@ -152,15 +171,19 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
   // If the input is ciphertext, we need to decrypt and unpack
   if (auto argCtTy = dyn_cast<SecretType>(decFuncArgType)) {
     auto decrypted = builder.create<RevealOp>(decFuncOp.getArgument(0));
-    Type dataSemanticType = originalTypeAttr.getOriginalType();
-    auto unpackOp = builder.create<tensor_ext::UnpackOp>(
-        dataSemanticType, decrypted.getResult(), originalTypeAttr.getLayout());
+    if (!enableLayoutAssignment) {
+      decValuesToReturn.push_back(decrypted.getResult());
+    } else {
+      Type dataSemanticType = originalTypeAttr.getOriginalType();
+      auto unpackOp = builder.create<tensor_ext::UnpackOp>(
+          dataSemanticType, decrypted.getResult(),
+          originalTypeAttr.getLayout());
 
-    Value res =
-        implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});
-    b.replaceOp(unpackOp, res);
-
-    decValuesToReturn.push_back(res);
+      Value res =
+          implementUnpackOp(unpackOp, builder, [&](Operation *createdOp) {});
+      b.replaceOp(unpackOp, res);
+      decValuesToReturn.push_back(res);
+    }
   } else {
     // Otherwise, return the input unchanged.
     decValuesToReturn.push_back(decFuncOp.getArgument(0));
@@ -172,7 +195,8 @@ LogicalResult generateDecryptionFunc(func::FuncOp op, Type decFuncArgType,
 
 /// Adds the client interface for a single func. This should only be used on the
 /// "entry" func for the IR being compiled, but there may be multiple.
-LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize) {
+LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize,
+                          bool enableLayoutAssignment) {
   if (op.isDeclaration()) {
     LLVM_DEBUG(op->emitWarning("Skipping client interface for external func"));
     return success();
@@ -188,7 +212,8 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize) {
   for (BlockArgument val : op.getArguments()) {
     auto argTy = val.getType();
     if (auto argCtTy = dyn_cast<SecretType>(argTy)) {
-      if (failed(generateEncryptionFunc(op, val, builder, ciphertextSize))) {
+      if (failed(generateEncryptionFunc(op, val, builder, ciphertextSize,
+                                        enableLayoutAssignment))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -200,7 +225,8 @@ LogicalResult convertFunc(func::FuncOp op, int64_t ciphertextSize) {
   for (size_t i = 0; i < returnTypes.size(); ++i) {
     auto returnTy = returnTypes[i];
     if (auto returnCtTy = dyn_cast<SecretType>(returnTy)) {
-      if (failed(generateDecryptionFunc(op, returnCtTy, i, builder))) {
+      if (failed(generateDecryptionFunc(op, returnCtTy, i, builder,
+                                        enableLayoutAssignment))) {
         return failure();
       }
       // insertion point is inside func, move back out
@@ -218,7 +244,7 @@ struct AddClientInterface : impl::AddClientInterfaceBase<AddClientInterface> {
   void runOnOperation() override {
     Operation *root = getOperation();
     auto result = root->walk<WalkOrder::PreOrder>([&](func::FuncOp op) {
-      if (failed(convertFunc(op, ciphertextSize))) {
+      if (failed(convertFunc(op, ciphertextSize, enableLayoutAssignment))) {
         op->emitError("Failed to add client interface for func");
         return WalkResult::interrupt();
       }

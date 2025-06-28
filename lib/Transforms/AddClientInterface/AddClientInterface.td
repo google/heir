@@ -16,7 +16,7 @@ def AddClientInterface : Pass<"add-client-interface"> {
   backends like the plaintext backend don't actually encrypt, but still require
   the ciphertext layout/packing logic to convert cleartexts to plaintexts.
   }];
-  let dependentDialects = ["mlir::heir::secret::SecretDialect"];
+  let dependentDialects = ["mlir::heir::secret::SecretDialect", "mlir::heir::tensor_ext::TensorExtDialect"];
 
   let options = [
     Option<
@@ -25,6 +25,13 @@ def AddClientInterface : Pass<"add-client-interface"> {
       "int",
       /*default=*/"1024",
       "Power of two length of the ciphertexts the data is packed in."
+    >,
+    Option<
+      "enableLayoutAssignment",
+      "enable-layout-assignment",
+      "bool",
+      /*default=*/"true",
+      "If false, skips the emission of layout assignment operations, essentially assuming that the input was already using correctly (ciphertext-)sized tensors."
     >
   ];
 }
