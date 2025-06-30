@@ -1,4 +1,4 @@
-// RUN: heir-opt -forward-insert-to-extract %s | FileCheck %s
+// RUN: heir-opt -fold-constant-tensors -forward-insert-to-extract %s | FileCheck %s
 
 
 !cc = !openfhe.crypto_context
@@ -165,4 +165,54 @@ func.func @two_extracts_both_forwarded(%arg0: !cc, %arg1: tensor<1x16x!ct>, %arg
   // CHECK: openfhe.add %[[ARG0]], %[[VAL2]], %[[VAL2]]
   %3 = openfhe.add %arg0, %extracted_1, %extracted_2 : (!cc, !ct, !ct) -> !ct
   return %3: !ct
+}
+
+// Tests forwarding an extract after a chain of insertions.
+
+// CHECK: @insert_chain_forwarded
+// CHECK-SAME:  (%[[ARG1:.*]]: tensor<2x[[ct_ty:.*]]>,
+// CHECK-SAME: %[[ct:.*]]: [[ct_ty]], %[[ct_1:.*]]: [[ct_ty]]) -> [[ct_ty]]
+func.func @insert_chain_forwarded(%arg1: tensor<2x!ct>, %ct: !ct, %ct_1: !ct) -> !ct {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %inserted = tensor.insert %ct into %arg1[%c0] : tensor<2x!ct>
+  %inserted_1 = tensor.insert %ct_1 into %inserted[%c1] : tensor<2x!ct>
+  %extracted = tensor.extract %inserted_1[%c0] : tensor<2x!ct>
+  // CHECK: return %[[ct]]
+  return %extracted : !ct
+}
+
+// Tests forwarding a value from a constant through use-def chain.
+
+// CHECK: @extract_from_constant
+// CHECK-SAME: (%[[ARG0:.*]]: i32, %[[ARG1:.*]]: i32)
+func.func @extract_from_constant(%arg0: i32, %arg1: i32) -> (i32, i32) {
+  // CHECK: %[[c3_i32:.*]] = arith.constant 3 : i32
+  %const = arith.constant dense<[1, 2, 3]> : tensor<3xi32>
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %inserted = tensor.insert %arg0 into %const[%c0] : tensor<3xi32>
+  %inserted_1 = tensor.insert %arg1 into %inserted[%c1] : tensor<3xi32>
+  %extracted_0 = tensor.extract %inserted_1[%c0] : tensor<3xi32>
+  %extracted_2 = tensor.extract %inserted_1[%c2] : tensor<3xi32>
+  // CHECK: return %[[ARG0]], %[[c3_i32]]
+  return %extracted_0, %extracted_2 : i32, i32
+}
+
+// Tests forwarding a value from a from_elements op through use-def chain.
+
+// CHECK: @extract_from_elements
+// CHECK-SAME: (%[[ARG0:.*]]: i32, %[[ARG1:.*]]: i32, %[[ARG2:.*]]: i32)
+func.func @extract_from_elements(%arg0: i32, %arg1: i32, %arg2: i32) -> (i32, i32) {
+  %const = tensor.from_elements %arg0, %arg0, %arg0 : tensor<3xi32>
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %inserted = tensor.insert %arg1 into %const[%c1] : tensor<3xi32>
+  %inserted_1 = tensor.insert %arg2 into %inserted[%c2] : tensor<3xi32>
+  %extracted_0 = tensor.extract %inserted_1[%c0] : tensor<3xi32>
+  %extracted_2 = tensor.extract %inserted_1[%c2] : tensor<3xi32>
+  // CHECK: return %[[ARG0]], %[[ARG2]]
+  return %extracted_0, %extracted_2 : i32, i32
 }

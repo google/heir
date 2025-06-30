@@ -1,17 +1,28 @@
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h"
 
+#include <cstdint>
 #include <utility>
 
+#include "lib/Utils/TensorUtils.h"
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"     // from @llvm-project
 #include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"           // from @llvm-project
 #include "llvm/include/llvm/Support/Debug.h"             // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/Utils.h"      // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
 #include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/ValueRange.h"             // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "mlir/include/mlir/Dialect/Utils/StaticValueUtils.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
+#include "mlir/include/mlir/IR/OpDefinition.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"        // from @llvm-project
+#include "mlir/include/mlir/IR/Value.h"               // from @llvm-project
+#include "mlir/include/mlir/IR/ValueRange.h"          // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
+#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
 
 #define DEBUG_TYPE "forward-insert-to-extract"
@@ -22,64 +33,70 @@ namespace heir {
 #define GEN_PASS_DEF_FORWARDINSERTTOEXTRACT
 #include "lib/Transforms/ForwardInsertToExtract/ForwardInsertToExtract.h.inc"
 
-bool ForwardSingleInsertToExtract::isForwardableOp(
-    Operation *potentialInsert, tensor::ExtractOp &extractOp) const {
-  if (!dominanceInfo.properlyDominates(potentialInsert,
-                                       extractOp.getOperation())) {
-    LLVM_DEBUG(llvm::dbgs() << "insert op does not dominate extract op\n");
-    return false;
+FailureOr<OpFoldResult> ForwardSingleInsertToExtract::getValueAtIndex(
+    TypedValue<RankedTensorType> tensor,
+    SmallVector<OpFoldResult> indices) const {
+  auto *def = tensor.getDefiningOp();
+  if (!def) {
+    LLVM_DEBUG(llvm::dbgs() << "No defining op for the extract op\n");
+    return failure();
   }
 
-  if (extractOp->getBlock() != potentialInsert->getBlock()) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "insert and extract op are not in the same block\n");
-    return false;
-  }
+  LLVM_DEBUG(llvm::dbgs() << "Considering def for forwarding: " << *def
+                          << "\n");
 
-  return llvm::TypeSwitch<Operation &, bool>(*potentialInsert)
-      .Case<tensor::InsertOp>([&](auto insertOp) {
-        ValueRange insertIndices = insertOp.getIndices();
-        ValueRange extractIndices = extractOp.getIndices();
-        if (insertIndices != extractIndices) {
-          LLVM_DEBUG(llvm::dbgs()
-                     << "insert and extract op do not have matching indices\n");
-          return false;
-        }
-
-        // Naively scan through the operations between the two ops and check if
-        // anything prevents forwarding.
-        for (auto currentNode = insertOp->getNextNode();
-             currentNode != extractOp.getOperation();
-             currentNode = currentNode->getNextNode()) {
-          if (currentNode->getNumRegions() > 0) {
-            LLVM_DEBUG(llvm::dbgs() << "an op with control flow is between the "
-                                       "insert and extract op\n");
-            return false;
-          }
-
-          if (auto op = dyn_cast<tensor::InsertOp>(currentNode)) {
-            if (op.getDest() == insertOp.getDest() &&
-                op.getIndices() == insertIndices) {
+  return llvm::TypeSwitch<Operation &, FailureOr<OpFoldResult>>(*def)
+      .Case<tensor::InsertOp>(
+          [&](tensor::InsertOp insertOp) -> FailureOr<OpFoldResult> {
+            // Check if indices match. If not, continue to defining op of
+            // the insertion.
+            auto insertIndices = getAsOpFoldResult(insertOp.getIndices());
+            if (isEqualConstantIntOrValueArray(insertIndices, indices)) {
+              // Found a match, so retrieve the value inserted.
               LLVM_DEBUG(llvm::dbgs()
-                         << "an intermediate op inserts to the same index\n");
-              return false;
+                         << "insert and op matches extracted indices: "
+                         << insertOp << "\n");
+              return getAsOpFoldResult(insertOp.getScalar());
             }
-          }
-        }
-        return true;
+
+            LLVM_DEBUG(llvm::dbgs()
+                       << "insert and extract op do not have matching "
+                          "indices, continuing to defining op\n");
+            return getValueAtIndex(insertOp.getDest(), indices);
+          })
+      .Case<arith::ConstantOp>([&](auto constantOp) -> FailureOr<OpFoldResult> {
+        // If this is a splat elements attribute, simply return the value.
+        if (auto splatTensor =
+                llvm::dyn_cast<SplatElementsAttr>(constantOp.getValue()))
+          return OpFoldResult(splatTensor.template getSplatValue<Attribute>());
+        // Collect the constant indices into the tensor.
+        auto maybeConstIndices = getConstantIntValues(indices);
+        if (!maybeConstIndices.has_value()) return failure();
+        auto constIndices = llvm::map_to_vector(
+            maybeConstIndices.value(),
+            [](int64_t i) { return static_cast<uint64_t>(i); });
+        // If this is an elements attribute, query the value at the given
+        // indices.
+        auto elementsAttr = llvm::dyn_cast<ElementsAttr>(constantOp.getValue());
+        if (elementsAttr && elementsAttr.isValidIndex(constIndices))
+          return OpFoldResult(
+              elementsAttr.template getValues<Attribute>()[constIndices]);
+
+        return failure();
+      })
+      .Case<tensor::FromElementsOp>([&](tensor::FromElementsOp fromElementsOp)
+                                        -> FailureOr<OpFoldResult> {
+        // Get the element at the flattened index of the tensor.
+        auto flatIndex = getFlattenedIndex(fromElementsOp.getType(), indices);
+        if (failed(flatIndex)) return failure();
+        return OpFoldResult(fromElementsOp.getElements()[flatIndex.value()]);
       })
       .Default([&](Operation &) {
         LLVM_DEBUG(llvm::dbgs()
-                   << "Unsupported op type, cannot check for forwardability\n");
-        return false;
+                   << "Unsupported defining operation, cannot "
+                      "traverse backwards to check for forwardable values\n");
+        return failure();
       });
-}
-
-FailureOr<Value> getInsertedValue(Operation *insertOp) {
-  return llvm::TypeSwitch<Operation &, FailureOr<Value>>(*insertOp)
-      .Case<tensor::InsertOp>(
-          [&](auto insertOp) { return insertOp.getScalar(); })
-      .Default([&](Operation &) { return failure(); });
 }
 
 LogicalResult ForwardSingleInsertToExtract::matchAndRewrite(
@@ -87,30 +104,21 @@ LogicalResult ForwardSingleInsertToExtract::matchAndRewrite(
   LLVM_DEBUG(llvm::dbgs() << "Considering extractOp for replacement: "
                           << extractOp << "\n");
 
-  auto *def = extractOp.getTensor().getDefiningOp();
-  if (def != nullptr) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "DefiningOp of the one considered: "
-               << *extractOp.getTensor().getDefiningOp<tensor::InsertOp>()
-               << "\n");
-
-    LLVM_DEBUG(llvm::dbgs()
-               << "Considering def for forwarding: " << *def << "\n");
-    if (isForwardableOp(def, extractOp)) {
-      auto result = getInsertedValue(def);
-      LLVM_DEBUG(llvm::dbgs() << "def is forwardable: " << *def << "\n");
-      if (failed(result)) {
-        return failure();
-      }
-      auto value = result.value();
-      rewriter.replaceAllUsesWith(extractOp, value);
-      return success();
-    }
-    LLVM_DEBUG(llvm::dbgs() << "def is not forwardable: " << *def << "\n");
-  } else {
-    LLVM_DEBUG(llvm::dbgs() << "def is nullptr " << "\n");
+  auto result = getValueAtIndex(extractOp.getTensor(),
+                                getAsOpFoldResult(extractOp.getIndices()));
+  if (failed(result)) {
+    LLVM_DEBUG(llvm::dbgs() << "no forwardable values found: \n");
+    return failure();
   }
-  return failure();
+  OpFoldResult forwardedResult = result.value();
+  if (auto forwardedValue = dyn_cast<Value>(forwardedResult)) {
+    rewriter.replaceAllUsesWith(extractOp, forwardedValue);
+  } else {
+    auto forwardedAttr = cast<TypedAttr>(cast<Attribute>(forwardedResult));
+    rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+        extractOp, forwardedAttr.getType(), forwardedAttr);
+  }
+  return success();
 }
 
 struct ForwardInsertToExtract

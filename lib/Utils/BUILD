@@ -27,6 +27,18 @@ cc_library(
 )
 
 cc_library(
+    name = "TensorUtils",
+    srcs = ["TensorUtils.cpp"],
+    hdrs = ["TensorUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "APIntUtils",
     srcs = ["APIntUtils.cpp"],
     hdrs = ["APIntUtils.h"],
