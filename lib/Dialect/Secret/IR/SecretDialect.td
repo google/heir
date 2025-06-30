@@ -28,6 +28,8 @@ def Secret_Dialect : Dialect {
         kArgUnknownAttrName = "secret.unknown";
     constexpr const static ::llvm::StringLiteral
         kSecretInitsAttrName = "secret.secret_inits";
+    constexpr const static ::llvm::StringLiteral
+        kKernelAttrName = "secret.kernel";
 
     // Name of the attribute for plaintext backend execution result.
     constexpr const static ::llvm::StringLiteral
@@ -36,6 +38,7 @@ def Secret_Dialect : Dialect {
 
   let cppNamespace = "::mlir::heir::secret";
   let useDefaultTypePrinterParser = 1;
+  let useDefaultAttributePrinterParser = 1;
 }
 
 #endif  // LIB_DIALECT_SECRET_IR_SECRETDIALECT_TD_

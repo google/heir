@@ -10,21 +10,54 @@ cc_library(
     srcs = ["LayoutOptimization.cpp"],
     hdrs = ["LayoutOptimization.h"],
     deps = [
+        ":Hoisting",
+        ":InterfaceImpl",
         ":Patterns",
         ":pass_inc_gen",
+        "@heir//lib/Dialect:HEIRInterfaces",
         "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
         "@heir//lib/Utils:AttributeUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:LinalgInterfaces",
         "@llvm-project//mlir:Pass",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
+    name = "Hoisting",
+    srcs = ["Hoisting.h"],
+    hdrs = [],
+    deps = [
+        "@heir//lib/Dialect/TensorExt/IR:Dialect",
+        "@heir//lib/Kernel",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
+    name = "InterfaceImpl",
+    srcs = ["InterfaceImpl.cpp"],
+    hdrs = [
+        "Hoisting.h",
+        "InterfaceImpl.h",
+    ],
+    deps = [
+        ":Hoisting",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtAttributes",
+        "@heir//lib/Dialect/TensorExt/IR:TensorExtOps",
+        "@heir//lib/Kernel",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 
