@@ -38,6 +38,8 @@ td_library(
     # include from the heir-root to enable fully-qualified include-paths
     includes = ["../../../.."],
     deps = [
+        "@heir//lib/Dialect/ModArith/IR:td_files",
+        "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
@@ -82,7 +84,6 @@ add_heir_dialect_library(
     td_file = "PolynomialOps.td",
     deps = [
         ":td_files",
-        "@heir//lib/Dialect/ModArith/IR:td_files",
     ],
 )
 
@@ -93,7 +94,5 @@ gentbl_cc_library(
     td_file = "PolynomialCanonicalization.td",
     deps = [
         ":td_files",
-        "@heir//lib/Dialect/ModArith/IR:td_files",
-        "@llvm-project//mlir:ArithOpsTdFiles",
     ],
 )
