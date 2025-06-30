@@ -65,3 +65,17 @@ func.func @preserve_attrs(%arg0: tensor<1x1024xf32>) -> !secret.secret<tensor<1x
     //CHECK: return %[[S:.*]] : !secret.secret<tensor<1x1024xf32>>
     return %7 : !secret.secret<tensor<1x1024xf32>>
 }
+
+// CHECK: func @no_inputs
+func.func @no_inputs() -> !secret.secret<memref<1xf32>> {
+  %c0_f32 = arith.constant 0.0 : f32
+  %c0 = arith.constant 0 : index
+  // CHECK: secret.generic()
+  %1 = secret.generic(%c0_f32: f32) {
+  ^body(%input0: f32):
+    %10 = memref.alloc() : memref<1xf32>
+    secret.yield %10 : memref<1xf32>
+  } -> (!secret.secret<memref<1xf32>>)
+  // CHECK: return
+  return %1 : !secret.secret<memref<1xf32>>
+}
