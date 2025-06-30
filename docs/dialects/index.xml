@@ -9070,11 +9070,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9089,7 +9089,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9361,11 +9361,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9380,7 +9380,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9490,11 +9490,11 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9509,7 +9509,7 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: Openfhe</title><link>https://heir.dev/docs/dialects/openfhe/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/openfhe/</guid><description>
