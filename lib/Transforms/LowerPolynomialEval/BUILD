@@ -26,7 +26,9 @@ cc_library(
     hdrs = ["Patterns.h"],
     deps = [
         "@heir//lib/Dialect/Polynomial/IR:Dialect",
+        "@heir//lib/Utils:ArithmeticDag",
         "@heir//lib/Utils/Polynomial",
+        "@heir//lib/Utils/Polynomial:ChebyshevPatersonStockmeyer",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",

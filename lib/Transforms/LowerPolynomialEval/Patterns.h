@@ -2,12 +2,9 @@
 #define LIB_TRANSFORMS_LOWERPOLYNOMIALEVAL_PATTERNS_H_
 
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
-#include "mlir/include/mlir/IR/Builders.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"        // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"       // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"          // from @llvm-project
-#include "mlir/include/mlir/Transforms/Passes.h"     // from @llvm-project
+#include "mlir/include/mlir/IR/MLIRContext.h"   // from @llvm-project
+#include "mlir/include/mlir/IR/PatternMatch.h"  // from @llvm-project
+#include "mlir/include/mlir/Support/LLVM.h"     // from @llvm-project
 
 // Lowering patterns for polynomial.eval.
 

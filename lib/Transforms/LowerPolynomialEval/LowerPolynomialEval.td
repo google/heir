@@ -21,10 +21,10 @@ def LowerPolynomialEval : Pass<"lower-polynomial-eval"> {
 
     - `"horner"`: Horner's method (monomial basis)
     - `"ps"` Paterson-Stockmeyer (monomial basis)
+    - `"pscheb"`: Paterson-Stockmeyer (Chebyshev basis)
 
   // TODO(#1565): Add support for Chebyshev-basis methods
   //  - `"clenshaw"`: Clenshaw's method (Chebyshev basis)
-  //  - `"ps-cheb"`: Paterson-Stockmeyer (Chebyshev basis)
   //  - `"bsgs"`: Baby Step Giant Step (Chebyshev basis)
   }];
   let dependentDialects = [
