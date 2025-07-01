@@ -114,4 +114,7 @@ def from_pip_installation() -> HEIRConfig:
   return HEIRConfig(
       heir_opt_path=package_path / "heir-opt",
       heir_translate_path=package_path / "heir-translate",
+      # These paths are configured in setup.py
+      techmap_dir_path=package_path / "techmaps",
+      abc_path=package_path / "abc",
   )
