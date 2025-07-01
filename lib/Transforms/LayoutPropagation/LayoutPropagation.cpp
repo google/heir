@@ -14,12 +14,11 @@
 #include "lib/Utils/AffineMapUtils.h"
 #include "lib/Utils/AttributeUtils.h"
 #include "lib/Utils/MathUtils.h"
-#include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
-#include "llvm/include/llvm/ADT/SmallVectorExtras.h"  // from @llvm-project
-#include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"          // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/STLExtras.h"               // from @llvm-project
+#include "llvm/include/llvm/ADT/SmallVectorExtras.h"       // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"   // from @llvm-project
@@ -984,8 +983,7 @@ void LayoutPropagation::setResultLayoutAttr(Operation *op) {
 
 void LayoutPropagation::runOnOperation() {
   DataFlowSolver solver;
-  solver.load<dataflow::DeadCodeAnalysis>();
-  solver.load<dataflow::SparseConstantPropagation>();
+  dataflow::loadBaselineAnalyses(solver);
   solver.load<SecretnessAnalysis>();
   if (failed(solver.initializeAndRun(getOperation()))) {
     getOperation()->emitOpError() << "Failed to run secretness analysis.\n";

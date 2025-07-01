@@ -21,9 +21,8 @@
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Parameters/BGV/Params.h"
 #include "lib/Transforms/GenerateParam/GenerateParam.h"
-#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/BuiltinAttributes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -161,8 +160,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
                             << schemeParam << "\n");
 
     DataFlowSolver solver;
-    solver.load<dataflow::DeadCodeAnalysis>();
-    solver.load<dataflow::SparseConstantPropagation>();
+    dataflow::loadBaselineAnalyses(solver);
     // NoiseAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
     solver.load<NoiseAnalysis<NoiseModel>>(schemeParam, model);

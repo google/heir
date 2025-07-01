@@ -3,9 +3,7 @@
 #include <utility>
 
 #include "lib/Analysis/TargetSlotAnalysis/TargetSlotAnalysis.h"
-#include "llvm/include/llvm/Support/Debug.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Builders.h"                 // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
@@ -15,8 +13,6 @@
 #include "mlir/include/mlir/IR/SymbolTable.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LogicalResult.h"       // from @llvm-project
 #include "mlir/include/mlir/Transforms/GreedyPatternRewriteDriver.h"  // from @llvm-project
-
-#define DEBUG_TYPE "insert-rotate"
 
 namespace mlir {
 namespace heir {
@@ -43,18 +39,7 @@ struct InsertRotate : impl::InsertRotateBase<InsertRotate> {
 
     SymbolTableCollection symbolTable;
     DataFlowSolver solver;
-
-    // These two upstream analyses are required to be instantiated in any
-    // sparse dataflow analysis, or else the analysis will be a no-op. Cf.
-    // https://github.com/llvm/llvm-project/issues/58922
-    solver.load<dataflow::DeadCodeAnalysis>();
-    // We want to use the result of the sparse constant propagation as an input
-    // to the target slot analysis. For some reason, actually running `--sccp`
-    // before this pass causes the IR to simplify away some operations that are
-    // needed to properly identify target slots.
-    solver.load<dataflow::SparseConstantPropagation>();
-    // TargetSlotAnalysis requires a SparseConstantPropagation analysis to fill
-    // dataflow::ConstantValue
+    dataflow::loadBaselineAnalyses(solver);
     solver.load<target_slot_analysis::TargetSlotAnalysis>(symbolTable);
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run the analysis.\n";

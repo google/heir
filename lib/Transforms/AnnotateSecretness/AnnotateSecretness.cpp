@@ -1,8 +1,7 @@
 #include "lib/Transforms/AnnotateSecretness/AnnotateSecretness.h"
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
-#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"              // from @llvm-project
 #include "mlir/include/mlir/Support/LLVM.h"                // from @llvm-project
@@ -18,8 +17,7 @@ struct AnnotateSecretness : impl::AnnotateSecretnessBase<AnnotateSecretness> {
 
   void runOnOperation() override {
     DataFlowSolver solver;
-    solver.load<dataflow::DeadCodeAnalysis>();
-    solver.load<dataflow::SparseConstantPropagation>();
+    dataflow::loadBaselineAnalyses(solver);
     solver.load<SecretnessAnalysis>();
 
     auto result = solver.initializeAndRun(getOperation());

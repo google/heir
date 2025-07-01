@@ -11,8 +11,7 @@
 #include "lib/Transforms/PopulateScale/PopulateScale.h"
 #include "lib/Transforms/PopulateScale/PopulateScalePatterns.h"
 #include "lib/Utils/APIntUtils.h"
-#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
 #include "mlir/include/mlir/IR/Operation.h"                // from @llvm-project
@@ -65,8 +64,7 @@ struct PopulateScaleBGV : impl::PopulateScaleBGVBase<PopulateScaleBGV> {
 
     DataFlowSolver solver;
     SymbolTableCollection symbolTable;
-    solver.load<dataflow::DeadCodeAnalysis>();
-    solver.load<dataflow::SparseConstantPropagation>();
+    dataflow::loadBaselineAnalyses(solver);
     // ScaleAnalysis depends on SecretnessAnalysis
     solver.load<SecretnessAnalysis>();
     // set input scale to 1, which is arbitrary.

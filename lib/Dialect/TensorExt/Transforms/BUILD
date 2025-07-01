@@ -73,7 +73,6 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Analysis/RotationAnalysis",
-        "@heir//lib/Dialect/Secret/IR:Dialect",
         "@heir//lib/Dialect/TensorExt/IR:Dialect",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Analysis",

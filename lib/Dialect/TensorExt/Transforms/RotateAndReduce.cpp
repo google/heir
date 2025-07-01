@@ -4,10 +4,9 @@
 
 #include "lib/Analysis/RotationAnalysis/RotationAnalysis.h"
 #include "lib/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "llvm/include/llvm/ADT/TypeSwitch.h"  // from @llvm-project
-#include "llvm/include/llvm/Support/Debug.h"   // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"  // from @llvm-project
-#include "mlir/include/mlir/Analysis/DataFlow/DeadCodeAnalysis.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"              // from @llvm-project
+#include "llvm/include/llvm/Support/Debug.h"               // from @llvm-project
+#include "mlir/include/mlir/Analysis/DataFlow/Utils.h"     // from @llvm-project
 #include "mlir/include/mlir/Analysis/DataFlowFramework.h"  // from @llvm-project
 #include "mlir/include/mlir/Analysis/SliceAnalysis.h"      // from @llvm-project
 #include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"      // from @llvm-project
@@ -73,11 +72,7 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
 
   void runOnOperation() override {
     DataFlowSolver solver;
-    // These two upstream analyses are required dependencies for any sparse
-    // dataflow analysis, or else the analysis will be a no-op. Cf.
-    // https://github.com/llvm/llvm-project/issues/58922
-    solver.load<dataflow::DeadCodeAnalysis>();
-    solver.load<dataflow::SparseConstantPropagation>();
+    dataflow::loadBaselineAnalyses(solver);
 
     if (failed(solver.initializeAndRun(getOperation()))) {
       getOperation()->emitOpError() << "Failed to run dataflow analysis.\n";
