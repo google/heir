@@ -35,11 +35,11 @@ py_library(
     ),
     data = DATA_DEPS,
     deps = [
-        "@frontend_pip_deps//colorama",
-        "@frontend_pip_deps//numba",
-        "@frontend_pip_deps//numpy",
-        "@frontend_pip_deps//pybind11",
-        "@frontend_pip_deps//pybind11_global",
+        "@heir_pip_deps//colorama",
+        "@heir_pip_deps//numba",
+        "@heir_pip_deps//numpy",
+        "@heir_pip_deps//pybind11",
+        "@heir_pip_deps//pybind11_global",
     ],
 )
 
