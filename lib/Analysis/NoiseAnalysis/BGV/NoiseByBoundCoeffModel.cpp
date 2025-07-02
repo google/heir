@@ -51,7 +51,27 @@ double NoiseByBoundCoeffModel::getExpansionFactor(
     case NoiseModelVariant::AVERAGE_CASE:
       // experimental result
       // cite HPS19 and KPZ21
+      // this applies for e * s, e * e
       return 2.0 * sqrt(n);
+    default:
+      llvm_unreachable("Unknown noise model variant");
+      return 0.0;
+  }
+}
+
+double NoiseByBoundCoeffModel::getExpansionFactorForModulusSwitching(
+    const LocalParamType &param) const {
+  auto n = param.getSchemeParam()->getRingDim();
+  switch (variant) {
+    case NoiseModelVariant::WORST_CASE:
+      // well known from DPSZ12
+      return n;
+    case NoiseModelVariant::AVERAGE_CASE:
+      // experimental result
+      // See https://github.com/openfheorg/openfhe-development/pull/1007
+      // this applies for tau * s, tau * tau, s * s
+      // where tau is the rounding error during modulus switching
+      return 4.0 * sqrt(n);
     default:
       llvm_unreachable("Unknown noise model variant");
       return 0.0;
@@ -133,15 +153,19 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
     const StateType &rhs) const {
   auto t = resultParam.getSchemeParam()->getPlaintextModulus();
   auto expansionFactor = getExpansionFactor(resultParam);
+  auto ringDim = resultParam.getSchemeParam()->getRingDim();
 
   // (m_0 + tv_0) * (m_1 + tv_1) <=
   //   [m_0 * m_1]_t + t(v_0 * m_1 + v_1 * m_0 + v_0 * v_1 + r_m)
   // where m_0 * m_1 = [m_0 * m_1]_t + tr_m
   // ||r_m|| <= delta * t / 2, delta is the expansion factor
   // v_mul = v_0 * m_1 + v_1 * m_0 + v_0 * v_1 + r_m
+  // for m_0 * m_1 we have to use the N expansion factor
   // ||v_mul|| <=
-  //   (delta * t / 2) * (2 * ||v_0|| * ||v_1|| + ||v_0|| + ||v_1|| + 1)
-  return (lhs * rhs * 2 + lhs + rhs + 1) * (expansionFactor * t / 2);
+  //   (delta * t / 2) * (2 * ||v_0|| * ||v_1|| + ||v_0|| + ||v_1||)
+  //   + N * (t / 2)
+  return (lhs * rhs * 2 + lhs + rhs + 1) * (expansionFactor * t / 2) +
+         ringDim * t / 2;
 }
 
 typename NoiseByBoundCoeffModel::StateType
@@ -157,7 +181,7 @@ NoiseByBoundCoeffModel::evalModReduce(const LocalParamType &inputParam,
 
   double modulus = pow(2.0, currentLogqi);
 
-  auto expansionFactor = getExpansionFactor(inputParam);
+  auto expansionFactorMS = getExpansionFactorForModulusSwitching(inputParam);
   auto boundKey = getBoundKey(inputParam);
 
   // modulus switching is essentially a scaling operation
@@ -166,10 +190,9 @@ NoiseByBoundCoeffModel::evalModReduce(const LocalParamType &inputParam,
   auto scaled = input * (1.0 / modulus);
   // in the meantime, it will introduce an rounding error
   // (tau_0, tau_1) to the (ct_0, ct_1) where ||tau_i|| < t / 2
-  // so ||tau_0 + tau_1 * s|| <= t / 2 (1 + delta ||s||)
-  // ||v_added|| <= (1 + delta * Bkey) / 2
-  // (1.0 + expansionFactor * boundKey) will give underestimation.
-  auto added = StateType::of(1.0 + expansionFactor * boundKey);
+  // so ||tau_0 + tau_1 * s|| <= t / 2 (1 + deltaMS ||s||)
+  // ||v_added|| <= (1 + deltaMS * Bkey) / 2
+  auto added = StateType::of((1.0 + expansionFactorMS * boundKey) / 2.0);
   return scaled + added;
 }
 
@@ -188,6 +211,7 @@ NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
 
   auto dnum = inputParam.getSchemeParam()->getDnum();
   auto expansionFactor = getExpansionFactor(inputParam);
+  auto expansionFactorMS = getExpansionFactorForModulusSwitching(inputParam);
   auto boundErr = getBoundErr(inputParam);
   auto boundKey = getBoundKey(inputParam);
 
@@ -210,7 +234,7 @@ NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
       StateType::of(currentNumDigit * expansionFactor * boundErr / 2.);
 
   // moddown added noise, similar to modreduce above.
-  auto added = StateType::of((1.0 + expansionFactor * boundKey) / 2);
+  auto added = StateType::of((1.0 + expansionFactorMS * boundKey) / 2);
 
   // Get input + scaled + added
   // for relinearization after multiplication, often scaled + added is far less
