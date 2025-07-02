@@ -2876,7 +2876,8 @@ while the compiled function may lose some of this information by the lowerings
 to ciphertext types (e.g., a scalar ciphertext, when lowered through RLWE schemes,
 must be encoded as a tensor).</p><p>This pass occurs at the secret level, which is necessary because some
 backends like the plaintext backend don&rsquo;t actually encrypt, but still require
-the ciphertext layout/packing logic to convert cleartexts to plaintexts.</p><h4 id=options>Options</h4><pre tabindex=0><code>-ciphertext-size : Power of two length of the ciphertexts the data is packed in.
+the ciphertext layout/packing logic to convert cleartexts to plaintexts.</p><h4 id=options>Options</h4><pre tabindex=0><code>-ciphertext-size          : Power of two length of the ciphertexts the data is packed in.
+-enable-layout-assignment : If false, skips the emission of layout assignment operations, essentially assuming that the input was already using correctly (ciphertext-)sized tensors.
 </code></pre><h3 id=-annotate-mgmt><code>-annotate-mgmt</code></h3><p><em>Annotate MgmtAttr for secret SSA values in the IR</em></p><p>This pass runs the secretness/level/dimension analysis and annotates the IR with the results,
 saving it into each op&rsquo;s attribute dictionary as mgmt.mgmt : <analysis results></p><h4 id=options-1>Options</h4><pre tabindex=0><code>-base-level : Level to start counting from (used by B/FV)
 </code></pre><h3 id=-annotate-module><code>-annotate-module</code></h3><p><em>Annotate ModuleOp with Scheme And/Or Backend</em></p><p>This pass annotates the module with a scheme and/or backend.</p><p>This pass should be called before all lowering to enable lowering
