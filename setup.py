@@ -145,6 +145,7 @@ class BuildBazelExtension(build_ext.build_ext):
 
     # bazel-heir -> /home/user/.cache/bazel/_bazel_j2kun/<hash>/execroot/_main
     bazel_out = (Path(self.build_temp) / "bazel-out").resolve()
+    bazel_heir = bazel_out.parent
     out_root = bazel_out.parent.parent.parent
     external = out_root / "external"
     libdir = Path(self.build_lib) / "heir"
@@ -156,7 +157,13 @@ class BuildBazelExtension(build_ext.build_ext):
     ]
     dirs_to_copy = {external / subdir: libdir / subdir for subdir in subdirs}
 
+    # Include yosys techmaps.
+    dirs_to_copy[
+        bazel_heir / "lib" / "Transforms" / "YosysOptimizer" / "yosys"
+    ] = (libdir / "techmaps")
+
     patterns = (
+        "*.v",  # techmap files
         "*.h",
         "*.hpp",
         "LICENSE",
@@ -279,6 +286,14 @@ setuptools.setup(
             bazel_target="//tools:heir-translate",
             generated_so_file=Path("tools") / "heir-translate",
             target_file="heir-translate",
+            py_limited_api=py_limited_api,
+            is_binary=True,
+        ),
+        BazelExtension(
+            name="heir_py._abc",
+            bazel_target="@edu_berkeley_abc//:abc",
+            generated_so_file=Path("external") / "edu_berkeley_abc" / "abc",
+            target_file="abc",
             py_limited_api=py_limited_api,
             is_binary=True,
         ),
