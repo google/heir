@@ -6,6 +6,7 @@
 #include "lib/Analysis/LevelAnalysis/LevelAnalysis.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByBoundCoeffModel.h"
 #include "lib/Analysis/NoiseAnalysis/BFV/NoiseByVarianceCoeffModel.h"
+#include "lib/Analysis/NoiseAnalysis/BFV/NoiseCanEmbModel.h"
 #include "lib/Analysis/Utils.h"
 #include "lib/Dialect/Mgmt/IR/MgmtOps.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
@@ -35,6 +36,10 @@ void NoiseAnalysis<NoiseModel>::setToEntryState(LatticeType *lattice) {
                                      getDimensionFromMgmtAttr(value));
     NoiseState encrypted = noiseModel.evalEncrypt(localParam);
     this->propagateIfChanged(lattice, lattice->join(encrypted));
+    LLVM_DEBUG(llvm::dbgs() << "Initializing "
+                            << doubleToString2Prec(
+                                   noiseModel.toLogBound(localParam, encrypted))
+                            << " to " << value << "\n");
     return;
   }
 
@@ -214,6 +219,9 @@ template class NoiseAnalysis<bfv::NoiseByBoundCoeffModel>;
 
 // for variance
 template class NoiseAnalysis<bfv::NoiseByVarianceCoeffModel>;
+
+// for canon emb bounds
+template class NoiseAnalysis<bfv::NoiseCanEmbModel>;
 
 }  // namespace heir
 }  // namespace mlir

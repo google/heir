@@ -90,10 +90,11 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
   let description = [{
     The pass generates the BFV scheme parameter using a given noise model.
 
-    There are three noise models available:
+    There are four noise models available:
     - `bfv-noise-by-bound-coeff-average-case`
     - `bfv-noise-by-bound-coeff-worst-case` or `bfv-noise-kpz21`
     - `bfv-noise-by-variance-coeff` or `bfv-noise-bmcm23`
+    - `bfv-noise-canon-emb`
 
     To use public-key encryption/secret-key encryption in the model, the option
     `usePublicKey` could be set accordingly.
@@ -108,6 +109,10 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     of the coefficient embedding of the ciphertexts. This gives a much tighter
     noise estimate for independent ciphertext input, but may give underestimation
     for dependent ciphertext input. See [the paper](https://ia.cr/2023/600) for more details.
+
+    The last model is adapted from MMLGA22 with mixes from BMCM23 and KPZ21.
+    It uses the canonical embedding to bound the critical quantity of a ciphertext
+    that defines whether c can be decrypted correctly.
 
     This pass then generates the moduli chain consisting of primes
     of bits specified by the `mod-bits` field.
