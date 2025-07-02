@@ -51,7 +51,27 @@ double NoiseByBoundCoeffModel::getExpansionFactor(
       // average-case
       // experimental result
       // cite HPS19 and KPZ21
+      // this applies for e * s, e * e
       return 2.0 * sqrt(n);
+    default:
+      llvm_unreachable("Unknown noise model variant");
+      return 0.0;
+  }
+}
+
+double NoiseByBoundCoeffModel::getExpansionFactorForModulusSwitching(
+    const LocalParamType &param) const {
+  auto n = param.getSchemeParam()->getRingDim();
+  switch (variant) {
+    case NoiseModelVariant::WORST_CASE:
+      // well known from DPSZ12
+      return n;
+    case NoiseModelVariant::AVERAGE_CASE:
+      // experimental result
+      // See https://github.com/openfheorg/openfhe-development/pull/1007
+      // this applies for tau * s, tau * tau, s * s
+      // where tau is the rounding error during modulus switching
+      return 4.0 * sqrt(n);
     default:
       llvm_unreachable("Unknown noise model variant");
       return 0.0;
@@ -105,11 +125,10 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalEncrypt(
   if (isEncryptionTechniqueExtended) {
     // for extended encryption technique, namely encrypt at Qp then mod reduce
     // back to Q, the noise is modreduce(encrypt)
-    auto expansionFactor = getExpansionFactor(param);
+    auto expansionFactorMS = getExpansionFactorForModulusSwitching(param);
     auto boundKey = getBoundKey(param);
 
-    // (1.0 + expansionFactor * boundKey) / 2 will give underestimation
-    auto added = (1.0 + expansionFactor * boundKey);
+    auto added = (1.0 + expansionFactorMS * boundKey) / 2;
     return StateType::of(added);
   }
   if (usePublicKey) {
@@ -137,25 +156,26 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
     const LocalParamType &resultParam, const StateType &lhs,
     const StateType &rhs) const {
   auto expansionFactor = getExpansionFactor(resultParam);
+  auto expansionFactorMS = getExpansionFactorForModulusSwitching(resultParam);
   auto t = resultParam.getSchemeParam()->getPlaintextModulus();
   auto v0 = lhs;
   auto v1 = rhs;
   auto boundKey = getBoundKey(resultParam);
 
-  auto logqi = resultParam.getSchemeParam()->getLogqi();
-  auto logQ = std::accumulate(logqi.begin(), logqi.end(), 0.0);
-  // we hope double is big enough...
-  // if logQ > 1024... we may have a problem
-  auto Q = pow(2.0, logQ);
+  auto logqiVec = resultParam.getSchemeParam()->getLogqi();
+  auto Qinv = StateType::of(1);
+  for (auto logqi : logqiVec) {
+    Qinv = Qinv * std::exp2(-logqi);
+  }
 
   // See KPZ21
-  auto term1 = v0 * v1 * expansionFactor * t * (1. / Q);
+  auto term1 = v0 * v1 * expansionFactor * t * Qinv;
   auto term2 = (v0 + v1) * (expansionFactor * t / 2.0) *
-               (4.0 + expansionFactor * boundKey);
-  auto term3 =
-      StateType::of((1.0 + expansionFactor * boundKey +
-                     expansionFactor * expansionFactor * boundKey * boundKey) /
-                    2.0);
+               (4.0 + expansionFactorMS * boundKey);
+  auto term3 = StateType::of(
+      (1.0 + expansionFactorMS * boundKey +
+       expansionFactorMS * expansionFactorMS * boundKey * boundKey) /
+      2.0);
   return term1 + term2 + term3;
 }
 
@@ -174,6 +194,7 @@ NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
 
   auto dnum = inputParam.getSchemeParam()->getDnum();
   auto expansionFactor = getExpansionFactor(inputParam);
+  auto expansionFactorMS = getExpansionFactorForModulusSwitching(inputParam);
   auto boundErr = getBoundErr(inputParam);
   auto boundKey = getBoundKey(inputParam);
 
@@ -194,7 +215,7 @@ NoiseByBoundCoeffModel::evalRelinearizeHYBRID(const LocalParamType &inputParam,
   auto scaled = StateType::of(numDigit * expansionFactor * boundErr / 2.0);
 
   // moddown added noise, similar to modreduce above.
-  auto added = StateType::of((1.0 + expansionFactor * boundKey) / 2);
+  auto added = StateType::of((1.0 + expansionFactorMS * boundKey) / 2);
 
   // for relinearization after multiplication, often scaled + added is far less
   // than input.

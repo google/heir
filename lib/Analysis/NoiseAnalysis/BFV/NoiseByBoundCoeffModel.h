@@ -22,6 +22,8 @@ class NoiseByBoundCoeffModel {
 
  private:
   double getExpansionFactor(const LocalParamType &param) const;
+  double getExpansionFactorForModulusSwitching(
+      const LocalParamType &param) const;
   double getBoundErr(const LocalParamType &param) const;
   double getBoundKey(const LocalParamType &param) const;
 
