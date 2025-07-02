@@ -33,6 +33,12 @@ struct AddNode {
 };
 
 template <typename T>
+struct SubtractNode {
+  std::shared_ptr<ArithmeticDagNode<T>> left;
+  std::shared_ptr<ArithmeticDagNode<T>> right;
+};
+
+template <typename T>
 struct MultiplyNode {
   std::shared_ptr<ArithmeticDagNode<T>> left;
   std::shared_ptr<ArithmeticDagNode<T>> right;
@@ -47,8 +53,8 @@ struct PowerNode {
 template <typename T>
 struct ArithmeticDagNode {
  public:
-  std::variant<ConstantNode, LeafNode<T>, AddNode<T>, MultiplyNode<T>,
-               PowerNode<T>>
+  std::variant<ConstantNode, LeafNode<T>, AddNode<T>, SubtractNode<T>,
+               MultiplyNode<T>, PowerNode<T>>
       node_variant;
 
   explicit ArithmeticDagNode(const T& value)
@@ -87,6 +93,17 @@ struct ArithmeticDagNode {
         std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
     node->node_variant.template emplace<AddNode<T>>(
         AddNode<T>{std::move(lhs), std::move(rhs)});
+    return node;
+  }
+
+  static std::shared_ptr<ArithmeticDagNode<T>> sub(
+      std::shared_ptr<ArithmeticDagNode<T>> lhs,
+      std::shared_ptr<ArithmeticDagNode<T>> rhs) {
+    assert(lhs && rhs && "invalid sub");
+    auto node =
+        std::shared_ptr<ArithmeticDagNode<T>>(new ArithmeticDagNode<T>());
+    node->node_variant.template emplace<SubtractNode<T>>(
+        SubtractNode<T>{std::move(lhs), std::move(rhs)});
     return node;
   }
 
@@ -165,6 +182,10 @@ class CachingVisitor {
 
   virtual ResultType operator()(const AddNode<T>& node) {
     assert(false && "Visit logic for AddNode is not implemented.");
+  }
+
+  virtual ResultType operator()(const SubtractNode<T>& node) {
+    assert(false && "Visit logic for SubtractNode is not implemented.");
   }
 
   virtual ResultType operator()(const MultiplyNode<T>& node) {

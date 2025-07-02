@@ -16,9 +16,9 @@ std::pair<ChebyshevBasisPolynomial, ChebyshevBasisPolynomial> dividePolynomials(
   if (k >= p.size()) {
     return {{}, p};
   }
-  ChebyshevBasisPolynomial q(p.size() - k, APFloat(0.0));
+  ChebyshevBasisPolynomial q(p.size() - k, 0.0);
   for (int i = p.size() - 1; i >= k; --i) {
-    if (p[i].isZero()) {
+    if (p[i] == 0.0) {
       continue;
     }
     if (i == k) {
@@ -32,10 +32,10 @@ std::pair<ChebyshevBasisPolynomial, ChebyshevBasisPolynomial> dividePolynomials(
       // -p_iT_{|i-2k|} + ...           // the rest stays in p
       // As a result on each iteration we decrease the degree of the polynomial
       // which we divide.
-      q[i - k] = p[i] * APFloat(2.0);
-      p[std::abs(i - 2 * k)].subtract(p[i], llvm::APFloat::rmNearestTiesToEven);
+      q[i - k] = p[i] * 2.0;
+      p[std::abs(i - 2 * k)] -= p[i];
 
-      p[i] = APFloat(0.0);
+      p[i] = 0.0;
     }
   }
   ChebyshevBasisPolynomial r(p.begin(), p.begin() + k);

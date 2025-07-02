@@ -29,7 +29,6 @@ cc_library(
     name = "ChebyshevDecomposition",
     srcs = ["ChebyshevDecomposition.cpp"],
     hdrs = ["ChebyshevDecomposition.h"],
-    deps = ["@llvm-project//llvm:Support"],
 )
 
 cc_test(
@@ -39,5 +38,24 @@ cc_test(
         ":ChebyshevDecomposition",
         "@googletest//:gtest_main",
         "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "ChebyshevPatersonStockmeyer",
+    hdrs = ["ChebyshevPatersonStockmeyer.h"],
+    deps = [
+        ":ChebyshevDecomposition",
+        "@heir//lib/Utils:ArithmeticDag",
+    ],
+)
+
+cc_test(
+    name = "ChebyshevPatersonStockmeyerTest",
+    srcs = ["ChebyshevPatersonStockmeyerTest.cpp"],
+    deps = [
+        ":ChebyshevPatersonStockmeyer",
+        "@googletest//:gtest_main",
+        "@heir//lib/Utils:ArithmeticDag",
     ],
 )

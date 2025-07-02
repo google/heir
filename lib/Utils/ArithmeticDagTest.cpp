@@ -32,6 +32,13 @@ struct FlattenedStringVisitor {
     return ss.str();
   }
 
+  std::string operator()(const SubtractNode<std::string>& node) const {
+    std::stringstream ss;
+    ss << "(" << node.left->visit(*this) << " - " << node.right->visit(*this)
+       << ")";
+    return ss.str();
+  }
+
   std::string operator()(const MultiplyNode<std::string>& node) const {
     std::stringstream ss;
     ss << node.left->visit(*this) << " * " << node.right->visit(*this);
@@ -51,7 +58,6 @@ class EvalVisitor : public CachingVisitor<double, double> {
 
   // To test that caching works as expected.
   int callCount;
-
   double operator()(const ConstantNode& node) override {
     callCount += 1;
     return node.value;
@@ -69,6 +75,10 @@ class EvalVisitor : public CachingVisitor<double, double> {
     return this->process(node.left) + this->process(node.right);
   }
 
+  double operator()(const SubtractNode<double>& node) override {
+    callCount += 1;
+    return this->process(node.left) - this->process(node.right);
+  }
   double operator()(const MultiplyNode<double>& node) override {
     callCount += 1;
     return this->process(node.left) * this->process(node.right);
@@ -110,6 +120,17 @@ TEST(ArithmeticDagTest, TestEvaluationVisitor) {
   double result = root->visit(visitor);
   EXPECT_EQ(result, 24.0);
   EXPECT_EQ(visitor.callCount, 5);
+}
+
+TEST(ArithmeticDagTest, TestEvaluationVisitorSubstract) {
+  auto x = DoubleLeavedDag::leaf(1.0);
+  auto y = DoubleLeavedDag::leaf(2.0);
+  auto root = DoubleLeavedDag::sub(x, y);
+
+  EvalVisitor visitor;
+  double result = root->visit(visitor);
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(visitor.callCount, 3);
 }
 
 }  // namespace
