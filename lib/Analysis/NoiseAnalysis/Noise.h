@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
-#define INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
+#ifndef LIB_ANALYSIS_NOISEANALYSIS_NOISE_H_
+#define LIB_ANALYSIS_NOISEANALYSIS_NOISE_H_
 
 #include <algorithm>
 #include <cassert>
@@ -147,4 +147,4 @@ class NoiseState {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_NOISE_H_
+#endif  // LIB_ANALYSIS_NOISEANALYSIS_NOISE_H_

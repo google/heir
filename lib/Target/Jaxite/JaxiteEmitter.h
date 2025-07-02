@@ -1,5 +1,5 @@
-#ifndef INCLUDE_TARGET_JAXITE_JAXITEEMITTER_H_
-#define INCLUDE_TARGET_JAXITE_JAXITEEMITTER_H_
+#ifndef LIB_TARGET_JAXITE_JAXITEEMITTER_H_
+#define LIB_TARGET_JAXITE_JAXITEEMITTER_H_
 
 #include <string>
 
@@ -69,4 +69,4 @@ class JaxiteEmitter {
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_TARGET_JAXITE_JAXITEEMITTER_H_
+#endif  // LIB_TARGET_JAXITE_JAXITEEMITTER_H_
