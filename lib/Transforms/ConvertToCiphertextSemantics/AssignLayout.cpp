@@ -276,7 +276,7 @@ FailureOr<Value> implementAssignLayoutForScalar(
 
   // Common case: no padding, all replication: the entire encoding can be
   // reduced to a single splat.
-  if (alignment.getPadding().empty()) {
+  if (!alignment || alignment.getPadding().empty()) {
     auto splatOp =
         builder.create<tensor::SplatOp>(ciphertextSemanticType, scalar);
     createdOpCallback(splatOp);
@@ -376,17 +376,18 @@ Value implementUnpackOpForScalar(
   // All we need to do here is determine the index to extract from
   SmallVector<Value> indices;
   LayoutAttr layout = op.getLayout();
-  tensor_ext::AlignmentAttr alignment = layout.getAlignment();
 
-  // Note padding only inserts at the end of a tensor axis, so regardless
-  // of any repetition, the first entry of the tensor will always contain
-  // the right value. So all we need to do is insert a constant zero for
-  // each dimension of the input tensor.
-  for (unsigned i = 0; i < alignment.getOut().size(); ++i) {
-    // We need to insert a 0 for each inserted dimension.
-    auto constOp = builder.create<arith::ConstantIndexOp>(0);
-    createdOpCallback(constOp);
-    indices.push_back(constOp);
+  if (auto alignment = layout.getAlignment()) {
+    // Note padding only inserts at the end of a tensor axis, so regardless
+    // of any repetition, the first entry of the tensor will always contain
+    // the right value. So all we need to do is insert a constant zero for
+    // each dimension of the input tensor.
+    for (unsigned i = 0; i < alignment.getOut().size(); ++i) {
+      // We need to insert a 0 for each inserted dimension.
+      auto constOp = builder.create<arith::ConstantIndexOp>(0);
+      createdOpCallback(constOp);
+      indices.push_back(constOp);
+    }
   }
 
   auto splatOp = builder.create<tensor::ExtractOp>(op.getResult().getType(),
