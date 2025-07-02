@@ -1,5 +1,5 @@
-#ifndef INCLUDE_ANALYSIS_NOISEANALYSIS_NOISEANALYSIS_H_
-#define INCLUDE_ANALYSIS_NOISEANALYSIS_NOISEANALYSIS_H_
+#ifndef LIB_ANALYSIS_NOISEANALYSIS_NOISEANALYSIS_H_
+#define LIB_ANALYSIS_NOISEANALYSIS_NOISEANALYSIS_H_
 
 #include "lib/Analysis/SecretnessAnalysis/SecretnessAnalysis.h"
 #include "mlir/include/mlir/Analysis/DataFlow/SparseAnalysis.h"  // from @llvm-project
@@ -67,4 +67,4 @@ class NoiseAnalysis
 }  // namespace heir
 }  // namespace mlir
 
-#endif  // INCLUDE_ANALYSIS_NOISEANALYSIS_NOISEANALYSIS_H_
+#endif  // LIB_ANALYSIS_NOISEANALYSIS_NOISEANALYSIS_H_
