@@ -317,7 +317,7 @@ LogicalResult VerilogEmitter::translate(
           .Case<affine::AffineParallelOp, affine::AffineLoadOp,
                 affine::AffineStoreOp, affine::AffineYieldOp>(
               [&](auto op) { return printOperation(op); })
-          .Case<tensor::InsertOp, tensor::ExtractOp>(
+          .Case<tensor::InsertOp, tensor::ExtractOp, tensor::FromElementsOp>(
               [&](auto op) { return printOperation(op); })
           .Case<UnrealizedConversionCastOp>(
               [&](auto op) { return printOperation(op); })
@@ -875,6 +875,16 @@ LogicalResult VerilogEmitter::printOperation(tensor::ExtractOp op) {
              [&](Value value) { return getOrCreateName(value).str(); })
       << "];\n";
 
+  return success();
+}
+
+LogicalResult VerilogEmitter::printOperation(tensor::FromElementsOp op) {
+  // result = {operand0, operand1, ...};
+  emitAssignPrefix(op.getResult());
+
+  os_ << "{" << commaSeparatedValues(op.getOperands(), [&](Value value) {
+    return getOrCreateName(value).str();
+  }) << "};\n";
   return success();
 }
 
