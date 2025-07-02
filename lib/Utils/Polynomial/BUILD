@@ -47,6 +47,7 @@ cc_library(
     deps = [
         ":ChebyshevDecomposition",
         "@heir//lib/Utils:ArithmeticDag",
+        "@llvm-project//llvm:Support",
     ],
 )
 

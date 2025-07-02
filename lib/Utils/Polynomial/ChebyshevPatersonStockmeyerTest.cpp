@@ -84,7 +84,7 @@ class MultiplicativeDepthVisitor : public CachingVisitor<double, double> {
 double evalChebyshevPolynomial(double x, std::vector<double> coefficients) {
   auto x_node = ArithmeticDagNode<double>::leaf(x);
   auto result_node =
-      PatersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
+      patersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
 
   EvalVisitor visitor;
   return result_node->visit(visitor);
@@ -93,7 +93,7 @@ double evalChebyshevPolynomial(double x, std::vector<double> coefficients) {
 int evalMultiplicativeDepth(double x, std::vector<double> coefficients) {
   auto x_node = ArithmeticDagNode<double>::leaf(x);
   auto result_node =
-      PatersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
+      patersonStockmeyerChebyshevPolynomialEvaluation(x_node, coefficients);
 
   MultiplicativeDepthVisitor visitor;
   return static_cast<int>(result_node->visit(visitor));

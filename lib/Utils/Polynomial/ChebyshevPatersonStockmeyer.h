@@ -9,6 +9,7 @@
 
 #include "lib/Utils/ArithmeticDag.h"
 #include "lib/Utils/Polynomial/ChebyshevDecomposition.h"
+#include "llvm/include/llvm/ADT/ArrayRef.h"  // from @llvm-project
 
 namespace mlir {
 namespace heir {
@@ -75,7 +76,8 @@ computeChebyshevPolynomialValues(std::shared_ptr<ArithmeticDagNode<T>> x,
 
 // Returns true if any element in `v` has an absolute value greater than or
 // equal to `threshold`.
-bool hasElementsLargerThan(const std::vector<double>& v, double threshold) {
+inline bool hasElementsLargerThan(const std::vector<double>& v,
+                                  double threshold) {
   return std::any_of(v.begin(), v.end(), [threshold](double a) {
     return std::abs(a) >= threshold;
   });
@@ -85,9 +87,9 @@ bool hasElementsLargerThan(const std::vector<double>& v, double threshold) {
 // PatersonStockmeyer's algorithm.
 template <typename T>
 std::shared_ptr<ArithmeticDagNode<T>>
-PatersonStockmeyerChebyshevPolynomialEvaluation(
+patersonStockmeyerChebyshevPolynomialEvaluation(
     std::shared_ptr<ArithmeticDagNode<T>> x,
-    const std::vector<double>& coefficients) {
+    ::llvm::ArrayRef<double> coefficients) {
   int64_t polynomialDegree = coefficients.size() - 1;
   // Choose k optimally - sqrt of maxDegree is typically a good choice
   int64_t k =
@@ -118,13 +120,13 @@ PatersonStockmeyerChebyshevPolynomialEvaluation(
       // Skip coefficients that are too small.
       if (std::abs(coeff) < kMinCoeffs) continue;
 
-      auto coef_node = ArithmeticDagNode<T>::constant(coeff);
-      auto term_node =
-          ArithmeticDagNode<T>::mul(coef_node, chebPolynomialValues[j]);
+      auto coefNode = ArithmeticDagNode<T>::constant(coeff);
+      auto termNode =
+          ArithmeticDagNode<T>::mul(coefNode, chebPolynomialValues[j]);
       if (pol) {
-        pol = ArithmeticDagNode<T>::add(pol, term_node);
+        pol = ArithmeticDagNode<T>::add(pol, termNode);
       } else {
-        pol = term_node;
+        pol = termNode;
       }
     }
     if (!pol) continue;
