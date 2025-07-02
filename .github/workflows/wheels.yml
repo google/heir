@@ -61,7 +61,10 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: bash .github/install_cibuildwheel_deps.sh
           # Grab the rootless Bazel installation inside the container.
           CIBW_ENVIRONMENT_LINUX: PATH=$PATH:$HOME/bin
-          CIBW_TEST_COMMAND: python {package}/frontend/example.py
+          # The test must be run in an isolated directory so that python uses the wheel when
+          # running `import heir` instead of the local source files. cibuildwheel creates an
+          # isolated directory for this purpose, and cd's to it before running this command.
+          CIBW_TEST_COMMAND: "cp {package}/frontend/example.py . && python example.py"
           # unused by Bazel, but needed explicitly by delocate on MacOS.
           MACOSX_DEPLOYMENT_TARGET: "10.14"
 
