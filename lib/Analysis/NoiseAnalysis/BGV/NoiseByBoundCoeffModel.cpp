@@ -164,7 +164,7 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
   // ||v_mul|| <=
   //   (delta * t / 2) * (2 * ||v_0|| * ||v_1|| + ||v_0|| + ||v_1||)
   //   + N * (t / 2)
-  return (lhs * rhs * 2 + lhs + rhs + 1) * (expansionFactor * t / 2) +
+  return (lhs * rhs * 2 + lhs + rhs) * (expansionFactor * t / 2) +
          ringDim * t / 2;
 }
 
