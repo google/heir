@@ -284,8 +284,8 @@ Value rotateGroup(TypedValue<RankedTensorType> tensor,
         rewriter.create<arith::MulIOp>(tensor.getLoc(), tensor, mask);
     Value rotated = rewriter.create<tensor_ext::RotateOp>(
         tensor.getLoc(), maskOp.getResult(),
-        rewriter.create<arith::ConstantIntOp>(tensor.getLoc(), rotationAmount,
-                                              rewriter.getI32Type()));
+        rewriter.create<arith::ConstantIntOp>(
+            tensor.getLoc(), rewriter.getI32Type(), rotationAmount));
 
     if (result.has_value()) {
       result = rewriter.create<arith::AddIOp>(tensor.getLoc(), result.value(),

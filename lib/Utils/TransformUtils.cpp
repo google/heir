@@ -85,13 +85,13 @@ Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder &b,
   assert(memrefType.getRank() == 1 && "Expected memref of bits to be 1D");
 
   Value result =
-      b.create<arith::ConstantIntOp>(loc, 0, integerType).getResult();
+      b.create<arith::ConstantIntOp>(loc, integerType, 0).getResult();
   for (int i = 0; i < memrefType.getNumElements(); i++) {
     // The i-th bit of the memref is stored at bit position i
     auto loadOp = b.create<memref::LoadOp>(
         loc, memref, ValueRange{b.create<arith::ConstantIndexOp>(loc, i)});
     auto extOp = b.create<arith::ExtSIOp>(loc, integerType, loadOp.getResult());
-    auto shiftAmount = b.create<arith::ConstantIntOp>(loc, i, integerType);
+    auto shiftAmount = b.create<arith::ConstantIntOp>(loc, integerType, i);
     auto shifted = b.create<arith::ShLIOp>(loc, extOp, shiftAmount);
     auto orOp = b.create<arith::OrIOp>(loc, integerType, result, shifted);
     result = orOp.getResult();

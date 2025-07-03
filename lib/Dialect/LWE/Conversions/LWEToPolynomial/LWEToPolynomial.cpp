@@ -426,7 +426,7 @@ struct ConvertRNegate : public OpConversionPattern<RNegateOp> {
                       IntegerAttr::get(type.getModulus().getType(), -1));
                 })
             .Case<IntegerType>([&](IntegerType type) -> Value {
-              return rewriter.create<arith::ConstantIntOp>(loc, -1, type);
+              return rewriter.create<arith::ConstantIntOp>(loc, type, -1);
             })
             .Default([&](Type type) -> FailureOr<Value> {
               op.emitError() << "Unsupported coefficient type: " << type;
