@@ -2,8 +2,13 @@
 
 !Zp = !mod_arith.int<17 : i10>
 !Zp2 = !mod_arith.int<257 : i10>
+!Zp3 = !mod_arith.int<509 : i10>
 !Zp_vec = tensor<4x!Zp>
-!rns = !rns.rns<!Zp, !Zp2>
+
+!rns = !rns.rns<!Zp, !Zp2, !Zp3>
+!rns_vec = tensor<5x6x!rns>
+!int_vec = tensor<5x6x3xi10>
+!Zp_large = !mod_arith.int<2223821 : i32>
 
 // CHECK: @test_arith_syntax
 func.func @test_arith_syntax() {
@@ -81,15 +86,37 @@ func.func @test_arith_syntax() {
   %subifge_vec = mod_arith.subifge %c_vec, %cmod_vec : tensor<4xi10>
 
   // CHECK: mod_arith.mod_switch
-  %mod_switch = mod_arith.mod_switch %e6: !Zp to !mod_arith.int<31 : i10>
+  // CHECK: mod_arith.mod_switch
+  // CHECK: mod_arith.mod_switch
+  %mod_switch_smaller = mod_arith.mod_switch %e6 : !Zp to !mod_arith.int<7 : i4>
+  %mod_switch_same_width = mod_arith.mod_switch %e6 : !Zp to !mod_arith.int<31 : i10>
+  %mod_switch_larger = mod_arith.mod_switch %e6 : !Zp to !mod_arith.int<18446744069414584321 : i65>
 
   return
 }
 
 // CHECK: @test_rns_syntax
-func.func @test_rns_syntax(%arg0: !rns, %arg1: !rns) -> !rns {
+func.func @test_rns_syntax(%arg0: !rns, %arg1: !rns) {
   // CHECK: mod_arith.add
-  // CHECK-SAME: rns
-  %result = mod_arith.add %arg0, %arg1 : !rns
-  return %result : !rns
+  %add = mod_arith.add %arg0, %arg1 : !rns
+
+  // CHECK: mod_arith.mod_switch
+  // CHECK: mod_arith.mod_switch
+  %interpolate = mod_arith.mod_switch %add : !rns to !Zp_large
+  %decompose = mod_arith.mod_switch %interpolate : !Zp_large to !rns
+
+  return
+}
+
+// CHECK: @test_rns_vec_syntax
+func.func @test_rns_vec_syntax(%arg0: !rns_vec, %arg1: !rns_vec) {
+  // CHECK: mod_arith.add
+  %add = mod_arith.add %arg0, %arg1 : !rns_vec
+  
+  // CHECK: mod_arith.extract
+  // CHECK: mod_arith.encapsulate
+  %extract = mod_arith.extract %add : !rns_vec -> !int_vec
+  %encapsulate = mod_arith.encapsulate %extract : !int_vec -> !rns_vec
+
+  return
 }
