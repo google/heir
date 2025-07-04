@@ -142,6 +142,21 @@ cc_library(
 )
 
 cc_library(
+    name = "LogArithmetic",
+    srcs = ["LogArithmetic.cpp"],
+    hdrs = ["LogArithmetic.h"],
+)
+
+cc_test(
+    name = "LogArithmeticTest",
+    srcs = ["LogArithmeticTest.cpp"],
+    deps = [
+        ":LogArithmetic",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "TargetUtils",
     srcs = ["TargetUtils.cpp"],
     hdrs = ["TargetUtils.h"],

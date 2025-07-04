@@ -25,6 +25,7 @@ cc_library(
         "Noise.h",
     ],
     deps = [
+        "@heir//lib/Utils:LogArithmetic",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
     ],
