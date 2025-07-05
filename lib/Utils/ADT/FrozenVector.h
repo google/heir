@@ -4,6 +4,7 @@
 #include <cstddef>
 
 #include "llvm/include/llvm/ADT/DenseMapInfo.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/Hashing.h"       // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"   // from @llvm-project
 
 namespace mlir {

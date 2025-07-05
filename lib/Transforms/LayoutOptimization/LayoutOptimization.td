@@ -78,6 +78,16 @@ def LayoutOptimization : Pass<"layout-optimization"> {
   let dependentDialects = [
     "mlir::heir::tensor_ext::TensorExtDialect",
   ];
+
+  let options = [
+    Option<
+      "ciphertextSize",
+      "ciphertext-size",
+      "int",
+      /*default=*/"1024",
+      "Power of two length of the ciphertexts the data is packed in."
+    >
+  ];
 }
 
 #endif  // LIB_TRANSFORMS_LAYOUTOPTIMIZATION_LAYOUTOPTIMIZATION_TD_
