@@ -26,6 +26,16 @@ Value convertIntegerValueToMemrefOfBits(Value integer, OpBuilder &b,
 Value convertMemrefOfBitsToInteger(Value memref, Type resultType, OpBuilder &b,
                                    Location loc);
 
+/// Returns first uninitialized index not yet mapped to an output in an
+/// in-process permutation perm on perm.size() where perm[i] = j maps index i in
+/// the original vector to index j in the permutation. An index is uninitialized
+/// if perm[i] == -1.
+int64_t getMinUnusedInput(llvm::ArrayRef<int64_t> perm);
+
+/// Similar to getMinUnusedInput except this function returns the first
+/// uninitialized index not yet mapped from the permutation
+int64_t getMinUnusedTarget(llvm::ArrayRef<int64_t> perm);
+
 }  // namespace heir
 }  // namespace mlir
 
