@@ -266,6 +266,22 @@ class BuildBazelExtension(build_ext.build_ext):
           | stat.S_IXOTH,
       )
 
+      # Also copy binaries to project root so they can be included in data_files
+      root_path = Path(ext.target_file)
+      print(f"Copying {srcdir_path} to {root_path} for data_files")
+      shutil.copyfile(srcdir_path, root_path)
+      os.chmod(
+          root_path,
+          stat.S_IRUSR
+          | stat.S_IWUSR
+          | stat.S_IXUSR
+          | stat.S_IRGRP
+          | stat.S_IWGRP
+          | stat.S_IXGRP
+          | stat.S_IROTH
+          | stat.S_IXOTH,
+      )
+
 
 setuptools.setup(
     cmdclass={
@@ -323,5 +339,6 @@ setuptools.setup(
             copy_include_files=True,
         ),
     ],
+    data_files=[("bin", ["heir-opt", "heir-translate"])],
     options=options,
 )

@@ -32,7 +32,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Check out HEIR
@@ -52,21 +52,6 @@ jobs:
 
       - name: Build wheels on ${{ matrix.os }} using cibuildwheel
         uses: pypa/cibuildwheel@v3.0.0
-        env:
-          CIBW_BUILD: "cp311-* cp312-* cp313-*"
-          CIBW_BUILD_FRONTEND: "build[uv]"
-          CIBW_SKIP: "*-musllinux_* pp-*"
-          CIBW_ARCHS_LINUX: auto64
-          CIBW_ARCHS_WINDOWS: auto64
-          CIBW_BEFORE_ALL_LINUX: bash .github/install_cibuildwheel_deps.sh
-          # Grab the rootless Bazel installation inside the container.
-          CIBW_ENVIRONMENT_LINUX: PATH=$PATH:$HOME/bin
-          # The test must be run in an isolated directory so that python uses the wheel when
-          # running `import heir` instead of the local source files. cibuildwheel creates an
-          # isolated directory for this purpose, and cd's to it before running this command.
-          CIBW_TEST_COMMAND: "cp {package}/frontend/example.py . && python example.py"
-          # unused by Bazel, but needed explicitly by delocate on MacOS.
-          MACOSX_DEPLOYMENT_TARGET: "10.14"
 
       - name: Upload HEIR ${{ matrix.os }} wheels
         uses: actions/upload-artifact@v4
@@ -74,16 +59,18 @@ jobs:
           name: dist-${{ matrix.os }}
           path: wheelhouse/*.whl
 
-  # pypi_upload:
-  #   name: Publish heir wheels to PyPI
-  #   needs: [build_sdist, build_wheels]
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     id-token: write
-  #   steps:
-  #     - uses: actions/download-artifact@v4
-  #       with:
-  #         path: dist
-  #         pattern: dist-*
-  #         merge-multiple: true
-  #     - uses: pypa/gh-action-pypi-publish@release/v1
+  pypi_upload:
+    name: Publish heir wheels to PyPI
+    needs: [build_sdist, build_wheels]
+    runs-on: ubuntu-latest
+    # Cf. trusted publishers on PyPI
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1

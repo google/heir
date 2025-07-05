@@ -40,6 +40,30 @@ zip-safe = false
 [tool.setuptools.packages.find]
 where = ["frontend"]
 
+[tool.cibuildwheel]
+build = "cp311-* cp312-* cp313-*"
+build-frontend = "build[uv]"
+skip = "*-musllinux_* pp-*"
+# The test must be run in an isolated directory so that python uses the wheel
+# when running `import heir` instead of the local source files. cibuildwheel
+# creates an isolated directory for this purpose, and cd's to it before running
+# this command.
+test-command = "cp {package}/frontend/example.py . && python example.py"
+
+[tool.cibuildwheel.linux]
+archs = "auto64"
+before-all = "bash .github/install_cibuildwheel_deps.sh"
+# Use the rootless Bazel installation inside the container.
+environment = { PATH = "$PATH:$HOME/bin" }
+
+[tool.cibuildwheel.windows]
+archs = "auto64"
+
+[tool.cibuildwheel.macos]
+# Inherits archs from default (auto64)
+# Unused by Bazel, but needed explicitly by delocate on MacOS.
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.14" }
+
 [tool.pytest.ini_options]
 norecursedirs = [
   ".git",
