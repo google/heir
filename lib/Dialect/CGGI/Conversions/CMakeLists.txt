@@ -1,3 +1,0 @@
-add_subdirectory(CGGIToJaxite)
-add_subdirectory(CGGIToTfheRust)
-add_subdirectory(CGGIToTfheRustBool)

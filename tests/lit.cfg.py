@@ -40,12 +40,8 @@ tool_relpaths = [
     "at_clifford_yosys",
 ]
 
-CMAKE_HEIR_PATH = os.environ.get("CMAKE_HEIR_PATH", "")
-if CMAKE_HEIR_PATH:
-  CMAKE_HEIR_PATH = ":" + CMAKE_HEIR_PATH
 config.environment["PATH"] = (
     ":".join(str(runfiles_dir.joinpath(Path(path))) for path in tool_relpaths)
-    + CMAKE_HEIR_PATH
     + ":"
     + os.environ["PATH"]
 )
