@@ -3,11 +3,10 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cmath>
-#include <limits>
 #include <optional>
 #include <string>
 
+#include "lib/Utils/LogArithmetic.h"
 #include "llvm/include/llvm/Support/raw_ostream.h"  // from @llvm-project
 #include "mlir/include/mlir/IR/Diagnostics.h"       // from @llvm-project
 
@@ -39,21 +38,20 @@ class NoiseState {
   static NoiseState uninitialized() {
     return NoiseState(NoiseType::UNINITIALIZED, std::nullopt);
   }
+  /// value in normal scale
   static NoiseState of(double value) {
     return NoiseState::of(value, /*degree*/ 0);
   }
+  /// value in normal scale
   static NoiseState of(double value, int degree) {
-    if (value == 0.0) {
-      return NoiseState(NoiseType::SET, NEGATIVE_INFINITY, degree);
-    }
-    return NoiseState(NoiseType::SET, log2(value), degree);
+    return NoiseState(NoiseType::SET, Log2Arithmetic::of(value), degree);
   }
 
   /// Create an integer value range lattice value.
   /// The default constructor must be equivalent to the "entry state" of the
   /// lattice, i.e., an uninitialized noise.
   NoiseState(NoiseType noiseType = NoiseType::UNINITIALIZED,
-             std::optional<double> value = std::nullopt, int degree = 0)
+             std::optional<Log2Arithmetic> value = std::nullopt, int degree = 0)
       : noiseType(noiseType), value(value), degree(degree) {}
 
   bool isKnown() const { return noiseType == NoiseType::SET; }
@@ -61,7 +59,12 @@ class NoiseState {
   bool isInitialized() const { return noiseType != NoiseType::UNINITIALIZED; }
 
   // this returns log2(e) instead of e, use with caution
-  const double &getValue() const {
+  double getValue() const {
+    assert(isKnown());
+    return value->getLog2Value();
+  }
+
+  Log2Arithmetic getLog2Arithmetic() const {
     assert(isKnown());
     return *value;
   }
@@ -115,11 +118,13 @@ class NoiseState {
     }
 
     assert(lhs.noiseType == NoiseType::SET && rhs.noiseType == NoiseType::SET);
-    return NoiseState(NoiseType::SET, std::max(lhs.getValue(), rhs.getValue()),
-                      std::max(lhs.getDegree(), rhs.getDegree()));
+    return NoiseState(
+        NoiseType::SET,
+        std::max(lhs.getLog2Arithmetic(), rhs.getLog2Arithmetic()),
+        std::max(lhs.getDegree(), rhs.getDegree()));
   }
 
-  void print(llvm::raw_ostream &os) const { os << value; }
+  void print(llvm::raw_ostream &os) const { os << toString(); }
 
   std::string toString() const;
 
@@ -135,13 +140,9 @@ class NoiseState {
   // 3523 bits and could not be represented in double.
   // To mitigate such problem we store log2(Noise) as only the order of
   // magnititude is important
-  std::optional<double> value;
+  std::optional<Log2Arithmetic> value;
   // for some analysis a degree is tracked
   int degree;
-
-  // value may be negative infinity
-  static constexpr double NEGATIVE_INFINITY =
-      -std::numeric_limits<double>::infinity();
 };
 
 }  // namespace heir
