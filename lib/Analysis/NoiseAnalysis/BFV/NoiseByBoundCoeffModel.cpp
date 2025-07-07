@@ -174,7 +174,7 @@ typename NoiseByBoundCoeffModel::StateType NoiseByBoundCoeffModel::evalMul(
                (4.0 + expansionFactorMS * boundKey);
   auto term3 = StateType::of(
       (1.0 + expansionFactorMS * boundKey +
-       expansionFactorMS * expansionFactorMS * boundKey * boundKey) /
+       expansionFactor * expansionFactorMS * boundKey * boundKey) /
       2.0);
   return term1 + term2 + term3;
 }
