@@ -1,18 +1,22 @@
+"""Setup script for the heir package."""
+
 from collections.abc import Generator
-from pathlib import Path
-from typing import Any
 import contextlib
 import fnmatch
 import os
+import pathlib
 import platform
 import re
 import shutil
 import stat
 import sys
+from typing import Any
 
 import setuptools
 from setuptools.command import build_ext
 
+
+Path = pathlib.Path
 IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
@@ -29,8 +33,8 @@ def is_cibuildwheel() -> bool:
 
 @contextlib.contextmanager
 def _maybe_patch_toolchains() -> Generator[None, None, None]:
-  """
-  Patch rules_python toolchains to ignore root user error
+  """Patch rules_python toolchains to ignore root user error
+
   when run in a Docker container on Linux in cibuildwheel.
   """
 
@@ -66,7 +70,9 @@ def _maybe_patch_toolchains() -> Generator[None, None, None]:
 # A hack to tell shutils.copytree to only include files of a certain kind
 def include_patterns(patterns):
   """Function that can be used as shutil.copytree() ignore parameter.
-  Copies only files matching the given patterns."""
+
+  Copies only files matching the given patterns.
+  """
 
   def _ignore_patterns(path, names):
     # Return all names that don't match any pattern
@@ -127,8 +133,8 @@ class BuildBazelExtension(build_ext.build_ext):
     self.spawn(["bazel", "shutdown"])
 
   def copy_extensions_to_source(self):
-    """
-    Copy generated extensions into the source tree.
+    """Copy generated extensions into the source tree.
+
     This is done in the ``bazel_build`` method, so it's not necessary to
     do again in the `build_ext` base class.
     """
@@ -315,22 +321,26 @@ setuptools.setup(
         ),
         BazelExtension(
             name="heir_py._openfhecore",
-            bazel_target="@openfhe//:core",
-            generated_so_file=Path("external") / "openfhe" / "libcore.so",
+            bazel_target="@openfhe//:core_shared",
+            generated_so_file=Path("external")
+            / "openfhe"
+            / "libOPENFHEcore.so",
             target_file="libOPENFHEcore.so",
             py_limited_api=py_limited_api,
         ),
         BazelExtension(
             name="heir_py._openfhepke",
-            bazel_target="@openfhe//:pke",
-            generated_so_file=Path("external") / "openfhe" / "libpke.so",
+            bazel_target="@openfhe//:pke_shared",
+            generated_so_file=Path("external") / "openfhe" / "libOPENFHEpke.so",
             target_file="libOPENFHEpke.so",
             py_limited_api=py_limited_api,
         ),
         BazelExtension(
             name="heir_py._openfhebinfhe",
-            bazel_target="@openfhe//:binfhe",
-            generated_so_file=Path("external") / "openfhe" / "libbinfhe.so",
+            bazel_target="@openfhe//:binfhe_shared",
+            generated_so_file=Path("external")
+            / "openfhe"
+            / "libOPENFHEbinfhe.so",
             target_file="libOPENFHEbinfhe.so",
             py_limited_api=py_limited_api,
             # At least one command needs this to ensure the include files are

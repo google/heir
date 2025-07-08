@@ -38,6 +38,7 @@ cc_library(
         "src/core/lib",
     ],
     linkopts = MAYBE_OPENFHE_LINKOPTS,
+    linkstatic = True,
     textual_hdrs = glob([
         "src/core/include/**/*.h",
         "src/core/lib/**/*.cpp",
@@ -57,6 +58,7 @@ cc_library(
         "src/binfhe/lib",
     ],
     linkopts = MAYBE_OPENFHE_LINKOPTS,
+    linkstatic = True,
     textual_hdrs = glob(["src/binfhe/include/**/*.h"]),
     deps = [
         "@openfhe//:core",
@@ -77,6 +79,7 @@ cc_library(
         "src/pke/lib",
     ],
     linkopts = MAYBE_OPENFHE_LINKOPTS,
+    linkstatic = True,
     textual_hdrs = glob([
         "src/pke/include/**/*.h",
         "src/pke/lib/**/*.cpp",
@@ -86,4 +89,24 @@ cc_library(
         "@openfhe//:binfhe",
         "@openfhe//:core",
     ],
+)
+
+# Explicitly needed because on some platforms bazel does not automatically
+# generate a shared object file.
+cc_shared_library(
+    name = "core_shared",
+    shared_lib_name = "libOPENFHEcore.so",
+    deps = [":core"],
+)
+
+cc_shared_library(
+    name = "binfhe_shared",
+    shared_lib_name = "libOPENFHEbinfhe.so",
+    deps = [":binfhe"],
+)
+
+cc_shared_library(
+    name = "pke_shared",
+    shared_lib_name = "libOPENFHEpke.so",
+    deps = [":pke"],
 )

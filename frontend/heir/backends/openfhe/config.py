@@ -62,9 +62,9 @@ def development_openfhe_config() -> OpenFHEConfig:
       include_type="source-relative",
       lib_dir=str(repo_root / "bazel-bin" / "external" / "openfhe"),
       link_libs=[
-          "binfhe",
-          "core",
-          "pke",
+          "OPENFHEbinfhe",
+          "OPENFHEcore",
+          "OPENFHEpke",
       ],
   )
 
@@ -114,7 +114,7 @@ def from_os_env(debug=False) -> OpenFHEConfig:
   # for Google-internal testing.
   if "RUNFILES_DIR" in os.environ or "TEST_SRCDIR" in os.environ:
     path_base = os.getenv("RUNFILES_DIR", os.getenv("TEST_SRCDIR", ""))
-    # bazel data dep on @openfhe//:core puts libcore.so in the
+    # bazel data dep on @openfhe//:core_shared puts libOPENFHEcore.so in the
     # $RUNFILES/openfhe dir
     lib_dir = os.path.join(path_base, lib_dir)
     # bazel data dep on @openfhe//:headers copies header files
