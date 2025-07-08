@@ -190,9 +190,9 @@ def run_pipeline(
       )
 
     # Run backend (which will call heir_translate and other tools, e.g., clang, as needed)
-    if "--mlir-to-cggi" in heir_opt_options and not isinstance(
-        backend, CleartextBackend
-    ):
+    if any(
+        opt.startswith("--mlir-to-cggi") for opt in heir_opt_options
+    ) and not isinstance(backend, CleartextBackend):
       raise NotImplementedError(
           "Backend compilation is unsupported for CGGI scheme, check CGGI"
           f" output at {mlirpath}"
