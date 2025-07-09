@@ -17,7 +17,8 @@ class OpenFHEConfig:
     include_type: The type of include paths to use during codegen. Options are:
       - "install-relative": use paths relative to the installed OpenFHE
       - "source-relative": relative to the openfhe development repository.
-    lib_dir: The directory containing libOPENFHEbinfhe.so, etc.
+    lib_dir: The directory containing shared libraries to link against
+      (e.g., libopenfhe.so).
     link_libs: The libraries to link against (without lib prefix or .so suffix)
   """
 
@@ -37,9 +38,7 @@ DEFAULT_INSTALLED_OPENFHE_CONFIG = OpenFHEConfig(
     include_type="install-relative",
     lib_dir="/usr/local/lib",
     link_libs=[
-        "OPENFHEbinfhe",
-        "OPENFHEcore",
-        "OPENFHEpke",
+        "openfhe",  # libopenfhe.so
     ],
 )
 
@@ -61,11 +60,7 @@ def development_openfhe_config() -> OpenFHEConfig:
       ],
       include_type="source-relative",
       lib_dir=str(repo_root / "bazel-bin" / "external" / "openfhe"),
-      link_libs=[
-          "OPENFHEbinfhe",
-          "OPENFHEcore",
-          "OPENFHEpke",
-      ],
+      link_libs=["openfhe"],
   )
 
 
@@ -114,7 +109,7 @@ def from_os_env(debug=False) -> OpenFHEConfig:
   # for Google-internal testing.
   if "RUNFILES_DIR" in os.environ or "TEST_SRCDIR" in os.environ:
     path_base = os.getenv("RUNFILES_DIR", os.getenv("TEST_SRCDIR", ""))
-    # bazel data dep on @openfhe//:core_shared puts libOPENFHEcore.so in the
+    # bazel data dep on @openfhe//:core_shared puts libopenfhe.so in the
     # $RUNFILES/openfhe dir
     lib_dir = os.path.join(path_base, lib_dir)
     # bazel data dep on @openfhe//:headers copies header files
@@ -139,8 +134,8 @@ def from_os_env(debug=False) -> OpenFHEConfig:
   # if nothing is found, check the default installed config
   if debug:
     print(
-        f"HEIRpy Debug (OpenFHE Backend): No valid OpenFHE config found in"
-        f" environment variables, trying default install location."
+        "HEIRpy Debug (OpenFHE Backend): No valid OpenFHE config found in"
+        " environment variables, trying default install location."
     )
   if os.path.exists(DEFAULT_INSTALLED_OPENFHE_CONFIG.include_dirs[0]):
     return DEFAULT_INSTALLED_OPENFHE_CONFIG
@@ -148,9 +143,9 @@ def from_os_env(debug=False) -> OpenFHEConfig:
   # if nothing is found still, check the development config
   if debug:
     print(
-        f"HEIRpy Debug (OpenFHE Backend): No valid OpenFHE config found in"
-        f" environment variables or default install location, trying"
-        f" development location."
+        "HEIRpy Debug (OpenFHE Backend): No valid OpenFHE config found in"
+        " environment variables or default install location, trying"
+        " development location."
     )
   return (
       development_openfhe_config()
@@ -175,9 +170,5 @@ def from_pip_installation() -> OpenFHEConfig:
       ],
       include_type="source-relative",
       lib_dir=str(package_path),
-      link_libs=[
-          "OPENFHEbinfhe",
-          "OPENFHEcore",
-          "OPENFHEpke",
-      ],
+      link_libs=["openfhe"],
   )

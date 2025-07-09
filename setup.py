@@ -320,32 +320,11 @@ setuptools.setup(
             is_binary=True,
         ),
         BazelExtension(
-            name="heir_py._openfhecore",
-            bazel_target="@openfhe//:core_shared",
-            generated_so_file=Path("external")
-            / "openfhe"
-            / "libOPENFHEcore.so",
-            target_file="libOPENFHEcore.so",
+            name="heir_py._libopenfhe",
+            bazel_target="@openfhe//:libopenfhe",
+            generated_so_file=Path("external") / "openfhe" / "libopenfhe.so",
+            target_file="libopenfhe.so",
             py_limited_api=py_limited_api,
-        ),
-        BazelExtension(
-            name="heir_py._openfhepke",
-            bazel_target="@openfhe//:pke_shared",
-            generated_so_file=Path("external") / "openfhe" / "libOPENFHEpke.so",
-            target_file="libOPENFHEpke.so",
-            py_limited_api=py_limited_api,
-        ),
-        BazelExtension(
-            name="heir_py._openfhebinfhe",
-            bazel_target="@openfhe//:binfhe_shared",
-            generated_so_file=Path("external")
-            / "openfhe"
-            / "libOPENFHEbinfhe.so",
-            target_file="libOPENFHEbinfhe.so",
-            py_limited_api=py_limited_api,
-            # At least one command needs this to ensure the include files are
-            # included in the wheel. It needs to be after at least one build
-            # step so that the sources are fetched by bazel.
             copy_include_files=True,
         ),
     ],

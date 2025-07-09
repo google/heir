@@ -91,22 +91,13 @@ cc_library(
     ],
 )
 
-# Explicitly needed because on some platforms bazel does not automatically
-# generate a shared object file.
+# Generates a shared library that can be shipped with the python frontend.
 cc_shared_library(
-    name = "core_shared",
-    shared_lib_name = "libOPENFHEcore.so",
-    deps = [":core"],
-)
-
-cc_shared_library(
-    name = "binfhe_shared",
-    shared_lib_name = "libOPENFHEbinfhe.so",
-    deps = [":binfhe"],
-)
-
-cc_shared_library(
-    name = "pke_shared",
-    shared_lib_name = "libOPENFHEpke.so",
-    deps = [":pke"],
+    name = "libopenfhe",
+    shared_lib_name = "libopenfhe.so",
+    deps = [
+        ":binfhe",
+        ":core",
+        ":pke",
+    ],
 )
