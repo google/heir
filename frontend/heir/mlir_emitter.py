@@ -475,6 +475,19 @@ class TextualMlirEmitter:
   def forward_name_to_id(self, from_var, to_str):
     self.numba_names_to_ssa_var_names[from_var.name] = to_str
 
+  def reassign_and_forward_name(self, var, expr):
+    # returns a string that sets var equal to the expr. this helper
+    # handles assigning var to a new SSA value if it was already defined
+    is_assigned = self.has_name(var)
+    if is_assigned:
+      name = self.get_next_name()
+    else:
+      name = self.get_or_create_name(var)
+    assign_str = f"{name} = {expr}"
+    if is_assigned:
+      self.forward_name_to_id(var, name.strip("%"))
+    return assign_str
+
   def emit_assign(self, assign):
     match assign.value:
       case ir.Arg():
@@ -489,12 +502,10 @@ class TextualMlirEmitter:
         return ""
       case ir.Expr(op="binop"):
         emitted_expr, ext, ty = self.emit_binop(assign.value)
-        name = self.get_or_create_name(assign.target)
-        return (
-            f"{ext}"
-            f"{name} = {emitted_expr} :"
-            f" {mlirType(ty)} {mlirLoc(assign.loc)}"
-        )
+        expr = f"{emitted_expr} : {mlirType(ty)} {mlirLoc(assign.loc)}"
+        # if the var is being reassigned, then create a new SSA var
+        assign_str = self.reassign_and_forward_name(assign.target, expr)
+        return f"{ext}{assign_str}"
       case ir.Expr(op="call"):
         func = assign.value.func
         # if assert fails, variable was undefined
@@ -541,20 +552,13 @@ class TextualMlirEmitter:
         self.forward_name(from_var=assign.target, to_var=assign.value.value)
         return ""
       case ir.Const():
-        # if we reassign a const, then forward the name
-        reassign = self.has_name(assign.target)
-        if reassign:
-          name = self.get_next_name()
-        else:
-          name = self.get_or_create_name(assign.target)
-        const_str = (
-            f"{name} = arith.constant {assign.value.value} :"
+        expr = (
+            f"arith.constant {assign.value.value} :"
             f" {mlirType(self.typemap.get(assign.target.name))}"
             f" {mlirLoc(assign.loc)}"
         )
-        if reassign:
-          self.forward_name_to_id(assign.target, name.strip("%"))
-        return const_str
+        # if we reassign a const, then forward the name
+        return self.reassign_and_forward_name(assign.target, expr)
       case ir.Global():
         self.globals_map[assign.target.name] = (
             assign.value.name,

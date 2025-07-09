@@ -34,6 +34,19 @@ class LoopTest(absltest.TestCase):
 
     self.assertEqual(32, one_iter_arg(2))
 
+  def test_loop_assign(self):
+
+    @compile()
+    def reassign(x: Secret[I64]):
+      a = x
+      for _ in range(2):
+        a0 = a
+        a1 = a + 1
+        a = a0 + a1
+      return a
+
+    self.assertEqual(7, reassign(1))
+
 
 if __name__ == "__main__":
   absltest.main()
