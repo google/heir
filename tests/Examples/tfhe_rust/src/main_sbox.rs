@@ -1,9 +1,5 @@
-use clap::Parser;
 #[allow(unused_imports)]
-use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
 use tfhe::shortint::*;
-
-mod fn_under_test;
 
 pub fn encrypt_u8(value: u8, client_key: &ClientKey) -> [Ciphertext; 8] {
     core::array::from_fn(|shift| {
@@ -21,18 +17,31 @@ pub fn decrypt_u8(ciphertexts: &[Ciphertext; 8], client_key: &ClientKey) -> u8 {
     accum
 }
 
-fn main() {
-    let parameters = get_parameters_from_message_and_carry((1 << 3) - 1, 2);
-    let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
+#[cfg(test)]
+mod test {
+    use tfhe::shortint::parameters::v1_1::V1_1_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+    use tfhe::shortint::prelude::*;
+    use tfhe::shortint::*;
 
-    // query the first 2 and last 2 elements of the table
-    let query = [0, 1, 254, 255];
-    let ct_query: Vec<[Ciphertext; 8]> =
-        query.into_iter().map(|v| encrypt_u8(v, &client_key)).collect();
+    use super::decrypt_u8;
+    use super::encrypt_u8;
 
-    for i in 0..4 {
-        let result = fn_under_test::sub_bytes(&server_key, &ct_query[i]);
-        let output = decrypt_u8(&result, &client_key);
-        print!("{:2X}", output);
+    use sbox_test_rs_lib;
+
+    #[test]
+    fn simple_test() {
+        let (client_key, server_key) = gen_keys(V1_1_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+
+        // query the first 2 and last 2 elements of the table
+        let query = [0, 1, 6, 7];
+        let expected = [99, 124, 111, 197];
+        let ct_query: Vec<[Ciphertext; 8]> =
+            query.into_iter().map(|v| encrypt_u8(v, &client_key)).collect();
+
+        for i in 0..4 {
+            let result = sbox_test_rs_lib::sub_bytes(&server_key, &ct_query[i]);
+            let output = decrypt_u8(&result, &client_key);
+            assert_eq!(output, expected[i]);
+        }
     }
 }

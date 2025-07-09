@@ -1,22 +1,4 @@
-use clap::Parser;
-use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
-use tfhe::shortint::*;
-
-mod fn_under_test;
-
-// TODO(#235): improve generality
-#[derive(Parser, Debug)]
-struct Args {
-    #[arg(id = "message_bits", long)]
-    message_bits: usize,
-
-    #[arg(id = "carry_bits", long, default_value = "2")]
-    carry_bits: usize,
-
-    /// arguments to forward to function under test
-    #[arg(id = "input_1", index = 1)]
-    input1: u8,
-}
+use tfhe::shortint::prelude::*;
 
 // Encrypt a u8
 pub fn encrypt(value: u8, client_key: &ClientKey) -> [Ciphertext; 8] {
@@ -36,16 +18,24 @@ pub fn decrypt(ciphertexts: &[Ciphertext], client_key: &ClientKey) -> u8 {
     accum
 }
 
-fn main() {
-    let flags = Args::parse();
-    let parameters =
-        get_parameters_from_message_and_carry((1 << flags.message_bits) - 1, flags.carry_bits);
-    let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
+#[cfg(test)]
+mod test {
+    use tfhe::shortint::prelude::*;
 
-    let ct_1 = encrypt(flags.input1.into(), &client_key);
+    use super::decrypt;
+    use super::encrypt;
 
-    let result = fn_under_test::fn_under_test(&server_key, &ct_1);
-    let output = decrypt(&result, &client_key);
+    use add_one_test_rs_lib;
 
-    println!("{:08b}", output);
+    #[test]
+    fn simple_test() {
+        let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+
+        let ct_1 = encrypt(3, &client_key);
+
+        let result = add_one_test_rs_lib::fn_under_test(&server_key, &ct_1);
+        let output = decrypt(&result, &client_key);
+
+        assert_eq!(output, 4);
+    }
 }

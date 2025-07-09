@@ -1,22 +1,7 @@
-use clap::Parser;
 #[allow(unused_imports)]
 use std::time::Instant;
-use tfhe::shortint::parameters::get_parameters_from_message_and_carry;
 use tfhe::shortint::*;
 
-mod fn_under_test;
-
-// TODO(#235): improve generality
-#[derive(Parser, Debug)]
-struct Args {
-    #[arg(id = "message_bits", long)]
-    message_bits: usize,
-    #[arg(id = "carry_bits", long, default_value = "2")]
-    carry_bits: usize,
-    /// arguments to forward to function under test
-    #[arg(id = "input_1", index = 1)]
-    input1: u8,
-}
 // Encrypt a u8
 pub fn encrypt(value: u8, client_key: &ClientKey) -> [[[Ciphertext; 8]; 1]; 1] {
     core::array::from_fn(|_| {
@@ -38,19 +23,25 @@ pub fn decrypt(ciphertexts: &[Ciphertext], client_key: &ClientKey) -> u8 {
     }
     accum
 }
-fn main() {
-    let flags = Args::parse();
-    let parameters =
-        get_parameters_from_message_and_carry((1 << flags.message_bits) - 1, flags.carry_bits);
-    let (client_key, server_key) = tfhe::shortint::gen_keys(parameters);
-    let ct_1 = encrypt(flags.input1.into(), &client_key);
 
-    // Code to compute timing info
-    // let t = Instant::now();
-    let result = fn_under_test::fn_under_test(&server_key, &ct_1);
-    // let run = t.elapsed().as_millis();
-    // println!("{:?}", run);
+#[cfg(test)]
+mod test {
+    use tfhe::shortint::prelude::*;
 
-    let output = decrypt(&result[0][0][0..8], &client_key);
-    println!("{:08b}", output);
+    use super::decrypt;
+    use super::encrypt;
+
+    use fully_connected_test_rs_lib;
+
+    #[test]
+    fn simple_test() {
+        let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+
+        let ct_1 = encrypt(2, &client_key);
+
+        let result = fully_connected_test_rs_lib::fn_under_test(&server_key, &ct_1);
+        let output = decrypt(&result[0][0][0..8], &client_key);
+
+        assert_eq!(output, 5);
+    }
 }

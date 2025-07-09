@@ -36,6 +36,9 @@ glob_lit_tests(
         "Examples/common/*",
         # Has a custom driver
         "Examples/plaintext/*",
+        # FPGA tests are not supported by blaze
+        "Examples/tfhe_rust_bool/fpga/*",
+        "Examples/tfhe_rust_hl/fpga/*",
     ],
     test_file_exts = ["mlir"],
 )

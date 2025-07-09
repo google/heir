@@ -3,7 +3,7 @@
 // CHECK: pub fn mix(
 // CHECK-NEXT:   [[input1:v[0-9]+]]: &[Ciphertext; 4],
 // CHECK-NEXT: ) -> [Ciphertext; 4] {
-// CHECK: let mut [[v5:.*]] : HashMap<(usize), Ciphertext> = HashMap::new();
+// CHECK: let mut [[v5:.*]] : HashMap<usize, Ciphertext> = HashMap::new();
 // CHECK-COUNT-4: [[v5]].insert
 // CHECK: core::array::from_fn
 // CHECK-NEXT: }

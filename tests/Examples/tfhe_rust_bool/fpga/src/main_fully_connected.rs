@@ -10,7 +10,6 @@ use tfhe::boolean::server_key::FpgaAcceleration;
 
 mod fn_under_test;
 
-// TODO(#235): improve generality
 #[derive(Parser, Debug)]
 struct Args {
     /// arguments to forward to function under test
@@ -47,14 +46,14 @@ fn main() {
 
     #[cfg(feature = "fpga")]
     {
-      params = tfhe::core_crypto::fpga::parameters::DEFAULT_PARAMETERS_KS_PBS;
-      client_key = boolean_engine.create_client_key(*params);
+        params = tfhe::core_crypto::fpga::parameters::DEFAULT_PARAMETERS_KS_PBS;
+        client_key = boolean_engine.create_client_key(*params);
     }
 
     #[cfg(not(feature = "fpga"))]
     {
-      params = tfhe::boolean::parameters::DEFAULT_PARAMETERS_KS_PBS;
-      client_key = boolean_engine.create_client_key(params);
+        params = tfhe::boolean::parameters::DEFAULT_PARAMETERS_KS_PBS;
+        client_key = boolean_engine.create_client_key(params);
     }
 
     // generate the server key, only the SW needs this
@@ -72,7 +71,6 @@ fn main() {
 
     let run = t.elapsed().as_millis();
     println!("{:?}", run);
-
 
     let output = decrypt(&result, &client_key);
 

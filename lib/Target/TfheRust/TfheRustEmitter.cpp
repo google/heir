@@ -629,12 +629,14 @@ LogicalResult TfheRustEmitter::printOperation(tensor::FromElementsOp op) {
 
 LogicalResult TfheRustEmitter::printOperation(memref::AllocOp op) {
   os << "let mut " << variableNames->getNameForValue(op.getMemref())
-     << " : HashMap<("
-     << std::accumulate(
-            std::next(op.getMemref().getType().getShape().begin()),
-            op.getMemref().getType().getShape().end(), std::string("usize"),
-            [&](std::string a, int64_t value) { return a + ", usize"; })
-     << "), ";
+     << " : HashMap<";
+  if (op.getType().getRank() > 1) os << "(";
+  os << std::accumulate(
+      std::next(op.getMemref().getType().getShape().begin()),
+      op.getMemref().getType().getShape().end(), std::string("usize"),
+      [&](std::string a, int64_t value) { return a + ", usize"; });
+  if (op.getType().getRank() > 1) os << ")";
+  os << ", ";
   if (failed(emitType(op.getMemref().getType().getElementType()))) {
     return op.emitOpError() << "Failed to get memref element type";
   }
@@ -685,13 +687,13 @@ LogicalResult TfheRustEmitter::printOperation(memref::GetGlobalOp op) {
 void TfheRustEmitter::printStoreOp(memref::StoreOp op,
                                    std::string valueToStore) {
   os << variableNames->getNameForValue(op.getMemref());
-  os << ".insert(("
-     << commaSeparatedValues(op.getIndices(),
-                             [&](Value value) {
-                               return variableNames->getNameForValue(value) +
-                                      std::string(" as usize");
-                             })
-     << "), " << valueToStore << ");\n";
+  os << ".insert(";
+  if (op.getIndices().size() > 1) os << "(";
+  os << commaSeparatedValues(op.getIndices(), [&](Value value) {
+    return variableNames->getNameForValue(value) + std::string(" as usize");
+  });
+  if (op.getIndices().size() > 1) os << ")";
+  os << ", " << valueToStore << ");\n";
 }
 
 LogicalResult TfheRustEmitter::printOperation(memref::StoreOp op) {

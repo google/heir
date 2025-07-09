@@ -1,8 +1,4 @@
-// RUN: heir-opt --mlir-to-cggi --scheme-to-tfhe-rs %s | heir-translate --emit-tfhe-rust > %S/src/fn_under_test.rs
-// RUN: cargo run --release --manifest-path %S/Cargo.toml --bin main_fully_connected -- 2 --message_bits=3 | FileCheck %s
-
 // This takes takes the input x and outputs 2 \cdot x + 1.
-// CHECK: 00000101
 #map = affine_map<(d0, d1) -> (0)>
 #map1 = affine_map<(d0, d1) -> (d0, d1)>
 module {

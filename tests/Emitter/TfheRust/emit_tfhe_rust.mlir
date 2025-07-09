@@ -69,8 +69,8 @@ func.func @test_return_multiple_values(%input : !eui3) -> (!eui3, !eui3) {
   // CHECK-NEXT: let [[v4:.*]] = [[v3]][0 + [[v1]] * 1 + [[v1]] * 1];
   // CHECK-NEXT: let [[v5:.*]] = [[sks]].create_trivial([[v4]] as u64);
   // CHECK: let [[v6:.*]] = [[sks]].bitand(&[[v2]], &[[v5]]);
-  // CHECK: let mut [[v7:.*]] : HashMap<(usize), Ciphertext> = HashMap::new();
-  // CHECK-NEXT: [[v7]].insert(([[v1]] as usize), [[v6]]);
+  // CHECK: let mut [[v7:.*]] : HashMap<usize, Ciphertext> = HashMap::new();
+  // CHECK-NEXT: [[v7]].insert([[v1]] as usize, [[v6]]);
   // CHECK-NEXT: core::array::from_fn(|i0| [[v7]].get
 memref.global constant @__constant_1x1xi1 : memref<1x1xi1> = dense<[[1]]> {alignment = 64 : i64}
 func.func @test_memref(%sks : !sks, %input : memref<1x!eui3>) -> (memref<1x!eui3>) {

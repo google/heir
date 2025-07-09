@@ -17,7 +17,6 @@ mod server_key_enum;
 const FPGA_COUNT: usize = 1;
 const SEED: u64 = 0;
 
-// TODO(https://github.com/google/heir/issues/235): improve generality
 #[derive(Parser, Debug)]
 struct Args {
     /// arguments to forward to function under test
@@ -30,11 +29,10 @@ struct Args {
 
 // Encrypt a u8
 pub fn encrypt(value: u8, client_key: &ClientKey) -> Vec<Ciphertext> {
-    let arr: [u8; 8] = core::array::from_fn(|shift| (value >> shift) & 1 );
+    let arr: [u8; 8] = core::array::from_fn(|shift| (value >> shift) & 1);
 
-    let res: Vec<Ciphertext> = arr.iter()
-    .map(|bit| client_key.encrypt(if *bit != 0u8 { true } else { false }))
-    .collect();
+    let res: Vec<Ciphertext> =
+        arr.iter().map(|bit| client_key.encrypt(if *bit != 0u8 { true } else { false })).collect();
     res
 }
 
@@ -65,7 +63,8 @@ fn main() {
 
     #[cfg(feature = "fpga")]
     {
-        let mut fpga_key: BelfortBooleanServerKey = BelfortBooleanServerKey::from(server_key.clone());
+        let mut fpga_key: BelfortBooleanServerKey =
+            BelfortBooleanServerKey::from(server_key.clone());
         fpga_key.connect(FPGA_COUNT);
         key_wrapped = ServerKeyEnum::TypeFPGA(fpga_key);
     }
@@ -84,7 +83,7 @@ fn main() {
     let result = fn_under_test::fn_under_test(&key_wrapped, &ct_1, &ct_2);
 
     let run = t.elapsed().as_secs_f64();
-    println!("{:.3?} ms", run*1000.0);
+    println!("{:.3?} ms", run * 1000.0);
 
     let output = decrypt(&result, &client_key);
 

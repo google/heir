@@ -8,11 +8,13 @@ namespace heir {
 namespace tfhe_rust {
 
 constexpr std::string_view kModulePrelude = R"rust(
-use rayon::prelude::*;
-use std::collections::HashMap;
-use tfhe::shortint::prelude::*;
-
+use tfhe::shortint::Ciphertext;
+use tfhe::shortint::ServerKey;
 use tfhe::shortint::server_key::LookupTableOwned;
+
+use std::collections::HashMap;
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::ParallelIterator;
 
 enum GateInput {
     Tv(usize), // key in a global hashmap
@@ -42,7 +44,7 @@ let left_shift = |args: &[&Ciphertext], shift: u8, server_key: &ServerKey| -> Ci
     return server_key.scalar_left_shift(args[0], shift);
 };
 
-let mut run_level = |
+let run_level = |
   server_key: &ServerKey,
   temp_nodes: &mut HashMap<usize, Ciphertext>,
   luts: &mut HashMap<&str, LookupTableOwned>,

@@ -1,21 +1,19 @@
-# See README.md for setup required to run these tests
-
-load("//bazel:lit.bzl", "glob_lit_tests")
+load("@heir//tests/Examples/tfhe_rust:test.bzl", "tfhe_rs_end_to_end_test")
 
 package(default_applicable_licenses = ["@heir//:license"])
 
-glob_lit_tests(
-    name = "all_tests",
-    data = [
-        "Cargo.toml",
-        "src/main.rs",
-        "src/main_bool_add.rs",
-        "@heir//tests:test_utilities",
-    ],
-    default_tags = [
-        "manual",
-        "notap",
-    ],
-    driver = "@heir//tests:run_lit.sh",
-    test_file_exts = ["mlir"],
+tfhe_rs_end_to_end_test(
+    name = "and_test",
+    size = "large",
+    heir_translate_flags = ["--emit-tfhe-rust-bool"],
+    mlir_src = "test_and.mlir",
+    test_src = "src/main.rs",
+)
+
+tfhe_rs_end_to_end_test(
+    name = "bool_add_test",
+    size = "large",
+    heir_translate_flags = ["--emit-tfhe-rust-bool"],
+    mlir_src = "test_bool_add.mlir",
+    test_src = "src/main_bool_add.rs",
 )
