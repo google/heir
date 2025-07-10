@@ -21,28 +21,20 @@ Then you can run the examples below, replacing `bazel run //tools:heir-opt --`
 with `./heir-opt`. HEIR also publishes `heir-translate` and `heir-lsp` in the
 same way.
 
-### Running the nightly binary from a notebook
+### Via pip
 
-We publish an ipython extension [heir-play](https://pypi.org/project/heir-play/)
-that can be used in Jupyter or Colab notebooks.
-
-```
-%pip install heir-play
-%load_ext heir_play
-```
-
-This will download the nightly release binaries to the system the notebook
-server is running on, then:
+We publish a python package [heir_py](https://pypi.org/project/heir-py/) that
+includes the `heir-opt` and `heir-translate` binaries.
 
 ```
-%%heir_opt --flag1 --flag2
+python -m venv venv
+source venv/bin/activate
 
-# MLIR code here
+pip install heir_py
+
+heir-opt --help
+heir-translate --help
 ```
-
-Runs `heir-opt` with the given command line flags on the MLIR code in the cell.
-
-A cell magic is also available for `heir-translate` as `%%heir_translate`.
 
 ### Building From Source
 
@@ -50,11 +42,9 @@ A cell magic is also available for `heir-translate` as `%%heir_translate`.
 
 - [Git](https://git-scm.com/)
 - A C++ compiler and linker ([clang](https://clang.llvm.org/) and
-  [lld](https://lld.llvm.org/) are recommended).
-- Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk), or version
-  `>=5.5`
-- See [Development](https://heir.dev/docs/development) for additional
-  prerequisites for active development
+  [lld](https://lld.llvm.org/) or a recent version of `gcc`).
+- Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk). The precise
+  Bazel version used is in `.bazelversion` in the repository root.
 
 <details>
   <summary>Detailed Instructions</summary>
@@ -85,8 +75,10 @@ echo 'export PATH=$PATH:~/bin' >> ~/.bashrc
 mv bazel ~/bin/bazel
 ```
 
-Note that on linux systems, your OS user must **not** be `root` as bazel might
+Note that on linux systems, your OS user must **not** be `root` as `bazel` might
 refuse to work if run as root.
+
+On macOS, you can install `bazelisk` via Homebrew.
 
 </details>
 
@@ -101,24 +93,27 @@ git clone git@github.com:google/heir.git && cd heir
 bazel build @heir//tools:heir-opt
 ```
 
-Some passes in this repository require Yosys as a dependency
-(`--yosys-optimizer`). If you would like to skip Yosys and ABC compilation to
-speed up builds, use the following build setting:
+Some HEIR passes require Yosys as a dependency (`--yosys-optimizer`), which
+itself adds many transitive dependencies that may not build properly on all
+systems. If you would like to skip Yosys and ABC compilation, use the following
+build setting:
 
 ```bash
 bazel build --//:enable_yosys=0 --build_tag_filters=-yosys @heir//tools:heir-opt
+```
+
+Adding the following to `.bazelrc` in the HEIR project root will make this the
+default behavior
+
+```
+common --//:enable_yosys=0
+common --build_tag_filters=-yosys
 ```
 
 #### Optional: Run the tests
 
 ```bash
 bazel test @heir//...
-```
-
-Like above, run the following to skip tests that depend on Yosys:
-
-```bash
-bazel test --//:enable_yosys=0 --test_tag_filters=-yosys @heir//...
 ```
 
 ## Using HEIR
@@ -129,9 +124,6 @@ The `dot-product` program computes the dot product of two length-8 vectors of
 16-bit integers (`i16` in MLIR parlance). This example will showcase the OpenFHE
 backend by manually calling the relevant compiler passes and setting up a C++
 harness to call into the HEIR-generated functions.
-
-Note: other backends are similar, but the different backends are in varying
-stages of development.
 
 The input program is in `tests/Examples/common/dot_product_8.mlir`. Support for
 standard input languages like `C` and `C++` are currently experimental at best,
@@ -157,7 +149,10 @@ For an introduction to MLIR syntax, see the
 [official docs](https://mlir.llvm.org/docs/LangRef/) or
 [this blog post](https://www.jeremykun.com/2023/08/10/mlir-running-and-testing-a-lowering/).
 
-Now we run the `heir-opt` command to optimize and compile the program.
+Now we run the `heir-opt` command to optimize and compile the program. If you
+fetched a pre-built binary instead of building from source, then all commands
+below should have `bazel run //tools:heir-opt --` replaced with `heir-opt`, and
+similarly for `heir-translate`.
 
 ```bash
 bazel run //tools:heir-opt -- \
@@ -401,6 +396,12 @@ $ bazel run dot_product_main
 Expected: 240
 Actual: 240
 ```
+
+If you fetched a pre-built binary instead of building from source, then you will
+have to use your build system of choice to compile the generated files. If you
+use `heir_py`'s `heir.compile` decorator with `debug=True`, then the compilation
+commands will be printed to stdout so you can see how to compile the generated
+code manually.
 
 ### Optional: Run a custom `heir-opt` pipeline
 
