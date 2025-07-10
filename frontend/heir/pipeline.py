@@ -223,6 +223,104 @@ def run_pipeline(
       shutil.rmtree(workspace_dir)
 
 
+def _run_mlir_pipeline(
+    mlir_raw_textual: str,
+    func_name: str,
+    arg_names: list[str],
+    secret_args: list[int],
+    heir_opt_options: list[str],
+    backend: BackendInterface,
+    config: HEIRConfig,
+    debug: bool,
+    workspace_dir: str,
+    orig_func: Optional[Any] = None,
+) -> ClientInterface:
+  """Internal helper for MLIR-based pipelines."""
+  heir_opt = heir_cli.HeirOptBackend(config.heir_opt_path)
+  heir_translate = heir_cli.HeirTranslateBackend(
+      binary_path=config.heir_translate_path
+  )
+
+  # Shape inference
+  mlir_textual = heir_opt.run_binary(
+      input=mlir_raw_textual,
+      options=["--shape-inference", "--mlir-print-debuginfo"],
+  )
+  if debug:
+    in_path = Path(workspace_dir) / f"{func_name}.in.mlir"
+    DebugMessage(f"Writing input MLIR w/ shape inference to {in_path}")
+    with open(in_path, "w") as f:
+      f.write(mlir_textual)
+
+  # Annotate secretness and graph
+  if debug:
+    annotated_path = Path(workspace_dir) / f"{func_name}.annotated.mlir"
+    graph_path = Path(workspace_dir) / f"{func_name}.annotated.dot"
+    heir_opt_output, graph = heir_opt.run_binary_stderr(
+        input=mlir_textual, options=["--annotate-secretness", "--view-op-graph"]
+    )
+    DebugMessage(f"Writing secretness-annotated MLIR to {annotated_path}")
+    with open(annotated_path, "w") as f:
+      f.write(heir_opt_output)
+    DebugMessage(f"Writing secretness-annotated graph to {graph_path}")
+    with open(graph_path, "w") as f:
+      f.write(graph)
+
+  # Run heir-opt
+  heir_opt_options.append("--mlir-print-debuginfo")
+  if debug:
+    heir_opt_options.append("--view-op-graph")
+    DebugMessage(f"Running heir-opt {' '.join(heir_opt_options)}")
+  try:
+    heir_opt_output, graph = heir_opt.run_binary_stderr(
+        input=mlir_textual, options=heir_opt_options
+    )
+  except CLIError as e:
+    raise CompilerError(
+        f"HEIR compilation for MLIR {func_name} failed:\nrunning `heir-opt"
+        f" {' '.join([str(x) for x in e.options])}` produced these"
+        f" errors:\n{e.stderr}\n",
+        func_name,
+    )
+
+  if debug:
+    out_mlir = Path(workspace_dir) / f"{func_name}.out.mlir"
+    out_dot = Path(workspace_dir) / f"{func_name}.out.dot"
+    DebugMessage(f"Writing output MLIR to {out_mlir}")
+    with open(out_mlir, "w") as f:
+      f.write(heir_opt_output)
+    DebugMessage(f"Writing output graph to {out_dot}")
+    with open(out_dot, "w") as f:
+      f.write(graph)
+
+  if not isinstance(backend, BackendInterface):
+    raise TypeError(
+        f"Expected BackendInterface instance but found: {type(backend)}. "
+        "If it's callable, maybe you forgot to instantiate it?"
+    )
+
+  if any(
+      opt.startswith("--mlir-to-cggi") for opt in heir_opt_options
+  ) and not isinstance(backend, CleartextBackend):
+    raise NotImplementedError(
+        "Backend compilation is unsupported for CGGI scheme, check output MLIR"
+        " files"
+    )
+
+  result = backend.run_backend(
+      workspace_dir,
+      heir_opt,
+      heir_translate,
+      func_name,
+      arg_names,
+      secret_args,
+      heir_opt_output,
+      debug,
+  )
+  result.func = orig_func
+  return result
+
+
 def compile(
     scheme: Optional[str] = "bgv",
     backend: Optional[BackendInterface] = None,
@@ -285,3 +383,76 @@ def compile(
       raise SystemExit(1)
 
   return decorator
+
+
+def compile_mlir(
+    mlir_raw_textual: str,
+    func_name: str,
+    arg_names: list[str],
+    secret_args: list[int],
+    scheme: Optional[str] = "bgv",
+    backend: Optional[BackendInterface] = None,
+    config: Optional[HEIRConfig] = None,
+    debug: Optional[bool] = False,
+    heir_opt_options: Optional[list[str]] = None,
+) -> ClientInterface:
+  """Compile an MLIR program to its private equivalent in FHE.
+
+  Args:
+    mlir_raw_textual: a string containing the MLIR program.
+    func_name: the name of the function in the MLIR program to compile.
+    arg_names: list of argument names in order.
+    secret_args: list of indices of secret arguments.
+    scheme: MLIR pipeline scheme, e.g. 'bgv' or 'ckks'. Ignored if heir_opt_options set.
+    backend: backend to use for running the function.
+    config: config object for HEIR toolchain paths.
+    debug: whether to emit debug files.
+    heir_opt_options: options to pass to heir-opt. If set, scheme is ignored.
+
+  Returns:
+    A ClientInterface for invoking the compiled function.
+  """
+  if not config:
+    if is_pip_installed():
+      config = heir_cli_config.from_pip_installation()
+    else:
+      config = heir_cli_config.from_os_env()
+
+  if not backend:
+    if is_pip_installed():
+      backend = OpenFHEBackend(openfhe_config.from_pip_installation())
+    else:
+      backend = OpenFHEBackend(openfhe_config.from_os_env())
+
+  if debug and heir_opt_options is not None:
+    DebugMessage(f"Overriding scheme with options {heir_opt_options}")
+
+  options = heir_opt_options or ["--canonicalize", f"--mlir-to-{scheme}"]
+  workspace_dir = tempfile.mkdtemp()
+  try:
+    # Write raw MLIR
+    if debug:
+      raw_path = Path(workspace_dir) / f"{func_name}.raw.mlir"
+      DebugMessage(f"Writing raw input MLIR to {raw_path}")
+      with open(raw_path, "w") as f:
+        f.write(mlir_raw_textual)
+
+    result = _run_mlir_pipeline(
+        mlir_raw_textual,
+        func_name,
+        arg_names,
+        secret_args,
+        options,
+        backend,
+        config,
+        debug,
+        workspace_dir,
+    )
+    return result
+  finally:
+    if debug:
+      DebugMessage(
+          f"Leaving workspace_dir {workspace_dir} for manual inspection.\n"
+      )
+    else:
+      shutil.rmtree(workspace_dir)

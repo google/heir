@@ -1,6 +1,6 @@
 """Example of HEIR Python usage."""
 
-from heir import compile
+from heir import compile, compile_mlir
 from heir.mlir import F32, I16, I64, Secret
 from heir.backends.cleartext import CleartextBackend
 
@@ -126,6 +126,28 @@ def main():
   ckks_example()
   ctxt_ptxt_example()
   custom_example()
+
+  # MLIR-as-string example
+  def mlir_example():
+    print("Running MLIR-as-string example")
+
+    mlir_src = """
+func.func @myfunc() -> i32 {
+  %c = arith.constant 42 : i32
+  return %c : i32
+}
+"""
+
+    client = compile_mlir(
+        mlir_src,
+        func_name="myfunc",
+        arg_names=[],
+        secret_args=[],
+    )
+    client.setup()
+    print(f"Result: {client()}")
+
+  mlir_example()
 
 
 if __name__ == "__main__":

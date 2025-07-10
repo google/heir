@@ -47,6 +47,31 @@ print(
 )
 ```
 
+## Passing MLIR program directly
+
+Alternatively, you may compile an MLIR program provided as a string:
+
+```python
+from heir import compile_mlir
+
+mlir_src = '''
+func.func @myfunc(%0: i32) -> i32 {
+  %1 = arith.constant 42 : i32
+  return %1 : i32
+}
+'''
+
+client = compile_mlir(
+    mlir_src,
+    func_name="myfunc",
+    arg_names=[],
+    secret_args=[],
+)
+client.setup()
+result = client()
+print(f"Result: {result}")
+```
+
 This will compile the function above using the BGV scheme to machine code via
 the [OpenFHE](https://openfhe-development.readthedocs.io/en/latest/) backend.
 Then calling the function will encrypt the inputs, run the function, and return

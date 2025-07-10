@@ -27,6 +27,6 @@ sys.meta_path.insert(0, NumbaBuiltinOverrideFinder())
 
 ## Normal __init__.py stuff below
 
-from .pipeline import compile
+from .pipeline import compile, compile_mlir
 
-__all__ = ["compile"]
+__all__ = ["compile", "compile_mlir"]

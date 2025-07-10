@@ -1,6 +1,4 @@
-from heir import compile
-from heir.mlir import I16, Secret
-from heir import compile
+from heir import compile, compile_mlir
 from heir.mlir import F32, I16, I64, Secret
 from heir.backends.cleartext import CleartextBackend
 
@@ -125,6 +123,25 @@ class EndToEndTest(absltest.TestCase):
     self.assertEqual(41, custom(7, 8))
 
     # There's unfortunately no way to test the MLIR output here
+
+  def test_mlir_example(self):
+    # MLIR-as-string compilation path
+    mlir_src = """
+func.func @myfunc() -> i32 {
+  %c = arith.constant 42 : i32
+  return %c : i32
+}
+"""
+    client = compile_mlir(
+        mlir_src,
+        func_name="myfunc",
+        arg_names=[],
+        secret_args=[],
+    )
+    # Test cleartext functionality
+    self.assertEqual(42, client.original())
+    # Test FHE functionality
+    self.assertEqual(42, client())
 
 
 if __name__ == "__main__":
