@@ -146,21 +146,23 @@ For the best experience, we recommend following these steps:
 
 Bazel is notoriously fickle when it comes to deciding whether a full rebuild is
 necessary, which is bad for HEIR because rebuilding LLVM from scratch takes 15
-minutes or more.
+minutes or more. We try to avoid this as much as possible by setting default
+options in the project root's `.bazelrc`.
 
 The main things that cause a rebuild are:
 
-- A change to the command-line flags passed to bazel, e.g., `-c opt` vs `-c dbg`
-  for optimization level and debug symbols.
 - A change to the `.bazelrc` that implicitly causes a flag change. Note HEIR has
   its own project-specific `.bazelrc` in the root directory.
+- A change to the command-line flags passed to bazel, e.g., `-c opt` vs `-c dbg`
+  for optimization level and debug symbols. The default is `-c dbg`, and you may
+  want to override this to optimize performance of generated code. For example,
+  the OpenFHE backend generates much faster code when compiled with `-c opt`.
 - A change to relevant command-line variables, such as `PATH`, which is avoided
   by the `incompatible_strict_action_env` flag. Note activating a python
-  virtualenv triggers a `PATH` change.
-
-Bazel compilation flags are set by default in the project root's `.bazelrc` in
-such a way as to avoid rebuilds during development as much as possible. This
-includes setting `-c dbg` and `--incompatible_strict_action_env`.
+  virtualenv triggers a `PATH` change. The default is
+  `incompatible_strict_action_env=true`, and you would override this in the
+  event that you want your shell's environment variables to change and be
+  inherited by bazel.
 
 ### Pointing HEIR to a local clone of `llvm-project`
 
