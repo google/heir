@@ -420,13 +420,17 @@ run/debug it.</p></li></ol><ul><li>Note that you might have to hit &ldquo;Enter&
 might take several seconds between hitting &ldquo;Enter&rdquo; and the debug terminal
 opening.</li></ul><h2 id=tips-for-working-with-bazel>Tips for working with Bazel</h2><h3 id=avoiding-rebuilds>Avoiding rebuilds</h3><p>Bazel is notoriously fickle when it comes to deciding whether a full rebuild is
 necessary, which is bad for HEIR because rebuilding LLVM from scratch takes 15
-minutes or more.</p><p>The main things that cause a rebuild are:</p><ul><li>A change to the command-line flags passed to bazel, e.g., <code>-c opt</code> vs <code>-c dbg</code>
-for optimization level and debug symbols.</li><li>A change to the <code>.bazelrc</code> that implicitly causes a flag change. Note HEIR has
-its own project-specific <code>.bazelrc</code> in the root directory.</li><li>A change to relevant command-line variables, such as <code>PATH</code>, which is avoided
+minutes or more. We try to avoid this as much as possible by setting default
+options in the project root&rsquo;s <code>.bazelrc</code>.</p><p>The main things that cause a rebuild are:</p><ul><li>A change to the <code>.bazelrc</code> that implicitly causes a flag change. Note HEIR has
+its own project-specific <code>.bazelrc</code> in the root directory.</li><li>A change to the command-line flags passed to bazel, e.g., <code>-c opt</code> vs <code>-c dbg</code>
+for optimization level and debug symbols. The default is <code>-c dbg</code>, and you may
+want to override this to optimize performance of generated code. For example,
+the OpenFHE backend generates much faster code when compiled with <code>-c opt</code>.</li><li>A change to relevant command-line variables, such as <code>PATH</code>, which is avoided
 by the <code>incompatible_strict_action_env</code> flag. Note activating a python
-virtualenv triggers a <code>PATH</code> change.</li></ul><p>Bazel compilation flags are set by default in the project root&rsquo;s <code>.bazelrc</code> in
-such a way as to avoid rebuilds during development as much as possible. This
-includes setting <code>-c dbg</code> and <code>--incompatible_strict_action_env</code>.</p><h3 id=pointing-heir-to-a-local-clone-of-llvm-project>Pointing HEIR to a local clone of <code>llvm-project</code></h3><p>Occasionally changes in HEIR will need to be made in tandem with upstream
+virtualenv triggers a <code>PATH</code> change. The default is
+<code>incompatible_strict_action_env=true</code>, and you would override this in the
+event that you want your shell&rsquo;s environment variables to change and be
+inherited by bazel.</li></ul><h3 id=pointing-heir-to-a-local-clone-of-llvm-project>Pointing HEIR to a local clone of <code>llvm-project</code></h3><p>Occasionally changes in HEIR will need to be made in tandem with upstream
 changes in MLIR. In particular, we occasionally find upstream bugs that only
 occur with HEIR passes, and we are the primary owners/users of the upstream
 <code>polynomial</code> dialect.</p><p>To tell <code>bazel</code> to use a local clone of <code>llvm-project</code> instead of a pinned
