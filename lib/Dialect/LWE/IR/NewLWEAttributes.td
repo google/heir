@@ -322,7 +322,7 @@ def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace", [OpAsmAttr
     298374$ will be described as
 
     ```
-    !cmod = !mod_arith.mod_arith<modulus=298374 : i64>
+    !cmod = !mod_arith.int<298374 : i64>
     #ring = #polynomial.ring<coefficientType = !cmod, polynomialModulus = <1 + x**1024>>
     #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = lsb>
     ```
@@ -331,8 +331,8 @@ def LWE_CiphertextSpaceAttr : AttrDef<LWE_Dialect, "CiphertextSpace", [OpAsmAttr
     their ring's coefficient type attribute.
 
     ```
-    !limb1 = !mod_arith.mod_arith<modulus=2251799814045697 : i64>
-    !limb2 = !mod_arith.mod_arith<modulus=65537 : i64>
+    !limb1 = !mod_arith.int<2251799814045697 : i64>
+    !limb2 = !mod_arith.int<65537 : i64>
     #rns_mod = !rns.rns<!limb1, !limb2>
     #ring = #polynomial.ring<coefficientType = #rns_mod, polynomialModulus = <1 + x**1024>>
     #ciphertext_space = #lwe.ciphertext_space<ring = #ring, encryption_type = lsb>

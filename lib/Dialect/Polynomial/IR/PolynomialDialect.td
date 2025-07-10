@@ -35,7 +35,7 @@ def Polynomial_Dialect : Dialect {
     // A constant polynomial in a ring with i32 coefficients, with a polynomial
     // modulus of (x^1024 + 1) and a coefficient modulus of 17.
     #modulus = #polynomial.int_polynomial<1 + x**1024>
-    !coeff_ty = !mod_arith.mod_arith<17:i32>
+    !coeff_ty = !mod_arith.int<17 : i32>
     #ring = #polynomial.ring<coefficientType=!coeff_ty, polynomialModulus=#modulus>
     %a = polynomial.constant <1 + x**2 - 3x**3> : polynomial.polynomial<#ring>
     ```
