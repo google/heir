@@ -1,0 +1,41 @@
+name: Label pull_ready on maintainer approval
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  add-label-on-maintainer-approval:
+    runs-on: ubuntu-latest
+    if: github.event.review.state == 'approved' && github.event.pull_request.commits == 1
+
+    steps:
+    - name: Check reviewer permissions
+      id: check_reviewer
+      env:
+        REVIEWER: ${{ github.event.review.user.login }}
+        REPO: ${{ github.repository }}
+      run: |
+          permission=$(gh api "repos/${REPO}/collaborators/${REVIEWER}/permission" --jq '.permission')
+          if [[ "$permission" == "admin" || "$permission" == "maintain" || "$permission" == "push" ]]; then
+            echo "::debug::Reviewer has merge permissions: $permission}"
+            echo "is_maintainer=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::debug::Reviewer does not have merge permissions, skipping pull_ready"
+            echo "is_maintainer=false" >> "$GITHUB_OUTPUT"
+          fi
+
+    - name: Add pull_ready label
+      if: steps.check_reviewer.outputs.is_maintainer == true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+        NUMBER: ${{ github.event.pull_request.number }}
+        LABELS: pull_ready
+      run: |
+          gh issue edit "$NUMBER" --add-label "$LABELS"
