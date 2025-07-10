@@ -4,7 +4,6 @@
 #include "lib/Dialect/CGGI/IR/CGGIDialect.h"
 #include "lib/Dialect/CGGI/Transforms/BooleanVectorizer.h"
 #include "lib/Dialect/CGGI/Transforms/DecomposeOperations.h"
-#include "lib/Dialect/CGGI/Transforms/SetDefaultParameters.h"
 
 namespace mlir {
 namespace heir {

@@ -14,29 +14,8 @@ cc_library(
     deps = [
         ":BooleanVectorizer",
         ":DecomposeOperations",
-        ":SetDefaultParameters",
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
-    ],
-)
-
-cc_library(
-    name = "SetDefaultParameters",
-    srcs = ["SetDefaultParameters.cpp"],
-    hdrs = [
-        "SetDefaultParameters.h",
-    ],
-    deps = [
-        ":pass_inc_gen",
-        "@heir//lib/Dialect/CGGI/IR:Dialect",
-        "@heir//lib/Dialect/LWE/IR:Dialect",
-        "@heir//lib/Dialect/ModArith/IR:Dialect",
-        "@heir//lib/Dialect/Polynomial/IR:Dialect",
-        "@heir//lib/Utils/Polynomial",
-        "@llvm-project//llvm:Support",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Support",
     ],
 )
 
