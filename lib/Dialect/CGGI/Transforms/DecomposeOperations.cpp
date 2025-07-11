@@ -63,9 +63,12 @@ struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
 
   LogicalResult matchAndRewrite(LutLinCombOp op,
                                 PatternRewriter &rewriter) const override {
-    Type scalarTy = rewriter.getIntegerType(widthFromEncodingAttr(
-        cast<lwe::LWECiphertextType>(op.getInputs().front().getType())
-            .getEncoding()));
+    Type scalarTy = rewriter.getIntegerType(
+        cast<lwe::NewLWECiphertextType>(op.getInputs().front().getType())
+            .getPlaintextSpace()
+            .getRing()
+            .getCoefficientType()
+            .getIntOrFloatBitWidth());
     // Use LWE operations to create the linear combination of inputs.
     Value result;
     for (auto [input, coeff] :

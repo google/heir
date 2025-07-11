@@ -1,6 +1,8 @@
 // RUN: heir-opt --arith-to-cggi-quart  %s | FileCheck %s
 
-// CHECK: return %[[RET:.*]] tensor<4x!lwe.lwe_ciphertext<encoding = #unspecified_bit_field_encoding>>
+// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+
+// CHECK: return %[[RET:.*]] tensor<4x![[ct_ty]]>
 func.func @test_simple_split2(%arg0: i32, %arg1: i32) -> i32 {
   %2 = arith.constant 31 : i8
   %1 = arith.extui %2 : i8 to i32

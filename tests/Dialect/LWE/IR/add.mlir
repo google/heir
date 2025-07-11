@@ -1,10 +1,16 @@
 // RUN: heir-opt %s | FileCheck %s
 
-#encoding = #lwe.bit_field_encoding<
-  cleartext_start=14,
-  cleartext_bitwidth=3>
-#params = #lwe.lwe_params<cmod=7917, dimension=10>
-!ct = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
+#poly = #polynomial.int_polynomial<x>
+#preserve_overflow = #lwe.preserve_overflow<>
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!cmod = !mod_arith.int<7917 : i32>
+#cspace = #lwe.ciphertext_space<
+  ring = #polynomial.ring<coefficientType = !cmod, polynomialModulus = #poly>,
+  encryption_type = msb, size = 10>
+!ct = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: test_add
 func.func @test_add(%0: !ct, %1: !ct) -> !ct {

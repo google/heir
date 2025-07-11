@@ -1,7 +1,9 @@
-// RUN: heir-opt --mlir-print-local-scope --secret-distribute-generic --canonicalize --split-input-file --secret-to-cggi --cse %s | FileCheck %s
+// RUN: heir-opt --secret-distribute-generic --canonicalize --split-input-file --secret-to-cggi --cse %s | FileCheck %s
+
+// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
 
 // CHECK-NOT: secret
-// CHECK: @truth_table_all_secret([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.* = 3>>]]) -> [[LWET:!lwe.lwe_ciphertext<.* = 3>>]]
+// CHECK: @truth_table_all_secret([[ARG:%.*]]: ![[ct_ty]]) -> ![[ct_ty]]
 func.func @truth_table_all_secret(%arg0: !secret.secret<i1>) -> !secret.secret<i1> {
   // CHECK: [[VAL:%.+]] = cggi.lut3 [[ARG]], [[ARG]], [[ARG]]
   %0 = secret.generic
@@ -10,14 +12,16 @@ func.func @truth_table_all_secret(%arg0: !secret.secret<i1>) -> !secret.secret<i
           %1 = comb.truth_table %ARG0, %ARG0, %ARG0 -> 6 : ui8
           secret.yield %1 : i1
       } -> (!secret.secret<i1>)
-  // CHECK: return [[VAL]] : [[LWET:!lwe.lwe_ciphertext<.* = 3>>]]
+  // CHECK: return [[VAL]] : ![[ct_ty]]
   func.return %0 : !secret.secret<i1>
 }
 
 // -----
 
+// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+
 // CHECK-NOT: secret
-// CHECK: @truth_table_partial_secret([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.* = 3>>]]) -> [[LWET:!lwe.lwe_ciphertext<.* = 3>>]]
+// CHECK: @truth_table_partial_secret([[ARG:%.*]]: ![[ct_ty]]) -> ![[ct_ty]]
 func.func @truth_table_partial_secret(%arg0: !secret.secret<i1>) -> !secret.secret<i1> {
   // CHECK: [[FALSE:%.+]] = arith.constant false
   %false = arith.constant false
@@ -36,14 +40,16 @@ func.func @truth_table_partial_secret(%arg0: !secret.secret<i1>) -> !secret.secr
           %2 = comb.truth_table %FALSE, %TRUE, %1 -> 2 : ui8
           secret.yield %2 : i1
       } -> (!secret.secret<i1>)
-  // CHECK: return [[VAL2]] : [[LWET]]
+  // CHECK: return [[VAL2]] : ![[ct_ty]]
   func.return %0 : !secret.secret<i1>
 }
 
 // -----
 
+// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+
 // CHECK-NOT: secret
-// CHECK: @truth_table_no_secret([[ARG:%.*]]: [[LWET:!lwe.lwe_ciphertext<.*>]], [[BOOL1:%.*]]: i1, [[BOOL2:%.*]]: i1) -> [[LWET]]
+// CHECK: @truth_table_no_secret([[ARG:%.*]]: ![[ct_ty]], [[BOOL1:%.*]]: i1, [[BOOL2:%.*]]: i1) -> ![[ct_ty]]
 func.func @truth_table_no_secret(%arg0: !secret.secret<i1>, %bool1: i1, %bool2: i1) -> !secret.secret<i1> {
   %false = arith.constant false
   // CHECK: [[TRUE:%.+]] = arith.constant true
@@ -63,6 +69,6 @@ func.func @truth_table_no_secret(%arg0: !secret.secret<i1>, %bool1: i1, %bool2: 
           %2 = comb.truth_table %ARG0, %TRUE, %1 -> 2 : ui8
           secret.yield %2 : i1
       } -> (!secret.secret<i1>)
-  // CHECK: return [[VAL2]] : [[LWET]]
+  // CHECK: return [[VAL2]] : ![[ct_ty]]
   func.return %0 : !secret.secret<i1>
 }

@@ -1,8 +1,10 @@
 // RUN: heir-translate --import-autohog %S/adder4.json | FileCheck %s
 
+// CHECK: ![[ct:.*]] = !lwe.new_lwe_ciphertext
+
 // CHECK: func private @"4bit-4bit-adder"
-// CHECK-SAME: (%[[arg0:.*]]: tensor<8x!lwe.lwe_ciphertext
-// CHECK-SAME: -> tensor<5x!lwe.lwe_ciphertext
+// CHECK-SAME: (%[[arg0:.*]]: tensor<8x![[ct]]
+// CHECK-SAME: -> tensor<5x![[ct]]
 
 // CHECK-DAG: %[[c3:.*]] = arith.constant 3 : index
 // CHECK-DAG: %[[c4:.*]] = arith.constant 4 : index
@@ -44,5 +46,5 @@
 
 // CHECK: %[[ct7:.*]], %[[ct8:.*]] = cggi.multi_lut_lincomb %[[ct5]], %[[ct2]], %[[ct0]], %[[ct1]] {coefficients = array<i32: 1, 8, 4, 2>, lookup_tables = array<i32: 13260, 23130>}
 
-// CHECK: %[[ret:.*]] = tensor.from_elements %[[ct3]], %[[ct6]], %[[ct7]], %[[ct8]], %[[ct4]] : tensor<5x!lwe.lwe_ciphertext
+// CHECK: %[[ret:.*]] = tensor.from_elements %[[ct3]], %[[ct6]], %[[ct7]], %[[ct8]], %[[ct4]] : tensor<5x![[ct]]
 // CHECK: return %[[ret]]

@@ -1,21 +1,24 @@
 // RUN: heir-opt %s | FileCheck %s
 
 // This simply tests for syntax.
-#encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
-#poly = #polynomial.int_polynomial<1 + x**1024>
-#params = #lwe.lwe_params<cmod=7917, dimension=4>
-!plaintext = !lwe.lwe_plaintext<encoding = #encoding>
-!ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
+#preserve_overflow = #lwe.preserve_overflow<>
+#poly = #polynomial.int_polynomial<x>
+
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i4, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+!ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 module {
   //CHECK: test_syntax
   func.func @test_syntax(%arg0 : !ciphertext) -> !ciphertext {
     %0 = arith.constant 0 : i1
     %1 = arith.constant 1 : i1
-    %2 = lwe.encode %0 { encoding = #encoding }: i1 to !plaintext
-    %3 = lwe.encode %1 { encoding = #encoding }: i1 to !plaintext
-    %4 = lwe.trivial_encrypt %2 { params = #params } : !plaintext to !ciphertext
-    %5 = lwe.trivial_encrypt %3 { params = #params } : !plaintext to !ciphertext
+    %2 = lwe.encode %0 { overflow = #preserve_overflow, plaintext_bits = 4 : index } : i1 to !plaintext
+    %3 = lwe.encode %1 { overflow = #preserve_overflow, plaintext_bits = 4 : index } : i1 to !plaintext
+    %4 = lwe.trivial_encrypt %2 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
+    %5 = lwe.trivial_encrypt %3 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
     %6 = cggi.lut3 %arg0, %4, %5 {lookup_table = 127 : index} : !ciphertext
     %c3 = arith.constant 3 : i3
     %7 = lwe.mul_scalar %4, %c3 : (!ciphertext, i3) -> !ciphertext

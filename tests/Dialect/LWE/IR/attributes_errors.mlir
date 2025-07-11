@@ -1,32 +1,5 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s
 
-#encoding2 = #lwe.bit_field_encoding<
-  cleartext_start=30,
-  cleartext_bitwidth=3>
-
-// expected-error@below {{cleartext starting bit index (30) is outside the legal range [0, 15]}}
-func.func @test_invalid_lwe_attribute() -> tensor<2xi16, #encoding2> {
-  %c0 = arith.constant 0 : index
-  %two = arith.constant 2 : i16
-  %coeffs1 = tensor.from_elements %two, %two : tensor<2xi16, #encoding2>
-  return %coeffs1 : tensor<2xi16, #encoding2>
-}
-
-// -----
-
-#encoding3 = #lwe.unspecified_bit_field_encoding<
-  cleartext_bitwidth=8>
-
-// expected-error@below {{tensor element type's bitwidth 4 is too small to store the cleartext, which has bit width 8}}
-func.func @test_invalid_unspecified_lwe_attribute() -> tensor<2xi4, #encoding3> {
-  %c0 = arith.constant 0 : index
-  %two = arith.constant 2 : i4
-  %coeffs1 = tensor.from_elements %two, %two : tensor<2xi4, #encoding3>
-  return %coeffs1 : tensor<2xi4, #encoding3>
-}
-
-// -----
-
 // expected-error@below {{overflow must be either preserve_overflow or no_overflow, but found i1}}
 #application = #lwe.application_data<message_type = i1, overflow = i1>
 

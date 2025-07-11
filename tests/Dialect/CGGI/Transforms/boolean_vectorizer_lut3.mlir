@@ -1,9 +1,13 @@
 // RUN: heir-opt --cggi-boolean-vectorize=parallelism=4 %s | FileCheck %s
 
-#unspecified_encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 3>
-!ct_ty = !lwe.lwe_ciphertext<encoding = #unspecified_encoding>
-!pt_ty = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
-
+#key = #lwe.key<slot_index = 0>
+#preserve_overflow = #lwe.preserve_overflow<>
+#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
+#poly = #polynomial.int_polynomial<x>
+#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!pt_ty = !lwe.new_lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
+!ct_ty = !lwe.new_lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: test_add_one_lut3
 // CHECK-COUNT-2: cggi.packed_lut3
@@ -29,10 +33,10 @@ func.func @test_add_one_lut3(%arg0: tensor<8x!ct_ty>) -> tensor<8x!ct_ty> {
   %bool_1 = arith.constant 1 : i1
 
 
-  %encoded_1 = lwe.encode %bool_1 {encoding = #unspecified_encoding} : i1 to !pt_ty
-  %constant_T = lwe.trivial_encrypt %encoded_1 : !pt_ty to !ct_ty
-  %encoded_0 = lwe.encode %bool_0 {encoding = #unspecified_encoding} : i1 to !pt_ty
-  %constant_F = lwe.trivial_encrypt %encoded_0 : !pt_ty to !ct_ty
+  %encoded_1 = lwe.encode %bool_1 { overflow = #preserve_overflow, plaintext_bits = 3 : index } : i1 to !pt_ty
+  %constant_T = lwe.trivial_encrypt %encoded_1 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
+  %encoded_0 = lwe.encode %bool_0 { overflow = #preserve_overflow, plaintext_bits = 3 : index } : i1 to !pt_ty
+  %constant_F = lwe.trivial_encrypt %encoded_0 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
 
   %t_0 = cggi.lut3 %x_00, %x_01, %x_02 {lookup_table = 128 : ui8} : !ct_ty
   %t_1 = cggi.lut3 %t_0, %x_03, %x_04 {lookup_table = 128 : ui8} : !ct_ty

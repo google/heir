@@ -30,7 +30,7 @@ def LWECiphertext : LWE_Type<"LWECiphertext", "lwe_ciphertext", [MemRefElementTy
   let asmName = "ct";
 }
 
-def LWECiphertextLike : TypeOrValueSemanticsContainer<LWECiphertext, "ciphertext-like">;
+def LWECiphertextLike : TypeOrValueSemanticsContainer<NewLWECiphertext, "ciphertext-like">;
 
 def RLWECiphertext : LWE_Type<"RLWECiphertext", "rlwe_ciphertext"> {
   let summary = "A type for RLWE ciphertexts";

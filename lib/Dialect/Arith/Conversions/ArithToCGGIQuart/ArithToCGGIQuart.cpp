@@ -39,19 +39,14 @@ namespace mlir::heir::arith {
 
 static constexpr unsigned maxIntWidth = 16;
 
-static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
-                                                     MLIRContext *ctx) {
-  return lwe::LWECiphertextType::get(ctx,
-                                     lwe::UnspecifiedBitFieldEncodingAttr::get(
-                                         ctx, type.getIntOrFloatBitWidth()),
-                                     lwe::LWEParamsAttr());
+static lwe::NewLWECiphertextType convertArithToCGGIType(IntegerType type,
+                                                        MLIRContext *ctx) {
+  return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth());
 }
 
 static std::optional<Type> convertArithToCGGIQuartType(IntegerType type,
                                                        MLIRContext *ctx) {
-  auto lweType = lwe::LWECiphertextType::get(
-      ctx, lwe::UnspecifiedBitFieldEncodingAttr::get(ctx, maxIntWidth),
-      lwe::LWEParamsAttr());
+  auto lweType = lwe::getDefaultCGGICiphertextType(ctx, maxIntWidth);
 
   float width = type.getWidth();
   float realWidth = maxIntWidth >> 1;
@@ -112,10 +107,7 @@ static Value createTrivialOpMaxWidth(ImplicitLocOpBuilder b, int value) {
   auto maxWideIntType = IntegerType::get(b.getContext(), maxIntWidth);
   auto intAttr = b.getIntegerAttr(maxWideIntType, value);
 
-  auto encoding =
-      lwe::UnspecifiedBitFieldEncodingAttr::get(b.getContext(), maxIntWidth);
-  auto lweType = lwe::LWECiphertextType::get(b.getContext(), encoding,
-                                             lwe::LWEParamsAttr());
+  auto lweType = lwe::getDefaultCGGICiphertextType(b.getContext(), maxIntWidth);
 
   return b.create<cggi::CreateTrivialOp>(lweType, intAttr);
 }

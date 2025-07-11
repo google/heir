@@ -14,12 +14,14 @@
 #include "lib/Dialect/LWE/IR/LWEOps.h"
 #include "lib/Dialect/LWE/IR/LWETypes.h"
 #include "lib/Dialect/ModuleAttributes.h"
+#include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Secret/IR/SecretOps.h"
 #include "lib/Dialect/Secret/IR/SecretTypes.h"
 #include "lib/Transforms/MemrefToArith/Utils.h"
 #include "lib/Utils/ContextAwareConversionUtils.h"
 #include "lib/Utils/ContextAwareDialectConversion.h"
 #include "lib/Utils/ContextAwareTypeConversion.h"
+#include "lib/Utils/Polynomial/Polynomial.h"
 #include "llvm/include/llvm/ADT/STLExtras.h"          // from @llvm-project
 #include "llvm/include/llvm/ADT/Sequence.h"           // from @llvm-project
 #include "llvm/include/llvm/ADT/SmallVector.h"        // from @llvm-project
@@ -94,14 +96,28 @@ Operation *convertWriteOpInterface(
   return llvm::TypeSwitch<Type, Operation *>(valueToStoreType)
       // Plaintext integer into memref
       .Case<IntegerType>([&](auto valType) {
-        auto ctTy = toMemRefTy.getElementType();
-        auto encoding = cast<lwe::LWECiphertextType>(ctTy).getEncoding();
-        auto ptxtTy = lwe::LWEPlaintextType::get(b.getContext(), encoding);
+        auto ctTy =
+            cast<lwe::NewLWECiphertextType>(toMemRefTy.getElementType());
+        auto ptxtTy = lwe::NewLWEPlaintextType::get(b.getContext(),
+                                                    ctTy.getApplicationData(),
+                                                    ctTy.getPlaintextSpace());
+        auto plaintextBits =
+            rewriter.getIndexAttr(ctTy.getPlaintextSpace()
+                                      .getRing()
+                                      .getCoefficientType()
+                                      .getIntOrFloatBitWidth());
+        auto ciphertextBits =
+            rewriter.getIndexAttr(ctTy.getCiphertextSpace()
+                                      .getRing()
+                                      .getCoefficientType()
+                                      .getIntOrFloatBitWidth());
 
         if (valType.getWidth() == 1) {
           auto ctValue = b.create<lwe::TrivialEncryptOp>(
-              ctTy, b.create<lwe::EncodeOp>(ptxtTy, valueToStore, encoding),
-              lwe::LWEParamsAttr());
+              ctTy,
+              b.create<lwe::EncodeOp>(ptxtTy, valueToStore, plaintextBits,
+                                      ctTy.getApplicationData().getOverflow()),
+              ciphertextBits);
           return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
         }
 
@@ -119,13 +135,15 @@ Operation *convertWriteOpInterface(
         auto shifted = b.create<arith::ShRSIOp>(andOp, shiftAmount);
         auto bitValue = b.create<arith::TruncIOp>(b.getI1Type(), shifted);
         auto ctValue = b.create<lwe::TrivialEncryptOp>(
-            ctTy, b.create<lwe::EncodeOp>(ptxtTy, bitValue, encoding),
-            lwe::LWEParamsAttr());
+            ctTy,
+            b.create<lwe::EncodeOp>(ptxtTy, bitValue, plaintextBits,
+                                    ctTy.getApplicationData().getOverflow()),
+            ciphertextBits);
 
         indices.push_back(idx);
         return b.create<memref::StoreOp>(ctValue, toMemRef, indices);
       })
-      .Case<lwe::LWECiphertextType>([&](auto valType) {
+      .Case<lwe::NewLWECiphertextType>([&](auto valType) {
         return b.create<memref::StoreOp>(valueToStore, toMemRef, indices);
       })
       .Case<MemRefType>([&](MemRefType valType) {
@@ -205,19 +223,27 @@ SmallVector<Value> encodeInputs(
     Operation *op, ValueRange inputs,
     ContextAwareConversionPatternRewriter &rewriter) {
   // Get the ciphertext type.
-  lwe::LWECiphertextType ctxtTy;
+  lwe::NewLWECiphertextType ctxtTy;
   for (auto input : inputs) {
-    if (isa<lwe::LWECiphertextType>(input.getType())) {
-      ctxtTy = cast<lwe::LWECiphertextType>(input.getType());
+    if (isa<lwe::NewLWECiphertextType>(input.getType())) {
+      ctxtTy = cast<lwe::NewLWECiphertextType>(input.getType());
       break;
     }
   }
 
   // Encode any plaintexts in the inputs.
-  auto encoding = cast<lwe::LWECiphertextType>(ctxtTy).getEncoding();
-  auto ptxtTy = lwe::LWEPlaintextType::get(rewriter.getContext(), encoding);
+  auto overflow = ctxtTy.getApplicationData().getOverflow();
+  auto ptxtSpace = ctxtTy.getPlaintextSpace();
+  auto plaintextBits = rewriter.getIndexAttr(
+      ptxtSpace.getRing().getCoefficientType().getIntOrFloatBitWidth());
+  auto ciphertextBits = rewriter.getIndexAttr(ctxtTy.getCiphertextSpace()
+                                                  .getRing()
+                                                  .getCoefficientType()
+                                                  .getIntOrFloatBitWidth());
+  auto ptxtTy = lwe::NewLWEPlaintextType::get(
+      rewriter.getContext(), ctxtTy.getApplicationData(), ptxtSpace);
   return llvm::to_vector(llvm::map_range(inputs, [&](auto input) -> Value {
-    if (!isa<lwe::LWECiphertextType>(input.getType())) {
+    if (!isa<lwe::NewLWECiphertextType>(input.getType())) {
       IntegerType integerTy = dyn_cast<IntegerType>(input.getType());
       assert(integerTy && integerTy.getWidth() == 1 &&
              "LUT inputs should be single-bit integers");
@@ -225,8 +251,8 @@ SmallVector<Value> encodeInputs(
           .create<lwe::TrivialEncryptOp>(
               op->getLoc(), ctxtTy,
               rewriter.create<lwe::EncodeOp>(op->getLoc(), ptxtTy, input,
-                                             encoding),
-              lwe::LWEParamsAttr())
+                                             plaintextBits, overflow),
+              ciphertextBits)
           .getResult();
     }
     return input;
@@ -237,8 +263,8 @@ SmallVector<Value> encodeInputs(
 
 class SecretTypeConverter : public ContextAwareTypeConverter {
  public:
-  SecretTypeConverter(MLIRContext *ctx, int minBitWidth)
-      : minBitWidth(minBitWidth) {
+  SecretTypeConverter(MLIRContext *ctx, int minBitWidth) {
+    this->minBitWidth = minBitWidth;
     // Convert secret types to LWE ciphertext types
     addConversion([](Type type, Attribute attr) { return type; });
     addConversion([ctx, this](secret::SecretType type, Attribute attr) -> Type {
@@ -249,9 +275,7 @@ class SecretTypeConverter : public ContextAwareTypeConverter {
   Type getLWECiphertextForInt(MLIRContext *ctx, Type type) const {
     if (IntegerType intType = dyn_cast<IntegerType>(type)) {
       if (intType.getWidth() == 1) {
-        return lwe::LWECiphertextType::get(
-            ctx, lwe::UnspecifiedBitFieldEncodingAttr::get(ctx, minBitWidth),
-            lwe::LWEParamsAttr());
+        return lwe::getDefaultCGGICiphertextType(ctx, 1);
       }
       return MemRefType::get(
           {intType.getWidth()},
@@ -336,7 +360,7 @@ class SecretGenericOpMemRefLoadConversion
       ContextAwareConversionPatternRewriter &rewriter) const override {
     memref::LoadOp loadOp =
         cast<memref::LoadOp>(op.getBody()->getOperations().front());
-    if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
+    if (auto lweType = dyn_cast<lwe::NewLWECiphertextType>(outputTypes[0])) {
       return rewriter
           .replaceOpWithNewOp<memref::LoadOp>(op, inputs[0],
                                               loadOp.getIndices())
@@ -439,7 +463,7 @@ class SecretGenericOpAffineLoadConversion
       ContextAwareConversionPatternRewriter &rewriter) const override {
     affine::AffineLoadOp loadOp =
         cast<affine::AffineLoadOp>(op.getBody()->getOperations().front());
-    if (auto lweType = dyn_cast<lwe::LWECiphertextType>(outputTypes[0])) {
+    if (auto lweType = dyn_cast<lwe::NewLWECiphertextType>(outputTypes[0])) {
       return rewriter
           .replaceOpWithNewOp<affine::AffineLoadOp>(
               op, inputs[0], loadOp.getAffineMap(), loadOp.getIndices())
@@ -645,9 +669,18 @@ struct ConvertSecretConcealOp
         op.getResult().getType(), getTypeConverter()
                                       ->getContextualAttr(op.getResult())
                                       .value_or(nullptr));
-    auto ctTy = cast<lwe::LWECiphertextType>(getElementTypeOrSelf(convertedTy));
-    auto ptxtTy =
-        lwe::LWEPlaintextType::get(rewriter.getContext(), ctTy.getEncoding());
+    auto ctTy =
+        cast<lwe::NewLWECiphertextType>(getElementTypeOrSelf(convertedTy));
+    auto ptxtTy = lwe::NewLWEPlaintextType::get(
+        b.getContext(), ctTy.getApplicationData(), ctTy.getPlaintextSpace());
+    auto plaintextBits = rewriter.getIndexAttr(ptxtTy.getPlaintextSpace()
+                                                   .getRing()
+                                                   .getCoefficientType()
+                                                   .getIntOrFloatBitWidth());
+    auto ciphertextBits = rewriter.getIndexAttr(ctTy.getCiphertextSpace()
+                                                    .getRing()
+                                                    .getCoefficientType()
+                                                    .getIntOrFloatBitWidth());
 
     auto storeElement = [&](TypedValue<IntegerType> element,
                             SmallVector<Value> indices, Value memref) {
@@ -655,8 +688,10 @@ struct ConvertSecretConcealOp
       auto valueType = element.getType();
       if (valueType.getWidth() == 1) {
         auto ctValue = b.create<lwe::TrivialEncryptOp>(
-            ctTy, b.create<lwe::EncodeOp>(ptxtTy, element, ctTy.getEncoding()),
-            lwe::LWEParamsAttr());
+            ctTy,
+            b.create<lwe::EncodeOp>(ptxtTy, element, plaintextBits,
+                                    ctTy.getApplicationData().getOverflow()),
+            ciphertextBits);
         b.create<memref::StoreOp>(ctValue, memref, indices);
         return;
       }
@@ -672,8 +707,10 @@ struct ConvertSecretConcealOp
       auto shifted = b.create<arith::ShRSIOp>(andOp, shiftAmount);
       auto bitValue = b.create<arith::TruncIOp>(b.getI1Type(), shifted);
       auto ctValue = b.create<lwe::TrivialEncryptOp>(
-          ctTy, b.create<lwe::EncodeOp>(ptxtTy, bitValue, ctTy.getEncoding()),
-          lwe::LWEParamsAttr());
+          ctTy,
+          b.create<lwe::EncodeOp>(ptxtTy, bitValue, plaintextBits,
+                                  ctTy.getApplicationData().getOverflow()),
+          ciphertextBits);
       indices.append({idx});
       b.create<memref::StoreOp>(ctValue, memref, indices);
       b.restoreInsertionPoint(point);
@@ -714,8 +751,9 @@ struct ConvertSecretConcealOp
       assert(cast<IntegerType>(valueToStore.getType()).getWidth() == 1);
       newValue = b.create<lwe::TrivialEncryptOp>(
           ctTy,
-          b.create<lwe::EncodeOp>(ptxtTy, valueToStore, ctTy.getEncoding()),
-          lwe::LWEParamsAttr());
+          b.create<lwe::EncodeOp>(ptxtTy, valueToStore, plaintextBits,
+                                  ctTy.getApplicationData().getOverflow()),
+          ciphertextBits);
     }
 
     rewriter.replaceAllOpUsesWith(op, newValue);

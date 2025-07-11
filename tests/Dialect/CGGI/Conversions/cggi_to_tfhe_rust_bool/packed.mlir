@@ -1,8 +1,13 @@
 // RUN: heir-opt --cggi-to-tfhe-rust-bool %s | FileCheck %s
 
-#encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 1>
-!ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
-!pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
+#key = #lwe.key<slot_index = 0>
+#preserve_overflow = #lwe.preserve_overflow<>
+#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
+#poly = #polynomial.int_polynomial<x>
+#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i1, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!pt_ty = !lwe.new_lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
+!ct_ty = !lwe.new_lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: packed
 // CHECK-NOT: cggi

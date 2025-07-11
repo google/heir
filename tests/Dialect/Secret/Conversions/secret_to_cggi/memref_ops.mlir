@@ -1,17 +1,19 @@
 // RUN: heir-opt --secret-distribute-generic --secret-to-cggi %s | FileCheck %s
 
+// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+
 // CHECK: module
 module attributes {tf_saved_model.semantics} {
   memref.global "private" constant @__constant_16xi32 : memref<16xi32> = dense<[0, 0, -5438, -5515, -1352, -1500, -4152, -84, 3396, 0, 1981, -5581, 0, -6964, 3407, -7217]>
   memref.global "private" constant @__constant_16x1xi8 : memref<16x1xi8> = dense<[[-9], [-54], [57], [71], [104], [115], [98], [99], [64], [-26], [127], [25], [-82], [68], [95], [86]]>
   // CHECK: @memref_ops
-  // CHECK-SAME: ([[ARG:%.*]]: [[LWET:memref<1x1x8x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:memref<1x16x32x!lwe.lwe_ciphertext<.*>>]]
+  // CHECK-SAME: ([[ARG:%.*]]: memref<1x1x8x![[ct_ty]]>) -> memref<1x16x32x![[ct_ty]]>
   func.func @memref_ops(%arg0: !secret.secret<memref<1x1xi8>>) -> !secret.secret<memref<1x16xi32>> {
     %c0 = arith.constant 0 : index
     %c-128_i16 = arith.constant -128 : i16
     %0 = memref.get_global @__constant_16x1xi8 : memref<16x1xi8>
     %1 = memref.get_global @__constant_16xi32 : memref<16xi32>
-    // CHECK: [[V2:%.*]] = memref.alloc() {alignment = 64 : i64} : [[V2T:memref<1x16x8x!lwe.lwe_ciphertext<.*>>]]
+    // CHECK: [[V2:%.*]] = memref.alloc() {alignment = 64 : i64} : memref<1x16x8x![[ct_ty]]>
     %2 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi8>
       secret.yield %alloc : memref<1x16xi8>
@@ -33,7 +35,7 @@ module attributes {tf_saved_model.semantics} {
         }
       }
     }
-    // CHECK: [[V3:%.*]] = memref.alloc() {alignment = 64 : i64} : [[V3T:memref<1x16x32x!lwe.lwe_ciphertext<.*>>]]
+    // CHECK: [[V3:%.*]] = memref.alloc() {alignment = 64 : i64} : memref<1x16x32x![[ct_ty]]>
     %3 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
       secret.yield %alloc : memref<1x16xi32>
@@ -48,7 +50,7 @@ module attributes {tf_saved_model.semantics} {
         }
       }
     }
-    // CHECK: [[V4:%.*]] = memref.alloc() {alignment = 64 : i64} : [[OUT]]
+    // CHECK: [[V4:%.*]] = memref.alloc() {alignment = 64 : i64} : memref<1x16x32x![[ct_ty]]>
     %4 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x16xi32>
       secret.yield %alloc : memref<1x16xi32>
@@ -70,87 +72,87 @@ module attributes {tf_saved_model.semantics} {
         secret.yield
       }
     }
-    // CHECK: return [[V4]] : [[OUT]]
+    // CHECK: return [[V4]] : memref<1x16x32x![[ct_ty]]>
     return %4 : !secret.secret<memref<1x16xi32>>
   }
 
   // CHECK: @affine_ops
-  // CHECK-SAME: ([[ARG:%.*]]: [[LWET:memref<1x1x32x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:memref<1x1x32x!lwe.lwe_ciphertext<.*>>]]
+  // CHECK-SAME: ([[ARG:%.*]]: memref<1x1x32x![[ct_ty]]>) -> memref<1x1x32x![[ct_ty]]>
   func.func @affine_ops(%arg0: !secret.secret<memref<1x1xi32>>) -> !secret.secret<memref<1x1xi32>> {
-    // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : [[OUT]]
+    // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : memref<1x1x32x![[ct_ty]]>
     %6 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi32>
       secret.yield %alloc : memref<1x1xi32>
     } -> !secret.secret<memref<1x1xi32>>
-    // CHECK: [[SUB:%.*]] = memref.subview [[ARG]][0, 0, 0] [1, 1, 32] [1, 1, 1] : [[OUT]]
-    // CHECK: [[ALLOC:%.*]] = memref.alloc() : [[I32T:memref<32x!lwe.lwe_ciphertext<.*>>]]
+    // CHECK: [[SUB:%.*]] = memref.subview [[ARG]][0, 0, 0] [1, 1, 32] [1, 1, 1] : memref<1x1x32x![[ct_ty]]>
+    // CHECK: [[ALLOC:%.*]] = memref.alloc() : memref<32x![[ct_ty]]
     // CHECK: memref.copy [[SUB]], [[ALLOC]]
     %7 = secret.generic(%arg0 : !secret.secret<memref<1x1xi32>>) {
     ^bb0(%arg1: memref<1x1xi32>):
       %20 = affine.load %arg1[0, 0] : memref<1x1xi32>
       secret.yield %20 : i32
     } -> !secret.secret<i32>
-    // CHECK: [[SUB1:%.*]] = memref.subview [[V6]][0, 0, 0] [1, 1, 32] [1, 1, 1] : [[OUT]] to [[I32T1:memref<32x.*>]]
-    // CHECK: memref.copy [[ALLOC]], [[SUB1]] : [[I32T]] to [[I32T1]]
+    // CHECK: [[SUB1:%.*]] = memref.subview [[V6]][0, 0, 0] [1, 1, 32] [1, 1, 1] : memref<1x1x32x![[ct_ty]]> to memref<32x![[ct_ty]], strided<[1]>>
+    // CHECK: memref.copy [[ALLOC]], [[SUB1]] : memref<32x![[ct_ty]]> to memref<32x![[ct_ty]], strided<[1]>>
     secret.generic(%6: !secret.secret<memref<1x1xi32>>, %7: !secret.secret<i32>) {
     ^bb0(%arg1: memref<1x1xi32>, %arg2: i32):
       affine.store %arg2, %arg1[0, 0] : memref<1x1xi32>
       secret.yield
     }
-    // CHECK: return [[V6]] : [[OUT]]
+    // CHECK: return [[V6]] : memref<1x1x32x![[ct_ty]]>
     return %6 : !secret.secret<memref<1x1xi32>>
   }
 
   // CHECK: @single_bit_memref
-  // CHECK-SAME: ([[ARG:%.*]]: [[LWET:memref<1x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:memref<1x!lwe.lwe_ciphertext<.*>>]]
+  // CHECK-SAME: ([[ARG:%.*]]: memref<1x![[ct_ty]]>) -> memref<1x![[ct_ty]]>
   func.func @single_bit_memref(%arg0: !secret.secret<memref<1xi1>>) -> !secret.secret<memref<1xi1>> {
     // CHECK: [[c0:%.*]] = arith.constant 0
-    // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : [[OUT]]
+    // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : memref<1x![[ct_ty]]>
     %6 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1xi1>
       secret.yield %alloc : memref<1xi1>
     } -> !secret.secret<memref<1xi1>>
-    // CHECK: [[V0:%.*]] = affine.load [[ARG]][0] : [[LWET]]
+    // CHECK: [[V0:%.*]] = affine.load [[ARG]][0] : memref<1x![[ct_ty]]>
     %7 = secret.generic(%arg0 : !secret.secret<memref<1xi1>>) {
     ^bb0(%arg1: memref<1xi1>):
       %20 = affine.load %arg1[0] : memref<1xi1>
       secret.yield %20 : i1
     } -> !secret.secret<i1>
-    // CHECK: memref.store [[V0]], [[V6]][[[c0]]] : [[OUT]]
+    // CHECK: memref.store [[V0]], [[V6]][[[c0]]] : memref<1x![[ct_ty]]>
     secret.generic(%6: !secret.secret<memref<1xi1>>, %7: !secret.secret<i1>) {
     ^bb0(%arg1: memref<1xi1>, %arg2: i1):
       affine.store %arg2, %arg1[0] : memref<1xi1>
       secret.yield
     }
-    // CHECK: return [[V6]] : [[OUT]]
+    // CHECK: return [[V6]] : memref<1x![[ct_ty]]>
     return %6 : !secret.secret<memref<1xi1>>
   }
 
   // CHECK: @single_bit_plaintext_memref
-  // CHECK-SAME: () -> [[OUT:memref<1x!lwe.lwe_ciphertext<.*>>]]
+  // CHECK-SAME: () -> memref<1x![[ct_ty]]>
   func.func @single_bit_plaintext_memref() -> !secret.secret<memref<1xi1>> {
     // CHECK: [[c0:%.*]] = arith.constant 0 : index
     // CHECK: [[TRUE:%.*]] = arith.constant true
     %true = arith.constant true
-    // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : [[OUT]]
+    // CHECK: [[V6:%.*]] = memref.alloc() {alignment = 64 : i64} : memref<1x![[ct_ty]]>
     %6 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1xi1>
       secret.yield %alloc : memref<1xi1>
     } -> !secret.secret<memref<1xi1>>
     // CHECK: [[ENC:%.*]] = lwe.encode [[TRUE]]
     // CHECK: [[LWE:%.*]] = lwe.trivial_encrypt [[ENC]]
-    // CHECK: memref.store [[LWE]], [[V6]][[[c0]]] : [[OUT]]
+    // CHECK: memref.store [[LWE]], [[V6]][[[c0]]] : memref<1x![[ct_ty]]>
     secret.generic(%6 : !secret.secret<memref<1xi1>>) {
     ^bb0(%arg1: memref<1xi1>):
       affine.store %true, %arg1[0] : memref<1xi1>
       secret.yield
     }
-    // CHECK: return [[V6]] : [[OUT]]
+    // CHECK: return [[V6]] : memref<1x![[ct_ty]]>
     return %6 : !secret.secret<memref<1xi1>>
   }
 
   // CHECK: @collapse_shape
-  // CHECK-SAME: (%[[arg0:.*]]: memref<1x1x[[lwe_ty:!lwe.lwe_ciphertext<.*>]]>)
+  // CHECK-SAME: (%[[arg0:.*]]: memref<1x1x![[ct_ty]]>)
   func.func @collapse_shape(%arg0: !secret.secret<memref<1x1xi1>>) -> !secret.secret<memref<1xi1>> {
     // CHECK: %[[v0:.*]] = memref.collapse_shape %[[arg0]]
     %6 = secret.generic(%arg0 : !secret.secret<memref<1x1xi1>>) {

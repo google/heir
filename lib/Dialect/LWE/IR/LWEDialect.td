@@ -27,6 +27,13 @@ def LWE_Dialect : Dialect {
 
   let cppNamespace = "::mlir::heir::lwe";
 
+  let dependentDialects = [
+    // We need to load the polynomial dialect to construct plaintext and
+    // ciphertext space attributes.
+    "mlir::heir::polynomial::PolynomialDialect"
+  ];
+
+
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
 }

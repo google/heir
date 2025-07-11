@@ -37,6 +37,10 @@ def LWE_PreserveOverflowAttr : LWE_OverflowAttr<"PreserveOverflow", "preserve_ov
   }];
 }
 
+def AnyOverflowAttr : AnyAttrOf<[LWE_NoOverflowAttr, LWE_PreserveOverflowAttr]> {
+  string cppType = "Attribute";
+}
+
 def LWE_ApplicationDataAttr : AttrDef<LWE_Dialect, "ApplicationData"> {
   let mnemonic = "application_data";
   let description = [{
@@ -266,6 +270,13 @@ def LWE_PlaintextSpaceAttr : AttrDef<LWE_Dialect, "PlaintextSpace"> {
   let assemblyFormat = "`<` struct(params) `>`";
 
   let genVerifyDecl = 1;
+
+  let extraClassDeclaration = [{
+    // Helper method to get the plaintext modulus.
+    Type getPlaintextModulus() const {
+      return getRing().getCoefficientType();
+    }
+  }];
 }
 
 def LWE_KeyAttr : AttrDef<LWE_Dialect, "Key", [OpAsmAttrInterface]> {

@@ -9,8 +9,8 @@ def CGGI_ProgrammableBootstrapOp : CGGI_Op<"programmable_bootstrap", [
     ElementwiseMappable,
     Scalarizable
 ]> {
-  let arguments = (ins LWECiphertextLike:$input, Builtin_IntegerAttr:$lookup_table);
-  let results = (outs LWECiphertextLike:$output);
+  let arguments = (ins NewLWECiphertextLike:$input, Builtin_IntegerAttr:$lookup_table);
+  let results = (outs NewLWECiphertextLike:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
   let summary = "Programmable Bootstrap with a given lookup table.";
 
@@ -33,7 +33,7 @@ class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
   Scalarizable,
   DeclareOpInterfaceMethods<LUTOpInterface>
 ]> {
-  let results = (outs LWECiphertextLike:$output);
+  let results = (outs NewLWECiphertextLike:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))" ;
 
   let description = [{
@@ -56,13 +56,13 @@ class CGGI_LutOp<string mnemonic, list<Trait> traits = []>
 
 def CGGI_Lut2Op : CGGI_LutOp<"lut2", [AllTypesMatch<["a", "b", "output"]>]> {
   let summary = "A lookup table on two inputs.";
-  let arguments = (ins LWECiphertextLike:$b, LWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
+  let arguments = (ins NewLWECiphertextLike:$b, NewLWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
 }
 
 def CGGI_Lut3Op : CGGI_LutOp<"lut3", [AllTypesMatch<["a", "b", "c", "output"]>]> {
   let summary = "A lookup table on three inputs.";
-  let arguments = (ins LWECiphertextLike:$c, LWECiphertextLike:$b, LWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
-  let results = (outs LWECiphertextLike:$output);
+  let arguments = (ins NewLWECiphertextLike:$c, NewLWECiphertextLike:$b, NewLWECiphertextLike:$a, Builtin_IntegerAttr:$lookup_table);
+  let results = (outs NewLWECiphertextLike:$output);
 }
 
 def CGGI_PackedLut3Op : CGGI_Op<"packed_lut3", [
@@ -72,12 +72,12 @@ def CGGI_PackedLut3Op : CGGI_Op<"packed_lut3", [
 ]> {
   let arguments = (ins
     TypedArrayAttrBase<Builtin_IntegerAttr, "Array of integers">:$lookup_tables,
-    LWECiphertextLike:$a,
-    LWECiphertextLike:$b,
-    LWECiphertextLike:$c
+    NewLWECiphertextLike:$a,
+    NewLWECiphertextLike:$b,
+    NewLWECiphertextLike:$c
   );
 
-  let results = (outs LWECiphertextLike:$output);
+  let results = (outs NewLWECiphertextLike:$output);
 }
 
 def CGGI_LutLinCombOp : CGGI_Op<"lut_lincomb", [
@@ -176,11 +176,11 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
   }];
 
   let arguments = (ins
-    Variadic<LWECiphertext>:$inputs,
+    Variadic<NewLWECiphertextLike>:$inputs,
     DenseI32ArrayAttr:$coefficients,
     DenseI32ArrayAttr:$lookup_tables
   );
-  let results = (outs Variadic<LWECiphertext>:$outputs);
+  let results = (outs Variadic<NewLWECiphertextLike>:$outputs);
   let assemblyFormat = "operands attr-dict `:` functional-type($inputs, $outputs)" ;
   let hasVerifier = 1;
 }
@@ -188,8 +188,8 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
 def CGGI_SelectOp : CGGI_Op<"cmux", [
     Pure
 ]> {
-  let arguments = (ins LWECiphertextLike:$select, LWECiphertextLike:$trueCtxt, LWECiphertextLike:$falseCtxt);
-  let results = (outs LWECiphertextLike:$output);
+  let arguments = (ins NewLWECiphertextLike:$select, NewLWECiphertextLike:$trueCtxt, NewLWECiphertextLike:$falseCtxt);
+  let results = (outs NewLWECiphertextLike:$output);
   let summary = [{Multiplexer operations, the `select` ciphertext will return the `trueCtxt`
   if in contains a 1. In the other case, it will will return the `falseCtxt`.
   Note this operations to mirror the TFHE-rs implmementation."}];

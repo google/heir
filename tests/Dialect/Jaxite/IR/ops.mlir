@@ -4,10 +4,14 @@
 
 !bsks = !jaxite.server_key_set
 !params = !jaxite.params
-#unspecified_encoding = #lwe.unspecified_bit_field_encoding<
-  cleartext_bitwidth=3>
-#params = #lwe.lwe_params<cmod = 7917, dimension = 10>
-!ciphertext = !lwe.lwe_ciphertext<encoding = #unspecified_encoding, lwe_params = #params>
+
+#key = #lwe.key<slot_index = 0>
+#preserve_overflow = #lwe.preserve_overflow<>
+#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
+#poly = #polynomial.int_polynomial<x>
+#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!ciphertext = !lwe.new_lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 module {
   // CHECK: func @test_create_trivial_bool

@@ -4,6 +4,7 @@
 include "lib/Dialect/LWE/IR/LWEDialect.td"
 include "lib/Dialect/LWE/IR/LWETraits.td"
 include "lib/Dialect/LWE/IR/LWETypes.td"
+include "lib/Dialect/LWE/IR/NewLWEAttributes.td"
 include "lib/Dialect/Polynomial/IR/PolynomialAttributes.td"
 
 include "mlir/IR/BuiltinAttributeInterfaces.td"
@@ -36,22 +37,6 @@ class NewHasEncoding<
       comparator # "(" #
       "::llvm::cast<lwe::" # ty # ">($" # encodingHolder # ".getType()).getPlaintextSpace().getEncoding(), " #
       "$" # encoding # ")"
-    >
-  >;
-
-
-class EncodingsMatch<
-  string encodingHolder1,
-  string ty1,
-  string encodingHolder2,
-  string ty2,
-  string comparator = "std::equal_to<>()"
-> : PredOpTrait<
-    "the first arg's type's encoding matches the given encoding",
-    CPred<
-      comparator # "(" #
-      "::llvm::cast<lwe::" # ty1 # ">($" # encodingHolder1 # ".getType()).getEncoding(), " #
-      "::llvm::cast<lwe::" # ty2 # ">($" # encodingHolder2 # ".getType()).getEncoding())"
     >
   >;
 
@@ -105,56 +90,63 @@ class LWE_CiphertextPlaintextOp<string mnemonic, list<Trait> traits = []> :
   let results = (outs NewLWECiphertext:$output);
 }
 
-def LWE_EncodeOp : LWE_Op<"encode", [HasEncoding<"output", "encoding", "LWEPlaintextType">]> {
+def LWE_EncodeOp : LWE_Op<"encode"> {
   let summary = "Encode an integer to yield an LWE plaintext";
   let description = [{
     Encode an integer to yield an LWE plaintext.
 
-    This op uses a an encoding attribute to encode the bits of the integer into
-    an LWE plaintext value that can then be encrypted.
+    This op uses an overflow attribute to indicate the overflow semantics. For
+    CGGI ciphertexts, this will typically be `preserve_overflow` to indicate
+    that the message bits can overflow into the carry bit space.
+
+    The LWE plaintext ring is constructed with a plaintext bit width using `plaintext_bits` and a
+    polynomial modulus of `x`.
 
     Examples:
 
     ```
-    %Y = lwe.encode %value {encoding = #enc}: i1 to !lwe.lwe_plaintext<encoding = #enc>
+    %Y = lwe.encode %value {overflow = #overflow, plaintext_bits = 3}: i1 to !lwe.new_lwe_plaintext<application_data = #app_data, plaintext_space = #space>
     ```
   }];
 
   let arguments = (ins
     SignlessIntegerOrFloatLike:$input,
-    AnyLWEEncodingAttr:$encoding
+    IndexAttr:$plaintext_bits,
+    AnyOverflowAttr:$overflow
   );
 
-  let results = (outs LWEPlaintext:$output);
+  let results = (outs NewLWEPlaintext:$output);
   let assemblyFormat = "$input attr-dict `:` qualified(type($input)) `to` qualified(type($output))";
 
-  // Verify that the input type and the encoding are compatible.
+  // Verify that the input type and the application data are compatible.
+  // Verifies that the overflow attribute is one of preserve or no overflow.
   let hasVerifier = 1;
 }
 
 def LWE_TrivialEncryptOp: LWE_Op<"trivial_encrypt", [
-    EncodingsMatch<"input", "LWEPlaintextType", "output", "LWECiphertextType">]> {
+    NewEncodingsMatch<"input", "NewLWEPlaintextType", "output", "NewLWECiphertextType">]> {
   let summary = "Create a trivial encryption of a plaintext.";
 
   let arguments = (ins
-    LWEPlaintext:$input,
-    OptionalAttr<LWE_LWEParams>:$params
+    NewLWEPlaintext:$input,
+    IndexAttr:$ciphertext_bits
   );
 
-  let results = (outs LWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 
   let assemblyFormat = [{
-    operands attr-dict `:`  qualified(type(operands)) `to` qualified(type(results))
+    $input attr-dict `:`  qualified(type(operands)) `to` qualified(type(results))
   }];
 
-  // Verify that the LWE params matches the output ciphertext LWE params and
-  // that the encodings of the input and output match.
+  // Verify that the ciphertext modulus matches the output ciphertext type's
+  // ciphertext modulus and the application data of the input and output are
+  // equal..
   let hasVerifier = 1;
 }
 
 def LWE_AddOp : LWE_BinOp<"add", [SameOperandsAndResultType,Commutative]> {
-  let arguments = (ins LWECiphertext:$lhs, LWECiphertext:$rhs);
-  let results = (outs LWECiphertext:$output);
+  let arguments = (ins NewLWECiphertext:$lhs, NewLWECiphertext:$rhs);
+  let results = (outs NewLWECiphertext:$output);
   let summary = "Add two LWE ciphertexts";
 }
 
@@ -205,8 +197,8 @@ def LWE_RNegateOp : LWE_Op<"rnegate", [SameOperandsAndResultType, ElementwiseMap
 def LWE_MulScalarOp : LWE_Op<"mul_scalar", [ElementwiseMappable,
     AllTypesMatch<["ciphertext", "output"]>]> {
   let summary = "Multiply an LWE ciphertext by a scalar";
-  let arguments = (ins LWECiphertextLike:$ciphertext, AnyInteger:$scalar);
-  let results = (outs LWECiphertextLike:$output);
+  let arguments = (ins NewLWECiphertextLike:$ciphertext, AnyInteger:$scalar);
+  let results = (outs NewLWECiphertextLike:$output);
   let hasFolder = 1;
 }
 

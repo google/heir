@@ -60,7 +60,7 @@ def NewLWEPublicKey : LWE_Type<"NewLWEPublicKey", "new_lwe_public_key"> {
 
 def NewLWESecretOrPublicKey : AnyTypeOf<[NewLWESecretKey, NewLWEPublicKey]>;
 
-def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext"> {
+def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext", [MemRefElementTypeInterface]> {
   let summary = "A plaintext type";
   let parameters = (ins
     "ApplicationDataAttr":$application_data,
@@ -72,7 +72,7 @@ def NewLWEPlaintext : LWE_Type<"NewLWEPlaintext", "new_lwe_plaintext"> {
 
 def NewLWEPlaintextLike : TypeOrValueSemanticsContainer<NewLWEPlaintext, "new-lwe-plaintext-like">;
 
-def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext"> {
+def NewLWECiphertext : LWE_Type<"NewLWECiphertext", "new_lwe_ciphertext", [MemRefElementTypeInterface]> {
   let summary = "A ciphertext type";
 
   let description = [{

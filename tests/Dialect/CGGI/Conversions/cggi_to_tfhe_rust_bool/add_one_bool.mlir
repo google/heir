@@ -1,8 +1,13 @@
 // RUN: heir-opt --cggi-to-tfhe-rust-bool -cse -remove-dead-values %s | FileCheck %s
 
-#encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 1>
-!ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
-!pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
+#key = #lwe.key<slot_index = 0>
+#preserve_overflow = #lwe.preserve_overflow<>
+#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
+#poly = #polynomial.int_polynomial<x>
+#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i1, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!pt_ty = !lwe.new_lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
+!ct_ty = !lwe.new_lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
 
 // CHECK: add_one_bool
 // CHECK-NOT: cggi
@@ -28,10 +33,10 @@ func.func @add_one_bool(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> ten
   %extracted_05 = tensor.extract %arg0[%c5] : tensor<8x!ct_ty>
   %extracted_06 = tensor.extract %arg0[%c6] : tensor<8x!ct_ty>
   %extracted_07 = tensor.extract %arg0[%c7] : tensor<8x!ct_ty>
-  %1 = lwe.encode %i0 {encoding = #encoding} : i1 to !pt_ty
-  %ec0 = lwe.trivial_encrypt %1 : !pt_ty to !ct_ty
-  %2 = lwe.encode %i1 {encoding = #encoding} : i1 to !pt_ty
-  %ec1 = lwe.trivial_encrypt %2 : !pt_ty to !ct_ty
+  %1 = lwe.encode %i0 { overflow = #preserve_overflow, plaintext_bits = 1 : index } : i1 to !pt_ty
+  %ec0 = lwe.trivial_encrypt %1 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
+  %2 = lwe.encode %i1 { overflow = #preserve_overflow, plaintext_bits = 1 : index } : i1 to !pt_ty
+  %ec1 = lwe.trivial_encrypt %2 { ciphertext_bits = 32 : index } : !pt_ty to !ct_ty
   %ha_s = cggi.xor %extracted_00, %ec1 : !ct_ty
   %ha_c = cggi.and %extracted_00, %ec1 : !ct_ty
   %fa0_1 = cggi.xor %extracted_01, %ec0 : !ct_ty

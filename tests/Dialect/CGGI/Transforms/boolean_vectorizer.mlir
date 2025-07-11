@@ -1,8 +1,15 @@
 // RUN: heir-opt --cggi-boolean-vectorize -cse %s | FileCheck %s
 
-#encoding = #lwe.unspecified_bit_field_encoding<cleartext_bitwidth = 1>
-!ct_ty = !lwe.lwe_ciphertext<encoding = #encoding>
-!pt_ty = !lwe.lwe_plaintext<encoding = #encoding>
+#key = #lwe.key<slot_index = 0>
+#preserve_overflow = #lwe.preserve_overflow<>
+#app_data = #lwe.application_data<message_type = i1, overflow = #preserve_overflow>
+#poly = #polynomial.int_polynomial<x>
+#pspace = #lwe.plaintext_space<ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>, encoding = #lwe.constant_coefficient_encoding<scaling_factor = 268435456>>
+#cspace = #lwe.ciphertext_space<ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>, encryption_type = msb, size = 742>
+!pt_ty = !lwe.new_lwe_plaintext<application_data = #app_data, plaintext_space = #pspace>
+!ct_ty = !lwe.new_lwe_ciphertext<application_data = #app_data, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+
+// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
 
 // CHECK: add_one
 // CHECK-COUNT-15: {{%.*}} = cggi.packed_gates {{%.*}}, {{%.*}}
@@ -71,7 +78,7 @@ func.func @add_one(%arg0: tensor<8x!ct_ty>, %arg1: tensor<8x!ct_ty>) -> tensor<8
   %fa6_s = cggi.xor %fa6_1, %fa5_c : !ct_ty
   %fa6_c = cggi.xor %fa6_2, %fa6_3 : !ct_ty
   %from_elements = tensor.from_elements %fa6_s, %fa5_s, %fa4_s, %fa3_s, %fa2_s, %fa1_s, %fa0_s, %ha_s : tensor<8x!ct_ty>
-  // CHECK: {{%.*}} = tensor.from_elements {{.*}} : tensor<8x!lwe.lwe_ciphertext<encoding = #unspecified_bit_field_encoding>>
-  // CHECK: return {{%.*}} : tensor<8x!lwe.lwe_ciphertext<encoding = #unspecified_bit_field_encoding>>
+  // CHECK: {{%.*}} = tensor.from_elements {{.*}} : tensor<8x![[ct_ty]]>
+  // CHECK: return {{%.*}} : tensor<8x![[ct_ty]]>
   return %from_elements : tensor<8x!ct_ty>
 }

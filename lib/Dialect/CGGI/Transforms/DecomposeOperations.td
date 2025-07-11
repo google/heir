@@ -14,8 +14,8 @@ defvar kXorLut = 6;
 
 class GetIntegerTyForLWEEncoding<int i> : NativeCodeCall<
       "$_builder.getIntegerAttr($_builder.getIntegerType("
-          "widthFromEncodingAttr("
-              "cast<lwe::LWECiphertextType>($0.getType()).getEncoding())),"
+          "cast<lwe::NewLWECiphertextType>($0.getType()).getPlaintextSpace()"
+          ".getRing().getCoefficientType().getIntOrFloatBitWidth()),"
           # i # ")">;
 
 class GetIndexAttr<int i> : NativeCodeCall<

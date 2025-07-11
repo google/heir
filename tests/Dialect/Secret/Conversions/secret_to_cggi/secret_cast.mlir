@@ -2,11 +2,13 @@
 
 // RUN: heir-opt --secret-distribute-generic --secret-to-cggi -cse --split-input-file %s | FileCheck %s
 
+// CHECK: ![[ct_ty:.*]] = !lwe.new_lwe_ciphertext
+
 // CHECK: module
 module attributes {tf_saved_model.semantics} {
-  // CHECK: @main([[ARG:%.*]]: [[LWET:memref<1x1x8x!lwe.lwe_ciphertext<.*>>]]) -> [[OUT:memref<1x1x4x!lwe.lwe_ciphertext<.*>>]]
+  // CHECK: @main([[ARG:%.*]]: memref<1x1x8x![[ct_ty]]>) -> memref<1x1x4x![[ct_ty]]>
   func.func @main(%arg0: !secret.secret<memref<1x1xi8>>) -> !secret.secret<memref<1x1xi4>> {
-    // CHECK: [[V0:%.*]] = memref.alloc() {alignment = 64 : i64} : [[OUT]]
+    // CHECK: [[V0:%.*]] = memref.alloc() {alignment = 64 : i64} : memref<1x1x4x![[ct_ty]]>
     %0 = secret.generic() {
       %alloc = memref.alloc() {alignment = 64 : i64} : memref<1x1xi4>
       secret.yield %alloc : memref<1x1xi4>
@@ -16,7 +18,7 @@ module attributes {tf_saved_model.semantics} {
       // CHECK: affine.for
       affine.for %arg2 = 0 to 1 {
         // CHECK: [[SUBVIEW:%.*]] = memref.subview [[ARG]]
-        // CHECK:   to memref<8x!lwe.lwe_ciphertext
+        // CHECK:   to memref<8x![[ct_ty]]
         // CHECK: [[ALLOC:%.*]] = memref.alloc()
         // CHECK: memref.copy [[SUBVIEW]], [[ALLOC]]
         %1 = secret.generic(%arg0: !secret.secret<memref<1x1xi8>>, %arg1: index, %arg2: index) {
@@ -54,7 +56,7 @@ module attributes {tf_saved_model.semantics} {
         }
       }
     }
-    // CHECK: return [[V0]] : [[OUT]]
+    // CHECK: return [[V0]] : memref<1x1x4x![[ct_ty]]>
     return %0 : !secret.secret<memref<1x1xi4>>
   }
 }
@@ -65,7 +67,7 @@ module attributes {tf_saved_model.semantics} {
 
 module {
   // CHECK-NOT: secret
-  // CHECK: @cast_multidim([[ARG:%.*]]: memref<1x1x8x[[LWET:!lwe.lwe_ciphertext<.*>]]>)
+  // CHECK: @cast_multidim([[ARG:%.*]]: memref<1x1x8x[[LWET:!.*]]>)
   func.func @cast_multidim(%arg0: !secret.secret<memref<1x1xi8, strided<[?, ?], offset: ?>>>) -> !secret.secret<memref<1x2xi8>> {
     %c0 = arith.constant 0 : index
     // CHECK: memref.collapse_shape

@@ -40,8 +40,11 @@ class CGGIToJaxiteTypeConverter : public TypeConverter {
  public:
   CGGIToJaxiteTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([](lwe::LWECiphertextType type) -> Type {
-      if (widthFromEncodingAttr(type.getEncoding()) == 3) {
+    addConversion([](lwe::NewLWECiphertextType type) -> Type {
+      if (type.getPlaintextSpace()
+              .getRing()
+              .getCoefficientType()
+              .getIntOrFloatBitWidth() == 3) {
         return type;
       }
       llvm_unreachable("Unsupported cleartext bitwidth in jaxite");

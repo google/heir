@@ -34,12 +34,10 @@ namespace mlir::heir::arith {
 #define GEN_PASS_DEF_ARITHTOCGGI
 #include "lib/Dialect/Arith/Conversions/ArithToCGGI/ArithToCGGI.h.inc"
 
-static lwe::LWECiphertextType convertArithToCGGIType(IntegerType type,
-                                                     MLIRContext *ctx) {
-  return lwe::LWECiphertextType::get(ctx,
-                                     lwe::UnspecifiedBitFieldEncodingAttr::get(
-                                         ctx, type.getIntOrFloatBitWidth()),
-                                     lwe::LWEParamsAttr());
+static lwe::NewLWECiphertextType convertArithToCGGIType(IntegerType type,
+                                                        MLIRContext *ctx) {
+  return lwe::getDefaultCGGICiphertextType(ctx, type.getIntOrFloatBitWidth(),
+                                           type.getIntOrFloatBitWidth());
 }
 
 static Type convertArithLikeToCGGIType(ShapedType type, MLIRContext *ctx) {
@@ -134,12 +132,26 @@ static Value materializeTarget(OpBuilder &builder, Type type, ValueRange inputs,
     return builder.create<cggi::CreateTrivialOp>(loc, type, intAttr);
   }
   // Comes from function/loop argument: Trivial encrypt through LWE
-  auto encoding = cast<lwe::LWECiphertextType>(type).getEncoding();
-  auto ptxtTy = lwe::LWEPlaintextType::get(builder.getContext(), encoding);
+  auto ciphertextType = cast<lwe::NewLWECiphertextType>(type);
+
+  auto plaintextBits = ciphertextType.getPlaintextSpace()
+                           .getRing()
+                           .getCoefficientType()
+                           .getIntOrFloatBitWidth();
+  auto overflowAttr = ciphertextType.getApplicationData().getOverflow();
+  auto ciphertextBits = ciphertextType.getCiphertextSpace()
+                            .getRing()
+                            .getCoefficientType()
+                            .getIntOrFloatBitWidth();
+  auto ptxtTy = lwe::NewLWEPlaintextType::get(
+      builder.getContext(), ciphertextType.getApplicationData(),
+      ciphertextType.getPlaintextSpace());
   return builder.create<lwe::TrivialEncryptOp>(
       loc, type,
-      builder.create<lwe::EncodeOp>(loc, ptxtTy, inputs[0], encoding),
-      lwe::LWEParamsAttr());
+      builder.create<lwe::EncodeOp>(loc, ptxtTy, inputs[0],
+                                    builder.getIndexAttr(plaintextBits),
+                                    overflowAttr),
+      builder.getIndexAttr(ciphertextBits));
 }
 
 class ArithToCGGITypeConverter : public TypeConverter {
@@ -233,10 +245,8 @@ struct ConvertCmpOp : public OpConversionPattern<mlir::arith::CmpIOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto lweBooleanType = lwe::LWECiphertextType::get(
-        op->getContext(),
-        lwe::UnspecifiedBitFieldEncodingAttr::get(op->getContext(), 1),
-        lwe::LWEParamsAttr());
+    auto lweBooleanType =
+        lwe::getDefaultCGGICiphertextType(op->getContext(), 1);
 
     if (auto lhsDefOp = op.getLhs().getDefiningOp()) {
       if (!hasLWEAnnotation(lhsDefOp) && allowedRemainArith(lhsDefOp)) {

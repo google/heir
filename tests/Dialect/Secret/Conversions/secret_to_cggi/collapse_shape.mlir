@@ -4,7 +4,7 @@
 // with memref<8xlwe_ct>.
 module {
   // CHECK: func.func @collapse_shape
-  // CHECK-SAME: (%[[arg0:.*]]: memref<2x4x[[lwe_ct:!lwe.lwe_ciphertext<.*>]])
+  // CHECK-SAME: (%[[arg0:.*]]: memref<2x4x[[lwe_ct:.*]]>)
   func.func @collapse_shape(%arg0: !secret.secret<memref<2xi4, strided<[?], offset: ?>>>) -> !secret.secret<memref<2xi4>> {
     %c3 = arith.constant 3 : index
     %false = arith.constant false

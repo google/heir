@@ -10,6 +10,7 @@
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
+#include "mlir/include/mlir/IR/BuiltinTypes.h"        // from @llvm-project
 #include "mlir/include/mlir/IR/Location.h"            // from @llvm-project
 #include "mlir/include/mlir/IR/MLIRContext.h"         // from @llvm-project
 #include "mlir/include/mlir/IR/Matchers.h"            // from @llvm-project
@@ -41,14 +42,38 @@ LogicalResult RMulOp::verify() { return lwe::verifyMulOp(this); }
 LogicalResult RMulPlainOp::verify() { return lwe::verifyMulPlainOp(this); }
 
 LogicalResult TrivialEncryptOp::verify() {
-  auto paramsAttr = this->getParamsAttr();
-  auto outParamsAttr = this->getOutput().getType().getLweParams();
+  auto applicationData = this->getInput().getType().getApplicationData();
+  auto outApplicationData = this->getOutput().getType().getApplicationData();
 
-  if (paramsAttr != outParamsAttr) {
+  if (applicationData != outApplicationData) {
     return this->emitOpError()
-           << "lwe_params attr must match on the op and "
-              "the output type, but found op attr "
-           << paramsAttr << " and output type attr " << outParamsAttr;
+           << "application data of the input and output must match, but "
+           << "found input attr " << applicationData << " and output attr "
+           << outApplicationData;
+  }
+
+  auto plaintextSpace = this->getInput().getType().getPlaintextSpace();
+  auto outPlaintextSpace = this->getOutput().getType().getPlaintextSpace();
+
+  if (plaintextSpace != outPlaintextSpace) {
+    return this->emitOpError()
+           << "plaintext space of the input and output must match, but "
+           << "found input attr " << plaintextSpace << " and output attr "
+           << outPlaintextSpace;
+  }
+
+  auto outCiphertextModulus = this->getOutput()
+                                  .getType()
+                                  .getCiphertextSpace()
+                                  .getRing()
+                                  .getCoefficientType()
+                                  .getIntOrFloatBitWidth();
+  if (outCiphertextModulus != this->getCiphertextBits().getZExtValue()) {
+    return this->emitOpError()
+           << "ciphertext modulus of the output must match the ciphertext_bits "
+              "parameter, expected "
+           << this->getCiphertextBits().getZExtValue() << " but found "
+           << outCiphertextModulus;
   }
 
   return success();
@@ -125,13 +150,56 @@ LogicalResult verifyEncodingAndTypeMatch(mlir::Type type,
 
   // This code should never be hit unless we added an encoding and forgot to
   // update this function. Assert(false) for DEBUG, return failure for NDEBUG.
-  encoding.dump();
   assert(false && "Encoding not handled in encode/decode verifier.");
   return failure();
 }
 
 LogicalResult EncodeOp::verify() {
-  return verifyEncodingAndTypeMatch(getInput().getType(), getEncoding());
+  auto plaintextType = getOutput().getType();
+
+  // Output type must have application data that matches the input type.
+  auto applicationDataTy = plaintextType.getApplicationData().getMessageType();
+  if (applicationDataTy != getInput().getType()) {
+    return emitOpError()
+           << "output type application data must match input type, expected "
+           << getInput().getType() << " but got " << applicationDataTy;
+  }
+
+  // LWE plaintext types must have plaintext ring modulus f(x) = x and
+  // coefficient type matching input message bits parameter.
+  auto plaintextRing = plaintextType.getPlaintextSpace().getRing();
+
+  auto polyTerms =
+      plaintextRing.getPolynomialModulus().getPolynomial().getTerms();
+  if (polyTerms.size() != 1) {
+    return emitOpError()
+           << "LWE plaintext ring modulus must have exactly one term";
+  }
+  const auto& firstTerm = polyTerms[0];
+  if (firstTerm.getCoefficient() != 1 && firstTerm.getExponent() != 1) {
+    return emitOpError() << "LWE plaintext ring modulus must be x";
+  }
+  auto integerTy = dyn_cast<IntegerType>(plaintextRing.getCoefficientType());
+  if (!integerTy) {
+    return emitOpError()
+           << "LWE plaintext ring coefficient type must be integer";
+  }
+  if (integerTy.getWidth() != getPlaintextBits().getZExtValue()) {
+    return emitOpError()
+           << "LWE plaintext ring coefficient type width must match message "
+              "bits parameter, expected "
+           << getPlaintextBits().getZExtValue() << " but got "
+           << integerTy.getWidth();
+  }
+
+  // Overflow attr must matches overflow parameter in output type.
+  if (getOverflow() != plaintextType.getApplicationData().getOverflow()) {
+    return emitOpError()
+           << "output type overflow must match overflow parameter, expected "
+           << getOverflow() << " but got "
+           << plaintextType.getApplicationData().getOverflow();
+  }
+  return success();
 }
 
 LogicalResult RLWEEncodeOp::verify() {

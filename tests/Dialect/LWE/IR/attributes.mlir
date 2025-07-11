@@ -2,60 +2,53 @@
 
 // This simply tests for syntax.
 
-#encoding = #lwe.bit_field_encoding<
-  cleartext_start=14,
-  cleartext_bitwidth=3>
-!plaintext = !lwe.lwe_plaintext<encoding = #encoding>
+#poly = #polynomial.int_polynomial<x>
+#preserve_overflow = #lwe.preserve_overflow<>
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
 // CHECK: test_valid_lwe_encode
 func.func @test_valid_lwe_encode() {
     %0 = arith.constant 0 : i1
-    // CHECK: bit_field_encoding
-    %2 = lwe.encode %0 { encoding = #encoding }: i1 to !plaintext
+    // CHECK: constant_coefficient_encoding
+    %2 = lwe.encode %0 { overflow = #preserve_overflow, plaintext_bits = 3 : index }: i1 to !plaintext
   return
 }
 
 // -----
 
-#unspecified_encoding = #lwe.unspecified_bit_field_encoding<
-  cleartext_bitwidth=3>
-!plaintext_unspecified = !lwe.lwe_plaintext<encoding = #unspecified_encoding>
+#poly = #polynomial.int_polynomial<x>
+#no_overflow = #lwe.no_overflow<>
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext_nooverflow = !lwe.new_lwe_plaintext<application_data = <message_type = i1>, plaintext_space = #pspace>
 
-// CHECK: test_valid_lwe_unspecified_encode
-func.func @test_valid_lwe_unspecified_encode() {
+// CHECK: test_valid_lwe_default_overflow
+func.func @test_valid_lwe_default_overflow() {
     %0 = arith.constant 0 : i1
-    // CHECK: unspecified_bit_field_encoding
-    %2 = lwe.encode %0 { encoding = #unspecified_encoding }: i1 to !plaintext_unspecified
+    // CHECK: no_overflow
+    %2 = lwe.encode %0 { overflow = #no_overflow, plaintext_bits = 3 : index }: i1 to !plaintext_nooverflow
   return
 }
 
 // -----
 
-#encoding0 = #lwe.unspecified_bit_field_encoding<
-  cleartext_bitwidth=3>
+#poly = #polynomial.int_polynomial<x>
+#key = #lwe.key<slot_index = 0>
+!modarith = !mod_arith.int<12289:i32>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = !modarith, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext_modarith = !lwe.new_lwe_plaintext<application_data = <message_type = i4>, plaintext_space = #pspace>
 
-// CHECK: test_valid_unspecified_lwe_attribute
-func.func @test_valid_unspecified_lwe_attribute() -> tensor<2xi16, #encoding0> {
-  %c0 = arith.constant 0 : index
-  %two = arith.constant 2 : i16
-  // CHECK: unspecified_bit_field_encoding
-  %coeffs1 = tensor.from_elements %two, %two : tensor<2xi16, #encoding0>
-  return %coeffs1 : tensor<2xi16, #encoding0>
-}
-
-// -----
-
-#encoding1 = #lwe.bit_field_encoding<
-  cleartext_start=14,
-  cleartext_bitwidth=3>
-
-// CHECK: test_valid_lwe_attribute
-func.func @test_valid_lwe_attribute() -> tensor<2xi16, #encoding1> {
-  %c0 = arith.constant 0 : index
-  %two = arith.constant 2 : i16
-  // CHECK: bit_field_encoding
-  %coeffs1 = tensor.from_elements %two, %two : tensor<2xi16, #encoding1>
-  return %coeffs1 : tensor<2xi16, #encoding1>
+// CHECK: test_valid_lwe_modarith_type
+func.func @test_valid_lwe_modarith_type(%arg0: !plaintext_modarith) {
+  return
 }
 
 // -----

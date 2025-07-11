@@ -368,7 +368,7 @@ FailureOr<std::string> JaxiteEmitter::convertType(Type type) {
     return std::string(std::string("list[") + elementTy.value() + "]");
   }
   return llvm::TypeSwitch<Type &, FailureOr<std::string>>(type)
-      .Case<lwe::LWECiphertextType>(
+      .Case<lwe::NewLWECiphertextType>(
           [&](auto type) { return std::string("types.LweCiphertext"); })
       .Case<ServerKeySetType>(
           [&](auto type) { return std::string("jaxite_bool.ServerKeySet"); })

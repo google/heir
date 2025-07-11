@@ -23,7 +23,7 @@ class Jaxite_Op<string mnemonic, list<Trait> traits = []> :
 
 def ConstantOp : Jaxite_Op<"constant", [Pure]> {
   let arguments = (ins I1:$value, Jaxite_Params:$params);
-  let results = (outs LWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 def Lut3Op : Jaxite_Op<"lut3", [
@@ -40,12 +40,12 @@ def Lut3Op : Jaxite_Op<"lut3", [
     significant bit to least-significant bit.
   }];
   let arguments = (
-    ins LWECiphertext:$a, LWECiphertext:$b, LWECiphertext:$c,
+    ins NewLWECiphertext:$a, NewLWECiphertext:$b, NewLWECiphertext:$c,
     I8:$truth_table,
     Jaxite_ServerKeySet:$serverKeySet,
     Jaxite_Params:$params
   );
-  let results = (outs LWECiphertext:$output);
+  let results = (outs NewLWECiphertext:$output);
 }
 
 
@@ -53,7 +53,7 @@ def Lut3ArgsOp : Jaxite_Op<"lut3_args", [Pure]> {
   let description = [{
     The operation computed by this function is generating tuples for pmap_lut3.
   }];
-  let arguments = (ins LWECiphertext:$a, LWECiphertext:$b, LWECiphertext:$c,
+  let arguments = (ins NewLWECiphertext:$a, NewLWECiphertext:$b, NewLWECiphertext:$c,
     I8:$truth_table
   );
   let results = (outs Jaxite_PmapLut3Tuple:$output);
@@ -67,7 +67,7 @@ def PmapLut3Op : Jaxite_Op<"pmap_lut3", [Pure]> {
     Jaxite_ServerKeySet:$serverKeySet,
     Jaxite_Params:$params
   );
-  let results = (outs LWECiphertextLike:$output);
+  let results = (outs NewLWECiphertextLike:$output);
 }
 
 #endif  // LIB_DIALECT_JAXITE_IR_JAXITEOPS_TD_

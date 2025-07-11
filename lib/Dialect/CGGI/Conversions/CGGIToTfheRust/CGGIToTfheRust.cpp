@@ -38,8 +38,11 @@ class CGGIToTfheRustTypeConverter : public TypeConverter {
  public:
   CGGIToTfheRustTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
-    addConversion([ctx](lwe::LWECiphertextType type) -> Type {
-      int width = widthFromEncodingAttr(type.getEncoding());
+    addConversion([ctx](lwe::NewLWECiphertextType type) -> Type {
+      int width = type.getPlaintextSpace()
+                      .getRing()
+                      .getCoefficientType()
+                      .getIntOrFloatBitWidth();
       return encrytpedUIntTypeFromWidth(ctx, width);
     });
     addConversion([this](ShapedType type) -> Type {
@@ -260,9 +263,9 @@ struct ConvertCGGICtxtBinOp : public OpConversionPattern<BinOp> {
     auto rhs = adaptor.getRhs();
 
     if (lhs.getType() != rhs.getType()) {
-      if (!isa<lwe::LWECiphertextType>(op.getLhs().getType())) {
+      if (!isa<lwe::NewLWECiphertextType>(op.getLhs().getType())) {
         lhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, lhs);
-      } else if (!isa<lwe::LWECiphertextType>(op.getRhs().getType())) {
+      } else if (!isa<lwe::NewLWECiphertextType>(op.getRhs().getType())) {
         rhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, rhs);
       } else {
         return op.emitError()
@@ -398,8 +401,11 @@ struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
     auto shapedTy = dyn_cast<ShapedType>(op.getInput().getType());
     Type eltTy = shapedTy ? shapedTy.getElementType() : op.getInput().getType();
 
-    auto width = widthFromEncodingAttr(
-        cast<lwe::LWECiphertextType>(eltTy).getEncoding());
+    auto width = cast<lwe::NewLWECiphertextType>(eltTy)
+                     .getPlaintextSpace()
+                     .getRing()
+                     .getCoefficientType()
+                     .getIntOrFloatBitWidth();
     auto cleartextType = b.getIntegerType(width);
     auto outputType = encrytpedUIntTypeFromWidth(getContext(), width);
 
@@ -464,7 +470,14 @@ struct ConvertTrivialEncryptOp
                             << op.getInput().getDefiningOp()->getName();
     }
     auto outputType = encrytpedUIntTypeFromWidth(
-        getContext(), widthFromEncodingAttr(encodeOp.getEncoding()));
+        getContext(), op.getInput()
+                          .getDefiningOp<lwe::EncodeOp>()
+                          .getOutput()
+                          .getType()
+                          .getPlaintextSpace()
+                          .getRing()
+                          .getCoefficientType()
+                          .getIntOrFloatBitWidth());
     auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
         op.getLoc(), outputType, serverKey, encodeOp.getInput());
     rewriter.replaceOp(op, createTrivialOp);

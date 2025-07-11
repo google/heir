@@ -294,10 +294,11 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
   }
 
   // TODO(#686): detect proper minBitWidth from the circuit
-  int minBitWidth = 3;
-  Type ciphertextType = lwe::LWECiphertextType::get(
-      context, lwe::UnspecifiedBitFieldEncodingAttr::get(context, minBitWidth),
-      lwe::LWEParamsAttr());
+  int minBitWidth = 1;
+  // AutoHog's plaintext encoding is fixed with 7 bits of message space.
+  int plaintextBits = 7;
+  Type ciphertextType =
+      lwe::getDefaultCGGICiphertextType(context, minBitWidth, plaintextBits);
   Type inputType = RankedTensorType::get({numInputs}, ciphertextType);
   Type outputType = RankedTensorType::get({numOutputs}, ciphertextType);
   auto functionType = builder.getFunctionType({inputType}, {outputType});

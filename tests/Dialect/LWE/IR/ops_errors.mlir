@@ -1,56 +1,100 @@
 // RUN: heir-opt --verify-diagnostics --split-input-file %s 2>&1
 
-#encoding = #lwe.bit_field_encoding<
-  cleartext_start=14,
-  cleartext_bitwidth=3>
+#poly = #polynomial.int_polynomial<x>
+#preserve_overflow = #lwe.preserve_overflow<>
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1>, plaintext_space = #pspace>
 
-#different_encoding = #lwe.bit_field_encoding<
-  cleartext_start=16,
-  cleartext_bitwidth=3>
-!mismatch_plaintext = !lwe.lwe_plaintext<encoding = #different_encoding>
-
-func.func @test_invalid_lwe_encode() {
+// CHECK: test_invalid_overflow
+func.func @test_invalid_overflow() {
     %0 = arith.constant 0 : i1
-    // expected-error@below {{failed to verify that the first arg's type's encoding matches the given encoding}}
-    %2 = lwe.encode %0 { encoding = #encoding }: i1 to !mismatch_plaintext
+    // expected-error@below {{output type overflow must match overflow parameter}}
+    %2 = lwe.encode %0 { overflow = #preserve_overflow, plaintext_bits = 3 : index }: i1 to !plaintext
   return
 }
 
 // -----
 
-#encoding = #lwe.bit_field_encoding<
-  cleartext_start=14,
-  cleartext_bitwidth=3>
+#poly = #polynomial.int_polynomial<x>
+#preserve_overflow = #lwe.preserve_overflow<>
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i2, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
-#params = #lwe.lwe_params<cmod = 7917 : i32, dimension=10>
-#mismatch_params = #lwe.lwe_params<cmod = 7917 : i32, dimension=11>
-!plaintext = !lwe.lwe_plaintext<encoding = #encoding>
-!ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
-
-func.func @test_invalid_lwe_trivial_encrypt_params() {
+// CHECK: test_invalid_application_data
+func.func @test_invalid_application_data() {
     %0 = arith.constant 0 : i1
-    %1 = lwe.encode %0 { encoding = #encoding }: i1 to !plaintext
-    // expected-error@below {{lwe_params attr must match on the op and the output type}}
-    %2 = lwe.trivial_encrypt %1 { lwe_params = #mismatch_params }: !plaintext to !ciphertext
+    // expected-error@below {{output type application data must match input type}}
+    %2 = lwe.encode %0 { overflow = #preserve_overflow, plaintext_bits = 3 : index }: i1 to !plaintext
   return
 }
 
 // -----
 
-#encoding = #lwe.bit_field_encoding<
-  cleartext_start=14,
-  cleartext_bitwidth=3>
-#different_encoding = #lwe.bit_field_encoding<
-  cleartext_start=16,
-  cleartext_bitwidth=3>
-!plaintext = !lwe.lwe_plaintext<encoding = #encoding>
-#params = #lwe.lwe_params<cmod = 7917 : i32, dimension=10>
-!mismatch_ciphertext = !lwe.lwe_ciphertext<encoding = #different_encoding, lwe_params = #params>
+#poly = #polynomial.int_polynomial<x>
+#preserve_overflow = #lwe.preserve_overflow<>
+#key = #lwe.key<slot_index = 0>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
 
-func.func @test_invalid_lwe_trivial_encrypt_encoding() {
+// CHECK: test_invalid_plaintext_bits
+func.func @test_invalid_plaintext_bits() {
     %0 = arith.constant 0 : i1
-    %1 = lwe.encode %0 { encoding = #encoding }: i1 to !plaintext
+    // expected-error@below {{LWE plaintext ring coefficient type width must match message bits parameter, expected 4 but got 3}}
+    %2 = lwe.encode %0 { overflow = #preserve_overflow, plaintext_bits = 4 : index }: i1 to !plaintext
+  return
+}
+
+
+// -----
+
+#poly = #polynomial.int_polynomial<x>
+#preserve_overflow = #lwe.preserve_overflow<>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+
+#key = #lwe.key<slot_index = 0>
+#cspace = #lwe.ciphertext_space<
+  ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
+  encryption_type = msb, size = 742>
+!ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace, ciphertext_space = #cspace, key = #key>
+
+func.func @test_invalid_ciphertext_bits(%1: !plaintext) {
+    // expected-error@below {{ciphertext modulus of the output must match the ciphertext_bits parameter, expected 64 but found 32}}
+    %2 = lwe.trivial_encrypt %1 { ciphertext_bits = 64 : index }: !plaintext to !ciphertext
+  return
+}
+
+// -----
+
+#poly = #polynomial.int_polynomial<x>
+#preserve_overflow = #lwe.preserve_overflow<>
+#pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 256>>
+!plaintext = !lwe.new_lwe_plaintext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #pspace>
+
+#key = #lwe.key<slot_index = 0>
+#diff_pspace = #lwe.plaintext_space<
+  ring = #polynomial.ring<coefficientType = i3, polynomialModulus = #poly>,
+  encoding = #lwe.constant_coefficient_encoding<scaling_factor = 512>>
+
+#cspace = #lwe.ciphertext_space<
+  ring = #polynomial.ring<coefficientType = i32, polynomialModulus = #poly>,
+  encryption_type = msb, size = 742>
+!ciphertext = !lwe.new_lwe_ciphertext<application_data = <message_type = i1, overflow = #preserve_overflow>, plaintext_space = #diff_pspace, ciphertext_space = #cspace, key = #key>
+
+func.func @test_invalid_mismatch_encoding(%1: !plaintext) {
     // expected-error@below {{op failed to verify that the first arg's type's encoding matches the given encoding}}
-    %2 = lwe.trivial_encrypt %1 { lwe_params = #params }: !plaintext to !mismatch_ciphertext
+    %2 = lwe.trivial_encrypt %1 { ciphertext_bits = 32 : index }: !plaintext to !ciphertext
   return
 }

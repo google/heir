@@ -36,55 +36,57 @@ LogicalResult LutLinCombOp::verify() {
   if (getInputs().size() != getCoefficients().size())
     return emitOpError("number of coefficients must match number of inputs");
 
-  lwe::LWECiphertextType type = dyn_cast<lwe::LWECiphertextType>(
+  lwe::NewLWECiphertextType type = dyn_cast<lwe::NewLWECiphertextType>(
       getElementTypeOrSelf(getOutput().getType()));
   // Tablegen allows AnyType due to error using Variadic on TypeOrContainer
   // types.
   if (!type) return emitOpError("expected LWE ciphertext element type");
-  auto encoding = dyn_cast<lwe::BitFieldEncodingAttr>(type.getEncoding());
+  auto plaintextBitwidth = type.getPlaintextSpace()
+                               .getRing()
+                               .getCoefficientType()
+                               .getIntOrFloatBitWidth();
 
-  if (encoding) {
-    int64_t maxCoeff = (1 << encoding.getCleartextBitwidth()) - 1;
-    for (auto c : getCoefficients()) {
-      if (c > maxCoeff) {
-        InFlightDiagnostic diag =
-            emitOpError("coefficient pushes error bits into message space");
-        diag.attachNote() << "coefficient is " << c;
-        diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
-        return diag;
-      }
-    }
-
-    if (getLookupTable().getValue().getActiveBits() > maxCoeff + 1) {
+  int64_t maxCoeff = (1 << plaintextBitwidth) - 1;
+  for (auto c : getCoefficients()) {
+    if (c > maxCoeff) {
       InFlightDiagnostic diag =
-          emitOpError("LUT is larger than available cleartext bit width");
-      diag.attachNote() << "LUT has "
-                        << getLookupTable().getValue().getActiveBits()
-                        << " active bits";
-      diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
+          emitOpError("coefficient pushes error bits into message space");
+      diag.attachNote() << "coefficient is " << c;
+      diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
       return diag;
     }
+  }
+
+  if (getLookupTable().getValue().getActiveBits() > maxCoeff + 1) {
+    InFlightDiagnostic diag =
+        emitOpError("LUT is larger than available cleartext bit width");
+    diag.attachNote() << "LUT has "
+                      << getLookupTable().getValue().getActiveBits()
+                      << " active bits";
+    diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
+    return diag;
   }
 
   return success();
 }
 
 LogicalResult ProgrammableBootstrapOp::verify() {
-  lwe::LWECiphertextType type =
-      cast<lwe::LWECiphertextType>(getElementTypeOrSelf(getOutput().getType()));
-  auto encoding = dyn_cast<lwe::BitFieldEncodingAttr>(type.getEncoding());
+  lwe::NewLWECiphertextType type = cast<lwe::NewLWECiphertextType>(
+      getElementTypeOrSelf(getOutput().getType()));
+  auto plaintextBitwidth = type.getPlaintextSpace()
+                               .getRing()
+                               .getCoefficientType()
+                               .getIntOrFloatBitWidth();
 
-  if (encoding) {
-    int64_t maxCoeff = (1 << encoding.getCleartextBitwidth()) - 1;
-    if (getLookupTable().getValue().getActiveBits() > maxCoeff + 1) {
-      InFlightDiagnostic diag =
-          emitOpError("LUT is larger than available cleartext bit width");
-      diag.attachNote() << "LUT has "
-                        << getLookupTable().getValue().getActiveBits()
-                        << " active bits";
-      diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
-      return diag;
-    }
+  int64_t maxCoeff = (1 << plaintextBitwidth) - 1;
+  if (getLookupTable().getValue().getActiveBits() > maxCoeff + 1) {
+    InFlightDiagnostic diag =
+        emitOpError("LUT is larger than available cleartext bit width");
+    diag.attachNote() << "LUT has "
+                      << getLookupTable().getValue().getActiveBits()
+                      << " active bits";
+    diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
+    return diag;
   }
 
   return success();
@@ -96,32 +98,33 @@ LogicalResult MultiLutLinCombOp::verify() {
   if (getOutputs().size() != getLookupTables().size())
     return emitOpError("number of outputs must match number of LUTs");
 
-  lwe::LWECiphertextType type =
-      cast<lwe::LWECiphertextType>(getOutputs().front().getType());
-  auto encoding = dyn_cast<lwe::BitFieldEncodingAttr>(type.getEncoding());
+  lwe::NewLWECiphertextType type =
+      cast<lwe::NewLWECiphertextType>(getOutputs().front().getType());
+  auto plaintextBitwidth = type.getPlaintextSpace()
+                               .getRing()
+                               .getCoefficientType()
+                               .getIntOrFloatBitWidth();
 
-  if (encoding) {
-    int64_t maxCoeff = (1 << encoding.getCleartextBitwidth()) - 1;
-    for (auto c : getCoefficients()) {
-      if (c > maxCoeff) {
-        InFlightDiagnostic diag =
-            emitOpError("coefficient pushes error bits into message space");
-        diag.attachNote() << "coefficient is " << c;
-        diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
-        return diag;
-      }
+  int64_t maxCoeff = (1 << plaintextBitwidth) - 1;
+  for (auto c : getCoefficients()) {
+    if (c > maxCoeff) {
+      InFlightDiagnostic diag =
+          emitOpError("coefficient pushes error bits into message space");
+      diag.attachNote() << "coefficient is " << c;
+      diag.attachNote() << "largest allowable coefficient is " << maxCoeff;
+      return diag;
     }
+  }
 
-    for (int64_t lut : getLookupTables()) {
-      APInt apintLut = APInt(64, lut);
-      if (apintLut.getActiveBits() > maxCoeff + 1) {
-        InFlightDiagnostic diag =
-            emitOpError("LUT is larger than available cleartext bit width");
-        diag.attachNote() << "LUT has " << apintLut.getActiveBits()
-                          << " active bits";
-        diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
-        return diag;
-      }
+  for (int64_t lut : getLookupTables()) {
+    APInt apintLut = APInt(64, lut);
+    if (apintLut.getActiveBits() > maxCoeff + 1) {
+      InFlightDiagnostic diag =
+          emitOpError("LUT is larger than available cleartext bit width");
+      diag.attachNote() << "LUT has " << apintLut.getActiveBits()
+                        << " active bits";
+      diag.attachNote() << "max LUT size is " << maxCoeff + 1 << " bits";
+      return diag;
     }
   }
 
