@@ -22,33 +22,45 @@ cascade:
 
 HEIR is a compiler toolchain for
 [fully homomorphic encryption](https://en.wikipedia.org/wiki/Homomorphic_encryption)
-(FHE). We aim to standardize a set of intermediate representations related to
-FHE, which compiler engineers, hardware designers, and cryptography researchers
-can build upon to accelerate the research and development of production-strength
-privacy-first software systems.
+(FHE). We aim to be the industry-standard compiler for FHE. Application
+developers, compiler engineers, hardware designers, and cryptography researchers
+can build upon HEIR to accelerate the research and development of
+production-strength privacy-first software systems.
 
-HEIR is built in the [MLIR](https://mlir.llvm.org/) framework.
+## Why HEIR?
 
-For an overview of the project's goals, see
-[our talk at FHE.org](https://www.youtube.com/watch?v=kqDFdKUTNA4).
+For application developers, HEIR aims to provide a simple entrypoint to start
+working with FHE. Write a program in Python, annotate the types to mark which
+are secret, and HEIR will compile the rest.
 
-To see the dialects and possible flows, take a look at the diagram below: {{%
-figure src="/images/dialects.svg" link="/images/dialects.svg" %}}
+For hardware designers, HEIR provides multiple layers of abstraction at which to
+integrate code generation. This allows HEIR to support code generation for
+hardware accelerators that implement high-level FHE operations like bootstrap,
+as well as accelerators that operate at lower-level polynomial arithmetic.
+
+For cryptography researchers, HEIR provides a convenient platform for research.
+HEIR provides the compiler infrastructure and implements standard optimizations
+from the literature. A researcher can focus on their novel optimization, and use
+HEIR for its benchmarking, example programs, and comparisons to alternative
+approaches. See [research with HEIR](/docs/research_with_heir/) for research
+built on HEIR, and tips for doing research with HEIR.
 
 ## Project Goals
 
-- Provide MLIR dialects for all modern FHE schemes.
-- Design MLIR dialects that appropriately abstract across the many flavors of
-  related schemes.
+For an overview of the project, see
+[our talk at FHE.org](https://www.youtube.com/watch?v=kqDFdKUTNA4).
+
+- Compile high level programs to encrypted equivalents.
+- Support all modern FHE schemes.
+- Support code generation for FHE hardware accelerators, including GPU, TPU,
+  FPGA, and custom ASICs.
+- Support code generation for standard FHE libraries, such as OpenFHE and
+  Lattigo.
+- Support front-end languages for ease of development, such as Python and Torch.
 - Design lower-level dialects for optimizing underlying abstract-algebraic
-  operations (e.g., modular polynomial arithmetic).
-- Provide hardware accelerator designers an easy path to integrate, so that a
-  wide variety of FHE programs, optimizations, and parameter choices can be
-  compared across accelerators.
+  operations (e.g., RNS polynomial arithmetic).
 - Provide a platform for research into novel FHE optimizations.
 - Provide a platform for benchmarking.
-- Provide integrations with multiple front-end languages, such as Python and
-  TensorFlow.
 
 ## Disclaimers
 

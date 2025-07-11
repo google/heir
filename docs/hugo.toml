@@ -100,9 +100,9 @@ privacy_policy = "https://policies.google.com/privacy"
 # url_latest_version = "https://example.com"
 
 # Repository configuration (URLs for in-page links to opening issues and suggesting changes)
-github_repo = "https://github.com/google/heir"
-github_subdir = "docs"
-github_branch = "main"
+# github_repo = "https://github.com/google/heir"
+# github_subdir = "docs"
+# github_branch = "main"
 
 # Puts a link to GitHub on the site's top banner.
 [[menu.main]]
@@ -144,9 +144,6 @@ ul_show = 2
 # add "hide_feedback: true" to the page's front matter.
 [params.ui.feedback]
 enable = false
-# The responses that the user sees after clicking "yes" (the page was helpful) or "no" (the page was not helpful).
-yes = 'Glad to hear it! Please <a href="https://github.com/google/heir/issues/new">tell us how we can improve</a>.'
-no = 'Sorry to hear that. Please <a href="https://github.com/google/heir/issues/new">tell us how we can improve</a>.'
 
 # Adds a reading time to the top of each doc.
 # If you want this feature, but occasionally need to remove the Reading time from a single page,

@@ -3,6 +3,11 @@ title: Research with HEIR
 weight: 45
 ---
 
+## Publications built on HEIR
+
+[Circuit Optimization Using Arithmetic Table Lookups](https://dl.acm.org/doi/10.1145/3729258)
+(PLDI 2025). Raghav Malik, Vedant Paranjape, Milind Kulkarni.
+
 ## Doing private research using HEIR
 
 Our project will be developed in an open-source GitHub repository. If you'd like
