@@ -32,6 +32,7 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
         ],
         imports = ["."],
         data = data,
+        shard_count = 3,
         tags = tags,
         env = {
             # this dir is relative to $RUNFILES_DIR, which is set by bazel at runtime
