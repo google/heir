@@ -1,6 +1,8 @@
 """Macros providing compiled MLIR for benchmarking"""
 
 load("@heir//tools:heir-opt.bzl", "heir_opt")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 def executable_attr(label):
     """A helper for declaring executable dependencies."""
@@ -132,13 +134,11 @@ def heir_benchmark_test(name, mlir_src, test_src, heir_opt_flags = [], data = []
         pass_flags = ["-relocation-model=pic", "-filetype=obj"],
         generated_filename = generated_obj_name,
     )
-
-    native.cc_import(
+    cc_import(
         name = import_name,
         objects = [generated_obj_name],
     )
-
-    native.cc_test(
+    cc_test(
         name = name,
         srcs = test_src,
         deps = deps + [":" + import_name],
