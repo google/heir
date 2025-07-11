@@ -72,6 +72,9 @@ For the best experience, we recommend following these steps:
   these files, you may need to build those targets and then re-run the
   `refresh_all` command above.
 
+- Note that you will also need to install the actual `clangd` language server,
+  e.g., `sudo apt-get install clangd` on debian/ubuntu.
+
 - It might be necesssary to add the path to your buildifier to VSCode, though it
   should be auto-detected.
 
@@ -80,6 +83,25 @@ For the best experience, we recommend following these steps:
   - Search for "Bazel Buildifier Executable"
   - Once you find it, write `[home-directory]/bin/buildifier ` for your specific
     \[home-directory\].
+
+- For Python formatting, HEIR uses [pyink](https://github.com/google/pyink) for
+  autoformatting, which is a fork of the more commonly used
+  [black](https://github.com/psf/black) formatter with some patches to support
+  Google's internal style guide. To use it in VSCode, install `pyink` along with
+  other python utilities needed for HEIR: `pip install -r requirements.txt` and
+  install the
+  [Black Formatter](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
+  extension, then add the following to your VSCode user settings
+  (`.vscode/settings.json`):
+
+  ```json
+  "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "black-formatter.path": [
+      "path/to/pyink"
+  ]
+  ```
 
 ### Building, Testing, Running and Debugging with VSCode
 

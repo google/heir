@@ -15,9 +15,7 @@ def frontend_test(name, srcs, deps = [], data = [], tags = []):
     ]
 
     libs = [
-        "binfhe",
-        "core",
-        "pke",
+        "openfhe",
     ]
 
     py_test(
