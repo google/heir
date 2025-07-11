@@ -8,17 +8,17 @@ for production use.</p><div class=highlight><pre tabindex=0 style=background-col
 </span></span><span style=display:flex><span>./heir-opt --help
 </span></span></code></pre></div><p>Then you can run the examples below, replacing <code>bazel run //tools:heir-opt --</code>
 with <code>./heir-opt</code>. HEIR also publishes <code>heir-translate</code> and <code>heir-lsp</code> in the
-same way.</p><h3 id=running-the-nightly-binary-from-a-notebook>Running the nightly binary from a notebook</h3><p>We publish an ipython extension <a href=https://pypi.org/project/heir-play/>heir-play</a>
-that can be used in Jupyter or Colab notebooks.</p><pre tabindex=0><code>%pip install heir-play
-%load_ext heir_play
-</code></pre><p>This will download the nightly release binaries to the system the notebook
-server is running on, then:</p><pre tabindex=0><code>%%heir_opt --flag1 --flag2
+same way.</p><h3 id=via-pip>Via pip</h3><p>We publish a python package <a href=https://pypi.org/project/heir-py/>heir_py</a> that
+includes the <code>heir-opt</code> and <code>heir-translate</code> binaries.</p><pre tabindex=0><code>python -m venv venv
+source venv/bin/activate
 
-# MLIR code here
-</code></pre><p>Runs <code>heir-opt</code> with the given command line flags on the MLIR code in the cell.</p><p>A cell magic is also available for <code>heir-translate</code> as <code>%%heir_translate</code>.</p><h3 id=building-from-source>Building From Source</h3><h4 id=prerequisites>Prerequisites</h4><ul><li><a href=https://git-scm.com/>Git</a></li><li>A C++ compiler and linker (<a href=https://clang.llvm.org/>clang</a> and
-<a href=https://lld.llvm.org/>lld</a> are recommended).</li><li>Bazel via <a href=https://github.com/bazelbuild/bazelisk>bazelisk</a>, or version
-<code>>=5.5</code></li><li>See <a href=https://heir.dev/docs/development>Development</a> for additional
-prerequisites for active development</li></ul><details><summary>Detailed Instructions</summary>
+pip install heir_py
+
+heir-opt --help
+heir-translate --help
+</code></pre><h3 id=building-from-source>Building From Source</h3><h4 id=prerequisites>Prerequisites</h4><ul><li><a href=https://git-scm.com/>Git</a></li><li>A C++ compiler and linker (<a href=https://clang.llvm.org/>clang</a> and
+<a href=https://lld.llvm.org/>lld</a> or a recent version of <code>gcc</code>).</li><li>Bazel via <a href=https://github.com/bazelbuild/bazelisk>bazelisk</a>. The precise
+Bazel version used is in <code>.bazelversion</code> in the repository root.</li></ul><details><summary>Detailed Instructions</summary>
 The first two requirements are frequently pre-installed
 or can be installed via the system package manager.
 For example, on Ubuntu, these can be installed with<div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>sudo apt-get update <span style=color:#ce5c00;font-weight:700>&amp;&amp;</span> sudo apt-get install clang lld
@@ -31,21 +31,23 @@ for a list of available binaries):</p><div class=highlight><pre tabindex=0 style
 location to your PATH, e.g.:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir -p ~/bin
 </span></span><span style=display:flex><span><span style=color:#204a87>echo</span> <span style=color:#4e9a06>&#39;export PATH=$PATH:~/bin&#39;</span> &gt;&gt; ~/.bashrc
 </span></span><span style=display:flex><span>mv bazel ~/bin/bazel
-</span></span></code></pre></div><p>Note that on linux systems, your OS user must <strong>not</strong> be <code>root</code> as bazel might
-refuse to work if run as root.</p></details><h4 id=clone-and-build-the-project>Clone and build the project</h4><p>You can clone and build HEIR from the terminal as described below. Please see
+</span></span></code></pre></div><p>Note that on linux systems, your OS user must <strong>not</strong> be <code>root</code> as <code>bazel</code> might
+refuse to work if run as root.</p><p>On macOS, you can install <code>bazelisk</code> via Homebrew.</p></details><h4 id=clone-and-build-the-project>Clone and build the project</h4><p>You can clone and build HEIR from the terminal as described below. Please see
 <a href=https://heir.dev/docs/development>Development</a> for information on IDE
 configuration if you want to use an IDE to build HEIR.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>git clone git@github.com:google/heir.git <span style=color:#ce5c00;font-weight:700>&amp;&amp;</span> <span style=color:#204a87>cd</span> heir
 </span></span><span style=display:flex><span>bazel build @heir//tools:heir-opt
-</span></span></code></pre></div><p>Some passes in this repository require Yosys as a dependency
-(<code>--yosys-optimizer</code>). If you would like to skip Yosys and ABC compilation to
-speed up builds, use the following build setting:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel build --//:enable_yosys<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#0000cf;font-weight:700>0</span> --build_tag_filters<span style=color:#ce5c00;font-weight:700>=</span>-yosys @heir//tools:heir-opt
-</span></span></code></pre></div><h4 id=optional-run-the-tests>Optional: Run the tests</h4><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> @heir//...
-</span></span></code></pre></div><p>Like above, run the following to skip tests that depend on Yosys:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> --//:enable_yosys<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#0000cf;font-weight:700>0</span> --test_tag_filters<span style=color:#ce5c00;font-weight:700>=</span>-yosys @heir//...
+</span></span></code></pre></div><p>Some HEIR passes require Yosys as a dependency (<code>--yosys-optimizer</code>), which
+itself adds many transitive dependencies that may not build properly on all
+systems. If you would like to skip Yosys and ABC compilation, use the following
+build setting:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel build --//:enable_yosys<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#0000cf;font-weight:700>0</span> --build_tag_filters<span style=color:#ce5c00;font-weight:700>=</span>-yosys @heir//tools:heir-opt
+</span></span></code></pre></div><p>Adding the following to <code>.bazelrc</code> in the HEIR project root will make this the
+default behavior</p><pre tabindex=0><code>common --//:enable_yosys=0
+common --build_tag_filters=-yosys
+</code></pre><h4 id=optional-run-the-tests>Optional: Run the tests</h4><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel <span style=color:#204a87>test</span> @heir//...
 </span></span></code></pre></div><h2 id=using-heir>Using HEIR</h2><h3 id=run-the-dot-product-example>Run the <code>dot-product</code> example</h3><p>The <code>dot-product</code> program computes the dot product of two length-8 vectors of
 16-bit integers (<code>i16</code> in MLIR parlance). This example will showcase the OpenFHE
 backend by manually calling the relevant compiler passes and setting up a C++
-harness to call into the HEIR-generated functions.</p><p>Note: other backends are similar, but the different backends are in varying
-stages of development.</p><p>The input program is in <code>tests/Examples/common/dot_product_8.mlir</code>. Support for
+harness to call into the HEIR-generated functions.</p><p>The input program is in <code>tests/Examples/common/dot_product_8.mlir</code>. Support for
 standard input languages like <code>C</code> and <code>C++</code> are currently experimental at best,
 but eventually we would use an MLIR-based tool to convert an input language to
 MLIR like in that file. The program is below:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mlir data-lang=mlir><span style=display:flex><span><span style=color:#204a87;font-weight:700>func</span><span style=color:#000;font-weight:700>.</span><span style=color:#204a87;font-weight:700>func</span> <span style=color:#000>@dot_product</span><span style=color:#000;font-weight:700>(</span><span style=color:#000>%arg0</span><span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>tensor</span><span style=color:#000;font-weight:700>&lt;</span><span style=color:#0000cf;font-weight:700>8x</span><span style=color:#204a87;font-weight:700>i16</span><span style=color:#000;font-weight:700>&gt;</span> <span style=color:#000;font-weight:700>{</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>},</span> <span style=color:#000>%arg1</span><span style=color:#000;font-weight:700>:</span> <span style=color:#204a87;font-weight:700>tensor</span><span style=color:#000;font-weight:700>&lt;</span><span style=color:#0000cf;font-weight:700>8x</span><span style=color:#204a87;font-weight:700>i16</span><span style=color:#000;font-weight:700>&gt;</span> <span style=color:#000;font-weight:700>{</span>secret<span style=color:#000;font-weight:700>.</span>secret<span style=color:#000;font-weight:700>})</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#204a87;font-weight:700>i16</span> <span style=color:#000;font-weight:700>{</span>
@@ -62,7 +64,10 @@ MLIR like in that file. The program is below:</p><div class=highlight><pre tabin
 </span></span><span style=display:flex><span><span style=color:#000;font-weight:700>}</span>
 </span></span></code></pre></div><p>For an introduction to MLIR syntax, see the
 <a href=https://mlir.llvm.org/docs/LangRef/>official docs</a> or
-<a href=https://www.jeremykun.com/2023/08/10/mlir-running-and-testing-a-lowering/>this blog post</a>.</p><p>Now we run the <code>heir-opt</code> command to optimize and compile the program.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel run //tools:heir-opt -- <span style=color:#4e9a06>\
+<a href=https://www.jeremykun.com/2023/08/10/mlir-running-and-testing-a-lowering/>this blog post</a>.</p><p>Now we run the <code>heir-opt</code> command to optimize and compile the program. If you
+fetched a pre-built binary instead of building from source, then all commands
+below should have <code>bazel run //tools:heir-opt --</code> replaced with <code>heir-opt</code>, and
+similarly for <code>heir-translate</code>.</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel run //tools:heir-opt -- <span style=color:#4e9a06>\
 </span></span></span><span style=display:flex><span><span style=color:#4e9a06></span>--mlir-to-bgv<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#4e9a06>&#39;ciphertext-degree=8&#39;</span><span style=color:#4e9a06>\
 </span></span></span><span style=display:flex><span><span style=color:#4e9a06></span>--scheme-to-openfhe<span style=color:#ce5c00;font-weight:700>=</span><span style=color:#4e9a06>&#39;entry-function=dot_product&#39;</span>  <span style=color:#4e9a06>\
 </span></span></span><span style=display:flex><span><span style=color:#4e9a06></span><span style=color:#000>$PWD</span>/tests/Examples/common/dot_product_8.mlir &gt; output.mlir
@@ -265,7 +270,11 @@ above, with the following contents:</p><div class=highlight><pre tabindex=0 styl
 </span></span></code></pre></div><p>Then run and show the results:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>$ bazel run dot_product_main
 </span></span><span style=display:flex><span>Expected: <span style=color:#0000cf;font-weight:700>240</span>
 </span></span><span style=display:flex><span>Actual: <span style=color:#0000cf;font-weight:700>240</span>
-</span></span></code></pre></div><h3 id=optional-run-a-custom-heir-opt-pipeline>Optional: Run a custom <code>heir-opt</code> pipeline</h3><p>HEIR comes with two central binaries, <code>heir-opt</code> for running optimization passes
+</span></span></code></pre></div><p>If you fetched a pre-built binary instead of building from source, then you will
+have to use your build system of choice to compile the generated files. If you
+use <code>heir_py</code>&rsquo;s <code>heir.compile</code> decorator with <code>debug=True</code>, then the compilation
+commands will be printed to stdout so you can see how to compile the generated
+code manually.</p><h3 id=optional-run-a-custom-heir-opt-pipeline>Optional: Run a custom <code>heir-opt</code> pipeline</h3><p>HEIR comes with two central binaries, <code>heir-opt</code> for running optimization passes
 and dialect conversions, and <code>heir-translate</code> for backend code generation. To
 see the list of available passes in each one, run the binary with <code>--help</code>:</p><div class=highlight><pre tabindex=0 style=background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>bazel run //tools:heir-opt -- --help
 </span></span><span style=display:flex><span>bazel run //tools:heir-translate -- --help
@@ -529,7 +538,8 @@ expects Python 3.11
 submit a pull request
 <a href=https://github.com/google/heir/blob/main/docs/content/en/docs/tutorials.md>on GitHub</a>.</p><h2 id=talks>Talks</h2><ul><li><a href="https://www.youtube.com/watch?v=kqDFdKUTNA4">HEIR: A foundation for FHE compilers (FHE.org 2023-10 meetup)</a></li><li><a href="https://www.youtube.com/watch?v=ne5D_kqlxYg&amp;list=PLnbmMskCVh1fZy00EZQnFSezctvwYmlRM&amp;index=4">How to Write Optimizations in HEIR (FHE.org 2024 conference tutorial)</a>
 (<a href="https://docs.google.com/presentation/d/1zRgrkWgLn4FxAWWDTQb8KnS-pqtUbST1AIR8bT_a-E8/edit?usp=sharing">slides</a>)</li><li><a href="https://www.youtube.com/watch?v=6JPwpTOcydM">Updates on the HEIR Compiler Project (FHE.org 2025 conference talk)</a>
-(<a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">slides</a>)</li></ul><h2 id=mlir-tutorials>MLIR tutorials</h2><ul><li><a href=https://github.com/j2kun/mlir-tutorial/>MLIR for Beginners by Jeremy Kun</a></li><li><a href="https://www.youtube.com/playlist?list=PLv9xz1VZ_qfFqpSAEgay96kxEGS81_NYq">YouTube playlist of useful MLIR talks for HEIR developers</a></li></ul><h2 id=fhe-math>FHE math</h2><ul><li><a href=https://www.jeremykun.com/2024/05/04/fhe-overview/>A High Level Technical Overview of Fully Homomorphic Encryption by Jeremy Kun</a></li><li><a href=https://www.jeremykun.com/2024/09/06/packing-matrix-vector-multiplication-in-fhe/>Packing matrix-vector multiplication in FHE by Jeremy Kun</a></li><li><a href=https://www.jeremykun.com/2024/09/02/shift-networks/>Shift Networks by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2022/12/28/estimating-the-security-of-ring-learning-with-errors-rlwe/>Estimating the Security of Ring Learning With Errors by Cathie Yun</a></li><li><a href=https://jeremykun.com/2022/08/29/key-switching-in-lwe/>Key Switching in LWE by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2022/07/16/modulus-switching-in-lwe/>Modulus Switching in LWE by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/>Negacyclic Polynomial Multiplication by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/>Sample Extraction from RLWE to LWE by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/>The Gadget Decomposition in FHE by Jeremy Kun</a></li></ul></div><div class=td-content style=page-break-before:always><h1 id=pg-f33468f03bdb92c1601bbed999044c76>5 - Research with HEIR</h1><h2 id=doing-private-research-using-heir>Doing private research using HEIR</h2><p>Our project will be developed in an open-source GitHub repository. If you&rsquo;d like
+(<a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">slides</a>)</li></ul><h2 id=mlir-tutorials>MLIR tutorials</h2><ul><li><a href=https://github.com/j2kun/mlir-tutorial/>MLIR for Beginners by Jeremy Kun</a></li><li><a href="https://www.youtube.com/playlist?list=PLv9xz1VZ_qfFqpSAEgay96kxEGS81_NYq">YouTube playlist of useful MLIR talks for HEIR developers</a></li></ul><h2 id=fhe-math>FHE math</h2><ul><li><a href=https://www.jeremykun.com/2024/05/04/fhe-overview/>A High Level Technical Overview of Fully Homomorphic Encryption by Jeremy Kun</a></li><li><a href=https://www.jeremykun.com/2024/09/06/packing-matrix-vector-multiplication-in-fhe/>Packing matrix-vector multiplication in FHE by Jeremy Kun</a></li><li><a href=https://www.jeremykun.com/2024/09/02/shift-networks/>Shift Networks by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2022/12/28/estimating-the-security-of-ring-learning-with-errors-rlwe/>Estimating the Security of Ring Learning With Errors by Cathie Yun</a></li><li><a href=https://jeremykun.com/2022/08/29/key-switching-in-lwe/>Key Switching in LWE by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2022/07/16/modulus-switching-in-lwe/>Modulus Switching in LWE by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/>Negacyclic Polynomial Multiplication by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/>Sample Extraction from RLWE to LWE by Jeremy Kun</a></li><li><a href=https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/>The Gadget Decomposition in FHE by Jeremy Kun</a></li></ul></div><div class=td-content style=page-break-before:always><h1 id=pg-f33468f03bdb92c1601bbed999044c76>5 - Research with HEIR</h1><h2 id=publications-built-on-heir>Publications built on HEIR</h2><p><a href=https://dl.acm.org/doi/10.1145/3729258>Circuit Optimization Using Arithmetic Table Lookups</a>
+(PLDI 2025). Raghav Malik, Vedant Paranjape, Milind Kulkarni.</p><h2 id=doing-private-research-using-heir>Doing private research using HEIR</h2><p>Our project will be developed in an open-source GitHub repository. If you&rsquo;d like
 to work on a non-public branch while still accessing the latest developments, we
 recommend the following setup. This process will result in two remote
 repositories: one public for submitting pull requests (PRs) to the original repo
@@ -555,8 +565,11 @@ push commits to the private repo.</li></ol><div class=highlight><pre tabindex=0 
 </span></span><span style=display:flex><span>git checkout private/new_branch
 </span></span></code></pre></div><p>Note that using <code>git push private new_branch2</code> will push the commit/branch to
 the private repo.</p><p>Once you&rsquo;re ready to publish your development work, you can push your commits to
-a branch in the public repository and create a pull request.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-439f0d1f88fc52920f9828a37ce073a8>6 - Design</h1><p>This section contains documentation on the high level design of the project.
-Readers are intended to have basic familiarity with MLIR and FHE.</p></div><div class=td-content><h1 id=pg-b68f7af4e332a4d2b770c09ac2607bf8>6.1 - Ciphertext Management</h1><p>On 2025-04-17, Hongren Zheng gave a talk overview of the ciphertext management
+a branch in the public repository and create a pull request.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-439f0d1f88fc52920f9828a37ce073a8>6 - Design</h1><p>HEIR is a compiler toolchain that allows the compilation of high-level programs
+to equivalent programs that operate on encrypted data.</p><p>HEIR is built in the <a href=https://mlir.llvm.org/>MLIR</a> framework.</p><p>HEIR defines dialects at various layers of abstraction, from high-level
+scheme-agnostic operations on secret types to low-level polynomial arithmetic.
+The diagram below shows some of the core HEIR dialects, and the compilation flow
+is generally from the top of the diagram downward.</p><img style=display:block;margin-left:75px;width:500px src=/images/dialect-diagram.png><p>The pages in this section describe the design of various subcomponents of HEIR.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-b68f7af4e332a4d2b770c09ac2607bf8>6.1 - Ciphertext Management</h1><p>On 2025-04-17, Hongren Zheng gave a talk overview of the ciphertext management
 system in the HEIR working group meeting.
 <a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;t=1631">The video can be found here</a>
 and <a href=/slides/mgmt-2025-04-17.pdf>the slides can be found here</a></p><h2 id=introduction>Introduction</h2><p>To lower from user specified computation to FHE scheme operations, a compiler

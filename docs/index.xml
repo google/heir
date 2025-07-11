@@ -993,27 +993,22 @@ for production use.&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then you can run the examples below, replacing &lt;code>bazel run //tools:heir-opt --&lt;/code>
 with &lt;code>./heir-opt&lt;/code>. HEIR also publishes &lt;code>heir-translate&lt;/code> and &lt;code>heir-lsp&lt;/code> in the
 same way.&lt;/p>
-&lt;h3 id="running-the-nightly-binary-from-a-notebook">Running the nightly binary from a notebook&lt;/h3>
-&lt;p>We publish an ipython extension &lt;a href="https://pypi.org/project/heir-play/">heir-play&lt;/a>
-that can be used in Jupyter or Colab notebooks.&lt;/p>
-&lt;pre tabindex="0">&lt;code>%pip install heir-play
-%load_ext heir_play
-&lt;/code>&lt;/pre>&lt;p>This will download the nightly release binaries to the system the notebook
-server is running on, then:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%heir_opt --flag1 --flag2
-# MLIR code here
-&lt;/code>&lt;/pre>&lt;p>Runs &lt;code>heir-opt&lt;/code> with the given command line flags on the MLIR code in the cell.&lt;/p>
-&lt;p>A cell magic is also available for &lt;code>heir-translate&lt;/code> as &lt;code>%%heir_translate&lt;/code>.&lt;/p>
-&lt;h3 id="building-from-source">Building From Source&lt;/h3>
+&lt;h3 id="via-pip">Via pip&lt;/h3>
+&lt;p>We publish a python package &lt;a href="https://pypi.org/project/heir-py/">heir_py&lt;/a> that
+includes the &lt;code>heir-opt&lt;/code> and &lt;code>heir-translate&lt;/code> binaries.&lt;/p>
+&lt;pre tabindex="0">&lt;code>python -m venv venv
+source venv/bin/activate
+pip install heir_py
+heir-opt --help
+heir-translate --help
+&lt;/code>&lt;/pre>&lt;h3 id="building-from-source">Building From Source&lt;/h3>
 &lt;h4 id="prerequisites">Prerequisites&lt;/h4>
 &lt;ul>
 &lt;li>&lt;a href="https://git-scm.com/">Git&lt;/a>&lt;/li>
 &lt;li>A C++ compiler and linker (&lt;a href="https://clang.llvm.org/">clang&lt;/a> and
-&lt;a href="https://lld.llvm.org/">lld&lt;/a> are recommended).&lt;/li>
-&lt;li>Bazel via &lt;a href="https://github.com/bazelbuild/bazelisk">bazelisk&lt;/a>, or version
-&lt;code>&amp;gt;=5.5&lt;/code>&lt;/li>
-&lt;li>See &lt;a href="https://heir.dev/docs/development">Development&lt;/a> for additional
-prerequisites for active development&lt;/li>
+&lt;a href="https://lld.llvm.org/">lld&lt;/a> or a recent version of &lt;code>gcc&lt;/code>).&lt;/li>
+&lt;li>Bazel via &lt;a href="https://github.com/bazelbuild/bazelisk">bazelisk&lt;/a>. The precise
+Bazel version used is in &lt;code>.bazelversion&lt;/code> in the repository root.&lt;/li>
 &lt;/ul>
 &lt;details>
 &lt;summary>Detailed Instructions&lt;/summary>
@@ -1032,8 +1027,9 @@ location to your PATH, e.g.:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>mkdir -p ~/bin
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87">echo&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;export PATH=$PATH:~/bin&amp;#39;&lt;/span> &amp;gt;&amp;gt; ~/.bashrc
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mv bazel ~/bin/bazel
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note that on linux systems, your OS user must &lt;strong>not&lt;/strong> be &lt;code>root&lt;/code> as bazel might
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note that on linux systems, your OS user must &lt;strong>not&lt;/strong> be &lt;code>root&lt;/code> as &lt;code>bazel&lt;/code> might
 refuse to work if run as root.&lt;/p>
+&lt;p>On macOS, you can install &lt;code>bazelisk&lt;/code> via Homebrew.&lt;/p>
 &lt;/details>
 &lt;h4 id="clone-and-build-the-project">Clone and build the project&lt;/h4>
 &lt;p>You can clone and build HEIR from the terminal as described below. Please see
@@ -1041,22 +1037,23 @@ refuse to work if run as root.&lt;/p>
 configuration if you want to use an IDE to build HEIR.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git clone git@github.com:google/heir.git &lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&amp;amp;&lt;/span> &lt;span style="color:#204a87">cd&lt;/span> heir
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>bazel build @heir//tools:heir-opt
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Some passes in this repository require Yosys as a dependency
-(&lt;code>--yosys-optimizer&lt;/code>). If you would like to skip Yosys and ABC compilation to
-speed up builds, use the following build setting:&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Some HEIR passes require Yosys as a dependency (&lt;code>--yosys-optimizer&lt;/code>), which
+itself adds many transitive dependencies that may not build properly on all
+systems. If you would like to skip Yosys and ABC compilation, use the following
+build setting:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel build --//:enable_yosys&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> --build_tag_filters&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>-yosys @heir//tools:heir-opt
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="optional-run-the-tests">Optional: Run the tests&lt;/h4>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Adding the following to &lt;code>.bazelrc&lt;/code> in the HEIR project root will make this the
+default behavior&lt;/p>
+&lt;pre tabindex="0">&lt;code>common --//:enable_yosys=0
+common --build_tag_filters=-yosys
+&lt;/code>&lt;/pre>&lt;h4 id="optional-run-the-tests">Optional: Run the tests&lt;/h4>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Like above, run the following to skip tests that depend on Yosys:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel &lt;span style="color:#204a87">test&lt;/span> --//:enable_yosys&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> --test_tag_filters&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>-yosys @heir//...
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="using-heir">Using HEIR&lt;/h2>
 &lt;h3 id="run-the-dot-product-example">Run the &lt;code>dot-product&lt;/code> example&lt;/h3>
 &lt;p>The &lt;code>dot-product&lt;/code> program computes the dot product of two length-8 vectors of
 16-bit integers (&lt;code>i16&lt;/code> in MLIR parlance). This example will showcase the OpenFHE
 backend by manually calling the relevant compiler passes and setting up a C++
 harness to call into the HEIR-generated functions.&lt;/p>
-&lt;p>Note: other backends are similar, but the different backends are in varying
-stages of development.&lt;/p>
 &lt;p>The input program is in &lt;code>tests/Examples/common/dot_product_8.mlir&lt;/code>. Support for
 standard input languages like &lt;code>C&lt;/code> and &lt;code>C++&lt;/code> are currently experimental at best,
 but eventually we would use an MLIR-based tool to convert an input language to
@@ -1076,7 +1073,10 @@ MLIR like in that file. The program is below:&lt;/p>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>For an introduction to MLIR syntax, see the
 &lt;a href="https://mlir.llvm.org/docs/LangRef/">official docs&lt;/a> or
 &lt;a href="https://www.jeremykun.com/2023/08/10/mlir-running-and-testing-a-lowering/">this blog post&lt;/a>.&lt;/p>
-&lt;p>Now we run the &lt;code>heir-opt&lt;/code> command to optimize and compile the program.&lt;/p>
+&lt;p>Now we run the &lt;code>heir-opt&lt;/code> command to optimize and compile the program. If you
+fetched a pre-built binary instead of building from source, then all commands
+below should have &lt;code>bazel run //tools:heir-opt --&lt;/code> replaced with &lt;code>heir-opt&lt;/code>, and
+similarly for &lt;code>heir-translate&lt;/code>.&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel run //tools:heir-opt -- &lt;span style="color:#4e9a06">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--mlir-to-bgv&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;ciphertext-degree=8&amp;#39;&lt;/span>&lt;span style="color:#4e9a06">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--scheme-to-openfhe&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;entry-function=dot_product&amp;#39;&lt;/span> &lt;span style="color:#4e9a06">\
@@ -1289,7 +1289,12 @@ above, with the following contents:&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>$ bazel run dot_product_main
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Expected: &lt;span style="color:#0000cf;font-weight:bold">240&lt;/span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>Actual: &lt;span style="color:#0000cf;font-weight:bold">240&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="optional-run-a-custom-heir-opt-pipeline">Optional: Run a custom &lt;code>heir-opt&lt;/code> pipeline&lt;/h3>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>If you fetched a pre-built binary instead of building from source, then you will
+have to use your build system of choice to compile the generated files. If you
+use &lt;code>heir_py&lt;/code>&amp;rsquo;s &lt;code>heir.compile&lt;/code> decorator with &lt;code>debug=True&lt;/code>, then the compilation
+commands will be printed to stdout so you can see how to compile the generated
+code manually.&lt;/p>
+&lt;h3 id="optional-run-a-custom-heir-opt-pipeline">Optional: Run a custom &lt;code>heir-opt&lt;/code> pipeline&lt;/h3>
 &lt;p>HEIR comes with two central binaries, &lt;code>heir-opt&lt;/code> for running optimization passes
 and dialect conversions, and &lt;code>heir-translate&lt;/code> for backend code generation. To
 see the list of available passes in each one, run the binary with &lt;code>--help&lt;/code>:&lt;/p>
@@ -1994,6 +1999,9 @@ submit a pull request
 &lt;li>&lt;a href="https://jeremykun.com/2023/02/27/sample-extraction-from-rlwe-to-lwe/">Sample Extraction from RLWE to LWE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://jeremykun.com/2021/12/11/the-gadget-decomposition-in-fhe/">The Gadget Decomposition in FHE by Jeremy Kun&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Docs: Research with HEIR</title><link>https://heir.dev/docs/research_with_heir/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/research_with_heir/</guid><description>
+&lt;h2 id="publications-built-on-heir">Publications built on HEIR&lt;/h2>
+&lt;p>&lt;a href="https://dl.acm.org/doi/10.1145/3729258">Circuit Optimization Using Arithmetic Table Lookups&lt;/a>
+(PLDI 2025). Raghav Malik, Vedant Paranjape, Milind Kulkarni.&lt;/p>
 &lt;h2 id="doing-private-research-using-heir">Doing private research using HEIR&lt;/h2>
 &lt;p>Our project will be developed in an open-source GitHub repository. If you&amp;rsquo;d like
 to work on a non-public branch while still accessing the latest developments, we
@@ -3881,45 +3889,16 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: FHE.org 2025 conference talk and slides</title><link>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</link><pubDate>Fri, 11 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/11/fhe.org-2025-conference-talk-and-slides/</guid><description>
-&lt;p>Jeremy Kun gave a talk at the FHE.org 2025 conference in Sofia last month. The
-&lt;a href="https://www.youtube.com/watch?v=6JPwpTOcydM&amp;amp;list=PLnbmMskCVh1cCnWbmgxI0BM0UD2JHH9fz&amp;amp;index=5">video&lt;/a>
-has been posted on YouTube, and the slides can be found
-&lt;a href="https://docs.google.com/presentation/d/1nKj0i0tyBSGUAI-tYMUDeji-EgqCj4PBrgw_NgMb3fM/edit?usp=sharing">here&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-02-20</title><link>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</link><pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Aza4s6Z0NCON9rQR70DOUkKSwBV6bHAmuYV8sIb8n7o/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/Y82A6BLAVtc">video recording&lt;/a> from the HEIR meeting on
-2025-02-20.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-08-08</title><link>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</link><pubDate>Thu, 08 Aug 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/08/08/heir-meeting-2024-08-08/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1FLSiaPlX38GNHqqqi_Mz3gMuVSlS4sUcwBWqpt6Fkew/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-16.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-18</title><link>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</link><pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/18/heir-meeting-2024-04-18/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1BJjfYI2yjR3YEg_ugjDuS-trAkYMlKbU7jpH_M1GF3Q/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1WSsUp9CmjDmEVtGMYk2QXIpZCEetf_Ot/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-18.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-04-04</title><link>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</link><pubDate>Thu, 04 Apr 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/04/04/heir-meeting-2024-04-04/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/121_0mzqYIWYMc7rcW2Et5qS-ux4ut3b-kno1dI9sQq8/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1_Ksjx8s8nD4cLsuZp5_KitYI2mPN72Je/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-04-04.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-03-07</title><link>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</link><pubDate>Thu, 07 Mar 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/03/07/heir-meeting-2024-03-07/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1felxN5mFBV5LheP79is30jHRxlKLW0NQEo6FPDKxDKM/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1oVJG-fM72nNLiR1eXkzdeaqdDOEpTfK0/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-03-07.&lt;/p>
-&lt;p>Note: there will be no HEIR meeting on 2024-03-21 due to the FHE.org, HACS, and
-RWC conferences. Hope to see you all there!&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-09-26</title><link>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</link><pubDate>Wed, 27 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/27/heir-meeting-2023-09-26/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1pkG8eaSUddAySJWjQHIFqe0hyYkO0wH9X0JtnR6wlWo/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1xaH-G3SZPVv_gEpUkfhFuvUTUwU2ZKLY/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-09-26.&lt;/p>
-&lt;p>Next meeting (Oct 10) is canceled for the MLIR workshop, and I&amp;rsquo;ll post an update
-from that workshop on this blog, hopefully also with a video of the talk that
-Alex Viand and I will be giving at the LLVM developers meeting.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1sHoRvNlS14RB-r3Rk0y2RyWOERVGNc-t/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-08-08.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
