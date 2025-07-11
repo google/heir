@@ -1,5 +1,5 @@
 from heir import compile, compile_mlir
-from heir.mlir import F32, I16, I64, Secret
+from heir.mlir import F32, I16, I64, I8, Secret
 from heir.backends.cleartext import CleartextBackend
 
 
@@ -142,6 +142,32 @@ func.func @myfunc() -> i32 {
     self.assertEqual(42, client.original())
     # Test FHE functionality
     self.assertEqual(42, client())
+
+  def test_dot_product_mlir(self):
+    """Demonstrate tensor operations with compile_mlir using dot product example"""
+    # Use a dot product pattern that works well with BGV
+    dot_product_mlir = """
+func.func @dot_product(%arg0: tensor<4xi16> {secret.secret}, %arg1: tensor<4xi16> {secret.secret}) -> i16 {
+  %c0_si16 = arith.constant 0 : i16
+  %0 = affine.for %i = 0 to 4 iter_args(%sum = %c0_si16) -> (i16) {
+    %1 = tensor.extract %arg0[%i] : tensor<4xi16>
+    %2 = tensor.extract %arg1[%i] : tensor<4xi16>
+    %3 = arith.muli %1, %2 : i16
+    %4 = arith.addi %sum, %3 : i16
+    affine.yield %4 : i16
+  }
+  return %0 : i16
+}
+"""
+    client = compile_mlir(
+        dot_product_mlir,
+        func_name="dot_product",
+        arg_names=["arg0", "arg1"],
+        secret_args=[0, 1],
+    )
+
+    # Test: [1,2,3,4] · [2,3,4,5] = 2+6+12+20 = 40
+    self.assertEqual(40, client([1, 2, 3, 4], [2, 3, 4, 5]))
 
 
 if __name__ == "__main__":
