@@ -1,5 +1,6 @@
 # HEIR tools
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("//third_party/bazel_rules/rules_cc/cc:cc_binary.bzl", "cc_binary")
 
 package(
     default_applicable_licenses = ["@heir//:license"],
