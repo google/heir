@@ -749,11 +749,11 @@ unsigned # ksk_gadget_num_levels
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -768,7 +768,7 @@ unsigned # ksk_gadget_num_levels
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -790,11 +790,11 @@ unsigned # ksk_gadget_num_levels
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -809,7 +809,7 @@ unsigned # ksk_gadget_num_levels
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -835,7 +835,7 @@ Note this operations is not a standard CGGI operation, but an mirror of the cast
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -850,7 +850,7 @@ Note this operations is not a standard CGGI operation, but an mirror of the cast
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -891,11 +891,11 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -910,7 +910,7 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -936,7 +936,7 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -958,11 +958,11 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -977,7 +977,7 @@ Note this operations to indirect mirror the TFHE-rs implmementation._&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1013,11 +1013,11 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1032,7 +1032,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1068,15 +1068,15 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1091,7 +1091,7 @@ and sums.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1171,11 +1171,11 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1190,7 +1190,7 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1212,11 +1212,11 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1231,7 +1231,7 @@ cannot be multiplied by 16.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1259,11 +1259,11 @@ to this op the appropriate CGGI ops.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1278,7 +1278,7 @@ to this op the appropriate CGGI ops.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1330,7 +1330,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>inputs&lt;/code>&lt;/td>
-&lt;td>variadic of A type for LWE ciphertexts&lt;/td>
+&lt;td>variadic of new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1345,7 +1345,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>outputs&lt;/code>&lt;/td>
-&lt;td>variadic of A type for LWE ciphertexts&lt;/td>
+&lt;td>variadic of new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1367,11 +1367,11 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1386,7 +1386,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1408,11 +1408,11 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1427,7 +1427,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1449,11 +1449,11 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1468,7 +1468,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1490,7 +1490,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1505,7 +1505,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1527,11 +1527,11 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1546,7 +1546,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1572,15 +1572,15 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1595,7 +1595,7 @@ return (
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1627,11 +1627,11 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1646,7 +1646,7 @@ second elements.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1679,7 +1679,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1694,7 +1694,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1721,7 +1721,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1736,7 +1736,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1763,7 +1763,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1778,7 +1778,7 @@ then the lookup table must be represented at most by an integer with 8 bits.&lt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1802,15 +1802,15 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>select&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>trueCtxt&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>falseCtxt&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1825,7 +1825,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1847,11 +1847,11 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>Integer type with arbitrary precision up to a fixed limit or A type for LWE ciphertexts&lt;/td>
+&lt;td>Integer type with arbitrary precision up to a fixed limit or A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1866,7 +1866,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1888,11 +1888,11 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1907,7 +1907,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1929,11 +1929,11 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1948,7 +1948,7 @@ Note this operations to mirror the TFHE-rs implmementation.&amp;quot;&lt;/em>&lt
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4268,7 +4268,7 @@ using the jaxite parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4290,15 +4290,15 @@ using the jaxite parameters and encoding scheme.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>truth_table&lt;/code>&lt;/td>
@@ -4343,15 +4343,15 @@ significant bit to least-significant bit.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>a&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>b&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>c&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>truth_table&lt;/code>&lt;/td>
@@ -4378,7 +4378,7 @@ significant bit to least-significant bit.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4423,7 +4423,7 @@ significant bit to least-significant bit.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table></description></item><item><title>Docs: JaxiteWord</title><link>https://heir.dev/docs/dialects/jaxiteword/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/jaxiteword/</guid><description>
@@ -7916,11 +7916,11 @@ RLWEParamsAttr # rlwe_params
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>lhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>rhs&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -7935,7 +7935,7 @@ RLWEParamsAttr # rlwe_params
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -7944,17 +7944,21 @@ RLWEParamsAttr # rlwe_params
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `lwe.encode` $input attr-dict `:` qualified(type($input)) `to` qualified(type($output))
 &lt;/code>&lt;/pre>&lt;p>Encode an integer to yield an LWE plaintext.&lt;/p>
-&lt;p>This op uses a an encoding attribute to encode the bits of the integer into
-an LWE plaintext value that can then be encrypted.&lt;/p>
+&lt;p>This op uses an overflow attribute to indicate the overflow semantics. For
+CGGI ciphertexts, this will typically be &lt;code>preserve_overflow&lt;/code> to indicate
+that the message bits can overflow into the carry bit space.&lt;/p>
+&lt;p>The LWE plaintext ring is constructed with a plaintext bit width using &lt;code>plaintext_bits&lt;/code> and a
+polynomial modulus of &lt;code>x&lt;/code>.&lt;/p>
 &lt;p>Examples:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%Y = lwe.encode %value {encoding = #enc}: i1 to !lwe.lwe_plaintext&amp;lt;encoding = #enc&amp;gt;
+&lt;pre tabindex="0">&lt;code>%Y = lwe.encode %value {overflow = #overflow, plaintext_bits = 3}: i1 to !lwe.new_lwe_plaintext&amp;lt;application_data = #app_data, plaintext_space = #space&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>encoding&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute describing encoded LWE plaintexts using bit fields. or An attribute describing unspecified bit field encodings.&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>plaintext_bits&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>overflow&lt;/code>&lt;/td>&lt;td>::mlir::Attribute&lt;/td>&lt;td>An attribute informing that application data never overflows. or An attribute informing that application data overflows in the message type.&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-1">Operands:&lt;/h4>
 &lt;table>
@@ -7982,7 +7986,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8004,7 +8008,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>ciphertext&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>scalar&lt;/code>&lt;/td>
@@ -8023,7 +8027,7 @@ an LWE plaintext value that can then be encrypted.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>ciphertext-like&lt;/td>
+&lt;td>new-lwe-ciphertext-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8490,14 +8494,14 @@ applied.&lt;/p>
 &lt;h3 id="lwetrivial_encrypt-heirlwetrivialencryptop">&lt;code>lwe.trivial_encrypt&lt;/code> (heir::lwe::TrivialEncryptOp)&lt;/h3>
 &lt;p>&lt;em>Create a trivial encryption of a plaintext.&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
-&lt;pre tabindex="0">&lt;code>operation ::= `lwe.trivial_encrypt` operands attr-dict `:` qualified(type(operands)) `to` qualified(type(results))
+&lt;pre tabindex="0">&lt;code>operation ::= `lwe.trivial_encrypt` $input attr-dict `:` qualified(type(operands)) `to` qualified(type(results))
 &lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="attributes-3">Attributes:&lt;/h4>
 &lt;table>
 &lt;tr>&lt;th>Attribute&lt;/th>&lt;th>MLIR Type&lt;/th>&lt;th>Description&lt;/th>&lt;/tr>
-&lt;tr>&lt;td>&lt;code>params&lt;/code>&lt;/td>&lt;td>::mlir::heir::lwe::LWEParamsAttr&lt;/td>&lt;td>&lt;/td>&lt;/tr>
+&lt;tr>&lt;td>&lt;code>ciphertext_bits&lt;/code>&lt;/td>&lt;td>::mlir::IntegerAttr&lt;/td>&lt;td>index attribute&lt;/td>&lt;/tr>
 &lt;/table>
 &lt;h4 id="operands-14">Operands:&lt;/h4>
 &lt;table>
@@ -8510,7 +8514,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>A type for LWE plaintexts&lt;/td>
+&lt;td>A plaintext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -8525,7 +8529,7 @@ applied.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>A type for LWE ciphertexts&lt;/td>
+&lt;td>A ciphertext type&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
