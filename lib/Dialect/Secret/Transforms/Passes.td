@@ -14,7 +14,7 @@ def SecretForgetSecrets : Pass<"secret-forget-secrets"> {
   }];
   let dependentDialects = [
     "mlir::heir::secret::SecretDialect",
-    "mlir::memref::MemRefDialect",
+    "mlir::tensor::TensorDialect",
     "mlir::arith::ArithDialect",
   ];
 }
