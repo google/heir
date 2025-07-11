@@ -58,28 +58,7 @@ def PolynomialApproximation : Pass<"polynomial-approximation"> {
     These ops are replaced with `polynomial.eval` ops with a static polynomial
     attribute.
 
-    Examples:
-
-    ```mlir
-    %0 = math.exp %x {
-          degree = 3 : i32,
-          domain_lower = -1.0 : f64,
-          domain_upper = 1.0 : f64
-      } : f32
-    ```
-
-    is converted to
-
-    ```mlir
-    #ring_f64_ = #polynomial.ring<coefficientType = f64>
-    !poly = !polynomial.polynomial<ring = #ring_f64_>
-    %0 = polynomial.eval
-           #polynomial<typed_float_polynomial <
-             0.99458116404270657
-           + 0.99565537253615788x
-           + 0.54297028147256321x**2
-           + 0.17954582110873779x**3> : !poly>, %arg0 : f32
-    ```
+    (* example filepath=tests/Transforms/polynomial_approximation/doctest.mlir *)
   }];
   let dependentDialects = [
     "mlir::heir::polynomial::PolynomialDialect"

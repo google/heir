@@ -83,19 +83,7 @@ def normalize_lit_test_file_arg(lit_test_file: str) -> str:
   return lit_test_file
 
 
-def lit_to_bazel(
-    lit_test_file: str,
-    git_root: str = "",
-    run: bool = False,
-    debug_dir: str = "/tmp/mlir",
-):
-  """A helper CLI that converts MLIR test files to bazel run commands.
-
-  Args:
-    lit_test_file: The lit test file that should be converted to a bazel run
-      command.
-  """
-
+def get_command_without_bazel_prefix(lit_test_file, git_root) -> str:
   if not git_root:
     git_root = pathlib.Path(__file__).parent.parent
     if not os.path.isdir(git_root / ".git"):
@@ -128,29 +116,48 @@ def lit_to_bazel(
     deduped_commands.append(command)
 
   joined = " ".join(deduped_commands)
+  return joined
+
+
+def lit_to_bazel(
+    lit_test_file: str,
+    git_root: str = "",
+    run: bool = False,
+    debug_dir: str = "/tmp/mlir",
+):
+  """A helper CLI that converts MLIR test files to bazel run commands.
+
+  Args:
+    lit_test_file: The lit test file that should be converted to a bazel run
+      command.
+  """
+
+  command = get_command_without_bazel_prefix(lit_test_file, git_root)
   # I would consider using bazel-bin/tools/heir-opt, but the yosys
   # requirement requires additional env vars to be set for the yosys and ABC
   # paths, which is not yet worth doing for this script.
-  joined = joined.replace(
+  command = command.replace(
       "heir-opt",
       "bazel run --noallow_analysis_cache_discard //tools:heir-opt --",
   )
-  joined = joined.replace(
+  command = command.replace(
       "heir-translate", f"{git_root}/bazel-bin/tools/heir-translate"
   )
-  joined = joined.replace("%s", str(pathlib.Path(lit_test_file).absolute()))
+  command = command.replace("%s", str(pathlib.Path(lit_test_file).absolute()))
 
   if run:
     # delete the debug dir if it exists
     if os.path.isdir(debug_dir):
       shutil.rmtree(debug_dir)
-    joined += f" --mlir-print-ir-after-all --mlir-print-ir-tree-dir={debug_dir}"
-    print(joined)
+    command += (
+        f" --mlir-print-ir-after-all --mlir-print-ir-tree-dir={debug_dir}"
+    )
+    print(command)
 
     # run the command
-    subprocess.run(joined, shell=True)
+    subprocess.run(command, shell=True)
   else:
-    print(joined)
+    print(command)
 
 
 if __name__ == "__main__":
