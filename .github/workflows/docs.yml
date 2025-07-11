@@ -32,7 +32,7 @@ jobs:
 
     - name: "Copy markdown files to docs/"
       run: |
-        python .github/workflows/copy_tblgen_files.py
+        python -m scripts.docs.copy_tblgen_files
 
     # Please update the local install instructions at docs/README.md if changing hugo version
     - name: Setup Hugo
