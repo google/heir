@@ -10,8 +10,8 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-def ModArithOrRNSLike: TypeOrValueSemanticsContainer<AnyTypeOf<[ModArith_ModArithType, RNS]>,
-    "mod_arith_or_rns-like">;
+def ModArithOrRNS : AnyTypeOf<[ModArith_ModArithType, RNS]>;
+def ModArithOrRNSLike : TypeOrValueSemanticsContainer<ModArithOrRNS, "mod_arith_or_rns-like">;
 
 class ModArith_Op<string mnemonic, list<Trait> traits = [Pure]> :
         Op<ModArith_Dialect, mnemonic, traits> {
@@ -20,68 +20,76 @@ class ModArith_Op<string mnemonic, list<Trait> traits = [Pure]> :
 }
 
 // type conversion operations
-def ModArith_EncapsulateOp : ModArith_Op<"encapsulate", [Pure, ElementwiseMappable]> {
+def ModArith_EncapsulateOp : ModArith_Op<"encapsulate", [Pure]> {
   let summary = "encapsulate an integer into a mod_arith type";
 
   let description = [{
-    `mod_arith.encapsulate` converts the integer to be of mod_arith type.
+    `mod_arith.encapsulate` converts the integer to be of mod_arith or RNS type.
 
     Examples:
     ```
     mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
-    mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537>
+    mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537 : i64>
+    mod_arith.encapsulate %c2 : tensor<4x2xi32> -> tensor<4xrns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>>
     ```
   }];
 
   let arguments = (ins
     SignlessIntegerLike:$input
   );
-  let results = (outs ModArithLike:$output);
+  let results = (outs ModArithOrRNSLike:$output);
+  let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
-def ModArith_ExtractOp : ModArith_Op<"extract", [Pure, ElementwiseMappable]> {
+def ModArith_ExtractOp : ModArith_Op<"extract", [Pure]> {
   let summary = "extract the integer stored inside mod_arith type";
 
   let description = [{
-    `mod_arith.extract` extracts the integer inside the mod_arith type.
+    `mod_arith.extract` extracts the integer inside the mod_arith or RNS type.
 
-    It is required that the bitwidth of the output integer type is the same
-    as that of the storage type of the input mod_arith type.
+    It is required that the bitwidth of the output (tensor of) integer type is
+    the same as that of the storage type of the input mod_arith (or RNS) type.
 
     Examples:
     ```
     %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
-    %m1 = mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537>
-    %c2 = mod_arith.extract %m0 : mod_arith.int<65537 : i32> -> i32
-    %c3 = mod_arith.extract %m1 : mod_arith.int<65537> -> i64
+    %m1 = mod_arith.encapsulate %c1 : i64 -> mod_arith.int<65537 : i64>
+    %m2 = mod_arith.encapsulate %c2 : tensor<4x2xi32> -> tensor<4xrns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>>
+    %c3 = mod_arith.extract %m0 : mod_arith.int<65537 : i32> -> i32
+    %c4 = mod_arith.extract %m1 : mod_arith.int<65537 : i64> -> i64
+    %c5 = mod_arith.extract %m2 : tensor<4xrns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>> -> tensor<4x2xi32>
     ```
   }];
 
   let arguments = (ins
-    ModArithLike:$input
+    ModArithOrRNSLike:$input
   );
   let results = (outs SignlessIntegerLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
-def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure, SameOperandsAndResultShape]> {
+def ModArith_ModSwitchOp : ModArith_Op<"mod_switch", [Pure]> {
   let summary = "change the modulus of a mod_arith";
 
   let description = [{
-    "mod_switch" operation to change the modulus of a mod_arith type to a
-    bigger space.
+    The "mod_switch" operation performs either modulus switching (changing the
+    modulus of a mod_arith type to a new value by reducing modulo the new
+    modulus) or CRT decomposition/interpolation.
 
     Examples:
     ```
-    `mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<65539 : i32>`
+    mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<65539 : i32>
+    mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<257 : i32>
+    mod_arith.mod_switch %c0 : mod_arith.int<85 : i32> to rns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>>
+    mod_arith.mod_switch %c0 : rns.rns<mod_arith.int<5 : i32>, mod_arith.int<17 : i32>> to mod_arith.int<85 : i32>
     ```
   }];
 
-  let arguments = (ins ModArith_ModArithType:$input);
-  let results = (outs ModArith_ModArithType:$output);
-
+  let arguments = (ins ModArithOrRNS:$input);
+  let results = (outs ModArithOrRNS:$output);
+  let hasVerifier = 1;
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
 

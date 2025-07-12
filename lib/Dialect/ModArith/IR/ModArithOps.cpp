@@ -46,10 +46,95 @@ LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
   return success();
 }
 
+std::vector<int64_t> getShapeOrEmpty(Type type) {
+  if (auto tensorType = dyn_cast<TensorType>(type)) {
+    return tensorType.getShape();
+  }
+  return {};
+}
+
+template <typename OpType>
+bool isShapeCorrect(OpType op, int64_t rnsLength,
+                    std::vector<int64_t> &modularShape,
+                    std::vector<int64_t> &integerShape) {
+  auto tmp = modularShape;
+  if (rnsLength != 0) tmp.push_back(rnsLength);
+  return tmp == integerShape;
+}
+
+template <typename OpType>
+LogicalResult verifyTypeLowering(OpType op, Type modularType,
+                                 Type integerType) {
+  int64_t rnsLength = 0;
+  auto innerModularType = getElementTypeOrSelf(modularType);
+  auto innerModArithType = dyn_cast<ModArithType>(innerModularType);
+  if (!innerModArithType) {
+    auto rnsType = dyn_cast<rns::RNSType>(innerModularType);
+    innerModArithType = cast<ModArithType>(rnsType.getBasisTypes()[0]);
+    rnsLength = rnsType.getBasisTypes().size();
+  }
+  auto innerIntegerType = cast<IntegerType>(getElementTypeOrSelf(integerType));
+  auto modularShape = getShapeOrEmpty(modularType);
+  auto integerShape = getShapeOrEmpty(integerType);
+  if (!isShapeCorrect(op, rnsLength, modularShape, integerShape)) {
+    return op.emitOpError() << "The shape of input/output type is not correct.";
+  }
+  return verifySameWidth(op, innerModArithType, innerIntegerType);
+}
+
+LogicalResult EncapsulateOp::verify() {
+  return verifyTypeLowering(*this, getOutput().getType(), getInput().getType());
+}
+
 LogicalResult ExtractOp::verify() {
-  auto modArithType = getOperandModArithType(*this);
-  auto integerType = getResultIntegerType(*this);
-  return verifySameWidth(*this, modArithType, integerType);
+  return verifyTypeLowering(*this, getInput().getType(), getOutput().getType());
+}
+
+template <typename OpType>
+LogicalResult verifyRNS(OpType op, ModArithType modArithType,
+                        rns::RNSType rnsType) {
+  auto bigModulus = modArithType.getModulus().getValue();
+  auto width = bigModulus.getBitWidth();
+  auto rnsWidth = cast<ModArithType>(rnsType.getBasisTypes()[0])
+                      .getModulus()
+                      .getValue()
+                      .getBitWidth();
+  if (width < rnsWidth) {
+    return op.emitOpError() << "The input and output type can't both be RNS";
+  }
+  APInt product(width, 1);
+  for (auto basisType : rnsType.getBasisTypes()) {
+    auto modArithType = cast<ModArithType>(basisType);
+    auto modulus = modArithType.getModulus().getValue();
+    product *= modulus.zext(width);
+  }
+  if (product != bigModulus) {
+    return op.emitOpError() << "The product of RNS modulus should equal to the "
+                               "modulus of ModArithType";
+  }
+  return success();
+}
+
+LogicalResult ModSwitchOp::verify() {
+  auto inputType = getInput().getType();
+  auto outputType = getOutput().getType();
+  if (auto inputModArith = dyn_cast<ModArithType>(inputType)) {
+    if (auto outputModArith = dyn_cast<ModArithType>(outputType)) {
+      return success();
+    }
+    if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
+      return verifyRNS(*this, inputModArith, outputRNS);
+    }
+  }
+  if (auto inputRNS = dyn_cast<rns::RNSType>(inputType)) {
+    if (auto outputModArith = dyn_cast<ModArithType>(outputType)) {
+      return verifyRNS(*this, outputModArith, inputRNS);
+    }
+    if (auto outputRNS = dyn_cast<rns::RNSType>(outputType)) {
+      return emitOpError() << "The input and output type can't both be RNS";
+    }
+  }
+  llvm_unreachable("Verifier should make sure this doesn't happen.");
 }
 
 LogicalResult BarrettReduceOp::verify() {
@@ -65,11 +150,12 @@ LogicalResult BarrettReduceOp::verify() {
   }
   auto expectedBitWidth = (getModulus() - 1).getActiveBits();
   if (bitWidth < expectedBitWidth || 2 * expectedBitWidth < bitWidth) {
-    return emitOpError()
-           << "input bitwidth is required to be in the range [w, 2w], where w "
-              "is the smallest bit-width that contains the range [0, modulus). "
-              "Got "
-           << bitWidth << " but w is " << expectedBitWidth << ".";
+    return emitOpError() << "input bitwidth is required to be in the range "
+                            "[w, 2w], where w "
+                            "is the smallest bit-width that contains the "
+                            "range [0, modulus). "
+                            "Got "
+                         << bitWidth << " but w is " << expectedBitWidth << ".";
   }
   if (getModulus().slt(0))
     return emitOpError() << "provided modulus " << getModulus().getSExtValue()
@@ -82,8 +168,8 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
   Type parsedType;
   if (parser.parseOptionalKeyword("dense").succeeded()) {
     // Dense case
-    // We parse the integers as a list, rather than an ArrayAttr, so we can more
-    // easily convert them to the correct bitwidth (ArrayAttr forces I64)
+    // We parse the integers as a list, rather than an ArrayAttr, so we can
+    // more easily convert them to the correct bitwidth (ArrayAttr forces I64)
     std::vector<APInt> parsedInts;
     if (parser.parseLess() ||
         parser.parseCommaSeparatedList(mlir::AsmParser::Delimiter::Square,
