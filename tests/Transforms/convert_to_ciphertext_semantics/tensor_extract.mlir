@@ -31,10 +31,10 @@
 
 func.func @extract(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) -> (!secret.secret<i16> {tensor_ext.layout = #scalar_layout}) {
   %index = arith.constant 3 : index
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>>) attrs = {__argattrs = [{tensor_ext.layout = #layout}], __resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
   ^body(%input0: tensor<8xi16>):
     %0 = tensor.extract %input0[%index] {tensor_ext.layout = #scalar_layout} : tensor<8xi16>
     secret.yield %0 : i16
-  } -> !secret.secret<i16>
+  } -> (!secret.secret<i16> {tensor_ext.layout = #layout})
   return %0 : !secret.secret<i16>
 }
