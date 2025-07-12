@@ -38,7 +38,7 @@ repos:
     rev: "v2.2.5"
     hooks:
       - id: codespell
-        args: ["-L", "crate, fpt"]
+        args: ["-L", "crate, fpt, olt"]
         exclude: "^(.*[.]lock)"
 
 # Changes tabs to spaces

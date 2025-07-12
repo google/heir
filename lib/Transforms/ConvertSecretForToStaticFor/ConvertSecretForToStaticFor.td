@@ -54,7 +54,7 @@ def ConvertSecretForToStaticFor : Pass<"convert-secret-for-to-static-for"> {
     ```
   }];
   let dependentDialects = [
-    "mlir::scf::SCFDialect",
+    "mlir::affine::AffineDialect",
     "mlir::arith::ArithDialect"
   ];
 }

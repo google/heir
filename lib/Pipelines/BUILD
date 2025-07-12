@@ -16,6 +16,7 @@ cc_library(
         "@heir//lib/Dialect/Polynomial/Conversions/PolynomialToModArith",
         "@heir//lib/Dialect/Secret/Conversions/SecretToCGGI",
         "@heir//lib/Dialect/TOSA/Conversions/TosaToSecretArith",
+        "@heir//lib/Transforms/CompareToSignRewrite",
         "@heir//lib/Transforms/ConvertIfToSelect",
         "@heir//lib/Transforms/ConvertSecretExtractToStaticExtract",
         "@heir//lib/Transforms/ConvertSecretForToStaticFor",
