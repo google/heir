@@ -71,16 +71,10 @@ pip.parse(
     python_version = "3.11",
     requirements_lock = "//:requirements.txt",
 )
-pip.parse(
-    hub_name = "heir_pip_dev_deps",
-    python_version = "3.11",
-    requirements_lock = "//:requirements-dev.txt",
-)
 
 use_repo(python, python_3_11 = "python_3_11")
 
 use_repo(pip, "heir_pip_deps")
-use_repo(pip, "heir_pip_dev_deps")
 
 # Go setup
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
