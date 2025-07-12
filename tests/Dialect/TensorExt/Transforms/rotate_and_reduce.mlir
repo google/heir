@@ -771,7 +771,7 @@ func.func @rotate_not_applied_because_mixed_ops(%arg1 : tensor<4xi16>) -> i16 {
 }
 
 // CHECK: @reduce_add_and_mul
-// 9 rotations because the first rotation can be re-used between the two
+// 9 rotations because the first rotation can be reused between the two
 // reductions
 // CHECK-COUNT-9: tensor_ext.rotate
 // CHECK-NOT: tensor_ext.rotate

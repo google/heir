@@ -33,7 +33,7 @@ namespace rotation_analysis {
 // tensor, and it is used in the analysis to accumulate reduced tensor indices
 // across the IR.
 //
-// It also stores a reference to the SSA value that identifes the "end" of the
+// It also stores a reference to the SSA value that identifies the "end" of the
 // computation (i.e., the SSA value that contains the result of the reduction).
 class PartialReduction {
  public:

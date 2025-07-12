@@ -60,7 +60,7 @@ def SecretCaptureGenericAmbientScope : Pass<"secret-capture-generic-ambient-scop
 def SecretMergeAdjacentGenerics : Pass<"secret-merge-adjacent-generics"> {
   let summary = "Merge two adjacent generics into a single generic";
   let description = [{
-    This pass merges two immedaitely sequential generics into a single
+    This pass merges two immediately sequential generics into a single
     generic. Useful as a sub-operation in some passes, and extracted into
     its own pass for testing purposes.
   }];

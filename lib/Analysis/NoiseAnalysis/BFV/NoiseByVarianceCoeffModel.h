@@ -29,9 +29,9 @@ class NoiseByVarianceCoeffModel {
   // random variables caused by 's', so the max degree T in 's^T' of the
   // invariant noise needs to be tracked.
   //
-  // MP24/CCH+23 states that for two polynomial multipication, the variance of
+  // MP24/CCH+23 states that for two polynomial multiplication, the variance of
   // one coefficient of the result can be approximated by ringDim * var_0 *
-  // var_1, because the polynomial multipication is a convolution.
+  // var_1, because the polynomial multiplication is a convolution.
   using StateType = NoiseState;
   using SchemeParamType = bgv::SchemeParam;
   using LocalParamType = bgv::LocalParam;

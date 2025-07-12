@@ -23,7 +23,7 @@ def Secret_SeparatorOp : Secret_Op<"separator", [MemoryEffects<[MemWrite]>]> {
     This operation is used as a separation boundary between logical subunits of
     the module. This is used in conjunction with
     `--secret-distribute-generic=distribute-through=secret.separator` to break a
-    generic around these separators and allow for optimization passses to
+    generic around these separators and allow for optimization passes to
     analyze and optimize the sub-units locally.
 
     In order to allow bufferization of modules with this operation, we must

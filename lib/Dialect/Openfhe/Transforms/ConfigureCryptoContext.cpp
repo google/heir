@@ -46,7 +46,7 @@ struct Config {
   int64_t keySwitchCount;
   // inherited from IR LWE type
   int64_t plaintextModulus;
-  // inhertied from scheme param
+  // inherited from scheme param
   bool encryptionTechniqueExtended;
   // merge from IR and pass options
   int mulDepth;  // user may want to override this; bootstrap also modifies

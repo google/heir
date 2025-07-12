@@ -25,7 +25,7 @@ namespace heir {
 // where a whole secret::GenericOp is assumed
 
 // represent the maximal depth of multiplication used to produce the Value,
-// where mutiplication is in secretness domain
+// where multiplication is in secretness domain
 class MulDepthState {
  public:
   MulDepthState() : mulDepth(std::nullopt) {}
