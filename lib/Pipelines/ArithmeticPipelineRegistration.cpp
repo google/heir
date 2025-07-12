@@ -27,6 +27,7 @@
 #include "lib/Pipelines/PipelineRegistration.h"
 #include "lib/Transforms/AddClientInterface/AddClientInterface.h"
 #include "lib/Transforms/ApplyFolders/ApplyFolders.h"
+#include "lib/Transforms/CompareToSignRewrite/CompareToSignRewrite.h"
 #include "lib/Transforms/ConvertToCiphertextSemantics/ConvertToCiphertextSemantics.h"
 #include "lib/Transforms/DropUnitDims/DropUnitDims.h"
 #include "lib/Transforms/FullLoopUnroll/FullLoopUnroll.h"
@@ -122,6 +123,7 @@ void mlirToSecretArithmeticPipelineBuilder(
     OpPassManager &pm, const MlirToRLWEPipelineOptions &options) {
   pm.addPass(createWrapGeneric());
   convertToDataObliviousPipelineBuilder(pm);
+  pm.addPass(createCompareToSignRewrite());
   pm.addPass(createSelectRewrite());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
