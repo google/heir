@@ -4,6 +4,8 @@ import re
 import yaml
 from pathlib import Path
 
+from scripts.docs.lit_to_doc import lit_to_doc
+
 SRC_BASE = "bazel-bin/lib"
 DEST_BASE = "docs/content/en/docs"
 PASSES_FILE = f"{DEST_BASE}/passes.md"
@@ -47,9 +49,10 @@ def rebuild_content(frontmatter, sorted_sections):
   frontmatter_str = (
       "---\n" + yaml.dump(frontmatter) + "---\n\n" if frontmatter else ""
   )
-  content_str = "".join(
-      [f"{header}\n{body}\n" for header, body in sorted_sections]
-  )
+  content_str = "".join([
+      f"{header.strip()}\n\n{body.strip()}\n\n"
+      for header, body in sorted_sections
+  ])
   return frontmatter_str + content_str
 
 
@@ -64,6 +67,25 @@ def sort_markdown_file_by_header(path):
 
   with open(path, "w") as f:
     f.write(sorted_content)
+
+
+def generate_doctest_examples():
+  print("Generating doctests")
+  pattern = re.compile(r"^ *(\(\* example filepath=)(.*?)(\s*\*\))")
+
+  def replacer(match):
+    captured_filepath = match.group(2)
+    print(f"Running doctest for {captured_filepath}")
+    return lit_to_doc(lit_test_file=captured_filepath)
+
+  new_lines = []
+  with open(PASSES_FILE, "r") as passes_file:
+    for line in passes_file:
+      modified_line = pattern.sub(replacer, line)
+      new_lines.append(modified_line)
+
+  with open(PASSES_FILE, "w") as passes_file:
+    passes_file.write("".join(new_lines))
 
 
 if __name__ == "__main__":
@@ -87,6 +109,7 @@ if __name__ == "__main__":
         dest_file.write("\n")
 
   sort_markdown_file_by_header(PASSES_FILE)
+  generate_doctest_examples()
 
   print("Processing Dialects")
   Path(f"{DEST_BASE}/Dialects/").mkdir(parents=True, exist_ok=True)
