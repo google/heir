@@ -35,62 +35,76 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
 
   LogicalResult matchAndRewrite(scf::ForOp forOp,
                                 PatternRewriter &rewriter) const override {
-    bool isLowerBoundSecret = isSecret(forOp.getLowerBound(), solver);
-    bool isUpperBoundSecret = isSecret(forOp.getUpperBound(), solver);
+    Value lowerBound = forOp.getLowerBound();
+    Value upperBound = forOp.getUpperBound();
+    bool isLowerBoundSecret = isSecret(lowerBound, solver);
+    bool isUpperBoundSecret = isSecret(upperBound, solver);
 
     // If both bounds are non-secret constants, return
     if (!isLowerBoundSecret && !isUpperBoundSecret) return failure();
 
-    int newLowerBound, newUpperBound;
+    // Affine.for can only handle strict static (integer attribute) bounds,
+    // but scf.for can handle dynamic bounds, so we need to check:
+    if (!forOp.getConstantStep())
+      return emitError(forOp.getLoc(),
+                       "Cannot convert secret scf.for to static affine.for "
+                       "since the step is not constant and "
+                       "affine.for only supports strictly static step size");
 
-    if (isLowerBoundSecret) {
-      // If static lower bound is not provided, emit a warning and return
-      // failure
-      if (!forOp->getAttrOfType<IntegerAttr>("lower")) {
-        InFlightDiagnostic diag = mlir::emitWarning(
-            forOp.getLoc(),
-            "Cannot convert secret scf.for to static affine.for "
-            "since a static lower bound attribute has not been provided:");
-
-        return failure();
-      }
-      // If lowerBound is secret, get value from "lower" attribute
-      newLowerBound = forOp->getAttrOfType<IntegerAttr>("lower").getInt();
-    }
-
-    if (isUpperBoundSecret) {
-      // If static upper bound is not provided, emit a warning and return
-      // failure
-      if (!forOp->getAttrOfType<IntegerAttr>("upper")) {
-        InFlightDiagnostic diag = mlir::emitWarning(
-            forOp.getLoc(),
-            "Cannot convert secret scf.for to static affine.for "
-            "since a static upper bound attribute has not been provided:");
-
-        return failure();
-      }
-      // If upperBound is secret, get value from "upper" attribute
-      newUpperBound = forOp->getAttrOfType<IntegerAttr>("upper").getInt();
-    }
+    // There are a few cases to handle:
+    // If a bound is determined to be secret, we need to replace it
+    // with the annotated static bound, which we wrap in a constant op
+    // for simplicity (this should later be optimized away into the affine map).
+    //
+    // If the bound is not secret, we might need to cast it to IndexType
+    // since affine.for (in contrast to scf.for)
+    // does not allow signless integers for the bounds
+    //
+    // Finally, once we have two suitable values, we need to construct an affine
+    // map (since the non-secret bound might still be dynamic). Thankfully,
+    // scf.for only allows a simple start, end, step form, so we can create a
+    // relatively simple affine map
 
     ImplicitLocOpBuilder builder(forOp->getLoc(), rewriter);
 
+    if (isLowerBoundSecret) {
+      // If static lower bound is not provided, emit an error and return
+      if (auto lowerBoundAttr = forOp->getAttrOfType<IntegerAttr>("lower")) {
+        lowerBound = builder.create<arith::ConstantIndexOp>(
+            lowerBound.getLoc(), lowerBoundAttr.getInt());
+      } else {
+        return emitError(
+            forOp.getLoc(),
+            "Cannot convert secret scf.for to static affine.for "
+            "since a static lower bound attribute has not been provided:");
+      }
+    } else if (!isa<IndexType>(lowerBound.getType())) {
+      lowerBound = builder.create<arith::IndexCastOp>(
+          lowerBound.getLoc(), builder.getIndexType(), lowerBound);
+    }
+
+    if (isUpperBoundSecret) {
+      // If static upper bound is not provided, emit an error and return
+      if (auto upperBoundAttr = forOp->getAttrOfType<IntegerAttr>("upper")) {
+        upperBound = builder.create<arith::ConstantIndexOp>(
+            upperBound.getLoc(), upperBoundAttr.getInt());
+      } else {
+        return emitError(
+            forOp.getLoc(),
+            "Cannot convert secret scf.for to static affine.for "
+            "since a static upper bound attribute has not been provided:");
+      }
+    } else if (!isa<IndexType>(upperBound.getType())) {
+      // cast to IndexType since affine.for (in contrast to scf.for)
+      // does not allow signless integers for the bounds
+      upperBound = builder.create<arith::IndexCastOp>(
+          upperBound.getLoc(), builder.getIndexType(), upperBound);
+    }
+
     auto newForOp = builder.create<affine::AffineForOp>(
-        isLowerBoundSecret ? newLowerBound
-                           : forOp.getLowerBound()
-                                 .getDefiningOp()
-                                 ->getAttrOfType<IntegerAttr>("value")
-                                 .getInt(),
-        isUpperBoundSecret ? newUpperBound
-                           : forOp.getUpperBound()
-                                 .getDefiningOp()
-                                 ->getAttrOfType<IntegerAttr>("value")
-                                 .getInt(),
-        forOp.getStep()
-            .getDefiningOp()
-            ->getAttrOfType<IntegerAttr>("value")
-            .getInt(),
-        forOp.getInitArgs());
+        ValueRange(lowerBound), builder.getSymbolIdentityMap(),
+        ValueRange(upperBound), builder.getSymbolIdentityMap(),
+        forOp.getConstantStep()->getLimitedValue(), forOp.getInitArgs());
 
     newForOp->setAttrs(forOp->getAttrs());
 
@@ -103,14 +117,14 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
 
     if (isLowerBoundSecret) {
       // Create arith.cmpi (iv >= oldLowerBound)
-      cmpILower = builder.create<arith::CmpIOp>(
-          arith::CmpIPredicate::sge, inductionVariable, forOp.getLowerBound());
+      cmpILower = builder.create<arith::CmpIOp>(arith::CmpIPredicate::sge,
+                                                inductionVariable, lowerBound);
     }
 
     if (isUpperBoundSecret) {
       // Create arith.cmpi (iv < oldUpperBound)
-      cmpIUpper = builder.create<arith::CmpIOp>(
-          arith::CmpIPredicate::slt, inductionVariable, forOp.getUpperBound());
+      cmpIUpper = builder.create<arith::CmpIOp>(arith::CmpIPredicate::slt,
+                                                inductionVariable, upperBound);
     }
 
     // If both lowerBound and upperBound are secret, join the two arith.cmpi
@@ -171,14 +185,12 @@ struct ConvertSecretForToStaticFor
     auto result = solver.initializeAndRun(getOperation());
 
     if (failed(result)) {
-      getOperation()->emitOpError() << "Failed to run the analysis.\n";
+      emitError(getOperation()->getLoc(), "Failed to run the analysis.\n");
       signalPassFailure();
       return;
     }
 
     patterns.add<SecretForToStaticForConversion>(&solver, context);
-    // TODO (#1221): Investigate whether folding (default: on) can be skipped
-    // here.
     (void)applyPatternsGreedily(getOperation(), std::move(patterns));
   }
 };
