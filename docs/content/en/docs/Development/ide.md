@@ -8,14 +8,13 @@ weight: 50
 HEIR provides an LSP server that extends the MLIR LSP server with HEIR's
 dialects.
 
-Build the LSP binary, then move it to a location on your path.
+Build the LSP binary, then move it to a location on your path or point your IDE
+to `bazel-bin/tools/heir-lsp`.
 
 ```bash
 bazel build //tools:heir-lsp
 cp bazel-bin/tools/heir-lsp /usr/local/bin
 ```
-
-Then point your IDE to the LSP in the normal manner.
 
 Note that if you change any HEIR dialects, or if HEIR's dependency on MLIR
 updates and the upstream MLIR has dialect changes (which happens roughly daily),
