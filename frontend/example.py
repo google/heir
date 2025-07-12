@@ -119,6 +119,27 @@ def custom_example():
   )
 
 
+### MLIR-input example
+def mlir_example():
+  print("Running MLIR-input example")
+  # Input should be a single function, just like normal MLIR input to heir-opt
+  src = """
+    func.func @myfunc(%a : i32 {secret.secret}, %b : i32) -> i32 {
+      %sum = arith.addi %a, %b : i32
+      return %sum : i32
+    }
+  """
+  # By passing mlir_str instead of using it to decorate a function,
+  # we can skip the python parsing/type inference/etc stages.
+  myfunc = compile(mlir_str=src, scheme="bgv", debug=True)
+
+  print(
+      # Note that there's no 'myfunc.original' since
+      # there's no original Python function to call
+      f"Expected result for `myfunc`: {7 + 8}, FHE result: {myfunc(7,8)}"
+  )
+
+
 def main():
   simple_example()
   manual_example()
@@ -126,6 +147,7 @@ def main():
   ckks_example()
   ctxt_ptxt_example()
   custom_example()
+  mlir_example()
 
 
 if __name__ == "__main__":

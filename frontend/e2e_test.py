@@ -126,6 +126,19 @@ class EndToEndTest(absltest.TestCase):
 
     # There's unfortunately no way to test the MLIR output here
 
+  def test_mlir_example(self):
+    src = """
+      func.func @myfunc(%a : i32 {secret.secret}, %b : i32) -> i32 {
+        %sum = arith.addi %a, %b : i32
+        return %sum : i32
+      }
+    """
+    myfunc = compile(mlir_str=src, scheme="bgv", debug=True)
+
+    # Test FHE functionality
+    # Note: there's no 'myfunc.original' since there's no original Python function to call
+    self.assertEqual(15, myfunc(7, 8))
+
 
 if __name__ == "__main__":
   absltest.main()

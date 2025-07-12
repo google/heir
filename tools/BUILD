@@ -199,6 +199,7 @@ cc_binary(
     includes = ["include"],
     deps = [
         "@heir//lib/Source/AutoHog:AutoHogImporter",
+        "@heir//lib/Target/FunctionInfo:FunctionInfoEmitter",
         "@heir//lib/Target/Jaxite:JaxiteEmitter",
         "@heir//lib/Target/JaxiteWord:JaxiteWordEmitter",
         "@heir//lib/Target/Lattigo:LattigoEmitter",

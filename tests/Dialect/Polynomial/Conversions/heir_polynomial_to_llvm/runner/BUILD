@@ -10,8 +10,8 @@ py_binary(
         "generate_test_cases.py",
     ],
     deps = [
-        "@heir_pip_dev_deps//sympy",
-        "@heir_pip_dev_deps//tomli",
+        "@heir_pip_deps//sympy",
+        "@heir_pip_deps//tomli",
     ],
 )
 

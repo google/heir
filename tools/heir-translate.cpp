@@ -1,4 +1,5 @@
 #include "lib/Source/AutoHog/AutoHogImporter.h"
+#include "lib/Target/FunctionInfo/FunctionInfoEmitter.h"
 #include "lib/Target/Jaxite/JaxiteEmitter.h"
 #include "lib/Target/JaxiteWord/JaxiteWordEmitter.h"
 #include "lib/Target/Lattigo/LattigoEmitter.h"
@@ -26,7 +27,10 @@ int main(int argc, char **argv) {
   // jaxite output
   mlir::heir::jaxite::registerToJaxiteTranslation();
   mlir::heir::jaxiteword::registerToJaxiteWordTranslation();
+
+  // Misc
   mlir::heir::simfhe::registerToSimFHETranslation();
+  mlir::heir::functioninfo::registerToFunctionInfoTranslation();
 
   // OpenFHE
   mlir::heir::openfhe::registerTranslateOptions();

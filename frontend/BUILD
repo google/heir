@@ -12,11 +12,9 @@ DATA_DEPS = [
     "@heir//tools:heir-opt",
     "@heir//tools:heir-translate",
     "@openfhe//:headers",
-    "@openfhe//:binfhe",
+    "@openfhe//:libopenfhe",
     # copybara: openfhe_binfhe_headers
-    "@openfhe//:core",
     # copybara: openfhe_core_headers
-    "@openfhe//:pke",
     # copybara: openfhe_pke_headers
     # copybara: python_runtime_headers
     "@rapidjson//:headers",
