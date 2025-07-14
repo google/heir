@@ -63,6 +63,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ env.ImageVersion }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}-
 
+      # needed for dirname, used by rules_rust
+      - name: Install coreutils
+        run: brew install rust
+
       # --noincompatible_strict_action_env is used below to inherit the path
       # from the parent process, which is required for the build to be cached
       # and reused in the `Test rust codegen targets` step below, as that step
