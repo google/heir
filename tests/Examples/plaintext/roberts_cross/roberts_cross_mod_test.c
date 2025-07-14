@@ -18,8 +18,12 @@ struct Memref1D roberts_cross(
 
 void memrefCopy();
 
+// Needs to be allocated in .bss
+// Maybe for alignment?
+// Otherwise segfault inside memrefCopy
+_Alignas(uint64_t) int64_t input[4096];
+
 int main() {
-  int64_t input[4096];
   int64_t expected[4096];
 
   for (int i = 0; i < 4096; ++i) {
