@@ -12,7 +12,7 @@ def jaxite_end_to_end_test(name, mlir_src, test_src, heir_opt_pass_flags = [], t
         main = test_src,
         deps = deps + [
             ":" + py_lib_target_name,
-            "@heir_pip_dev_deps//jaxite",
+            "@heir_pip_deps//jaxite",
             "@com_google_absl_py//absl/testing:absltest",
         ],
         tags = tags,
