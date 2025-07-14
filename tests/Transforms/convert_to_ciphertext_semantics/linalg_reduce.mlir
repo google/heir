@@ -31,11 +31,7 @@ func.func @convert_linalg_reduce(
   // CHECK-NEXT: ^body(
   // CHECK-SAME: [[pt_arg0:%[^ ]*]]:
   // CHECK-SAME: [[pt_arg1:%[^ ]*]]:
-  %0 = secret.generic(%arg0: !secret.secret<tensor<4x4xi16>>, %arg1 : !secret.secret<tensor<4x4xi16>>)
-                      attrs = {
-                        __argattrs = [{tensor_ext.layout = #row_major_matrix}, {tensor_ext.layout = #row_major_matrix}],
-                        __resattrs = [{tensor_ext.layout = #row_major_vec}]
-                      } {
+  %0 = secret.generic(%arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix}, %arg1 : !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix}) {
   ^body(%input0: tensor<4x4xi16>, %input1: tensor<4x4xi16>):
     // CHECK-NEXT: tensor.empty() : tensor<16xi16>
     // CHECK-NEXT: tensor.insert_slice [[cst]] into
@@ -94,18 +90,14 @@ func.func @convert_linalg_reduce(
     // CHECK: arith.addi [[sum4]], [[converted2]]
     %5 = arith.addi %reduced, %4 {tensor_ext.layout = #row_major_vec} : tensor<4xi16>
     secret.yield %5 : tensor<4xi16>
-  } -> !secret.secret<tensor<4xi16>>
+  } -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #row_major_vec})
   return %0 : !secret.secret<tensor<4xi16>>
 }
 
 func.func @reduce_mulop(%arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix}) ->
        (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #row_major_vec}) {
   %cst = arith.constant dense<0> : tensor<4xi16>
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<4x4xi16>>)
-                      attrs = {
-                        __argattrs = [{tensor_ext.layout = #row_major_matrix}],
-                        __resattrs = [{tensor_ext.layout = #row_major_vec}]
-                      } {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #row_major_matrix}) {
   ^body(%input0: tensor<4x4xi16>):
     %1 = tensor_ext.assign_layout %cst {layout = #row_major_vec, tensor_ext.layout = #row_major_vec} : tensor<4xi16>
 
@@ -116,6 +108,6 @@ func.func @reduce_mulop(%arg0: !secret.secret<tensor<4x4xi16>> {tensor_ext.layou
       dimensions = [0]  {tensor_ext.layout = #row_major_vec}
 
     secret.yield %reduced : tensor<4xi16>
-  } -> !secret.secret<tensor<4xi16>>
+  } -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #row_major_vec})
   return %0 : !secret.secret<tensor<4xi16>>
 }

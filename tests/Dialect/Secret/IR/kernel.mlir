@@ -10,11 +10,11 @@ func.func @matvec(%arg0: !secret.secret<tensor<16xf32>> {tensor_ext.layout = #la
   %cst_0 = arith.constant dense<0.0> : tensor<16x16xf32>
   %1 = tensor_ext.assign_layout %cst_0 {layout = #layout1, tensor_ext.layout = #layout1} : tensor<16x16xf32>
   %2 = tensor_ext.assign_layout %cst {layout = #layout, tensor_ext.layout = #layout} : tensor<16xf32>
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xf32>>) attrs = {__argattrs = [{tensor_ext.layout = #layout}], __resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xf32>> {tensor_ext.layout = #layout}) {
   ^body(%input0: tensor<16xf32>):
     %3 = linalg.matvec {tensor_ext.layout = #layout, secret.kernel = #secret.kernel<name="MatvecNaive", force=true>}
         ins(%1, %input0 : tensor<16x16xf32>, tensor<16xf32>) outs(%2 : tensor<16xf32>) -> tensor<16xf32>
     secret.yield %3 : tensor<16xf32>
-  } -> !secret.secret<tensor<16xf32>>
+  } -> (!secret.secret<tensor<16xf32>> {tensor_ext.layout = #layout})
   return %0 : !secret.secret<tensor<16xf32>>
 }

@@ -22,11 +22,7 @@ func.func @matvec_constant_matrix(
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
   // CHECK-SAME: ([[arg0]]
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>>)
-                      attrs = {
-                        __argattrs = [{tensor_ext.layout = #vec_layout}],
-                        __resattrs = [{tensor_ext.layout = #vec_layout}]
-                      } {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout}) {
   // CHECK: ^body([[clear_arg0:%[^ ]+]]: tensor<16xi16>):
   ^body(%input0: tensor<16xi16>):
     // Apply the row-major encoding
@@ -151,7 +147,7 @@ func.func @matvec_constant_matrix(
 
     // CHECK-NOT: tensor_ext.rotate
     secret.yield %3 : tensor<16xi16>
-  } -> !secret.secret<tensor<16xi16>>
+  } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout})
   // CHECK: return [[output]]
   return %0 : !secret.secret<tensor<16xi16>>
 }
@@ -178,11 +174,7 @@ func.func @squat(
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
   // CHECK-SAME: ([[arg0]]
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>>)
-                      attrs = {
-                        __argattrs = [{tensor_ext.layout = #input_vec_layout}],
-                        __resattrs = [{tensor_ext.layout = #output_vec_layout}]
-                      } {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>> {tensor_ext.layout = #input_vec_layout}) {
   // CHECK: ^body([[clear_arg0:%[^ ]+]]: tensor<16xi16>):
   ^body(%input0: tensor<16xi16>):
     %enc_out = tensor_ext.assign_layout %out {layout = #output_vec_layout, tensor_ext.layout = #output_vec_layout} : tensor<4xi16>
@@ -240,7 +232,7 @@ func.func @squat(
 
     // CHECK: secret.yield [[yielded_val]]
     secret.yield %3 : tensor<4xi16>
-  } -> !secret.secret<tensor<4xi16>>
+  } -> (!secret.secret<tensor<4xi16>> {tensor_ext.layout = #output_vec_layout})
   // CHECK: return [[output]]
   return %0 : !secret.secret<tensor<4xi16>>
 }
@@ -267,11 +259,7 @@ func.func @f32_padding(
   %cst = arith.constant dense<1.0> : tensor<4x16xf32>
   %out = arith.constant dense<0.0> : tensor<4xf32>
 
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xf32>>)
-                      attrs = {
-                        __argattrs = [{tensor_ext.layout = #input_vec_layout}],
-                        __resattrs = [{tensor_ext.layout = #output_vec_layout}]
-                      } {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xf32>> {tensor_ext.layout = #input_vec_layout}) {
   ^body(%input0: tensor<16xf32>):
     %enc_out = tensor_ext.assign_layout %out {layout = #output_vec_layout, tensor_ext.layout = #output_vec_layout} : tensor<4xf32>
 
@@ -281,6 +269,6 @@ func.func @f32_padding(
           outs(%enc_out : tensor<4xf32>) -> tensor<4xf32>
 
     secret.yield %3 : tensor<4xf32>
-  } -> !secret.secret<tensor<4xf32>>
+  } -> (!secret.secret<tensor<4xf32>> {tensor_ext.layout = #output_vec_layout})
   return %0 : !secret.secret<tensor<4xf32>>
 }

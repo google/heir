@@ -15,8 +15,7 @@ module {
         %arg2: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1})
         -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}) {
     // CHECK: secret.generic
-    %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>>, %arg1: !secret.secret<tensor<32xi16>>, %arg2: !secret.secret<tensor<32xi16>>)
-      attrs = {__argattrs = [{tensor_ext.layout = #map}, {tensor_ext.layout = #map1}, {tensor_ext.layout = #map1}], __resattrs = [{tensor_ext.layout = [#map1]}]}{
+    %0 = secret.generic(%arg0: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map}, %arg1: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}, %arg2: !secret.secret<tensor<32xi16>> {tensor_ext.layout = #map1}) {
     ^body(%input0: tensor<32xi16>, %input1: tensor<32xi16>, %input2: tensor<32xi16>):
     // CHECK: ^body(%[[input0:.*]]: tensor<32xi16>, %[[input1:.*]]: tensor<32xi16>, %[[input2:.*]]: tensor<32xi16>)
     // CHECK: %[[v1:.*]] = arith.addi %[[input0]], %[[input1]]
@@ -29,7 +28,7 @@ module {
       %3 = tensor_ext.convert_layout %2 {from_layout = #map, tensor_ext.layout = [#map1], to_layout = #map1} : tensor<32xi16>
       %4 = arith.addi %3, %input2 {tensor_ext.layout = #map1} : tensor<32xi16>
       secret.yield %4 : tensor<32xi16>
-    } -> !secret.secret<tensor<32xi16>>
+    } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = [#map1]})
     return %0 : !secret.secret<tensor<32xi16>>
   }
 }

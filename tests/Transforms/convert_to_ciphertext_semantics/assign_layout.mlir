@@ -6,7 +6,7 @@
 // Test that a vector of size 16xi16 is replicated to 32xi16.
 // CHECK: @repeat_vector
 func.func @repeat_vector() {
-  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<16xi16>
     %v = arith.constant dense<1> : tensor<16xi16>
@@ -15,7 +15,7 @@ func.func @repeat_vector() {
     // CHECK-NOT: linalg.generic
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<16xi16>
     secret.yield %0 : tensor<16xi16>
-  } -> !secret.secret<tensor<16xi16>>
+  } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout})
   return
 }
 
@@ -29,14 +29,14 @@ func.func @repeat_vector() {
 
 // CHECK: @prefix_ones
 func.func @prefix_ones() {
-  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<32xi16>
     // CHECK: tensor.expand_shape [[cst]] {{\[}}[0, 1, 2, 3]]
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>
     secret.yield %0 : tensor<32xi16>
-  } -> !secret.secret<tensor<32xi16>>
+  } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
   return
 }
 
@@ -48,14 +48,14 @@ func.func @prefix_ones() {
 
 // CHECK: @suffix_ones
 func.func @suffix_ones() {
-  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<32xi16>
     // CHECK: tensor.expand_shape [[cst]] {{\[}}[0, 1, 2, 3]]
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>
     secret.yield %0 : tensor<32xi16>
-  } -> !secret.secret<tensor<32xi16>>
+  } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
   return
 }
 
@@ -72,7 +72,7 @@ func.func @suffix_ones() {
 
 // CHECK: @prefix_and_suffix_ones
 func.func @prefix_and_suffix_ones() {
-  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<32xi16>
@@ -81,7 +81,7 @@ func.func @prefix_and_suffix_ones() {
     // CHECK: linalg.generic
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<32xi16>
     secret.yield %0 : tensor<32xi16>
-  } -> !secret.secret<tensor<32xi16>>
+  } -> (!secret.secret<tensor<32xi16>> {tensor_ext.layout = #layout})
   return
 }
 
@@ -92,7 +92,7 @@ func.func @prefix_and_suffix_ones() {
 
 // CHECK: @basic_padding
 func.func @basic_padding() {
-  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1>
     %v = arith.constant dense<1> : tensor<16xi16>
@@ -102,7 +102,7 @@ func.func @basic_padding() {
     // CHECK-NOT: linalg.generic
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<16xi16>
     secret.yield %0 : tensor<16xi16>
-  } -> !secret.secret<tensor<16xi16>>
+  } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #layout})
   return
 }
 
@@ -126,7 +126,7 @@ func.func @basic_padding() {
 //
 // CHECK: @column_alignment
 func.func @column_alignment() {
-  %0 = secret.generic() attrs = {__resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic() {
   ^body:
     // CHECK: [[cst:%[^ ]+]] = arith.constant dense<1> : tensor<4x4xi16>
     %v = arith.constant dense<1> : tensor<4x4xi16>
@@ -139,6 +139,6 @@ func.func @column_alignment() {
     // CHECK: linalg.generic
     %0 = tensor_ext.assign_layout %v {layout = #layout, tensor_ext.layout = #layout} : tensor<4x4xi16>
     secret.yield %0 : tensor<4x4xi16>
-  } -> !secret.secret<tensor<4x4xi16>>
+  } -> (!secret.secret<tensor<4x4xi16>> {tensor_ext.layout = #layout})
   return
 }

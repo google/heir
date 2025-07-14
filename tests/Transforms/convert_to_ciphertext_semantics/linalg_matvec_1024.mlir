@@ -25,11 +25,7 @@ func.func @matvec_constant_matrix(
 
   // CHECK: [[output:%[^ ]+]] = secret.generic
   // CHECK-SAME: ([[arg0]]
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>>)
-                      attrs = {
-                        __argattrs = [{tensor_ext.layout = #vec_layout}],
-                        __resattrs = [{tensor_ext.layout = #vec_layout}]
-                      } {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout}) {
   // CHECK: ^body([[clear_arg0:%[^ ]+]]: tensor<1024xi16>):
   ^body(%input0: tensor<16xi16>):
     // Apply the row-major encoding
@@ -154,7 +150,7 @@ func.func @matvec_constant_matrix(
 
     // CHECK-NOT: tensor_ext.rotate
     secret.yield %3 : tensor<16xi16>
-  } -> !secret.secret<tensor<16xi16>>
+  } -> (!secret.secret<tensor<16xi16>> {tensor_ext.layout = #vec_layout})
   // CHECK: return [[output]]
   return %0 : !secret.secret<tensor<16xi16>>
 }

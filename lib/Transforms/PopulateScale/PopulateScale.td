@@ -24,13 +24,13 @@ def PopulateScaleBGV : Pass<"populate-scale-bgv"> {
     ```mlir
     module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 13, Q = [67239937, 8796093202433], P = [8796093349889], plaintextModulus = 65537>, scheme.bgv} {
       func.func @mul(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-        %0 = secret.generic(%arg0 : !secret.secret<i16>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 1>} ], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 42541>} ]} {
+        %0 = secret.generic(%arg0 : !secret.secret<i16> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 1>}) {
         ^body(%input0: i16):
           %1 = arith.muli %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3, scale = 1>} : i16
           %2 = mgmt.relinearize %1 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 1>} : i16
           %3 = mgmt.modreduce %2 {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 42541>} : i16
           secret.yield %3 : i16
-        } -> !secret.secret<i16>
+        } -> (!secret.secret<i16> {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 42541>})
         return %0 : !secret.secret<i16>
       }
     }
@@ -59,13 +59,13 @@ def PopulateScaleCKKS : Pass<"populate-scale-ckks"> {
     ```mlir
     module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953, 35184372121601], P = [36028797019488257], logDefaultScale = 45>, scheme.ckks} {
       func.func @mul(%arg0: !secret.secret<f32>) -> !secret.secret<f32> {
-        %0 = secret.generic(%arg0 : !secret.secret<f32>) attrs = {__argattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 45>} ], __resattrs = [{mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 45>} ]} {
+        %0 = secret.generic(%arg0 : !secret.secret<f32> {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 45>}) {
         ^body(%input0: f32):
           %1 = arith.mulf %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 1, dimension = 3, scale = 90>} : f32
           %2 = mgmt.relinearize %1 {mgmt.mgmt = #mgmt.mgmt<level = 1, scale = 90>} : f32
           %3 = mgmt.modreduce %2 {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 45>} : f32
           secret.yield %3 : f32
-        } -> !secret.secret<f32>
+        } -> (!secret.secret<f32> {mgmt.mgmt = #mgmt.mgmt<level = 0, scale = 45>})
         return %0 : !secret.secret<f32>
       }
     }

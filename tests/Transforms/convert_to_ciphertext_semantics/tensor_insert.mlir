@@ -41,10 +41,10 @@ func.func @insert(%arg0: !secret.secret<tensor<8xi16>> {tensor_ext.layout = #lay
   %insertIndex = arith.constant 3 : index
   %c7 = arith.constant 7 : i16
   %c7_laidout = tensor_ext.assign_layout %c7 {layout = #scalar_layout, tensor_ext.layout = #scalar_layout} : i16
-  %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>>) attrs = {__argattrs = [{tensor_ext.layout = #layout}], __resattrs = [{tensor_ext.layout = #layout}]} {
+  %0 = secret.generic(%arg0 : !secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout}) {
   ^body(%input0: tensor<8xi16>):
     %0 = tensor.insert %c7_laidout into %input0[%insertIndex] {tensor_ext.layout = #layout} : tensor<8xi16>
     secret.yield %0 : tensor<8xi16>
-  } -> !secret.secret<tensor<8xi16>>
+  } -> (!secret.secret<tensor<8xi16>> {tensor_ext.layout = #layout})
   return %0 : !secret.secret<tensor<8xi16>>
 }
