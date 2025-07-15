@@ -42,7 +42,8 @@ heir-translate --help
 
 - [Git](https://git-scm.com/)
 - A C++ compiler and linker ([clang](https://clang.llvm.org/) and
-  [lld](https://lld.llvm.org/) or a recent version of `gcc`).
+  [lld](https://lld.llvm.org/) or a recent version of `gcc`). If you want to run
+  OpenFHE with parallelism (enabled by default), you'll also need OpenMP.
 - Bazel via [bazelisk](https://github.com/bazelbuild/bazelisk). The precise
   Bazel version used is in `.bazelversion` in the repository root.
 
@@ -53,7 +54,7 @@ heir-translate --help
   For example, on Ubuntu, these can be installed with
 
 ```bash
-sudo apt-get update && sudo apt-get install clang lld
+sudo apt-get update && sudo apt-get install clang lld libomp-dev
 ```
 
 You can download the latest Bazelisk release, e.g., for linux-amd64 (see the
