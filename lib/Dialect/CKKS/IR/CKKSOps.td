@@ -168,15 +168,33 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
   let arguments = (ins
     LWECiphertext:$input,
     DenseI32ArrayAttr:$from_basis,
-    DenseI32ArrayAttr:$to_basis
+    DenseI32ArrayAttr:$to_basis,
+    Optional<RankedTensorOf<[LWECiphertext]>>:$keySwitchingKey
   );
 
   let results = (outs
     LWECiphertext:$output
   );
 
+  let builders = [
+    OpBuilder<(ins
+      "Value":$input,
+      CArg<"::mlir::DenseI32ArrayAttr">:$fromBasis,
+      CArg<"::mlir::DenseI32ArrayAttr">:$toBasis), [{
+      return build($_builder, $_state, input,
+                   fromBasis, toBasis, {});
+    }]>
+  ];
+
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  // This format is a bit weird because even if the key is omitted, you still
+  // have to declare the type with parentheses around the operands (e.g.,
+  // `(!ct1) -> !ct`). I can't get the declarative format to work with two
+  // different type signatures because... well mlir-tblgen just doesn't do
+  // optional stuff well.
+  let assemblyFormat = [{
+    $input (`,` $keySwitchingKey^)? attr-dict `:` functional-type(operands, results)
+  }];
 }
 
 def CKKS_RescaleOp : CKKS_Op<"rescale"> {

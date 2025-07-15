@@ -62,7 +62,7 @@ module {
     // CHECK: %[[v6:.*]] = openfhe.relin [[C]], %[[x6:.*]]: ([[S]], [[T]]) -> [[T2:.*]]
     %relin = ckks.relinearize %x  {
       from_basis = array<i32: 0, 1, 2, 3>, to_basis = array<i32: 0, 1>
-    }: !ct_D4 -> !ct
+    }: (!ct_D4) -> !ct
     return %relin : !ct
   }
 }
