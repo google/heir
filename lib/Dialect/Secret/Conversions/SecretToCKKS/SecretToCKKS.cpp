@@ -370,6 +370,7 @@ struct SecretToCKKS : public impl::SecretToCKKSBase<SecretToCKKS> {
         SecretGenericOpCipherPlainConversion<arith::MulIOp, ckks::MulPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubFOp, ckks::SubPlainOp>,
         SecretGenericOpCipherPlainConversion<arith::SubIOp, ckks::SubPlainOp>,
+        SecretGenericOpConversion<arith::NegFOp, ckks::NegateOp>,
         SecretGenericOpConversion<arith::AddFOp, ckks::AddOp>,
         SecretGenericOpConversion<arith::AddIOp, ckks::AddOp>,
         SecretGenericOpConversion<arith::ExtSIOp,

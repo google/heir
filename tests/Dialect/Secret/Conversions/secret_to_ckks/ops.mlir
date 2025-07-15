@@ -36,17 +36,23 @@ module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 14, Q = [3602879
         %1 = arith.addf %ARG0, %ARG1 : tensor<1024xf32>
         secret.yield %1 : tensor<1024xf32>
     } -> (!efi1 {mgmt.mgmt = #mgmt})
+    // CHECK: ckks.negate
+    %1 = secret.generic(%0: !efi1) {
+      ^bb0(%ARG0 : tensor<1024xf32>):
+        %2 = arith.negf %ARG0 : tensor<1024xf32>
+        secret.yield %2 : tensor<1024xf32>
+    } -> (!efi1 {mgmt.mgmt = #mgmt})
     // CHECK: ckks.mul
-    %1 = secret.generic(%0: !efi1, %arg2: !efi1) {
-      ^bb0(%ARG0 : tensor<1024xf32>, %ARG1 : tensor<1024xf32>):
-        %1 = arith.mulf %ARG0, %ARG1 : tensor<1024xf32>
-        secret.yield %1 : tensor<1024xf32>
+    %3 = secret.generic(%1: !efi1, %arg2: !efi1) {
+    ^bb0(%ARG0 : tensor<1024xf32>, %ARG1 : tensor<1024xf32>):
+      %4 = arith.mulf %ARG0, %ARG1 : tensor<1024xf32>
+      secret.yield %4 : tensor<1024xf32>
     } -> (!efi1 {mgmt.mgmt = #mgmt1})
     // CHECK: return
     // CHECK-SAME: message_type = tensor<1024xf32>
     // CHECK-SAME: polynomialModulus = <1 + x**1024>
     // CHECK-SAME: size = 3
-    return %1 : !efi1
+    return %3 : !efi1
   }
 
   // CHECK: func @test_extract
