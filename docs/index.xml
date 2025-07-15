@@ -1517,305 +1517,14 @@ formulation above only requires the decision variable to be integer, and the
 initialization and constraints effectively force the key basis variables to be
 integer. As a result, the solve time of the above ILP should scale with the
 number of ciphertext-handling ops in the program.&lt;/li>
-&lt;/ul></description></item><item><title>Docs: Contributing to HEIR</title><link>https://heir.dev/docs/contributing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/contributing/</guid><description>
-&lt;p>There are several ways to contribute to HEIR, including:&lt;/p>
-&lt;ul>
-&lt;li>Discussing high-level designs and questions on HEIR&amp;rsquo;s
-&lt;a href="https://github.com/google/heir/discussions">discussions page&lt;/a>&lt;/li>
-&lt;li>Improving or expanding HEIR&amp;rsquo;s documentation&lt;/li>
-&lt;li>Contributing to HEIR&amp;rsquo;s &lt;a href="https://github.com/google/heir">code-base&lt;/a>&lt;/li>
-&lt;li>Discuss project direction at HEIR&amp;rsquo;s
-&lt;a href="https://heir.dev/community/">Working Group meetings&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="ways-to-contribute">Ways to contribute&lt;/h2>
-&lt;p>We welcome pull requests, and have tagged issues for newcomers:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22">Good first issue&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22">Contributions welcome&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/google/heir/labels/research%20synthesis">Research synthesis&lt;/a>:
-determine what parts of recent FHE research papers can or should be ported to
-HEIR.&lt;/li>
-&lt;/ul>
-&lt;p>For new proposals, please open a GitHub
-&lt;a href="https://github.com/google/heir/issues">issue&lt;/a> or start a
-&lt;a href="https://github.com/google/heir/discussions">discussion&lt;/a> for feedback.&lt;/p>
-&lt;h2 id="contributing-code-to-heir">Contributing code to HEIR&lt;/h2>
-&lt;p>The following steps should look familiar to typical workflows for pull request
-contributions. Feel free to consult
-&lt;a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests">GitHub Help&lt;/a>
-if you need more information using pull requests. HEIR-specific processes begin
-at the &lt;a href="#pull-request-review-flow">pull request review stage&lt;/a>.&lt;/p>
-&lt;h3 id="setup">Setup&lt;/h3>
-&lt;ol>
-&lt;li>
-&lt;p>Fork the HEIR repository by clicking the &lt;strong>Fork&lt;/strong> button on the
-&lt;a href="https://github.com/google/heir">repository page&lt;/a>. This creates a copy of the
-HEIR repository on your own GitHub account, where you can make changes.&lt;/p>
-&lt;details>
-&lt;summary>Setting up git to work with fork and upstream remotes.&lt;/summary>
-If you have cloned your fork, you will want to
-add the HEIR repository as an upstream remote:
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git remote add upstream https://www.github.com/google/heir
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Alternatively, if you have cloned the main HEIR repo, you can add your fork
-as a remote like this:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git remote rename origin upstream
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git remote add origin https://www.github.com/&amp;lt;USERNAME&amp;gt;/heir
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Either way, you will want to create a development branch for your change:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git checkout -b name-of-change
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>In the remainder of this document, we will assume &lt;code>origin&lt;/code> is your fork, and
-&lt;code>upstream&lt;/code> is the main HEIR repo.&lt;/p>
-&lt;/details>
-&lt;/li>
-&lt;li>
-&lt;p>See &lt;a href="https://heir.dev/docs/development/">Development&lt;/a> for information on
-installing developer dependencies, building and running tests, and adding new
-dialects or passes.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Sign the
-&lt;a href="https://cla.developers.google.com/about">Contributor License Agreement&lt;/a>
-(CLA). If you are working on HEIR as part of your employment, you might have
-to instead sign a Corporate CLA. See more
-&lt;a href="https://github.com/google/heir/blob/main/CONTRIBUTING.md#sign-our-contributor-license-agreement">here&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;h3 id="preparing-a-pull-request">Preparing a pull request&lt;/h3>
-&lt;ol>
-&lt;li>
-&lt;p>Sync your changes against the upstream HEIR repository, i.e., make sure your
-contributions are (re)based of the most recent &lt;code>upstream/main&lt;/code> commit.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Check HEIR&amp;rsquo;s lint and style checks by running the following from the top of
-the repository:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> pre-commit run --all
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;/ol>
-&lt;p>If failed, check &lt;a href="https://heir.dev/docs/development/#pre-commit">Pre-commit&lt;/a>.&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>Make sure tests are passing with the following:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span> bazel &lt;span style="color:#204a87">test&lt;/span> @heir//...
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;li>
-&lt;p>Once you are ready with your change, create a commit, e.g.:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>git add change.cpp
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git commit -m &lt;span style="color:#4e9a06">&amp;#34;Detailed commit message&amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>git push --set-upstream origin name-of-change
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;/ol>
-&lt;h3 id="pull-request-review-flow">Pull request review flow&lt;/h3>
-&lt;ol>
-&lt;li>&lt;strong>New PR&lt;/strong>:&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>When a new PR is submitted, it is inspected for quality requirements, such as
-the CLA requirement, and a sufficient PR description.&lt;/li>
-&lt;li>If the PR passes checks, we assign a reviewer. If not, we request additional
-changes to ensure the PR passes CI checks.&lt;/li>
-&lt;/ul>
-&lt;ol start="2">
-&lt;li>&lt;strong>Review&lt;/strong>&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>A reviewer will check the PR and potentially request additional changes.&lt;/li>
-&lt;li>If a change is needed, the contributor is requested to make a suggested
-change. Please make changes with additional commits to your PR, to ensure that
-the reviewer can easily see the diff.&lt;/li>
-&lt;li>If all looks good, the reviewer will approve the PR.&lt;/li>
-&lt;li>This cycle repeats itself until the PR is approved.&lt;/li>
-&lt;/ul>
-&lt;ol start="3">
-&lt;li>&lt;strong>Approved&lt;/strong>&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>&lt;strong>At this stage, you must squash your commits into a single commit.&lt;/strong>&lt;/li>
-&lt;li>Once the PR is approved, a GitHub workflow will
-&lt;a href="https://github.com/google/heir/blob/main/.github/workflows/pr_review.yml">check&lt;/a>
-your PR for multiple commits. You may use the &lt;code>git rebase -i&lt;/code> to squash the
-commits. Pull requests must consist of a single git commit before merging.&lt;/li>
-&lt;/ul>
-&lt;ol start="4">
-&lt;li>&lt;strong>Pull Ready&lt;/strong>&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>Once the PR is squashed into a single git commit, a maintainer will apply the
-&lt;code>pull ready&lt;/code> label.&lt;/li>
-&lt;li>This initiates the internal code migration and presubmits.&lt;/li>
-&lt;li>After the internal process is finished, the commit will be added to &lt;code>main&lt;/code> and
-the PR closed as merged by that commit.&lt;/li>
-&lt;/ul>
-&lt;h3 id="internal-review-details">Internal review details&lt;/h3>
-&lt;p>This diagram summarizes the GitHub/Google code synchronization process. This is
-largely automated by a Google-owned system called
-&lt;a href="https://github.com/google/copybara">Copybara&lt;/a>, the configuration for which is
-Google-internal. This system treats the Google-internal version of HEIR as the
-source of truth, and applies specified transformation rules to copy internal
-changes to GitHub and integrate external PRs internally.&lt;/p>
-&lt;p>Notable aspects:&lt;/p>
-&lt;ul>
-&lt;li>The final merged code may differ slightly from a PR. The changes are mainly to
-support stricter internal requirements for BUILD files that we cannot
-reproduce externally due to minor differences between Google&amp;rsquo;s internal build
-systems and bazel that we don&amp;rsquo;t know how to align. Sometimes they will also
-include additional code quality fixes suggested by internal static analyzers
-that do not exist outside of Google.&lt;/li>
-&lt;li>Due to the above, signed commits with internal modifications will not maintain
-valid signatures after merging, which labels the commit with a warning.&lt;/li>
-&lt;li>You will see various actions taken on GitHub that include &lt;code>copybara&lt;/code> in the
-name, such as changes that originate from Google engineers doing various
-approved migrations (e.g., migrating HEIR to support changes in MLIR or
-abseil).&lt;/li>
-&lt;/ul>
-&lt;figure>&lt;a href="https://heir.dev/images/heir-copybara.png">
-&lt;img src="https://heir.dev/images/heir-copybara.png"/> &lt;/a>&lt;figcaption>
-&lt;h4>A diagram summarizing the copybara flow for HEIR internally to Google&lt;/h4>
-&lt;/figcaption>
-&lt;/figure>
-&lt;h3 id="why-bother-with-copybara">Why bother with Copybara?&lt;/h3>
-&lt;p>tl;dr: Automatic syncing with upstream MLIR and associated code migration.&lt;/p>
-&lt;p>Until HEIR has a formal governance structure in place, Google
-engineers—specifically Asra Ali, Shruthi Gorantala, and Jeremy Kun—are the
-codebase stewards. Because the project is young and the team is small, we want
-to reduce our workload. One important aspect of that is keeping up to date with
-the upstream MLIR project and incorporating bug fixes and new features into
-HEIR. Google also wishes to stay up to date with MLIR and LLVM, and so it has
-tooling devoted to integrating new MLIR changes into Google&amp;rsquo;s monorepo every few
-hours. As part of that rotation, a set of approved internal projects that depend
-on MLIR (like TensorFlow) are patched to support breaking changes in MLIR. HEIR
-is one of those approved projects.&lt;/p>
-&lt;p>As shown in the previous section, the cost of this is that no change can go into
-HEIR without at least two Googlers approving it, and the project is held to a
-specific set of code quality standards, namely Google&amp;rsquo;s. We acknowledge these
-quirks, and look forward to the day when HEIR is useful enough and important
-enough that we can revisit this governance structure with the community.&lt;/p></description></item><item><title>Docs: Development</title><link>https://heir.dev/docs/development/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/</guid><description>
-&lt;h2 id="ide-configuration-vs-code">IDE Configuration (VS Code)&lt;/h2>
-&lt;p>While a wide variety of IDEs and editors can be used for HEIR development, we
-currently only provide support for &lt;a href="https://code.visualstudio.com/">VSCode&lt;/a>.&lt;/p>
-&lt;h3 id="setup">Setup&lt;/h3>
-&lt;p>For the best experience, we recommend following these steps:&lt;/p>
-&lt;ul>
-&lt;li>
-&lt;p>Install the
-&lt;a href="https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-mlir">MLIR&lt;/a>,
-&lt;a href="https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd">clangd&lt;/a>
-and
-&lt;a href="https://marketplace.visualstudio.com/items?itemName=BazelBuild.vscode-bazel">Bazel&lt;/a>
-extensions&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Install and rename Buildifier:&lt;/p>
-&lt;p>You can download the latest Buildifier release, e.g., for linux-amd64 (see the
-&lt;a href="https://github.com/bazelbuild/buildtools/releases/latest/">Bazelisk Release Page&lt;/a>
-for a list of available binaries):&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mv buildifier-linux-amd64 buildifier
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>chmod +x buildifier
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Just as with bazel, you will want to move this somewhere on your PATH, e.g.:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>mkdir -p ~/bin
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87">echo&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;export PATH=$PATH:~/bin&amp;#39;&lt;/span> &amp;gt;&amp;gt; ~/.bashrc
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mv buildifier ~/bin/buildifier
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>VS Code should automatically detect buildifier. If this is not successful, you
-can manually set the &amp;ldquo;Buildifier Executable&amp;rdquo; setting for the Bazel extension
-(&lt;code>bazel.buildifierExecutable&lt;/code>).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Disable the
-&lt;a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools">C/C++ (aka &amp;lsquo;cpptools&amp;rsquo;)&lt;/a>
-extension (either completely, or in the current workspace).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Add the following snippet to your VS Code user settings found in
-.vscode/settings.json to enable autocomplete based on the
-compile_commands.json file.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;clangd.arguments&amp;#34;&lt;/span>&lt;span style="color:#a40000">:&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--compile-commands-dir=${workspaceFolder}/&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--completion-style=detailed&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--query-driver=**&amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#a40000">,&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;li>
-&lt;p>To generate the &lt;code>compile_commands.json&lt;/code> file, run&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-shell" data-lang="shell">&lt;span style="display:flex;">&lt;span>bazel run @hedron_compile_commands//:refresh_all
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This will need to be regenerated every time you want tooling to see new
-&lt;code>BUILD&lt;/code> file changes.&lt;/p>
-&lt;p>If you encounter errors like &lt;code>*.h.inc&lt;/code> not found, or syntax errors inside
-these files, you may need to build those targets and then re-run the
-&lt;code>refresh_all&lt;/code> command above.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>It might be necesssary to add the path to your buildifier to VSCode, though it
-should be auto-detected.&lt;/p>
-&lt;ul>
-&lt;li>Open the heir folder in VSCode&lt;/li>
-&lt;li>Go to &amp;lsquo;Settings&amp;rsquo; and set it on the &amp;lsquo;Workspace&amp;rsquo;&lt;/li>
-&lt;li>Search for &amp;ldquo;Bazel Buildifier Executable&amp;rdquo;&lt;/li>
-&lt;li>Once you find it, write &lt;code>[home-directory]/bin/buildifier &lt;/code> for your specific
-[home-directory].&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h3 id="building-testing-running-and-debugging-with-vscode">Building, Testing, Running and Debugging with VSCode&lt;/h3>
-&lt;h4 id="building">Building&lt;/h4>
-&lt;ol>
-&lt;li>Open the &amp;ldquo;Explorer&amp;rdquo; (File Overview) in the left panel.&lt;/li>
-&lt;li>Find &amp;ldquo;Bazel Build Targets&amp;rdquo; towards the bottom of the &amp;ldquo;Explorer&amp;rdquo; panel and
-click the dropdown button.&lt;/li>
-&lt;li>Unfold the heir folder&lt;/li>
-&lt;li>Right-click on &amp;ldquo;//tools&amp;rdquo; and click the &amp;ldquo;Build Package Recursively&amp;rdquo; option&lt;/li>
-&lt;/ol>
-&lt;h4 id="testing">Testing&lt;/h4>
-&lt;ol>
-&lt;li>Open the &amp;ldquo;Explorer&amp;rdquo; (File Overview) in the left panel.&lt;/li>
-&lt;li>Find &amp;ldquo;Bazel Build Targets&amp;rdquo; towards the bottom of the &amp;ldquo;Explorer&amp;rdquo; panel and
-click the dropdown button.&lt;/li>
-&lt;li>Unfold the heir folder&lt;/li>
-&lt;li>Right-click on &amp;ldquo;//test&amp;rdquo; and click the &amp;ldquo;Test Package Recursively&amp;rdquo; option&lt;/li>
-&lt;/ol>
-&lt;h4 id="running-and-debugging">Running and Debugging&lt;/h4>
-&lt;ol>
-&lt;li>
-&lt;p>Create a &lt;code>launch.json&lt;/code> file in the &lt;code>.vscode&lt;/code> folder, changing the &lt;code>&amp;quot;name&amp;quot;&lt;/code>
-and &lt;code>&amp;quot;args&amp;quot;&lt;/code> as required:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;version&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;0.2.0&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;configurations&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;name&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;Debug Secret-&amp;gt;BGV&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;preLaunchTask&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;build&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;type&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;lldb&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;request&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;launch&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;program&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}/bazel-bin/tools/heir-opt&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;args&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--secret-to-bgv&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--debug&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}/tests/secret_to_bgv/ops.mlir&amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">],&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;relativePathBase&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;sourceMap&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;proc/self/cwd&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;/proc/self/cwd&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}&amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You can add as many different configurations as necessary.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Add Breakpoints to your program as desired.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Open the Run/Debug panel on the left, select the desired configuration and
-run/debug it.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;ul>
-&lt;li>Note that you might have to hit &amp;ldquo;Enter&amp;rdquo; to proceed past the Bazel build. It
-might take several seconds between hitting &amp;ldquo;Enter&amp;rdquo; and the debug terminal
-opening.&lt;/li>
-&lt;/ul>
-&lt;h2 id="tips-for-working-with-bazel">Tips for working with Bazel&lt;/h2>
-&lt;h3 id="avoiding-rebuilds">Avoiding rebuilds&lt;/h3>
+&lt;/ul></description></item><item><title>Docs: Bazel tips</title><link>https://heir.dev/docs/development/bazel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/bazel/</guid><description>
+&lt;h2 id="build-file-formatting">BUILD file formatting&lt;/h2>
+&lt;p>The &lt;code>buildifier&lt;/code> tool can be used to format BUILD files. You can download the
+latest Buildifier release from the
+&lt;a href="https://github.com/bazelbuild/buildtools/releases/latest/">Bazel Release Page&lt;/a>.
+See &lt;a href="https://heir.dev/docs/development/ide/">IDE configuration&lt;/a> for tips on integrating this
+with your IDE.&lt;/p>
+&lt;h2 id="avoiding-rebuilds">Avoiding rebuilds&lt;/h2>
 &lt;p>Bazel is notoriously fickle when it comes to deciding whether a full rebuild is
 necessary, which is bad for HEIR because rebuilding LLVM from scratch takes 15
 minutes or more. We try to avoid this as much as possible by setting default
@@ -1835,7 +1544,7 @@ virtualenv triggers a &lt;code>PATH&lt;/code> change. The default is
 event that you want your shell&amp;rsquo;s environment variables to change and be
 inherited by bazel.&lt;/li>
 &lt;/ul>
-&lt;h3 id="pointing-heir-to-a-local-clone-of-llvm-project">Pointing HEIR to a local clone of &lt;code>llvm-project&lt;/code>&lt;/h3>
+&lt;h2 id="pointing-heir-to-a-local-clone-of-llvm-project">Pointing HEIR to a local clone of &lt;code>llvm-project&lt;/code>&lt;/h2>
 &lt;p>Occasionally changes in HEIR will need to be made in tandem with upstream
 changes in MLIR. In particular, we occasionally find upstream bugs that only
 occur with HEIR passes, and we are the primary owners/users of the upstream
@@ -1871,12 +1580,13 @@ required if, for example, a new dialect or pass is added in MLIR upstream.&lt;/l
 &lt;/ul>
 &lt;p>Send any upstream changes to HEIR-relevant MLIR files to @j2kun (Jeremy Kun) who
 has LLVM commit access and can also suggest additional MLIR reviewers.&lt;/p>
-&lt;h3 id="finding-the-right-dependency-targets">Finding the right dependency targets&lt;/h3>
+&lt;h2 id="finding-the-right-dependency-targets">Finding the right dependency targets&lt;/h2>
 &lt;p>Whenever a new dependency is added in C++ or Tablegen, a new bazel BUILD
 dependency is required, which requires finding the path to the relevant target
 that provides the file you want. In HEIR the BUILD target should be defined in
-the same directory as the file in question, but upstream MLIR&amp;rsquo;s bazel layout is
-different.&lt;/p>
+the same directory as the file you want to depend on (e.g., the targets that
+provide &lt;code>foo.h&lt;/code> are in &lt;code>BUILD&lt;/code> in the same directory), but upstream MLIR&amp;rsquo;s bazel
+layout is different.&lt;/p>
 &lt;p>LLVM&amp;rsquo;s bazel overlay for MLIR is contained in a
 &lt;a href="https://github.com/llvm/llvm-project/blob/main/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel">single file&lt;/a>,
 and so you can manually look there to find the right target. With bazel, if you
@@ -1889,88 +1599,54 @@ root. For example, to find the target that provides
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>And the output will be something like&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>@llvm-project//mlir:PassBaseTdFiles
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You can find more examples and alternative queries at the
-&lt;a href="https://bazel.build/query/language#rdeps">Bazel query docs&lt;/a>.&lt;/p>
-&lt;h2 id="tips-for-building-dependencies--useful-external-libraries">Tips for building dependencies / useful external libraries&lt;/h2>
-&lt;h3 id="mlir">MLIR&lt;/h3>
-&lt;p>Instructions for building MLIR can be found on the
-&lt;a href="https://mlir.llvm.org/getting_started/">Getting started&lt;/a> page of the MLIR
-website. The instructions there seem to work as written (tested on Ubuntu
-22.04). However, the command shown in &lt;code>Unix-like compile/testing:&lt;/code> may require a
-large amount of RAM. If building on a system with 16GB of RAM or less, and if
-you don&amp;rsquo;t plan to target GPUs, you may want to replace the line&lt;/p>
-&lt;pre tabindex="0">&lt;code> -DLLVM_TARGETS_TO_BUILD=&amp;#34;Native;NVPTX;AMDGPU&amp;#34; \
-&lt;/code>&lt;/pre>&lt;p>with&lt;/p>
-&lt;pre tabindex="0">&lt;code> -DLLVM_TARGETS_TO_BUILD=&amp;#34;Native&amp;#34; \
-&lt;/code>&lt;/pre>&lt;h3 id="openfhe">OpenFHE&lt;/h3>
-&lt;p>A simple way to build OpenFHE is to follow the instructions in the
-&lt;a href="https://github.com/openfheorg/openfhe-configurator">openfhe-configurator&lt;/a>
-repository. This allows to build the library with or without support for the
-Intel &lt;a href="https://github.com/intel/hexl">HEXL library&lt;/a>. First, clone the repository
-and configure it using:&lt;/p>
-&lt;pre tabindex="0">&lt;code>git clone https://github.com/openfheorg/openfhe-configurator.git
-cd openfhe-configurator
-scripts/configure.sh
-&lt;/code>&lt;/pre>&lt;p>You will be asked whether to stage a vanilla OpenFHE build or add support for
-HEXL. You can then build the library using&lt;/p>
-&lt;pre tabindex="0">&lt;code>./scripts/build-openfhe-development.sh
-&lt;/code>&lt;/pre>&lt;p>The build may fail on systems with less than 32GB or RAM due to parallel
-compilation. You can disable it by editing
-&lt;code>./scripts/build-openfhe-development.sh&lt;/code> and replacing&lt;/p>
-&lt;pre tabindex="0">&lt;code>make -j || abort &amp;#34;Build of openfhe-development failed.&amp;#34;
-&lt;/code>&lt;/pre>&lt;p>with&lt;/p>
-&lt;pre tabindex="0">&lt;code>make || abort &amp;#34;Build of openfhe-development failed.&amp;#34;
-&lt;/code>&lt;/pre>&lt;p>Compilation will be significantly slower but should then take less than 8GB of
-memory.&lt;/p>
+&lt;a href="https://bazel.build/query/language#rdeps">Bazel query docs&lt;/a>.&lt;/p></description></item><item><title>Docs: Boilerplate tools</title><link>https://heir.dev/docs/development/boilerplate/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/boilerplate/</guid><description>
+&lt;p>The script &lt;code>scripts/templates/templates.py&lt;/code> contains commands for generating new
+dialects and transforms, filling in most of the boilerplate Tablegen and C++.
+These commands do &lt;strong>not&lt;/strong> add the code needed to register the new passes or
+dialects in &lt;code>heir-opt&lt;/code>.&lt;/p>
+&lt;p>These should be used when the tablegen files containing existing pass
+definitions in the expected filepaths are not already present. Otherwise, you
+must modify the existing tablegen files directly.&lt;/p>
+&lt;p>Run &lt;code>python scripts/templates/templates.py --help&lt;/code> and
+&lt;code>python scripts/templates/templates.py &amp;lt;subcommand&amp;gt; --help&lt;/code> for the available
+commands and options.&lt;/p>
 &lt;h2 id="creating-a-new-pass">Creating a New Pass&lt;/h2>
-&lt;p>The &lt;code>scripts/templates&lt;/code> folder contains Python scripts to create boilerplate for
-new conversion or (dialect-specific) transform passes. These should be used when
-the tablegen files containing existing pass definitions in the expected
-filepaths are not already present. Otherwise, you should modify the existing
-tablegen files directly.&lt;/p>
-&lt;h3 id="conversion-pass">Conversion Pass&lt;/h3>
-&lt;p>To create a new conversion pass, run a command similar to the following:&lt;/p>
-&lt;pre tabindex="0">&lt;code>python scripts/templates/templates.py new_conversion_pass \
---source_dialect_name=CGGI \
---source_dialect_namespace=cggi \
---source_dialect_mnemonic=cggi \
---target_dialect_name=TfheRust \
---target_dialect_namespace=tfhe_rust \
---target_dialect_mnemonic=tfhe_rust
-&lt;/code>&lt;/pre>&lt;p>In order to build the resulting code, you must fix the labeled &lt;code>FIXME&lt;/code>s in the
+&lt;h3 id="general-passes">General passes&lt;/h3>
+&lt;p>If the pass does not operate from and to a specific dialect, use something
+similar to:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>python scripts/templates/templates.py new_transform &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--pass_name&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>ForgetSecrets &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--pass_flag&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>forget-secrets
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="dialect-transforms">Dialect Transforms&lt;/h3>
+&lt;p>To create a pass that operates within on a dialect, run a command similar to:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>python scripts/templates/templates.py new_dialect_transform &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--pass_name&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>ForgetSecrets &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--pass_flag&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>forget-secrets &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--dialect_name&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>Secret &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--dialect_namespace&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>secret
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="conversion-pass">Conversion Pass&lt;/h3>
+&lt;p>To create a new conversion pass, i.e., a pass that lowers from one dialect to
+another, run a command similar to:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>python scripts/templates/templates.py new_conversion_pass &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--source_dialect_name&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>CGGI &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--source_dialect_namespace&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>cggi &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--source_dialect_mnemonic&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>cggi &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--target_dialect_name&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>TfheRust &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--target_dialect_namespace&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>tfhe_rust &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--target_dialect_mnemonic&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>tfhe_rust
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>In order to build the resulting code, you must fix the labeled &lt;code>FIXME&lt;/code>s in the
 type converter and the op conversion patterns.&lt;/p>
-&lt;h3 id="transform-passes">Transform Passes&lt;/h3>
-&lt;p>To create a transform or rewrite pass that operates on a dialect, run a command
-similar to the following:&lt;/p>
-&lt;pre tabindex="0">&lt;code>python scripts/templates/templates.py new_dialect_transform \
---pass_name=ForgetSecrets \
---pass_flag=forget-secrets \
---dialect_name=Secret \
---dialect_namespace=secret \
---force=false
-&lt;/code>&lt;/pre>&lt;p>If the transform does not operate from and to a specific dialect, use&lt;/p>
-&lt;pre tabindex="0">&lt;code>python scripts/templates/templates.py new_transform \
---pass_name=ForgetSecrets \
---pass_flag=forget-secrets \
---force=false
-&lt;/code>&lt;/pre>&lt;h2 id="pre-commit">Pre-Commit&lt;/h2>
-&lt;p>We use &lt;a href="https://pre-commit.com/">pre-commit&lt;/a> to manage a series of git
-pre-commit hooks for the project; for example, each time you commit code, the
-hooks will make sure that your C++ is formatted properly. If your code isn&amp;rsquo;t,
-the hook will format it, so when you try to commit the second time you&amp;rsquo;ll get
-past the hook. Note that spelling mistakes identified by the codespell hook will
-not be auto-corrected and require manual resolution, rather than simply
-re-running pre-commit.&lt;/p>
-&lt;p>All hooks are defined in &lt;code>.pre-commit-config.yaml&lt;/code>. To install these hooks, run&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pip install -r requirements-dev.txt
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You will also need to install ruby and go (e.g., &lt;code>apt-get install ruby golang&lt;/code>)
-which are used by some of the pre-commits. Note that the pre-commit environment
-expects Python 3.11
-(&lt;a href="https://askubuntu.com/a/1512163">Installing python3.11 on ubuntu&lt;/a>).&lt;/p>
-&lt;p>Then install the hooks to run automatically on &lt;code>git commit&lt;/code>:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit install
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To run them manually, run&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>pre-commit run --all-files
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: Tutorials and Talks</title><link>https://heir.dev/docs/tutorials/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/tutorials/</guid><description>
+&lt;h2 id="creating-a-new-dialect">Creating a New Dialect&lt;/h2>
+&lt;p>To create a new dialect, run something like&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>python scripts/templates/templates.py new_dialect &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--dialet_name&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>TensorExt &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--dialect_namespace&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>tensor_ext &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--enable_attributes&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>False &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--enable_types&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>True &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#4e9a06">&lt;/span>--enable_ops&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>True
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note that all &lt;code>--enable&lt;/code> flags are &lt;code>True&lt;/code> by default, so if you know your
+dialect will not have attributes or types, you have to explicitly disable those
+options.&lt;/p></description></item><item><title>Docs: Tutorials and Talks</title><link>https://heir.dev/docs/tutorials/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/tutorials/</guid><description>
 &lt;p>A list of tutorials by the HEIR community. To add to this list, open an issue or
 submit a pull request
 &lt;a href="https://github.com/google/heir/blob/main/docs/content/en/docs/tutorials.md">on GitHub&lt;/a>.&lt;/p>
@@ -2048,7 +1724,262 @@ push commits to the private repo.&lt;/li>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note that using &lt;code>git push private new_branch2&lt;/code> will push the commit/branch to
 the private repo.&lt;/p>
 &lt;p>Once you&amp;rsquo;re ready to publish your development work, you can push your commits to
-a branch in the public repository and create a pull request.&lt;/p></description></item><item><title>Docs: Pipelines</title><link>https://heir.dev/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/pipelines/</guid><description>
+a branch in the public repository and create a pull request.&lt;/p></description></item><item><title>Docs: IDE configuration</title><link>https://heir.dev/docs/development/ide/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/development/ide/</guid><description>
+&lt;h2 id="heir-lsp">heir-lsp&lt;/h2>
+&lt;p>HEIR provides an LSP server that extends the MLIR LSP server with HEIR&amp;rsquo;s
+dialects.&lt;/p>
+&lt;p>Build the LSP binary, then move it to a location on your path or point your IDE
+to &lt;code>bazel-bin/tools/heir-lsp&lt;/code>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>bazel build //tools:heir-lsp
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>cp bazel-bin/tools/heir-lsp /usr/local/bin
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note that if you change any HEIR dialects, or if HEIR&amp;rsquo;s dependency on MLIR
+updates and the upstream MLIR has dialect changes (which happens roughly daily),
+you need to rebuild &lt;code>heir-lsp&lt;/code> for it to recognize the changes.&lt;/p>
+&lt;h2 id="clangd">clangd&lt;/h2>
+&lt;p>Most IDE configured to use clangd can be powered from a file called
+&lt;code>compile_commands.json&lt;/code>. To generate that for HEIR, run&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-shell" data-lang="shell">&lt;span style="display:flex;">&lt;span>bazel run @hedron_compile_commands//:refresh_all
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This will need to be regenerated when there are major &lt;code>BUILD&lt;/code> file changes. If
+you encounter errors like &lt;code>*.h.inc&lt;/code> not found, or syntax errors inside these
+files, you may need to build those targets and then re-run the &lt;code>refresh_all&lt;/code>
+command above.&lt;/p>
+&lt;h2 id="ibazel-file-watcher">ibazel file watcher&lt;/h2>
+&lt;p>&lt;a href="https://github.com/bazelbuild/bazel-watcher">&lt;code>ibazel&lt;/code>&lt;/a> is a shell around
+&lt;code>bazel&lt;/code> that watches a build target for file changes and automatically rebuilds.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>ibazel build //tools:heir-opt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="vs-code">VS Code&lt;/h2>
+&lt;p>While a wide variety of IDEs and editors can be used for HEIR development, we
+currently only provide support for &lt;a href="https://code.visualstudio.com/">VSCode&lt;/a>.&lt;/p>
+&lt;h3 id="setup">Setup&lt;/h3>
+&lt;p>For the best experience, we recommend following these steps:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Install the
+&lt;a href="https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-mlir">MLIR&lt;/a>,
+&lt;a href="https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd">clangd&lt;/a>
+and
+&lt;a href="https://marketplace.visualstudio.com/items?itemName=BazelBuild.vscode-bazel">Bazel&lt;/a>
+extensions&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Install and rename Buildifier:&lt;/p>
+&lt;p>You can download the latest Buildifier release, e.g., for linux-amd64 (see the
+&lt;a href="https://github.com/bazelbuild/buildtools/releases/latest/">Bazel Release Page&lt;/a>
+for a list of available binaries):&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>wget -c https://github.com/bazelbuild/buildtools/releases/latest/download/buildifier-linux-amd64
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mv buildifier-linux-amd64 buildifier
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>chmod +x buildifier
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Just as with bazel, you will want to move this somewhere on your PATH, e.g.:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>mkdir -p ~/bin
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87">echo&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;export PATH=$PATH:~/bin&amp;#39;&lt;/span> &amp;gt;&amp;gt; ~/.bashrc
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>mv buildifier ~/bin/buildifier
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>VS Code should automatically detect buildifier. If this is not successful, you
+can manually set the &amp;ldquo;Buildifier Executable&amp;rdquo; setting for the Bazel extension
+(&lt;code>bazel.buildifierExecutable&lt;/code>).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Disable the
+&lt;a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools">C/C++ (aka &amp;lsquo;cpptools&amp;rsquo;)&lt;/a>
+extension (either completely, or in the current workspace).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Add the following snippet to your VS Code user settings found in
+.vscode/settings.json to enable autocomplete based on the
+compile_commands.json file (see above).&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;clangd.arguments&amp;#34;&lt;/span>&lt;span style="color:#a40000">:&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--compile-commands-dir=${workspaceFolder}/&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--completion-style=detailed&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--query-driver=**&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#a40000">,&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>It might be necessary to add the path to your buildifier to VSCode, though it
+should be auto-detected.&lt;/p>
+&lt;ul>
+&lt;li>Open the heir folder in VSCode&lt;/li>
+&lt;li>Go to &amp;lsquo;Settings&amp;rsquo; and set it on the &amp;lsquo;Workspace&amp;rsquo;&lt;/li>
+&lt;li>Search for &amp;ldquo;Bazel Buildifier Executable&amp;rdquo;&lt;/li>
+&lt;li>Once you find it, write &lt;code>[home-directory]/bin/buildifier &lt;/code> for your specific
+[home-directory].&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="building-testing-running-and-debugging-with-vscode">Building, Testing, Running and Debugging with VSCode&lt;/h3>
+&lt;h4 id="building">Building&lt;/h4>
+&lt;ol>
+&lt;li>Open the &amp;ldquo;Explorer&amp;rdquo; (File Overview) in the left panel.&lt;/li>
+&lt;li>Find &amp;ldquo;Bazel Build Targets&amp;rdquo; towards the bottom of the &amp;ldquo;Explorer&amp;rdquo; panel and
+click the dropdown button.&lt;/li>
+&lt;li>Unfold the heir folder&lt;/li>
+&lt;li>Right-click on &amp;ldquo;//tools&amp;rdquo; and click the &amp;ldquo;Build Package Recursively&amp;rdquo; option&lt;/li>
+&lt;/ol>
+&lt;h4 id="testing">Testing&lt;/h4>
+&lt;ol>
+&lt;li>Open the &amp;ldquo;Explorer&amp;rdquo; (File Overview) in the left panel.&lt;/li>
+&lt;li>Find &amp;ldquo;Bazel Build Targets&amp;rdquo; towards the bottom of the &amp;ldquo;Explorer&amp;rdquo; panel and
+click the dropdown button.&lt;/li>
+&lt;li>Unfold the heir folder&lt;/li>
+&lt;li>Right-click on &amp;ldquo;//test&amp;rdquo; and click the &amp;ldquo;Test Package Recursively&amp;rdquo; option&lt;/li>
+&lt;/ol>
+&lt;h4 id="running-and-debugging">Running and Debugging&lt;/h4>
+&lt;ol>
+&lt;li>
+&lt;p>Create a &lt;code>launch.json&lt;/code> file in the &lt;code>.vscode&lt;/code> folder, changing the &lt;code>&amp;quot;name&amp;quot;&lt;/code>
+and &lt;code>&amp;quot;args&amp;quot;&lt;/code> as required:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;version&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;0.2.0&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;configurations&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;name&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;Debug Secret-&amp;gt;BGV&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;preLaunchTask&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;build&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;type&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;lldb&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;request&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;launch&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;program&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}/bazel-bin/tools/heir-opt&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;args&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--secret-to-bgv&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;--debug&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}/tests/secret_to_bgv/ops.mlir&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;relativePathBase&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;sourceMap&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;proc/self/cwd&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">&amp;#34;/proc/self/cwd&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;${workspaceFolder}&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You can add as many different configurations as necessary.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Add Breakpoints to your program as desired.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Open the Run/Debug panel on the left, select the desired configuration and
+run/debug it.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;ul>
+&lt;li>Note that you might have to hit &amp;ldquo;Enter&amp;rdquo; to proceed past the Bazel build. It
+might take several seconds between hitting &amp;ldquo;Enter&amp;rdquo; and the debug terminal
+opening.&lt;/li>
+&lt;/ul>
+&lt;h2 id="vimneovim">Vim/Neovim&lt;/h2>
+&lt;h3 id="misc-config">Misc config&lt;/h3>
+&lt;p>Filetype detection&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-vim" data-lang="vim">&lt;span style="display:flex;">&lt;span># &lt;span style="color:#000">ftdetect&lt;/span>/&lt;span style="color:#000">mlir&lt;/span>.&lt;span style="color:#000">vim&lt;/span>&lt;span style="color:#a40000">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#000">au&lt;/span> &lt;span style="color:#000">BufRead&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#000">BufNewFile&lt;/span> *.&lt;span style="color:#000">mlir&lt;/span> &lt;span style="color:#000">setfiletype&lt;/span> &lt;span style="color:#000">mlir&lt;/span>&lt;span style="color:#a40000">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;a href="https://heir.dev/docs/development/bazel/#build-file-formatting">Buildifier&lt;/a> integration&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-vim" data-lang="vim">&lt;span style="display:flex;">&lt;span># &lt;span style="color:#000">ftplugin&lt;/span>/&lt;span style="color:#000">bzl&lt;/span>.&lt;span style="color:#000">vim&lt;/span>&lt;span style="color:#a40000">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#000">augroup&lt;/span> &lt;span style="color:#000">AutoFormat&lt;/span>&lt;span style="color:#a40000">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> &lt;span style="color:#000">autocmd&lt;/span>&lt;span style="color:#000;font-weight:bold">!&lt;/span>&lt;span style="color:#a40000">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> &lt;span style="color:#000">autocmd&lt;/span> &lt;span style="color:#000">BufWritePre&lt;/span> &lt;span style="color:#000">Neoformat&lt;/span> &lt;span style="color:#000">buildifier&lt;/span>&lt;span style="color:#a40000">
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#000">augroup&lt;/span> &lt;span style="color:#000">END&lt;/span>&lt;span style="color:#a40000">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>LSP configuration (Neovim, using
+&lt;a href="https://github.com/neovim/nvim-lspconfig">nvim-lspconfig&lt;/a>)&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-lua" data-lang="lua">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">nvim_lsp&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;mlir_lsp_server&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">].&lt;/span>&lt;span style="color:#000">setup&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">on_attach&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">on_attach&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">capabilities&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">capabilities&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">cmd&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;heir-lsp&amp;#34;&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Tree-sitter configuration for relevant project languages&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-lua" data-lang="lua">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">require&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;nvim-treesitter.configs&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">).&lt;/span>&lt;span style="color:#000">setup&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ensure_installed&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;markdown_inline&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#8f5902;font-style:italic">-- for markdown in tablegen&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;mlir&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;tablegen&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#4e9a06">&amp;#34;verilog&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#8f5902;font-style:italic">-- for yosys&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">-- &amp;lt;... other config options ...&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Telescope-alternate config (quickly jump between cc, header, and tablegen files)&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-lua" data-lang="lua">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">require&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;telescope-alternate&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">).&lt;/span>&lt;span style="color:#000">setup&lt;/span>&lt;span style="color:#000;font-weight:bold">({&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">mappings&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">pattern&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/(.*).h&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">targets&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1]Test.cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cc Test&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1]Test.cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cpp Test&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].td&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tablegen&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">pattern&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/(.*).cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">targets&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].h&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;header&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1]Test.cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cc Test&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1]Test.cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cpp Test&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].td&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tablegen&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">pattern&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/(.*).cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">targets&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].h&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;header&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1]Test.cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;test&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1]Test.cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;test&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].td&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;tablegen&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">pattern&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/(.*).td&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">targets&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].h&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;header&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cc&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;cpp&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">pattern&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;(.*)Test.(.*)&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">targets&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">template&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;**/[1].[2]&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">label&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;implementation&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">enable_new&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">open_only_one_with&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;vertical_split&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">})&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="useful-mappings">Useful mappings&lt;/h3>
+&lt;p>Navigate to the bazel build target for current file&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-lua" data-lang="lua">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">vim.keymap&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">set&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;n&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;&amp;lt;leader&amp;gt;eb&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">function&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">-- expand(&amp;#34;%:p:h&amp;#34;) gets the current filepath&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">buildfile&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">vim.fn&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">expand&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;%:p:h&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;/BUILD&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">-- expand(&amp;#34;%:t&amp;#34;) gets the current filename with suffix.&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">target&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">vim.fn&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">expand&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;%:t&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">vim.api&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">nvim_command&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;botright vsplit &amp;#34;&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#000">buildfile&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">vim.cmd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;normal /&amp;#34;&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#000">target&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#000">vim.api&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">nvim_replace_termcodes&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;CR&amp;gt;&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">true&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">true&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">true&lt;/span>&lt;span style="color:#000;font-weight:bold">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">vim.cmd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;normal zz&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">end&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">noremap&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">true&lt;/span> &lt;span style="color:#000;font-weight:bold">})&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Set include guards according to HEIR style guide.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-lua" data-lang="lua">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#204a87;font-weight:bold">function&lt;/span> &lt;span style="color:#000">build_include_guard&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">-- project relative filepath&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">abs_path&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">vim.fn&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">expand&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;%&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">rel_path&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">vim.fn&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">fnamemodify&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">abs_path&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;:~:.&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">-- screaming case&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">upper&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">string.upper&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">rel_path&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">-- underscore separated&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">underscored&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">string.gsub&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">upper&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;[./]&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;_&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">-- trailing underscore&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">underscored&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;_&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">end&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">-- mnemonic: fi = fix include (guard)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">vim.keymap&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">set&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;n&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#4e9a06">&amp;#39;&amp;lt;leader&amp;gt;fi&amp;#39;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">function&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">buf&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">vim.api&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">nvim_get_current_buf&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">include_guard&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#000">build_include_guard&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">ifndef&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;#ifndef &amp;#34;&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#000">include_guard&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">define&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;#define &amp;#34;&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#000">include_guard&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">local&lt;/span> &lt;span style="color:#000">endif&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;#endif // &amp;#34;&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">..&lt;/span> &lt;span style="color:#000">include_guard&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">vim.api&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">nvim_buf_set_lines&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">ifndef&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">define&lt;/span> &lt;span style="color:#000;font-weight:bold">})&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">vim.api&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">nvim_buf_set_lines&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">false&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">endif&lt;/span> &lt;span style="color:#000;font-weight:bold">})&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">end&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span> &lt;span style="color:#000">noremap&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">true&lt;/span> &lt;span style="color:#000;font-weight:bold">})&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: Pipelines</title><link>https://heir.dev/docs/pipelines/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/pipelines/</guid><description>
 &lt;h2 id="heir-opt">&lt;code>heir-opt&lt;/code>&lt;/h2>
 &lt;h3 id="--heir-simd-vectorizer">&lt;code>--heir-simd-vectorizer&lt;/code>&lt;/h3>
 &lt;p>Run scheme-agnostic passes to convert FHE programs that operate on scalar types
@@ -3717,7 +3648,7 @@ TODO(#1207): with this info we can encrypt at max level (with bootstrap consumed
 -bootstrap-waterline : Waterline for insert bootstrap op
 &lt;/code>&lt;/pre>&lt;h3 id="-secret-merge-adjacent-generics">&lt;code>-secret-merge-adjacent-generics&lt;/code>&lt;/h3>
 &lt;p>&lt;em>Merge two adjacent generics into a single generic&lt;/em>&lt;/p>
-&lt;p>This pass merges two immedaitely sequential generics into a single
+&lt;p>This pass merges two immediately sequential generics into a single
 generic. Useful as a sub-operation in some passes, and extracted into
 its own pass for testing purposes.&lt;/p>
 &lt;h3 id="-secret-to-bgv">&lt;code>-secret-to-bgv&lt;/code>&lt;/h3>
@@ -3887,42 +3818,30 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-02-20</title><link>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</link><pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/02/20/heir-meeting-2025-02-20/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-07-11</title><link>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</link><pubDate>Thu, 11 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/11/heir-meeting-2024-07-11/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Aza4s6Z0NCON9rQR70DOUkKSwBV6bHAmuYV8sIb8n7o/edit?usp=sharing">notes&lt;/a>
-and &lt;a href="https://youtu.be/Y82A6BLAVtc">video recording&lt;/a> from the HEIR meeting on
-2025-02-20.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-11-26</title><link>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</link><pubDate>Tue, 26 Nov 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/11/26/heir-meeting-2024-11-26/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/10WTpdVaLz4mgmTwlJ3lVMGD4qmiNEl2Uvt3R3h0XFmc/edit?hl=en&amp;amp;forcehl=1&amp;amp;tab=t.0#heading=h.w3lar3vbuip1">notes&lt;/a>,
-&lt;a href="https://drive.google.com/file/d/13yvX_ap09tTqwJsdABDf3WDl79GF3bJx/view?usp=sharing">video recording&lt;/a>,
+&lt;a href="https://docs.google.com/document/d/1kP1kFKV6qrLVPv4CnIhmqO-7nMDFkCpvhzwIppJEDfU/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://docs.google.com/document/d/1s5iXtOSpIDJX3JOEB5gQqUPm5lo1gLpRUM10pBfAdoo/edit?usp=sharing">a transcription of the recording&lt;/a>
-from the HEIR meeting on 2024-11-26.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-07-25</title><link>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</link><pubDate>Thu, 25 Jul 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/07/25/heir-meeting-2024-07-25/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1-f5ZJ5h28FIgk_-LisNsYa77iuWPIAjU/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-07-11.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-02</title><link>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</link><pubDate>Thu, 02 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/02/heir-meeting-2024-05-02/</guid><description>
 &lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1tIrxc4V5OlAeqx_Z1rl_kuMmkd-HUAKEv90q3i-5QSU/edit?usp=sharing">notes&lt;/a>
+&lt;a href="https://docs.google.com/document/d/1uEDeIN0iTUmmtlacZg0c2j7VbAHO3A9e0_8mnunUv10/edit?usp=sharing">notes&lt;/a>
 and
-&lt;a href="https://drive.google.com/file/d/1_1CbRJeNr5NqcwEMXnfkxOqy9u5wJPyq/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-07-25.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-05-16</title><link>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</link><pubDate>Thu, 16 May 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/05/16/heir-meeting-2024-05-16/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/15MwanXaBap6qNzYj7g1m6zRcqK363O-3iCCcNcGY1Ds/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1gOf_Tb8k9UNx7i0OvjjikkYUG3HrPjoS/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-05-16.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-22</title><link>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</link><pubDate>Thu, 22 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/22/heir-meeting-2024-02-22/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1ktK2Y2-OnadvsIIa94HRch_oHCaQ0D6gbT3CElKmGak/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1RDONadr54-7uX5ko5dmUX3s1l7QHeHbM/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-02-22.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-28</title><link>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</link><pubDate>Tue, 28 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/28/heir-meeting-2023-11-28/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1-kkkG__qlAtsp50YXxHC7Dq__Qvgb4BcLZCopzJOzE4/edit?usp=sharing">notes&lt;/a>
-and
-&lt;a href="https://drive.google.com/file/d/1ykxaqlfVExqGC6saiSnfM2A7_TpWqKiE/view">video recording&lt;/a>
-from the HEIR meeting on 2023-11-28.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
+&lt;a href="https://drive.google.com/file/d/1u1q74rUKdXFi08tAKFRKjI-bojuorQK8/view?usp=drivesdk">video recording&lt;/a>
+from the HEIR meeting on 2024-05-02.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-11-07</title><link>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</link><pubDate>Tue, 07 Nov 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/11/07/heir-meeting-2023-11-07/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1nOlAhul4DwZU8UQPpTF1i3OldSY9EmwaWG3EPSZIhHs/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1I7aIipm54CCcDcLyRYXI_gARfT1z93cN/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2023-11-07.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+from the HEIR meeting on 2023-11-07.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-01</title><link>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</link><pubDate>Wed, 02 Aug 2023 15:46:42 -0700</pubDate><guid>https://heir.dev/blog/2023/08/02/heir-meeting-2023-08-01/</guid><description>
+&lt;p>The fourth HEIR meeting was 2023-08-01
+(&lt;a href="https://docs.google.com/document/d/1gid-MARMUStb3dB9jsXEV_CnPDpf_9cyPXy9uXtZk08/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1U6HDdKJo3-UHibFPgNrDakU8EpCt5xHZ/view?usp=sharing">video recording&lt;/a>).&lt;/p>
+&lt;p>We&amp;rsquo;re also starting on the Poly and Secret dialects in
+&lt;a href="https://github.com/google/heir/pull/74">#74 (poly)&lt;/a> and
+&lt;a href="https://github.com/google/heir/pull/78">#78 (secret)&lt;/a>, so please join in the
+fun!&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
@@ -16193,7 +16112,7 @@ useful for target materialization in the dialect conversion framework.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>This operation is used as a separation boundary between logical subunits of
 the module. This is used in conjunction with
 &lt;code>--secret-distribute-generic=distribute-through=secret.separator&lt;/code> to break a
-generic around these separators and allow for optimization passses to
+generic around these separators and allow for optimization passes to
 analyze and optimize the sub-units locally.&lt;/p>
 &lt;p>In order to allow bufferization of modules with this operation, we must
 register a (bogus) memory effect that also prevents this operation from

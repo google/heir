@@ -12269,7 +12269,7 @@ useful for target materialization in the dialect conversion framework.&lt;/p>
 &lt;/code>&lt;/pre>&lt;p>This operation is used as a separation boundary between logical subunits of
 the module. This is used in conjunction with
 &lt;code>--secret-distribute-generic=distribute-through=secret.separator&lt;/code> to break a
-generic around these separators and allow for optimization passses to
+generic around these separators and allow for optimization passes to
 analyze and optimize the sub-units locally.&lt;/p>
 &lt;p>In order to allow bufferization of modules with this operation, we must
 register a (bogus) memory effect that also prevents this operation from

@@ -1119,7 +1119,7 @@ useful for target materialization in the dialect conversion framework.</p><p>Exa
 </code></pre><p>This operation is used as a separation boundary between logical subunits of
 the module. This is used in conjunction with
 <code>--secret-distribute-generic=distribute-through=secret.separator</code> to break a
-generic around these separators and allow for optimization passses to
+generic around these separators and allow for optimization passes to
 analyze and optimize the sub-units locally.</p><p>In order to allow bufferization of modules with this operation, we must
 register a (bogus) memory effect that also prevents this operation from
 being trivially dead during operation folding.</p><p>This operation also accepts operands, which act as boundaries between the
