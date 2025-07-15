@@ -18,7 +18,7 @@ heir_lattigo_lib(
     go_library_name = "main",
     heir_opt_flags = [
         "--annotate-module=backend=lattigo scheme=ckks",
-        "--mlir-to-ckks=ciphertext-degree=4 modulus-switch-before-first-mul=true",
+        "--mlir-to-ckks=ciphertext-degree=4 modulus-switch-before-first-mul=true first-mod-bits=59 scaling-mod-bits=45",
         "--scheme-to-lattigo=insert-debug-handler-calls=true",
     ],
     mlir_src = "cross_level.mlir",

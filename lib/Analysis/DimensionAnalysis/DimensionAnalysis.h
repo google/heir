@@ -126,8 +126,6 @@ class DimensionAnalysisBackward
   void visitCallOperand(OpOperand &operand) override {}
 };
 
-// this function will assert false when Lattice does not exist or not
-// initialized
 std::optional<DimensionState::DimensionType> getDimension(
     Value value, DataFlowSolver *solver);
 
