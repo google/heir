@@ -42,3 +42,24 @@ func.func @test_constant_bad_width() {
   %c = mod_arith.constant 512 : !mod_arith.int<17 : i8>
   return
 }
+
+// -----
+
+!Zp1 = !mod_arith.int<17 : i10>
+!Zp2 = !mod_arith.int<257 : i10>
+!Zp3 = !mod_arith.int<509 : i10>
+!rns = !rns.rns<!Zp1, !Zp2, !Zp3>
+
+// CHECK-NOT @test_bad_encapsulate
+func.func @test_bad_encapsulate(%arg0: tensor<3x3xi10>) -> tensor<4x!rns> {
+  // expected-error@+1 {{The shape of input/output type is not correct.}}
+  %e = mod_arith.encapsulate %arg0 : tensor<3x3xi10> -> tensor<4x!rns>
+  return %e : tensor<4x!rns>
+}
+
+// CHECK-NOT @test_bad_extract
+func.func @test_bad_extract(%arg0: tensor<4x!rns>) -> tensor<4x5xi10> {
+  // expected-error@+1 {{The shape of input/output type is not correct.}}
+  %e = mod_arith.extract %arg0 : tensor<4x!rns> -> tensor<4x5xi10>
+  return %e : tensor<4x5xi10>
+}

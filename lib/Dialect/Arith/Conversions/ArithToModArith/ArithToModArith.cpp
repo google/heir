@@ -34,18 +34,23 @@ namespace arith {
 #define GEN_PASS_DEF_ARITHTOMODARITH
 #include "lib/Dialect/Arith/Conversions/ArithToModArith/ArithToModArith.h.inc"
 
-static mod_arith::ModArithType convertArithType(Type type, int64_t modulus) {
-  Type newType;
+IntegerType getIntegerType(Type type, int64_t modulus) {
   if (modulus == 0) {
     auto modulusBitSize = (int64_t)type.getIntOrFloatBitWidth();
     modulus = (1L << (modulusBitSize - 1L));
-    newType = mlir::IntegerType::get(type.getContext(), modulusBitSize + 1);
-  } else {
-    newType = mlir::IntegerType::get(type.getContext(), 64);
+    return mlir::IntegerType::get(type.getContext(), modulusBitSize + 1);
   }
+  return mlir::IntegerType::get(type.getContext(), 64);
+}
 
-  return mod_arith::ModArithType::get(type.getContext(),
-                                      mlir::IntegerAttr::get(newType, modulus));
+static mod_arith::ModArithType convertArithType(Type type, int64_t modulus) {
+  auto integerType = getIntegerType(type, modulus);
+  if (modulus == 0) {
+    auto modulusBitSize = (int64_t)type.getIntOrFloatBitWidth();
+    modulus = (1L << (modulusBitSize - 1L));
+  }
+  return mod_arith::ModArithType::get(
+      type.getContext(), mlir::IntegerAttr::get(integerType, modulus));
 }
 
 static Type convertArithLikeType(ShapedType type, int64_t modulus) {
@@ -59,6 +64,8 @@ static Type convertArithLikeType(ShapedType type, int64_t modulus) {
 static auto buildLoadOps(int64_t modulus) {
   return [=](OpBuilder &builder, Type resultTypes, ValueRange inputs,
              Location loc) -> Value {
+    auto b = ImplicitLocOpBuilder(loc, builder);
+
     assert(inputs.size() == 1);
     auto loadOp = inputs[0].getDefiningOp<memref::LoadOp>();
 
@@ -68,8 +75,12 @@ static auto buildLoadOps(int64_t modulus) {
 
     if (!globaMemReflOp) return {};
 
-    return builder.create<mod_arith::EncapsulateOp>(
-        loc, convertArithType(loadOp.getType(), modulus), loadOp.getResult());
+    auto integerType = getIntegerType(loadOp.getType(), modulus);
+    auto modArithType = convertArithType(loadOp.getType(), modulus);
+    auto extui =
+        b.create<mlir::arith::ExtUIOp>(integerType, loadOp.getResult());
+
+    return b.create<mod_arith::EncapsulateOp>(modArithType, extui);
   };
 }
 
