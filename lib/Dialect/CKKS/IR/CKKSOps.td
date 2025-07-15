@@ -168,15 +168,26 @@ def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [SameOperandsAndResultRings,
   let arguments = (ins
     NewLWECiphertext:$input,
     DenseI32ArrayAttr:$from_basis,
-    DenseI32ArrayAttr:$to_basis
+    DenseI32ArrayAttr:$to_basis,
+    Optional<RankedTensorOf<[NewLWECiphertext]>>:$keySwitchingKey
   );
 
   let results = (outs
     NewLWECiphertext:$output
   );
 
+  let builders = [
+    OpBuilder<(ins
+      "Value":$input,
+      CArg<"::mlir::DenseI32ArrayAttr">:$fromBasis,
+      CArg<"::mlir::DenseI32ArrayAttr">:$toBasis), [{
+      return build($_builder, $_state, input,
+                   fromBasis, toBasis, {});
+    }]>
+  ];
+
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input)) `->` qualified(type($output))" ;
+  let assemblyFormat = "$input `,` $keySwitchingKey attr-dict `:` functional-type(operands, results)" ;
 }
 
 def CKKS_RescaleOp : CKKS_Op<"rescale"> {
