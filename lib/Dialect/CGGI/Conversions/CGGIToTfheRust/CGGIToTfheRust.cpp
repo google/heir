@@ -501,25 +501,29 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
 
     Value serverKey = result.value();
 
-    auto intValue = op.getValue().getValue().getSExtValue();
-    auto inputValue = mlir::IntegerAttr::get(op.getValue().getType(), intValue);
-    auto constantWidth = op.getValue().getValue().getBitWidth();
+    if (auto intAttr = cast<IntegerAttr>(op.getValue())) {
+      auto intValue = intAttr.getValue().getSExtValue();
+      auto inputValue = mlir::IntegerAttr::get(intAttr.getType(), intValue);
+      auto constantWidth = intAttr.getValue().getBitWidth();
 
-    auto cteOp = arith::ConstantOp::create(rewriter, op.getLoc(),
-                                           op.getValue().getType(), inputValue);
+      auto cteOp = arith::ConstantOp::create(rewriter, op.getLoc(),
+                                             intAttr.getType(), inputValue);
 
-    auto outputType = encrytpedUIntTypeFromWidth(getContext(), constantWidth);
+      auto outputType = encrytpedUIntTypeFromWidth(getContext(), constantWidth);
 
-    if (auto rankedTensorTy =
-            dyn_cast<RankedTensorType>(op.getResult().getType())) {
-      auto shape = rankedTensorTy.getShape();
-      outputType = RankedTensorType::get(shape, outputType);
+      if (auto rankedTensorTy =
+              dyn_cast<RankedTensorType>(op.getResult().getType())) {
+        auto shape = rankedTensorTy.getShape();
+        outputType = RankedTensorType::get(shape, outputType);
+      }
+
+      auto createTrivialOp = tfhe_rust::CreateTrivialOp::create(
+          rewriter, op.getLoc(), outputType, serverKey, cteOp);
+      rewriter.replaceOp(op, createTrivialOp);
+      return success();
     }
-
-    auto createTrivialOp = tfhe_rust::CreateTrivialOp::create(
-        rewriter, op.getLoc(), outputType, serverKey, cteOp);
-    rewriter.replaceOp(op, createTrivialOp);
-    return success();
+    return op.emitError()
+           << "Expected CreateTrivialOp to have an integer attribute value.";
   }
 };
 

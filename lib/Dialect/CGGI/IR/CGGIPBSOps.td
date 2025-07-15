@@ -156,7 +156,7 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
     !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
 
     %4 = cggi.multi_lut_lincomb %c0, %c1, %c2, %c3 {
-        coefficients = array<i32: 1, 2, 3, 2>,
+        coefficients = array<i8: 1, 2, 3, 2>,
         lookup_tables = array<index: 68, 70, 4, 8>
     } : (!ciphertext, !ciphertext, !ciphertext, !ciphertext) -> (!ciphertext, !ciphertext, !ciphertext, !ciphertext)
     ```
@@ -183,6 +183,47 @@ def CGGI_MultiLutLinCombOp : CGGI_Op<"multi_lut_lincomb", [
   let results = (outs Variadic<LWECiphertextLike>:$outputs);
   let assemblyFormat = "operands attr-dict `:` functional-type($inputs, $outputs)" ;
   let hasVerifier = 1;
+}
+
+def CGGI_SelectorLutLinCombOp : CGGI_Op<"selector_lut_lincomb", [
+  Pure,
+  ElementwiseMappable,
+  Scalarizable
+]> {
+  let summary = "A multi-value version of lut_lincomb";
+  let description = [{
+    An op representing a lookup table applied to a shared input, which
+    is prepared via a static linear combination. This is equivalent to
+    `cggi.lut_lincomb`, but where the linear combination is given to a
+    single LUT, but producing an single n-bit output.
+
+    The linear combination will select a value for a lookup table with 2^n outputs
+    where each output is a n-bit number.
+    For instance, in the case of the default i4 ciphertext, a 16 element lookup table
+    will be used, and the output will be a i4 number.
+
+    Example:
+
+    ```mlir
+    #encoding = #lwe.bit_field_encoding<cleartext_start=30, cleartext_bitwidth=3>
+    #params = #lwe.lwe_params<cmod=7917, dimension=4>
+    !ciphertext = !lwe.lwe_ciphertext<encoding = #encoding, lwe_params = #params>
+
+    %4 = cggi.selector_lut_lincomb %c0, %c1 {
+        coefficients = array<i8: 1, 2>,
+        lookup_tables = array<i8: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15>
+    } : (!ciphertext, !ciphertext) -> (!ciphertext)
+    ```
+  }];
+
+  let arguments = (ins
+    Variadic<LWECiphertextLike>:$inputs,
+    DenseI8ArrayAttr:$coefficients,
+    DenseI8ArrayAttr:$lookup_tables
+  );
+  let results = (outs LWECiphertextLike:$outputs);
+  let assemblyFormat = "operands attr-dict `:` functional-type($inputs, $outputs)" ;
+  // ToDo: Add verifier to ensure the lookup table is of size 2^n for n-bit inputs.
 }
 
 def CGGI_SelectOp : CGGI_Op<"cmux", [

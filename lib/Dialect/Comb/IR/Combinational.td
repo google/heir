@@ -21,7 +21,9 @@ include "lib/Dialect/HEIRInterfaces.td"
 
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/IR/BuiltinAttributes.td"
+include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/EnumAttr.td"
+include "mlir/IR/OpBase.td"
 
 def HWIntegerType : Type<
   CPred<"$_self.isSignlessInteger()">, "signless integer",
@@ -313,6 +315,20 @@ def TruthTableOp : CombOp<"truth_table", [Pure, DeclareOpInterfaceMethods<LUTOpI
   }];
 
   let hasVerifier = 1;
+}
+
+// ToDo: Write verifier to ensure lookup table is of size 2^n for n inputs.
+// ToDo: Implement I2/4 Type? Use I8 for now.
+def LUTOp : CombOp<"lut", [Pure]> {
+  let summary = "Return an integer based on a lookup table";
+  let description = [{
+    This operation is similar to `truth_table`, but it allows for an integer output instead of a boolean.
+    Requers an vector of integers as the lookup table, where each integer represents the output for a specific combination of inputs.
+  }];
+
+  let arguments = (ins Variadic<I8>:$inputs, DenseI8ArrayAttr:$coefficients, DenseI8ArrayAttr:$lookupTable);
+  let results = (outs I8:$result);
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)" ;
 }
 
 #endif // LIB_DIALECT_COMB_COMBINATIONAL_TD
