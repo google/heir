@@ -18,6 +18,7 @@ jobs:
     - name: Check reviewer permissions
       id: check_reviewer
       env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         REVIEWER: ${{ github.event.review.user.login }}
         REPO: ${{ github.repository }}
       run: |
