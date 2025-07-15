@@ -9173,11 +9173,12 @@ operation computes &lt;code>barret_reduce x = x - floor(x * floor(b / q) / b) * 
 &lt;p>&lt;em>Encapsulate an integer into a mod_arith type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.encapsulate` operands attr-dict `:` type($input) `-&amp;gt;` type($output)
-&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.encapsulate&lt;/code> converts the integer to be of mod_arith type.&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.encapsulate&lt;/code> converts the integer to be of mod_arith or RNS type.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>mod_arith.encapsulate %c0 : i32 -&amp;gt; mod_arith.int&amp;lt;65537 : i32&amp;gt;
-mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537&amp;gt;
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537 : i64&amp;gt;
+mod_arith.encapsulate %c2 : tensor&amp;lt;4x2xi32&amp;gt; -&amp;gt; tensor&amp;lt;4xrns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt;&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-2">Operands:&lt;/h4>
@@ -9206,7 +9207,7 @@ mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537&amp;gt;
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9214,15 +9215,17 @@ mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537&amp;gt;
 &lt;p>&lt;em>Extract the integer stored inside mod_arith type&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.extract` operands attr-dict `:` type($input) `-&amp;gt;` type($output)
-&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.extract&lt;/code> extracts the integer inside the mod_arith type.&lt;/p>
-&lt;p>It is required that the bitwidth of the output integer type is the same
-as that of the storage type of the input mod_arith type.&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>&lt;code>mod_arith.extract&lt;/code> extracts the integer inside the mod_arith or RNS type.&lt;/p>
+&lt;p>It is required that the bitwidth of the output (tensor of) integer type is
+the same as that of the storage type of the input mod_arith (or RNS) type.&lt;/p>
 &lt;p>Examples:&lt;/p>
 &lt;pre tabindex="0">&lt;code>%m0 = mod_arith.encapsulate %c0 : i32 -&amp;gt; mod_arith.int&amp;lt;65537 : i32&amp;gt;
-%m1 = mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537&amp;gt;
-%c2 = mod_arith.extract %m0 : mod_arith.int&amp;lt;65537 : i32&amp;gt; -&amp;gt; i32
-%c3 = mod_arith.extract %m1 : mod_arith.int&amp;lt;65537&amp;gt; -&amp;gt; i64
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>Elementwise&lt;/code>, &lt;code>Scalarizable&lt;/code>, &lt;code>Tensorizable&lt;/code>, &lt;code>Vectorizable&lt;/code>&lt;/p>
+%m1 = mod_arith.encapsulate %c1 : i64 -&amp;gt; mod_arith.int&amp;lt;65537 : i64&amp;gt;
+%m2 = mod_arith.encapsulate %c2 : tensor&amp;lt;4x2xi32&amp;gt; -&amp;gt; tensor&amp;lt;4xrns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt;&amp;gt;
+%c3 = mod_arith.extract %m0 : mod_arith.int&amp;lt;65537 : i32&amp;gt; -&amp;gt; i32
+%c4 = mod_arith.extract %m1 : mod_arith.int&amp;lt;65537 : i64&amp;gt; -&amp;gt; i64
+%c5 = mod_arith.extract %m2 : tensor&amp;lt;4xrns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt;&amp;gt; -&amp;gt; tensor&amp;lt;4x2xi32&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-3">Operands:&lt;/h4>
@@ -9236,7 +9239,7 @@ as that of the storage type of the input mod_arith type.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>mod_arith-like&lt;/td>
+&lt;td>mod_arith_or_rns-like&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9307,11 +9310,15 @@ representatives and guarantees the output being canonical representative.&lt;/p>
 &lt;p>&lt;em>Change the modulus of a mod_arith&lt;/em>&lt;/p>
 &lt;p>Syntax:&lt;/p>
 &lt;pre tabindex="0">&lt;code>operation ::= `mod_arith.mod_switch` $input attr-dict `:` type($input) `to` type($output)
-&lt;/code>&lt;/pre>&lt;p>&amp;ldquo;mod_switch&amp;rdquo; operation to change the modulus of a mod_arith type to a
-bigger space.&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>The &amp;ldquo;mod_switch&amp;rdquo; operation performs either modulus switching (changing the
+modulus of a mod_arith type to a new value by reducing modulo the new
+modulus) or CRT decomposition/interpolation.&lt;/p>
 &lt;p>Examples:&lt;/p>
-&lt;pre tabindex="0">&lt;code>`mod_arith.mod_switch %c0 : mod_arith.int&amp;lt;65537 : i32&amp;gt; to mod_arith.int&amp;lt;65539 : i32&amp;gt;`
-&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>, &lt;code>SameOperandsAndResultShape&lt;/code>&lt;/p>
+&lt;pre tabindex="0">&lt;code>mod_arith.mod_switch %c0 : mod_arith.int&amp;lt;65537 : i32&amp;gt; to mod_arith.int&amp;lt;65539 : i32&amp;gt;
+mod_arith.mod_switch %c0 : mod_arith.int&amp;lt;65537 : i32&amp;gt; to mod_arith.int&amp;lt;257 : i32&amp;gt;
+mod_arith.mod_switch %c0 : mod_arith.int&amp;lt;85 : i32&amp;gt; to rns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt;
+mod_arith.mod_switch %c0 : rns.rns&amp;lt;mod_arith.int&amp;lt;5 : i32&amp;gt;, mod_arith.int&amp;lt;17 : i32&amp;gt;&amp;gt; to mod_arith.int&amp;lt;85 : i32&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>Traits: &lt;code>AlwaysSpeculatableImplTrait&lt;/code>&lt;/p>
 &lt;p>Interfaces: &lt;code>ConditionallySpeculatable&lt;/code>, &lt;code>NoMemoryEffect (MemoryEffectOpInterface)&lt;/code>&lt;/p>
 &lt;p>Effects: &lt;code>MemoryEffects::Effect{}&lt;/code>&lt;/p>
 &lt;h4 id="operands-5">Operands:&lt;/h4>
@@ -9325,7 +9332,7 @@ bigger space.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>input&lt;/code>&lt;/td>
-&lt;td>Integer type with modular arithmetic&lt;/td>
+&lt;td>Integer type with modular arithmetic or A residue number system representation&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -9340,7 +9347,7 @@ bigger space.&lt;/p>
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">&lt;code>output&lt;/code>&lt;/td>
-&lt;td>Integer type with modular arithmetic&lt;/td>
+&lt;td>Integer type with modular arithmetic or A residue number system representation&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
