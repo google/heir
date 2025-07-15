@@ -12,7 +12,7 @@ permissions:
 jobs:
   add-label-on-maintainer-approval:
     runs-on: ubuntu-latest
-    if: github.event.review.state == 'approved' && github.event.pull_request.commits == 1
+    if: github.event.review.state == 'approved'
 
     steps:
     - name: Check reviewer permissions
@@ -37,5 +37,10 @@ jobs:
         GH_REPO: ${{ github.repository }}
         NUMBER: ${{ github.event.pull_request.number }}
         LABELS: pull_ready
+        COMMITS: ${{ github.event.pull_request.commits }}
       run: |
+          if (( COMMITS != 1 )); then
+            echo "::error::Expected approved PR to have a single commit, but found $commits. google/heir requires a single commit per PR because Google's internal/external synchronization tooling does not support squashing, and instead would rebase all commits into the main branch."
+            exit 1
+          fi
           gh issue edit "$NUMBER" --add-label "$LABELS"
