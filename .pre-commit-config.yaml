@@ -34,12 +34,11 @@ repos:
       - id: buildifier-lint
 
 # Check for spelling
+# Config in pyproject.toml
 -   repo: https://github.com/codespell-project/codespell
-    rev: "v2.2.5"
+    rev: "v2.4.1"
     hooks:
       - id: codespell
-        args: ["-L", "crate, fpt"]
-        exclude: "^(.*[.]lock)"
 
 # Changes tabs to spaces
 -   repo: https://github.com/Lucas-C/pre-commit-hooks

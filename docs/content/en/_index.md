@@ -62,6 +62,31 @@ For an overview of the project, see
 - Provide a platform for research into novel FHE optimizations.
 - Provide a platform for benchmarking.
 
+## Contributing to HEIR
+
+There are several ways to contribute to HEIR, including:
+
+- Contributing to HEIR's [code-base](https://github.com/google/heir).
+- Discussing project proposals and designs on HEIR's
+  [issues page](https://github.com/google/heir/issues).
+- Improving or expanding HEIR's documentation.
+- Discussing project direction at HEIR's regular working group meetings and
+  office hours. See our [community calendar](https://heir.dev/community/) for
+  dates and the [HEIR YouTube channel](https://www.youtube.com/@HEIRCompiler)
+  for recordings of past meetings.
+- Doing FHE [research with HEIR](/docs/research_with_heir/).
+
+We welcome pull requests, and have tagged issues for newcomers:
+
+- [Good first issue](https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- [Contributions welcome](https://github.com/google/heir/issues?q=is%3Aissue+is%3Aopen+label%3A%22contributions+welcome%22)
+- [Research synthesis](https://github.com/google/heir/labels/research%20synthesis):
+  determine what parts of recent FHE research papers can or should be ported to
+  HEIR.
+
+For new proposals, please
+[open a GitHub issue](https://github.com/google/heir/issues).
+
 ## Disclaimers
 
 The HEIR codebase and documentation are maintained by Google.

@@ -111,3 +111,11 @@ line-length = 80
 unstable = true
 pyink-indentation = 2
 pyink-use-majority-quotes = true
+
+[tool.codespell]
+# words to allow even though codespell thinks they're misspelled
+ignore-words-list = "crate,fpt,LogArithmetic"
+# enable if you want the pre-commit hook to automatically write changes
+write-changes = false
+# files to exclude
+skip = "*.lock"

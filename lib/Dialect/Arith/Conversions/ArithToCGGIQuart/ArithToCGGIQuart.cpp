@@ -530,7 +530,7 @@ struct ArithToCGGIQuart : public impl::ArithToCGGIQuartBase<ArithToCGGIQuart> {
       return signalPassFailure();
     }
 
-    // Remove the uncessary tensor ops between each converted arith operation.
+    // Remove the unnecessary tensor ops between each converted arith operation.
     OpPassManager pipeline("builtin.module");
     pipeline.addPass(createCSEPass());
     (void)runPipeline(pipeline, getOperation());

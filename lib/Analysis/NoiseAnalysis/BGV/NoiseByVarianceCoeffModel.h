@@ -17,9 +17,9 @@ class NoiseByVarianceCoeffModel {
   // for MP24, NoiseState stores the variance log2(var) for the one coefficient
   // of critical quantity v = m + t * e, assuming coefficients are IID.
   //
-  // MP24 states that for two polynomial multipication, the variance of one
+  // MP24 states that for two polynomial multiplication, the variance of one
   // coefficient of the result can be approximated by ringDim * var_0 * var_1,
-  // because the polynomial multipication is a convolution.
+  // because the polynomial multiplication is a convolution.
   using StateType = NoiseState;
   using SchemeParamType = SchemeParam;
   using LocalParamType = LocalParam;
