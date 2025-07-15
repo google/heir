@@ -13,6 +13,7 @@ cc_library(
     deps = [
         ":pass_inc_gen",
         "@heir//lib/Dialect/CGGI/IR:Dialect",
+        "@heir//lib/Dialect/Comb/IR:Dialect",
         "@heir//lib/Dialect/LWE/IR:Dialect",
         "@heir//lib/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
@@ -21,6 +22,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
