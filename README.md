@@ -36,9 +36,9 @@ def func(x: Secret[I16], y: Secret[I16]):
     return expression
 
 func.setup()
-enc_a = func.encrypt_a(7)
-enc_b = func.encrypt_b(8)
-result_enc = func.eval(enc_a, enc_b)
+enc_x = func.encrypt_x(7)
+enc_y = func.encrypt_y(8)
+result_enc = func.eval(enc_x, enc_y)
 result = func.decrypt_result(result_enc)
 
 print(
