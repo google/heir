@@ -204,7 +204,7 @@ struct GenerateParamBFV : impl::GenerateParamBFVBase<GenerateParamBFV> {
       bfv::NoiseCanEmbModel model;
       run<bfv::NoiseCanEmbModel>(model);
     } else {
-      getOperation()->emitWarning() << "Unknown noise model.\n";
+      emitWarning(getOperation()->getLoc()) << "Unknown noise model.\n";
       generateFallbackParam();
     }
 

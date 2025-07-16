@@ -16,7 +16,7 @@ module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 11, Q = [17], P = 
 
 // -----
 
-// expected-error@below {{'builtin.module' op Noise validation failed.}}
+// expected-error@below {{Noise validation failed.}}
 module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 11, Q = [17, 23], P = [1093633], plaintextModulus = 65537>} {
   func.func @main(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}) -> (!secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 0>}) {
     %0 = secret.generic(%arg0: !secret.secret<tensor<1024xi16>> {mgmt.mgmt = #mgmt.mgmt<level = 1>}) {
