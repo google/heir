@@ -3818,16 +3818,39 @@ arguments in the function body.&lt;/li>
 &lt;/ul>
 &lt;h4 id="statistics">Statistics&lt;/h4>
 &lt;pre tabindex="0">&lt;code>total circuit size : The total circuit size for all optimized circuits, after optimization is done.
-&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
+&lt;/code>&lt;/pre></description></item><item><title>Blog: HEIR meeting 2025-04-17</title><link>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/04/17/heir-meeting-2025-04-17/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1be2IqEcj14CF-MA17SjZaS_soRDf-xTrMP-yAKh1BWE/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HHU6rCMxZRc">video recording&lt;/a> from the HEIR meeting on
+2025-04-17.&lt;/p>
+&lt;p>Hongren Zheng gave an overview of the &lt;code>mgmt&lt;/code> dialect which handles ciphertext
+management in the compiler. This talk
+&lt;a href="https://youtu.be/HHU6rCMxZRc?si=U_ePY5emqs6e4NoV&amp;amp;t=1631">starts at 27:11&lt;/a>.
+&lt;a href="https://heir.dev/slides/mgmt-2025-04-17.pdf">The slides can be found here&lt;/a>.&lt;/p></description></item><item><title>Blog: HEIR meeting 2025-01-23</title><link>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</link><pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2025/01/23/heir-meeting-2025-01-23/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1x8tFUC4vGeO0t-CvFQe4o-H8xgl4zEvBZaye_JlIEVo/edit?usp=sharing">notes&lt;/a>
+and &lt;a href="https://youtu.be/HMgHNpJeINs">video recording&lt;/a> from the HEIR meeting on
+2025-01-23.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-10-31</title><link>https://heir.dev/blog/2024/10/31/heir-meeting-2024-10-31/</link><pubDate>Thu, 31 Oct 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/10/31/heir-meeting-2024-10-31/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1QUxT00gd1ZSayzdtxY5T5-Wiod-eNnCFGoqVceWQ83Y/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1Q9a7O7HwxKMDqI23l3154KIOw1ofANkX/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-10-31.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-27</title><link>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</link><pubDate>Thu, 27 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/27/heir-meeting-2024-06-27/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1lc4U2JzHapu99_sigOAYwpjNnfd9_QGrX1HAQ0hle_o/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/1-wMytGj3AHi55sA2jb81AsHOU8EcIq6d/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-27.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-06-13</title><link>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</link><pubDate>Thu, 13 Jun 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/06/13/heir-meeting-2024-06-13/</guid><description>
+&lt;p>Here are the
+&lt;a href="https://docs.google.com/document/d/1rkPxOdbJY5J6qhsciZ0rfdj5_9PG_Ng-6USBUvLrEeU/edit?usp=sharing">notes&lt;/a>
+and
+&lt;a href="https://drive.google.com/file/d/19oQOYlvfeHoSwWqOC4hXZTBuaPIf1zQl/view?usp=sharing">video recording&lt;/a>
+from the HEIR meeting on 2024-06-13.&lt;/p></description></item><item><title>Blog: HEIR meeting 2024-02-08</title><link>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</link><pubDate>Thu, 08 Feb 2024 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2024/02/08/heir-meeting-2024-02-08/</guid><description>
 &lt;p>Here are the
 &lt;a href="https://docs.google.com/document/d/1w0Cc3YfbSNO4PYVdGjb8KpE5rql8zgoDG2X0Yseon_4/edit?usp=sharing">notes&lt;/a>
 and
 &lt;a href="https://drive.google.com/file/d/1rTsc-sWdRCqJWONrgGo5FV7CQd1S_OV-/view?usp=sharing">video recording&lt;/a>
-from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Blog: HEIR meeting 2023-08-29</title><link>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</link><pubDate>Tue, 05 Sep 2023 00:00:00 +0000</pubDate><guid>https://heir.dev/blog/2023/09/05/heir-meeting-2023-08-29/</guid><description>
-&lt;p>Here are the
-&lt;a href="https://docs.google.com/document/d/1Lax8Inby5Mg8BZLkcV_5hUiWH-roL22rtszfc0PBGmE/edit?usp=sharing">notes&lt;/a>
-from the HEIR meeting on 2023-08-29. There was an issue with the recording, so
-there is no video recording this week.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
+from the HEIR meeting on 2024-02-08.&lt;/p></description></item><item><title>Docs: BGV</title><link>https://heir.dev/docs/dialects/bgv/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://heir.dev/docs/dialects/bgv/</guid><description>
 &lt;!-- Autogenerated by mlir-tblgen; don't manually edit -->
 &lt;h1 id="bgv-dialect">&amp;lsquo;bgv&amp;rsquo; Dialect&lt;/h1>
 &lt;p>The BGV dialect defines the types and operations of the BGV and B/FV cryptosystem.&lt;/p>
