@@ -7,6 +7,8 @@ from jaxite.jaxite_bool import jaxite_bool
 
 
 bool_params = jaxite_bool.bool_params
+client_key_set_path = "client_key_set.pkl"
+server_key_set_path = "server_key_set.pkl"
 
 # Note: In real applications, a cryptographically secure seed needs to be
 # used.
@@ -14,10 +16,10 @@ lwe_rng = bool_params.get_lwe_rng_for_128_bit_security(seed=1)
 rlwe_rng = bool_params.get_rlwe_rng_for_128_bit_security(seed=1)
 params = bool_params.get_params_for_128_bit_security()
 
-if os.path.exists("client_key_set.pkl") and os.path.exists("server_key_set.pkl"):
-  with open("client_key_set.pkl", "rb") as f:
+if os.path.exists(client_key_set_path) and os.path.exists(server_key_set_path):
+  with open(client_key_set_path, "rb") as f:
     cks = pickle.load(f)
-  with open("server_key_set.pkl", "rb") as f:
+  with open(server_key_set_path, "rb") as f:
     sks = pickle.load(f)
   print("Client key set and Server key set loaded from file.")
 else:
@@ -26,7 +28,7 @@ else:
       lwe_rng=lwe_rng,
       rlwe_rng=rlwe_rng,
   )
-  with open("client_key_set.pkl", "wb") as f:
+  with open(client_key_set_path, "wb") as f:
     pickle.dump(cks, f)
   print("Client key set generated and saved to file.")
 
