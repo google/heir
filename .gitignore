@@ -20,6 +20,7 @@ venv
 **/dist/
 *.egg-info
 wheelhouse
+.python-version
 
 # heir_play
 scripts/jupyter/.ipynb_checkpoints/

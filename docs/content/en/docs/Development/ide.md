@@ -34,6 +34,9 @@ you encounter errors like `*.h.inc` not found, or syntax errors inside these
 files, you may need to build those targets and then re-run the `refresh_all`
 command above.
 
+Note that you will most likely also need to install the actual `clangd` language server,
+e.g., `sudo apt-get install clangd` on debian/ubuntu.
+
 ## ibazel file watcher
 
 [`ibazel`](https://github.com/bazelbuild/bazel-watcher) is a shell around
@@ -97,6 +100,25 @@ For the best experience, we recommend following these steps:
       "--completion-style=detailed",
       "--query-driver=**"
     ],
+  ```
+
+- For Python formatting, HEIR uses [pyink](https://github.com/google/pyink) for
+  autoformatting, which is a fork of the more commonly used
+  [black](https://github.com/psf/black) formatter with some patches to support
+  Google's internal style guide. To use it in VSCode, install `pyink` along with
+  other python utilities needed for HEIR: `pip install -r requirements.txt` and
+  install the
+  [Black Formatter](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
+  extension, then add the following to your VSCode user settings
+  (`.vscode/settings.json`):
+
+  ```json
+  "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "black-formatter.path": [
+      "path/to/pyink"
+  ]
   ```
 
 - It might be necessary to add the path to your buildifier to VSCode, though it
