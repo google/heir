@@ -128,8 +128,8 @@ class MemrefGlobalLoweringPattern final : public mlir::ConversionPattern {
         // forward the load to this value.
         OpBuilder builder(user);
         auto val = *(constantAttrIt + flattenedIndex.value());
-        auto cst = builder.create<mlir::arith::ConstantOp>(
-            user->getLoc(), resultElementType,
+        auto cst = mlir::arith::ConstantOp::create(
+            builder, user->getLoc(), resultElementType,
             mlir::cast<mlir::TypedAttr>(val));
         rewriter.replaceOp(user, cst);
       }

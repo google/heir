@@ -378,9 +378,9 @@ class ConvertConvertLayout
       minUnusedInput = getMinUnusedInput(permutation);
     }
 
-    auto permuteOp = rewriter.create<tensor_ext::PermuteOp>(
-        op.getLoc(), adaptor.getValue(),
-        rewriter.getI64TensorAttr(permutation));
+    auto permuteOp =
+        tensor_ext::PermuteOp::create(rewriter, op.getLoc(), adaptor.getValue(),
+                                      rewriter.getI64TensorAttr(permutation));
     permuteOp->setAttr(kLayoutAttrName, op->getAttr(kLayoutAttrName));
     setMaterializedAttr(permuteOp);
     rewriter.replaceOp(op, permuteOp);
@@ -620,8 +620,8 @@ class ConvertLinalgReduce
                      fixedIndices, fixedValues);
       extendPartialPermutation(permutation);
 
-      auto permuteOp = b.create<tensor_ext::PermuteOp>(
-          input, b.getI64TensorAttr(permutation));
+      auto permuteOp = tensor_ext::PermuteOp::create(
+          b, input, b.getI64TensorAttr(permutation));
 
       SmallVector<Value> operands = {result, permuteOp};
       SmallVector<Type> newResultTypes = {permuteOp.getType()};
@@ -724,9 +724,9 @@ struct ConvertLinalgMatvec
     Value accumulator = result;
     for (int index = 0; index < numRotations; ++index) {
       // construct vector.rotate(i)
-      auto rotationIndexOp = b.create<arith::ConstantIntOp>(index, 64);
+      auto rotationIndexOp = arith::ConstantIntOp::create(b, index, 64);
       auto rotateOp =
-          b.create<tensor_ext::RotateOp>(packedVector, rotationIndexOp);
+          tensor_ext::RotateOp::create(b, packedVector, rotationIndexOp);
 
       // get the corresponding element of the ciphertext tensor,
       // which is row i
@@ -736,8 +736,8 @@ struct ConvertLinalgMatvec
           b.getIndexAttr(1), b.getIndexAttr(packedMatrixType.getShape()[1])};
       SmallVector<OpFoldResult> strides = {b.getIndexAttr(1),
                                            b.getIndexAttr(1)};
-      auto extractRowOp = b.create<tensor::ExtractSliceOp>(
-          packedVectorType, packedMatrix, offsets, sizes, strides);
+      auto extractRowOp = tensor::ExtractSliceOp::create(
+          b, packedVectorType, packedMatrix, offsets, sizes, strides);
 
       Operation *mulOp = b.create(
           OperationState(op->getLoc(), mulOpName,
@@ -770,9 +770,9 @@ struct ConvertLinalgMatvec
     int64_t shift = matrixNumCols / 2;
 
     for (int64_t i = 0; i < numShifts; ++i) {
-      auto shiftAmountOp = b.create<arith::ConstantIntOp>(shift, 64);
+      auto shiftAmountOp = arith::ConstantIntOp::create(b, shift, 64);
       auto rotateOp =
-          b.create<tensor_ext::RotateOp>(summedShifts, shiftAmountOp);
+          tensor_ext::RotateOp::create(b, summedShifts, shiftAmountOp);
       auto *addOp = b.create(OperationState(
           op->getLoc(), addOpName, {summedShifts, rotateOp.getResult()},
           {rotateOp.getResult().getType()}));
@@ -800,16 +800,17 @@ struct ConvertLinalgMatvec
     TypedAttr padAttr =
         DenseElementsAttr::get(cast<ShapedType>(result.getType()),
                                layoutAttr.getAlignment().getPaddingValue());
-    auto zeroOp = b.create<arith::ConstantOp>(result.getType(), padAttr);
+    auto zeroOp = arith::ConstantOp::create(b, result.getType(), padAttr);
 
     // insert a slice of 1's in the first n of the zeros tensor to make a mask
     SmallVector<int64_t> prefixShape = {matrixNumRows};
     RankedTensorType prefixType =
         RankedTensorType::get(prefixShape, elementType);
     auto oneOp =
-        b.create<arith::ConstantOp>(prefixType, b.getOneAttr(prefixType));
-    auto createMaskOp = b.create<tensor::InsertSliceOp>(
-        oneOp, zeroOp, ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
+        arith::ConstantOp::create(b, prefixType, b.getOneAttr(prefixType));
+    auto createMaskOp = tensor::InsertSliceOp::create(
+        b, oneOp, zeroOp, ArrayRef<Value>{}, ArrayRef<Value>{},
+        ArrayRef<Value>{},
         /*offsets=*/ArrayRef<int64_t>{0},
         /*sizes=*/ArrayRef{matrixNumRows}, /*strides=*/ArrayRef<int64_t>{1});
     auto *applyMaskOp = b.create(OperationState(op->getLoc(), mulOpName,
@@ -852,15 +853,15 @@ Value makeMask(ContextAwareConversionPatternRewriter &rewriter, Location loc,
   // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
   // single value we can use to build a mask.
   // A tensor of zeros
-  auto maskHolder = rewriter.create<arith::ConstantOp>(
-      loc, ciphertextSemanticType,
-      rewriter.getZeroAttr(ciphertextSemanticType));
+  auto maskHolder =
+      arith::ConstantOp::create(rewriter, loc, ciphertextSemanticType,
+                                rewriter.getZeroAttr(ciphertextSemanticType));
   // A scalar 1
-  auto one = rewriter.create<arith::ConstantOp>(
-      loc, ciphertextSemanticType.getElementType(),
+  auto one = arith::ConstantOp::create(
+      rewriter, loc, ciphertextSemanticType.getElementType(),
       rewriter.getOneAttr(ciphertextSemanticType.getElementType()));
   // insert 1 into the right index
-  auto mask = rewriter.create<tensor::InsertOp>(loc, one, maskHolder, index);
+  auto mask = tensor::InsertOp::create(rewriter, loc, one, maskHolder, index);
   setMaterializedAttr({maskHolder, one, mask});
   return mask.getResult();
 }
@@ -871,14 +872,15 @@ Value makeInverseMask(ContextAwareConversionPatternRewriter &rewriter,
   // The ciphertext tensor is a 1D tensor, so the applyOp's result is a
   // single value we can use to build a mask.
   // A tensor of ones
-  auto maskHolder = rewriter.create<arith::ConstantOp>(
-      loc, ciphertextSemanticType, rewriter.getOneAttr(ciphertextSemanticType));
+  auto maskHolder =
+      arith::ConstantOp::create(rewriter, loc, ciphertextSemanticType,
+                                rewriter.getOneAttr(ciphertextSemanticType));
   // A scalar 0
-  auto one = rewriter.create<arith::ConstantOp>(
-      loc, ciphertextSemanticType.getElementType(),
+  auto one = arith::ConstantOp::create(
+      rewriter, loc, ciphertextSemanticType.getElementType(),
       rewriter.getZeroAttr(ciphertextSemanticType.getElementType()));
   // insert 0 into the right index
-  auto mask = rewriter.create<tensor::InsertOp>(loc, one, maskHolder, index);
+  auto mask = tensor::InsertOp::create(rewriter, loc, one, maskHolder, index);
   setMaterializedAttr({maskHolder, one, mask});
   return mask.getResult();
 }
@@ -926,8 +928,8 @@ class ConvertTensorExtract
              << "mismatching number of indices (" << adaptor.getIndices().size()
              << ") for map " << mapStr;
     }
-    auto applyOp = rewriter.create<affine::AffineApplyOp>(
-        op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
+    auto applyOp = affine::AffineApplyOp::create(
+        rewriter, op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
 
     RankedTensorType ciphertextSemanticType =
         cast<RankedTensorType>(adaptor.getTensor().getType());
@@ -954,8 +956,8 @@ class ConvertTensorExtract
                        {ciphertextSemanticType}));
 
     // Rotate left to the first position
-    auto rotateOp = rewriter.create<tensor_ext::RotateOp>(
-        op.getLoc(), mulOp->getResult(0), applyOp.getResult());
+    auto rotateOp = tensor_ext::RotateOp::create(
+        rewriter, op.getLoc(), mulOp->getResult(0), applyOp.getResult());
     Operation *result = rotateOp;
 
     // TODO(#1662): improve scalar layout materialization
@@ -1003,8 +1005,8 @@ class ConvertTensorInsert
 
     // The indices at which to insert must be materialized via the layout
     // mapping, which corresponds to inserting an affine.apply.
-    auto applyOp = rewriter.create<affine::AffineApplyOp>(
-        op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
+    auto applyOp = affine::AffineApplyOp::create(
+        rewriter, op.getLoc(), tensorLayout.getMap(), adaptor.getIndices());
 
     RankedTensorType ciphertextSemanticType =
         cast<RankedTensorType>(adaptor.getDest().getType());
@@ -1034,7 +1036,7 @@ class ConvertTensorInsert
     //
     //   [v, 0, 0, ..., 0]
     //
-    auto zero = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
+    auto zero = arith::ConstantIndexOp::create(rewriter, op.getLoc(), 0);
     Value mask = makeMask(rewriter, op.getLoc(), zero.getResult(),
                           ciphertextSemanticType);
     Operation *scalarMul = rewriter.create(
@@ -1045,8 +1047,8 @@ class ConvertTensorInsert
     //
     //   [0, ..., 0, v, 0, ..., 0]
     //
-    auto rotateOp = rewriter.create<tensor_ext::RotateOp>(
-        op.getLoc(), scalarMul->getResult(0), applyOp.getResult());
+    auto rotateOp = tensor_ext::RotateOp::create(
+        rewriter, op.getLoc(), scalarMul->getResult(0), applyOp.getResult());
 
     // Inverse-mask the destination tensor so there's a zero at the target
     // value

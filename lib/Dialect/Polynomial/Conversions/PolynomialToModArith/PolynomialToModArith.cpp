@@ -132,12 +132,13 @@ Value getConstantCoefficient(Type type, int64_t value,
                              ImplicitLocOpBuilder &builder) {
   return llvm::TypeSwitch<Type, Value>(type)
       .Case<IntegerType>([&](auto intTy) {
-        return builder.create<arith::ConstantOp>(
-            builder.getIntegerAttr(intTy, value));
+        return arith::ConstantOp::create(builder,
+                                         builder.getIntegerAttr(intTy, value));
       })
       .Case<ModArithType>([&](ModArithType modTy) {
-        return builder.create<mod_arith::ConstantOp>(
-            modTy, IntegerAttr::get(modTy.getModulus().getType(), value));
+        return mod_arith::ConstantOp::create(
+            builder, modTy,
+            IntegerAttr::get(modTy.getModulus().getType(), value));
       })
       .Default([&](Type ty) {
         assert(false && "unsupported coefficient type");
@@ -197,9 +198,9 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
       high.push_back(rewriter.getIndexAttr(resultShape - inputShape));
 
       auto padValue = getConstantCoefficient(resultEltTy, 0, b);
-      coeffValue = b.create<tensor::PadOp>(typeInfo.tensorType, coeffValue, low,
-                                           high, padValue,
-                                           /*nofold=*/false);
+      coeffValue = tensor::PadOp::create(b, typeInfo.tensorType, coeffValue,
+                                         low, high, padValue,
+                                         /*nofold=*/false);
     }
 
     rewriter.replaceOp(op, coeffValue);
@@ -289,8 +290,8 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
         .Case<ModArithType>([&](ModArithType intTy) {
           auto intTensorType = RankedTensorType::get(
               typeInfo.tensorType.getShape(), intTy.getModulus().getType());
-          auto constOp = b.create<arith::ConstantOp>(
-              DenseElementsAttr::get(intTensorType, coeffs));
+          auto constOp = arith::ConstantOp::create(
+              b, DenseElementsAttr::get(intTensorType, coeffs));
           rewriter.replaceOpWithNewOp<mod_arith::EncapsulateOp>(
               op, typeInfo.tensorType, constOp.getResult());
           return success();
@@ -319,14 +320,15 @@ struct ConvertMonomial : public OpConversionPattern<MonomialOp> {
 
     auto storageTensorType = RankedTensorType::get(
         typeInfo.tensorType.getShape(), typeInfo.coefficientStorageType);
-    auto tensor = b.create<arith::ConstantOp>(DenseElementsAttr::get(
-        storageTensorType,
-        b.getIntegerAttr(typeInfo.coefficientStorageType, 0)));
+    auto tensor = arith::ConstantOp::create(
+        b, DenseElementsAttr::get(
+               storageTensorType,
+               b.getIntegerAttr(typeInfo.coefficientStorageType, 0)));
 
     Value result = tensor.getResult();
     if (isa<ModArithType>(
             typeInfo.polynomialType.getRing().getCoefficientType())) {
-      result = b.create<mod_arith::EncapsulateOp>(typeInfo.tensorType, tensor)
+      result = mod_arith::EncapsulateOp::create(b, typeInfo.tensorType, tensor)
                    .getResult();
     }
     rewriter.replaceOpWithNewOp<tensor::InsertOp>(op, adaptor.getCoefficient(),
@@ -359,14 +361,15 @@ struct ConvertMulScalar : public OpConversionPattern<MulScalarOp> {
     // directly.
     auto storageTensorType = RankedTensorType::get(
         typeInfo.tensorType.getShape(), coeffType.getModulus().getType());
-    auto tensor = b.create<tensor::SplatOp>(
-        b.create<mod_arith::ExtractOp>(storageTensorType.getElementType(),
-                                       adaptor.getScalar()),
+    auto tensor = tensor::SplatOp::create(
+        b,
+        mod_arith::ExtractOp::create(b, storageTensorType.getElementType(),
+                                     adaptor.getScalar()),
         storageTensorType);
     auto modArithTensor =
-        b.create<mod_arith::EncapsulateOp>(typeInfo.tensorType, tensor);
+        mod_arith::EncapsulateOp::create(b, typeInfo.tensorType, tensor);
     auto mulOp =
-        b.create<mod_arith::MulOp>(adaptor.getPolynomial(), modArithTensor);
+        mod_arith::MulOp::create(b, adaptor.getPolynomial(), modArithTensor);
     rewriter.replaceOp(op, mulOp);
     return success();
   }
@@ -419,8 +422,9 @@ struct ConvertMonicMonomialMul
     // which requires a modular reduction step. But because the verifier
     // requires the ring to have a specific structure (x^n - 1), this op
     // can be implemented as a cyclic shift with wraparound.
-    auto outputTensorContainer = b.create<tensor::EmptyOp>(
-        typeInfo.tensorType.getShape(), typeInfo.tensorType.getElementType());
+    auto outputTensorContainer =
+        tensor::EmptyOp::create(b, typeInfo.tensorType.getShape(),
+                                typeInfo.tensorType.getElementType());
 
     RankedTensorType dynamicSliceType = RankedTensorType::get(
         ShapedType::kDynamic, typeInfo.tensorType.getElementType());
@@ -433,15 +437,16 @@ struct ConvertMonicMonomialMul
     // the resulting output is
     //
     //   [5, 6 | 0, 1, 2, 3, 4]
-    auto constTensorDim = b.create<arith::ConstantOp>(
-        b.getIndexType(), b.getIndexAttr(typeInfo.tensorType.getShape()[0]));
+    auto constTensorDim = arith::ConstantOp::create(
+        b, b.getIndexType(), b.getIndexAttr(typeInfo.tensorType.getShape()[0]));
     auto splitPoint =
-        b.create<arith::SubIOp>(constTensorDim, adaptor.getMonomialDegree());
+        arith::SubIOp::create(b, constTensorDim, adaptor.getMonomialDegree());
 
     SmallVector<OpFoldResult> firstHalfExtractOffsets{b.getIndexAttr(0)};
     SmallVector<OpFoldResult> firstHalfExtractSizes{splitPoint.getResult()};
     SmallVector<OpFoldResult> strides{b.getIndexAttr(1)};
-    auto firstHalfExtractOp = b.create<tensor::ExtractSliceOp>(
+    auto firstHalfExtractOp = tensor::ExtractSliceOp::create(
+        b,
         /*resultType=*/dynamicSliceType,
         /*source=*/adaptor.getInput(), firstHalfExtractOffsets,
         firstHalfExtractSizes, strides);
@@ -449,7 +454,8 @@ struct ConvertMonicMonomialMul
     SmallVector<OpFoldResult> secondHalfExtractOffsets{splitPoint.getResult()};
     SmallVector<OpFoldResult> secondHalfExtractSizes{
         adaptor.getMonomialDegree()};
-    auto secondHalfExtractOp = b.create<tensor::ExtractSliceOp>(
+    auto secondHalfExtractOp = tensor::ExtractSliceOp::create(
+        b,
         /*resultType=*/dynamicSliceType,
         /*source=*/adaptor.getInput(), secondHalfExtractOffsets,
         secondHalfExtractSizes, strides);
@@ -457,7 +463,8 @@ struct ConvertMonicMonomialMul
     SmallVector<OpFoldResult> firstHalfInsertOffsets{
         adaptor.getMonomialDegree()};
     SmallVector<OpFoldResult> firstHalfInsertSizes{splitPoint.getResult()};
-    auto firstHalfInsertOp = b.create<tensor::InsertSliceOp>(
+    auto firstHalfInsertOp = tensor::InsertSliceOp::create(
+        b,
         /*source=*/firstHalfExtractOp.getResult(),
         /*dest=*/outputTensorContainer.getResult(), firstHalfInsertOffsets,
         firstHalfInsertSizes, strides);
@@ -465,7 +472,8 @@ struct ConvertMonicMonomialMul
     SmallVector<OpFoldResult> secondHalfInsertOffsets{b.getIndexAttr(0)};
     SmallVector<OpFoldResult> secondHalfInsertSizes{
         adaptor.getMonomialDegree()};
-    auto secondHalfInsertOp = b.create<tensor::InsertSliceOp>(
+    auto secondHalfInsertOp = tensor::InsertSliceOp::create(
+        b,
         /*source=*/secondHalfExtractOp.getResult(),
         /*dest=*/firstHalfInsertOp.getResult(), secondHalfInsertOffsets,
         secondHalfInsertSizes, strides);
@@ -493,13 +501,14 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
     if (failed(res)) return failure();
     auto typeInfo = res.value();
 
-    auto c0 = b.create<arith::ConstantOp>(
-        b.getIntegerAttr(typeInfo.coefficientStorageType, 0));
-    auto c1 = b.create<arith::ConstantOp>(b.getIndexAttr(1));
-    auto initIndex = b.create<arith::ConstantOp>(
-        b.getIndexAttr(tensorType.getShape()[0] - 1));
+    auto c0 = arith::ConstantOp::create(
+        b, b.getIntegerAttr(typeInfo.coefficientStorageType, 0));
+    auto c1 = arith::ConstantOp::create(b, b.getIndexAttr(1));
+    auto initIndex = arith::ConstantOp::create(
+        b, b.getIndexAttr(tensorType.getShape()[0] - 1));
 
-    auto degreeOp = b.create<scf::WhileOp>(
+    auto degreeOp = scf::WhileOp::create(
+        b,
         /*resultTypes=*/
         TypeRange{b.getIndexType()},
         /*operands=*/ValueRange{initIndex.getResult()},
@@ -507,25 +516,25 @@ struct ConvertLeadingTerm : public OpConversionPattern<LeadingTermOp> {
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
           Value index = args[0];
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-          auto coeff = b.create<tensor::ExtractOp>(coeffs, ValueRange{index});
-          auto normalizedCoeff = b.create<mod_arith::ReduceOp>(coeff);
-          auto extractedCoeff = b.create<mod_arith::ExtractOp>(
-              typeInfo.coefficientStorageType, normalizedCoeff);
-          auto cmpOp = b.create<arith::CmpIOp>(arith::CmpIPredicate::eq,
-                                               extractedCoeff, c0);
-          b.create<scf::ConditionOp>(cmpOp.getResult(), index);
+          auto coeff = tensor::ExtractOp::create(b, coeffs, ValueRange{index});
+          auto normalizedCoeff = mod_arith::ReduceOp::create(b, coeff);
+          auto extractedCoeff = mod_arith::ExtractOp::create(
+              b, typeInfo.coefficientStorageType, normalizedCoeff);
+          auto cmpOp = arith::CmpIOp::create(b, arith::CmpIPredicate::eq,
+                                             extractedCoeff, c0);
+          scf::ConditionOp::create(b, cmpOp.getResult(), index);
         },
         /*afterBuilder=*/
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           Value currentIndex = args[0];
           auto nextIndex =
-              b.create<arith::SubIOp>(currentIndex, c1.getResult());
-          b.create<scf::YieldOp>(nextIndex.getResult());
+              arith::SubIOp::create(b, currentIndex, c1.getResult());
+          scf::YieldOp::create(b, nextIndex.getResult());
         });
     auto degree = degreeOp.getResult(0);
     auto leadingCoefficient =
-        b.create<tensor::ExtractOp>(coeffs, ValueRange{degree});
+        tensor::ExtractOp::create(b, coeffs, ValueRange{degree});
     rewriter.replaceOp(op, ValueRange{degree, leadingCoefficient.getResult()});
     return success();
   }
@@ -549,13 +558,13 @@ struct ConvertPolyBinop : public OpConversionPattern<SourceOp> {
     return llvm::TypeSwitch<Type, LogicalResult>(typeInfo.coefficientType)
         .template Case<IntegerType>([&](auto intTy) {
           auto result =
-              b.create<TargetArithOp>(adaptor.getLhs(), adaptor.getRhs());
+              TargetArithOp::create(b, adaptor.getLhs(), adaptor.getRhs());
           rewriter.replaceOp(op, result);
           return success();
         })
         .template Case<ModArithType>([&](ModArithType intTy) {
           auto result =
-              b.create<TargetModArithOp>(adaptor.getLhs(), adaptor.getRhs());
+              TargetModArithOp::create(b, adaptor.getLhs(), adaptor.getRhs());
           rewriter.replaceOp(op, result);
           return success();
         })
@@ -618,14 +627,16 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
     auto intStorageType = coeffType.getModulus().getType();
     auto storageTensorType =
         RankedTensorType::get(polymulTensorType.getShape(), intStorageType);
-    auto tensor = b.create<arith::ConstantOp>(DenseElementsAttr::get(
-        storageTensorType, b.getIntegerAttr(intStorageType, 0)));
+    auto tensor = arith::ConstantOp::create(
+        b, DenseElementsAttr::get(storageTensorType,
+                                  b.getIntegerAttr(intStorageType, 0)));
     // The tensor of zeros in which to store the naive polymul output from the
     // linalg.generic op below.
     auto polymulOutput =
-        b.create<mod_arith::EncapsulateOp>(polymulTensorType, tensor);
+        mod_arith::EncapsulateOp::create(b, polymulTensorType, tensor);
 
-    auto polyMul = b.create<linalg::GenericOp>(
+    auto polyMul = linalg::GenericOp::create(
+        b,
         /*resultTypes=*/polymulTensorType,
         /*inputs=*/adaptor.getOperands(),
         /*outputs=*/polymulOutput.getResult(),
@@ -637,9 +648,9 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
           auto lhs = args[0];
           auto rhs = args[1];
           auto accum = args[2];
-          auto mulOp = b.create<mod_arith::MulOp>(lhs, rhs);
-          auto addOp = b.create<mod_arith::AddOp>(mulOp, accum);
-          b.create<linalg::YieldOp>(addOp.getResult());
+          auto mulOp = mod_arith::MulOp::create(b, lhs, rhs);
+          auto addOp = mod_arith::AddOp::create(b, mulOp, accum);
+          linalg::YieldOp::create(b, addOp.getResult());
         });
 
     auto postReductionType = convertPolynomialType(typeInfo.polynomialType);
@@ -746,7 +757,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
       llvm::formatv("__heir_poly_mod_{0}_{1}", coeffTyId,
                     ring.getPolynomialModulus().getPolynomial().toIdentifier());
 
-  auto funcOp = builder.create<func::FuncOp>(funcName, funcType);
+  auto funcOp = func::FuncOp::create(builder, funcName, funcType);
   LLVM::linkage::Linkage inlineLinkage = LLVM::linkage::Linkage::LinkonceODR;
   Attribute linkage =
       LLVM::LinkageAttr::get(builder.getContext(), inlineLinkage);
@@ -796,7 +807,7 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
 
   // Start by converting the input tensor back to a poly.
   auto fromTensorOp =
-      builder.create<FromTensorOp>(remRingPolynomialType, coeffsArg);
+      FromTensorOp::create(builder, remRingPolynomialType, coeffsArg);
 
   // If the leading coefficient of the divisor has no inverse, we can't do
   // division. The lowering must fail:
@@ -812,12 +823,14 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   }
   auto divisorLcInverse = getConstantCoefficient(
       coeffTy, leadingCoefInverse.getSExtValue(), builder);
-  auto divisorDeg = builder.create<arith::ConstantOp>(
-      builder.getIndexType(), builder.getIndexAttr(divisor.getDegree()));
+  auto divisorDeg =
+      arith::ConstantOp::create(builder, builder.getIndexType(),
+                                builder.getIndexAttr(divisor.getDegree()));
 
   // while remainder.degree() >= divisorDeg:
   auto remainder = fromTensorOp.getResult();
-  auto whileOp = builder.create<scf::WhileOp>(
+  auto whileOp = scf::WhileOp::create(
+      builder,
       /*resultTypes=*/
       remainder.getType(),
       /*operands=*/remainder,
@@ -826,44 +839,45 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
         Value remainder = args[0];
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         // remainder.degree() >= divisorDeg
-        auto remainderLt = b.create<LeadingTermOp>(
-            b.getIndexType(), inputType.getElementType(), remainder);
-        auto cmpOp = b.create<arith::CmpIOp>(
-            arith::CmpIPredicate::sge, remainderLt.getDegree(), divisorDeg);
-        b.create<scf::ConditionOp>(cmpOp, remainder);
+        auto remainderLt = LeadingTermOp::create(
+            b, b.getIndexType(), inputType.getElementType(), remainder);
+        auto cmpOp = arith::CmpIOp::create(b, arith::CmpIPredicate::sge,
+                                           remainderLt.getDegree(), divisorDeg);
+        scf::ConditionOp::create(b, cmpOp, remainder);
       },
       /*afterBuilder=*/
       [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         Value remainder = args[0];
         // TODO(#97): move this out of the loop when it has ConstantLike trait
-        auto divisorOp = builder.create<ConstantOp>(
-            remRingPolynomialType,
+        auto divisorOp = ConstantOp::create(
+            builder, remRingPolynomialType,
             TypedIntPolynomialAttr::get(remRingPolynomialType, divisor));
 
         // monomialExponent = remainder.degree() - divisorDeg
-        auto ltOp = b.create<LeadingTermOp>(
-            b.getIndexType(), inputType.getElementType(), remainder);
+        auto ltOp = LeadingTermOp::create(
+            b, b.getIndexType(), inputType.getElementType(), remainder);
         auto monomialExponentOp =
-            b.create<arith::SubIOp>(ltOp.getDegree(), divisorDeg);
+            arith::SubIOp::create(b, ltOp.getDegree(), divisorDeg);
 
         // monomialDivisor = monomial(
         //   monomialExponent, remainder.leadingCoefficient() / divisorLC)
-        auto monomialLc =
-            b.create<mod_arith::MulOp>(ltOp.getCoefficient(), divisorLcInverse);
+        auto monomialLc = mod_arith::MulOp::create(b, ltOp.getCoefficient(),
+                                                   divisorLcInverse);
 
         // remainder -= monomialDivisor * divisor
-        auto scaledDivisor = b.create<MulScalarOp>(divisorOp, monomialLc);
-        auto remainderIncrement = b.create<MonicMonomialMulOp>(
-            scaledDivisor, monomialExponentOp.getResult());
-        auto nextRemainder = b.create<SubOp>(remainder, remainderIncrement);
+        auto scaledDivisor = MulScalarOp::create(b, divisorOp, monomialLc);
+        auto remainderIncrement = MonicMonomialMulOp::create(
+            b, scaledDivisor, monomialExponentOp.getResult());
+        auto nextRemainder = SubOp::create(b, remainder, remainderIncrement);
 
-        b.create<scf::YieldOp>(nextRemainder.getResult());
+        scf::YieldOp::create(b, nextRemainder.getResult());
       });
 
   // The result remainder is still in the larger ring, so we need to convert to
   // the smaller ring.
-  auto toTensorOp = builder.create<ToTensorOp>(inputType, whileOp.getResult(0));
+  auto toTensorOp =
+      ToTensorOp::create(builder, inputType, whileOp.getResult(0));
 
   // Smaller ring has a coefficient modulus that needs to be accounted for.
   // Probably a better way to define a splatted dense elements attr, but either
@@ -872,10 +886,10 @@ func::FuncOp PolynomialToModArith::buildPolynomialModFunc(FunctionType funcType,
   SmallVector<OpFoldResult> sizes{
       builder.getIndexAttr(resultType.getShape()[0])};
   SmallVector<OpFoldResult> strides{builder.getIndexAttr(1)};
-  auto extractedTensor = builder.create<tensor::ExtractSliceOp>(
-      resultType, toTensorOp.getResult(), offsets, sizes, strides);
+  auto extractedTensor = tensor::ExtractSliceOp::create(
+      builder, resultType, toTensorOp.getResult(), offsets, sizes, strides);
 
-  builder.create<func::ReturnOp>(extractedTensor.getResult());
+  func::ReturnOp::create(builder, extractedTensor.getResult());
   return funcOp;
 }
 
@@ -920,8 +934,8 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
   for (unsigned index = 0; index < degree; index++) {
     _indices[index] = APInt(indexBitWidth, index).reverseBits();
   }
-  auto indices = b.create<arith::ConstantOp>(
-      indicesType, DenseElementsAttr::get(indicesType, _indices));
+  auto indices = arith::ConstantOp::create(
+      b, indicesType, DenseElementsAttr::get(indicesType, _indices));
 
   SmallVector<utils::IteratorType> iteratorTypes(1,
                                                  utils::IteratorType::parallel);
@@ -929,10 +943,11 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
   bindDims(b.getContext(), d0);
   SmallVector<AffineMap> indexingMaps = {AffineMap::get(1, 0, {d0}),
                                          AffineMap::get(1, 0, {d0})};
-  auto out = b.create<arith::ConstantOp>(tensorType,
-                                         DenseElementsAttr::get(tensorType, 0));
-  auto modOut = b.create<mod_arith::EncapsulateOp>(modType, out);
-  auto shuffleOp = b.create<linalg::GenericOp>(
+  auto out = arith::ConstantOp::create(b, tensorType,
+                                       DenseElementsAttr::get(tensorType, 0));
+  auto modOut = mod_arith::EncapsulateOp::create(b, modType, out);
+  auto shuffleOp = linalg::GenericOp::create(
+      b,
       /*resultTypes=*/TypeRange{modType},
       /*inputs=*/ValueRange{indices.getResult()},
       /*outputs=*/ValueRange{modOut.getResult()},
@@ -942,25 +957,25 @@ static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
       [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
         auto idx = args[0];
-        auto elem = b.create<tensor::ExtractOp>(tensor, ValueRange{idx});
-        b.create<linalg::YieldOp>(elem.getResult());
+        auto elem = tensor::ExtractOp::create(b, tensor, ValueRange{idx});
+        linalg::YieldOp::create(b, elem.getResult());
       });
   return shuffleOp.getResult(0);
 }
 
 static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder &b, Value A, Value B,
                                       Value root) {
-  auto rootB = b.create<mod_arith::MulOp>(B, root);
-  auto ctPlus = b.create<mod_arith::AddOp>(A, rootB);
-  auto ctMinus = b.create<mod_arith::SubOp>(A, rootB);
+  auto rootB = mod_arith::MulOp::create(b, B, root);
+  auto ctPlus = mod_arith::AddOp::create(b, A, rootB);
+  auto ctMinus = mod_arith::SubOp::create(b, A, rootB);
   return {ctPlus, ctMinus};
 }
 
 static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
                                       Value root) {
-  auto gsPlus = b.create<mod_arith::AddOp>(A, B);
-  auto gsMinus = b.create<mod_arith::SubOp>(A, B);
-  auto gsMinusRoot = b.create<mod_arith::MulOp>(gsMinus, root);
+  auto gsPlus = mod_arith::AddOp::create(b, A, B);
+  auto gsMinus = mod_arith::SubOp::create(b, A, B);
+  auto gsMinusRoot = mod_arith::MulOp::create(b, gsMinus, root);
   return {gsPlus, gsMinusRoot};
 }
 
@@ -981,10 +996,10 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
                         .trunc(root.getBitWidth());
   // Initialize the mod_arith roots constant
   auto rootsType = tensorType.clone({degree});
-  Value roots = b.create<arith::ConstantOp>(
-      rootsType,
+  Value roots = arith::ConstantOp::create(
+      b, rootsType,
       DenseElementsAttr::get(rootsType, precomputeRoots(root, cmod, degree)));
-  roots = b.create<mod_arith::EncapsulateOp>(modType, roots);
+  roots = mod_arith::EncapsulateOp::create(b, modType, roots);
 
   // Here is a slightly modified implementation of the standard iterative NTT
   // computation using Cooley-Turkey/Gentleman-Sande butterfly. For reader
@@ -1023,26 +1038,26 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
   //      (A + B % cmod, (A - B) * root % cmod)
 
   // Initialize the variables
-  Value initialValue = b.create<mod_arith::ReduceOp>(input);
+  Value initialValue = mod_arith::ReduceOp::create(b, input);
   Value initialBatchSize =
-      b.create<arith::ConstantIndexOp>(inverse ? degree : 2);
+      arith::ConstantIndexOp::create(b, inverse ? degree : 2);
   Value initialRootExp =
-      b.create<arith::ConstantIndexOp>(inverse ? 1 : degree / 2);
-  Value zero = b.create<arith::ConstantIndexOp>(0);
-  Value one = b.create<arith::ConstantIndexOp>(1);
-  Value two = b.create<arith::ConstantIndexOp>(2);
-  Value n = b.create<arith::ConstantIndexOp>(degree);
+      arith::ConstantIndexOp::create(b, inverse ? 1 : degree / 2);
+  Value zero = arith::ConstantIndexOp::create(b, 0);
+  Value one = arith::ConstantIndexOp::create(b, 1);
+  Value two = arith::ConstantIndexOp::create(b, 2);
+  Value n = arith::ConstantIndexOp::create(b, degree);
 
   // Define index affine mappings
   AffineExpr x, y;
   bindDims(b.getContext(), x, y);
 
   Value stagesLb = zero;
-  Value stagesUb = b.create<arith::ConstantIndexOp>(stages);
+  Value stagesUb = arith::ConstantIndexOp::create(b, stages);
   Value stagesStep = one;
 
-  auto stagesLoop = b.create<scf::ForOp>(
-      stagesLb, stagesUb, stagesStep,
+  auto stagesLoop = scf::ForOp::create(
+      b, stagesLb, stagesUb, stagesStep,
       /*iterArgs=*/ValueRange{initialValue, initialBatchSize, initialRootExp},
       /*bodyBuilder=*/
       [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
@@ -1052,23 +1067,23 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
         Value rootExp = args[2];
 
         Value innerLb = zero;
-        Value innerUb = b.create<arith::FloorDivSIOp>(n, batchSize);
+        Value innerUb = arith::FloorDivSIOp::create(b, n, batchSize);
         Value innerStep = one;
 
-        auto innerLoop = b.create<scf::ForOp>(
-            innerLb, innerUb, innerStep,
+        auto innerLoop = scf::ForOp::create(
+            b, innerLb, innerUb, innerStep,
             /*iterArgs=*/args[0],
             /*bodyBuilder=*/
             [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
                 ValueRange args) {
               ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-              Value indexK = b.create<arith::MulIOp>(batchSize, index);
+              Value indexK = arith::MulIOp::create(b, batchSize, index);
               Value arithLb = zero;
-              Value arithUb = b.create<arith::FloorDivSIOp>(batchSize, two);
+              Value arithUb = arith::FloorDivSIOp::create(b, batchSize, two);
               Value arithStep = one;
 
-              auto arithLoop = b.create<scf::ForOp>(
-                  arithLb, arithUb, arithStep, /*iterArgs=*/args[0],
+              auto arithLoop = scf::ForOp::create(
+                  b, arithLb, arithUb, arithStep, /*iterArgs=*/args[0],
                   /*bodyBuilder=*/
                   [&](OpBuilder &nestedBuilder, Location nestedLoc,
                       Value indexJ, ValueRange args) {
@@ -1077,44 +1092,45 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
                     Value target = args[0];
 
                     // Get A: indexJ + indexK
-                    Value indexA = b.create<arith::AddIOp>(indexJ, indexK);
-                    Value A = b.create<tensor::ExtractOp>(target, indexA);
+                    Value indexA = arith::AddIOp::create(b, indexJ, indexK);
+                    Value A = tensor::ExtractOp::create(b, target, indexA);
 
                     // Get B: indexA + batchSize // 2
-                    Value indexB = b.create<arith::AddIOp>(indexA, arithUb);
-                    Value B = b.create<tensor::ExtractOp>(target, indexB);
+                    Value indexB = arith::AddIOp::create(b, indexA, arithUb);
+                    Value B = tensor::ExtractOp::create(b, target, indexB);
 
                     // Get root: (2 * indexJ + 1) * rootExp
-                    Value rootIndex = b.create<arith::MulIOp>(
-                        b.create<arith::AddIOp>(
-                            b.create<arith::MulIOp>(two, indexJ), one),
+                    Value rootIndex = arith::MulIOp::create(
+                        b,
+                        arith::AddIOp::create(
+                            b, arith::MulIOp::create(b, two, indexJ), one),
                         rootExp);
-                    Value root = b.create<tensor::ExtractOp>(roots, rootIndex);
+                    Value root = tensor::ExtractOp::create(b, roots, rootIndex);
 
                     auto bflyResult =
                         inverse ? bflyGS(b, A, B, root) : bflyCT(b, A, B, root);
 
                     // Store updated values into accumulator
-                    auto insertPlus = b.create<tensor::InsertOp>(
-                        bflyResult.first, target, indexA);
-                    auto insertMinus = b.create<tensor::InsertOp>(
-                        bflyResult.second, insertPlus, indexB);
+                    auto insertPlus = tensor::InsertOp::create(
+                        b, bflyResult.first, target, indexA);
+                    auto insertMinus = tensor::InsertOp::create(
+                        b, bflyResult.second, insertPlus, indexB);
 
-                    b.create<scf::YieldOp>(insertMinus.getResult());
+                    scf::YieldOp::create(b, insertMinus.getResult());
                   });
 
-              b.create<scf::YieldOp>(arithLoop.getResult(0));
+              scf::YieldOp::create(b, arithLoop.getResult(0));
             });
 
         batchSize = inverse
-                        ? b.create<arith::DivUIOp>(batchSize, two).getResult()
-                        : b.create<arith::MulIOp>(batchSize, two).getResult();
+                        ? arith::DivUIOp::create(b, batchSize, two).getResult()
+                        : arith::MulIOp::create(b, batchSize, two).getResult();
 
-        rootExp = inverse ? b.create<arith::MulIOp>(rootExp, two).getResult()
-                          : b.create<arith::DivUIOp>(rootExp, two).getResult();
+        rootExp = inverse ? arith::MulIOp::create(b, rootExp, two).getResult()
+                          : arith::DivUIOp::create(b, rootExp, two).getResult();
 
-        b.create<scf::YieldOp>(
-            ValueRange{innerLoop.getResult(0), batchSize, rootExp});
+        scf::YieldOp::create(
+            b, ValueRange{innerLoop.getResult(0), batchSize, rootExp});
       });
 
   Value result = stagesLoop.getResult(0);
@@ -1122,10 +1138,10 @@ static Value fastNTT(ImplicitLocOpBuilder &b, RingAttr ring,
     APInt degreeInv =
         multiplicativeInverse(APInt(cmod.getBitWidth(), degree), cmod)
             .trunc(root.getBitWidth());
-    Value nInv = b.create<arith::ConstantOp>(
-        rootsType, DenseElementsAttr::get(rootsType, degreeInv));
-    nInv = b.create<mod_arith::EncapsulateOp>(modType, nInv);
-    result = b.create<mod_arith::MulOp>(result, nInv);
+    Value nInv = arith::ConstantOp::create(
+        b, rootsType, DenseElementsAttr::get(rootsType, degreeInv));
+    nInv = mod_arith::EncapsulateOp::create(b, modType, nInv);
+    result = mod_arith::MulOp::create(b, result, nInv);
   }
 
   return result;
@@ -1176,7 +1192,7 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
     // Insert the ring encoding here to the input type
     auto outputType =
         RankedTensorType::get(inputType.getShape(), coeffType, ring);
-    auto intResult = b.create<tensor::CastOp>(outputType, nttResult);
+    auto intResult = tensor::CastOp::create(b, outputType, nttResult);
     rewriter.replaceOp(op, intResult);
 
     return success();
@@ -1216,7 +1232,7 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
 
     // Remove the encoded ring from input tensor type and convert to mod_arith
     // type
-    auto input = b.create<tensor::CastOp>(modType, adaptor.getInput());
+    auto input = tensor::CastOp::create(b, modType, adaptor.getInput());
     auto nttResult = fastNTT<true>(b, typeInfo.ringAttr, op.getRoot().value(),
                                    intTensorType, modType, input);
 

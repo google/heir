@@ -268,7 +268,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
   parseIOPorts(document, ioPorts);
 
   OpBuilder builder(context);
-  ModuleOp moduleOp = builder.create<ModuleOp>(builder.getUnknownLoc());
+  ModuleOp moduleOp = ModuleOp::create(builder, builder.getUnknownLoc());
   OwningOpRef<Operation *> opRef(moduleOp);
   moduleOp->setAttr(
       "cggi.circuit_name",
@@ -305,7 +305,7 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
 
   std::string funcName = std::string(document["circuit_name"].GetString());
   auto funcOp =
-      builder.create<func::FuncOp>(moduleOp->getLoc(), funcName, functionType);
+      func::FuncOp::create(builder, moduleOp->getLoc(), funcName, functionType);
   funcOp.setPrivate();
   auto *entryBlock = funcOp.addEntryBlock();
   builder.setInsertionPointToEnd(entryBlock);
@@ -375,8 +375,8 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
               builder
                   .create<arith::ConstantIndexOp>(funcOp.getLoc(), tensorIndex)
                   .getResult();
-          Value operand = builder.create<tensor::ExtractOp>(
-              funcOp.getLoc(), funcArg, indexValue);
+          Value operand = tensor::ExtractOp::create(builder, funcOp.getLoc(),
+                                                    funcArg, indexValue);
           operands.push_back(operand);
           inputPortNameToOperandIndex[localPortName] = operandIndex++;
         } else if (connectedPort.type == PortType::CELL) {
@@ -444,8 +444,8 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
         int lookupTable = parseLut(table.GetArray());
         lookupTables.push_back(lookupTable);
       }
-      op = builder.create<cggi::MultiLutLinCombOp>(
-          funcOp.getLoc(), resultTypes, operands, coefficients,
+      op = cggi::MultiLutLinCombOp::create(
+          builder, funcOp.getLoc(), resultTypes, operands, coefficients,
           builder.getDenseI32ArrayAttr(lookupTables));
     } else if (strcmp(cellType, "HomGateS") == 0) {
       SmallVector<int> coefficients;
@@ -455,23 +455,25 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
       // Only one output port, so just take the first LUT
       auto lookupTableJson = cell["tableT"].MemberBegin()->value.GetArray();
       int lookupTable = parseLut(lookupTableJson);
-      op = builder.create<cggi::LutLinCombOp>(
-          funcOp.getLoc(), resultTypes, operands, coefficients,
-          builder.getI32IntegerAttr(lookupTable));
+      op = cggi::LutLinCombOp::create(builder, funcOp.getLoc(), resultTypes,
+                                      operands, coefficients,
+                                      builder.getI32IntegerAttr(lookupTable));
     } else if (strcmp(cellType, "AND") == 0) {
-      op = builder.create<cggi::AndOp>(funcOp.getLoc(), resultTypes, operands);
+      op = cggi::AndOp::create(builder, funcOp.getLoc(), resultTypes, operands);
     } else if (strcmp(cellType, "NAND") == 0) {
-      op = builder.create<cggi::NandOp>(funcOp.getLoc(), resultTypes, operands);
+      op =
+          cggi::NandOp::create(builder, funcOp.getLoc(), resultTypes, operands);
     } else if (strcmp(cellType, "NOR") == 0) {
-      op = builder.create<cggi::NorOp>(funcOp.getLoc(), resultTypes, operands);
+      op = cggi::NorOp::create(builder, funcOp.getLoc(), resultTypes, operands);
     } else if (strcmp(cellType, "OR") == 0) {
-      op = builder.create<cggi::OrOp>(funcOp.getLoc(), resultTypes, operands);
+      op = cggi::OrOp::create(builder, funcOp.getLoc(), resultTypes, operands);
     } else if (strcmp(cellType, "XOR") == 0) {
-      op = builder.create<cggi::XorOp>(funcOp.getLoc(), resultTypes, operands);
+      op = cggi::XorOp::create(builder, funcOp.getLoc(), resultTypes, operands);
     } else if (strcmp(cellType, "XNOR") == 0) {
-      op = builder.create<cggi::XNorOp>(funcOp.getLoc(), resultTypes, operands);
+      op =
+          cggi::XNorOp::create(builder, funcOp.getLoc(), resultTypes, operands);
     } else if (strcmp(cellType, "NOT") == 0) {
-      op = builder.create<cggi::NotOp>(funcOp.getLoc(), resultTypes, operands);
+      op = cggi::NotOp::create(builder, funcOp.getLoc(), resultTypes, operands);
     } else {
       llvm::errs() << "Detected invalid JSON input: unknown cell type: "
                    << cellType << "\n";
@@ -506,12 +508,12 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
       LLVM_DEBUG(llvm::dbgs()
                  << "Output port " << portName << " is connected to input port "
                  << port.connectedInputPort.value() << "\n");
-      auto indexOp = builder.create<arith::ConstantIndexOp>(
-          funcOp.getLoc(),
+      auto indexOp = arith::ConstantIndexOp::create(
+          builder, funcOp.getLoc(),
           inputPortToTensorIndex[port.connectedInputPort.value()]);
       outputValues[outputPortToTensorIndex[portName]] =
-          builder.create<tensor::ExtractOp>(funcOp.getLoc(), funcArg,
-                                            indexOp.getResult());
+          tensor::ExtractOp::create(builder, funcOp.getLoc(), funcArg,
+                                    indexOp.getResult());
       continue;
     }
 
@@ -536,8 +538,8 @@ OwningOpRef<Operation *> translateFromAutoHog(llvm::StringRef inputString,
   }
 
   auto fromElementsOp =
-      builder.create<tensor::FromElementsOp>(funcOp.getLoc(), outputValues);
-  builder.create<func::ReturnOp>(funcOp.getLoc(), fromElementsOp.getResult());
+      tensor::FromElementsOp::create(builder, funcOp.getLoc(), outputValues);
+  func::ReturnOp::create(builder, funcOp.getLoc(), fromElementsOp.getResult());
   return opRef;
 }
 

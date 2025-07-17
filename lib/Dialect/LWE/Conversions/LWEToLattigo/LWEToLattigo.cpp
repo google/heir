@@ -235,8 +235,8 @@ struct ConvertRlweUnaryOp : public OpConversionPattern<UnaryOp> {
 
     Value evaluator = result.value();
     rewriter.replaceOp(
-        op, rewriter.create<LattigoUnaryOp>(
-                op.getLoc(),
+        op, LattigoUnaryOp::create(
+                rewriter, op.getLoc(),
                 this->typeConverter->convertType(op.getOutput().getType()),
                 evaluator, adaptor.getInput()));
     return success();
@@ -318,9 +318,10 @@ struct ConvertRlweSubPlainOp : public OpConversionPattern<PlainOp> {
     Value plaintext = adaptor.getLhs();
     Value ciphertext = adaptor.getRhs();
 
-    auto negated = rewriter.create<LattigoNegateOp>(
-        op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
-        evaluator, ciphertext);
+    auto negated = LattigoNegateOp::create(
+        rewriter, op.getLoc(),
+        this->typeConverter->convertType(op.getOutput().getType()), evaluator,
+        ciphertext);
     rewriter.replaceOpWithNewOp<LattigoAddOp>(
         op, this->typeConverter->convertType(op.getOutput().getType()),
         evaluator, negated, plaintext);
@@ -345,8 +346,8 @@ struct ConvertRlweRotateOp : public OpConversionPattern<RlweRotateOp> {
 
     Value evaluator = result.value();
     rewriter.replaceOp(
-        op, rewriter.create<LattigoRotateOp>(
-                op.getLoc(),
+        op, LattigoRotateOp::create(
+                rewriter, op.getLoc(),
                 this->typeConverter->convertType(op.getOutput().getType()),
                 evaluator, adaptor.getInput(), adaptor.getOffset()));
     return success();
@@ -367,8 +368,8 @@ struct ConvertRlweLevelReduceOp : public OpConversionPattern<LevelReduceOp> {
 
     Value evaluator = result.value();
     rewriter.replaceOp(
-        op, rewriter.create<LattigoLevelReduceOp>(
-                op.getLoc(),
+        op, LattigoLevelReduceOp::create(
+                rewriter, op.getLoc(),
                 this->typeConverter->convertType(op.getOutput().getType()),
                 evaluator, adaptor.getInput(), op.getLevelToDrop()));
     return success();
@@ -394,9 +395,9 @@ struct ConvertRlweEncodeOp : public OpConversionPattern<EncodeOp> {
     Value params = result2.value();
 
     Value input = adaptor.getInput();
-    auto alloc = rewriter.create<AllocOp>(
-        op.getLoc(), this->typeConverter->convertType(op.getOutput().getType()),
-        params);
+    auto alloc = AllocOp::create(
+        rewriter, op.getLoc(),
+        this->typeConverter->convertType(op.getOutput().getType()), params);
 
     auto encoding = op.getEncoding();
     int64_t scale = lwe::getScalingFactorFromEncodingAttr(encoding);
@@ -433,10 +434,11 @@ struct ConvertRlweDecodeOp : public OpConversionPattern<DecodeOp> {
       return op.emitOpError() << "Unsupported type for lowering";
     }
     auto alloc =
-        rewriter.create<AllocOp>(op.getLoc(), outputTensorType, zeroAttr);
+        AllocOp::create(rewriter, op.getLoc(), outputTensorType, zeroAttr);
 
-    auto decodeOp = rewriter.create<LattigoDecodeOp>(
-        op.getLoc(), outputTensorType, evaluator, adaptor.getInput(), alloc);
+    auto decodeOp =
+        LattigoDecodeOp::create(rewriter, op.getLoc(), outputTensorType,
+                                evaluator, adaptor.getInput(), alloc);
 
     rewriter.replaceOp(op, decodeOp.getResult());
     return success();

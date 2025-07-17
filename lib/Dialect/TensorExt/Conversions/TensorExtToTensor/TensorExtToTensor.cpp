@@ -60,32 +60,32 @@ struct ConvertRotateOp : public OpRewritePattern<RotateOp> {
     auto rightTensorType =
         RankedTensorType::get({tensorSize - shiftValue}, tensorElementType);
 
-    auto left = rewriter.create<tensor::ExtractSliceOp>(
-        op.getLoc(), leftTensorType, op.getTensor(), ArrayRef<Value>{},
-        ArrayRef<Value>{}, ArrayRef<Value>{},
+    auto left = tensor::ExtractSliceOp::create(
+        rewriter, op.getLoc(), leftTensorType, op.getTensor(),
+        ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
         /*offsets=*/ArrayRef<int64_t>{0},
         /*sizes=*/ArrayRef{shiftValue}, /*strides=*/ArrayRef<int64_t>{1});
-    auto right = rewriter.create<tensor::ExtractSliceOp>(
-        op.getLoc(), rightTensorType, op.getTensor(), ArrayRef<Value>{},
-        ArrayRef<Value>{}, ArrayRef<Value>{},
+    auto right = tensor::ExtractSliceOp::create(
+        rewriter, op.getLoc(), rightTensorType, op.getTensor(),
+        ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
         /*offsets=*/ArrayRef{shiftValue},
         /*sizes=*/ArrayRef{tensorSize - shiftValue},
         /*strides=*/ArrayRef<int64_t>{1});
     // for tensor.concat to lower we need to use
     // transform.apply_patterns.tensor.decompose_concat which is quite painful
-    // auto concat = rewriter.create<tensor::ConcatOp>(
+    // auto concat = tensor::ConcatOp::create(rewriter,
     //    op.getLoc(), /*dim=*/0,
     //    ValueRange{right.getResult(), left.getResult()});
-    auto empty = rewriter.create<tensor::EmptyOp>(op.getLoc(), tensorShape,
-                                                  tensorElementType);
-    auto insertLeftToRight = rewriter.create<tensor::InsertSliceOp>(
-        op.getLoc(), left.getResult(), empty, ArrayRef<Value>{},
+    auto empty = tensor::EmptyOp::create(rewriter, op.getLoc(), tensorShape,
+                                         tensorElementType);
+    auto insertLeftToRight = tensor::InsertSliceOp::create(
+        rewriter, op.getLoc(), left.getResult(), empty, ArrayRef<Value>{},
         ArrayRef<Value>{}, ArrayRef<Value>{},
         /*offsets=*/ArrayRef<int64_t>{tensorSize - shiftValue},
         /*sizes=*/ArrayRef{shiftValue}, /*strides=*/ArrayRef<int64_t>{1});
-    auto insertRightToLeft = rewriter.create<tensor::InsertSliceOp>(
-        op.getLoc(), right.getResult(), insertLeftToRight, ArrayRef<Value>{},
-        ArrayRef<Value>{}, ArrayRef<Value>{},
+    auto insertRightToLeft = tensor::InsertSliceOp::create(
+        rewriter, op.getLoc(), right.getResult(), insertLeftToRight,
+        ArrayRef<Value>{}, ArrayRef<Value>{}, ArrayRef<Value>{},
         /*offsets=*/ArrayRef<int64_t>{0},
         /*sizes=*/ArrayRef{tensorSize - shiftValue},
         /*strides=*/ArrayRef<int64_t>{1});

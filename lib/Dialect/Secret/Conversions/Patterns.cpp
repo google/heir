@@ -81,12 +81,12 @@ LogicalResult ConvertClientConceal::matchAndRewrite(
   auto plaintextTy = lwe::NewLWEPlaintextType::get(
       op.getContext(), resultCtTy.getApplicationData(),
       resultCtTy.getPlaintextSpace());
-  auto encoded = rewriter.create<lwe::RLWEEncodeOp>(
-      op.getLoc(), plaintextTy, adaptor.getCleartext(),
+  auto encoded = lwe::RLWEEncodeOp::create(
+      rewriter, op.getLoc(), plaintextTy, adaptor.getCleartext(),
       resultCtTy.getPlaintextSpace().getEncoding(),
       resultCtTy.getPlaintextSpace().getRing());
-  auto encryptOp = rewriter.create<lwe::RLWEEncryptOp>(
-      op.getLoc(), resultCtTy, encoded.getResult(), keyBlockArg);
+  auto encryptOp = lwe::RLWEEncryptOp::create(rewriter, op.getLoc(), resultCtTy,
+                                              encoded.getResult(), keyBlockArg);
 
   // Copy attributes from the original op to preserve any mgmt attrs needed by
   // dialect conversion from secret to scheme.
@@ -133,8 +133,8 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
   auto plaintextTy = lwe::NewLWEPlaintextType::get(op.getContext(),
                                                    argCtTy.getApplicationData(),
                                                    argCtTy.getPlaintextSpace());
-  auto decrypted = rewriter.create<lwe::RLWEDecryptOp>(
-      op.getLoc(), plaintextTy, adaptor.getInput(), keyBlockArg);
+  auto decrypted = lwe::RLWEDecryptOp::create(
+      rewriter, op.getLoc(), plaintextTy, adaptor.getInput(), keyBlockArg);
 
   // Note: we use the secret.reveal op's original result type as the result
   // type for the new rlwe_decode op, rather than the type from the parent
@@ -160,8 +160,8 @@ LogicalResult ConvertClientReveal::matchAndRewrite(
   // this pattern lowers the reveal op to have an output tensor type (rather
   // than i16). The rest of the IR manages unpacking, and the rlwe_decode op
   // will only manage the cryptosystem-relevant decoding step (such as iNTT).
-  auto decoded = rewriter.create<lwe::RLWEDecodeOp>(
-      op.getLoc(), op.getResult().getType(), decrypted.getResult(),
+  auto decoded = lwe::RLWEDecodeOp::create(
+      rewriter, op.getLoc(), op.getResult().getType(), decrypted.getResult(),
       argCtTy.getPlaintextSpace().getEncoding(),
       argCtTy.getPlaintextSpace().getRing());
 

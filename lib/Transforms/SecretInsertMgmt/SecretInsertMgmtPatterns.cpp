@@ -43,7 +43,7 @@ LogicalResult MultRelinearize<MulOp>::matchAndRewrite(
 
   rewriter.setInsertionPointAfter(mulOp);
   auto relinearized =
-      rewriter.create<mgmt::RelinearizeOp>(mulOp.getLoc(), result);
+      mgmt::RelinearizeOp::create(rewriter, mulOp.getLoc(), result);
   result.replaceAllUsesExcept(relinearized, {relinearized});
 
   solver->eraseAllStates();
@@ -60,7 +60,7 @@ LogicalResult ModReduceAfterMult<MulOp>::matchAndRewrite(
   }
 
   rewriter.setInsertionPointAfter(mulOp);
-  auto modReduced = rewriter.create<mgmt::ModReduceOp>(mulOp.getLoc(), result);
+  auto modReduced = mgmt::ModReduceOp::create(rewriter, mulOp.getLoc(), result);
   result.replaceAllUsesExcept(modReduced, {modReduced});
 
   solver->eraseAllStates();
@@ -120,7 +120,7 @@ LogicalResult ModReduceBefore<Op>::matchAndRewrite(
   // because one Value can corresponds to multiple OpOperands
   for (auto operand : secretOperandValues) {
     rewriter.setInsertionPoint(op);
-    auto managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), operand);
+    auto managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), operand);
     op->replaceUsesOfWith(operand, managed);
   }
 
@@ -160,14 +160,15 @@ LogicalResult MatchCrossLevel<Op>::matchAndRewrite(
       rewriter.setInsertionPoint(op);
       Value managed = operand->get();
       if (resultLevel - level > 1) {
-        managed = rewriter.create<mgmt::LevelReduceOp>(op.getLoc(), managed,
-                                                       resultLevel - level - 1);
+        managed = mgmt::LevelReduceOp::create(rewriter, op.getLoc(), managed,
+                                              resultLevel - level - 1);
       }
       // make a different adjust scale each time
       // only after parameter selection can we decide the actual scale
-      managed = rewriter.create<mgmt::AdjustScaleOp>(
-          op.getLoc(), managed, rewriter.getI64IntegerAttr((*idCounter)++));
-      managed = rewriter.create<mgmt::ModReduceOp>(op.getLoc(), managed);
+      managed = mgmt::AdjustScaleOp::create(
+          rewriter, op.getLoc(), managed,
+          rewriter.getI64IntegerAttr((*idCounter)++));
+      managed = mgmt::ModReduceOp::create(rewriter, op.getLoc(), managed);
       // NOTE that only at most one operand/Value will experience such
       // replacement. For op with two operands with same Value, such replace
       // won't happen.
@@ -227,8 +228,9 @@ LogicalResult MatchCrossMulDepth<Op>::matchAndRewrite(
       Value managed = operand->get();
       // make a different adjust scale each time
       // only after parameter selection can we decide the actual scale
-      managed = rewriter.create<mgmt::AdjustScaleOp>(
-          op.getLoc(), managed, rewriter.getI64IntegerAttr((*idCounter)++));
+      managed = mgmt::AdjustScaleOp::create(
+          rewriter, op.getLoc(), managed,
+          rewriter.getI64IntegerAttr((*idCounter)++));
       op->replaceUsesOfWith(operand->get(), managed);
     }
   }
@@ -261,8 +263,8 @@ LogicalResult UseInitOpForPlaintextOperand<Op>::matchAndRewrite(
         definingOp != nullptr && isa<mgmt::InitOp>(definingOp);
     if (!secret && !alreadyInitted) {
       rewriter.setInsertionPoint(op);
-      auto initOp = rewriter.create<mgmt::InitOp>(
-          op.getLoc(), operand.get().getType(), operand.get());
+      auto initOp = mgmt::InitOp::create(
+          rewriter, op.getLoc(), operand.get().getType(), operand.get());
       op->setOperand(operand.getOperandNumber(), initOp.getResult());
       inserted = true;
     }
@@ -296,8 +298,8 @@ LogicalResult BootstrapWaterLine<Op>::matchAndRewrite(
 
   // insert mgmt::BootstrapOp after
   rewriter.setInsertionPointAfter(op);
-  auto bootstrap = rewriter.create<mgmt::BootstrapOp>(
-      op.getLoc(), op->getResultTypes(), op->getResult(0));
+  auto bootstrap = mgmt::BootstrapOp::create(
+      rewriter, op.getLoc(), op->getResultTypes(), op->getResult(0));
   op->getResult(0).replaceAllUsesExcept(bootstrap, {bootstrap});
 
   // greedy rewrite! note that we may get undeterministic insertion result

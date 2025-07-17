@@ -75,7 +75,8 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
 
     ImplicitLocOpBuilder builder(forOp->getLoc(), rewriter);
 
-    auto newForOp = builder.create<affine::AffineForOp>(
+    auto newForOp = affine::AffineForOp::create(
+        builder,
         isLowerBoundSecret ? newLowerBound
                            : forOp.getLowerBound()
                                  .getDefiningOp()
@@ -103,28 +104,30 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
 
     if (isLowerBoundSecret) {
       // Create arith.cmpi (iv >= oldLowerBound)
-      cmpILower = builder.create<arith::CmpIOp>(
-          arith::CmpIPredicate::sge, inductionVariable, forOp.getLowerBound());
+      cmpILower =
+          arith::CmpIOp::create(builder, arith::CmpIPredicate::sge,
+                                inductionVariable, forOp.getLowerBound());
     }
 
     if (isUpperBoundSecret) {
       // Create arith.cmpi (iv < oldUpperBound)
-      cmpIUpper = builder.create<arith::CmpIOp>(
-          arith::CmpIPredicate::slt, inductionVariable, forOp.getUpperBound());
+      cmpIUpper =
+          arith::CmpIOp::create(builder, arith::CmpIPredicate::slt,
+                                inductionVariable, forOp.getUpperBound());
     }
 
     // If both lowerBound and upperBound are secret, join the two arith.cmpi
     // with an arith.andi
     if (isLowerBoundSecret && isUpperBoundSecret) {
-      andI = builder.create<arith::AndIOp>(cmpILower, cmpIUpper);
+      andI = arith::AndIOp::create(builder, cmpILower, cmpIUpper);
     }
 
     // Create scf.if to conditionally execute the body of scf.for
     auto cond = isLowerBoundSecret ? isUpperBoundSecret ? andI.getResult()
                                                         : cmpILower.getResult()
                                    : cmpIUpper.getResult();
-    scf::IfOp ifOp = builder.create<scf::IfOp>(
-        cond,
+    scf::IfOp ifOp = scf::IfOp::create(
+        builder, cond,
         // 'Then' region
         [&](OpBuilder &b, Location loc) {
           // Copy body of the scf::ForOp
@@ -139,11 +142,11 @@ struct SecretForToStaticForConversion : OpRewritePattern<scf::ForOp> {
         },
         // 'Else' region
         [&](OpBuilder &b, Location loc) {
-          b.create<scf::YieldOp>(loc, newForOp.getRegionIterArgs());
+          scf::YieldOp::create(b, loc, newForOp.getRegionIterArgs());
         });
 
     // Create YieldOp for affine.for
-    builder.create<affine::AffineYieldOp>(ifOp.getResults());
+    affine::AffineYieldOp::create(builder, ifOp.getResults());
 
     // Replace scf.for with affine.for
     rewriter.replaceOp(forOp, newForOp);

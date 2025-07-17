@@ -58,7 +58,7 @@ func::FuncOp getOrCreateExternalDebugFunc(
 
   ImplicitLocOpBuilder b =
       ImplicitLocOpBuilder::atBlockBegin(module.getLoc(), module.getBody());
-  auto funcOp = b.create<func::FuncOp>(funcName, debugFuncType);
+  auto funcOp = func::FuncOp::create(b, funcName, debugFuncType);
   // required for external func call
   funcOp.setPrivate();
   return funcOp;
@@ -116,10 +116,11 @@ LogicalResult insertExternalCall(func::FuncOp op, Type lwePrivateKeyType) {
       attrs.push_back(b.getNamedAttr(
           "message.size", b.getStringAttr(std::to_string(messageSize))));
 
-      b.create<func::CallOp>(
-           getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
-                                        lweCiphertextType, typeToInt),
-           ArrayRef<Value>{privateKey, value})
+      func::CallOp::create(
+          b,
+          getOrCreateExternalDebugFunc(module, lwePrivateKeyType,
+                                       lweCiphertextType, typeToInt),
+          ArrayRef<Value>{privateKey, value})
           ->setDialectAttrs(attrs);
     }
   };

@@ -47,7 +47,7 @@ Value createConstantFloat(ImplicitLocOpBuilder &b, double floatValue,
   }
 
   auto constantValuesAttr = SplatElementsAttr::get(type, value);
-  return b.create<arith::ConstantOp>(constantValuesAttr);
+  return arith::ConstantOp::create(b, constantValuesAttr);
 }
 
 struct ConvertTosaSigmoid : public OpRewritePattern<mlir::tosa::SigmoidOp> {
@@ -91,18 +91,18 @@ struct ConvertTosaSigmoid : public OpRewritePattern<mlir::tosa::SigmoidOp> {
         createConstantFloat(b, -0.004, rankedTensorType);
 
     auto coefficientMultiplyDegreeOne =
-        b.create<arith::MulFOp>(coefficientDegreeOne, op.getOperand());
+        arith::MulFOp::create(b, coefficientDegreeOne, op.getOperand());
     auto calculateDegreeTwo =
-        b.create<arith::MulFOp>(op.getOperand(), op.getOperand());
+        arith::MulFOp::create(b, op.getOperand(), op.getOperand());
     auto calculateDegreeThree =
-        b.create<arith::MulFOp>(calculateDegreeTwo, op.getOperand());
+        arith::MulFOp::create(b, calculateDegreeTwo, op.getOperand());
     auto coefficientMultiplyDegreeThree =
-        b.create<arith::MulFOp>(calculateDegreeThree, coefficientDegreeThree);
+        arith::MulFOp::create(b, calculateDegreeThree, coefficientDegreeThree);
 
-    auto sumDegreeZeroAndOne = b.create<arith::AddFOp>(
-        coefficientDegreeZero, coefficientMultiplyDegreeOne);
-    auto totalSum = b.create<arith::AddFOp>(sumDegreeZeroAndOne,
-                                            coefficientMultiplyDegreeThree);
+    auto sumDegreeZeroAndOne = arith::AddFOp::create(
+        b, coefficientDegreeZero, coefficientMultiplyDegreeOne);
+    auto totalSum = arith::AddFOp::create(b, sumDegreeZeroAndOne,
+                                          coefficientMultiplyDegreeThree);
     rewriter.replaceOp(op, totalSum);
     return success();
   }

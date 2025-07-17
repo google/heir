@@ -119,8 +119,8 @@ struct AddServerKeyArgCall : public OpConversionPattern<func::CallOp> {
     }
 
     // // Set the updated operand list on the operation
-    auto newCallOp = b.create<func::CallOp>(
-        op.getLoc(), adaptor.getCallee(),
+    auto newCallOp = func::CallOp::create(
+        b, op.getLoc(), adaptor.getCallee(),
         getTypeConverter()->convertType(op.getResult(0).getType()),
         newOperands);
     rewriter.replaceOp(op, newCallOp);
@@ -153,20 +153,20 @@ struct ConvertLut3Op : public OpConversionPattern<cggi::Lut3Op> {
 
     Value serverKey = result.value();
     // A followup -cse pass should combine repeated LUT generation ops.
-    auto lut = b.create<tfhe_rust::GenerateLookupTableOp>(
-        serverKey, adaptor.getLookupTable());
+    auto lut = tfhe_rust::GenerateLookupTableOp::create(
+        b, serverKey, adaptor.getLookupTable());
     // Construct input = c << 2 + b << 1 + a
-    auto shiftedC = b.create<tfhe_rust::ScalarLeftShiftOp>(
-        serverKey, adaptor.getC(), b.getIndexAttr(2));
-    auto shiftedB = b.create<tfhe_rust::ScalarLeftShiftOp>(
-        serverKey, adaptor.getB(), b.getIndexAttr(1));
-    auto summedBC = b.create<tfhe_rust::AddOp>(adaptor.getB().getType(),
-                                               serverKey, shiftedC, shiftedB);
-    auto summedABC = b.create<tfhe_rust::AddOp>(
-        adaptor.getB().getType(), serverKey, summedBC, adaptor.getA());
+    auto shiftedC = tfhe_rust::ScalarLeftShiftOp::create(
+        b, serverKey, adaptor.getC(), b.getIndexAttr(2));
+    auto shiftedB = tfhe_rust::ScalarLeftShiftOp::create(
+        b, serverKey, adaptor.getB(), b.getIndexAttr(1));
+    auto summedBC = tfhe_rust::AddOp::create(b, adaptor.getB().getType(),
+                                             serverKey, shiftedC, shiftedB);
+    auto summedABC = tfhe_rust::AddOp::create(
+        b, adaptor.getB().getType(), serverKey, summedBC, adaptor.getA());
 
-    rewriter.replaceOp(
-        op, b.create<tfhe_rust::ApplyLookupTableOp>(serverKey, summedABC, lut));
+    rewriter.replaceOp(op, tfhe_rust::ApplyLookupTableOp::create(
+                               b, serverKey, summedABC, lut));
     return success();
   }
 };
@@ -186,18 +186,18 @@ struct ConvertLut2Op : public OpConversionPattern<cggi::Lut2Op> {
 
     Value serverKey = result.value();
     // A followup -cse pass should combine repeated LUT generation ops.
-    auto lut = b.create<tfhe_rust::GenerateLookupTableOp>(
-        serverKey, adaptor.getLookupTable());
+    auto lut = tfhe_rust::GenerateLookupTableOp::create(
+        b, serverKey, adaptor.getLookupTable());
     // Construct input = b << 1 + a
-    auto shiftedB = b.create<tfhe_rust::ScalarLeftShiftOp>(
-        serverKey, adaptor.getB(), b.getIndexAttr(1));
+    auto shiftedB = tfhe_rust::ScalarLeftShiftOp::create(
+        b, serverKey, adaptor.getB(), b.getIndexAttr(1));
 
-    auto summedBA = b.create<tfhe_rust::AddOp>(
-        getTypeConverter()->convertType(shiftedB.getResult().getType()),
+    auto summedBA = tfhe_rust::AddOp::create(
+        b, getTypeConverter()->convertType(shiftedB.getResult().getType()),
         serverKey, shiftedB, adaptor.getA());
 
     rewriter.replaceOp(
-        op, b.create<tfhe_rust::ApplyLookupTableOp>(serverKey, summedBA, lut));
+        op, tfhe_rust::ApplyLookupTableOp::create(b, serverKey, summedBA, lut));
     return success();
   }
 };
@@ -218,8 +218,8 @@ struct ConvertCGGITRBinOp : public OpConversionPattern<BinOp> {
     auto outputType = typeConverter.convertType(op.getResult().getType());
 
     rewriter.replaceOp(
-        op, b.create<TfheRustBinOp>(outputType, serverKey, adaptor.getLhs(),
-                                    adaptor.getRhs()));
+        op, TfheRustBinOp::create(b, outputType, serverKey, adaptor.getLhs(),
+                                  adaptor.getRhs()));
     return success();
   }
 };
@@ -237,9 +237,9 @@ struct ConvertScalarMulOp : public OpConversionPattern<lwe::MulScalarOp> {
     CGGIToTfheRustTypeConverter typeConverter(op->getContext());
     auto outputType = typeConverter.convertType(op.getResult().getType());
 
-    rewriter.replaceOp(op, b.create<tfhe_rust::MulOp>(outputType, serverKey,
-                                                      adaptor.getCiphertext(),
-                                                      adaptor.getScalar()));
+    rewriter.replaceOp(op, tfhe_rust::MulOp::create(b, outputType, serverKey,
+                                                    adaptor.getCiphertext(),
+                                                    adaptor.getScalar()));
     return success();
   }
 };
@@ -264,9 +264,9 @@ struct ConvertCGGICtxtBinOp : public OpConversionPattern<BinOp> {
 
     if (lhs.getType() != rhs.getType()) {
       if (!isa<lwe::NewLWECiphertextType>(op.getLhs().getType())) {
-        lhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, lhs);
+        lhs = tfhe_rust::CreateTrivialOp::create(b, outputType, serverKey, lhs);
       } else if (!isa<lwe::NewLWECiphertextType>(op.getRhs().getType())) {
-        rhs = b.create<tfhe_rust::CreateTrivialOp>(outputType, serverKey, rhs);
+        rhs = tfhe_rust::CreateTrivialOp::create(b, outputType, serverKey, rhs);
       } else {
         return op.emitError()
                << "Expected both operands to be of the same type";
@@ -274,7 +274,7 @@ struct ConvertCGGICtxtBinOp : public OpConversionPattern<BinOp> {
     }
 
     rewriter.replaceOp(
-        op, b.create<TfheRustBinOp>(outputType, serverKey, lhs, rhs));
+        op, TfheRustBinOp::create(b, outputType, serverKey, lhs, rhs));
     return success();
   }
 };
@@ -291,10 +291,10 @@ struct ConvertSelectOp : public OpConversionPattern<cggi::SelectOp> {
 
     Value serverKey = result.value();
 
-    rewriter.replaceOp(
-        op, b.create<tfhe_rust::SelectOp>(
-                adaptor.getTrueCtxt().getType(), serverKey, adaptor.getSelect(),
-                adaptor.getTrueCtxt(), adaptor.getFalseCtxt()));
+    rewriter.replaceOp(op, tfhe_rust::SelectOp::create(
+                               b, adaptor.getTrueCtxt().getType(), serverKey,
+                               adaptor.getSelect(), adaptor.getTrueCtxt(),
+                               adaptor.getFalseCtxt()));
     return success();
   }
 };
@@ -312,9 +312,10 @@ struct ConvertCmpOp : public OpConversionPattern<cggi::CmpOp> {
     Value serverKey = result.value();
 
     rewriter.replaceOp(
-        op, b.create<tfhe_rust::CmpOp>(
-                tfhe_rust::EncryptedBoolType::get(op->getContext()), serverKey,
-                adaptor.getPredicate(), adaptor.getLhs(), adaptor.getRhs()));
+        op,
+        tfhe_rust::CmpOp::create(
+            b, tfhe_rust::EncryptedBoolType::get(op->getContext()), serverKey,
+            adaptor.getPredicate(), adaptor.getLhs(), adaptor.getRhs()));
     return success();
   }
 };
@@ -410,18 +411,19 @@ struct ConvertNotOp : public OpConversionPattern<cggi::NotOp> {
     auto outputType = encrytpedUIntTypeFromWidth(getContext(), width);
 
     // not(x) == trivial_encryption(1) - x
-    Value createTrivialOp = b.create<tfhe_rust::CreateTrivialOp>(
-        outputType, serverKey,
-        b.create<arith::ConstantOp>(cleartextType,
-                                    b.getIntegerAttr(cleartextType, 1))
+    Value createTrivialOp = tfhe_rust::CreateTrivialOp::create(
+        b, outputType, serverKey,
+        arith::ConstantOp::create(b, cleartextType,
+                                  b.getIntegerAttr(cleartextType, 1))
             .getResult());
     if (shapedTy) {
-      createTrivialOp = b.create<tensor::FromElementsOp>(
-          shapedTy,
+      createTrivialOp = tensor::FromElementsOp::create(
+          b, shapedTy,
           SmallVector<Value>(shapedTy.getNumElements(), createTrivialOp));
     }
-    rewriter.replaceOp(op, b.create<tfhe_rust::SubOp>(
-                               serverKey, createTrivialOp, adaptor.getInput()));
+    rewriter.replaceOp(op,
+                       tfhe_rust::SubOp::create(b, serverKey, createTrivialOp,
+                                                adaptor.getInput()));
     return success();
   }
 };
@@ -441,10 +443,10 @@ struct ConvertProgrammableBootstrapOp
     Value serverKey = result.value();
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    auto lutOp = b.create<tfhe_rust::GenerateLookupTableOp>(
-        serverKey, op.getLookupTable());
-    rewriter.replaceOp(op, b.create<tfhe_rust::ApplyLookupTableOp>(
-                               serverKey, adaptor.getInput(), lutOp));
+    auto lutOp = tfhe_rust::GenerateLookupTableOp::create(b, serverKey,
+                                                          op.getLookupTable());
+    rewriter.replaceOp(op, tfhe_rust::ApplyLookupTableOp::create(
+                               b, serverKey, adaptor.getInput(), lutOp));
     return success();
   }
 };
@@ -478,8 +480,8 @@ struct ConvertTrivialEncryptOp
                           .getRing()
                           .getCoefficientType()
                           .getIntOrFloatBitWidth());
-    auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
-        op.getLoc(), outputType, serverKey, encodeOp.getInput());
+    auto createTrivialOp = tfhe_rust::CreateTrivialOp::create(
+        rewriter, op.getLoc(), outputType, serverKey, encodeOp.getInput());
     rewriter.replaceOp(op, createTrivialOp);
     return success();
   }
@@ -503,8 +505,8 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
     auto inputValue = mlir::IntegerAttr::get(op.getValue().getType(), intValue);
     auto constantWidth = op.getValue().getValue().getBitWidth();
 
-    auto cteOp = rewriter.create<arith::ConstantOp>(
-        op.getLoc(), op.getValue().getType(), inputValue);
+    auto cteOp = arith::ConstantOp::create(rewriter, op.getLoc(),
+                                           op.getValue().getType(), inputValue);
 
     auto outputType = encrytpedUIntTypeFromWidth(getContext(), constantWidth);
 
@@ -514,8 +516,8 @@ struct ConvertTrivialOp : public OpConversionPattern<cggi::CreateTrivialOp> {
       outputType = RankedTensorType::get(shape, outputType);
     }
 
-    auto createTrivialOp = rewriter.create<tfhe_rust::CreateTrivialOp>(
-        op.getLoc(), outputType, serverKey, cteOp);
+    auto createTrivialOp = tfhe_rust::CreateTrivialOp::create(
+        rewriter, op.getLoc(), outputType, serverKey, cteOp);
     rewriter.replaceOp(op, createTrivialOp);
     return success();
   }

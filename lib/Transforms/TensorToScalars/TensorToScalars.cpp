@@ -62,7 +62,7 @@ SmallVector<SmallVector<int64_t>> getAllIndices(TensorType tensorType) {
 static Value buildFromElementsOp(OpBuilder &builder,
                                  RankedTensorType resultType, ValueRange inputs,
                                  Location loc) {
-  return builder.create<tensor::FromElementsOp>(loc, resultType, inputs);
+  return tensor::FromElementsOp::create(builder, loc, resultType, inputs);
 }
 
 static SmallVector<Value> buildExtractOps(OpBuilder &builder,
@@ -80,13 +80,13 @@ static SmallVector<Value> buildExtractOps(OpBuilder &builder,
   const auto *maxDimension = llvm::max_element(inputType.getShape());
   SmallVector<Value> constVals;
   for (auto i = 0; i < *maxDimension; ++i) {
-    constVals.push_back(b.create<arith::ConstantIndexOp>(i));
+    constVals.push_back(arith::ConstantIndexOp::create(b, i));
   }
   auto rawIndices = getAllIndices(inputType);
   for (SmallVector<int64_t> indices : rawIndices) {
     SmallVector<Value> idxRange = llvm::to_vector(
         llvm::map_range(indices, [&](int64_t idx) { return constVals[idx]; }));
-    Value element = builder.create<tensor::ExtractOp>(loc, input, idxRange);
+    Value element = tensor::ExtractOp::create(builder, loc, input, idxRange);
     values.push_back(element);
   }
   return values;
@@ -207,8 +207,8 @@ class ConvertConstantOp : public OpConversionPattern<arith::ConstantOp> {
     // Replace the current op with flattened constants.
     SmallVector<Value> constants;
     for (auto valueAttr : elementsAttr.getValues<Attribute>()) {
-      constants.push_back(rewriter.create<arith::ConstantOp>(
-          op.getLoc(), elementsAttr.getElementType(),
+      constants.push_back(arith::ConstantOp::create(
+          rewriter, op.getLoc(), elementsAttr.getElementType(),
           cast<TypedAttr>(valueAttr)));
     }
 

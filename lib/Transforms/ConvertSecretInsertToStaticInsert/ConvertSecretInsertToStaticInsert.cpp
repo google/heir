@@ -75,22 +75,23 @@ struct SecretInsertToStaticInsertConversion
     int size = insertOp.getDest().getType().getShape().front();
 
     SmallVector<Value> iterArgs = {tensor};
-    auto forOp = builder.create<affine::AffineForOp>(0, size, 1, iterArgs);
+    auto forOp = affine::AffineForOp::create(builder, 0, size, 1, iterArgs);
     setValueToSecretness(solver, forOp.getInductionVar(), Secretness(false));
 
     builder.setInsertionPointToStart(forOp.getBody());
 
     // Check if the current index is equal to the secret index
-    auto cond = builder.create<arith::CmpIOp>(arith::CmpIPredicate::eq,
-                                              forOp.getInductionVar(), index);
+    auto cond = arith::CmpIOp::create(builder, arith::CmpIPredicate::eq,
+                                      forOp.getInductionVar(), index);
     // Set secretness for cond
     for (auto result : cond->getResults()) {
       setValueToSecretness(solver, result, indexSecretness);
     }
 
     // Insert value at current index
-    auto newInsertOp = builder.create<tensor::InsertOp>(
-        insertedValue, forOp.getRegionIterArgs()[0], forOp.getInductionVar());
+    auto newInsertOp = tensor::InsertOp::create(builder, insertedValue,
+                                                forOp.getRegionIterArgs()[0],
+                                                forOp.getInductionVar());
     // Set secretness for newInsertOp
     auto tensorSecretness =
         solver->getOrCreateState<SecretnessLattice>(tensor)->getValue();
@@ -98,15 +99,15 @@ struct SecretInsertToStaticInsertConversion
       setValueToSecretness(solver, result, tensorSecretness);
     }
 
-    auto ifOp = builder.create<scf::IfOp>(
-        cond,
+    auto ifOp = scf::IfOp::create(
+        builder, cond,
         [&](OpBuilder &b, Location loc) {
           // Yield tensor with value inserted at index
-          b.create<scf::YieldOp>(loc, newInsertOp.getResult());
+          scf::YieldOp::create(b, loc, newInsertOp.getResult());
         },
         [&](OpBuilder &b, Location loc) {
           // Yield old tensor
-          b.create<scf::YieldOp>(loc, forOp.getRegionIterArgs().front());
+          scf::YieldOp::create(b, loc, forOp.getRegionIterArgs().front());
         });
     // Set secretness for ifOp results: Combine indexSecretness with
     // tensorSecretness
@@ -118,7 +119,7 @@ struct SecretInsertToStaticInsertConversion
 
     // Create YieldOp for affine.for
     SmallVector<Value> results(ifOp->getOpResults());
-    builder.create<affine::AffineYieldOp>(results);
+    affine::AffineYieldOp::create(builder, results);
     // Set secretness for forOp results
     for (auto result : forOp->getResults()) {
       setValueToSecretness(solver, result, combinedSecretness);
