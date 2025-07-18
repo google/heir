@@ -15,6 +15,7 @@ cc_library(
     hdrs = ["GenerateParam.h"],
     deps = [
         ":pass_inc_gen",
+        "@heir//lib/Analysis/CKKSRangeAnalysis",
         "@heir//lib/Analysis/DimensionAnalysis",
         "@heir//lib/Analysis/LevelAnalysis",
         "@heir//lib/Analysis/NoiseAnalysis",
