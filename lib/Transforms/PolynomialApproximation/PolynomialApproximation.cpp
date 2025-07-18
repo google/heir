@@ -5,6 +5,7 @@
 #include <functional>
 #include <utility>
 
+#include "lib/Dialect/MathExt/IR/MathExtOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialAttributes.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialOps.h"
 #include "lib/Dialect/Polynomial/IR/PolynomialTypes.h"
@@ -136,6 +137,9 @@ inline APFloat tanh(const APFloat &x) {
 inline APFloat trunc(const APFloat &x) {
   return APFloat(std::trunc(x.convertToDouble()));
 }
+inline APFloat sign(const APFloat &x) {
+  return APFloat(x.isNegative() ? -1.0 : (x.isZero() ? 0.0 : 1.0));
+}
 
 // Binary ops
 inline APFloat atan2(const APFloat &lhs, const APFloat &rhs) {
@@ -211,6 +215,7 @@ struct ConvertUnaryOp : public OpRewritePattern<OpTy> {
         rewriter.replaceOpWithNewOp<EvalOp>(op, polyAttr, op.getOperand());
     evalOp->setAttr("domain_lower", domainLowerAttr);
     evalOp->setAttr("domain_upper", domainUpperAttr);
+
     return success();
   }
 
@@ -317,6 +322,7 @@ struct ConvertBinaryConstOp : public OpRewritePattern<OpTy> {
     // properly.
     evalOp->setAttr("domain_lower", domainLowerAttr);
     evalOp->setAttr("domain_upper", domainUpperAttr);
+
     return success();
   }
 
@@ -362,6 +368,7 @@ struct PolynomialApproximation
     patterns.add<ConvertUnaryOp<math::TanOp>>(context, tan);
     patterns.add<ConvertUnaryOp<math::TanhOp>>(context, tanh);
     patterns.add<ConvertUnaryOp<math::TruncOp>>(context, trunc);
+    patterns.add<ConvertUnaryOp<math_ext::SignOp>>(context, sign);
 
     // TODO(#1514): Restore with alternative roundeven
     // patterns.add<ConvertUnaryOp<math::RoundEvenOp>>(context, _roundeven);
