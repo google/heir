@@ -15,7 +15,7 @@ namespace approximation {
 namespace {
 
 using ::llvm::APFloat;
-using ::mlir::heir::polynomial::FloatPolynomial;
+using polynomial::FloatPolynomial;
 using ::testing::DoubleEq;
 using ::testing::DoubleNear;
 using ::testing::ElementsAre;
