@@ -65,13 +65,12 @@ namespace {
 FailureOr<polynomial::RingAttr> getRlweRNSRing(
     MLIRContext *ctx, const std::vector<int64_t> &primes, int polyModDegree) {
   // monomial
-  std::vector<::mlir::heir::polynomial::IntMonomial> monomials;
+  std::vector<polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
-  auto result =
-      ::mlir::heir::polynomial::IntPolynomial::fromMonomials(monomials);
+  auto result = polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
-  ::mlir::heir::polynomial::IntPolynomial xnPlusOne = result.value();
+  polynomial::IntPolynomial xnPlusOne = result.value();
 
   // moduli chain
   SmallVector<Type, 4> modTypes;
@@ -83,7 +82,7 @@ FailureOr<polynomial::RingAttr> getRlweRNSRing(
 
   // types
   auto rnsType = rns::RNSType::get(ctx, modTypes);
-  return ::mlir::heir::polynomial::RingAttr::get(
+  return polynomial::RingAttr::get(
       rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
 }
 
@@ -93,8 +92,7 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 
   auto newRnsType = rns::RNSType::get(
       rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
-  return ::mlir::heir::polynomial::RingAttr::get(
-      newRnsType, ringAttr.getPolynomialModulus());
+  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
 }
 
 // Returns the unique non-unit dimension of a tensor and its rank.
@@ -118,8 +116,7 @@ FailureOr<std::pair<unsigned, int64_t>> getNonUnitDimension(
 class SecretToCKKSTypeConverter
     : public UniquelyNamedAttributeAwareTypeConverter {
  public:
-  SecretToCKKSTypeConverter(MLIRContext *ctx,
-                            ::mlir::heir::polynomial::RingAttr rlweRing,
+  SecretToCKKSTypeConverter(MLIRContext *ctx, polynomial::RingAttr rlweRing,
                             bool packTensorInSlots)
       : UniquelyNamedAttributeAwareTypeConverter(
             mgmt::MgmtDialect::kArgMgmtAttrName) {
@@ -144,7 +141,7 @@ class SecretToCKKSTypeConverter
     // Note that slot number for CKKS is always half of the ring dimension.
     // so ring_.getPolynomialModulus() is not useful here
     // TODO(#1191): use packing information to get the correct slot number
-    auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
+    auto plaintextRing = polynomial::RingAttr::get(
         type.getContext(), Float64Type::get(ctx), ring_.getPolynomialModulus());
 
     SmallVector<IntegerAttr, 6> moduliChain;
@@ -189,7 +186,7 @@ class SecretToCKKSTypeConverter
   }
 
  private:
-  ::mlir::heir::polynomial::RingAttr ring_;
+  polynomial::RingAttr ring_;
   bool packTensorInSlots_;
 };
 

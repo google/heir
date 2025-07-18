@@ -11,11 +11,9 @@
 namespace mlir {
 namespace heir {
 
-struct LoweringBase
-    : public OpRewritePattern<::mlir::heir::polynomial::EvalOp> {
+struct LoweringBase : public OpRewritePattern<polynomial::EvalOp> {
   LoweringBase(mlir::MLIRContext *context, bool force = false)
-      : mlir::OpRewritePattern<::mlir::heir::polynomial::EvalOp>(context),
-        force(force) {}
+      : mlir::OpRewritePattern<polynomial::EvalOp>(context), force(force) {}
 
   bool shouldForce() const { return force; }
 
@@ -31,7 +29,7 @@ struct LoweringBase
 struct LowerViaHorner : public LoweringBase {
   using LoweringBase::LoweringBase;
 
-  LogicalResult matchAndRewrite(::mlir::heir::polynomial::EvalOp op,
+  LogicalResult matchAndRewrite(polynomial::EvalOp op,
                                 PatternRewriter &rewriter) const override;
 };
 

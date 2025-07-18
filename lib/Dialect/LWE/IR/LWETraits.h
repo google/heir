@@ -17,9 +17,9 @@ class SameOperandsAndResultRings
     : public OpTrait::TraitBase<ConcreteType, SameOperandsAndResultRings> {
  public:
   static LogicalResult verifyTrait(Operation *op) {
-    ::mlir::heir::polynomial::RingAttr rings = nullptr;
+    polynomial::RingAttr rings = nullptr;
     auto initOrCheckRings =
-        [&](::mlir::heir::polynomial::RingAttr ring) {
+        [&](polynomial::RingAttr ring) {
           if (rings == nullptr) {
             rings = ring;
             return success();

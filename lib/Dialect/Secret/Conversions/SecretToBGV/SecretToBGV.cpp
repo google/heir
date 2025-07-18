@@ -58,13 +58,12 @@ namespace {
 FailureOr<polynomial::RingAttr> getRlweRNSRing(
     MLIRContext *ctx, const std::vector<int64_t> &primes, int polyModDegree) {
   // monomial
-  std::vector<::mlir::heir::polynomial::IntMonomial> monomials;
+  std::vector<polynomial::IntMonomial> monomials;
   monomials.emplace_back(1, polyModDegree);
   monomials.emplace_back(1, 0);
-  auto result =
-      ::mlir::heir::polynomial::IntPolynomial::fromMonomials(monomials);
+  auto result = polynomial::IntPolynomial::fromMonomials(monomials);
   if (failed(result)) return failure();
-  ::mlir::heir::polynomial::IntPolynomial xnPlusOne = result.value();
+  polynomial::IntPolynomial xnPlusOne = result.value();
 
   // moduli chain
   SmallVector<Type, 4> modTypes;
@@ -76,7 +75,7 @@ FailureOr<polynomial::RingAttr> getRlweRNSRing(
 
   // types
   auto rnsType = rns::RNSType::get(ctx, modTypes);
-  return ::mlir::heir::polynomial::RingAttr::get(
+  return polynomial::RingAttr::get(
       rnsType, polynomial::IntPolynomialAttr::get(ctx, xnPlusOne));
 }
 
@@ -86,8 +85,7 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 
   auto newRnsType = rns::RNSType::get(
       rnsType.getContext(), rnsType.getBasisTypes().take_front(level + 1));
-  return ::mlir::heir::polynomial::RingAttr::get(
-      newRnsType, ringAttr.getPolynomialModulus());
+  return polynomial::RingAttr::get(newRnsType, ringAttr.getPolynomialModulus());
 }
 
 }  // namespace
@@ -95,8 +93,7 @@ polynomial::RingAttr getRlweRNSRingWithLevel(polynomial::RingAttr ringAttr,
 class SecretToBGVTypeConverter
     : public UniquelyNamedAttributeAwareTypeConverter {
  public:
-  SecretToBGVTypeConverter(MLIRContext *ctx,
-                           ::mlir::heir::polynomial::RingAttr rlweRing,
+  SecretToBGVTypeConverter(MLIRContext *ctx, polynomial::RingAttr rlweRing,
                            int64_t ptm, bool isBFV)
       : UniquelyNamedAttributeAwareTypeConverter(
             mgmt::MgmtDialect::kArgMgmtAttrName),
@@ -116,7 +113,7 @@ class SecretToBGVTypeConverter
     auto scale = mgmtAttr.getScale();
 
     auto *ctx = type.getContext();
-    auto plaintextRing = ::mlir::heir::polynomial::RingAttr::get(
+    auto plaintextRing = polynomial::RingAttr::get(
         type.getContext(),
         mod_arith::ModArithType::get(
             ctx, IntegerAttr::get(IntegerType::get(ctx, 64), plaintextModulus)),
@@ -146,7 +143,7 @@ class SecretToBGVTypeConverter
   }
 
  private:
-  ::mlir::heir::polynomial::RingAttr ring;
+  polynomial::RingAttr ring;
   int64_t plaintextModulus;
   bool isBFV;
 };
