@@ -4,16 +4,15 @@ import os
 import pathlib
 import shutil
 import tempfile
-from typing import Any, Optional
-
+from typing import Any, Callable, Optional
 
 from numba.core import compiler
 from numba.core import sigutils
+from numba.core.ir import FunctionIR
 from numba.core.registry import cpu_target
 from numba.core.typed_passes import type_inference_stage
-from numba.core.types.misc import NoneType
 from numba.core.types import Type as NumbaType
-from numba.core.ir import FunctionIR
+from numba.core.types.misc import NoneType
 
 from heir.backends.cleartext import CleartextBackend
 from heir.backends.openfhe import OpenFHEBackend, config as openfhe_config
@@ -33,7 +32,7 @@ HEIRConfig = heir_cli_config.HEIRConfig
 
 
 def run_pipeline(
-    function,
+    function_or_mlir_str: Callable | str,
     heir_opt_options: list[str],
     backend: BackendInterface,
     heir_config: Optional[HEIRConfig],
@@ -55,68 +54,77 @@ def run_pipeline(
   # loaded into memory and the raw files are not needed.
   workspace_dir = tempfile.mkdtemp()
   try:
-    ssa_ir = compiler.run_frontend(function)
-    if not isinstance(ssa_ir, FunctionIR):
-      raise InternalCompilerError(
-          f"Expected FunctionIR from numba frontend but got {type(ssa_ir)}"
-      )
-    func_name = ssa_ir.func_id.func_name
-    arg_names = ssa_ir.func_id.arg_names
 
-    # (Numba) Type Inference
-    fn_args: list[NumbaType] = []
-    secret_args: list[int] = []
-    try:
-      fn_args, secret_args, rettype = parse_annotations(
-          function.__annotations__
-      )
-    except Exception as e:
-      raise CompilerError(
-          f"Signature parsing failed for function {func_name} with"
-          f" {type(e).__name__}: {e}",
-          ssa_ir.loc,
-      )
-    typingctx = cpu_target.typing_context
-    targetctx = cpu_target.target_context
-    typingctx.refresh()
-    targetctx.refresh()
-    try:
-      typemap, restype, _, _ = type_inference_stage(
-          typingctx, targetctx, ssa_ir, fn_args, None
-      )
-    except Exception as e:
-      raise CompilerError(
-          f"Type inference failed for function {func_name} "
-          f"with {type(e).__name__}: {e}",
-          ssa_ir.loc,
-      )
+    # If it's a python function, parse it via Numba/etc
+    mlir_raw_textual = ""
+    if isinstance(function_or_mlir_str, Callable):
+      numba_ir = compiler.run_frontend(function_or_mlir_str)
+      if not isinstance(numba_ir, FunctionIR):
+        raise InternalCompilerError(
+            f"Expected FunctionIR from numba frontend but got {type(numba_ir)}"
+        )
+      func_name = numba_ir.func_id.func_name
+      arg_names = numba_ir.func_id.arg_names
 
-    # Check if we found a return type:
-    if restype is None or isinstance(restype, NoneType):
-      raise CompilerError(
-          f"Type inference failed for function {func_name}: "
-          "no return type could be determined.",
-          ssa_ir.loc,
-      )
-
-    # If a result type was annotated, compare with numba
-    if rettype is not None and debug:
-      if rettype != restype:
-        DebugMessage(
-            " Warning: user provided return type does not match"
-            f" numba inference, expected {restype}, got {rettype}",
-            ssa_ir.loc,
+      # (Numba) Type Inference
+      fn_args: list[NumbaType] = []
+      secret_args: list[int] = []
+      try:
+        fn_args, secret_args, rettype = parse_annotations(
+            function_or_mlir_str.__annotations__
+        )
+      except Exception as e:
+        raise CompilerError(
+            f"Signature parsing failed for function {func_name} with"
+            f" {type(e).__name__}: {e}",
+            numba_ir.loc,
+        )
+      typingctx = cpu_target.typing_context
+      targetctx = cpu_target.target_context
+      typingctx.refresh()
+      targetctx.refresh()
+      try:
+        typemap, restype, _, _ = type_inference_stage(
+            typingctx, targetctx, numba_ir, fn_args, None
+        )
+      except Exception as e:
+        raise CompilerError(
+            f"Type inference failed for function {func_name} "
+            f"with {type(e).__name__}: {e}",
+            numba_ir.loc,
         )
 
-    # Emit Textual IR
-    mlir_raw_textual = TextualMlirEmitter(
-        ssa_ir, secret_args, typemap, restype
-    ).emit()
-    if debug:
-      mlir_raw_filepath = Path(workspace_dir) / f"{func_name}.raw.mlir"
-      DebugMessage(f"Writing raw input MLIR to {mlir_raw_filepath}")
-      with open(mlir_raw_filepath, "w") as f:
-        f.write(mlir_raw_textual)
+      # Check if we found a return type:
+      if restype is None or isinstance(restype, NoneType):
+        raise CompilerError(
+            f"Type inference failed for function {func_name}: "
+            "no return type could be determined.",
+            numba_ir.loc,
+        )
+
+      # If a result type was annotated, compare with numba
+      if rettype is not None and debug:
+        if rettype != restype:
+          DebugMessage(
+              " Warning: user provided return type does not match"
+              f" numba inference, expected {restype}, got {rettype}",
+              numba_ir.loc,
+          )
+
+      # Emit Textual IR
+      mlir_raw_textual = TextualMlirEmitter(
+          numba_ir, secret_args, typemap, restype
+      ).emit()
+
+      if debug:
+        mlir_raw_filepath = Path(workspace_dir) / f"{func_name}.raw.mlir"
+        DebugMessage(f"Writing raw input MLIR to {mlir_raw_filepath}")
+        with open(mlir_raw_filepath, "w") as f:
+          f.write(mlir_raw_textual)
+
+    # If the input is a string, use it directly
+    elif isinstance(function_or_mlir_str, str):
+      mlir_raw_textual = function_or_mlir_str
 
     # Try to find heir_opt and heir_translate
     heir_opt = heir_cli.HeirOptBackend(heir_config.heir_opt_path)
@@ -124,6 +132,27 @@ def run_pipeline(
         binary_path=heir_config.heir_translate_path
     )
 
+    # If we have a raw MLIR string, we need to ask heir for the function name,
+    # argument names, and secret argument indices.
+    if isinstance(function_or_mlir_str, str):
+      try:
+        # We first need to --mlir-print-op-generic so that we can later use
+        # --allow-unregistered-dialect with heir_translate
+        generic_mlir = heir_opt.run_binary(
+            input=mlir_raw_textual, options=["--mlir-print-op-generic"]
+        )
+        func_info_str = heir_translate.run_binary(
+            input=generic_mlir,
+            options=["--emit-function-info", "--allow-unregistered-dialect"],
+        )
+        func_name = func_info_str.splitlines()[0]
+        arg_names = func_info_str.splitlines()[1].split(", ")
+        secret_args = list(map(int, func_info_str.splitlines()[2].split(", ")))
+      except CLIError as e:
+        raise CompilerError(
+            f"Failed to get function info from MLIR string: {e.stderr}",
+            "<unknown>",
+        )
     # Run Shape Inference
     mlir_textual = heir_opt.run_binary(
         input=mlir_raw_textual,
@@ -170,7 +199,7 @@ def run_pipeline(
           "running `heir-opt "
           f"{' '.join([str(x) for x in e.options])}` produced these errors:\n"
           f"{e.stderr}\n",
-          ssa_ir.loc,
+          numba_ir.loc if numba_ir else "<unknown>",
       )
 
     if debug:
@@ -210,7 +239,18 @@ def run_pipeline(
     )
 
     # Attach the original python func
-    result.func = function  # type: ignore
+    if isinstance(function_or_mlir_str, Callable):
+      result.func = function_or_mlir_str  # type: ignore
+    else:
+      # If we got a string, we don't have the original function, so we create a suitable dummy
+      # function that will raise an error if called.
+      def dummy_func(*args, **kwargs):
+        raise NotImplementedError(
+            "This function was compiled from MLIR input, not a Python function."
+            " Please use the compiled function directly."
+        )
+
+      result.func = dummy_func  # type: ignore
 
     return result
 
@@ -224,19 +264,22 @@ def run_pipeline(
 
 
 def compile(
+    mlir_str: Optional[str] = None,
     scheme: Optional[str] = "bgv",
     backend: Optional[BackendInterface] = None,
     config: Optional[heir_cli_config.HEIRConfig] = None,
     debug: Optional[bool] = False,
     heir_opt_options: Optional[list[str]] = None,
+    # We intentionally break type inference here by describing the return type as Any
+    # rather than the more reasonable Callable, as the latter will lead to, e.g.,
+    # pyright enforcing the function's type annotation, e.g., with Secret[...]
+    # and producing type checking errors whenever we call it with cleartext values
+    # (e.g. standard Python int) or with Ctxt/Ptxt values with their own types.
 ) -> Any:
-  # We intentionally break type inference here by describing the return type as Any
-  # rather than the more reasonable Callable, as the latter will lead to, e.g.,
-  # pyright enforcing the function's type annotation, e.g., with Secret[...]
-  # and producing type checking errors whenever we call it with cleartext values
-  # (e.g. standard Python int) or with Ctxt/Ptxt values with their own types.
-
   """Compile a function to its private equivalent in FHE.
+
+  Can be used either as a decorator on a python function (in which case mlir_str
+  should NOT be set ) or directly with a string containing MLIR (mlir_str).
 
   Args:
       scheme: a string indicating the scheme to use. Options: 'bgv' (default),
@@ -268,6 +311,7 @@ def compile(
   if debug and heir_opt_options is not None:
     DebugMessage(f"Overriding scheme with options {heir_opt_options}")
 
+  # Decorator for Python Functions
   def decorator(func):
     try:
       return run_pipeline(
@@ -284,4 +328,19 @@ def compile(
       print(e)
       raise SystemExit(1)
 
-  return decorator
+  if not mlir_str:
+    return decorator
+
+  # Run on mlir_str directly
+  try:
+    return run_pipeline(
+        mlir_str,
+        heir_opt_options=heir_opt_options
+        or ["--canonicalize", f"--mlir-to-{scheme}"],
+        backend=backend,
+        heir_config=config,
+        debug=debug or False,
+    )
+  except CompilerError as e:
+    print(e)
+    raise SystemExit(1)

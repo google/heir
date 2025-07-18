@@ -431,7 +431,7 @@ introspection (e.g., adding `--debug` or `--mlir-print-ir-after-all` to see how
 he IR changes with each pass), use `python scripts/lit_to_bazel.py`.
 
 ```bash
-# after pip installing requirements-dev.txt
+# after pip install -r requirements.txt
 python scripts/lit_to_bazel.py tests/simd/box_blur_64x64.mlir
 ```
 
