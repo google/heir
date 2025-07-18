@@ -36,35 +36,12 @@ def GenerateParamBGV : Pass<"generate-param-bgv"> {
     This pass relies on the presence of the `mgmt` dialect ops to model
     relinearize/modreduce, and it relies on `mgmt.mgmt` attribute to determine
     the ciphertext level/dimension. These ops and attributes can be added by
-    a pass like `--secret-insert-mgmt-bgv` and `--annotate-mgmt`.
+    a pass like `--secret-insert-mgmt-bgv`.
 
     User can provide custom scheme parameters by annotating bgv::SchemeParamAttr
     at the module level.
 
-    Example:
-
-    ```mlir
-    module {
-      func.func @add(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-        %0 = secret.generic(%arg0 : !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
-        ^body(%input0: i16):
-          %1 = arith.addi %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : i16
-          secret.yield %1 : i16
-        } -> !secret.secret<i16>
-        return %0 : !secret.secret<i16>
-      }
-    }
-    ```
-
-    After applying the pass, the module will be updated with the scheme parameters:
-
-    ```mlir
-    module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [4294991873], P = [4295049217], plaintextModulus = 65537>} {
-      func.func @add(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-        // same as above
-      }
-    }
-    ```
+    (* example filepath=tests/Transforms/generate_param_bgv/doctest.mlir *)
   }];
 
   let dependentDialects = [
@@ -128,30 +105,7 @@ def GenerateParamBFV : Pass<"generate-param-bfv"> {
     User can provide custom scheme parameters by annotating bgv::SchemeParamAttr
     at the module level. Note that we reuse bgv::SchemeParamAttr for BFV.
 
-    Example:
-
-    ```mlir
-    module {
-      func.func @add(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-        %0 = secret.generic(%arg0 : !secret.secret<i16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
-        ^body(%input0: i16):
-          %1 = arith.addi %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : i16
-          secret.yield %1 : i16
-        } -> !secret.secret<i16>
-        return %0 : !secret.secret<i16>
-      }
-    }
-    ```
-
-    After applying the pass, the module will be updated with the scheme parameters:
-
-    ```mlir
-    module attributes {bgv.schemeParam = #bgv.scheme_param<logN = 12, Q = [1152921504606994433], P = [1152921504607191041], plaintextModulus = 65537>} {
-      func.func @add(%arg0: !secret.secret<i16>) -> !secret.secret<i16> {
-        // same as above
-      }
-    }
-    ```
+    (* example filepath=tests/Transforms/generate_param_bfv/doctest.mlir *)
   }];
 
   let dependentDialects = [
@@ -192,30 +146,7 @@ def GenerateParamCKKS : Pass<"generate-param-ckks"> {
     User can provide custom scheme parameters by annotating bgv::SchemeParamAttr
     at the module level.
 
-    Example:
-
-    ```mlir
-    module {
-      func.func @add(%arg0: !secret.secret<f16>) -> !secret.secret<f16> {
-        %0 = secret.generic(%arg0 : !secret.secret<f16>) attrs = {arg0 = {mgmt.mgmt = #mgmt.mgmt<level = 0>}} {
-        ^body(%input0: f16):
-          %1 = arith.addf %input0, %input0 {mgmt.mgmt = #mgmt.mgmt<level = 0>} : f16
-          secret.yield %1 : f16
-        } -> !secret.secret<f16>
-        return %0 : !secret.secret<f16>
-      }
-    }
-    ```
-
-    After applying the pass, the module will be updated with the scheme parameters:
-
-    ```mlir
-    module attributes {ckks.schemeParam = #ckks.scheme_param<logN = 13, Q = [36028797019389953], P = [36028797019488257], logDefaultScale = 45>} {
-      func.func @add(%arg0: !secret.secret<f16>) -> !secret.secret<f16> {
-        // same as above
-      }
-    }
-    ```
+    (* example filepath=tests/Transforms/generate_param_ckks/doctest.mlir *)
   }];
 
   let dependentDialects = [
