@@ -109,7 +109,7 @@ static Value createTrivialOpMaxWidth(ImplicitLocOpBuilder b, int value) {
 
   auto lweType = lwe::getDefaultCGGICiphertextType(b.getContext(), maxIntWidth);
 
-  return b.create<cggi::CreateTrivialOp>(lweType, intAttr);
+  return cggi::CreateTrivialOp::create(b, lweType, intAttr);
 }
 
 /// Extracts the `input` tensor slice with elements at the last dimension offset
@@ -124,13 +124,13 @@ static Value extractLastDimSlice(ConversionPatternRewriter &rewriter,
 
   // Create index element
   auto intAttr = rewriter.getIntegerAttr(rewriter.getIndexType(), lastOffset);
-  auto constantOp = rewriter.create<mlir::arith::ConstantOp>(loc, intAttr);
+  auto constantOp = mlir::arith::ConstantOp::create(rewriter, loc, intAttr);
   SmallVector<Value, 1> indices;
   indices.push_back(constantOp.getResult());
 
   // Scalarize the result in case of 1D tensors.
   if (shape.size() == 1) {
-    return rewriter.create<tensor::ExtractOp>(loc, input, indices);
+    return tensor::ExtractOp::create(rewriter, loc, input, indices);
   }
 
   SmallVector<OpFoldResult> offsets(shape.size(), rewriter.getIndexAttr(0));
@@ -139,8 +139,8 @@ static Value extractLastDimSlice(ConversionPatternRewriter &rewriter,
   sizes.back() = rewriter.getIndexAttr(1);
   SmallVector<OpFoldResult> strides(shape.size(), rewriter.getIndexAttr(1));
 
-  return rewriter.create<tensor::ExtractSliceOp>(loc, input, offsets, sizes,
-                                                 strides);
+  return tensor::ExtractSliceOp::create(rewriter, loc, input, offsets, sizes,
+                                        strides);
 }
 
 /// Extracts four tensor slices from the `input` whose type is `tensor<...x4T>`,
@@ -163,7 +163,7 @@ static Value createScalarOrSplatConstant(OpBuilder &builder, Location loc,
   auto intAttr = builder.getIntegerAttr(
       IntegerType::get(builder.getContext(), maxIntWidth), value);
 
-  return builder.create<cggi::CreateTrivialOp>(loc, type, intAttr);
+  return cggi::CreateTrivialOp::create(builder, loc, type, intAttr);
 }
 
 static Value insertLastDimSlice(ConversionPatternRewriter &rewriter,
@@ -175,11 +175,11 @@ static Value insertLastDimSlice(ConversionPatternRewriter &rewriter,
 
   // // Handle scalar source.
   auto intAttr = rewriter.getIntegerAttr(rewriter.getIndexType(), lastOffset);
-  auto constantOp = rewriter.create<mlir::arith::ConstantOp>(loc, intAttr);
+  auto constantOp = mlir::arith::ConstantOp::create(rewriter, loc, intAttr);
   SmallVector<Value, 1> indices;
   indices.push_back(constantOp.getResult());
 
-  return rewriter.create<tensor::InsertOp>(loc, source, dest, indices);
+  return tensor::InsertOp::create(rewriter, loc, source, dest, indices);
 }
 
 /// Constructs a new tensor of type `resultType` by creating a series of
@@ -270,8 +270,8 @@ struct ConvertQuartTruncIOp
     SmallVector<OpFoldResult> strides(newResultTy.getShape().size(),
                                       rewriter.getIndexAttr(1));
 
-    auto resOp = b.create<tensor::ExtractSliceOp>(adaptor.getIn(), offsets,
-                                                  sizes, strides);
+    auto resOp = tensor::ExtractSliceOp::create(b, adaptor.getIn(), offsets,
+                                                sizes, strides);
     rewriter.replaceOp(op, resOp);
 
     return success();
@@ -312,9 +312,9 @@ struct ConvertQuartExt final : OpConversionPattern<ArithExtOp> {
 
     auto padValue = createTrivialOpMaxWidth(b, 0);
 
-    auto resultVec = b.create<tensor::PadOp>(newResultTy, adaptor.getIn(), low,
-                                             high, padValue,
-                                             /*nofold=*/true);
+    auto resultVec = tensor::PadOp::create(b, newResultTy, adaptor.getIn(), low,
+                                           high, padValue,
+                                           /*nofold=*/true);
 
     rewriter.replaceOp(op, resultVec);
     return success();
@@ -357,15 +357,15 @@ struct ConvertQuartAddI final : OpConversionPattern<mlir::arith::AddIOp> {
     SmallVector<Value> outputs;
 
     for (int i = 0; i < splitLhs.size(); ++i) {
-      auto lowSum = b.create<cggi::AddOp>(elemType, splitLhs[i], splitRhs[i]);
-      auto outputLsb = b.create<cggi::CastOp>(op.getLoc(), realTy, lowSum);
+      auto lowSum = cggi::AddOp::create(b, elemType, splitLhs[i], splitRhs[i]);
+      auto outputLsb = cggi::CastOp::create(b, op.getLoc(), realTy, lowSum);
       auto outputLsbHigh =
-          b.create<cggi::CastOp>(op.getLoc(), elemType, outputLsb);
+          cggi::CastOp::create(b, op.getLoc(), elemType, outputLsb);
 
       // Now all the outputs are 16b elements, wants presentation of 4x8b
       if (i != splitLhs.size() - 1) {
         auto carry =
-            b.create<cggi::ScalarShiftRightOp>(elemType, lowSum, shiftAttr);
+            cggi::ScalarShiftRightOp::create(b, elemType, lowSum, shiftAttr);
         carries.push_back(carry);
       }
 
@@ -373,7 +373,7 @@ struct ConvertQuartAddI final : OpConversionPattern<mlir::arith::AddIOp> {
         outputs.push_back(outputLsbHigh);
       } else {
         auto high =
-            b.create<cggi::AddOp>(elemType, outputLsbHigh, carries[i - 1]);
+            cggi::AddOp::create(b, elemType, outputLsbHigh, carries[i - 1]);
         outputs.push_back(high);
       }
     }
@@ -421,58 +421,58 @@ struct ConvertQuartMulI final : OpConversionPattern<mlir::arith::MulIOp> {
 
     // TODO: Implement the real Karatsuba algorithm for 4x4 multiplication.
     // First part of Karatsuba algorithm
-    auto z00 = b.create<cggi::MulOp>(elemTy, splitLhs[0], splitRhs[0]);
-    auto z02 = b.create<cggi::MulOp>(elemTy, splitLhs[1], splitRhs[1]);
-    auto z01_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[0], splitLhs[1]);
-    auto z01_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[0], splitRhs[1]);
-    auto z01_m = b.create<cggi::MulOp>(elemTy, z01_p1, z01_p2);
-    auto z01_s = b.create<cggi::SubOp>(elemTy, z01_m, z00);
-    auto z01 = b.create<cggi::SubOp>(elemTy, z01_s, z02);
+    auto z00 = cggi::MulOp::create(b, elemTy, splitLhs[0], splitRhs[0]);
+    auto z02 = cggi::MulOp::create(b, elemTy, splitLhs[1], splitRhs[1]);
+    auto z01_p1 = cggi::AddOp::create(b, elemTy, splitLhs[0], splitLhs[1]);
+    auto z01_p2 = cggi::AddOp::create(b, elemTy, splitRhs[0], splitRhs[1]);
+    auto z01_m = cggi::MulOp::create(b, elemTy, z01_p1, z01_p2);
+    auto z01_s = cggi::SubOp::create(b, elemTy, z01_m, z00);
+    auto z01 = cggi::SubOp::create(b, elemTy, z01_s, z02);
 
     // Second part I of Karatsuba algorithm
-    auto z1a0 = b.create<cggi::MulOp>(elemTy, splitLhs[0], splitRhs[2]);
-    auto z1a2 = b.create<cggi::MulOp>(elemTy, splitLhs[1], splitRhs[3]);
-    auto z1a1_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[0], splitLhs[1]);
-    auto z1a1_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[2], splitRhs[3]);
-    auto z1a1_m = b.create<cggi::MulOp>(elemTy, z1a1_p1, z1a1_p2);
-    auto z1a1_s = b.create<cggi::SubOp>(elemTy, z1a1_m, z1a0);
-    auto z1a1 = b.create<cggi::SubOp>(elemTy, z1a1_s, z1a2);
+    auto z1a0 = cggi::MulOp::create(b, elemTy, splitLhs[0], splitRhs[2]);
+    auto z1a2 = cggi::MulOp::create(b, elemTy, splitLhs[1], splitRhs[3]);
+    auto z1a1_p1 = cggi::AddOp::create(b, elemTy, splitLhs[0], splitLhs[1]);
+    auto z1a1_p2 = cggi::AddOp::create(b, elemTy, splitRhs[2], splitRhs[3]);
+    auto z1a1_m = cggi::MulOp::create(b, elemTy, z1a1_p1, z1a1_p2);
+    auto z1a1_s = cggi::SubOp::create(b, elemTy, z1a1_m, z1a0);
+    auto z1a1 = cggi::SubOp::create(b, elemTy, z1a1_s, z1a2);
 
     // Second part II of Karatsuba algorithm
-    auto z1b0 = b.create<cggi::MulOp>(elemTy, splitLhs[2], splitRhs[0]);
-    auto z1b2 = b.create<cggi::MulOp>(elemTy, splitLhs[3], splitRhs[1]);
-    auto z1b1_p1 = b.create<cggi::AddOp>(elemTy, splitLhs[2], splitLhs[3]);
-    auto z1b1_p2 = b.create<cggi::AddOp>(elemTy, splitRhs[0], splitRhs[1]);
-    auto z1b1_m = b.create<cggi::MulOp>(elemTy, z1b1_p1, z1b1_p2);
-    auto z1b1_s = b.create<cggi::SubOp>(elemTy, z1b1_m, z1b0);
-    auto z1b1 = b.create<cggi::SubOp>(elemTy, z1b1_s, z1b2);
+    auto z1b0 = cggi::MulOp::create(b, elemTy, splitLhs[2], splitRhs[0]);
+    auto z1b2 = cggi::MulOp::create(b, elemTy, splitLhs[3], splitRhs[1]);
+    auto z1b1_p1 = cggi::AddOp::create(b, elemTy, splitLhs[2], splitLhs[3]);
+    auto z1b1_p2 = cggi::AddOp::create(b, elemTy, splitRhs[0], splitRhs[1]);
+    auto z1b1_m = cggi::MulOp::create(b, elemTy, z1b1_p1, z1b1_p2);
+    auto z1b1_s = cggi::SubOp::create(b, elemTy, z1b1_m, z1b0);
+    auto z1b1 = cggi::SubOp::create(b, elemTy, z1b1_s, z1b2);
 
-    auto out2Kara = b.create<cggi::AddOp>(elemTy, z1a0, z1b0);
-    auto out2Carry = b.create<cggi::AddOp>(elemTy, out2Kara, z02);
-    auto out3Carry = b.create<cggi::AddOp>(elemTy, z1a1, z1b1);
+    auto out2Kara = cggi::AddOp::create(b, elemTy, z1a0, z1b0);
+    auto out2Carry = cggi::AddOp::create(b, elemTy, out2Kara, z02);
+    auto out3Carry = cggi::AddOp::create(b, elemTy, z1a1, z1b1);
 
     // Output are now all 16b elements, wants presentation of 4x8b
-    auto output0Lsb = b.create<cggi::CastOp>(realTy, z00);
-    auto output0LsbHigh = b.create<cggi::CastOp>(elemTy, output0Lsb);
+    auto output0Lsb = cggi::CastOp::create(b, realTy, z00);
+    auto output0LsbHigh = cggi::CastOp::create(b, elemTy, output0Lsb);
     auto output0Msb =
-        b.create<cggi::ScalarShiftRightOp>(elemTy, z00, shiftAttr);
+        cggi::ScalarShiftRightOp::create(b, elemTy, z00, shiftAttr);
 
-    auto output1Lsb = b.create<cggi::CastOp>(realTy, z01);
-    auto output1LsbHigh = b.create<cggi::CastOp>(elemTy, output1Lsb);
+    auto output1Lsb = cggi::CastOp::create(b, realTy, z01);
+    auto output1LsbHigh = cggi::CastOp::create(b, elemTy, output1Lsb);
     auto output1Msb =
-        b.create<cggi::ScalarShiftRightOp>(elemTy, z01, shiftAttr);
+        cggi::ScalarShiftRightOp::create(b, elemTy, z01, shiftAttr);
 
-    auto output2Lsb = b.create<cggi::CastOp>(realTy, out2Carry);
-    auto output2LsbHigh = b.create<cggi::CastOp>(elemTy, output2Lsb);
+    auto output2Lsb = cggi::CastOp::create(b, realTy, out2Carry);
+    auto output2LsbHigh = cggi::CastOp::create(b, elemTy, output2Lsb);
     auto output2Msb =
-        b.create<cggi::ScalarShiftRightOp>(elemTy, out2Carry, shiftAttr);
+        cggi::ScalarShiftRightOp::create(b, elemTy, out2Carry, shiftAttr);
 
-    auto output3Lsb = b.create<cggi::CastOp>(realTy, out3Carry);
-    auto output3LsbHigh = b.create<cggi::CastOp>(elemTy, output3Lsb);
+    auto output3Lsb = cggi::CastOp::create(b, realTy, out3Carry);
+    auto output3LsbHigh = cggi::CastOp::create(b, elemTy, output3Lsb);
 
-    auto output1 = b.create<cggi::AddOp>(elemTy, output1LsbHigh, output0Msb);
-    auto output2 = b.create<cggi::AddOp>(elemTy, output2LsbHigh, output1Msb);
-    auto output3 = b.create<cggi::AddOp>(elemTy, output3LsbHigh, output2Msb);
+    auto output1 = cggi::AddOp::create(b, elemTy, output1LsbHigh, output0Msb);
+    auto output2 = cggi::AddOp::create(b, elemTy, output2LsbHigh, output1Msb);
+    auto output3 = cggi::AddOp::create(b, elemTy, output3LsbHigh, output2Msb);
 
     Value resultVec = constructResultTensor(
         rewriter, loc, newTy, {output0LsbHigh, output1, output2, output3});

@@ -146,10 +146,10 @@ struct ConvertEncryptOp : public OpConversionPattern<lwe::RLWEEncryptOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op,
-                       rewriter.create<openfhe::EncryptOp>(
-                           op.getLoc(), op.getOutput().getType(), cryptoContext,
-                           adaptor.getInput(), adaptor.getKey()));
+    rewriter.replaceOp(
+        op, openfhe::EncryptOp::create(rewriter, op.getLoc(),
+                                       op.getOutput().getType(), cryptoContext,
+                                       adaptor.getInput(), adaptor.getKey()));
     return success();
   }
 };
@@ -167,10 +167,10 @@ struct ConvertDecryptOp : public OpConversionPattern<lwe::RLWEDecryptOp> {
     if (failed(result)) return result;
 
     Value cryptoContext = result.value();
-    rewriter.replaceOp(op,
-                       rewriter.create<openfhe::DecryptOp>(
-                           op.getLoc(), op.getOutput().getType(), cryptoContext,
-                           adaptor.getInput(), adaptor.getSecretKey()));
+    rewriter.replaceOp(
+        op, openfhe::DecryptOp::create(
+                rewriter, op.getLoc(), op.getOutput().getType(), cryptoContext,
+                adaptor.getInput(), adaptor.getSecretKey()));
     return success();
   }
 };
@@ -211,10 +211,10 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
           // Sign extending an i1 results in a -1 i64, so ensure that booleans
           // are unsigned.
           input =
-              rewriter.create<arith::ExtUIOp>(op.getLoc(), newTensorTy, input);
+              arith::ExtUIOp::create(rewriter, op.getLoc(), newTensorTy, input);
         } else {
           input =
-              rewriter.create<arith::ExtSIOp>(op.getLoc(), newTensorTy, input);
+              arith::ExtSIOp::create(rewriter, op.getLoc(), newTensorTy, input);
         }
       }
     } else {
@@ -228,7 +228,8 @@ struct ConvertEncodeOp : public OpConversionPattern<lwe::RLWEEncodeOp> {
         // are std::vector<double>, so we need to cast the input to that type.
         auto f64Ty = rewriter.getF64Type();
         auto newTensorTy = RankedTensorType::get(tensorTy.getShape(), f64Ty);
-        input = rewriter.create<arith::ExtFOp>(op.getLoc(), newTensorTy, input);
+        input =
+            arith::ExtFOp::create(rewriter, op.getLoc(), newTensorTy, input);
       }
     }
 

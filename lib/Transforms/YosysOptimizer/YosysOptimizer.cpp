@@ -200,8 +200,8 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
                          << convertedType;
           return failure();
         }
-        input = builder.create<arith::IndexCastOp>(
-            op.getLoc(),
+        input = arith::IndexCastOp::create(
+            builder, op.getLoc(),
             builder.getIntegerType(functionMemrefTy.getNumElements()), input);
       }
       auto convertedValue =
@@ -222,8 +222,9 @@ LogicalResult convertOpOperands(secret::GenericOp op, func::FuncOp func,
 
     // Insert a conversion from the original type to the converted type
     OpBuilder builder(op);
-    typeConvertedArgs.push_back(builder.create<secret::CastOp>(
-        op.getLoc(), secret::SecretType::get(convertedType), opOperand.get()));
+    typeConvertedArgs.push_back(secret::CastOp::create(
+        builder, op.getLoc(), secret::SecretType::get(convertedType),
+        opOperand.get()));
   }
 
   return success();
@@ -265,8 +266,9 @@ LogicalResult convertOpResults(secret::GenericOp op,
     // memref version.
     OpBuilder builder(op);
     builder.setInsertionPointAfter(op);
-    auto castOp = builder.create<secret::CastOp>(
-        op.getLoc(), originalResultTy[opResult.getResultNumber()], opResult);
+    auto castOp = secret::CastOp::create(
+        builder, op.getLoc(), originalResultTy[opResult.getResultNumber()],
+        opResult);
     castOps.insert(castOp);
     typeConvertedResults.push_back(castOp.getOutput());
   }
@@ -502,8 +504,8 @@ LogicalResult YosysOptimizer::runOnGenericOp(secret::GenericOp op) {
   Block &block = op.getRegion().getBlocks().front();
   func::ReturnOp returnOp = cast<func::ReturnOp>(block.getTerminator());
   OpBuilder bodyBuilder(&block, block.end());
-  bodyBuilder.create<secret::YieldOp>(returnOp.getLoc(),
-                                      returnOp.getOperands());
+  secret::YieldOp::create(bodyBuilder, returnOp.getLoc(),
+                          returnOp.getOperands());
   returnOp.erase();
   func.erase();
 

@@ -105,8 +105,8 @@ struct FoldConstantLinalgTranspose
                   denseAttr, outputShape, permutation);
         }
       }
-      auto transposedConstantOp = rewriter.create<arith::ConstantOp>(
-          transposeOp.getLoc(), transposedDenseElementsAttr);
+      auto transposedConstantOp = arith::ConstantOp::create(
+          rewriter, transposeOp.getLoc(), transposedDenseElementsAttr);
       rewriter.replaceOp(transposeOp, transposedConstantOp.getResult());
       return success();
     }

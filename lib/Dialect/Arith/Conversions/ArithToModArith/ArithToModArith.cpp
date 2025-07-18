@@ -78,9 +78,9 @@ static auto buildLoadOps(int64_t modulus) {
     auto integerType = getIntegerType(loadOp.getType(), modulus);
     auto modArithType = convertArithType(loadOp.getType(), modulus);
     auto extui =
-        b.create<mlir::arith::ExtUIOp>(integerType, loadOp.getResult());
+        mlir::arith::ExtUIOp::create(b, integerType, loadOp.getResult());
 
-    return b.create<mod_arith::EncapsulateOp>(modArithType, extui);
+    return mod_arith::EncapsulateOp::create(b, modArithType, extui);
   };
 }
 
@@ -128,7 +128,7 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
       }
       TypedAttr newAttr = DenseIntElementsAttr::get(
           RankedTensorType::get(shapedType.getShape(), storageType), newValues);
-      auto result = b.create<mod_arith::ConstantOp>(shapedType, newAttr);
+      auto result = mod_arith::ConstantOp::create(b, shapedType, newAttr);
       rewriter.replaceOp(op, result);
       return success();
     }
@@ -136,7 +136,7 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
     IntegerAttr oldAttr = cast<IntegerAttr>(op.getValue());
     IntegerAttr newAttr =
         IntegerAttr::get(storageType, oldAttr.getValue().zextOrTrunc(newWidth));
-    auto result = b.create<mod_arith::ConstantOp>(newResultType, newAttr);
+    auto result = mod_arith::ConstantOp::create(b, newResultType, newAttr);
 
     rewriter.replaceOp(op, result);
     return success();
@@ -154,8 +154,9 @@ struct ConvertExtSI : public OpConversionPattern<mlir::arith::ExtSIOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto result = b.create<mod_arith::ModSwitchOp>(
-        op.getLoc(), typeConverter->convertType(op.getType()), adaptor.getIn());
+    auto result = mod_arith::ModSwitchOp::create(
+        b, op.getLoc(), typeConverter->convertType(op.getType()),
+        adaptor.getIn());
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -172,8 +173,9 @@ struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto result = b.create<mod_arith::ModSwitchOp>(
-        op.getLoc(), typeConverter->convertType(op.getType()), adaptor.getIn());
+    auto result = mod_arith::ModSwitchOp::create(
+        b, op.getLoc(), typeConverter->convertType(op.getType()),
+        adaptor.getIn());
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -199,8 +201,8 @@ struct ConvertLoadOp : public OpConversionPattern<mlir::memref::LoadOp> {
       }
     }
 
-    auto result = rewriter.create<memref::LoadOp>(
-        op.getLoc(), typeConverter->convertType(op.getType()),
+    auto result = memref::LoadOp::create(
+        rewriter, op.getLoc(), typeConverter->convertType(op.getType()),
         adaptor.getOperands()[0], op.getIndices());
 
     rewriter.replaceOp(op, result);

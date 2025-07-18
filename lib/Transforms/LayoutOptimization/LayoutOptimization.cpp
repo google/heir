@@ -234,9 +234,9 @@ LayoutOptimization::OpHoistResult LayoutOptimization::hoistOp(
                             << originalLayout.value() << " to layout "
                             << minHoistResult.newInputLayouts[i] << "\n");
     LayoutAttr newInputLayout = minHoistResult.newInputLayouts[i];
-    auto newInput = builder.create<ConvertLayoutOp>(
-        op->getLoc(), operand, cast<LayoutAttr>(originalLayout.value()),
-        newInputLayout);
+    auto newInput = ConvertLayoutOp::create(
+        builder, op->getLoc(), operand,
+        cast<LayoutAttr>(originalLayout.value()), newInputLayout);
     newInput->setAttr(kLayoutAttrName, newInputLayout);
     builder.replaceUsesWithIf(operand, newInput, [&](OpOperand &operand) {
       return operand.getOwner() == op;

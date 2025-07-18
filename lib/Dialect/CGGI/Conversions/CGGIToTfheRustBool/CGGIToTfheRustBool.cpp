@@ -109,8 +109,9 @@ struct ConvertCGGITRBBinOp : public OpConversionPattern<BinOp> {
 
     Value serverKey = result.value();
 
-    rewriter.replaceOp(op, b.create<TfheRustBoolBinOp>(
-                               serverKey, adaptor.getLhs(), adaptor.getRhs()));
+    rewriter.replaceOp(op,
+                       TfheRustBoolBinOp::create(b, serverKey, adaptor.getLhs(),
+                                                 adaptor.getRhs()));
     return success();
   }
 };
@@ -131,7 +132,7 @@ struct ConvertBoolNotOp : public OpConversionPattern<cggi::NotOp> {
     Value serverKey = result.value();
 
     rewriter.replaceOp(
-        op, b.create<tfhe_rust_bool::NotOp>(serverKey, adaptor.getInput()));
+        op, tfhe_rust_bool::NotOp::create(b, serverKey, adaptor.getInput()));
     return success();
   }
 };
@@ -169,9 +170,9 @@ struct ConvertPackedOp : public OpConversionPattern<cggi::PackedOp> {
 
     auto outputType = adaptor.getLhs().getType();
 
-    rewriter.replaceOp(op, b.create<tfhe_rust_bool::PackedOp>(
-                               outputType, serverKey, oplist, adaptor.getLhs(),
-                               adaptor.getRhs()));
+    rewriter.replaceOp(op, tfhe_rust_bool::PackedOp::create(
+                               b, outputType, serverKey, oplist,
+                               adaptor.getLhs(), adaptor.getRhs()));
     return success();
   }
 };
@@ -198,8 +199,8 @@ struct ConvertBoolTrivialEncryptOp
     }
     auto outputType = tfhe_rust_bool::EncryptedBoolType::get(getContext());
 
-    auto createTrivialOp = rewriter.create<tfhe_rust_bool::CreateTrivialOp>(
-        op.getLoc(), outputType, serverKey, encodeOp.getInput());
+    auto createTrivialOp = tfhe_rust_bool::CreateTrivialOp::create(
+        rewriter, op.getLoc(), outputType, serverKey, encodeOp.getInput());
     rewriter.replaceOp(op, createTrivialOp);
     return success();
   }

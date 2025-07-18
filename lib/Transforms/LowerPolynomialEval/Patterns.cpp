@@ -68,19 +68,19 @@ LogicalResult LowerViaHorner::matchAndRewrite(EvalOp op,
 
   // Start with the coefficient of the highest degree term
   Value result =
-      b.create<arith::ConstantOp>(evaluatedType, attributeMap[maxDegree]);
+      arith::ConstantOp::create(b, evaluatedType, attributeMap[maxDegree]);
 
   // Apply Horner's method, accounting for possible missing terms
   auto x = op.getOperand();
   for (int64_t i = maxDegree - 1; i >= 0; i--) {
     // Multiply by x
-    result = b.create<arith::MulFOp>(result, x);
+    result = arith::MulFOp::create(b, result, x);
 
     // Add coefficient if this term exists, otherwise continue
     if (attributeMap.find(i) != attributeMap.end()) {
       auto coeffConst =
-          b.create<arith::ConstantOp>(evaluatedType, attributeMap.at(i));
-      result = b.create<arith::AddFOp>(result, coeffConst);
+          arith::ConstantOp::create(b, evaluatedType, attributeMap.at(i));
+      result = arith::AddFOp::create(b, result, coeffConst);
     }
   }
 
@@ -120,16 +120,16 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
   Value x = op.getOperand();
   std::vector<Value> xPowers(k + 1);
   xPowers[0] =
-      b.create<arith::ConstantOp>(evaluatedType, b.getOneAttr(evaluatedType));
+      arith::ConstantOp::create(b, evaluatedType, b.getOneAttr(evaluatedType));
   xPowers[1] = x;
   for (int64_t i = 2; i <= k; i++) {
     if (i % 2 == 0) {
       // x^{2k} = (x^{k})^2
       xPowers[i] =
-          b.create<arith::MulFOp>(xPowers[i / 2], xPowers[i / 2]).getResult();
+          arith::MulFOp::create(b, xPowers[i / 2], xPowers[i / 2]).getResult();
     } else {
       // x^{2k+1} = x^{k}x^{k+1}
-      xPowers[i] = b.create<arith::MulFOp>(xPowers[i / 2], xPowers[i / 2 + 1])
+      xPowers[i] = arith::MulFOp::create(b, xPowers[i / 2], xPowers[i / 2 + 1])
                        .getResult();
     }
   }
@@ -153,20 +153,20 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
         int64_t powerIndex = j - lowestDegreeInChunk;
 
         Value coeff =
-            b.create<arith::ConstantOp>(evaluatedType, attributeMap[j]);
+            arith::ConstantOp::create(b, evaluatedType, attributeMap[j]);
         Value term;
 
         if (powerIndex == 0) {
           term = coeff;  // x^0 = 1
         } else {
-          term = b.create<arith::MulFOp>(coeff, xPowers[powerIndex]);
+          term = arith::MulFOp::create(b, coeff, xPowers[powerIndex]);
         }
 
         if (!hasTerms) {
           chunkValue = term;
           hasTerms = true;
         } else {
-          chunkValue = b.create<arith::AddFOp>(chunkValue, term);
+          chunkValue = arith::AddFOp::create(b, chunkValue, term);
         }
       }
     }
@@ -174,8 +174,8 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
     if (hasTerms) {
       chunkValues[i] = chunkValue;
     } else {
-      chunkValues[i] = b.create<arith::ConstantOp>(
-          evaluatedType, b.getZeroAttr(evaluatedType));
+      chunkValues[i] = arith::ConstantOp::create(b, evaluatedType,
+                                                 b.getZeroAttr(evaluatedType));
     }
   }
 
@@ -191,19 +191,19 @@ LogicalResult LowerViaPatersonStockmeyerMonomial::matchAndRewrite(
         hasNonEmptyChunk = true;
       } else {
         // Multiply previous result by x^k and add this chunk
-        result = b.create<arith::MulFOp>(result, xPowers[k]);
-        result = b.create<arith::AddFOp>(result, chunkValues[i]);
+        result = arith::MulFOp::create(b, result, xPowers[k]);
+        result = arith::AddFOp::create(b, result, chunkValues[i]);
       }
     } else if (hasNonEmptyChunk) {
       // Empty chunk but we have previous chunks
-      result = b.create<arith::MulFOp>(result, xPowers[k]);
+      result = arith::MulFOp::create(b, result, xPowers[k]);
     }
   }
 
   // Handle the case where no terms were found
   if (!hasNonEmptyChunk) {
-    result = b.create<arith::ConstantOp>(evaluatedType,
-                                         b.getZeroAttr(evaluatedType));
+    result = arith::ConstantOp::create(b, evaluatedType,
+                                       b.getZeroAttr(evaluatedType));
   }
 
   rewriter.replaceOp(op, result);
@@ -222,7 +222,7 @@ class IRMaterializingVisitor : public CachingVisitor<Value, Value> {
         isa<FloatType>(evaluatedType)
             ? (TypedAttr)FloatAttr::get(evaluatedType, node.value)
             : (TypedAttr)IntegerAttr::get(evaluatedType, node.value);
-    return builder.create<arith::ConstantOp>(evaluatedType, attr);
+    return arith::ConstantOp::create(builder, evaluatedType, attr);
   }
 
   Value operator()(const LeafNode<Value>& node) override { return node.value; }
@@ -233,9 +233,9 @@ class IRMaterializingVisitor : public CachingVisitor<Value, Value> {
     Value rhs = this->process(node.right);
     return TypeSwitch<Type, Value>(evaluatedType)
         .template Case<FloatType>(
-            [&](auto ty) { return builder.create<FloatOp>(lhs, rhs); })
+            [&](auto ty) { return FloatOp::create(builder, lhs, rhs); })
         .template Case<IntegerType>(
-            [&](auto ty) { return builder.create<IntOp>(lhs, rhs); })
+            [&](auto ty) { return IntOp::create(builder, lhs, rhs); })
         .Default([&](Type) {
           llvm_unreachable(
               "Unsupported type for binary operation in Chebyshev "

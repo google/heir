@@ -121,8 +121,8 @@ SmallVector<Value> buildVectorizedOperands(
       operands.push_back(op->getOperand(operandIndex));
     }
     ///------------------------------------------
-    auto fromElementsOp = builder.create<tensor::FromElementsOp>(
-        key->getLoc(), tensorType, operands);
+    auto fromElementsOp = tensor::FromElementsOp::create(builder, key->getLoc(),
+                                                         tensorType, operands);
     vectorizedOperands.push_back(fromElementsOp.getResult());
   }
   LLVM_DEBUG({
@@ -278,12 +278,12 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
         Operation *vectorizedOp;
         if (llvm::isa<cggi::Lut3Op>(key)) {
           auto oplist = builder.getArrayAttr(vectorizedGateOperands.value());
-          vectorizedOp = builder.create<cggi::PackedLut3Op>(
-              key->getLoc(), tensorType, oplist, vectorizedOperands[0],
+          vectorizedOp = cggi::PackedLut3Op::create(
+              builder, key->getLoc(), tensorType, oplist, vectorizedOperands[0],
               vectorizedOperands[1], vectorizedOperands[2]);
         } else if (llvm::isa<cggi::NotOp>(key)) {
-          vectorizedOp = builder.create<cggi::NotOp>(key->getLoc(), tensorType,
-                                                     vectorizedOperands[0]);
+          vectorizedOp = cggi::NotOp::create(builder, key->getLoc(), tensorType,
+                                             vectorizedOperands[0]);
         } else {
           auto operands = vectorizedGateOperands.value();
           auto oplist = CGGIBoolGatesAttr::get(
@@ -292,17 +292,17 @@ bool tryBoolVectorizeBlock(Block *block, MLIRContext &context,
                   operands, [](Attribute attr) -> CGGIBoolGateEnumAttr {
                     return cast<CGGIBoolGateEnumAttr>(attr);
                   })));
-          vectorizedOp = builder.create<cggi::PackedOp>(
-              key->getLoc(), tensorType, oplist, vectorizedOperands[0],
+          vectorizedOp = cggi::PackedOp::create(
+              builder, key->getLoc(), tensorType, oplist, vectorizedOperands[0],
               vectorizedOperands[1]);
         }
 
         int bucketIndex = 0;
         for (auto *op : bucket) {
-          auto extractionIndex = builder.create<arith::ConstantOp>(
-              op->getLoc(), builder.getIndexAttr(bucketIndex));
-          auto extractOp = builder.create<tensor::ExtractOp>(
-              op->getLoc(), elementType, vectorizedOp->getResult(0),
+          auto extractionIndex = arith::ConstantOp::create(
+              builder, op->getLoc(), builder.getIndexAttr(bucketIndex));
+          auto extractOp = tensor::ExtractOp::create(
+              builder, op->getLoc(), elementType, vectorizedOp->getResult(0),
               extractionIndex.getResult());
           op->replaceAllUsesWith(ValueRange{extractOp.getResult()});
           bucketIndex++;

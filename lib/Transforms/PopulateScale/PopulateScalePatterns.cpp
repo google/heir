@@ -45,8 +45,8 @@ LogicalResult ConvertAdjustScaleToMulPlain<MulOp>::matchAndRewrite(
   // create arith.constant at the beginning of the function
   auto funcOp = op->getParentOfType<func::FuncOp>();
   rewriter.setInsertionPointToStart(&funcOp.getBody().front());
-  auto allOnes =
-      rewriter.create<mlir::arith::ConstantOp>(op.getLoc(), inputType, oneAttr);
+  auto allOnes = mlir::arith::ConstantOp::create(rewriter, op.getLoc(),
+                                                 inputType, oneAttr);
 
   // insert following ops right before op
   rewriter.setInsertionPoint(op);
@@ -54,12 +54,12 @@ LogicalResult ConvertAdjustScaleToMulPlain<MulOp>::matchAndRewrite(
   // arith.constant with same value and mgmt attr will be lost
 
   // init-op also for preventing mul 1 being constant folded
-  auto initOp = rewriter.create<mgmt::InitOp>(op.getLoc(), inputType,
-                                              allOnes.getResult());
+  auto initOp = mgmt::InitOp::create(rewriter, op.getLoc(), inputType,
+                                     allOnes.getResult());
   mgmt::setMgmtAttrAssociatedWith(
       initOp, getMgmtAttrWithNewScale(mgmtAttr, deltaScale));
-  auto mulOp = rewriter.create<MulOp>(op.getLoc(), inputType, op.getInput(),
-                                      initOp.getOutput());
+  auto mulOp = MulOp::create(rewriter, op.getLoc(), inputType, op.getInput(),
+                             initOp.getOutput());
   mgmt::setMgmtAttrAssociatedWith(mulOp, mgmtAttr);
   rewriter.replaceAllOpUsesWith(op, mulOp.getResult());
   return success();

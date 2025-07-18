@@ -124,14 +124,15 @@ struct ConvertCGGIToJaxiteLut3Op : public OpConversionPattern<cggi::Lut3Op> {
 
     int64_t truthTableValue =
         static_cast<uint8_t>(op.getLookupTableAttr().getUInt());
-    Value tt = b.create<arith::ConstantOp>(
-        op.getLoc(), b.getIntegerAttr(b.getI8Type(), truthTableValue));
+    Value tt = arith::ConstantOp::create(
+        b, op.getLoc(), b.getIntegerAttr(b.getI8Type(), truthTableValue));
 
     // The ciphertext parameters (a, b, c) are passed in reverse order from cggi
     // to jaxite to mirror jaxite API
-    auto createLut3Op = rewriter.create<jaxite::Lut3Op>(
-        op.getLoc(), typeConverter->convertType(op.getOutput().getType()),
-        adaptor.getA(), adaptor.getB(), adaptor.getC(), tt, serverKey, params);
+    auto createLut3Op = jaxite::Lut3Op::create(
+        rewriter, op.getLoc(),
+        typeConverter->convertType(op.getOutput().getType()), adaptor.getA(),
+        adaptor.getB(), adaptor.getC(), tt, serverKey, params);
     rewriter.replaceOp(op, createLut3Op);
     return success();
   }
@@ -165,21 +166,22 @@ struct ConvertCGGIToJaxitePmapLut3Op
     for (int i = 0; i < truthTableValues.size(); ++i) {
       uint8_t truthTableValue = static_cast<uint8_t>(
           cast<IntegerAttr>(truthTableValues[i]).getUInt());
-      auto tt = b.create<arith::ConstantOp>(
-          op.getLoc(), b.getIntegerAttr(b.getI8Type(), truthTableValue));
+      auto tt = arith::ConstantOp::create(
+          b, op.getLoc(), b.getIntegerAttr(b.getI8Type(), truthTableValue));
       auto extractionIndex =
-          b.create<arith::ConstantOp>(op->getLoc(), b.getIndexAttr(i));
-      auto extractOpA = b.create<tensor::ExtractOp>(
-          op->getLoc(), A, extractionIndex.getResult());
-      auto extractOpB = b.create<tensor::ExtractOp>(
-          op->getLoc(), B, extractionIndex.getResult());
-      auto extractOpC = b.create<tensor::ExtractOp>(
-          op->getLoc(), C, extractionIndex.getResult());
-      auto lut3ArgsOp = b.create<jaxite::Lut3ArgsOp>(
-          op.getLoc(), extractOpA, extractOpB, extractOpC, tt);
+          arith::ConstantOp::create(b, op->getLoc(), b.getIndexAttr(i));
+      auto extractOpA = tensor::ExtractOp::create(b, op->getLoc(), A,
+                                                  extractionIndex.getResult());
+      auto extractOpB = tensor::ExtractOp::create(b, op->getLoc(), B,
+                                                  extractionIndex.getResult());
+      auto extractOpC = tensor::ExtractOp::create(b, op->getLoc(), C,
+                                                  extractionIndex.getResult());
+      auto lut3ArgsOp = jaxite::Lut3ArgsOp::create(b, op.getLoc(), extractOpA,
+                                                   extractOpB, extractOpC, tt);
       lut3_args.push_back(lut3ArgsOp.getResult());
     }
-    auto lut3ArgsOp = b.create<tensor::FromElementsOp>(op->getLoc(), lut3_args);
+    auto lut3ArgsOp =
+        tensor::FromElementsOp::create(b, op->getLoc(), lut3_args);
     rewriter.replaceOpWithNewOp<jaxite::PmapLut3Op>(
         op, op.getOutput().getType(), lut3ArgsOp.getResult(), serverKey,
         params);
@@ -208,8 +210,9 @@ struct ConvertCGGIToJaxiteTrivialEncryptOp
                                "boolean LWEPlaintext but found "
                             << op.getInput().getType();
     }
-    auto createConstantOp = rewriter.create<jaxite::ConstantOp>(
-        op.getLoc(), typeConverter->convertType(op.getOutput().getType()),
+    auto createConstantOp = jaxite::ConstantOp::create(
+        rewriter, op.getLoc(),
+        typeConverter->convertType(op.getOutput().getType()),
         encodeOp.getInput(), serverParams);
     rewriter.replaceOp(op, createConstantOp);
     return success();

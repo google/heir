@@ -72,14 +72,14 @@ struct SecretExtractToStaticExtractConversion
     ImplicitLocOpBuilder builder(extractOp->getLoc(), rewriter);
 
     // Create index 0
-    auto zero = builder.create<arith::ConstantIndexOp>(0);
+    auto zero = arith::ConstantIndexOp::create(builder, 0);
     // Set secretness for index 0
     setValueToSecretness(solver, zero, Secretness(false));
 
     // Extract tensor value at index 0
     SmallVector<Value> i = {zero};
     auto initialValue =
-        builder.create<tensor::ExtractOp>(extractOp.getTensor(), i);
+        tensor::ExtractOp::create(builder, extractOp.getTensor(), i);
     // Set secretness for initialValue
     auto tensorSecretness =
         solver->getOrCreateState<SecretnessLattice>(extractOp.getTensor())
@@ -89,37 +89,37 @@ struct SecretExtractToStaticExtractConversion
     int size = extractOp.getTensor().getType().getShape().front();
 
     SmallVector<Value> iterArgs = {initialValue};
-    auto forOp = builder.create<affine::AffineForOp>(0, size, 1, iterArgs);
+    auto forOp = affine::AffineForOp::create(builder, 0, size, 1, iterArgs);
     // Set secretness for induction variable
     setValueToSecretness(solver, forOp.getInductionVar(), Secretness(false));
 
     builder.setInsertionPointToStart(forOp.getBody());
 
     // Check if the current index is equal to the secret index
-    auto cond = builder.create<arith::CmpIOp>(arith::CmpIPredicate::eq,
-                                              forOp.getInductionVar(), index);
+    auto cond = arith::CmpIOp::create(builder, arith::CmpIPredicate::eq,
+                                      forOp.getInductionVar(), index);
     // Set secretness for cond
     for (auto result : cond->getResults()) {
       setValueToSecretness(solver, result, indexSecretness);
     }
 
     // Extract value at current index
-    auto newExtractOp = builder.create<tensor::ExtractOp>(
-        extractOp.getTensor(), forOp.getInductionVar());
+    auto newExtractOp = tensor::ExtractOp::create(
+        builder, extractOp.getTensor(), forOp.getInductionVar());
     // Set secretness for newExtractOp
     for (auto result : newExtractOp->getResults()) {
       setValueToSecretness(solver, result, tensorSecretness);
     }
 
-    auto ifOp = builder.create<scf::IfOp>(
-        cond,
+    auto ifOp = scf::IfOp::create(
+        builder, cond,
         [&](OpBuilder &b, Location loc) {
           // Yield value extracted at index
-          b.create<scf::YieldOp>(loc, newExtractOp.getResult());
+          scf::YieldOp::create(b, loc, newExtractOp.getResult());
         },
         [&](OpBuilder &b, Location loc) {
           // Yield previous value
-          b.create<scf::YieldOp>(loc, forOp.getRegionIterArgs().front());
+          scf::YieldOp::create(b, loc, forOp.getRegionIterArgs().front());
         });
     // Set secretness for ifOp results: Combine indexSecretness with
     // tensorSecretness
@@ -131,7 +131,7 @@ struct SecretExtractToStaticExtractConversion
 
     // Create YieldOp for affine.for
     SmallVector<Value> results(ifOp->getOpResults());
-    builder.create<affine::AffineYieldOp>(results);
+    affine::AffineYieldOp::create(builder, results);
     // Set secretness for forOp results
     for (auto result : forOp->getResults()) {
       setValueToSecretness(solver, result, combinedSecretness);

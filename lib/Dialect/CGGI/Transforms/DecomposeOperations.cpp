@@ -35,9 +35,9 @@ struct ExpandLut2 : public OpRewritePattern<Lut2Op> {
   LogicalResult matchAndRewrite(Lut2Op op,
                                 PatternRewriter &rewriter) const override {
     SmallVector<int32_t> coeffs2 = {2, 1};
-    auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
-        op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs2,
-        op.getLookupTable());
+    auto createLutLinCombOp =
+        LutLinCombOp::create(rewriter, op.getLoc(), op.getOutput().getType(),
+                             op.getOperands(), coeffs2, op.getLookupTable());
     rewriter.replaceOp(op, createLutLinCombOp);
     return success();
   }
@@ -49,9 +49,9 @@ struct ExpandLut3 : public OpRewritePattern<Lut3Op> {
   LogicalResult matchAndRewrite(Lut3Op op,
                                 PatternRewriter &rewriter) const override {
     SmallVector<int> coeffs3 = {4, 2, 1};
-    auto createLutLinCombOp = rewriter.create<LutLinCombOp>(
-        op.getLoc(), op.getOutput().getType(), op.getOperands(), coeffs3,
-        op.getLookupTable());
+    auto createLutLinCombOp =
+        LutLinCombOp::create(rewriter, op.getLoc(), op.getOutput().getType(),
+                             op.getOperands(), coeffs3, op.getLookupTable());
     rewriter.replaceOp(op, createLutLinCombOp);
     return success();
   }
@@ -73,13 +73,14 @@ struct ExpandLutLinComb : public OpRewritePattern<LutLinCombOp> {
     Value result;
     for (auto [input, coeff] :
          llvm::zip(op.getInputs(), op.getCoefficients())) {
-      auto scaled = rewriter.create<lwe::MulScalarOp>(
-          op.getLoc(), input,
-          rewriter.create<arith::ConstantOp>(
-              op.getLoc(), rewriter.getIntegerAttr(scalarTy, coeff)));
-      result = result ? rewriter.create<lwe::AddOp>(op.getLoc(), result, scaled)
-                            .getResult()
-                      : scaled.getResult();
+      auto scaled = lwe::MulScalarOp::create(
+          rewriter, op.getLoc(), input,
+          arith::ConstantOp::create(rewriter, op.getLoc(),
+                                    rewriter.getIntegerAttr(scalarTy, coeff)));
+      result = result
+                   ? lwe::AddOp::create(rewriter, op.getLoc(), result, scaled)
+                         .getResult()
+                   : scaled.getResult();
     }
     rewriter.replaceOpWithNewOp<ProgrammableBootstrapOp>(op, result,
                                                          op.getLookupTable());

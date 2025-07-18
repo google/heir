@@ -78,7 +78,7 @@ Value expandDims(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
   RankedTensorType expandedType =
       RankedTensorType::get(newSizes, dataSemanticType.getElementType());
   auto expandOp =
-      b.create<tensor::ExpandShapeOp>(expandedType, value, reassociation);
+      tensor::ExpandShapeOp::create(b, expandedType, value, reassociation);
   createdOpCallback(expandOp);
   return expandOp.getResult();
 }
@@ -90,7 +90,7 @@ Value applyPadding(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
   tensor_ext::AlignmentAttr alignment = layout.getAlignment();
   // Note padding is asserted to be present, and paddingValue is enforced
   // to be present whenever padding is present due to attribute verifier.
-  auto padValueOp = b.create<arith::ConstantOp>(alignment.getPaddingValue());
+  auto padValueOp = arith::ConstantOp::create(b, alignment.getPaddingValue());
 
   SmallVector<int64_t> newSizes;
   SmallVector<OpFoldResult> lows;
@@ -103,8 +103,8 @@ Value applyPadding(Value value, LayoutAttr layout, ImplicitLocOpBuilder &b,
   }
   RankedTensorType expandedType =
       RankedTensorType::get(newSizes, dataSemanticType.getElementType());
-  auto padOp = b.create<tensor::PadOp>(expandedType, value, lows, highs,
-                                       padValueOp, /*nofold=*/false);
+  auto padOp = tensor::PadOp::create(b, expandedType, value, lows, highs,
+                                     padValueOp, /*nofold=*/false);
 
   createdOpCallback(padOp);
   b.setInsertionPointAfter(padOp);
@@ -141,8 +141,8 @@ FailureOr<Value> maybeReplicateAlongAxis(
 
     int64_t numIters = outputAxisSize / dataDimSize;
     SmallVector<Value> repeatedInputs(numIters, value);
-    auto concatOp = b.create<tensor::ConcatOp>(op.getLoc(), expandedShape,
-                                               /*axis=*/axis, repeatedInputs);
+    auto concatOp = tensor::ConcatOp::create(b, op.getLoc(), expandedShape,
+                                             /*axis=*/axis, repeatedInputs);
     createdOpCallback(concatOp);
     return concatOp.getResult();
   }
@@ -225,8 +225,8 @@ FailureOr<Value> implementAssignLayoutForTensor(
     // unused values in the layout will default to zero, which seems both
     // like a safe default and the kind of thing that a user could
     // unexpectedly become dependent on.
-    auto emptyOp = builder.create<mlir::arith::ConstantOp>(
-        builder.getZeroAttr(ciphertextSemanticType));
+    auto emptyOp = mlir::arith::ConstantOp::create(
+        builder, builder.getZeroAttr(ciphertextSemanticType));
     createdOpCallback(emptyOp);
 
     SmallVector<utils::IteratorType> iteratorTypes(
@@ -240,7 +240,8 @@ FailureOr<Value> implementAssignLayoutForTensor(
         // The first map is the actual layout, mapping input tensor indices
         // to ciphertext slots.
         layout.getMap()};
-    auto materializeLayoutOp = builder.create<linalg::GenericOp>(
+    auto materializeLayoutOp = linalg::GenericOp::create(
+        builder,
         /*resultTypes=*/emptyOp.getResult().getType(),
         /*inputs=*/mostRecentOutput,
         /*outputs=*/emptyOp.getResult(), indexingMaps, iteratorTypes,
@@ -248,7 +249,7 @@ FailureOr<Value> implementAssignLayoutForTensor(
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
           // Do nothing, which just assigns the input to the output slot.
           auto yieldOp =
-              nestedBuilder.create<linalg::YieldOp>(nestedLoc, args[0]);
+              linalg::YieldOp::create(nestedBuilder, nestedLoc, args[0]);
           createdOpCallback(yieldOp);
         });
 
@@ -278,7 +279,7 @@ FailureOr<Value> implementAssignLayoutForScalar(
   // reduced to a single splat.
   if (!alignment || alignment.getPadding().empty()) {
     auto splatOp =
-        builder.create<tensor::SplatOp>(ciphertextSemanticType, scalar);
+        tensor::SplatOp::create(builder, ciphertextSemanticType, scalar);
     createdOpCallback(splatOp);
     return splatOp.getResult();
   }
@@ -305,8 +306,8 @@ Value implementUnpackOpForTensor(
   // 1. Extract the data according to the layout map
   if (!layout.getMap().isIdentity()) {
     // A zero-valued tensor to store the result of the unpacking.
-    auto emptyOp = builder.create<mlir::arith::ConstantOp>(
-        builder.getZeroAttr(replicatedType));
+    auto emptyOp = mlir::arith::ConstantOp::create(
+        builder, builder.getZeroAttr(replicatedType));
     createdOpCallback(emptyOp);
 
     SmallVector<utils::IteratorType> iteratorTypes(
@@ -320,7 +321,8 @@ Value implementUnpackOpForTensor(
         AffineMap::getMultiDimIdentityMap(layout.getMap().getNumDims(),
                                           op.getContext()),
     };
-    auto inverseLayoutOp = builder.create<linalg::GenericOp>(
+    auto inverseLayoutOp = linalg::GenericOp::create(
+        builder,
         /*resultTypes=*/emptyOp.getResult().getType(),
         /*inputs=*/mostRecentOutput,
         /*outputs=*/emptyOp.getResult(), indexingMaps, iteratorTypes,
@@ -328,7 +330,7 @@ Value implementUnpackOpForTensor(
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
           // Do nothing, which just assigns the input to the output slot.
           auto yieldOp =
-              nestedBuilder.create<linalg::YieldOp>(nestedLoc, args[0]);
+              linalg::YieldOp::create(nestedBuilder, nestedLoc, args[0]);
           createdOpCallback(yieldOp);
         });
     mostRecentOutput = inverseLayoutOp.getResult(0);
@@ -361,8 +363,8 @@ Value implementUnpackOpForTensor(
       }
     }
 
-    auto extractSliceOp = builder.create<tensor::ExtractSliceOp>(
-        dataSemanticType, mostRecentOutput, offsets, sizes, strides);
+    auto extractSliceOp = tensor::ExtractSliceOp::create(
+        builder, dataSemanticType, mostRecentOutput, offsets, sizes, strides);
     createdOpCallback(extractSliceOp);
     mostRecentOutput = extractSliceOp.getResult();
   }
@@ -384,14 +386,14 @@ Value implementUnpackOpForScalar(
     // each dimension of the input tensor.
     for (unsigned i = 0; i < alignment.getOut().size(); ++i) {
       // We need to insert a 0 for each inserted dimension.
-      auto constOp = builder.create<arith::ConstantIndexOp>(0);
+      auto constOp = arith::ConstantIndexOp::create(builder, 0);
       createdOpCallback(constOp);
       indices.push_back(constOp);
     }
   }
 
-  auto splatOp = builder.create<tensor::ExtractOp>(op.getResult().getType(),
-                                                   op.getValue(), indices);
+  auto splatOp = tensor::ExtractOp::create(builder, op.getResult().getType(),
+                                           op.getValue(), indices);
   createdOpCallback(splatOp);
   return splatOp.getResult();
 }

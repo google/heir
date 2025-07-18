@@ -28,7 +28,7 @@ Value matchShapedType(OpBuilder builder, Value op, Value target) {
   if (targetShapedType && !opShapedType) {
     auto newShapedType =
         targetShapedType.cloneWith(targetShapedType.getShape(), op.getType());
-    return builder.create<tensor::SplatOp>(op.getLoc(), op, newShapedType);
+    return tensor::SplatOp::create(builder, op.getLoc(), op, newShapedType);
   }
   return op;
 }

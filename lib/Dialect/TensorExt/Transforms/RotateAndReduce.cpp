@@ -47,9 +47,9 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
         mlir::cast<RankedTensorType>(tensor.getType()).getShape();
     for (int64_t shiftSize = tensorShape[0] / 2; shiftSize > 0;
          shiftSize /= 2) {
-      auto rotatedTensor = b.create<tensor_ext::RotateOp>(
-          tensor, b.create<arith::ConstantOp>(b.getIndexAttr(shiftSize)));
-      auto addOp = b.create<ArithOp>(tensor, rotatedTensor);
+      auto rotatedTensor = tensor_ext::RotateOp::create(
+          b, tensor, arith::ConstantOp::create(b, b.getIndexAttr(shiftSize)));
+      auto addOp = ArithOp::create(b, tensor, rotatedTensor);
       finalOp = addOp;
       tensor = addOp->getResult(0);
     }
@@ -58,13 +58,13 @@ struct RotateAndReduce : impl::RotateAndReduceBase<RotateAndReduce> {
     if (extraction) {
       // We can extract at any index; every index contains the same reduced
       // value.
-      auto extractOp = b.create<tensor::ExtractOp>(
-          finalOp->getResult(0),
-          b.create<arith::ConstantIndexOp>(0).getResult());
+      auto extractOp = tensor::ExtractOp::create(
+          b, finalOp->getResult(0),
+          arith::ConstantIndexOp::create(b, 0).getResult());
       finalOp = extractOp;
     }
     for (auto value : reduction.getSavedValues()) {
-      finalOp = b.create<ArithOp>(finalOp->getResult(0), value);
+      finalOp = ArithOp::create(b, finalOp->getResult(0), value);
     }
     if (finalOp) op->replaceAllUsesWith(finalOp);
     LLVM_DEBUG(llvm::dbgs() << "Post-replacement: " << *parentOp << "\n");

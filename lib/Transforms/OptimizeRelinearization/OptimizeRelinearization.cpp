@@ -59,7 +59,7 @@ struct OptimizeRelinearization
 
       b.setInsertionPointAfter(op);
       for (Value result : op->getResults()) {
-        auto reduceOp = b.create<mgmt::RelinearizeOp>(op->getLoc(), result);
+        auto reduceOp = mgmt::RelinearizeOp::create(b, op->getLoc(), result);
         result.replaceAllUsesExcept(reduceOp.getResult(), {reduceOp});
       }
     });

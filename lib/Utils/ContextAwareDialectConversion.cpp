@@ -1479,7 +1479,7 @@ ContextAwareConversionPatternRewriterImpl::buildUnresolvedMaterialization(
   OpBuilder builder(outputTypes.front().getContext());
   builder.setInsertionPoint(ip.getBlock(), ip.getPoint());
   auto convertOp =
-      builder.create<UnrealizedConversionCastOp>(loc, outputTypes, inputs);
+      UnrealizedConversionCastOp::create(builder, loc, outputTypes, inputs);
   if (!valuesToMap.empty()) mapping.map(valuesToMap, convertOp.getResults());
   if (castOp) *castOp = convertOp;
   appendRewrite<UnresolvedMaterializationRewrite>(

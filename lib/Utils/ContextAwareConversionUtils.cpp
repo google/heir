@@ -141,8 +141,8 @@ FailureOr<Operation *> SecretGenericFuncCallConversion::matchAndRewriteInner(
   newFuncOp.setFunctionType(newFunctionType);
   newFuncOp.setSymName(llvm::formatv("{0}_secret", callee.getSymName()).str());
 
-  auto newCallOp = rewriter.create<func::CallOp>(op.getLoc(), outputTypes,
-                                                 newFuncOp.getName(), inputs);
+  auto newCallOp = func::CallOp::create(rewriter, op.getLoc(), outputTypes,
+                                        newFuncOp.getName(), inputs);
   rewriter.replaceOp(op, newCallOp);
   rewriter.eraseOp(callee);
   return newCallOp.getOperation();

@@ -84,8 +84,8 @@ struct IfToSelectConversion : OpRewritePattern<scf::IfOp> {
            llvm::enumerate(llvm::zip(thenYieldArgs, elseYieldArgs))) {
         Value trueVal = std::get<0>(it.value());
         Value falseVal = std::get<1>(it.value());
-        newResults[it.index()] = rewriter.create<arith::SelectOp>(
-            ifOp.getLoc(), cond, trueVal, falseVal);
+        newResults[it.index()] = arith::SelectOp::create(
+            rewriter, ifOp.getLoc(), cond, trueVal, falseVal);
       }
 
       rewriter.replaceOp(ifOp, newResults);

@@ -32,8 +32,8 @@ OpType recursiveProduceBalancedTree(OpBuilder &builder, Location &loc,
   // Else, split the operands in half and recursively call this function on each
   // half, creating an appropriate operation for each half.
   if (flattenedOperands.size() == 2) {
-    return builder.create<OpType>(loc, flattenedOperands[0],
-                                  flattenedOperands[1]);
+    return OpType::create(builder, loc, flattenedOperands[0],
+                          flattenedOperands[1]);
   } else if (flattenedOperands.size() == 3) {
     std::vector<Value> leftOperands;
     leftOperands.reserve(2);
@@ -42,7 +42,7 @@ OpType recursiveProduceBalancedTree(OpBuilder &builder, Location &loc,
 
     auto leftTree =
         recursiveProduceBalancedTree<OpType>(builder, loc, leftOperands);
-    return builder.create<OpType>(loc, leftTree, flattenedOperands.back());
+    return OpType::create(builder, loc, leftTree, flattenedOperands.back());
   } else {
     // split the operands in half
     int leftSize = flattenedOperands.size() / 2;
@@ -66,7 +66,7 @@ OpType recursiveProduceBalancedTree(OpBuilder &builder, Location &loc,
         recursiveProduceBalancedTree<OpType>(builder, loc, rightOperands);
 
     // create an appropriate operation for the two halves
-    return builder.create<OpType>(loc, leftTree, rightTree);
+    return OpType::create(builder, loc, leftTree, rightTree);
   }
 }
 

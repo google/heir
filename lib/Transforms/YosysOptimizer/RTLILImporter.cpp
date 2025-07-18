@@ -108,8 +108,8 @@ Value RTLILImporter::getBit(
     return retBitValues[bit.wire][bit.offset];
   }
   auto argA = getWireValue(bit.wire);
-  auto extractOp = b.create<memref::LoadOp>(
-      argA, b.create<arith::ConstantIndexOp>(bit.offset).getResult());
+  auto extractOp = memref::LoadOp::create(
+      b, argA, arith::ConstantIndexOp::create(b, bit.offset).getResult());
   return extractOp;
 }
 
@@ -263,29 +263,29 @@ func::FuncOp RTLILImporter::importModule(
             llvm::to_vector(shapedResultType.getShape());
         shape.push_back(shapedResultType.getElementTypeBitWidth());
         allocOp =
-            b.create<memref::AllocOp>(MemRefType::get(shape, b.getI1Type()));
+            memref::AllocOp::create(b, MemRefType::get(shape, b.getI1Type()));
         // Store the result bits after flattening this memref. The collapse op
         // can be folded away with --fold-memref-alias-ops.
         SmallVector<mlir::ReassociationIndices> reassociation;
         auto range = llvm::seq<unsigned>(0, shapedResultType.getRank() + 1);
         reassociation.emplace_back(range.begin(), range.end());
         auto collapseOp =
-            b.create<memref::CollapseShapeOp>(allocOp, reassociation);
+            memref::CollapseShapeOp::create(b, allocOp, reassociation);
         memRefToStore = collapseOp.getResult();
       } else {
-        allocOp = b.create<memref::AllocOp>(
-            cast<MemRefType>(getTypeForWire(b, resultWire)));
+        allocOp = memref::AllocOp::create(
+            b, cast<MemRefType>(getTypeForWire(b, resultWire)));
         memRefToStore = allocOp.getResult();
       }
       for (unsigned j = 0; j < retBits.size(); j++) {
-        b.create<memref::StoreOp>(
-            retBits[j], memRefToStore,
-            ValueRange{b.create<arith::ConstantIndexOp>(j)});
+        memref::StoreOp::create(
+            b, retBits[j], memRefToStore,
+            ValueRange{arith::ConstantIndexOp::create(b, j)});
       }
       returnValues.push_back(memRefToStore);
     }
   }
-  b.create<func::ReturnOp>(returnValues);
+  func::ReturnOp::create(b, returnValues);
 
   return function;
 }

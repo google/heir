@@ -40,7 +40,7 @@ func::FuncOp getOrCreateExternalDebugFunc(ModuleOp module, Type valueType) {
 
   ImplicitLocOpBuilder b =
       ImplicitLocOpBuilder::atBlockBegin(module.getLoc(), module.getBody());
-  auto funcOp = b.create<func::FuncOp>(funcName, debugFuncType);
+  auto funcOp = func::FuncOp::create(b, funcName, debugFuncType);
   // required for external func call
   funcOp.setPrivate();
   return funcOp;
@@ -55,8 +55,8 @@ LogicalResult insertExternalCall(secret::GenericOp op, DataFlowSolver &solver) {
   auto insertCall = [&](Value value) {
     Type valueType = value.getType();
 
-    b.create<func::CallOp>(getOrCreateExternalDebugFunc(module, valueType),
-                           ArrayRef<Value>{value});
+    func::CallOp::create(b, getOrCreateExternalDebugFunc(module, valueType),
+                         ArrayRef<Value>{value});
   };
 
   // insert for each argument

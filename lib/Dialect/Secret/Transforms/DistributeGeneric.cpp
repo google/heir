@@ -259,8 +259,8 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
           // be promoted to a secret and added to the new generic's operands if
           // the loop was yielding a secret value.
           rewriter.setInsertionPoint(clonedLoop);
-          auto newInit = rewriter.create<secret::ConcealOp>(genericOp.getLoc(),
-                                                            operand.get());
+          auto newInit = secret::ConcealOp::create(rewriter, genericOp.getLoc(),
+                                                   operand.get());
           clonedLoop->setOperand(operand.getOperandNumber(), newInit);
           blockArg.setType(operand.get().getType());
           newInitsToOperands.insert({blockArg, operand.get()});
@@ -318,9 +318,9 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
       }
 
       SmallVector<Operation *> opsToErase;
-      GenericOp newGenericOp = rewriter.create<GenericOp>(
-          clonedLoopBody.getOperations().front().getLoc(), newGenericOperands,
-          loopResultTypes,
+      GenericOp newGenericOp = GenericOp::create(
+          rewriter, clonedLoopBody.getOperations().front().getLoc(),
+          newGenericOperands, loopResultTypes,
           [&](OpBuilder &b, Location loc, ValueRange blockArguments) {
             IRMapping mp;
             for (BlockArgument blockArg : genericOp.getBody()->getArguments()) {
@@ -350,7 +350,7 @@ struct SplitGeneric : public OpRewritePattern<GenericOp> {
                  clonedLoopBody.getTerminator()->getOperands()) {
               newYieldedValues.push_back(mp.lookup(oldYieldedValue));
             }
-            b.create<YieldOp>(loc, newYieldedValues);
+            YieldOp::create(b, loc, newYieldedValues);
           });
 
       LLVM_DEBUG(genericOp->getParentOp()->emitRemark()

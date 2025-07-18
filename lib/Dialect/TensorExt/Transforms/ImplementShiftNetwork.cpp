@@ -256,7 +256,7 @@ Value createMask(TypedValue<RankedTensorType> tensor,
 
   auto denseAttr = DenseElementsAttr::get(tensor.getType(), maskAttrs);
   auto constant =
-      rewriter.create<arith::ConstantOp>(tensor.getLoc(), denseAttr);
+      arith::ConstantOp::create(rewriter, tensor.getLoc(), denseAttr);
   return constant.getResult();
 }
 
@@ -281,15 +281,15 @@ Value rotateGroup(TypedValue<RankedTensorType> tensor,
 
     Value mask = createMask(tensor, round.rotatedIndices, rewriter);
     arith::MulIOp maskOp =
-        rewriter.create<arith::MulIOp>(tensor.getLoc(), tensor, mask);
-    Value rotated = rewriter.create<tensor_ext::RotateOp>(
-        tensor.getLoc(), maskOp.getResult(),
-        rewriter.create<arith::ConstantIntOp>(
-            tensor.getLoc(), rewriter.getI32Type(), rotationAmount));
+        arith::MulIOp::create(rewriter, tensor.getLoc(), tensor, mask);
+    Value rotated = tensor_ext::RotateOp::create(
+        rewriter, tensor.getLoc(), maskOp.getResult(),
+        arith::ConstantIntOp::create(rewriter, tensor.getLoc(),
+                                     rewriter.getI32Type(), rotationAmount));
 
     if (result.has_value()) {
-      result = rewriter.create<arith::AddIOp>(tensor.getLoc(), result.value(),
-                                              rotated);
+      result = arith::AddIOp::create(rewriter, tensor.getLoc(), result.value(),
+                                     rotated);
     } else {
       result = rotated;
     }
@@ -365,7 +365,7 @@ LogicalResult convertPermuteOp(PermuteOp op,
         rotateGroup(op.getInput(), group, ciphertextSize, permKey, rewriter);
     if (result.has_value())
       result =
-          rewriter.create<arith::AddIOp>(op.getLoc(), *result, perGroupResult);
+          arith::AddIOp::create(rewriter, op.getLoc(), *result, perGroupResult);
     else
       result = perGroupResult;
   }

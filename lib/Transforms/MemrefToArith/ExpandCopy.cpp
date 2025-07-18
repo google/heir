@@ -39,21 +39,21 @@ SmallVector<affine::AffineForOp> expandWithAffineLoops(OpBuilder& builder,
   SmallVector<mlir::Value, 4> indices;
   SmallVector<affine::AffineForOp> loops;
 
-  auto zero = b.create<arith::ConstantIndexOp>(0);
+  auto zero = arith::ConstantIndexOp::create(b, 0);
   for (auto dim : memRefType.getShape()) {
     if (dim == 1) {
       // No need to create a loop for a one-dimensional index.
       indices.push_back(zero);
       continue;
     }
-    auto loop = b.create<mlir::affine::AffineForOp>(0, dim);
+    auto loop = mlir::affine::AffineForOp::create(b, 0, dim);
     b.setInsertionPointToStart(loop.getBody());
     indices.push_back(loop.getInductionVar());
     loops.push_back(loop);
   }
 
-  auto load = b.create<mlir::affine::AffineLoadOp>(copy.getSource(), indices);
-  b.create<mlir::affine::AffineStoreOp>(load, copy.getTarget(), indices);
+  auto load = mlir::affine::AffineLoadOp::create(b, copy.getSource(), indices);
+  mlir::affine::AffineStoreOp::create(b, load, copy.getTarget(), indices);
   return loops;
 }
 

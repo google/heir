@@ -145,7 +145,7 @@ FailureOr<AssignLayoutOp> LayoutPropagation::assignDefaultLayoutForOpOperand(
   }
   LayoutAttr layoutAttr = layout.value();
   AssignLayoutOp assignLayoutOp =
-      builder.create<AssignLayoutOp>(op->getLoc(), operand, layoutAttr);
+      AssignLayoutOp::create(builder, op->getLoc(), operand, layoutAttr);
   setAttributeAssociatedWith(assignLayoutOp.getResult(),
                              tensor_ext::TensorExtDialect::kLayoutAttrName,
                              layoutAttr);
@@ -597,8 +597,8 @@ LogicalResult LayoutPropagation::visitOperation(MatvecOp op) {
     LayoutAttr squatDiagonalLayoutAttr = LayoutAttr::get(
         getDiagonalLayoutMap(matrixType, ciphertextSemanticShape), alignment);
 
-    ConvertLayoutOp convertLayoutOp = builder.create<ConvertLayoutOp>(
-        op->getLoc(), matrix, matrixLayout, squatDiagonalLayoutAttr);
+    ConvertLayoutOp convertLayoutOp = ConvertLayoutOp::create(
+        builder, op->getLoc(), matrix, matrixLayout, squatDiagonalLayoutAttr);
     convertLayoutOp->setAttr(tensor_ext::TensorExtDialect::kLayoutAttrName,
                              squatDiagonalLayoutAttr);
     Value toReplace = convertLayoutOp.getResult();
@@ -825,8 +825,9 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(Operation *op) {
 
           if (sourceLayout != targetLayout) {
             builder.setInsertionPoint(op);
-            ConvertLayoutOp convertOp = builder.create<ConvertLayoutOp>(
-                op->getLoc(), opOperand.get(), sourceLayout, targetLayout);
+            ConvertLayoutOp convertOp =
+                ConvertLayoutOp::create(builder, op->getLoc(), opOperand.get(),
+                                        sourceLayout, targetLayout);
 
             // Layout of the result is the same as the target layout of the
             // conversion. Mostly this is done for consistency: all ops have an
@@ -851,8 +852,8 @@ void LayoutPropagation::rectifyIncompatibleOperandLayouts(ReduceOp op) {
         convertLayoutForReduce(inputLayout, op.getDimensions());
 
     if (reducedInputLayout != initLayout) {
-      ConvertLayoutOp convertOp = builder.create<ConvertLayoutOp>(
-          op->getLoc(), init, initLayout, reducedInputLayout);
+      ConvertLayoutOp convertOp = ConvertLayoutOp::create(
+          builder, op->getLoc(), init, initLayout, reducedInputLayout);
       Value toReplace = convertOp.getResult();
       builder.replaceUsesWithIf(init, toReplace, [&](OpOperand &operand) {
         return operand.getOwner() == op;

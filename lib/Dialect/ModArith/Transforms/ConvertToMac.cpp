@@ -38,7 +38,8 @@ struct FindMac : public OpRewritePattern<mod_arith::AddOp> {
       addOperand = op.getLhs();
     }
 
-    auto result = b.create<MacOp>(parent.getLhs(), parent.getRhs(), addOperand);
+    auto result =
+        MacOp::create(b, parent.getLhs(), parent.getRhs(), addOperand);
 
     rewriter.replaceOp(op, result);
 
