@@ -50,13 +50,35 @@ def development_openfhe_config() -> OpenFHEConfig:
 
   return OpenFHEConfig(
       include_dirs=[
-          str(repo_root / "external" / "openfhe"),
+          str(repo_root / "bazel-heir" / "external" / "openfhe"),
           str(
-              repo_root / "external" / "openfhe" / "src" / "binfhe" / "include"
+              repo_root
+              / "bazel-heir"
+              / "external"
+              / "openfhe"
+              / "src"
+              / "binfhe"
+              / "include"
           ),
-          str(repo_root / "external" / "openfhe" / "src" / "core" / "include"),
-          str(repo_root / "external" / "openfhe" / "src" / "pke" / "include"),
-          str(repo_root / "external" / "cereal" / "include"),
+          str(
+              repo_root
+              / "bazel-heir"
+              / "external"
+              / "openfhe"
+              / "src"
+              / "core"
+              / "include"
+          ),
+          str(
+              repo_root
+              / "bazel-heir"
+              / "external"
+              / "openfhe"
+              / "src"
+              / "pke"
+              / "include"
+          ),
+          str(repo_root / "bazel-heir" / "external" / "cereal" / "include"),
       ],
       include_type="source-relative",
       lib_dir=str(repo_root / "bazel-bin" / "external" / "openfhe"),
