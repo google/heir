@@ -139,7 +139,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
     auto schemeParamAttr = getOperation()->getAttrOfType<bgv::SchemeParamAttr>(
         bgv::BGVDialect::kSchemeParamAttrName);
     if (!schemeParamAttr) {
-      getOperation()->emitOpError() << "No scheme param found.\n";
+      emitError(getOperation()->getLoc()) << "No scheme param found.\n";
       signalPassFailure();
       return;
     }
@@ -172,7 +172,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
 
     if (failed(
             validate<NoiseAnalysis<NoiseModel>>(&solver, schemeParam, model))) {
-      getOperation()->emitOpError() << "Noise validation failed.\n";
+      emitError(getOperation()->getLoc()) << "Noise validation failed.\n";
       signalPassFailure();
     }
   }
@@ -207,7 +207,7 @@ struct ValidateNoise : impl::ValidateNoiseBase<ValidateNoise> {
       bfv::NoiseCanEmbModel model;
       run<bfv::NoiseCanEmbModel>(model);
     } else {
-      getOperation()->emitOpError() << "Unknown noise model.\n";
+      emitError(getOperation()->getLoc()) << "Unknown noise model.\n";
       signalPassFailure();
       return;
     }

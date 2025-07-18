@@ -224,7 +224,7 @@ struct GenerateParamBGV : impl::GenerateParamBGVBase<GenerateParamBGV> {
       bgv::NoiseCanEmbModel model;
       run<bgv::NoiseCanEmbModel>(model);
     } else {
-      getOperation()->emitWarning() << "Unknown noise model.\n";
+      emitWarning(getOperation()->getLoc()) << "Unknown noise model.\n";
       generateFallbackParam();
     }
   }
